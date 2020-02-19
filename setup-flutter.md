@@ -24,9 +24,7 @@ tar xvzf replicache-flutter-sdk.tar.gz
 
 #### 3. Generate an Auth Token
 
-```bash
-TODO: some bash
-````
+TODO: Do we even need an auth token? It would be boss if somehow the app's own auth mechanism could be leveraged.
 
 #### 4. Instantiate Replicache
 

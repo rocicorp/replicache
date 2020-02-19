@@ -102,6 +102,7 @@ Congratulations — you are done 🎉. Time for a cup of coffee.
 
 - About IDs
 - Conflict Resolution
+- Batch Writes
 - Review the [Flutter API](https://replicate.to/doc/flutter/)
 
 ## More questions?

@@ -1,23 +1,3 @@
-# Table of Contents
-
-- [Spinner-Free Applications](#spinner-free-applications)
-- [Introducing Replicache](#introducing-replicache)
-- [System Overview](#system-overview)
-  * [Data Model](#data-model)
-  * [The Big Picture](#the-big-picture)
-- [Detailed Design](#detailed-design)
-  * [Replicache Client](#replicache-client)
-    + [Commits](#commits)
-    + [API Sketch](#api-sketch)
-  * [Replicache Server](#replicache-server)
-  * [Data Layer](#data-layer)
-    + [Generality](#generality)
-- [Data Flow](#data-flow)
-  * [Sync](#sync)
-  * [Mutations outside the client](#mutations-outside-the-client)
-  * [Conflicts](#conflicts)
-- [Constraints](#constraints)
-
 # Spinner-Free Applications
 
 "[Offline-First](https://www.google.com/search?q=offline+first)" describes a client/server architecture where
@@ -28,38 +8,27 @@ These applications are highly desired by product teams and users because they ar
 reliable than applications that are directly dependent upon servers. By using a local database as a buffer, offline-first
 applications are instantaneously responsive and reliable in any network conditions.
 
-Unfortunately, offline-first applications are also really hard to build. Bidirectional
-sync is a famously difficult problem, and one which has eluded satisfying general
-solutions. Existing attempts to build general solutions (Apple CloudKit, Android Sync, Google Cloud Firestore, Realm, PouchDB) all have one or more of the following serious problems:
-
-* **Non-Convergence.** Many solutions do not guarantee that clients end up with a view of the state that is consistent with the server. It is up to developers to carefully construct a patch to send to clients that will bring them into the correct state. Client divergence is common and difficult to detect or fix.
-* **Manual Conflict Resolution.** Consult the [Android Sync](http://www.androiddocs.com/training/cloudsave/conflict-res.html) or [PouchDB](https://pouchdb.com/guides/conflicts.html) docs for a taste of how difficult this is for even simple cases. Every single pair of operations in the application must be considered for conflicts, and the resulting conflict resolution code needs to be kept up to date as the application evolves. Developers are also responsible for ensuring the resulting merge is equivalent on all devices, otherwise the application ends up [split-brained](https://en.wikipedia.org/wiki/Split-brain_(computing)).
-* **No Atomic Transactions.** Some solutions claim automatic conflict resolution, but lack atomic transactions. Without transactions, automatic merge means that any two sequences of writes might interleave. This is analogous to multithreaded programming without locks.
-* **Difficult Integration with Existing Applications.** Some solutions effectively require a full committment to a non-standard or proprietary backend database or system design, which is not tractable for existing systems, and risky even for new systems.
-
-For these reasons, existing sync solutions are often not practical options for application developers, leading them
-to develop their own sync protocol at the application layer if they want an offline-first app. Given how expensive and risky this is, most applications delay offline-first until the business is very large and successful. Even then, many attempts fail.
+Unfortunately, offline-first applications are also really hard to build. Many previous companies and open source projects
+have sought to provide an easy framework for buiding offline-first applications, but for a variety of reasons none have
+succeeded.
 
 # Introducing Replicache
 
-Replicache dramatically reduces the difficulty of building offline-first applications. Replicache's goals are:
-1. a truly offline-first programming model that is natural and easy to reason about
-1. maximize compatability with existing application infrastructure and minimize the work to integrate
+Replicache is a client-side database and companion web service that together make it easy to build offline-first applications.
 
-The key features that contribute to Replicant's leap in usability are:
+The key features that drive Replicache's increased usability:
 
-* **Easy Integration**: Replicache runs alongside existing application infrastructure. Replicache provides bidirectional conflict-free sync between clients and servers; it does not take ownership of the data. This makes it very easy to adopt: you can try it for just a small piece of functionality, or a small slice of users, while leaving the rest of your application the same.
-* **Standard Data Model**: The Replicache data model is a standard document database. From an API perspective, it's
-very similar to Firestore, MongoDB, Couchbase, FaunaDB, and many others. You don't need to learn anything new, 
-and can build arbitrarily complex data structures on this primitive that are still conflict-free.
-* **Guaranteed Convegence**: The existing application infrastructure is the single source of truth and Replicache guarantees that after a client sync the client's state will exactly match that of the server. Developers do not need to manually track changes or construct diffs on either the client or the server.
-* **Transactions**: Replicache provides full [ACID](https://en.wikipedia.org/wiki/ACID_(computer_science)) multikey read/write transactions. On the server side, transactions are implemented as REST or GraphQL APIs. On the client, transactions are implemented as deterministic programmatic functions, which are executed serially and isolated from each other.
-* **Much Easier Conflict-Resolution**: Replicache is a [Convergent Causal Consistent](https://jepsen.io/consistency/models/causal) system: after synchronization, transactions are guaranteed to have run in the same order on all nodes, resulting in the same database state. This feature, combined with transaction atomicity,
-makes conflict resolution much easier. Conflicts do still happen, but in many cases resolution is a natural side-effect of serialized atomic transactions. In the remaining cases, reasoning about conflicts is made far simpler. These claims have been reviewed by independent Distributed Systems expert Kyle Kingsbury of Jepsen. See [Jepsen Summary](jepsen-summary.md) and [Jepsen Article](jepsen-article.pdf).
+* **Easy Integration**: Replicache runs alongside your existing application infrastructure. You keep your existing server-side stack and client-side frameworks. Replicache doesn't take ownership of data, and it is not the source of truth. Its only job is to provide bidirectional sync between your clients and your servers. This makes it very easy to adopt: you can try it for just a small piece of functionality, or a small slice of users, while leaving the rest of your application the same.
+* **The Offline View**: To use Replicache, developers define an *offline view* for each user, which is the subset of data that should exist locally on clients for that user. Replicache is responsible for keeping clients up to date with this view, by periodically calcluating and pushing minimal diffs. Developers don't need to manually track changes, or calculate deltas.
+* **Transactional Conflict Resolution**: Conflicts are an unavoidable part of offline-first systems, but contrary to popular
+belief they don't need to be exceptionally painful. Part of what sometimes makes conflict resolution difficult is when developers are asked to to merge the *effects* of forks. Reasoning about merging the effects of widely divergent histories is almost impossible. Instead, Replicache implements merge by sending your backend a series of potentially delayed but otherwise normal RPCs. It is your server's responsibility to do something *reasonable* with these delayed RPCs. For many cases, just executing them normally yields the correct "merge". For others, something fancier is needed. In any case, you are in control on the server side and due to the offline view, clients are guaranteed to snap into alignment with whatever you decide.
+* **Causal+ Consistency**: Consistency guarantees make distributed systems easier to reason about and prevent confusing user-visible data anomalies. When properly integrated with your backend, Replicache provides for [Causal+ Consistency](https://jepsen.io/consistency/models/causal) across the entire system. This means that transactions will be applied atomically, and in the same order, across all clients. Further, all clients will see an order of transactions that was compatible with the actual causal history. Basically, you're not going to see weirdly dropped or reordered operations due to sync.
+
+These claims have been reviewed by independent Distributed Systems expert Kyle Kingsbury of Jepsen. See [Jepsen Summary](jepsen-summary.md) and [Jepsen Article](jepsen-article.pdf).
 
 # System Overview
 
-Replicache is a transaction synchronization, scheduling, and execution layer that runs in a mobile app and alongside existing server-side infrastructure. It takes a page from [academic](https://www.microsoft.com/en-us/research/publication/unbundling-transaction-services-in-the-cloud/) [research](http://cs.yale.edu/homes/thomson/publications/calvin-sigmod12.pdf) that separates the transaction layer from the data or physical storage layer. The piece in the mobile app is the *client* and the existing server-side infrastructure is the *data layer*. The data layer could be as simple as a document database or could be a massive distributed system -- replicache doesn't care.
+Replicache is an embedded cache that runs inside a mobile app, along with a companion web service that runs alongside existing server-side infrastructure. The piece in the mobile app is the *client*. The companion web service is called the *diff-server*. And the existing server-side infrastructure is the *data layer*. The data layer could be as simple as a document database or could be a massive distributed system -- replicache doesn't care.
 
 ![Diagram](./diagram.png)
 

@@ -187,6 +187,12 @@ Conflicts are a reality of disconnected operation. There is no built in conflict
 
 We believe the Replicache model for dealing with conflicts — to have defensively written, programmatic transaction logic on the server that replays client operations on top of the latest state — leads to fewer actual conflicts in practice. Our experience is that it preserves expressiveness of the data model and is far easier to reason about than other general models for avoiding or minimizing conflicts.
 
+## Encryption
+
+It is possible for users of the Diff Server to encrypt data such that Rocicorp cannot read it. Since the Client View is a key/value store, users could encrypt the values using the key that Rocicorp doesn't have (but which clients and the Data Layer do).
+
+If done in a simple way, this could reduce the granularity (increases the size) of the diffs that Diff Server could produce, but there is nothing stopping users from being arbitrarily fancy with the granularity at which they encrypt data. In practive, we think a good starting point for users interested in this is to encrypt all values and accept the smallish resulting increase in diff sizes.
+
 # Constraints
 
 **Data size** A primary constraint is the size of user data. In fetching all a user's data from the data layer during each pull, Replicache makes an explicit tradeoff of bandwidth for ease of implementation and integration. For this reason we are initially limiting user data to 20MB per user and recommend the Replicache server be deployed as close to the data layer as possible (e.g., in the same Availability Zone).

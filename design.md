@@ -24,7 +24,7 @@ The key features that drive Replicache's increased usability:
 * **Easy Integration**: Replicache runs alongside your existing application infrastructure. You keep your existing server-side stack and client-side frameworks. Replicache doesn't take ownership of data, and is not the source of truth. Its only job is to provide bidirectional sync between your clients and your servers. This makes it easy to adopt: you can try it for just a small piece of functionality, or a small slice of users, while leaving the rest of your application the same.
 * **The Client View**: To use Replicache, developers define a *client view* for each user, the data replicache keeps cached on clients of that user. Replicache keeps clients up to date with this view by periodically updating them with a minimal diff from the server. Developers don't need to worry about the minutae of getting the right changes to each client - they simply return the user's canonical data to replicache and replicache brings clients up to date with it.
 * **Transactional Conflict Resolution**: Conflicts are an unavoidable part of offline-first systems, but contrary to popular
-belief they don't need to be exceptionally painful. One thing that makes conflict resolution difficult is when developers are asked to to merge the *effects* of offline changes. If all you have is the *effect* of a series of changes, it can be difficult or impossible to reason about what the correct merge is. A better strategy is to capture the *intent* of changes. Replicache embraces this idea and implements merge by *replaying* local operations atop the latest, newly received server-side state. Changes are applied locally instantaneously and your backend receives a series of delayed but otherwise normal operations. It's your responsibility to handle these delayed operations reasonably. For many cases, just handling them normally yields the correct result. Sometimes something fancier is needed. Whatever the result of the operations on the server, the Client View guarantees that all clients snap into alignment on next sync.
+belief they don't need to be exceptionally painful. One thing that makes conflict resolution difficult is when developers are asked to to merge the *effects* of offline changes. If all you have is the *effect* of a series of changes, it can be difficult or impossible to reason about what the correct merge is. A better strategy is to capture the *intent* of changes. Replicache embraces this idea and implements merge by *replaying* client operations atop the latest, server-side state. Changes are applied locally instantaneously, and later your backend receives a series of delayed but otherwise normal requests. It's your responsibility to handle these delayed requests reasonably. For many cases, just handling them normally yields the correct result. Sometimes something fancier is needed. Whatever the result of the operations on the server, the Client View guarantees that all clients snap into alignment on next sync.
 * **Causal+ Consistency**: [Consistency guarantees](https://jepsen.io/consistency) make distributed systems easier to reason about and prevent confusing user-visible data anomalies. When properly integrated with your backend, Replicache provides for [Causal+ Consistency](https://jepsen.io/consistency/models/causal) across the entire system. This means that transactions are guaranteed to be applied *atomically*, in the *same order*, *across all clients*. Further, all clients will see an order of transactions that is compatible with *causal history*. Basically: all clients will end up seeing the same thing, and you're not going to have anly weirdly reordered or dropped messages. We have worked with independent Distributed Systems expert Kyle Kingsbury of Jepsen to validate these properties of our design. See [Jepsen Summary](jepsen-summary.md) and [Jepsen Article](jepsen-article.pdf).
 
 # System Overview
@@ -55,6 +55,8 @@ The Replicache Client maintains:
   * Versioned meaning that we can go back to any previous version 
   * Versioned also meaning that we can _fork_ from a version, apply many transactions, then reveal this new version atomically (like git branch and merge)
   * Transactional meaning that we can read and write many keys atomically
+  
+Additionally, in memory, user code provides a mapping of named *mutators*. A mutator is just a function that implements some local mutation operation.
 
 ### Commits
 
@@ -63,7 +65,7 @@ Each version of the user's state is represented as a _commit_ which has:
 * A *Checksum* over the state
 
 Commits come in two flavors, those from the client and those from the server:
-* *Pending commits* represent a change made on the client that is not yet known to be applied on the server. Pending commits include the transaction *name* and *arguments* that caused them, so that they may be replayed on top of new confirmed commits from the server.
+* *Pending commits* represent a change made on the client that is not yet known to be applied on the server. Pending commits include the *mutator name* and *arguments* that caused them, so that the mutator may be replayed later on top of new confirmed commits from the server if necessary.
 * *Confirmed commits* represent a state update received from the server. They carry a *State ID* uniquely identifying this version of the user's state.
 
 ### API Sketch
@@ -71,20 +73,44 @@ Commits come in two flavors, those from the client and those from the server:
 This API sketch is in Dart, for Flutter bindings. A similar API would exist for every client environment we support.
 
 ```dart
-class Replicache {
-  Replicache(AuthOpts authOpts)
-  
-  // Read
+interface KVReader {
   bool has(String key)
   JSON get(String key)
   List<Entry> scan(ScanOptions options)
+}
 
-  // Transaction registration and invocation
-  register(String name, Function<JSON>(Transaction tx, List<JSON> args) handler);
-  JSON exec(String name, List<JSON>);
+interface KVWriteer {
+  void put(String key, JSON value);
+}
+
+interface KVStore implements KVReader, KVWriter {
+}
+
+class Replicache implements KVRead {
+  Replicache(AuthOpts authOpts)
+ 
+  // Read API comes through KVRead interface
+ 
+  // Write API - you can only put() inside a mutator.
+  registerLocalMutatator(String name, Function<JSON>(KVStore kv, List<JSON> args) handler);
+  mutate(LocalMutation local, RemoteMutation remote);
 
   // Subscriptions
   Stream<JSON> subscribe(Function handler);
+}
+
+// Describes a local mutator to call and the arguments to pass it.
+struct LocalMutation {
+  String name;
+  JSON args;
+}
+
+// Describes an invocation on a remote URL.
+struct RemoteMutation {
+  String path;
+  
+  // Encoded as FORMURLEncoded, JSON, or raw data respectively.
+  Map<String,String>|JSON|[]byte payload;
 }
 
 struct Entry {
@@ -145,11 +171,11 @@ The client tracks state changes in a git-like fashion. The Replicache client kee
 
 ## Sync
 
-In order to sync, the client first calls Push on the Data Layer, passing all its pending transactions. The Data Layer executes the pending transactions serially. When the Data Layer executes a transaction it increments the client's latest confirmed transaction ordinal as part of the same transaction. If a transaction's ordinal is less than or equal to the client's last confirmed transaction ordinal or more than one more, the transaction is ignored. 
+In order to sync, the client first calls Push on the Data Layer, passing all its pending remote mutations. The Data Layer executes the pending mutations serially. When the Data Layer executes a mutation it increments the client's latest confirmed transaction ordinal as part of the same transaction. If a transaction's ordinal is less than or equal to the client's last confirmed transaction ordinal or more than one more, the mutation is ignored. 
 
 The client then calls Pull on the Diff Server, passing the id of the latest server state it saw (this state id is found in its most recent confirmed commit). The Diff Server retrieves the client's last transaction ordinal and the *entire* state for the user from the Data Layer. The Diff Server then checks its history to see if it has a cached copy of the state the client has (as identified by state id). If so the new and old states are diff'd and if there is a delta a new state id is assigned, the delta is returned to the client, and the new state stored in the Diff Server's history by state id. If the server doesn't have a copy of the client's data, the full user state is returned. In all cases, the client's last confirmed transaction ordinal is returned. 
 
-If Pull returns a state update to the client, the client applies a state update as described above: it forks from the previous confirmed commit, applies the state update and any pending transactions with ordinals greater than the last confirmed transaction ordinal just received, and reveals the new state by setting head to the end of the new branch. The client can now forget about all transactions that have been confirmed, that is, all pending transactions with ordinals less than or equal to the last confirmed by the server.
+If Pull returns a state update to the client, the client applies a state update as described above: it forks from the previous confirmed commit, applies the state update and any pending local mutations with ordinals greater than the last confirmed transaction ordinal just received, and reveals the new state by setting head to the end of the new branch. The client can now forget about all pending mutations that have been confirmed, that is, all pending mutations with transaction ordinals less than or equal to the last confirmed by the server.
 
 ## Mutations outside the client
 

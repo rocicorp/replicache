@@ -1,5 +1,7 @@
 # Flutter Client Setup
 
+## Setup
+
 #### 1. Get the SDK
 
 Download the latest [replicant-flutter-sdk.tar.gz](https://github.com/rocicorp/replicache-flutter-sdk/releases), then unzip it.
@@ -33,7 +35,7 @@ Any changes discovered at the offline view will be sent as deltas to the client.
 
 You can manually trigger a sync (e.g., in response to a server push) with the `sync()` method.
 
-#### 4. Read Data
+## Read Data
 
 ```dart
 let todo = rep.get(id);
@@ -57,7 +59,7 @@ stream.when((result) {
 
 Replicache automatically re-runs the subscription function whenever any dependent data changes in the cache.
 
-#### 5. Write Data
+## Write Data
 
 You write data to Replicache by invoking _transactions_, which are just Dart functions registered under a name:
 

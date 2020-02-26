@@ -22,11 +22,7 @@ tar xvzf replicache-flutter-sdk.tar.gz
 ...
 ```
 
-#### 3. Generate an Auth Token
-
-TODO: Do we even need an auth token? It would be boss if somehow the app's own auth mechanism could be leveraged. I keep going around and around about this and it's hurting my brain.
-
-#### 4. Instantiate Replicache
+#### 3. Instantiate Replicache
 
 ```
 var rep = Replicache('https://serve.replicache.dev', authToken)
@@ -37,7 +33,7 @@ Any changes discovered at the offline view will be sent as deltas to the client.
 
 You can manually trigger a sync (e.g., in response to a server push) with the `sync()` method.
 
-#### 5. Read Data
+#### 4. Read Data
 
 ```dart
 let todo = rep.get(id);
@@ -61,7 +57,7 @@ stream.when((result) {
 
 Replicache automatically re-runs the subscription function whenever any dependent data changes in the cache.
 
-#### 6. Write Data
+#### 5. Write Data
 
 You write data to Replicache by invoking _transactions_, which are just Dart functions registered under a name:
 
@@ -89,18 +85,11 @@ with the server, Replicache will discard the local write and re-run any newer pe
 ***NOTE:*** It is important that both read and write transactions are *pure*. They can only depend on their arguments
 and the `rep` object. Do not use functions such as `random()` or `now()` inside Replicache transactions.
 
-***NOTE 2:*** The server-side endpoints Replicache invokes must be *idempotent*. You can pass your own idempotency token
-as part of the payload, but Replicache also provides an `X-Client-Version` header which can be used for this purpose.
-
-## That's it!
-
-Congratulations — you are done 🎉. Time for a cup of coffee.
+***NOTE 2:*** IDs for created data **MUST** be created on the client side so that they can be consistent across the entire lifetime of the object.
 
 ## Next steps
 
-- About IDs
 - Conflict Resolution
-- Batch Writes
 - Review the [Flutter API](https://replicate.to/doc/flutter/)
 
 ## More questions?

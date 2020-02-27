@@ -29,7 +29,7 @@ belief they don't need to be exceptionally painful. One thing that makes conflic
 
 # System Overview
 
-Replicache is an embedded cache that runs inside a mobile app, along with a companion web service that runs alongside existing server-side infrastructure. The piece in the mobile app is the *client*. The companion web service is called the *Replicache Server*. And the existing server-side infrastructure is the *data layer*. The data layer could be as simple as a document database or could be a massive distributed system -- replicache doesn't care.
+Replicache is an embedded cache that runs inside a mobile app, along with a companion web service that runs alongside existing server-side infrastructure. The piece in the mobile app is the *client*. The companion web service is called the *Diff Server*. And the existing server-side infrastructure is the *data layer*. The data layer could be as simple as a document database or could be a massive distributed system -- replicache doesn't care.
 
 ![Diagram](./diagram.png)
 
@@ -195,7 +195,7 @@ If done in a simple way, this could reduce the granularity (increase the size) o
 
 # Constraints
 
-**Data size** A primary constraint is the size of user data. In fetching all a user's data from the data layer during each pull, Replicache makes an explicit tradeoff of bandwidth for ease of implementation and integration. For this reason we are initially limiting user data to 20MB per user and recommend the Replicache server be deployed as close to the data layer as possible (e.g., in the same Availability Zone).
+**Data size** A primary constraint is the size of user data. In fetching all a user's data from the data layer during each pull, Replicache makes an explicit tradeoff of bandwidth for ease of implementation and integration. For this reason we are initially limiting user data to 20MB per user and recommend the Diff Server be deployed as close to the data layer as possible (e.g., in the same Availability Zone).
 
 A second concern with data size is that it might be infeasible to complete large state update downloads on unreliable or slow connections. We can imagine a variety of potential solutions to this problem but for simplicity's sake we are punting on the problem for now. (The size constraint above helps here as well.)
 

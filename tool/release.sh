@@ -51,6 +51,7 @@ tool/build.sh
 cp -R build/replicache-flutter-sdk ../out/
 cd ..
 
-tar -czvf replicache-sdk.tar.gz out
+mv out replicache-sdk
+tar -czvf replicache-sdk.tar.gz replicache-sdk
 
 cd $ORIG

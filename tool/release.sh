@@ -48,7 +48,7 @@ git reset --hard $FLUTTER_VERSION
 cp -R ../replicache-client/build/Repm.framework ios/
 cp ../replicache-client/build/repm.aar android/
 tool/build.sh
-cp -R build/replicache-flutter-sdk ../out/
+cp -R build/replicache-flutter-sdk ../out/flutter
 cd ..
 
 mv out replicache-sdk

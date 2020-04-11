@@ -275,7 +275,7 @@ The response format matches the schema:
         "type": "object",
         "properties": {
           "id": {
-            "type: "int",
+            "type": "int",
             "minimium": 0,
           },
           "result": {
@@ -288,7 +288,7 @@ The response format matches the schema:
         "required": ["id", "result", "message"]
       }
     }
-  }
+  },
   "required": ["mutations"]
 ```
 

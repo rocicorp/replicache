@@ -185,9 +185,9 @@ There is nothing in the design that requires that changes to user data must come
 
 Conflicts are an unavoidable part of disconnected systems, but they don't need to be exceptionally painful. 
 
-A common, but challenging, way to deal with conflicts is to attempt to merge the *effects* of offline changes. But if all you have are the effects of two forks in history, it can be difficult or impossible to reason about what the correct merge is.
+A common initial approach to conflict resolution is to attempt to merge the *effects* of divergent forks. This doesn't work well because if all you have are the effects of two forks, it can be difficult or impossible to reason about what the correct merge is.
 
-Imagine for example a simple database consisting of only a single integer value set to the value `1`. A client goes offline for awhile and through a series of changes, ends up with the value `2`. Meanwhile the server value goes through a series of changes and ends at `0`:
+Imagine a simple database consisting of only a single integer set to the value `1`. A client goes offline for awhile and through a series of changes, ends up with the value `2`. Meanwhile the server value goes through a series of changes and ends at `0`:
 
 ```
 ... - 1 - ... 0 <- server

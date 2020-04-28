@@ -1,6 +1,10 @@
 # Replicache Quick Start
 
-This document walks you through getting [Replicache](https://replicache.dev) integrated with your existing backend in a basic way. It should take a few hours to a day, depending on the complexity of your system.
+This document walks you through a simple [Replicache](https://replicache.dev) integration. Specifically, we're going to be building an offline-first Todo app. You can use this as a basis for adding Replicache to your own service.
+
+Though simple, this sample app includes the main challenges common to SaaS applications that want to add offline-first: it's a multitenant web service, where users are authenticated and can share data with each other. It's already written in a classic JSON/REST architecture that we don't want to change, and it has its own backend storage that needs to remain authoratative. 
+
+This walkthrough will show how Replicache makes it easy to add offline-first to these types of apps. It should take a few hours to work through, and another half day to a day or so to start to apply to your own system.
 
 Questions? Comments? We'd love to help you evaluate Replicache — [Join us on Slack](https://join.slack.com/t/rocicorp/shared_invite/zt-dcez2xsi-nAhW1Lt~32Y3~~y54pMV0g). 
 You can also refer to our fully-functional [TODO sample application](https://github.com/rocicorp/replicache-sample-todo).
@@ -9,9 +13,9 @@ You can also refer to our fully-functional [TODO sample application](https://git
 
 # Overview
 
-To integrate Replicache into an existing service, you're gonna make changes on both the client and the server.
-
 ![Picture of Replicache Architecture](diagram.png)
+
+Replicache is a per-user cache that sits between your backend and client. To integrate Replicache, you will make changes to both your backend and your client.
 
 # Client Side
 
@@ -80,7 +84,11 @@ The key/value pairs you return are up to you — Replicache just makes sure they
 
 #### Authentication
 
-Most applications return a Client View that is specific to the calling user. Replicache supports sending user credentials through the standard `Authorization` HTTP header.
+Most applications return a Client View that is specific to the calling user. Replicache supports sending user credentials through the standard `Authorization` HTTP header. If authorization fails, the Client View should return HTTP 401 (Unauthorized). The Replicache client will prompt user code to reauthenticate in that case.
+
+#### Errors
+
+All responses other than HTTP 200 with a valid JSON Client View and HTTP 401 are treated as errors by the Diff Server. The Client View response is ignored and the app is sent the last known state instead.
 
 ### Step 3: Test Downstream Sync
 
@@ -101,39 +109,7 @@ curl -H "Authorization:sandbox" -d '{"clientID":"c1", "baseStateID":"00000000000
 http://localhost:7001/pull
 ```
 
-The payload of `pull` must match the JSON Schema:
-
-```jsonc
-{
-  "type": "object",
-  "properties": {
-    // The clientID is a string that uniquely identifies a client device that is syncing via Replicache
-    // within a single account. You can specify any client ID you want while testing.
-    "clientID": {
-      "type": "string",
-      "regex": "[a-zA-Z0-9\\-_/]+"
-    },
-    // The baseStateID is the last state ID the requesting client has. diff-server will return a diff
-    // with respect to this state.
-    "baseStateID": {
-      "type": "string"
-    },
-    // The checksum of baseStateID. diff-server checks that this checksum matches its records, and only
-    // returns an incremental diff if so.
-    "checksum": {
-      "type": "string"
-    },
-    // The "Authorization" HTTP Header diff-server will send with the request to clientView. Use this
-    // to authenticate the requesting user of your service.
-    "clientViewAuth": {
-      "type": "string"
-    }
-  },
-  "required": ["clientID", "baseStateID", "checksum"]
-}
-```
-
-#### Incremental Sync Example
+#### Example
 
 Here's a complete example of an initial sync followed by an incremental sync against our [sample TODO app](https://github.com/rocicorp/replicache-sample-todo):
 

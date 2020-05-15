@@ -5,7 +5,7 @@ the application reads and writes to a local database on the device, and synchron
 there is connectivity.
 
 These applications are highly desired by product teams and users because they are so much more responsive and
-reliable than applications that are directly dependent upon servers. By using a local database as a buffer, offline-first
+reliable than applications that are directly dependent upon servers. By using a local database, offline-first
 applications are instantaneously responsive and reliable in any network conditions.
 
 Unfortunately, offline-first applications are also really hard to build. Many previous companies and open source projects
@@ -35,11 +35,11 @@ Replicache is an embedded cache that runs inside a mobile app, along with a comp
 
 ## Data Model
 
-Replicache synchronizes updates to per-user *state* across an arbitrary number of clients. The state is a sorted map of key/value pairs. Keys are byte strings, values are JSON. The canonical state fetched from the server is also known as the *client view*. 
+Replicache synchronizes updates to per-user *state* across an arbitrary number of clients. The state is a sorted map of key/value pairs. Keys are strings, values are JSON. The canonical state fetched from the server is also known as the *client view*. 
 
 ## The Big Picture
 
-The Replicache client maintains a local cache of the user's state against which the application runs read and write transactions. Both read and write transactions run immediately against the local state and write transactions are additionally queued as *pending* application on the server. Periodically the client *syncs*: pushing pending transactions to the data layer, then pulling updated state from the diff sever. Transactions flow upstream, state changes flow downstream.
+The Replicache client maintains a local cache of the user's state against which the application runs read and write transactions (often referred to as *mutations*). Both read and write transactions run immediately against the local state and mutations are additionally queued as *pending* application on the server. Periodically the client *syncs*: pushing pending mutations to the data layer, then pulling updated state from the diff sever. Mutations flow upstream, state changes flow downstream.
 
 A key feature that makes Replicache flexible and easy to adopt is that Replicache does not take ownership of the data. The data layer owns the data and is the source of truth. Replicache runs alongside an existing data layer and requires only minimal changes to it. Processes that Replicache knows nothing about can mutate state in the data layer and Replicache clients will converge on the data layer's canonical state and correctly apply client changes on top of it.
 
@@ -49,14 +49,14 @@ A key feature that makes Replicache flexible and easy to adopt is that Replicach
 
 The Replicache Client maintains:
 
-* The client ID, a unique identifier for this client
-* The next transaction ordinal. Write transactions originating on a client are uniquely identified and ordered by an ordinal which increases sequentially. This ordinal serves as an idempotency token for the data layer, and is used to determine which transactions the server has confirmed.
+* The ClientID, a unique identifier for this client
+* The LastMutationID. Write transactions originating on a client are uniquely identified and ordered by an ordinal which increases sequentially. This ordinal serves as an idempotency token for the data layer, and is used to determine which transactions the server has applied.
 * A versioned, transactional, deterministically iterable key/value store that keeps the user's state
   * Versioned meaning that we can go back to any previous version 
   * Versioned also meaning that we can _fork_ from a version, apply many transactions, then reveal this new version atomically (like git branch and merge)
   * Transactional meaning that we can read and write many keys atomically
   
-Additionally, in memory, user code provides a mapping of named *mutators*. A mutator is just a function that implements some local mutation operation.
+Additionally, in memory, user code provides a mapping of named *mutators*. A mutator is just a function that implements a write transaction, a local mutation operation.
 
 ### Commits
 
@@ -65,8 +65,8 @@ Each version of the user's state is represented as a _commit_ which has:
 * A *Checksum* over the state
 
 Commits come in two flavors, those from the client and those from the server:
-* *Pending commits* represent a change made on the client that is not yet known to be applied on the server. Pending commits include the *mutator name* and *arguments* that caused them, so that the mutator may be replayed later on top of new confirmed commits from the server if necessary.
-* *Confirmed commits* represent a state update received from the server. They carry a *State ID* uniquely identifying this version of the user's state.
+* *Local commits* represent a change made by a mutation executing locally against the client's cache. The set of local commits that are not yet known to be applied in the data layer are known as *pending* commits. Local commits include the *mutator name* and *arguments* that caused them, so that the mutator may be replayed later on top of new snapshot commits from the server if necessary.
+* *Snapshot commits* represent a state update received from the server. They carry a *Server State ID* uniquely identifying this version of the user's state.
 
 ### API Sketch
 
@@ -139,18 +139,17 @@ struct ScanID {
 
 The Diff Server is a multitenant distributed service that calculates state updates for clients in the form of deltas. The Diff Server is an optimization that reduces downstream bandwidth; conceptually it is not required, though practically it is.
 
-For each user the Diff Server maintains a *history* of previous states. Specifically it keeps the state, state id, and checksum. Note that this history need not be complete; missing entries only affect sync performance, not correctness. 
+For each user the Diff Server maintains a *history* of previous states. Specifically it keeps the state, ServerStateID, and checksum. Note that this history need not be complete; missing entries only affect sync performance, not correctness. 
 
 The Diff Server provides one interface:
-* *Pull*: accepts a state id from the client indicating the last state it pulled from the server and pulls the latest user state from the data layer, computes the delta from what the client has, and returns it (if any)
+* *Pull*: accepts a ServerStateID from the client indicating the snapshot state against which local transactions are running. The Diff Server pulls new state for the client from the client view of the data layer, computes the delta from what the client currently has, and returns it (if any). 
 
 ## Data Layer
 
 The data layer is a standard REST/GraphQL web service. In order to integrate Replicache the data layer must:
-1. maintain a mapping from client id to last confirmed transaction ordinal (used by Push and Pull)
-1. implement an interface to fetch a user's Client View, along with the user's last confirmed transaction ordinal (used by Pull)
+1. maintain a mapping from ClientID to LastMutationID (used by Push and Pull)
+1. implement an interface to fetch a user's Client View, along with the user's LastMutationID (used by Pull)
 1. implement an interface to execute a batch of upstream transactions (used in Push)
-1. implement an interface to insert a new record into the last confirmed ordinal mapping (used by NewClient)
 
 ### Generality
 
@@ -158,24 +157,24 @@ As mentioned, the Data Layer could be a simple document database or a complicate
 
 # Data Flow
 
-Data flows from the client up to the Data Layer, and back down from the Data Layer to Diff Server to the Client. Transactions flow upstream while state updates flow downstream. Any of these processes can stop or stall indefinitely without affecting correctness.
+Data flows from the client up to the Data Layer, and back down from the Data Layer to Diff Server to the Client. Mutations flow upstream while state updates flow downstream. Any of these processes can stop or stall indefinitely without affecting correctness.
 
-The client tracks state changes in a git-like fashion. The Replicache client keeps a *head* commit pointer representing the current state of the local key-value database. Transactions run serially against the state in the head commit. The head commmit can change in two ways:
+The client tracks state changes in a git-like fashion. The Replicache client has a *master* branch of commits and keeps a *head* commit pointer representing the current state of the local key-value database. Transactions run serially against the state in the head commit. The head commmit can change in two ways:
 1. write transactions: when the app runs a transaction that changes the database, the change goes into a pending commit on top of the current head. This new pending commit becomes the new head.
-1. state updates: when a state update is pulled from the server replicache will:
-   1. fork a new branch from the previous confirmed commit
-   1. add a new confirmed commit with the latest state update to this branch; the branch now has state identical to the server
-   1. filter all pending commits already seen by the server. That is, those with ordinals less than the last confirmed ordinal for this client
-   1. for each remaining pending commit in order, re-run it on the new branch; this extends the new branch with a pending commit for each pending transaction
-   1. set head to the end of the new branch
+1. sync: when a new state update is pulled from the server replicache will:
+   1. fork a new branch (the *sync branch*) from the most recent snapshot
+   1. add a new snapshot with the latest state update to this sync branch; the branch now has state identical to the server
+   1. compute the set of mutations to replay on the sync branch by filtering all pending commits on master that have already been applied by the server. That is, find all pending commits on master whose MutationID is greater than the LastMutationID of the new snapshot.
+   1. for each mutation to replay in order, (re)apply it on the sync branch; this extends the sync branch with a pending commit for each mutation not yet seen by the server
+   1. make the sync branch master by setting head of master to the head of the sync branch
 
 ## Sync
 
-In order to sync, the client first calls Push on the Data Layer, passing all its pending remote mutations. The Data Layer executes the pending mutations serially. When the Data Layer executes a mutation it increments the client's latest confirmed transaction ordinal as part of the same transaction. If a transaction's ordinal is less than or equal to the client's last confirmed transaction ordinal or more than one more, the mutation is ignored. 
+In order to sync, the client first calls Push on the Data Layer, passing all its pending mutations. The Data Layer executes the pending mutations serially. When the Data Layer executes a mutation it sets the client's LastMutationID to match as part of the same transaction. If a MutationID is less than or equal to the client's LastMutationID or more than one more, the mutation is ignored. 
 
-The client then calls Pull on the Diff Server, passing the id of the latest server state it saw (this state id is found in its most recent confirmed commit). The Diff Server retrieves the client's last transaction ordinal and the *entire* state for the user from the Data Layer. The Diff Server then checks its history to see if it has a cached copy of the state the client has (as identified by state id). If so the new and old states are diff'd and if there is a delta a new state id is assigned, the delta is returned to the client, and the new state stored in the Diff Server's history by state id. If the server doesn't have a copy of the client's data, the full user state is returned. In all cases, the client's last confirmed transaction ordinal is returned. 
+The client then calls Pull on the Diff Server, passing the ServerStateID from its most recent Snapshot (as found in the most recent Snapshot commit). The Diff Server retrieves the client's LastMutationID and the *entire* state for the user from the Data Layer. The Diff Server then checks its history to see if it has a cached copy of the state the client has (as identified by ServerStateID). If so, the new and old states are diff'd and if there is a delta a new ServerStateID is assigned, the delta is returned to the client, and the new state is stored in the Diff Server's history by ServerStateID. If the server doesn't have a copy of the client's data, the full user state is returned. In all cases, the client's LastMutationID is returned. 
 
-If Pull returns a state update to the client, the client applies a state update as described above: it forks from the previous confirmed commit, applies the state update and any pending local mutations with ordinals greater than the last confirmed transaction ordinal just received, and reveals the new state by setting head to the end of the new branch. The client can now forget about all pending mutations that have been confirmed, that is, all pending mutations with transaction ordinals less than or equal to the last confirmed by the server.
+If Pull returns a state update to the client, the client applies the state update as described above: it forks from the previous snapshot commit, applies any local mutations that are still pending (those with mutation ids greater than the LastMutationID indicated in the state update), and reveals the new state by setting head of master to the end of the new branch. The client can now forget about all pending mutations that have been confirmed, that is, all pending mutations with MutationIDs than or equal to the LastMutationID of the most recent state.
 
 ## Mutations outside the client
 
@@ -196,7 +195,7 @@ Imagine a simple database consisting of only a single integer set to the value `
 
 What is the correct resolution? We can't possibly know without more information about what the *intent* of those changes were. Were they adding? setting? multiplying? clearing? In real life applications with complex data models, many developers, and many versions of the application live at once, this problem is much worse.
 
-A better strategy is to capture the *intent* of changes. Replicache embraces this idea by recording, alongside each change, the name of the function that created the change along with the arguments it was passed. Later, when we need to merge forks, we *replay* one fork atop the other by re-running the series of transaction functions against the newest state. The transaction functions have arbitrary logic and can realize the intended change differently depending on the state they are running against.
+A better strategy is to capture the *intent* of changes. Replicache embraces this idea by recording, alongside each change, the name of the function that created the change along with the arguments it was passed. Later, when we need to rebase forks, we *replay* one fork atop the other by re-running the series of transaction functions against the newest state. The transaction functions have arbitrary logic and can realize the intended change differently depending on the state they are running against.
 
 For example, a transaction that reserves an hour on a user's calendar could keep a status for the reservation in the user's data. The transaction might successfully reserve the hour when running locally for the first time, setting the status to RESERVED. Later, if still pending, the transaction might be replayed on top of a state where that hour is unavailable. In this case the transaction might update the status to UNAVAILABLE. Later during Push when played against the data layer the transaction will settle on one value or the other, and the client will converge on the value in the data layer. App code can rely on subscriptions to keep the UI correctly reflective of the reservation status, or to trigger notification of the user or some other kind of followup such trying the next available slot.
 
@@ -216,4 +215,4 @@ A second concern with data size is that it might be infeasible to complete large
 
 **Blobs** Any truly offline first system must have first class bidirectional support for binary assets aka blobs (eg, profile pictures). In some cases these assets should be managed transactionally along with the user's data: either you get all the data and all the blobs it references or you get none of it. In any case, there is presently no special support for blobs in replicache. Users who need blobs are advised to base64 encode them as JSON strings in the user data. We plan to address this shortcoming in the future. 
 
-**Duplicate transaction logic** You have to implement transactions twice, once in the client JavaScript and once in the data layer. Bummer. We can imagine potential solutions to this problem but it's not clear if the benefit would be worth the cost, or widely usable. It is also expected that client-side transactions will be significantly simpler as they are by nature *speculative*, having the canonical answer come from the server-side implementation.
+**Duplicate transaction logic** You have to implement transactions twice, once in the mobile app and once in the data layer. Bummer. We can imagine potential solutions to this problem but it's not clear if the benefit would be worth the cost, or widely usable. It is also expected that client-side transactions will be significantly simpler as they are by nature *speculative*, having the canonical answer come from the server-side implementation.

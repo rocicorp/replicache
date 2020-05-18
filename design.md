@@ -180,6 +180,10 @@ If Pull returns a state update to the client, the client applies the state updat
 
 There is nothing in the design that requires that changes to user data must come through Replicache. In fact we expect there is great utility in mutating the user's state outside of clients, eg in batch jobs or in response to changes in other users' clients. So long as all transactions that mutate the user's data run at a proper isolation level and leave the database in a valid state, Replicache will faithfully converge all clients to the new state. 
 
+## Push endpoint
+
+By design, Replicache places a minimum of constraints on the Data Layer's Push endpoint. For correctness, it must execute mutations in order and ensure that the LastMutationID is updated transactionally along with any effects. Beyond that, Replicache imposes no requirements. For example, the Push endpoint need not be synchronous; it could accept a batch of mutations, enqueue them for execution elsewhere, and return. Similarly, the Push endpoint need not be consistent with the ClientView endpoint; as long as a mutation's effects and the change to LastMutationID are revealed to the ClientView endpoint atomically, the ClientView can lag or flap without affecting correctness.
+
 ## Conflicts
 
 Conflicts are an unavoidable part of disconnected systems, but they don't need to be exceptionally painful. 

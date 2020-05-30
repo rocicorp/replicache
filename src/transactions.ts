@@ -3,19 +3,28 @@ import type {ScanItem} from './scan-item.js';
 import type {ScanOptions} from './scan-options.js';
 import type {Invoke, ScanRequest} from './repm-invoker.js';
 
-/// ReadTransactions are used with [Replicache.query] and allows read operations on the database.
+/**
+ * ReadTransactions are used with `Replicache.query` and allows read operations
+ * on the database.
+ */
 export interface ReadTransaction {
-  /// Get a single value from the database.
+  /**
+   * Get a single value from the database.
+   */
   get(key: string): Promise<JsonType>;
 
-  /// Determines if a single key is present in the database.
+  /**
+   * Determines if a single key is present in the database.
+   */
   has(key: string): Promise<boolean>;
 
-  /// Gets many values from the database.
+  /**
+   * Gets many values from the database.
+   */
   scan(options?: ScanOptions): Promise<Iterable<ScanItem>>;
 }
 
-class ReadTransactionImpl implements ReadTransaction {
+export class ReadTransactionImpl implements ReadTransaction {
   protected readonly _transactionId: number;
   protected readonly _invoke: Invoke;
 
@@ -60,11 +69,15 @@ class ReadTransactionImpl implements ReadTransaction {
   }
 }
 
-/// WriteTransactions are used with [Replicache.register] and allows read and
-/// write operations on the database.
+/**
+ * WriteTransactions are used with `Replicache.register` and allows read and
+ * write operations on the database.
+ */
 export class WriteTransaction extends ReadTransactionImpl {
-  /// Sets a single value in the database. The [value] will be encoded using
-  /// [json.encode].
+  /**
+   * Sets a single value in the database. The `value` will be encoded using
+   * `JSON.stringify`.
+   */
   async put(key: string, value: JsonType): Promise<void> {
     await this._invoke('put', {
       transactionId: this._transactionId,
@@ -73,8 +86,10 @@ export class WriteTransaction extends ReadTransactionImpl {
     });
   }
 
-  /// Removes a key and its value from the database. Returns true if there was a
-  /// key to remove.
+  /**
+   * Removes a key and its value from the database. Returns true if there was a
+   * key to remove.
+   */
   async del(key: string): Promise<boolean> {
     const result = await this._invoke('del', {
       transactionId: this._transactionId,

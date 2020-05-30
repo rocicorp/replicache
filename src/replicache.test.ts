@@ -4,7 +4,8 @@ import fetch from 'node-fetch';
 (globalThis as any).fetch = fetch;
 
 import {ReplicacheTest} from './replicache.js';
-import {FullInvoke as RepmInvoke, RepmHttpInvoker} from './repm-invoker.js';
+import {RepmInvoke, RepmHttpInvoker} from './mod.js';
+import type {ReadTransaction} from './mod.js';
 
 let rep: ReplicacheTest | null = null;
 let rep2: ReplicacheTest | null = null;
@@ -13,6 +14,11 @@ const httpInvoker = new RepmHttpInvoker('http://localhost:7002');
 const httpInvoke = httpInvoker.invoke.bind(httpInvoker);
 
 const invoke: RepmInvoke = httpInvoke;
+
+type TestMode = 'live' | 'replay' | 'record';
+
+// eslint-disable-next-line prefer-const
+let testMode: TestMode = 'live';
 
 async function replicacheForTesting(
   name: string,
@@ -28,12 +34,16 @@ async function replicacheForTesting(
     batchUrl?: string;
   } = {},
 ): Promise<ReplicacheTest> {
-  //   console.log(name, diffServerUrl, dataLayerAuth, diffServerAuth, batchUrl);
   return await ReplicacheTest.new({diffServerUrl, name, repmInvoke: invoke});
 }
 
 beforeEach(async () => {
-  //
+  if (testMode !== 'replay') {
+    const dbs = await ReplicacheTest.list({repmInvoke: httpInvoke});
+    for (const info of dbs) {
+      await ReplicacheTest.drop(info.name, {repmInvoke: httpInvoke});
+    }
+  }
 });
 
 afterEach(async () => {
@@ -59,4 +69,19 @@ test('list and drop', async () => {
     const dbs = await ReplicacheTest.list({repmInvoke: invoke});
     expect(dbs).toEqual([{name: 'def'}]);
   }
+});
+
+test('get, has, scan on empty db', async () => {
+  rep = await replicacheForTesting('test2');
+
+  async function t(tx: ReadTransaction) {
+    expect(await tx.get('key')).toBeNull();
+    expect(await tx.has('key')).toBe(false);
+
+    const scanItems = await tx.scan();
+    expect(scanItems).toHaveLength(0);
+  }
+
+  await t(rep);
+  await rep.query(t);
 });

@@ -6,10 +6,26 @@
     "result": ""
   },
   {
+    "dbName": "def",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
+    }
+  },
+  {
     "dbName": "abc",
     "method": "open",
     "args": {},
     "result": ""
+  },
+  {
+    "dbName": "abc",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
+    }
   },
   {
     "dbName": "",

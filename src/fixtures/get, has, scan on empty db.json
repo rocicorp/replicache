@@ -7,6 +7,14 @@
   },
   {
     "dbName": "test2",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
+    }
+  },
+  {
+    "dbName": "test2",
     "method": "openTransaction",
     "args": {},
     "result": {

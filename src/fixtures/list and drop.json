@@ -1,0 +1,59 @@
+[
+  {
+    "dbName": "def",
+    "method": "open",
+    "args": {},
+    "result": ""
+  },
+  {
+    "dbName": "abc",
+    "method": "open",
+    "args": {},
+    "result": ""
+  },
+  {
+    "dbName": "",
+    "method": "list",
+    "args": {},
+    "result": {
+      "databases": [
+        {
+          "name": "abc"
+        },
+        {
+          "name": "def"
+        }
+      ]
+    }
+  },
+  {
+    "dbName": "abc",
+    "method": "drop",
+    "args": {},
+    "result": ""
+  },
+  {
+    "dbName": "",
+    "method": "list",
+    "args": {},
+    "result": {
+      "databases": [
+        {
+          "name": "def"
+        }
+      ]
+    }
+  },
+  {
+    "dbName": "def",
+    "method": "close",
+    "args": {},
+    "result": ""
+  },
+  {
+    "dbName": "abc",
+    "method": "close",
+    "args": {},
+    "result": ""
+  }
+]

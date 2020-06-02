@@ -41,7 +41,6 @@ let replays: Replay[];
 
 async function useReplay(name: string): Promise<void> {
   function ff() {
-    console.log(testMode, testMode === 'record' ? 'w' : 'r');
     return open(
       `${__dirname}/fixtures/${name}.json`,
       testMode === 'record' ? 'w' : 'r',

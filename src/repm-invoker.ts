@@ -205,9 +205,14 @@ type CloseResponse = '';
 type ListRespones = {databases: DatabaseInfo[]};
 type DropResponse = '';
 
+type GetRootResponse = {
+  root: string;
+};
+
 export type InvokeMapNoArgs = {
   open: OpenResponse;
   close: CloseResponse;
   list: ListRespones;
   drop: DropResponse;
+  getRoot: GetRootResponse;
 };

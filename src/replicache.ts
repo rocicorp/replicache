@@ -12,6 +12,7 @@ export default class Replicache implements ReadTransaction {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   private readonly _diffServerUrl: string;
+  private _root: Promise<string | null> = Promise.resolve(null);
   private readonly _repmInvoke: RepmInvoke;
 
   constructor({
@@ -43,8 +44,8 @@ export default class Replicache implements ReadTransaction {
 
   private async _open(): Promise<void> {
     this._opened = this._repmInvoke(this._name, 'open');
-    // _root = _getRoot();
-    // await _root;
+    this._root = this._getRoot();
+    await this._root;
     // if (_syncInterval != null) {
     //   await sync();
     // }
@@ -73,6 +74,14 @@ export default class Replicache implements ReadTransaction {
     // Clear subscriptions
 
     await p;
+  }
+
+  async _getRoot(): Promise<string | null> {
+    if (this._closed) {
+      return null;
+    }
+    const res = await this._invoke('getRoot');
+    return res.root;
   }
 
   private _invoke: Invoke = async (

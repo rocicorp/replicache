@@ -165,6 +165,12 @@ async function replicacheForTesting(
   return await ReplicacheTest.new({diffServerUrl, name, repmInvoke: invoke});
 }
 
+async function addData(tx: WriteTransaction, data: {[key: string]: JsonType}) {
+  for (const [key, value] of Object.entries(data)) {
+    await tx.put(key, value);
+  }
+}
+
 beforeEach(async () => {
   if (testMode !== 'replay') {
     const dbs = await ReplicacheTest.list({repmInvoke: httpInvoke});
@@ -266,4 +272,86 @@ test('put, get, has, del inside tx', async () => {
   })) {
     await mut({key, value});
   }
+});
+
+test('scan', async () => {
+  await useReplay('scan');
+
+  rep = await replicacheForTesting('test4');
+  const add = rep.register('add-data', addData);
+  await add({
+    'a/0': 0,
+    'a/1': 1,
+    'a/2': 2,
+    'a/3': 3,
+    'a/4': 4,
+    'b/0': 5,
+    'b/1': 6,
+    'b/2': 7,
+    'c/0': 8,
+  });
+
+  expect(await rep.scan()).toEqual([
+    {key: 'a/0', value: 0},
+    {key: 'a/1', value: 1},
+    {key: 'a/2', value: 2},
+    {key: 'a/3', value: 3},
+    {key: 'a/4', value: 4},
+    {key: 'b/0', value: 5},
+    {key: 'b/1', value: 6},
+    {key: 'b/2', value: 7},
+    {key: 'c/0', value: 8},
+  ]);
+
+  expect(await rep?.scan({prefix: 'a'})).toEqual([
+    {key: 'a/0', value: 0},
+    {key: 'a/1', value: 1},
+    {key: 'a/2', value: 2},
+    {key: 'a/3', value: 3},
+    {key: 'a/4', value: 4},
+  ]);
+
+  expect(await rep?.scan({prefix: 'b'})).toEqual([
+    {key: 'b/0', value: 5},
+    {key: 'b/1', value: 6},
+    {key: 'b/2', value: 7},
+  ]);
+
+  expect(await rep?.scan({prefix: 'c/'})).toEqual([{key: 'c/0', value: 8}]);
+
+  expect(await rep?.scan({limit: 3})).toEqual([
+    {key: 'a/0', value: 0},
+    {key: 'a/1', value: 1},
+    {key: 'a/2', value: 2},
+  ]);
+
+  expect(
+    await rep?.scan({
+      start: {id: {value: 'a/1', exclusive: false}},
+      limit: 2,
+    }),
+  ).toEqual([
+    {key: 'a/1', value: 1},
+    {key: 'a/2', value: 2},
+  ]);
+
+  expect(
+    await rep?.scan({
+      start: {id: {value: 'a/1', exclusive: true}},
+      limit: 2,
+    }),
+  ).toEqual([
+    {key: 'a/2', value: 2},
+    {key: 'a/3', value: 3},
+  ]);
+
+  expect(
+    await rep?.scan({
+      start: {id: {exclusive: false}, index: 1},
+      limit: 2,
+    }),
+  ).toEqual([
+    {key: 'a/1', value: 1},
+    {key: 'a/2', value: 2},
+  ]);
 });

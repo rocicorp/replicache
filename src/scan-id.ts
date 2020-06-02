@@ -1,4 +1,4 @@
 export interface ScanId {
-  readonly value: string;
-  readonly exclusice: boolean;
+  readonly value?: string;
+  readonly exclusive?: boolean;
 }

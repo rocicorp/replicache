@@ -110,7 +110,7 @@ type RebaseOpts = {
   original: string;
 };
 
-type OpenTransactionRequest = {
+export type OpenTransactionRequest = {
   name?: string;
   args?: JsonType;
   rebaseOpt?: RebaseOpts;

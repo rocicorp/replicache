@@ -1,0 +1,485 @@
+[
+  {
+    "dbName": "test4",
+    "method": "open",
+    "args": {},
+    "result": ""
+  },
+  {
+    "dbName": "test4",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
+    }
+  },
+  {
+    "dbName": "test4",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "a/0": 0,
+        "a/1": 1,
+        "a/2": 2,
+        "a/3": 3,
+        "a/4": 4,
+        "b/0": 5,
+        "b/1": 6,
+        "b/2": 7,
+        "c/0": 8
+      },
+      "name": "add-data"
+    },
+    "result": {
+      "transactionId": 1
+    }
+  },
+  {
+    "dbName": "test4",
+    "method": "put",
+    "args": {
+      "transactionId": 1,
+      "key": "a/0",
+      "value": 0
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "put",
+    "args": {
+      "transactionId": 1,
+      "key": "a/1",
+      "value": 1
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "put",
+    "args": {
+      "transactionId": 1,
+      "key": "a/2",
+      "value": 2
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "put",
+    "args": {
+      "transactionId": 1,
+      "key": "a/3",
+      "value": 3
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "put",
+    "args": {
+      "transactionId": 1,
+      "key": "a/4",
+      "value": 4
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "put",
+    "args": {
+      "transactionId": 1,
+      "key": "b/0",
+      "value": 5
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "put",
+    "args": {
+      "transactionId": 1,
+      "key": "b/1",
+      "value": 6
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "put",
+    "args": {
+      "transactionId": 1,
+      "key": "b/2",
+      "value": 7
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "put",
+    "args": {
+      "transactionId": 1,
+      "key": "c/0",
+      "value": 8
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 1
+    },
+    "result": {
+      "ref": "r62js7d1k87vd5ds6uaai6h537kgd3ug"
+    }
+  },
+  {
+    "dbName": "test4",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 2
+    }
+  },
+  {
+    "dbName": "test4",
+    "method": "scan",
+    "args": {
+      "transactionId": 2,
+      "limit": 50,
+      "prefix": ""
+    },
+    "result": [
+      {
+        "key": "a/0",
+        "value": 0
+      },
+      {
+        "key": "a/1",
+        "value": 1
+      },
+      {
+        "key": "a/2",
+        "value": 2
+      },
+      {
+        "key": "a/3",
+        "value": 3
+      },
+      {
+        "key": "a/4",
+        "value": 4
+      },
+      {
+        "key": "b/0",
+        "value": 5
+      },
+      {
+        "key": "b/1",
+        "value": 6
+      },
+      {
+        "key": "b/2",
+        "value": 7
+      },
+      {
+        "key": "c/0",
+        "value": 8
+      }
+    ]
+  },
+  {
+    "dbName": "test4",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 2
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 3
+    }
+  },
+  {
+    "dbName": "test4",
+    "method": "scan",
+    "args": {
+      "transactionId": 3,
+      "limit": 50,
+      "prefix": "a"
+    },
+    "result": [
+      {
+        "key": "a/0",
+        "value": 0
+      },
+      {
+        "key": "a/1",
+        "value": 1
+      },
+      {
+        "key": "a/2",
+        "value": 2
+      },
+      {
+        "key": "a/3",
+        "value": 3
+      },
+      {
+        "key": "a/4",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "dbName": "test4",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 4
+    }
+  },
+  {
+    "dbName": "test4",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 3
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "scan",
+    "args": {
+      "transactionId": 4,
+      "limit": 50,
+      "prefix": "b"
+    },
+    "result": [
+      {
+        "key": "b/0",
+        "value": 5
+      },
+      {
+        "key": "b/1",
+        "value": 6
+      },
+      {
+        "key": "b/2",
+        "value": 7
+      }
+    ]
+  },
+  {
+    "dbName": "test4",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 4
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 5
+    }
+  },
+  {
+    "dbName": "test4",
+    "method": "scan",
+    "args": {
+      "transactionId": 5,
+      "limit": 50,
+      "prefix": "c/"
+    },
+    "result": [
+      {
+        "key": "c/0",
+        "value": 8
+      }
+    ]
+  },
+  {
+    "dbName": "test4",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 5
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 6
+    }
+  },
+  {
+    "dbName": "test4",
+    "method": "scan",
+    "args": {
+      "transactionId": 6,
+      "limit": 3,
+      "prefix": ""
+    },
+    "result": [
+      {
+        "key": "a/0",
+        "value": 0
+      },
+      {
+        "key": "a/1",
+        "value": 1
+      },
+      {
+        "key": "a/2",
+        "value": 2
+      }
+    ]
+  },
+  {
+    "dbName": "test4",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 6
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 7
+    }
+  },
+  {
+    "dbName": "test4",
+    "method": "scan",
+    "args": {
+      "transactionId": 7,
+      "limit": 2,
+      "prefix": "",
+      "start": {
+        "id": {
+          "value": "a/1",
+          "exclusive": false
+        }
+      }
+    },
+    "result": [
+      {
+        "key": "a/1",
+        "value": 1
+      },
+      {
+        "key": "a/2",
+        "value": 2
+      }
+    ]
+  },
+  {
+    "dbName": "test4",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 7
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 8
+    }
+  },
+  {
+    "dbName": "test4",
+    "method": "scan",
+    "args": {
+      "transactionId": 8,
+      "limit": 2,
+      "prefix": "",
+      "start": {
+        "id": {
+          "value": "a/1",
+          "exclusive": true
+        }
+      }
+    },
+    "result": [
+      {
+        "key": "a/2",
+        "value": 2
+      },
+      {
+        "key": "a/3",
+        "value": 3
+      }
+    ]
+  },
+  {
+    "dbName": "test4",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 8
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 9
+    }
+  },
+  {
+    "dbName": "test4",
+    "method": "scan",
+    "args": {
+      "transactionId": 9,
+      "limit": 2,
+      "prefix": "",
+      "start": {
+        "id": {
+          "exclusive": false
+        },
+        "index": 1
+      }
+    },
+    "result": [
+      {
+        "key": "a/1",
+        "value": 1
+      },
+      {
+        "key": "a/2",
+        "value": 2
+      }
+    ]
+  },
+  {
+    "dbName": "test4",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 9
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "close",
+    "args": {},
+    "result": ""
+  }
+]

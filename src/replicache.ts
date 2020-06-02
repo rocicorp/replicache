@@ -2,8 +2,21 @@ import type {JsonType} from './json.js';
 import type {ScanItem} from './scan-item.js';
 import type {ScanOptions} from './scan-options.js';
 import type {DatabaseInfo} from './database-info.js';
-import type {FullInvoke as RepmInvoke, Invoke} from './repm-invoker.js';
-import {ReadTransaction, ReadTransactionImpl} from './transactions.js';
+import type {
+  FullInvoke as RepmInvoke,
+  Invoke,
+  OpenTransactionRequest,
+} from './repm-invoker.js';
+import {ReadTransactionImpl, WriteTransaction} from './transactions.js';
+import type {ReadTransaction} from './transactions.js';
+
+type Mutator<Return extends JsonType | void, Args extends JsonType> = (
+  args: Args,
+) => Promise<Return | void>;
+type MutatorImpl<Return extends JsonType | void, Args extends JsonType> = (
+  tx: WriteTransaction,
+  args: Args,
+) => Promise<Return>;
 
 export default class Replicache implements ReadTransaction {
   private _closed = false;
@@ -12,8 +25,12 @@ export default class Replicache implements ReadTransaction {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   private readonly _diffServerUrl: string;
-  private _root: Promise<string | null> = Promise.resolve(null);
+  private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _repmInvoke: RepmInvoke;
+  private readonly _mutatorRegistry = new Map<
+    string,
+    MutatorImpl<JsonType, JsonType>
+  >();
 
   constructor({
     diffServerUrl,
@@ -76,12 +93,20 @@ export default class Replicache implements ReadTransaction {
     await p;
   }
 
-  async _getRoot(): Promise<string | null> {
+  async _getRoot(): Promise<string | undefined> {
     if (this._closed) {
-      return null;
+      return undefined;
     }
     const res = await this._invoke('getRoot');
     return res.root;
+  }
+
+  async _checkChange(root: string | undefined): Promise<void> {
+    const currentRoot = await this._root; // instantaneous except maybe first time
+    if (root !== undefined && root !== currentRoot) {
+      this._root = Promise.resolve(root);
+      // await this._fireOnChange();
+    }
   }
 
   private _invoke: Invoke = async (
@@ -124,6 +149,94 @@ export default class Replicache implements ReadTransaction {
       // No need to await the response.
       this._closeTransaction(txId);
     }
+  }
+
+  /**
+   * Registers a *mutator*, which is used to make changes to the data.
+   *
+   * ## Replays
+   *
+   * Mutators run once when they are initially invoked, but they might also be
+   * *replayed* multiple times during sync. As such mutators should not modify
+   * application state directly. Also, it is important that the set of
+   * registered mutator names only grows over time. If Replicache syncs and
+   * needed mutator is not registered, it will substitute a no-op mutator, but
+   * this might be a poor user experience.
+   *
+   * ## Server application
+   *
+   * During sync, a description of each mutation is sent to the server's [batch
+   * endpoint](https://github.com/rocicorp/replicache/blob/master/README.md#step-5-upstream-sync)
+   * where it is applied. Once the mutation has been applied successfully, as
+   * indicated by the [client
+   * view](https://github.com/rocicorp/replicache/blob/master/README.md#step-2-downstream-sync)'s
+   * `lastMutationId` field, the local version of the mutation is removed. See
+   * the [design
+   * doc](https://github.com/rocicorp/replicache/blob/master/design.md) for
+   * additional details on the sync protocol.
+   *
+   * ## Transactionality
+   *
+   * Mutators are atomic: all their changes are applied together, or none are.
+   * Throwing an exception aborts the transaction. Otherwise, it is committed.
+   * As with [query] and [subscribe] all reads will see a consistent view of
+   * the cache while they run.
+   */
+  register<Return extends JsonType | void, Args extends JsonType>(
+    name: string,
+    mutatorImpl: MutatorImpl<Return, Args>,
+  ): Mutator<Return, Args> {
+    this._mutatorRegistry.set(
+      name,
+      (mutatorImpl as unknown) as MutatorImpl<JsonType, JsonType>,
+    );
+    return async (args: Args): Promise<Return> =>
+      (await this._mutate(name, mutatorImpl, args, {shouldCheckChange: true}))
+        .result;
+  }
+
+  async _mutate<R extends JsonType | void, A extends JsonType>(
+    name: string,
+    mutatorImpl: MutatorImpl<R, A>,
+    args: A,
+    {
+      invokeArgs,
+      shouldCheckChange,
+    }: {invokeArgs?: OpenTransactionRequest; shouldCheckChange: boolean},
+  ): Promise<{result: R; ref?: string}> {
+    let actualInvokeArgs: OpenTransactionRequest = {args, name};
+    if (invokeArgs !== undefined) {
+      actualInvokeArgs = {...actualInvokeArgs, ...invokeArgs};
+    }
+
+    const {transactionId} = await this._invoke(
+      'openTransaction',
+      actualInvokeArgs,
+    );
+    let result: R;
+    try {
+      const tx = new WriteTransaction(this._invoke, transactionId);
+      result = await mutatorImpl(tx, args);
+    } catch (ex) {
+      // No need to await the response.
+      this._closeTransaction(transactionId);
+      throw ex;
+    }
+    const commitRes = await this._invoke('commitTransaction', {
+      transactionId,
+    });
+    if (commitRes.retryCommit) {
+      return await this._mutate(name, mutatorImpl, args, {
+        invokeArgs,
+        shouldCheckChange,
+      });
+    }
+
+    const {ref} = commitRes;
+    if (shouldCheckChange) {
+      await this._checkChange(ref);
+    }
+    return {result, ref};
   }
 
   private async _closeTransaction(txId: number): Promise<void> {

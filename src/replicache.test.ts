@@ -3,15 +3,15 @@ import fetch from 'node-fetch';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).fetch = fetch;
 
-import {promises} from 'fs';
-type FileHandle = promises.FileHandle;
-const {open} = promises;
+import {open} from 'fs/promises';
+import type {FileHandle} from 'fs/promises';
 
 import {ReplicacheTest} from './replicache.js';
 import {RepmInvoke, RepmHttpInvoker} from './mod.js';
 import type {ReadTransaction} from './mod.js';
 import type {JsonType} from './json.js';
 import type {InvokeMapNoArgs, InvokeMap, FullInvoke} from './repm-invoker.js';
+import type {WriteTransaction} from './transactions.js';
 
 let rep: ReplicacheTest | null = null;
 let rep2: ReplicacheTest | null = null;
@@ -232,4 +232,38 @@ test('get, has, scan on empty db', async () => {
 
   await t(rep);
   await rep.query(t);
+});
+
+test('put, get, has, del inside tx', async () => {
+  await useReplay('put, get, has, del inside tx');
+
+  rep = await replicacheForTesting('test3');
+  const mut = rep.register(
+    'mut',
+    async (tx: WriteTransaction, args: {key: string; value: JsonType}) => {
+      const key = args['key'];
+      const value = args['value'];
+      await tx.put(key, value);
+      expect(await tx.has(key)).toBe(true);
+      const v = await tx.get(key);
+      expect(v).toEqual(value);
+
+      expect(await tx.del(key)).toBe(true);
+      expect(await tx.has(key)).toBe(false);
+    },
+  );
+
+  for (const [key, value] of Object.entries({
+    a: true,
+    b: false,
+    c: null,
+    d: 'string',
+    e: 12,
+    f: {},
+    g: [],
+    h: {h1: true},
+    i: [0, 1],
+  })) {
+    await mut({key, value});
+  }
 });

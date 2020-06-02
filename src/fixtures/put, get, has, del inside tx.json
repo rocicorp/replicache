@@ -1,0 +1,748 @@
+[
+  {
+    "dbName": "test3",
+    "method": "open",
+    "args": {},
+    "result": ""
+  },
+  {
+    "dbName": "test3",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "key": "a",
+        "value": true
+      },
+      "name": "mut"
+    },
+    "result": {
+      "transactionId": 1
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "put",
+    "args": {
+      "transactionId": 1,
+      "key": "a",
+      "value": true
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 1,
+      "key": "a"
+    },
+    "result": {
+      "has": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "get",
+    "args": {
+      "transactionId": 1,
+      "key": "a"
+    },
+    "result": {
+      "has": true,
+      "value": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "del",
+    "args": {
+      "transactionId": 1,
+      "key": "a"
+    },
+    "result": {
+      "ok": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 1,
+      "key": "a"
+    },
+    "result": {
+      "has": false
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 1
+    },
+    "result": {
+      "ref": "2cv32fvipvi0kn36lkq2o4ru40263eb8"
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "key": "b",
+        "value": false
+      },
+      "name": "mut"
+    },
+    "result": {
+      "transactionId": 2
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "put",
+    "args": {
+      "transactionId": 2,
+      "key": "b",
+      "value": false
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 2,
+      "key": "b"
+    },
+    "result": {
+      "has": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "get",
+    "args": {
+      "transactionId": 2,
+      "key": "b"
+    },
+    "result": {
+      "has": true,
+      "value": false
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "del",
+    "args": {
+      "transactionId": 2,
+      "key": "b"
+    },
+    "result": {
+      "ok": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 2,
+      "key": "b"
+    },
+    "result": {
+      "has": false
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 2
+    },
+    "result": {
+      "ref": "cac8csk9rcfec1o3mlc0t7cfm3ivomj0"
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "key": "c",
+        "value": null
+      },
+      "name": "mut"
+    },
+    "result": {
+      "transactionId": 3
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "put",
+    "args": {
+      "transactionId": 3,
+      "key": "c",
+      "value": null
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 3,
+      "key": "c"
+    },
+    "result": {
+      "has": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "get",
+    "args": {
+      "transactionId": 3,
+      "key": "c"
+    },
+    "result": {
+      "has": true,
+      "value": null
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "del",
+    "args": {
+      "transactionId": 3,
+      "key": "c"
+    },
+    "result": {
+      "ok": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 3,
+      "key": "c"
+    },
+    "result": {
+      "has": false
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 3
+    },
+    "result": {
+      "ref": "8ldvv83o1nrshp23mg4754nem4ec49gn"
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "key": "d",
+        "value": "string"
+      },
+      "name": "mut"
+    },
+    "result": {
+      "transactionId": 4
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "put",
+    "args": {
+      "transactionId": 4,
+      "key": "d",
+      "value": "string"
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 4,
+      "key": "d"
+    },
+    "result": {
+      "has": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "get",
+    "args": {
+      "transactionId": 4,
+      "key": "d"
+    },
+    "result": {
+      "has": true,
+      "value": "string"
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "del",
+    "args": {
+      "transactionId": 4,
+      "key": "d"
+    },
+    "result": {
+      "ok": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 4,
+      "key": "d"
+    },
+    "result": {
+      "has": false
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 4
+    },
+    "result": {
+      "ref": "vrf6l81rjjo80ejehtlkkr98iq6d2gbs"
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "key": "e",
+        "value": 12
+      },
+      "name": "mut"
+    },
+    "result": {
+      "transactionId": 5
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "put",
+    "args": {
+      "transactionId": 5,
+      "key": "e",
+      "value": 12
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 5,
+      "key": "e"
+    },
+    "result": {
+      "has": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "get",
+    "args": {
+      "transactionId": 5,
+      "key": "e"
+    },
+    "result": {
+      "has": true,
+      "value": 12
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "del",
+    "args": {
+      "transactionId": 5,
+      "key": "e"
+    },
+    "result": {
+      "ok": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 5,
+      "key": "e"
+    },
+    "result": {
+      "has": false
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 5
+    },
+    "result": {
+      "ref": "dtv73vb7hf8m1oimhfvqhqsasbsn82d4"
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "key": "f",
+        "value": {}
+      },
+      "name": "mut"
+    },
+    "result": {
+      "transactionId": 6
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "put",
+    "args": {
+      "transactionId": 6,
+      "key": "f",
+      "value": {}
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 6,
+      "key": "f"
+    },
+    "result": {
+      "has": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "get",
+    "args": {
+      "transactionId": 6,
+      "key": "f"
+    },
+    "result": {
+      "has": true,
+      "value": {}
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "del",
+    "args": {
+      "transactionId": 6,
+      "key": "f"
+    },
+    "result": {
+      "ok": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 6,
+      "key": "f"
+    },
+    "result": {
+      "has": false
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 6
+    },
+    "result": {
+      "ref": "rpr4rlbv7ppes9165tfs5ogdaqi6ap5i"
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "key": "g",
+        "value": []
+      },
+      "name": "mut"
+    },
+    "result": {
+      "transactionId": 7
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "put",
+    "args": {
+      "transactionId": 7,
+      "key": "g",
+      "value": []
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 7,
+      "key": "g"
+    },
+    "result": {
+      "has": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "get",
+    "args": {
+      "transactionId": 7,
+      "key": "g"
+    },
+    "result": {
+      "has": true,
+      "value": []
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "del",
+    "args": {
+      "transactionId": 7,
+      "key": "g"
+    },
+    "result": {
+      "ok": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 7,
+      "key": "g"
+    },
+    "result": {
+      "has": false
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 7
+    },
+    "result": {
+      "ref": "stuvecgd024s7ktrcn405327t5shf16e"
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "key": "h",
+        "value": {
+          "h1": true
+        }
+      },
+      "name": "mut"
+    },
+    "result": {
+      "transactionId": 8
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "put",
+    "args": {
+      "transactionId": 8,
+      "key": "h",
+      "value": {
+        "h1": true
+      }
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 8,
+      "key": "h"
+    },
+    "result": {
+      "has": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "get",
+    "args": {
+      "transactionId": 8,
+      "key": "h"
+    },
+    "result": {
+      "has": true,
+      "value": {
+        "h1": true
+      }
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "del",
+    "args": {
+      "transactionId": 8,
+      "key": "h"
+    },
+    "result": {
+      "ok": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 8,
+      "key": "h"
+    },
+    "result": {
+      "has": false
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 8
+    },
+    "result": {
+      "ref": "57shmf9caa15v6slgjs07lcfdiavuesk"
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "key": "i",
+        "value": [
+          0,
+          1
+        ]
+      },
+      "name": "mut"
+    },
+    "result": {
+      "transactionId": 9
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "put",
+    "args": {
+      "transactionId": 9,
+      "key": "i",
+      "value": [
+        0,
+        1
+      ]
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 9,
+      "key": "i"
+    },
+    "result": {
+      "has": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "get",
+    "args": {
+      "transactionId": 9,
+      "key": "i"
+    },
+    "result": {
+      "has": true,
+      "value": [
+        0,
+        1
+      ]
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "del",
+    "args": {
+      "transactionId": 9,
+      "key": "i"
+    },
+    "result": {
+      "ok": true
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "has",
+    "args": {
+      "transactionId": 9,
+      "key": "i"
+    },
+    "result": {
+      "has": false
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 9
+    },
+    "result": {
+      "ref": "bqmk1odl4frdl3jd3l8e7jmr30ek49kq"
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "close",
+    "args": {},
+    "result": ""
+  }
+]

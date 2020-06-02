@@ -64,15 +64,7 @@ export class RepmHttpInvoker implements RepmInvoker {
       if (resp.headers.get('content-length') === '0') {
         return '';
       }
-      // try {
       return await resp.json();
-      // } catch (ex) {
-      //     const b = await resp.arrayBuffer();
-      //     if (b.byteLength === 0) {
-      //         return '';
-      //     }
-      //     throw
-      // }
     }
     throw new Error(
       `Test server failed: ${resp.status} ${

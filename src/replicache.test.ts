@@ -7,11 +7,11 @@ import {open} from 'fs/promises';
 import type {FileHandle} from 'fs/promises';
 
 import {ReplicacheTest} from './replicache.js';
-import {RepmInvoke, RepmHttpInvoker} from './mod.js';
-import type {ReadTransaction} from './mod.js';
+import {RepmHttpInvoker} from './mod.js';
+
+import type {RepmInvoke, ReadTransaction, WriteTransaction} from './mod.js';
 import type {JsonType} from './json.js';
 import type {InvokeMapNoArgs, InvokeMap, FullInvoke} from './repm-invoker.js';
-import type {WriteTransaction} from './transactions.js';
 
 let rep: ReplicacheTest | null = null;
 let rep2: ReplicacheTest | null = null;
@@ -152,17 +152,24 @@ async function replicacheForTesting(
   name: string,
   {
     diffServerUrl = 'https://serve.replicache.dev/pull',
-  }: // dataLayerAuth = '',
-  // diffServerAuth = '',
-  // batchUrl = '',
-  {
+    dataLayerAuth = '',
+    diffServerAuth = '',
+    batchUrl = '',
+  }: {
     diffServerUrl?: string;
     dataLayerAuth?: string;
     diffServerAuth?: string;
     batchUrl?: string;
   } = {},
 ): Promise<ReplicacheTest> {
-  return await ReplicacheTest.new({diffServerUrl, name, repmInvoke: invoke});
+  return await ReplicacheTest.new({
+    batchUrl,
+    dataLayerAuth,
+    diffServerAuth,
+    diffServerUrl,
+    name,
+    repmInvoke: invoke,
+  });
 }
 
 async function addData(tx: WriteTransaction, data: {[key: string]: JsonType}) {
@@ -170,6 +177,19 @@ async function addData(tx: WriteTransaction, data: {[key: string]: JsonType}) {
     await tx.put(key, value);
   }
 }
+
+function resolver(): {resolve: () => void; promise: Promise<void>} {
+  let res: () => void;
+  const promise = new Promise<void>(r => {
+    res = r;
+  });
+  return {
+    resolve: () => res(),
+    promise,
+  };
+}
+
+const emptyHash = '00000000000000000000000000000000';
 
 beforeEach(async () => {
   if (testMode !== 'replay') {
@@ -354,4 +374,182 @@ test('scan', async () => {
     {key: 'a/1', value: 1},
     {key: 'a/2', value: 2},
   ]);
+});
+
+test.skip('subscribe', async () => {
+  //
+});
+
+test.skip('subscribe close', async () => {
+  //
+});
+
+test('name', async () => {
+  await useReplay('name');
+
+  const repA = await replicacheForTesting('a');
+  const repB = await replicacheForTesting('b');
+
+  const addA = repA.register('add-data', addData);
+  const addB = repB.register('add-data', addData);
+
+  await addA({key: 'A'});
+  await addB({key: 'B'});
+
+  expect(await repA.get('key')).toBe('A');
+  expect(await repB.get('key')).toBe('B');
+
+  await repA.close();
+  await repB.close();
+});
+
+test('register with error', async () => {
+  await useReplay('register with error');
+
+  rep = await replicacheForTesting('regerr');
+
+  const doErr = rep.register('err', async (_, args) => {
+    throw args;
+  });
+
+  try {
+    await doErr(42);
+    fail('Should have thrown');
+  } catch (ex) {
+    expect(ex).toBe(42);
+  }
+});
+
+test.skip('subscribe with error', async () => {
+  //
+});
+
+test('conflicting commits', async () => {
+  await useReplay('conflicting commits');
+
+  // This test does not use pure functions in the mutations. This is of course
+  // not a good practice but it makes testing easier.
+  const ar = resolver();
+  const br = resolver();
+
+  rep = await replicacheForTesting('conflict');
+  const mutA = rep.register('mutA', async (tx, v) => {
+    await tx.put('k', v);
+    await ar.promise;
+  });
+  const mutB = rep.register('mutB', async (tx, v) => {
+    await tx.put('k', v);
+    await br.promise;
+  });
+
+  // Start A and B at the same commit.
+  const resAFuture = mutA('a');
+  const resBFuture = mutB('b');
+
+  // Finish A.
+  ar.resolve();
+  await resAFuture;
+  expect(await rep.get('k')).toBe('a');
+
+  // Finish B. B will conflict and retry!
+  br.resolve();
+  await resBFuture;
+  expect(await rep.get('k')).toBe('b');
+});
+
+test('sync', async () => {
+  await useReplay('sync');
+
+  rep = await replicacheForTesting('sync', {
+    batchUrl: 'https://replicache-sample-todo.now.sh/serve/replicache-batch',
+    dataLayerAuth: '1',
+    diffServerAuth: '1',
+  });
+
+  const c = resolver();
+  c.resolve();
+
+  let createCount = 0;
+  let deleteCount = 0;
+  let syncHead: string;
+  let beginSyncResult: {
+    syncID: string;
+    syncHead: string;
+  };
+
+  const createTodo = rep.register(
+    'createTodo',
+    async <A extends {id: number}>(tx: WriteTransaction, args: A) => {
+      createCount++;
+      await tx.put(`/todo/${args.id}`, args);
+    },
+  );
+
+  const deleteTodo = rep.register(
+    'deleteTodo',
+    async <A extends {id: number}>(tx: WriteTransaction, args: A) => {
+      deleteCount++;
+      await tx.del(`/todo/${args.id}`);
+    },
+  );
+
+  const id1 = 14323534;
+  const id2 = 22354345;
+
+  await deleteTodo({id: id1});
+  await deleteTodo({id: id2});
+
+  expect(deleteCount).toBe(2);
+
+  await rep?.sync();
+  expect(deleteCount).toBe(2);
+
+  beginSyncResult = await rep?.beginSync();
+  syncHead = beginSyncResult.syncHead;
+  expect(syncHead).toBe(emptyHash);
+  expect(deleteCount).toBe(2);
+
+  await createTodo({
+    id: id1,
+    listId: 1,
+    text: 'Test',
+    complete: false,
+    order: 10000,
+  });
+  expect(createCount).toBe(1);
+  expect(((await rep?.get(`/todo/${id1}`)) as {text: string}).text).toBe(
+    'Test',
+  );
+
+  beginSyncResult = await rep?.beginSync();
+  syncHead = beginSyncResult.syncHead;
+  expect(syncHead).not.toBe(emptyHash);
+
+  await createTodo({
+    id: id2,
+    listId: 1,
+    text: 'Test 2',
+    complete: false,
+    order: 20000,
+  });
+  expect(createCount).toBe(2);
+  expect(((await rep?.get(`/todo/${id2}`)) as {text: string}).text).toBe(
+    'Test 2',
+  );
+
+  await rep?.maybeEndSync(beginSyncResult);
+
+  expect(createCount).toBe(3);
+
+  // Clean up
+  await deleteTodo({id: id1});
+  await deleteTodo({id: id2});
+
+  expect(deleteCount).toBe(4);
+  expect(createCount).toBe(3);
+
+  await rep?.sync();
+
+  expect(deleteCount).toBe(4);
+  expect(createCount).toBe(3);
 });

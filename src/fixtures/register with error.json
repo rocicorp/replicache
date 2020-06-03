@@ -1,0 +1,41 @@
+[
+  {
+    "dbName": "regerr",
+    "method": "open",
+    "args": {},
+    "result": ""
+  },
+  {
+    "dbName": "regerr",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
+    }
+  },
+  {
+    "dbName": "regerr",
+    "method": "openTransaction",
+    "args": {
+      "args": 42,
+      "name": "err"
+    },
+    "result": {
+      "transactionId": 1
+    }
+  },
+  {
+    "dbName": "regerr",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 1
+    },
+    "result": {}
+  },
+  {
+    "dbName": "regerr",
+    "method": "close",
+    "args": {},
+    "result": ""
+  }
+]

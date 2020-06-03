@@ -1,0 +1,171 @@
+[
+  {
+    "dbName": "conflict",
+    "method": "open",
+    "args": {},
+    "result": ""
+  },
+  {
+    "dbName": "conflict",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
+    }
+  },
+  {
+    "dbName": "conflict",
+    "method": "openTransaction",
+    "args": {
+      "args": "b",
+      "name": "mutB"
+    },
+    "result": {
+      "transactionId": 1
+    }
+  },
+  {
+    "dbName": "conflict",
+    "method": "openTransaction",
+    "args": {
+      "args": "a",
+      "name": "mutA"
+    },
+    "result": {
+      "transactionId": 2
+    }
+  },
+  {
+    "dbName": "conflict",
+    "method": "put",
+    "args": {
+      "transactionId": 2,
+      "key": "k",
+      "value": "a"
+    },
+    "result": {}
+  },
+  {
+    "dbName": "conflict",
+    "method": "put",
+    "args": {
+      "transactionId": 1,
+      "key": "k",
+      "value": "b"
+    },
+    "result": {}
+  },
+  {
+    "dbName": "conflict",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 2
+    },
+    "result": {
+      "ref": "kb6k8lppbdsh6lpvudngtllh7p3h3eql"
+    }
+  },
+  {
+    "dbName": "conflict",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 3
+    }
+  },
+  {
+    "dbName": "conflict",
+    "method": "get",
+    "args": {
+      "transactionId": 3,
+      "key": "k"
+    },
+    "result": {
+      "has": true,
+      "value": "a"
+    }
+  },
+  {
+    "dbName": "conflict",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 3
+    },
+    "result": {}
+  },
+  {
+    "dbName": "conflict",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 1
+    },
+    "result": {
+      "retryCommit": true
+    }
+  },
+  {
+    "dbName": "conflict",
+    "method": "openTransaction",
+    "args": {
+      "args": "b",
+      "name": "mutB"
+    },
+    "result": {
+      "transactionId": 4
+    }
+  },
+  {
+    "dbName": "conflict",
+    "method": "put",
+    "args": {
+      "transactionId": 4,
+      "key": "k",
+      "value": "b"
+    },
+    "result": {}
+  },
+  {
+    "dbName": "conflict",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 4
+    },
+    "result": {
+      "ref": "m3323carbgqml43e2h54gq06kpbn5340"
+    }
+  },
+  {
+    "dbName": "conflict",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 5
+    }
+  },
+  {
+    "dbName": "conflict",
+    "method": "get",
+    "args": {
+      "transactionId": 5,
+      "key": "k"
+    },
+    "result": {
+      "has": true,
+      "value": "b"
+    }
+  },
+  {
+    "dbName": "conflict",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 5
+    },
+    "result": {}
+  },
+  {
+    "dbName": "conflict",
+    "method": "close",
+    "args": {},
+    "result": ""
+  }
+]

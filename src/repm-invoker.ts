@@ -105,15 +105,17 @@ type PutResponse = unknown;
 type DelRequest = TransactionRequest & {key: string};
 type DelResponse = {ok: boolean};
 
-type RebaseOpts = {
-  basis: string;
-  original: string;
-};
+type RebaseOpts =
+  | Record<string, unknown>
+  | {
+      basis: string;
+      original: string;
+    };
 
 export type OpenTransactionRequest = {
   name?: string;
   args?: JsonType;
-  rebaseOpt?: RebaseOpts;
+  rebaseOpts?: RebaseOpts;
 };
 type OpenTransactionResponse = {
   transactionId: number;
@@ -123,10 +125,14 @@ type CloseTransactionRequest = TransactionRequest;
 type CloseTransactionResponse = unknown;
 
 type CommitTransactionRequest = TransactionRequest;
-type CommitTransactionResponse = {
-  ref?: string;
-  retryCommit?: boolean;
-};
+type CommitTransactionResponse =
+  | {
+      retryCommit: false;
+      ref: string;
+    }
+  | {
+      retryCommit: true;
+    };
 
 type BeginSyncRequest = {
   batchPushURL: string;
@@ -162,8 +168,8 @@ type SyncInfo = {
 };
 
 type BeginSyncResponse = {
-  syncHead?: string;
-  syncInfo?: SyncInfo;
+  syncHead: string;
+  syncInfo: SyncInfo;
 };
 
 type MaybeEndSyncRequest = {
@@ -178,7 +184,7 @@ type Mutation = {
 };
 
 type ReplayMutation = Mutation & {
-  original?: string;
+  original: string;
 };
 
 type MaybeEndSyncResponse = {

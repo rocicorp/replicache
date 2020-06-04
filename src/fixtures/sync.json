@@ -91,9 +91,9 @@
       "diffServerAuth": "1"
     },
     "result": {
-      "syncHead": "joccnrl5gm1aehankp45tbv9anfjtord",
+      "syncHead": "62f6ki43l12mujhubcfhjuugiause17b",
       "syncInfo": {
-        "syncID": "mNBJicAp7cDxV2QunKLYYE-5ed81b38-1",
+        "syncID": "XY6WhbbdeUdytMJNtsBejG-5ed87fed-1",
         "clientViewInfo": {
           "httpStatusCode": 200,
           "errorMessage": ""
@@ -105,8 +105,24 @@
     "dbName": "sync",
     "method": "maybeEndSync",
     "args": {
-      "syncID": "mNBJicAp7cDxV2QunKLYYE-5ed81b38-1",
-      "syncHead": "joccnrl5gm1aehankp45tbv9anfjtord"
+      "syncID": "XY6WhbbdeUdytMJNtsBejG-5ed87fed-1",
+      "syncHead": "62f6ki43l12mujhubcfhjuugiause17b"
+    },
+    "result": {}
+  },
+  {
+    "dbName": "sync",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 3
+    }
+  },
+  {
+    "dbName": "sync",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 3
     },
     "result": {}
   },
@@ -122,7 +138,7 @@
     "result": {
       "syncHead": "00000000000000000000000000000000",
       "syncInfo": {
-        "syncID": "mNBJicAp7cDxV2QunKLYYE-5ed81b38-2",
+        "syncID": "XY6WhbbdeUdytMJNtsBejG-5ed87fed-2",
         "clientViewInfo": {
           "httpStatusCode": 200,
           "errorMessage": ""
@@ -144,14 +160,14 @@
       "name": "createTodo"
     },
     "result": {
-      "transactionId": 3
+      "transactionId": 4
     }
   },
   {
     "dbName": "sync",
     "method": "put",
     "args": {
-      "transactionId": 3,
+      "transactionId": 4,
       "key": "/todo/14323534",
       "value": {
         "id": 14323534,
@@ -167,10 +183,10 @@
     "dbName": "sync",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 3
+      "transactionId": 4
     },
     "result": {
-      "ref": "uikn5klbnukgg5c72u069kq4lt56m4u9"
+      "ref": "jcm71mr1qn7c4hrl0t1icv8eug3q6t4q"
     }
   },
   {
@@ -178,14 +194,30 @@
     "method": "openTransaction",
     "args": {},
     "result": {
-      "transactionId": 4
+      "transactionId": 5
+    }
+  },
+  {
+    "dbName": "sync",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 5
+    },
+    "result": {}
+  },
+  {
+    "dbName": "sync",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 6
     }
   },
   {
     "dbName": "sync",
     "method": "get",
     "args": {
-      "transactionId": 4,
+      "transactionId": 6,
       "key": "/todo/14323534"
     },
     "result": {
@@ -203,7 +235,7 @@
     "dbName": "sync",
     "method": "closeTransaction",
     "args": {
-      "transactionId": 4
+      "transactionId": 6
     },
     "result": {}
   },
@@ -217,9 +249,9 @@
       "diffServerAuth": "1"
     },
     "result": {
-      "syncHead": "472b9pfehsqb6c7j80v8dk8m2evjoall",
+      "syncHead": "o765nohuq5odu3l595dumucsnhflmqpl",
       "syncInfo": {
-        "syncID": "mNBJicAp7cDxV2QunKLYYE-5ed81b38-3",
+        "syncID": "XY6WhbbdeUdytMJNtsBejG-5ed87fed-3",
         "batchPushInfo": {
           "httpStatusCode": 200,
           "errorMessage": "",
@@ -246,14 +278,14 @@
       "name": "createTodo"
     },
     "result": {
-      "transactionId": 5
+      "transactionId": 7
     }
   },
   {
     "dbName": "sync",
     "method": "put",
     "args": {
-      "transactionId": 5,
+      "transactionId": 7,
       "key": "/todo/22354345",
       "value": {
         "id": 22354345,
@@ -269,10 +301,10 @@
     "dbName": "sync",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 5
+      "transactionId": 7
     },
     "result": {
-      "ref": "hg9qrbuq2qhabjkffhcn61uoch67tjfu"
+      "ref": "01o95tco2mfa9cbtg77qh3plmrq97i63"
     }
   },
   {
@@ -280,14 +312,30 @@
     "method": "openTransaction",
     "args": {},
     "result": {
-      "transactionId": 6
+      "transactionId": 8
     }
+  },
+  {
+    "dbName": "sync",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 9
+    }
+  },
+  {
+    "dbName": "sync",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 8
+    },
+    "result": {}
   },
   {
     "dbName": "sync",
     "method": "get",
     "args": {
-      "transactionId": 6,
+      "transactionId": 9,
       "key": "/todo/22354345"
     },
     "result": {
@@ -305,7 +353,7 @@
     "dbName": "sync",
     "method": "closeTransaction",
     "args": {
-      "transactionId": 6
+      "transactionId": 9
     },
     "result": {}
   },
@@ -313,8 +361,8 @@
     "dbName": "sync",
     "method": "maybeEndSync",
     "args": {
-      "syncID": "mNBJicAp7cDxV2QunKLYYE-5ed81b38-3",
-      "syncHead": "472b9pfehsqb6c7j80v8dk8m2evjoall"
+      "syncID": "XY6WhbbdeUdytMJNtsBejG-5ed87fed-3",
+      "syncHead": "o765nohuq5odu3l595dumucsnhflmqpl"
     },
     "result": {
       "replayMutations": [
@@ -328,7 +376,7 @@
             "order": 20000,
             "text": "Test 2"
           },
-          "original": "hg9qrbuq2qhabjkffhcn61uoch67tjfu"
+          "original": "01o95tco2mfa9cbtg77qh3plmrq97i63"
         }
       ]
     }
@@ -346,19 +394,19 @@
       },
       "name": "createTodo",
       "rebaseOpts": {
-        "basis": "472b9pfehsqb6c7j80v8dk8m2evjoall",
-        "original": "hg9qrbuq2qhabjkffhcn61uoch67tjfu"
+        "basis": "o765nohuq5odu3l595dumucsnhflmqpl",
+        "original": "01o95tco2mfa9cbtg77qh3plmrq97i63"
       }
     },
     "result": {
-      "transactionId": 7
+      "transactionId": 10
     }
   },
   {
     "dbName": "sync",
     "method": "put",
     "args": {
-      "transactionId": 7,
+      "transactionId": 10,
       "key": "/todo/22354345",
       "value": {
         "complete": false,
@@ -374,18 +422,34 @@
     "dbName": "sync",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 7
+      "transactionId": 10
     },
     "result": {
-      "ref": "9kg655lq25vuf721qvnmd7ai4abgnccb"
+      "ref": "2edu4qsv6j5l4e006jg5oocu0qvmoktv"
     }
   },
   {
     "dbName": "sync",
     "method": "maybeEndSync",
     "args": {
-      "syncID": "mNBJicAp7cDxV2QunKLYYE-5ed81b38-3",
-      "syncHead": "9kg655lq25vuf721qvnmd7ai4abgnccb"
+      "syncID": "XY6WhbbdeUdytMJNtsBejG-5ed87fed-3",
+      "syncHead": "2edu4qsv6j5l4e006jg5oocu0qvmoktv"
+    },
+    "result": {}
+  },
+  {
+    "dbName": "sync",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 11
+    }
+  },
+  {
+    "dbName": "sync",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 11
     },
     "result": {}
   },
@@ -399,14 +463,14 @@
       "name": "deleteTodo"
     },
     "result": {
-      "transactionId": 8
+      "transactionId": 12
     }
   },
   {
     "dbName": "sync",
     "method": "del",
     "args": {
-      "transactionId": 8,
+      "transactionId": 12,
       "key": "/todo/14323534"
     },
     "result": {
@@ -417,10 +481,18 @@
     "dbName": "sync",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 8
+      "transactionId": 12
     },
     "result": {
-      "ref": "h1tpn9022nspv5tdvh6tf3r241usqh1b"
+      "ref": "fr7h1uuugdlacdpdjfb7ssn2ofuvoqv5"
+    }
+  },
+  {
+    "dbName": "sync",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 13
     }
   },
   {
@@ -433,14 +505,22 @@
       "name": "deleteTodo"
     },
     "result": {
-      "transactionId": 9
+      "transactionId": 14
     }
+  },
+  {
+    "dbName": "sync",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 13
+    },
+    "result": {}
   },
   {
     "dbName": "sync",
     "method": "del",
     "args": {
-      "transactionId": 9,
+      "transactionId": 14,
       "key": "/todo/22354345"
     },
     "result": {
@@ -451,11 +531,27 @@
     "dbName": "sync",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 9
+      "transactionId": 14
     },
     "result": {
-      "ref": "21srq6usqliao7452qgm9fnk09ubnk02"
+      "ref": "5dg1c34pdnpk1fvg1netha0cpsc4mmks"
     }
+  },
+  {
+    "dbName": "sync",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 15
+    }
+  },
+  {
+    "dbName": "sync",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 15
+    },
+    "result": {}
   },
   {
     "dbName": "sync",
@@ -467,9 +563,9 @@
       "diffServerAuth": "1"
     },
     "result": {
-      "syncHead": "qfca4v424asg4fbvfac13t52t931vkn9",
+      "syncHead": "i2eqbh68mmpdrbm0q64mpkob112b2ru2",
       "syncInfo": {
-        "syncID": "mNBJicAp7cDxV2QunKLYYE-5ed81b38-4",
+        "syncID": "XY6WhbbdeUdytMJNtsBejG-5ed87fed-4",
         "batchPushInfo": {
           "httpStatusCode": 200,
           "errorMessage": "",
@@ -486,8 +582,24 @@
     "dbName": "sync",
     "method": "maybeEndSync",
     "args": {
-      "syncID": "mNBJicAp7cDxV2QunKLYYE-5ed81b38-4",
-      "syncHead": "qfca4v424asg4fbvfac13t52t931vkn9"
+      "syncID": "XY6WhbbdeUdytMJNtsBejG-5ed87fed-4",
+      "syncHead": "i2eqbh68mmpdrbm0q64mpkob112b2ru2"
+    },
+    "result": {}
+  },
+  {
+    "dbName": "sync",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 16
+    }
+  },
+  {
+    "dbName": "sync",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 16
     },
     "result": {}
   },

@@ -3,6 +3,10 @@ import fetch from 'node-fetch';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).fetch = fetch;
 
+import {ReadableStream} from 'web-streams-polyfill';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(globalThis as any).ReadableStream = ReadableStream;
+
 import {open} from 'fs/promises';
 import type {FileHandle} from 'fs/promises';
 
@@ -12,6 +16,7 @@ import {RepmHttpInvoker} from './mod.js';
 import type {RepmInvoke, ReadTransaction, WriteTransaction} from './mod.js';
 import type {JsonType} from './json.js';
 import type {InvokeMapNoArgs, InvokeMap, FullInvoke} from './repm-invoker.js';
+import type {ScanItem} from './scan-item.js';
 
 let rep: ReplicacheTest | null = null;
 let rep2: ReplicacheTest | null = null;
@@ -249,7 +254,7 @@ test('get, has, scan on empty db', async () => {
   rep = await replicacheForTesting('test2');
 
   async function t(tx: ReadTransaction) {
-    expect(await tx.get('key')).toBeNull();
+    expect(await tx.get('key')).toBeUndefined();
     expect(await tx.has('key')).toBe(false);
 
     const scanItems = await tx.scan();
@@ -376,12 +381,146 @@ test('scan', async () => {
   ]);
 });
 
-test.skip('subscribe', async () => {
-  //
+function listen<R>(
+  s: {getReader: ReadableStream['getReader']},
+  callback: (r: R) => void,
+) {
+  let cancelled = false;
+  let paused = false;
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  let onDone = () => {};
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  let onError: (e: unknown) => void = () => {};
+
+  async function inner<R>(
+    s: {getReader: ReadableStream['getReader']},
+    callback: (r: R) => void,
+  ) {
+    const reader = s.getReader();
+    try {
+      for (;;) {
+        const res = await reader.read();
+        if (cancelled || res.done) {
+          return;
+        }
+        if (!paused) {
+          callback(res.value);
+        }
+      }
+    } catch (e) {
+      onError(e);
+    } finally {
+      reader.releaseLock();
+      onDone();
+    }
+  }
+
+  inner(s, callback);
+
+  return {
+    cancel() {
+      cancelled = true;
+    },
+    pause() {
+      paused = true;
+    },
+    resume() {
+      paused = false;
+    },
+    onDone(f: () => void) {
+      onDone = f;
+    },
+    onError(f: (e: unknown) => void) {
+      onError = f;
+    },
+  };
+}
+
+test('subscribe', async () => {
+  await useReplay('subscribe');
+
+  rep = await replicacheForTesting('subscribe');
+  const repSub = rep.subscribe(
+    async (tx: ReadTransaction) => await tx.scan({prefix: 'a/'}),
+  );
+
+  const log: ScanItem[] = [];
+
+  const sub = listen(repSub, (values: Iterable<ScanItem>) => {
+    for (const scanItem of values) {
+      log.push(scanItem);
+    }
+  });
+
+  expect(log).toHaveLength(0);
+
+  const add = rep.register('add-data', addData);
+  await add({'a/0': 0});
+  await Promise.resolve();
+  expect(log).toEqual([{key: 'a/0', value: 0}]);
+
+  // We might potentially remove this entry if we start checking equality.
+  log.length = 0;
+  await add({'a/0': 0});
+  await Promise.resolve();
+  expect(log).toEqual([{key: 'a/0', value: 0}]);
+
+  log.length = 0;
+  await add({'a/1': 1});
+  await Promise.resolve();
+  expect(log).toEqual([
+    {key: 'a/0', value: 0},
+    {key: 'a/1', value: 1},
+  ]);
+
+  log.length = 0;
+  sub.pause();
+  await add({'a/1': 1});
+  await Promise.resolve();
+  expect(log).toHaveLength(0);
+
+  log.length = 0;
+  sub.resume();
+  await add({'a/1': 11});
+  await Promise.resolve();
+  expect(log).toEqual([
+    {key: 'a/0', value: 0},
+    {key: 'a/1', value: 11},
+  ]);
+
+  log.length = 0;
+  sub.cancel();
+  await add({'a/1': 11});
+  await Promise.resolve();
+  expect(log).toHaveLength(0);
 });
 
-test.skip('subscribe close', async () => {
-  //
+test('subscribe close', async () => {
+  await useReplay('subscribe close');
+
+  rep = await replicacheForTesting('subscribe-close');
+  const repSub = rep.subscribe((tx: ReadTransaction) => tx.get('k'));
+
+  const log: (number | undefined)[] = [];
+  const sub = listen(repSub, (value: number | undefined) => {
+    log.push(value);
+  });
+
+  expect(log).toHaveLength(0);
+
+  const add = rep.register('add-data', addData);
+  await add({k: 0});
+  await Promise.resolve();
+  expect(log).toEqual([undefined, 0]);
+
+  let done = false;
+  sub.onDone(() => {
+    done = true;
+  });
+
+  await rep.close();
+  expect(done).toBe(true);
+  sub.cancel();
 });
 
 test('name', async () => {
@@ -420,8 +559,40 @@ test('register with error', async () => {
   }
 });
 
-test.skip('subscribe with error', async () => {
-  //
+test('subscribe with error', async () => {
+  await useReplay('subscribe with error');
+
+  rep = await replicacheForTesting('suberr');
+
+  const add = rep.register('add-data', addData);
+
+  const repSub = rep.subscribe(async tx => {
+    const v = await tx.get('k');
+    if (v !== undefined && v !== null) {
+      throw v;
+    }
+  });
+  await Promise.resolve();
+
+  let gottenValue = 0;
+  const sub = listen(repSub, () => {
+    gottenValue++;
+  });
+
+  let error;
+  sub.onError(e => {
+    error = e;
+  });
+
+  expect(error).toBeUndefined();
+  expect(gottenValue).toBe(0);
+
+  await add({k: 'throw'});
+  expect(gottenValue).toBe(1);
+  await Promise.resolve();
+  expect(error).toBe('throw');
+
+  await sub.cancel();
 });
 
 test('conflicting commits', async () => {

@@ -1,0 +1,110 @@
+[
+  {
+    "dbName": "suberr",
+    "method": "open",
+    "args": {},
+    "result": ""
+  },
+  {
+    "dbName": "suberr",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
+    }
+  },
+  {
+    "dbName": "suberr",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 1
+    }
+  },
+  {
+    "dbName": "suberr",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "k": "throw"
+      },
+      "name": "add-data"
+    },
+    "result": {
+      "transactionId": 2
+    }
+  },
+  {
+    "dbName": "suberr",
+    "method": "get",
+    "args": {
+      "transactionId": 1,
+      "key": "k"
+    },
+    "result": {
+      "has": false
+    }
+  },
+  {
+    "dbName": "suberr",
+    "method": "put",
+    "args": {
+      "transactionId": 2,
+      "key": "k",
+      "value": "throw"
+    },
+    "result": {}
+  },
+  {
+    "dbName": "suberr",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 1
+    },
+    "result": {}
+  },
+  {
+    "dbName": "suberr",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 2
+    },
+    "result": {
+      "ref": "fuvlabho49l1kklklp7ifok78j68p58k"
+    }
+  },
+  {
+    "dbName": "suberr",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 3
+    }
+  },
+  {
+    "dbName": "suberr",
+    "method": "get",
+    "args": {
+      "transactionId": 3,
+      "key": "k"
+    },
+    "result": {
+      "has": true,
+      "value": "throw"
+    }
+  },
+  {
+    "dbName": "suberr",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 3
+    },
+    "result": {}
+  },
+  {
+    "dbName": "suberr",
+    "method": "close",
+    "args": {},
+    "result": ""
+  }
+]

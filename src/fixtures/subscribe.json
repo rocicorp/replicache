@@ -1,0 +1,448 @@
+[
+  {
+    "dbName": "subscribe",
+    "method": "open",
+    "args": {},
+    "result": ""
+  },
+  {
+    "dbName": "subscribe",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 1
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "a/0": 0
+      },
+      "name": "add-data"
+    },
+    "result": {
+      "transactionId": 2
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "scan",
+    "args": {
+      "transactionId": 1,
+      "limit": 50,
+      "prefix": "a/"
+    },
+    "result": []
+  },
+  {
+    "dbName": "subscribe",
+    "method": "put",
+    "args": {
+      "transactionId": 2,
+      "key": "a/0",
+      "value": 0
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 1
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 2
+    },
+    "result": {
+      "ref": "1urd54h8eang8qlg04a2252jdensto5m"
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 3
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "scan",
+    "args": {
+      "transactionId": 3,
+      "limit": 50,
+      "prefix": "a/"
+    },
+    "result": [
+      {
+        "key": "a/0",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "dbName": "subscribe",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 3
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "a/0": 0
+      },
+      "name": "add-data"
+    },
+    "result": {
+      "transactionId": 4
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "put",
+    "args": {
+      "transactionId": 4,
+      "key": "a/0",
+      "value": 0
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 4
+    },
+    "result": {
+      "ref": "hu07btpggcmkc4ujo1bmlvm9o6li3bh0"
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 5
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "scan",
+    "args": {
+      "transactionId": 5,
+      "limit": 50,
+      "prefix": "a/"
+    },
+    "result": [
+      {
+        "key": "a/0",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "dbName": "subscribe",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 5
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "a/1": 1
+      },
+      "name": "add-data"
+    },
+    "result": {
+      "transactionId": 6
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "put",
+    "args": {
+      "transactionId": 6,
+      "key": "a/1",
+      "value": 1
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 6
+    },
+    "result": {
+      "ref": "rrv3aqst7so8e9a6kalic5s9etm95dv9"
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 7
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "scan",
+    "args": {
+      "transactionId": 7,
+      "limit": 50,
+      "prefix": "a/"
+    },
+    "result": [
+      {
+        "key": "a/0",
+        "value": 0
+      },
+      {
+        "key": "a/1",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "dbName": "subscribe",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 7
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "a/1": 1
+      },
+      "name": "add-data"
+    },
+    "result": {
+      "transactionId": 8
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "put",
+    "args": {
+      "transactionId": 8,
+      "key": "a/1",
+      "value": 1
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 8
+    },
+    "result": {
+      "ref": "1t1l07m370c4k1jbh9cenumcf18ud1qj"
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 9
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "scan",
+    "args": {
+      "transactionId": 9,
+      "limit": 50,
+      "prefix": "a/"
+    },
+    "result": [
+      {
+        "key": "a/0",
+        "value": 0
+      },
+      {
+        "key": "a/1",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "dbName": "subscribe",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 9
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "a/1": 11
+      },
+      "name": "add-data"
+    },
+    "result": {
+      "transactionId": 10
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "put",
+    "args": {
+      "transactionId": 10,
+      "key": "a/1",
+      "value": 11
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 10
+    },
+    "result": {
+      "ref": "f326rp67musbvokp4hnai4can925p800"
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 11
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "scan",
+    "args": {
+      "transactionId": 11,
+      "limit": 50,
+      "prefix": "a/"
+    },
+    "result": [
+      {
+        "key": "a/0",
+        "value": 0
+      },
+      {
+        "key": "a/1",
+        "value": 11
+      }
+    ]
+  },
+  {
+    "dbName": "subscribe",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 11
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "a/1": 11
+      },
+      "name": "add-data"
+    },
+    "result": {
+      "transactionId": 12
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "put",
+    "args": {
+      "transactionId": 12,
+      "key": "a/1",
+      "value": 11
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 12
+    },
+    "result": {
+      "ref": "ijto1r834e41hqaa2q6sq9hhuvsq2v44"
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 13
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "scan",
+    "args": {
+      "transactionId": 13,
+      "limit": 50,
+      "prefix": "a/"
+    },
+    "result": [
+      {
+        "key": "a/0",
+        "value": 0
+      },
+      {
+        "key": "a/1",
+        "value": 11
+      }
+    ]
+  },
+  {
+    "dbName": "subscribe",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 13
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe",
+    "method": "close",
+    "args": {},
+    "result": ""
+  }
+]

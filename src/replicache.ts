@@ -42,6 +42,7 @@ export default class Replicache implements ReadTransaction {
     MutatorImpl<JsonType, JsonType>
   >();
   private _syncPromise: Promise<void> | null = null;
+  private readonly _subscriptions = new Set<Subscription<unknown>>();
 
   constructor({
     batchUrl = '',
@@ -113,6 +114,10 @@ export default class Replicache implements ReadTransaction {
     // Clear timer
 
     // Clear subscriptions
+    for (const subscription of this._subscriptions) {
+      subscription.controller.close();
+    }
+    this._subscriptions.clear();
 
     await p;
   }
@@ -129,7 +134,7 @@ export default class Replicache implements ReadTransaction {
     const currentRoot = await this._root; // instantaneous except maybe first time
     if (root !== undefined && root !== currentRoot) {
       this._root = Promise.resolve(root);
-      // await this._fireOnChange();
+      await this._fireOnChange();
     }
   }
 
@@ -142,7 +147,7 @@ export default class Replicache implements ReadTransaction {
   };
 
   /** Get a single value from the database. */
-  get(key: string): Promise<JsonType> {
+  get(key: string): Promise<JsonType | undefined> {
     return this.query(tx => tx.get(key));
   }
 
@@ -320,6 +325,68 @@ export default class Replicache implements ReadTransaction {
     }
   }
 
+  private async _fireOnChange(): Promise<void> {
+    const subscriptions = [...this._subscriptions];
+    const results = await this.query(async tx => {
+      const promises = subscriptions.map(async s => {
+        // Tag the result so we can deal with success vs error below.
+        try {
+          return {ok: true, value: await s.callback(tx)};
+        } catch (ex) {
+          return {ok: false, error: ex};
+        }
+      });
+      return await Promise.all(promises);
+    });
+    for (let i = 0; i < subscriptions.length; i++) {
+      const result = results[i];
+      if (result.ok) {
+        subscriptions[i].controller.enqueue(result.value);
+      } else {
+        subscriptions[i].controller.error(result.error);
+        // After error the stream is no longer usable.
+        this._subscriptions.delete(subscriptions[i]);
+      }
+    }
+  }
+
+  /**
+   * Subcribe to changes to the underlying data. This returns a stream that can
+   * be listened to. Every time the underlying data changes the listener is
+   * invoked. The listener is also invoked once the first time the subscription
+   * is added. There is currently no guarantee that the result of this
+   * subscription changes and it might get called with the same value over and
+   * over.
+   */
+  subscribe<R>(
+    callback: (tx: ReadTransaction) => Promise<R>,
+  ): ReadableStream<R> {
+    let controller: ReadableStreamDefaultController<R>;
+
+    const stream = new ReadableStream<R>({
+      start: async (c: ReadableStreamDefaultController<R>): Promise<void> => {
+        controller = c;
+        // One initial call.
+        const res = await this.query(callback);
+        c.enqueue(res);
+        this._subscriptions.add(subscription as Subscription<unknown>);
+      },
+      cancel: (): void => {
+        this._subscriptions.delete(subscription as Subscription<unknown>);
+      },
+    });
+
+    const subscription = {
+      callback,
+      // ReadableStream calls start synchronously so controller is defined here.
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      controller,
+    };
+
+    return stream;
+  }
+
   /**
    * Query is used for read transactions. It is recommended to use transactions
    * to ensure you get a consistent view across multiple calls to `get`, `has`
@@ -471,3 +538,8 @@ export class ReplicacheTest extends Replicache {
     return super._maybeEndSync(beginSyncResult);
   }
 }
+
+type Subscription<R> = {
+  callback: (tx: ReadTransaction) => Promise<R>;
+  controller: ReadableStreamDefaultController<R>;
+};

@@ -95,6 +95,22 @@
   {
     "dbName": "test3",
     "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 2
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 2
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
     "args": {
       "args": {
         "key": "b",
@@ -103,14 +119,14 @@
       "name": "mut"
     },
     "result": {
-      "transactionId": 2
+      "transactionId": 3
     }
   },
   {
     "dbName": "test3",
     "method": "put",
     "args": {
-      "transactionId": 2,
+      "transactionId": 3,
       "key": "b",
       "value": false
     },
@@ -120,7 +136,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 2,
+      "transactionId": 3,
       "key": "b"
     },
     "result": {
@@ -131,7 +147,7 @@
     "dbName": "test3",
     "method": "get",
     "args": {
-      "transactionId": 2,
+      "transactionId": 3,
       "key": "b"
     },
     "result": {
@@ -143,7 +159,7 @@
     "dbName": "test3",
     "method": "del",
     "args": {
-      "transactionId": 2,
+      "transactionId": 3,
       "key": "b"
     },
     "result": {
@@ -154,7 +170,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 2,
+      "transactionId": 3,
       "key": "b"
     },
     "result": {
@@ -165,11 +181,27 @@
     "dbName": "test3",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 2
+      "transactionId": 3
     },
     "result": {
       "ref": "cac8csk9rcfec1o3mlc0t7cfm3ivomj0"
     }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 4
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 4
+    },
+    "result": {}
   },
   {
     "dbName": "test3",
@@ -182,14 +214,14 @@
       "name": "mut"
     },
     "result": {
-      "transactionId": 3
+      "transactionId": 5
     }
   },
   {
     "dbName": "test3",
     "method": "put",
     "args": {
-      "transactionId": 3,
+      "transactionId": 5,
       "key": "c",
       "value": null
     },
@@ -199,7 +231,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 3,
+      "transactionId": 5,
       "key": "c"
     },
     "result": {
@@ -210,7 +242,7 @@
     "dbName": "test3",
     "method": "get",
     "args": {
-      "transactionId": 3,
+      "transactionId": 5,
       "key": "c"
     },
     "result": {
@@ -222,7 +254,7 @@
     "dbName": "test3",
     "method": "del",
     "args": {
-      "transactionId": 3,
+      "transactionId": 5,
       "key": "c"
     },
     "result": {
@@ -233,7 +265,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 3,
+      "transactionId": 5,
       "key": "c"
     },
     "result": {
@@ -244,10 +276,18 @@
     "dbName": "test3",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 3
+      "transactionId": 5
     },
     "result": {
       "ref": "8ldvv83o1nrshp23mg4754nem4ec49gn"
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 6
     }
   },
   {
@@ -261,14 +301,22 @@
       "name": "mut"
     },
     "result": {
-      "transactionId": 4
+      "transactionId": 7
     }
+  },
+  {
+    "dbName": "test3",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 6
+    },
+    "result": {}
   },
   {
     "dbName": "test3",
     "method": "put",
     "args": {
-      "transactionId": 4,
+      "transactionId": 7,
       "key": "d",
       "value": "string"
     },
@@ -278,7 +326,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 4,
+      "transactionId": 7,
       "key": "d"
     },
     "result": {
@@ -289,7 +337,7 @@
     "dbName": "test3",
     "method": "get",
     "args": {
-      "transactionId": 4,
+      "transactionId": 7,
       "key": "d"
     },
     "result": {
@@ -301,7 +349,7 @@
     "dbName": "test3",
     "method": "del",
     "args": {
-      "transactionId": 4,
+      "transactionId": 7,
       "key": "d"
     },
     "result": {
@@ -312,7 +360,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 4,
+      "transactionId": 7,
       "key": "d"
     },
     "result": {
@@ -323,11 +371,27 @@
     "dbName": "test3",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 4
+      "transactionId": 7
     },
     "result": {
       "ref": "vrf6l81rjjo80ejehtlkkr98iq6d2gbs"
     }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 8
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 8
+    },
+    "result": {}
   },
   {
     "dbName": "test3",
@@ -340,14 +404,14 @@
       "name": "mut"
     },
     "result": {
-      "transactionId": 5
+      "transactionId": 9
     }
   },
   {
     "dbName": "test3",
     "method": "put",
     "args": {
-      "transactionId": 5,
+      "transactionId": 9,
       "key": "e",
       "value": 12
     },
@@ -357,7 +421,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 5,
+      "transactionId": 9,
       "key": "e"
     },
     "result": {
@@ -368,7 +432,7 @@
     "dbName": "test3",
     "method": "get",
     "args": {
-      "transactionId": 5,
+      "transactionId": 9,
       "key": "e"
     },
     "result": {
@@ -380,7 +444,7 @@
     "dbName": "test3",
     "method": "del",
     "args": {
-      "transactionId": 5,
+      "transactionId": 9,
       "key": "e"
     },
     "result": {
@@ -391,7 +455,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 5,
+      "transactionId": 9,
       "key": "e"
     },
     "result": {
@@ -402,10 +466,18 @@
     "dbName": "test3",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 5
+      "transactionId": 9
     },
     "result": {
       "ref": "dtv73vb7hf8m1oimhfvqhqsasbsn82d4"
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 10
     }
   },
   {
@@ -419,14 +491,22 @@
       "name": "mut"
     },
     "result": {
-      "transactionId": 6
+      "transactionId": 11
     }
+  },
+  {
+    "dbName": "test3",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 10
+    },
+    "result": {}
   },
   {
     "dbName": "test3",
     "method": "put",
     "args": {
-      "transactionId": 6,
+      "transactionId": 11,
       "key": "f",
       "value": {}
     },
@@ -436,7 +516,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 6,
+      "transactionId": 11,
       "key": "f"
     },
     "result": {
@@ -447,7 +527,7 @@
     "dbName": "test3",
     "method": "get",
     "args": {
-      "transactionId": 6,
+      "transactionId": 11,
       "key": "f"
     },
     "result": {
@@ -459,7 +539,7 @@
     "dbName": "test3",
     "method": "del",
     "args": {
-      "transactionId": 6,
+      "transactionId": 11,
       "key": "f"
     },
     "result": {
@@ -470,7 +550,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 6,
+      "transactionId": 11,
       "key": "f"
     },
     "result": {
@@ -481,11 +561,27 @@
     "dbName": "test3",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 6
+      "transactionId": 11
     },
     "result": {
       "ref": "rpr4rlbv7ppes9165tfs5ogdaqi6ap5i"
     }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 12
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 12
+    },
+    "result": {}
   },
   {
     "dbName": "test3",
@@ -498,14 +594,14 @@
       "name": "mut"
     },
     "result": {
-      "transactionId": 7
+      "transactionId": 13
     }
   },
   {
     "dbName": "test3",
     "method": "put",
     "args": {
-      "transactionId": 7,
+      "transactionId": 13,
       "key": "g",
       "value": []
     },
@@ -515,7 +611,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 7,
+      "transactionId": 13,
       "key": "g"
     },
     "result": {
@@ -526,7 +622,7 @@
     "dbName": "test3",
     "method": "get",
     "args": {
-      "transactionId": 7,
+      "transactionId": 13,
       "key": "g"
     },
     "result": {
@@ -538,7 +634,7 @@
     "dbName": "test3",
     "method": "del",
     "args": {
-      "transactionId": 7,
+      "transactionId": 13,
       "key": "g"
     },
     "result": {
@@ -549,7 +645,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 7,
+      "transactionId": 13,
       "key": "g"
     },
     "result": {
@@ -560,10 +656,18 @@
     "dbName": "test3",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 7
+      "transactionId": 13
     },
     "result": {
       "ref": "stuvecgd024s7ktrcn405327t5shf16e"
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 14
     }
   },
   {
@@ -579,14 +683,22 @@
       "name": "mut"
     },
     "result": {
-      "transactionId": 8
+      "transactionId": 15
     }
+  },
+  {
+    "dbName": "test3",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 14
+    },
+    "result": {}
   },
   {
     "dbName": "test3",
     "method": "put",
     "args": {
-      "transactionId": 8,
+      "transactionId": 15,
       "key": "h",
       "value": {
         "h1": true
@@ -598,7 +710,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 8,
+      "transactionId": 15,
       "key": "h"
     },
     "result": {
@@ -609,7 +721,7 @@
     "dbName": "test3",
     "method": "get",
     "args": {
-      "transactionId": 8,
+      "transactionId": 15,
       "key": "h"
     },
     "result": {
@@ -623,7 +735,7 @@
     "dbName": "test3",
     "method": "del",
     "args": {
-      "transactionId": 8,
+      "transactionId": 15,
       "key": "h"
     },
     "result": {
@@ -634,7 +746,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 8,
+      "transactionId": 15,
       "key": "h"
     },
     "result": {
@@ -645,10 +757,18 @@
     "dbName": "test3",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 8
+      "transactionId": 15
     },
     "result": {
       "ref": "57shmf9caa15v6slgjs07lcfdiavuesk"
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 16
     }
   },
   {
@@ -665,14 +785,22 @@
       "name": "mut"
     },
     "result": {
-      "transactionId": 9
+      "transactionId": 17
     }
+  },
+  {
+    "dbName": "test3",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 16
+    },
+    "result": {}
   },
   {
     "dbName": "test3",
     "method": "put",
     "args": {
-      "transactionId": 9,
+      "transactionId": 17,
       "key": "i",
       "value": [
         0,
@@ -685,7 +813,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 9,
+      "transactionId": 17,
       "key": "i"
     },
     "result": {
@@ -696,7 +824,7 @@
     "dbName": "test3",
     "method": "get",
     "args": {
-      "transactionId": 9,
+      "transactionId": 17,
       "key": "i"
     },
     "result": {
@@ -711,7 +839,7 @@
     "dbName": "test3",
     "method": "del",
     "args": {
-      "transactionId": 9,
+      "transactionId": 17,
       "key": "i"
     },
     "result": {
@@ -722,7 +850,7 @@
     "dbName": "test3",
     "method": "has",
     "args": {
-      "transactionId": 9,
+      "transactionId": 17,
       "key": "i"
     },
     "result": {
@@ -733,11 +861,27 @@
     "dbName": "test3",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 9
+      "transactionId": 17
     },
     "result": {
       "ref": "bqmk1odl4frdl3jd3l8e7jmr30ek49kq"
     }
+  },
+  {
+    "dbName": "test3",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 18
+    }
+  },
+  {
+    "dbName": "test3",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 18
+    },
+    "result": {}
   },
   {
     "dbName": "test3",

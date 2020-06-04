@@ -144,9 +144,25 @@
   },
   {
     "dbName": "test4",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 2
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 3
+    }
+  },
+  {
+    "dbName": "test4",
     "method": "scan",
     "args": {
-      "transactionId": 2,
+      "transactionId": 3,
       "limit": 50,
       "prefix": ""
     },
@@ -193,7 +209,7 @@
     "dbName": "test4",
     "method": "closeTransaction",
     "args": {
-      "transactionId": 2
+      "transactionId": 3
     },
     "result": {}
   },
@@ -202,14 +218,14 @@
     "method": "openTransaction",
     "args": {},
     "result": {
-      "transactionId": 3
+      "transactionId": 4
     }
   },
   {
     "dbName": "test4",
     "method": "scan",
     "args": {
-      "transactionId": 3,
+      "transactionId": 4,
       "limit": 50,
       "prefix": "a"
     },
@@ -240,45 +256,6 @@
     "dbName": "test4",
     "method": "closeTransaction",
     "args": {
-      "transactionId": 3
-    },
-    "result": {}
-  },
-  {
-    "dbName": "test4",
-    "method": "openTransaction",
-    "args": {},
-    "result": {
-      "transactionId": 4
-    }
-  },
-  {
-    "dbName": "test4",
-    "method": "scan",
-    "args": {
-      "transactionId": 4,
-      "limit": 50,
-      "prefix": "b"
-    },
-    "result": [
-      {
-        "key": "b/0",
-        "value": 5
-      },
-      {
-        "key": "b/1",
-        "value": 6
-      },
-      {
-        "key": "b/2",
-        "value": 7
-      }
-    ]
-  },
-  {
-    "dbName": "test4",
-    "method": "closeTransaction",
-    "args": {
       "transactionId": 4
     },
     "result": {}
@@ -297,12 +274,20 @@
     "args": {
       "transactionId": 5,
       "limit": 50,
-      "prefix": "c/"
+      "prefix": "b"
     },
     "result": [
       {
-        "key": "c/0",
-        "value": 8
+        "key": "b/0",
+        "value": 5
+      },
+      {
+        "key": "b/1",
+        "value": 6
+      },
+      {
+        "key": "b/2",
+        "value": 7
       }
     ]
   },
@@ -327,21 +312,13 @@
     "method": "scan",
     "args": {
       "transactionId": 6,
-      "limit": 3,
-      "prefix": ""
+      "limit": 50,
+      "prefix": "c/"
     },
     "result": [
       {
-        "key": "a/0",
-        "value": 0
-      },
-      {
-        "key": "a/1",
-        "value": 1
-      },
-      {
-        "key": "a/2",
-        "value": 2
+        "key": "c/0",
+        "value": 8
       }
     ]
   },
@@ -366,16 +343,14 @@
     "method": "scan",
     "args": {
       "transactionId": 7,
-      "limit": 2,
-      "prefix": "",
-      "start": {
-        "id": {
-          "value": "a/1",
-          "exclusive": false
-        }
-      }
+      "limit": 3,
+      "prefix": ""
     },
     "result": [
+      {
+        "key": "a/0",
+        "value": 0
+      },
       {
         "key": "a/1",
         "value": 1
@@ -412,18 +387,18 @@
       "start": {
         "id": {
           "value": "a/1",
-          "exclusive": true
+          "exclusive": false
         }
       }
     },
     "result": [
       {
-        "key": "a/2",
-        "value": 2
+        "key": "a/1",
+        "value": 1
       },
       {
-        "key": "a/3",
-        "value": 3
+        "key": "a/2",
+        "value": 2
       }
     ]
   },
@@ -452,6 +427,47 @@
       "prefix": "",
       "start": {
         "id": {
+          "value": "a/1",
+          "exclusive": true
+        }
+      }
+    },
+    "result": [
+      {
+        "key": "a/2",
+        "value": 2
+      },
+      {
+        "key": "a/3",
+        "value": 3
+      }
+    ]
+  },
+  {
+    "dbName": "test4",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 10
+    }
+  },
+  {
+    "dbName": "test4",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 9
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "scan",
+    "args": {
+      "transactionId": 10,
+      "limit": 2,
+      "prefix": "",
+      "start": {
+        "id": {
           "exclusive": false
         },
         "index": 1
@@ -472,7 +488,7 @@
     "dbName": "test4",
     "method": "closeTransaction",
     "args": {
-      "transactionId": 9
+      "transactionId": 10
     },
     "result": {}
   },

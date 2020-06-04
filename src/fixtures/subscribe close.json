@@ -1,0 +1,110 @@
+[
+  {
+    "dbName": "subscribe-close",
+    "method": "open",
+    "args": {},
+    "result": ""
+  },
+  {
+    "dbName": "subscribe-close",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
+    }
+  },
+  {
+    "dbName": "subscribe-close",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 1
+    }
+  },
+  {
+    "dbName": "subscribe-close",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "k": 0
+      },
+      "name": "add-data"
+    },
+    "result": {
+      "transactionId": 2
+    }
+  },
+  {
+    "dbName": "subscribe-close",
+    "method": "get",
+    "args": {
+      "transactionId": 1,
+      "key": "k"
+    },
+    "result": {
+      "has": false
+    }
+  },
+  {
+    "dbName": "subscribe-close",
+    "method": "put",
+    "args": {
+      "transactionId": 2,
+      "key": "k",
+      "value": 0
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe-close",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 1
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe-close",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 2
+    },
+    "result": {
+      "ref": "tqp56qjgdntdpktfht1vke2qhkahv5fl"
+    }
+  },
+  {
+    "dbName": "subscribe-close",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 3
+    }
+  },
+  {
+    "dbName": "subscribe-close",
+    "method": "get",
+    "args": {
+      "transactionId": 3,
+      "key": "k"
+    },
+    "result": {
+      "has": true,
+      "value": 0
+    }
+  },
+  {
+    "dbName": "subscribe-close",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 3
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe-close",
+    "method": "close",
+    "args": {},
+    "result": ""
+  }
+]

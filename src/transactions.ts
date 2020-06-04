@@ -9,9 +9,10 @@ import type {Invoke, ScanRequest} from './repm-invoker.js';
  */
 export interface ReadTransaction {
   /**
-   * Get a single value from the database.
+   * Get a single value from the database. If the key is not present this
+   * returns `undefined`.
    */
-  get(key: string): Promise<JsonType>;
+  get(key: string): Promise<JsonType | undefined>;
 
   /**
    * Determines if a single key is present in the database.
@@ -33,13 +34,13 @@ export class ReadTransactionImpl implements ReadTransaction {
     this._transactionId = transactionId;
   }
 
-  async get(key: string): Promise<JsonType> {
+  async get(key: string): Promise<JsonType | undefined> {
     const result = await this._invoke('get', {
       transactionId: this._transactionId,
       key: key,
     });
     if (!result['has']) {
-      return null;
+      return undefined;
     }
     return result['value'];
   }

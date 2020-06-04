@@ -275,7 +275,8 @@ export default class Replicache implements ReadTransaction {
   ): Promise<string> {
     const mutatorImpl = this._mutatorRegistry.get(name);
     if (!mutatorImpl) {
-      throw new Error(`Unknown mutator ${name}`);
+      console.error(`Unknown mutator ${name}`);
+      return basis;
     }
     const res = await this._mutate(name, mutatorImpl, args, {
       invokeArgs: {

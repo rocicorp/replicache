@@ -4,4 +4,5 @@ module.exports = {
   resolver: './jest.resolver.js',
   testRegex: '/src/.+\\.test\\.ts$',
   watchPathIgnorePatterns: ['/src/fixtures/.*$'],
+  testTimeout: 10_000,
 };

@@ -20,6 +20,14 @@
     "result": ""
   },
   {
+    "dbName": "b",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
+    }
+  },
+  {
     "dbName": "a",
     "method": "openTransaction",
     "args": {
@@ -30,14 +38,6 @@
     },
     "result": {
       "transactionId": 1
-    }
-  },
-  {
-    "dbName": "b",
-    "method": "getRoot",
-    "args": {},
-    "result": {
-      "root": "e99uif9c7bpavajrt666es1ki52dv239"
     }
   },
   {
@@ -59,6 +59,22 @@
     "result": {
       "ref": "idi79kd5godt1q480k7joofcs0483aua"
     }
+  },
+  {
+    "dbName": "a",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 2
+    }
+  },
+  {
+    "dbName": "a",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 2
+    },
+    "result": {}
   },
   {
     "dbName": "b",
@@ -94,7 +110,7 @@
     }
   },
   {
-    "dbName": "a",
+    "dbName": "b",
     "method": "openTransaction",
     "args": {},
     "result": {
@@ -103,9 +119,25 @@
   },
   {
     "dbName": "a",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 3
+    }
+  },
+  {
+    "dbName": "b",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 2
+    },
+    "result": {}
+  },
+  {
+    "dbName": "a",
     "method": "get",
     "args": {
-      "transactionId": 2,
+      "transactionId": 3,
       "key": "key"
     },
     "result": {
@@ -117,7 +149,7 @@
     "dbName": "a",
     "method": "closeTransaction",
     "args": {
-      "transactionId": 2
+      "transactionId": 3
     },
     "result": {}
   },
@@ -126,14 +158,14 @@
     "method": "openTransaction",
     "args": {},
     "result": {
-      "transactionId": 2
+      "transactionId": 3
     }
   },
   {
     "dbName": "b",
     "method": "get",
     "args": {
-      "transactionId": 2,
+      "transactionId": 3,
       "key": "key"
     },
     "result": {
@@ -142,18 +174,18 @@
     }
   },
   {
-    "dbName": "b",
-    "method": "closeTransaction",
-    "args": {
-      "transactionId": 2
-    },
-    "result": {}
-  },
-  {
     "dbName": "a",
     "method": "close",
     "args": {},
     "result": ""
+  },
+  {
+    "dbName": "b",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 3
+    },
+    "result": {}
   },
   {
     "dbName": "b",

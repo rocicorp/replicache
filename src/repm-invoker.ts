@@ -167,7 +167,7 @@ type SyncInfo = {
   clientViewInfo: ClientViewInfo;
 };
 
-type BeginSyncResponse = {
+export type BeginSyncResponse = {
   syncHead: string;
   syncInfo: SyncInfo;
 };

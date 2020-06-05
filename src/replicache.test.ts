@@ -10,23 +10,32 @@ import {ReadableStream} from 'web-streams-polyfill';
 import {open} from 'fs/promises';
 import type {FileHandle} from 'fs/promises';
 
-import {ReplicacheTest} from './replicache.js';
+import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
 import {RepmHttpInvoker} from './mod.js';
 
 import type {RepmInvoke, ReadTransaction, WriteTransaction} from './mod.js';
 import type {JsonType} from './json.js';
-import type {InvokeMapNoArgs, InvokeMap, FullInvoke} from './repm-invoker.js';
+import type {
+  InvokeMapNoArgs,
+  InvokeMap,
+  FullInvoke,
+  BeginSyncResponse,
+} from './repm-invoker.js';
 import type {ScanItem} from './scan-item.js';
 
 let rep: ReplicacheTest | null = null;
 let rep2: ReplicacheTest | null = null;
 
+type ReplayResult = JsonType;
+
 type Replay = {
   method: string;
   dbName: string;
   args: JsonType;
-  result: JsonType;
+  result: ReplayResult;
 };
+
+type ReplayInput = Omit<Replay, 'result'>;
 
 function replayMatches(
   r: Replay,
@@ -72,8 +81,47 @@ async function useReplay(name: string): Promise<void> {
   }
 }
 
+const resultReplacements: {
+  matcher: (replay: ReplayInput) => boolean;
+  result: ReplayResult;
+}[] = [];
+
+function addResultReplacement(
+  matcher: (replay: ReplayInput) => boolean,
+  result: ReplayResult,
+) {
+  if (testMode !== 'replay') {
+    // We already store the replacements in the json.
+    resultReplacements.push({matcher, result});
+  }
+}
+
+function maybeReplaceResult(replay: ReplayInput): ReplayResult | undefined {
+  const i = resultReplacements.findIndex(({matcher}) => matcher(replay));
+  if (i === -1) {
+    return undefined;
+  }
+  const {result} = resultReplacements[i];
+  resultReplacements.splice(i, 1);
+  return result;
+}
+
+function invokeMock(invoke: FullInvoke): FullInvoke {
+  return async (...args: Parameters<FullInvoke>) => {
+    const [dbName, method, args2 = {}] = args;
+    const mockResult = maybeReplaceResult({dbName, method, args: args2});
+    let result: ReplayResult;
+    if (mockResult !== undefined) {
+      result = mockResult;
+    } else {
+      result = await invoke(dbName, method, args2);
+    }
+    return result;
+  };
+}
+
 const httpInvoker = new RepmHttpInvoker('http://localhost:7002');
-const httpInvoke: FullInvoke = httpInvoker.invoke.bind(httpInvoker);
+const httpInvoke: FullInvoke = invokeMock(httpInvoker.invoke.bind(httpInvoker));
 
 function delay(ms: number): Promise<void> {
   return new Promise(res => {
@@ -230,6 +278,8 @@ afterEach(async () => {
     await fixtureFile.close();
     fixtureFile = undefined;
   }
+
+  expect(resultReplacements).toHaveLength(0);
 });
 
 test('list and drop', async () => {
@@ -723,4 +773,29 @@ test('sync', async () => {
 
   expect(deleteCount).toBe(4);
   expect(createCount).toBe(3);
+});
+
+test('reauth', async () => {
+  await useReplay('reauth');
+
+  addResultReplacement(({method}) => method === 'beginSync', {
+    syncHead: '62f6ki43l12mujhubcfhjuugiause17b',
+    syncInfo: {
+      syncID: 'XY6WhbbdeUdytMJNtsBejG-5ed87fed-1',
+      clientViewInfo: {
+        httpStatusCode: httpStatusUnauthorized,
+        errorMessage: 'xxx',
+      },
+    },
+  } as BeginSyncResponse);
+
+  rep = await replicacheForTesting('reauth');
+
+  rep.getDataLayerAuth = jest.fn(() => {
+    return null;
+  });
+
+  await rep.beginSync();
+
+  expect(rep.getDataLayerAuth).toBeCalledTimes(1);
 });

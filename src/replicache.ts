@@ -23,11 +23,13 @@ type BeginSyncResult = {
   syncHead: string;
 };
 
-const httpStatusUnauthorized = 401;
+export const httpStatusUnauthorized = 401;
+
+type MaybePromise<T> = T | Promise<T>;
 
 export default class Replicache implements ReadTransaction {
   private readonly _batchUrl: string;
-  private readonly _dataLayerAuth: string;
+  private _dataLayerAuth: string;
   private readonly _diffServerAuth: string;
   private readonly _diffServerUrl: string;
   private readonly _name: string;
@@ -43,6 +45,11 @@ export default class Replicache implements ReadTransaction {
   >();
   private _syncPromise: Promise<void> | null = null;
   private readonly _subscriptions = new Set<Subscription<unknown>>();
+
+  getDataLayerAuth:
+    | (() => MaybePromise<string | null | undefined>)
+    | null
+    | undefined = null;
 
   constructor({
     batchUrl = '',
@@ -193,7 +200,7 @@ export default class Replicache implements ReadTransaction {
 
     const {syncInfo} = beginSyncResult;
 
-    // let reauth = false;
+    let reauth = false;
 
     function checkStatus(
       data: {httpStatusCode?: number; errorMessage?: string},
@@ -206,7 +213,7 @@ export default class Replicache implements ReadTransaction {
         );
       }
       if (httpStatusCode === httpStatusUnauthorized) {
-        // reauth = true;
+        reauth = true;
       }
     }
 
@@ -225,13 +232,14 @@ export default class Replicache implements ReadTransaction {
 
     checkStatus(syncInfo.clientViewInfo, 'client view');
 
-    // if (reauth && getDataLayerAuth != null) {
-    //   this._dataLayerAuth = await this.getDataLayerAuth();
-    //   if (this._dataLayerAuth != null) {
-    //     // Try again now instead of waiting for another 5 seconds.
-    //     return await this._beginSync();
-    //   }
-    // }
+    if (reauth && this.getDataLayerAuth) {
+      const dataLayerAuth = await this.getDataLayerAuth();
+      if (dataLayerAuth != null) {
+        this._dataLayerAuth = dataLayerAuth;
+        // Try again now instead of waiting for another 5 seconds.
+        return await this._beginSync();
+      }
+    }
 
     const syncHead = beginSyncResult.syncHead;
     const {syncID} = syncInfo;

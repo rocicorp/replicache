@@ -1,0 +1,42 @@
+[
+  {
+    "dbName": "reauth",
+    "method": "open",
+    "args": {},
+    "result": ""
+  },
+  {
+    "dbName": "reauth",
+    "method": "beginSync",
+    "args": {
+      "batchPushURL": "",
+      "diffServerURL": "https://serve.replicache.dev/pull",
+      "dataLayerAuth": "",
+      "diffServerAuth": ""
+    },
+    "result": {
+      "syncHead": "62f6ki43l12mujhubcfhjuugiause17b",
+      "syncInfo": {
+        "syncID": "XY6WhbbdeUdytMJNtsBejG-5ed87fed-1",
+        "clientViewInfo": {
+          "httpStatusCode": 401,
+          "errorMessage": "xxx"
+        }
+      }
+    }
+  },
+  {
+    "dbName": "reauth",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
+    }
+  },
+  {
+    "dbName": "reauth",
+    "method": "close",
+    "args": {},
+    "result": ""
+  }
+]

@@ -46,6 +46,11 @@ export default class Replicache implements ReadTransaction {
   private _syncPromise: Promise<void> | null = null;
   private readonly _subscriptions = new Set<Subscription<unknown>>();
 
+  /**
+   * This gets called when we get an HTTP unauthorized from the client view or
+   * the batch endpoint. Set this to a function that will ask your user to
+   * reauthenticate.
+   */
   getDataLayerAuth:
     | (() => MaybePromise<string | null | undefined>)
     | null

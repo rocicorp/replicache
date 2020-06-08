@@ -1,4 +1,4 @@
-import type {JsonType} from './json.js';
+import type {JSONValue, ToJSON} from './json.js';
 import type {ScanItem} from './scan-item.js';
 import type {ScanOptions} from './scan-options.js';
 import type {DatabaseInfo} from './database-info.js';
@@ -10,10 +10,10 @@ import type {
 import {ReadTransactionImpl, WriteTransaction} from './transactions.js';
 import type {ReadTransaction} from './transactions.js';
 
-type Mutator<Return extends JsonType | void, Args extends JsonType> = (
+type Mutator<Return extends JSONValue | void, Args extends JSONValue> = (
   args: Args,
 ) => Promise<Return | void>;
-type MutatorImpl<Return extends JsonType | void, Args extends JsonType> = (
+type MutatorImpl<Return extends JSONValue | void, Args extends JSONValue> = (
   tx: WriteTransaction,
   args: Args,
 ) => Promise<Return>;
@@ -41,7 +41,7 @@ export default class Replicache implements ReadTransaction {
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
-    MutatorImpl<JsonType, JsonType>
+    MutatorImpl<JSONValue, JSONValue>
   >();
   private _syncPromise: Promise<void> | null = null;
   private readonly _subscriptions = new Set<Subscription<unknown>>();
@@ -179,14 +179,14 @@ export default class Replicache implements ReadTransaction {
 
   private _invoke: Invoke = async (
     rpc: string,
-    args?: JsonType,
-  ): Promise<JsonType> => {
+    args?: JSONValue | ToJSON,
+  ): Promise<JSONValue> => {
     await this._opened;
     return await this._repmInvoke(this._name, rpc, args);
   };
 
   /** Get a single value from the database. */
-  get(key: string): Promise<JsonType | undefined> {
+  get(key: string): Promise<JSONValue | undefined> {
     return this.query(tx => tx.get(key));
   }
 
@@ -312,7 +312,7 @@ export default class Replicache implements ReadTransaction {
     await this._maybeEndSync({syncID, syncHead});
   }
 
-  private async _replay<A extends JsonType>(
+  private async _replay<A extends JSONValue>(
     basis: string,
     original: string,
     name: string,
@@ -479,20 +479,20 @@ export default class Replicache implements ReadTransaction {
    * As with [query] and [subscribe] all reads will see a consistent view of
    * the cache while they run.
    */
-  register<Return extends JsonType | void, Args extends JsonType>(
+  register<Return extends JSONValue | void, Args extends JSONValue>(
     name: string,
     mutatorImpl: MutatorImpl<Return, Args>,
   ): Mutator<Return, Args> {
     this._mutatorRegistry.set(
       name,
-      (mutatorImpl as unknown) as MutatorImpl<JsonType, JsonType>,
+      (mutatorImpl as unknown) as MutatorImpl<JSONValue, JSONValue>,
     );
     return async (args: Args): Promise<Return> =>
       (await this._mutate(name, mutatorImpl, args, {shouldCheckChange: true}))
         .result;
   }
 
-  async _mutate<R extends JsonType | void, A extends JsonType>(
+  async _mutate<R extends JSONValue | void, A extends JSONValue>(
     name: string,
     mutatorImpl: MutatorImpl<R, A>,
     args: A,

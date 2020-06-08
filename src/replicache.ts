@@ -45,6 +45,11 @@ export default class Replicache implements ReadTransaction {
   >();
   private _syncPromise: Promise<void> | null = null;
   private readonly _subscriptions = new Set<Subscription<unknown>>();
+  protected _syncInterval: number | null = 60_000;
+  // NodeJS has a non standard setTimeout function :'(
+  protected _timerId: ReturnType<typeof setTimeout> | 0 = 0;
+
+  onSync: ((syncing: boolean) => void) | null = null;
 
   /**
    * This gets called when we get an HTTP unauthorized from the client view or
@@ -96,9 +101,9 @@ export default class Replicache implements ReadTransaction {
     this._opened = this._repmInvoke(this._name, 'open');
     this._root = this._getRoot();
     await this._root;
-    // if (_syncInterval != null) {
-    //   await sync();
-    // }
+    if (this._syncInterval !== null) {
+      await this.sync();
+    }
   }
 
   /**
@@ -117,6 +122,28 @@ export default class Replicache implements ReadTransaction {
 
   get closed(): boolean {
     return this._closed;
+  }
+
+  /**
+   * The duration between each `sync`. Set this to `null` to prevent syncing in
+   * the background.
+   */
+  get syncInterval(): number | null {
+    return this._syncInterval;
+  }
+  set syncInterval(duration: number | null) {
+    if (this._timerId !== 0) {
+      clearTimeout(this._timerId);
+      this._timerId = 0;
+    }
+    this._syncInterval = duration;
+    this._scheduleSync();
+  }
+
+  private _scheduleSync(): void {
+    if (this._syncInterval !== null) {
+      this._timerId = setTimeout(() => this.sync(), this._syncInterval);
+    }
   }
 
   async close(): Promise<void> {
@@ -322,20 +349,24 @@ export default class Replicache implements ReadTransaction {
       return;
     }
 
-    // if (_timer != null) {
-    //   _timer.cancel();
-    //   _timer = null;
-    // }
-    // _fireOnSync(true);
+    if (this._timerId !== 0) {
+      clearTimeout(this._timerId);
+      this._timerId = 0;
+    }
+    this._fireOnSync(true);
 
     try {
       this._syncPromise = this._sync();
       await this._syncPromise;
     } finally {
       this._syncPromise = null;
-      // this._fireOnSync(false);
-      // _scheduleSync();
+      this._fireOnSync(false);
+      this._scheduleSync();
     }
+  }
+
+  private _fireOnSync(syncing: boolean): void {
+    queueMicrotask(() => this.onSync?.(syncing));
   }
 
   private async _fireOnChange(): Promise<void> {
@@ -542,6 +573,9 @@ export class ReplicacheTest extends Replicache {
     // await this._root;
     return rep;
   }
+
+  /** @override */
+  protected _syncInterval: number | null = null;
 
   beginSync(): Promise<BeginSyncResult> {
     return super._beginSync();

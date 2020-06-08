@@ -18,7 +18,6 @@ import type {JsonType} from './json.js';
 import type {
   InvokeMapNoArgs,
   InvokeMap,
-  FullInvoke,
   BeginSyncResponse,
 } from './repm-invoker.js';
 import type {ScanItem} from './scan-item.js';
@@ -106,8 +105,8 @@ function maybeReplaceResult(replay: ReplayInput): ReplayResult | undefined {
   return result;
 }
 
-function invokeMock(invoke: FullInvoke): FullInvoke {
-  return async (...args: Parameters<FullInvoke>) => {
+function invokeMock(invoke: RepmInvoke): RepmInvoke {
+  return async (...args: Parameters<RepmInvoke>) => {
     const [dbName, method, args2 = {}] = args;
     const mockResult = maybeReplaceResult({dbName, method, args: args2});
     let result: ReplayResult;
@@ -121,7 +120,7 @@ function invokeMock(invoke: FullInvoke): FullInvoke {
 }
 
 const httpInvoker = new RepmHttpInvoker('http://localhost:7002');
-const httpInvoke: FullInvoke = invokeMock(httpInvoker.invoke.bind(httpInvoker));
+const httpInvoke: RepmInvoke = invokeMock(httpInvoker.invoke.bind(httpInvoker));
 
 function delay(ms: number): Promise<void> {
   return new Promise(res => {

@@ -11,7 +11,7 @@ export interface Invoke {
   (rpc: string, args?: JsonType): Promise<JsonType>;
 }
 
-export interface FullInvoke {
+export interface RepmInvoke {
   <Rpc extends keyof InvokeMapNoArgs>(dbName: string, rpc: Rpc): Promise<
     InvokeMapNoArgs[Rpc]
   >;

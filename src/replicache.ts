@@ -3,7 +3,7 @@ import type {ScanItem} from './scan-item.js';
 import type {ScanOptions} from './scan-options.js';
 import type {DatabaseInfo} from './database-info.js';
 import type {
-  FullInvoke as RepmInvoke,
+  RepmInvoke,
   Invoke,
   OpenTransactionRequest,
 } from './repm-invoker.js';

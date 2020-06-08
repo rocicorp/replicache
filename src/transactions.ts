@@ -1,4 +1,4 @@
-import type {JsonType} from './json.js';
+import type {JSONValue, ToJSON} from './json.js';
 import type {ScanItem} from './scan-item.js';
 import type {ScanOptions} from './scan-options.js';
 import type {Invoke, ScanRequest} from './repm-invoker.js';
@@ -12,7 +12,7 @@ export interface ReadTransaction {
    * Get a single value from the database. If the key is not present this
    * returns `undefined`.
    */
-  get(key: string): Promise<JsonType | undefined>;
+  get(key: string): Promise<JSONValue | undefined>;
 
   /**
    * Determines if a single key is present in the database.
@@ -34,15 +34,15 @@ export class ReadTransactionImpl implements ReadTransaction {
     this._transactionId = transactionId;
   }
 
-  async get(key: string): Promise<JsonType | undefined> {
+  async get(key: string): Promise<JSONValue | undefined> {
     const result = await this._invoke('get', {
       transactionId: this._transactionId,
       key: key,
     });
-    if (!result['has']) {
+    if (!result.has) {
       return undefined;
     }
-    return result['value'];
+    return result.value;
   }
 
   async has(key: string): Promise<boolean> {
@@ -79,7 +79,7 @@ export class WriteTransaction extends ReadTransactionImpl {
    * Sets a single value in the database. The `value` will be encoded using
    * `JSON.stringify`.
    */
-  async put(key: string, value: JsonType): Promise<void> {
+  async put(key: string, value: JSONValue | ToJSON): Promise<void> {
     await this._invoke('put', {
       transactionId: this._transactionId,
       key: key,

@@ -1,4 +1,4 @@
-import type {JsonType} from './json.js';
+import type {JSONValue, ToJSON} from './json.js';
 import type {ScanItem} from './scan-item.js';
 import type {ScanOptions} from './scan-options.js';
 import type {DatabaseInfo} from './database-info.js';
@@ -8,7 +8,7 @@ export interface Invoke {
   <Rpc extends keyof InvokeMap>(rpc: Rpc, args: InvokeMap[Rpc][0]): Promise<
     InvokeMap[Rpc][1]
   >;
-  (rpc: string, args?: JsonType): Promise<JsonType>;
+  (rpc: string, args?: JSONValue | ToJSON): Promise<JSONValue>;
 }
 
 export interface RepmInvoke {
@@ -20,7 +20,7 @@ export interface RepmInvoke {
     rpc: Rpc,
     args: InvokeMap[Rpc][0],
   ): Promise<InvokeMap[Rpc][1]>;
-  (dbName: string, rpc: string, args?: JsonType): Promise<JsonType>;
+  (dbName: string, rpc: string, args?: JSONValue | ToJSON): Promise<JSONValue>;
 }
 
 interface RepmInvoker {
@@ -33,7 +33,11 @@ interface RepmInvoker {
     rpc: Rpc,
     args: InvokeMap[Rpc][0],
   ): Promise<InvokeMap[Rpc][1]>;
-  invoke(dbName: string, rpc: string, args?: JsonType): Promise<JsonType>;
+  invoke(
+    dbName: string,
+    rpc: string,
+    args?: JSONValue | ToJSON,
+  ): Promise<JSONValue>;
 }
 
 export class RepmHttpInvoker implements RepmInvoker {
@@ -54,8 +58,8 @@ export class RepmHttpInvoker implements RepmInvoker {
   async invoke(
     dbName: string,
     rpc: string,
-    args: JsonType = {},
-  ): Promise<JsonType> {
+    args: JSONValue | ToJSON = {},
+  ): Promise<JSONValue> {
     const resp = await fetch(`${this._url}/?dbname=${dbName}&rpc=${rpc}`, {
       method: 'POST',
       body: JSON.stringify(args),
@@ -79,7 +83,7 @@ type GetRequest = TransactionRequest & {
 };
 type GetResponse = {
   has?: boolean;
-  value: JsonType;
+  value: JSONValue;
 };
 
 type HasRequest = TransactionRequest & {
@@ -98,7 +102,7 @@ type ScanResponse = ScanItem[];
 
 type PutRequest = TransactionRequest & {
   key: string;
-  value: JsonType;
+  value: JSONValue | ToJSON;
 };
 type PutResponse = unknown;
 
@@ -114,7 +118,7 @@ type RebaseOpts =
 
 export type OpenTransactionRequest = {
   name?: string;
-  args?: JsonType;
+  args?: JSONValue | ToJSON;
   rebaseOpts?: RebaseOpts;
 };
 type OpenTransactionResponse = {
@@ -180,7 +184,7 @@ type MaybeEndSyncRequest = {
 type Mutation = {
   id: number;
   name: string;
-  args: JsonType;
+  args: JSONValue;
 };
 
 type ReplayMutation = Mutation & {

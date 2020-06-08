@@ -1,6 +1,6 @@
-import type {JsonType} from './json.js';
+import type {JSONValue} from './json.js';
 
 export interface ScanItem {
   readonly key: string;
-  readonly value: JsonType;
+  readonly value: JSONValue;
 }

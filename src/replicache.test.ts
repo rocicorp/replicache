@@ -14,7 +14,7 @@ import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
 import {RepmHttpInvoker} from './mod.js';
 
 import type {RepmInvoke, ReadTransaction, WriteTransaction} from './mod.js';
-import type {JsonType} from './json.js';
+import type {JSONValue, ToJSON} from './json.js';
 import type {
   InvokeMapNoArgs,
   InvokeMap,
@@ -25,12 +25,12 @@ import type {ScanItem} from './scan-item.js';
 let rep: ReplicacheTest | null = null;
 let rep2: ReplicacheTest | null = null;
 
-type ReplayResult = JsonType;
+type ReplayResult = JSONValue;
 
 type Replay = {
   method: string;
   dbName: string;
-  args: JsonType;
+  args: JSONValue | ToJSON;
   result: ReplayResult;
 };
 
@@ -40,7 +40,7 @@ function replayMatches(
   r: Replay,
   dbName: string,
   method: string,
-  args: JsonType,
+  args: JSONValue,
 ): boolean {
   return (
     r.method === method &&
@@ -140,8 +140,8 @@ function recordInvoke<Rpc extends keyof InvokeMap>(
 async function recordInvoke(
   dbName: string,
   rpc: string,
-  args: JsonType = {},
-): Promise<JsonType> {
+  args: JSONValue = {},
+): Promise<JSONValue> {
   expect(fixtureFile).toBeTruthy();
   const result = await httpInvoke(dbName, rpc, args);
   replays.push({dbName, method: rpc, args, result});
@@ -160,8 +160,8 @@ async function replayInvoke<Rpc extends keyof InvokeMap>(
 async function replayInvoke(
   dbName: string,
   rpc: string,
-  args: JsonType = {},
-): Promise<JsonType> {
+  args: JSONValue = {},
+): Promise<JSONValue> {
   expect(fixtureFile).toBeTruthy();
   expect(replays).toBeDefined();
 
@@ -224,7 +224,7 @@ async function replicacheForTesting(
   });
 }
 
-async function addData(tx: WriteTransaction, data: {[key: string]: JsonType}) {
+async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
   for (const [key, value] of Object.entries(data)) {
     await tx.put(key, value);
   }
@@ -320,7 +320,7 @@ test('put, get, has, del inside tx', async () => {
   rep = await replicacheForTesting('test3');
   const mut = rep.register(
     'mut',
-    async (tx: WriteTransaction, args: {key: string; value: JsonType}) => {
+    async (tx: WriteTransaction, args: {key: string; value: JSONValue}) => {
       const key = args['key'];
       const value = args['value'];
       await tx.put(key, value);

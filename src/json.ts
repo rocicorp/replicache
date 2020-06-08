@@ -1,14 +1,12 @@
-type JsonTypePrimitves =
+export type JSONValue =
   | null
   | string
   | boolean
   | number
-  | Array<JsonType>
+  | Array<JSONValue>
   // undefined are filtered out in JSON.stringify so OK to allow.
-  | {[key: string]: JsonType | undefined};
+  | {[key: string]: JSONValue | undefined};
 
-type ToJsonType = {
-  (): JsonTypePrimitves;
+export type ToJSON = {
+  toJSON: () => JSONValue;
 };
-
-export type JsonType = JsonTypePrimitves | ToJsonType;

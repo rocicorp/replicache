@@ -74,11 +74,22 @@ export class ReadTransactionImpl implements ReadTransaction {
  * WriteTransactions are used with `Replicache.register` and allows read and
  * write operations on the database.
  */
-export class WriteTransaction extends ReadTransactionImpl {
+export interface WriteTransaction extends ReadTransaction {
   /**
    * Sets a single value in the database. The `value` will be encoded using
    * `JSON.stringify`.
    */
+  put(key: string, value: JSONValue | ToJSON): Promise<void>;
+
+  /**
+   * Removes a key and its value from the database. Returns true if there was a
+   * key to remove.
+   */
+  del(key: string): Promise<boolean>;
+}
+
+export class WriteTransactionImpl extends ReadTransactionImpl
+  implements WriteTransaction {
   async put(key: string, value: JSONValue | ToJSON): Promise<void> {
     await this._invoke('put', {
       transactionId: this._transactionId,
@@ -87,10 +98,6 @@ export class WriteTransaction extends ReadTransactionImpl {
     });
   }
 
-  /**
-   * Removes a key and its value from the database. Returns true if there was a
-   * key to remove.
-   */
   async del(key: string): Promise<boolean> {
     const result = await this._invoke('del', {
       transactionId: this._transactionId,

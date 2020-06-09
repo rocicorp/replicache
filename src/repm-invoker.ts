@@ -23,43 +23,17 @@ export interface RepmInvoke {
   (dbName: string, rpc: string, args?: JSONValue | ToJSON): Promise<JSONValue>;
 }
 
-interface RepmInvoker {
-  invoke<Rpc extends keyof InvokeMapNoArgs>(
-    dbName: string,
-    rpc: Rpc,
-  ): Promise<InvokeMapNoArgs[Rpc]>;
-  invoke<Rpc extends keyof InvokeMap>(
-    dbName: string,
-    rpc: Rpc,
-    args: InvokeMap[Rpc][0],
-  ): Promise<InvokeMap[Rpc][1]>;
-  invoke(
-    dbName: string,
-    rpc: string,
-    args?: JSONValue | ToJSON,
-  ): Promise<JSONValue>;
-}
-
-export class RepmHttpInvoker implements RepmInvoker {
+export class RepmHttpInvoker {
   private readonly _url: string;
   constructor(url: string) {
     this._url = url;
   }
 
-  invoke<Rpc extends keyof InvokeMapNoArgs>(
-    dbName: string,
-    rpc: Rpc,
-  ): Promise<InvokeMapNoArgs[Rpc]>;
-  invoke<Rpc extends keyof InvokeMap>(
-    dbName: string,
-    rpc: Rpc,
-    args: InvokeMap[Rpc][0],
-  ): Promise<InvokeMap[Rpc][1]>;
-  async invoke(
+  invoke: RepmInvoke = async (
     dbName: string,
     rpc: string,
     args: JSONValue | ToJSON = {},
-  ): Promise<JSONValue> {
+  ): Promise<JSONValue> => {
     const resp = await fetch(`${this._url}/?dbname=${dbName}&rpc=${rpc}`, {
       method: 'POST',
       body: JSON.stringify(args),
@@ -75,7 +49,7 @@ export class RepmHttpInvoker implements RepmInvoker {
         resp.statusText
       }: ${await resp.text()}`,
     );
-  }
+  };
 }
 
 type GetRequest = TransactionRequest & {

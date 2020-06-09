@@ -66,7 +66,7 @@ export default class Replicache implements ReadTransaction {
     dataLayerAuth = '',
     diffServerAuth = '',
     diffServerURL,
-    name = '',
+    name = 'default',
     repmInvoke,
   }: {
     batchURL?: string;

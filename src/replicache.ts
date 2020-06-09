@@ -3,7 +3,7 @@ import type {ScanItem} from './scan-item.js';
 import type {ScanOptions} from './scan-options.js';
 import type {DatabaseInfo} from './database-info.js';
 import type {
-  RepmInvoke,
+  REPMInvoke,
   Invoke,
   OpenTransactionRequest,
 } from './repm-invoker.js';
@@ -28,12 +28,12 @@ export const httpStatusUnauthorized = 401;
 type MaybePromise<T> = T | Promise<T>;
 
 export default class Replicache implements ReadTransaction {
-  private readonly _batchUrl: string;
+  private readonly _batchURL: string;
   private _dataLayerAuth: string;
   private readonly _diffServerAuth: string;
-  private readonly _diffServerUrl: string;
+  private readonly _diffServerURL: string;
   private readonly _name: string;
-  private readonly _repmInvoke: RepmInvoke;
+  private readonly _repmInvoke: REPMInvoke;
 
   private _closed = false;
   private _online = true;
@@ -62,24 +62,24 @@ export default class Replicache implements ReadTransaction {
     | undefined = null;
 
   constructor({
-    batchUrl = '',
+    batchURL = '',
     dataLayerAuth = '',
     diffServerAuth = '',
-    diffServerUrl,
+    diffServerURL,
     name = '',
     repmInvoke,
   }: {
-    batchUrl?: string;
+    batchURL?: string;
     dataLayerAuth?: string;
     diffServerAuth?: string;
-    diffServerUrl: string;
+    diffServerURL: string;
     name?: string;
-    repmInvoke: RepmInvoke;
+    repmInvoke: REPMInvoke;
   }) {
-    this._batchUrl = batchUrl;
+    this._batchURL = batchURL;
     this._dataLayerAuth = dataLayerAuth;
     this._diffServerAuth = diffServerAuth;
-    this._diffServerUrl = diffServerUrl;
+    this._diffServerURL = diffServerURL;
     this._name = name;
     this._repmInvoke = repmInvoke;
     this._open();
@@ -91,7 +91,7 @@ export default class Replicache implements ReadTransaction {
   static async list({
     repmInvoke,
   }: {
-    repmInvoke: RepmInvoke;
+    repmInvoke: REPMInvoke;
   }): Promise<DatabaseInfo[]> {
     const res = await repmInvoke('', 'list');
     return res['databases'];
@@ -111,7 +111,7 @@ export default class Replicache implements ReadTransaction {
    */
   static async drop(
     name: string,
-    {repmInvoke}: {repmInvoke: RepmInvoke},
+    {repmInvoke}: {repmInvoke: REPMInvoke},
   ): Promise<void> {
     await repmInvoke(name, 'drop');
   }
@@ -224,8 +224,8 @@ export default class Replicache implements ReadTransaction {
 
   protected async _beginSync(): Promise<BeginSyncResult> {
     const beginSyncResult = await this._invoke('beginSync', {
-      batchPushURL: this._batchUrl,
-      diffServerURL: this._diffServerUrl,
+      batchPushURL: this._batchURL,
+      diffServerURL: this._diffServerURL,
       dataLayerAuth: this._dataLayerAuth,
       diffServerAuth: this._diffServerAuth,
     });
@@ -547,25 +547,25 @@ export default class Replicache implements ReadTransaction {
 
 export class ReplicacheTest extends Replicache {
   static async new({
-    batchUrl,
+    batchURL,
     dataLayerAuth,
     diffServerAuth,
-    diffServerUrl,
+    diffServerURL,
     name = '',
     repmInvoke,
   }: {
-    diffServerUrl: string;
-    batchUrl?: string;
+    diffServerURL: string;
+    batchURL?: string;
     dataLayerAuth?: string;
     diffServerAuth?: string;
     name?: string;
-    repmInvoke: RepmInvoke;
+    repmInvoke: REPMInvoke;
   }): Promise<ReplicacheTest> {
     const rep = new ReplicacheTest({
-      batchUrl,
+      batchURL,
       dataLayerAuth,
       diffServerAuth,
-      diffServerUrl,
+      diffServerURL,
       name,
       repmInvoke,
     });

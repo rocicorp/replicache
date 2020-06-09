@@ -11,7 +11,7 @@ export interface Invoke {
   (rpc: string, args?: JSONValue | ToJSON): Promise<JSONValue>;
 }
 
-export interface RepmInvoke {
+export interface REPMInvoke {
   <Rpc extends keyof InvokeMapNoArgs>(dbName: string, rpc: Rpc): Promise<
     InvokeMapNoArgs[Rpc]
   >;
@@ -23,13 +23,13 @@ export interface RepmInvoke {
   (dbName: string, rpc: string, args?: JSONValue | ToJSON): Promise<JSONValue>;
 }
 
-export class RepmHttpInvoker {
+export class REPMHTTPInvoker {
   private readonly _url: string;
   constructor(url: string) {
     this._url = url;
   }
 
-  invoke: RepmInvoke = async (
+  invoke: REPMInvoke = async (
     dbName: string,
     rpc: string,
     args: JSONValue | ToJSON = {},

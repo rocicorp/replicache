@@ -92,18 +92,18 @@
 				<p>The Replicache Client test server binary was developed as a quick way to test the Replicache Client API. Eventually we will use a WASM version or have Electron/NodeJS start the binary automatically. But for now we need to manually start it.</p>
 				<pre><code class="language-sh">build/replicache-client/test_server --no-fake-time</code></pre>
 				<p>This starts an HTTP server on port 7002 (by default, use <code>--port</code> to change.)</p>
-				<p>We need to use the <code>--no-fake-time</code> flag for now ot all the timestamps will be using a fake time.</p>
+				<p>We need to use the <code>--no-fake-time</code> flag for now or all the timestamps will be using a fake time.</p>
 				<a href="#including-the-js" id="including-the-js" style="color: inherit; text-decoration: none;">
 					<h1>Including the JS</h1>
 				</a>
 				<p>By default we only compile the TS to an ES module.</p>
-				<pre><code class="language-js"><span class="hljs-keyword">import</span> Replicache, {RepmHttpInvoker} <span class="hljs-keyword">from</span> <span class="hljs-string">'./out/mod.js'</span>;</code></pre>
+				<pre><code class="language-js"><span class="hljs-keyword">import</span> Replicache, {REPMHTTPInvoker} <span class="hljs-keyword">from</span> <span class="hljs-string">'./out/mod.js'</span>;</code></pre>
 				<p>To use <code>Replicache</code> you currently have to tell it how to invoke the <strong>Rep</strong>licache Client API <strong>M</strong>odule (REPM).</p>
-				<pre><code class="language-js"><span class="hljs-keyword">const</span> diffServerUrl = <span class="hljs-string">'https://serve.replicache.dev/pull'</span>;
-<span class="hljs-keyword">const</span> repmInvoker = <span class="hljs-keyword">new</span> RepmHttpInvoker(<span class="hljs-string">'http://localhost:7002'</span>);
+				<pre><code class="language-js"><span class="hljs-keyword">const</span> diffServerURL = <span class="hljs-string">'https://serve.replicache.dev/pull'</span>;
+<span class="hljs-keyword">const</span> repmInvoker = <span class="hljs-keyword">new</span> REPMHTTPInvoker(<span class="hljs-string">'http://localhost:7002'</span>);
 <span class="hljs-keyword">const</span> repmInvoke = repmInvoker.invoke;
 <span class="hljs-keyword">const</span> replicache = <span class="hljs-keyword">new</span> Replicache({
-  diffServerUrl,
+  diffServerURL,
   repmInvoke,
 });
 <span class="hljs-keyword">await</span> replicache.query(<span class="hljs-keyword">async</span> tx =&gt; {
@@ -122,19 +122,19 @@
 			<nav class="tsd-navigation secondary menu-sticky">
 				<ul class="before-current">
 					<li class=" tsd-kind-class">
-						<a href="classes/replicache.html" class="tsd-kind-icon">Replicache</a>
+						<a href="classes/repmhttpinvoker.html" class="tsd-kind-icon">REPMHTTPInvoker</a>
 					</li>
 					<li class=" tsd-kind-class">
-						<a href="classes/repmhttpinvoker.html" class="tsd-kind-icon">Repm<wbr>Http<wbr>Invoker</a>
+						<a href="classes/replicache.html" class="tsd-kind-icon">Replicache</a>
 					</li>
 					<li class=" tsd-kind-class">
 						<a href="classes/writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a>
 					</li>
+					<li class=" tsd-kind-interface tsd-has-type-parameter">
+						<a href="interfaces/repminvoke.html" class="tsd-kind-icon">REPMInvoke</a>
+					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a>
-					</li>
-					<li class=" tsd-kind-interface tsd-has-type-parameter">
-						<a href="interfaces/repminvoke.html" class="tsd-kind-icon">Repm<wbr>Invoke</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/scanbound.html" class="tsd-kind-icon">Scan<wbr>Bound</a>

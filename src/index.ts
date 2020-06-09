@@ -35,7 +35,7 @@ import Replicache from './replicache.js';
 
   await invoker.invoke('test', 'close');
 
-  const repmInvoke = invoker.invoke.bind(invoker);
+  const repmInvoke = invoker.invoke;
   document.body.textContent = JSON.stringify(
     await Replicache.list({repmInvoke}),
     null,

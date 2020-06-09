@@ -120,7 +120,7 @@ function invokeMock(invoke: RepmInvoke): RepmInvoke {
 }
 
 const httpInvoker = new RepmHttpInvoker('http://localhost:7002');
-const httpInvoke: RepmInvoke = invokeMock(httpInvoker.invoke.bind(httpInvoker));
+const httpInvoke: RepmInvoke = invokeMock(httpInvoker.invoke);
 
 function delay(ms: number): Promise<void> {
   return new Promise(res => {

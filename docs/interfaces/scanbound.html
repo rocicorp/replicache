@@ -3,17 +3,17 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>Replicache</title>
+	<title>ScanBound | Replicache</title>
 	<meta name="description" content="">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<link rel="stylesheet" href="assets/css/main.css">
+	<link rel="stylesheet" href="../assets/css/main.css">
 </head>
 <body>
 <header>
 	<div class="tsd-page-toolbar">
 		<div class="container">
 			<div class="table-wrap">
-				<div class="table-cell" id="tsd-search" data-index="assets/js/search.js" data-base=".">
+				<div class="table-cell" id="tsd-search" data-index="../assets/js/search.js" data-base="..">
 					<div class="field">
 						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
 						<input id="tsd-search-field" type="text" />
@@ -22,7 +22,7 @@
 						<li class="state loading">Preparing search index...</li>
 						<li class="state failure">The search index is not available</li>
 					</ul>
-					<a href="index.html" class="title">Replicache</a>
+					<a href="../index.html" class="title">Replicache</a>
 				</div>
 				<div class="table-cell" id="tsd-widgets">
 					<div id="tsd-filter">
@@ -49,104 +49,113 @@
 		<div class="container">
 			<ul class="tsd-breadcrumb">
 				<li>
-					<a href="globals.html">Globals</a>
+					<a href="../globals.html">Globals</a>
+				</li>
+				<li>
+					<a href="scanbound.html">ScanBound</a>
 				</li>
 			</ul>
-			<h1>Replicache</h1>
+			<h1>Interface ScanBound</h1>
 		</div>
 	</div>
 </header>
 <div class="container container-main">
 	<div class="row">
 		<div class="col-8 col-content">
-			<div class="tsd-panel tsd-typography">
-				<a href="#replicache-js-sdk" id="replicache-js-sdk" style="color: inherit; text-decoration: none;">
-					<h1>Replicache JS SDK</h1>
-				</a>
-				<p><img src="https://github.com/rocicorp/replicache-sdk-js/workflows/Node.js%20CI/badge.svg" alt="Node.js CI"></p>
-				<a href="#getting-started" id="getting-started" style="color: inherit; text-decoration: none;">
-					<h2>Getting Started</h2>
-				</a>
-				<p>Eventually you will be able to <code>npm install</code> but until then...</p>
-				<a href="#prerequisites" id="prerequisites" style="color: inherit; text-decoration: none;">
-					<h2>Prerequisites</h2>
-				</a>
-				<ul>
-					<li>NodeJS/NPM</li>
-					<li>Go binary - <a href="https://golang.org/dl/">https://golang.org/dl/</a></li>
+			<section class="tsd-panel tsd-hierarchy">
+				<h3>Hierarchy</h3>
+				<ul class="tsd-hierarchy">
+					<li>
+						<span class="target">ScanBound</span>
+					</li>
 				</ul>
-				<a href="#building-the-code" id="building-the-code" style="color: inherit; text-decoration: none;">
-					<h2>Building the code</h2>
-				</a>
-				<a href="#build-the-js" id="build-the-js" style="color: inherit; text-decoration: none;">
-					<h3>Build the JS</h3>
-				</a>
-				<p>Replicache JS SDK is written in TypeScript. Run <code>npm run build</code> to generate the JS source code (JS source is outputted in <code>out/</code>). By default we generate browser compatible JS but you can also build CommonJS modules by running <code>npm run build:cjs</code>. let us know what your needs are.</p>
-				<a href="#build-the-replicache-client-test-server-binary" id="build-the-replicache-client-test-server-binary" style="color: inherit; text-decoration: none;">
-					<h3>Build the Replicache Client test server binary</h3>
-				</a>
-				<p>Run <code>tool/build.sh</code> which downloads the source code for <a href="https://github.com/rocicorp/replicache-client">https://github.com/rocicorp/replicache-client</a> and builds the <code>build/replicache-client/test_server</code> binary.</p>
-				<a href="#run-the-binary" id="run-the-binary" style="color: inherit; text-decoration: none;">
-					<h2>Run the binary</h2>
-				</a>
-				<p>The Replicache Client test server binary was developed as a quick way to test the Replicache Client API. Eventually we will use a WASM version or have Electron/NodeJS start the binary automatically. But for now we need to manually start it.</p>
-				<pre><code class="language-sh">build/replicache-client/test_server --no-fake-time</code></pre>
-				<p>This starts an HTTP server on port 7002 (by default, use <code>--port</code> to change.)</p>
-				<p>We need to use the <code>--no-fake-time</code> flag for now ot all the timestamps will be using a fake time.</p>
-				<a href="#including-the-js" id="including-the-js" style="color: inherit; text-decoration: none;">
-					<h1>Including the JS</h1>
-				</a>
-				<p>By default we only compile the TS to an ES module.</p>
-				<pre><code class="language-js"><span class="hljs-keyword">import</span> Replicache, {RepmHttpInvoker} <span class="hljs-keyword">from</span> <span class="hljs-string">'./out/mod.js'</span>;</code></pre>
-				<p>To use <code>Replicache</code> you currently have to tell it how to invoke the <strong>Rep</strong>licache Client API <strong>M</strong>odule (REPM).</p>
-				<pre><code class="language-js"><span class="hljs-keyword">const</span> diffServerUrl = <span class="hljs-string">'https://serve.replicache.dev/pull'</span>;
-<span class="hljs-keyword">const</span> repmInvoker = <span class="hljs-keyword">new</span> RepmHttpInvoker(<span class="hljs-string">'http://localhost:7002'</span>);
-<span class="hljs-keyword">const</span> repmInvoke = repmInvoker.invoke;
-<span class="hljs-keyword">const</span> replicache = <span class="hljs-keyword">new</span> Replicache({
-  diffServerUrl,
-  repmInvoke,
-});
-<span class="hljs-keyword">await</span> replicache.query(<span class="hljs-keyword">async</span> tx =&gt; {
-  <span class="hljs-built_in">console</span>.log(<span class="hljs-keyword">await</span> tx.get(<span class="hljs-string">'/hello'</span>));
-});</code></pre>
-			</div>
+			</section>
+			<section class="tsd-panel-group tsd-index-group">
+				<h2>Index</h2>
+				<section class="tsd-panel tsd-index-panel">
+					<div class="tsd-index-content">
+						<section class="tsd-index-section ">
+							<h3>Properties</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="scanbound.html#id" class="tsd-kind-icon">id</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="scanbound.html#index" class="tsd-kind-icon">index</a></li>
+							</ul>
+						</section>
+					</div>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Properties</h2>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="id" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> id</h3>
+					<div class="tsd-signature tsd-kind-icon">id<span class="tsd-signature-symbol">:</span> <a href="scanid.html" class="tsd-signature-type">ScanId</a></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/daef726/src/scan-bound.ts#L4">scan-bound.ts:4</a></li>
+						</ul>
+					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="index" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> index</h3>
+					<div class="tsd-signature tsd-kind-icon">index<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/daef726/src/scan-bound.ts#L5">scan-bound.ts:5</a></li>
+						</ul>
+					</aside>
+				</section>
+			</section>
 		</div>
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
 			<nav class="tsd-navigation primary">
 				<ul>
 					<li class="globals  ">
-						<a href="globals.html"><em>Globals</em></a>
+						<a href="../globals.html"><em>Globals</em></a>
 					</li>
 				</ul>
 			</nav>
 			<nav class="tsd-navigation secondary menu-sticky">
 				<ul class="before-current">
 					<li class=" tsd-kind-class">
-						<a href="classes/replicache.html" class="tsd-kind-icon">Replicache</a>
+						<a href="../classes/replicache.html" class="tsd-kind-icon">Replicache</a>
 					</li>
 					<li class=" tsd-kind-class">
-						<a href="classes/repmhttpinvoker.html" class="tsd-kind-icon">Repm<wbr>Http<wbr>Invoker</a>
+						<a href="../classes/repmhttpinvoker.html" class="tsd-kind-icon">Repm<wbr>Http<wbr>Invoker</a>
 					</li>
 					<li class=" tsd-kind-class">
-						<a href="classes/writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a>
+						<a href="../classes/writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="interfaces/readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a>
+						<a href="readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a>
 					</li>
 					<li class=" tsd-kind-interface tsd-has-type-parameter">
-						<a href="interfaces/repminvoke.html" class="tsd-kind-icon">Repm<wbr>Invoke</a>
+						<a href="repminvoke.html" class="tsd-kind-icon">Repm<wbr>Invoke</a>
+					</li>
+				</ul>
+				<ul class="current">
+					<li class="current tsd-kind-interface">
+						<a href="scanbound.html" class="tsd-kind-icon">Scan<wbr>Bound</a>
+						<ul>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="scanbound.html#id" class="tsd-kind-icon">id</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="scanbound.html#index" class="tsd-kind-icon">index</a>
+							</li>
+						</ul>
+					</li>
+				</ul>
+				<ul class="after-current">
+					<li class=" tsd-kind-interface">
+						<a href="scanid.html" class="tsd-kind-icon">Scan<wbr>Id</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="interfaces/scanbound.html" class="tsd-kind-icon">Scan<wbr>Bound</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/scanid.html" class="tsd-kind-icon">Scan<wbr>Id</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/scanitem.html" class="tsd-kind-icon">Scan<wbr>Item</a>
+						<a href="scanitem.html" class="tsd-kind-icon">Scan<wbr>Item</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
-						<a href="globals.html#databaseinfo" class="tsd-kind-icon">Database<wbr>Info</a>
+						<a href="../globals.html#databaseinfo" class="tsd-kind-icon">Database<wbr>Info</a>
 					</li>
 				</ul>
 			</nav>
@@ -217,7 +226,7 @@
 	<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p>
 </div>
 <div class="overlay"></div>
-<script src="assets/js/main.js"></script>
-<script>if (location.protocol == 'file:') document.write('<script src="assets/js/search.js"><' + '/script>');</script>
+<script src="../assets/js/main.js"></script>
+<script>if (location.protocol == 'file:') document.write('<script src="../assets/js/search.js"><' + '/script>');</script>
 </body>
 </html>

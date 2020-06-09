@@ -11,9 +11,9 @@ import {open} from 'fs/promises';
 import type {FileHandle} from 'fs/promises';
 
 import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
-import {RepmHttpInvoker} from './mod.js';
+import {REPMHTTPInvoker} from './mod.js';
 
-import type {RepmInvoke, ReadTransaction, WriteTransaction} from './mod.js';
+import type {REPMInvoke, ReadTransaction, WriteTransaction} from './mod.js';
 import type {JSONValue, ToJSON} from './json.js';
 import type {
   InvokeMapNoArgs,
@@ -105,8 +105,8 @@ function maybeReplaceResult(replay: ReplayInput): ReplayResult | undefined {
   return result;
 }
 
-function invokeMock(invoke: RepmInvoke): RepmInvoke {
-  return async (...args: Parameters<RepmInvoke>) => {
+function invokeMock(invoke: REPMInvoke): REPMInvoke {
+  return async (...args: Parameters<REPMInvoke>) => {
     const [dbName, method, args2 = {}] = args;
     const mockResult = maybeReplaceResult({dbName, method, args: args2});
     let result: ReplayResult;
@@ -119,8 +119,8 @@ function invokeMock(invoke: RepmInvoke): RepmInvoke {
   };
 }
 
-const httpInvoker = new RepmHttpInvoker('http://localhost:7002');
-const httpInvoke: RepmInvoke = invokeMock(httpInvoker.invoke);
+const httpInvoker = new REPMHTTPInvoker('http://localhost:7002');
+const httpInvoke: REPMInvoke = invokeMock(httpInvoker.invoke);
 
 function delay(ms: number): Promise<void> {
   return new Promise(res => {
@@ -176,7 +176,7 @@ async function replayInvoke(
   return replay.result;
 }
 
-let invoke: RepmInvoke = httpInvoke;
+let invoke: REPMInvoke = httpInvoke;
 
 type TestMode = 'live' | 'replay' | 'record';
 
@@ -203,22 +203,22 @@ switch (process.env['TEST_MODE'] ?? testModeDefault) {
 async function replicacheForTesting(
   name: string,
   {
-    diffServerUrl = 'https://serve.replicache.dev/pull',
+    diffServerURL = 'https://serve.replicache.dev/pull',
     dataLayerAuth = '',
     diffServerAuth = '',
-    batchUrl = '',
+    batchURL = '',
   }: {
-    diffServerUrl?: string;
+    diffServerURL?: string;
     dataLayerAuth?: string;
     diffServerAuth?: string;
-    batchUrl?: string;
+    batchURL?: string;
   } = {},
 ): Promise<ReplicacheTest> {
   return await ReplicacheTest.new({
-    batchUrl,
+    batchURL,
     dataLayerAuth,
     diffServerAuth,
-    diffServerUrl,
+    diffServerURL,
     name,
     repmInvoke: invoke,
   });
@@ -681,7 +681,7 @@ test('sync', async () => {
   await useReplay('sync');
 
   rep = await replicacheForTesting('sync', {
-    batchUrl: 'https://replicache-sample-todo.now.sh/serve/replicache-batch',
+    batchURL: 'https://replicache-sample-todo.now.sh/serve/replicache-batch',
     dataLayerAuth: '1',
     diffServerAuth: '1',
   });

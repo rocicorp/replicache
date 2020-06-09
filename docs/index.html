@@ -63,7 +63,52 @@
 				<a href="#replicache-js-sdk" id="replicache-js-sdk" style="color: inherit; text-decoration: none;">
 					<h1>Replicache JS SDK</h1>
 				</a>
-				<p>WIP</p>
+				<p><img src="https://github.com/rocicorp/replicache-sdk-js/workflows/Node.js%20CI/badge.svg" alt="Node.js CI"></p>
+				<a href="#getting-started" id="getting-started" style="color: inherit; text-decoration: none;">
+					<h2>Getting Started</h2>
+				</a>
+				<p>Eventually you will be able to <code>npm install</code> but until then...</p>
+				<a href="#prerequisites" id="prerequisites" style="color: inherit; text-decoration: none;">
+					<h2>Prerequisites</h2>
+				</a>
+				<ul>
+					<li>NodeJS/NPM</li>
+					<li>Go binary - <a href="https://golang.org/dl/">https://golang.org/dl/</a></li>
+				</ul>
+				<a href="#building-the-code" id="building-the-code" style="color: inherit; text-decoration: none;">
+					<h2>Building the code</h2>
+				</a>
+				<a href="#build-the-js" id="build-the-js" style="color: inherit; text-decoration: none;">
+					<h3>Build the JS</h3>
+				</a>
+				<p>Replicache JS SDK is written in TypeScript. Run <code>npm run build</code> to generate the JS source code (JS source is outputted in <code>out/</code>). By default we generate browser compatible JS but you can also build CommonJS modules by running <code>npm run build:cjs</code>. let us know what your needs are.</p>
+				<a href="#build-the-replicache-client-test-server-binary" id="build-the-replicache-client-test-server-binary" style="color: inherit; text-decoration: none;">
+					<h3>Build the Replicache Client test server binary</h3>
+				</a>
+				<p>Run <code>tool/build.sh</code> which downloads the source code for <a href="https://github.com/rocicorp/replicache-client">https://github.com/rocicorp/replicache-client</a> and builds the <code>build/replicache-client/test_server</code> binary.</p>
+				<a href="#run-the-binary" id="run-the-binary" style="color: inherit; text-decoration: none;">
+					<h2>Run the binary</h2>
+				</a>
+				<p>The Replicache Client test server binary was developed as a quick way to test the Replicache Client API. Eventually we will use a WASM version or have Electron/NodeJS start the binary automatically. But for now we need to manually start it.</p>
+				<pre><code class="language-sh">build/replicache-client/test_server --no-fake-time</code></pre>
+				<p>This starts an HTTP server on port 7002 (by default, use <code>--port</code> to change.)</p>
+				<p>We need to use the <code>--no-fake-time</code> flag for now ot all the timestamps will be using a fake time.</p>
+				<a href="#including-the-js" id="including-the-js" style="color: inherit; text-decoration: none;">
+					<h1>Including the JS</h1>
+				</a>
+				<p>By default we only compile the TS to an ES module.</p>
+				<pre><code class="language-js"><span class="hljs-keyword">import</span> Replicache, {RepmHttpInvoker} <span class="hljs-keyword">from</span> <span class="hljs-string">'./out/mod.js'</span>;</code></pre>
+				<p>To use <code>Replicache</code> you currently have to tell it how to invoke the <strong>Rep</strong>licache Client API <strong>M</strong>odule (REPM).</p>
+				<pre><code class="language-js"><span class="hljs-keyword">const</span> diffServerUrl = <span class="hljs-string">'https://serve.replicache.dev/pull'</span>;
+<span class="hljs-keyword">const</span> repmInvoker = <span class="hljs-keyword">new</span> RepmHttpInvoker(<span class="hljs-string">'http://localhost:7002'</span>);
+<span class="hljs-keyword">const</span> repmInvoke = repmInvoker.invoke;
+<span class="hljs-keyword">const</span> replicache = <span class="hljs-keyword">new</span> Replicache({
+  diffServerUrl,
+  repmInvoke,
+});
+<span class="hljs-keyword">await</span> replicache.query(<span class="hljs-keyword">async</span> tx =&gt; {
+  <span class="hljs-built_in">console</span>.log(<span class="hljs-keyword">await</span> tx.get(<span class="hljs-string">'/hello'</span>));
+});</code></pre>
 			</div>
 		</div>
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
@@ -88,6 +133,9 @@
 	<div class="container">
 		<h2>Legend</h2>
 		<div class="tsd-legend-group">
+			<ul class="tsd-legend">
+				<li class="tsd-kind-variable"><span class="tsd-kind-icon">Variable</span></li>
+			</ul>
 			<ul class="tsd-legend">
 				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
 			</ul>

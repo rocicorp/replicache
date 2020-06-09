@@ -161,7 +161,7 @@ export default class Replicache implements ReadTransaction {
     await p;
   }
 
-  async _getRoot(): Promise<string | undefined> {
+  private async _getRoot(): Promise<string | undefined> {
     if (this._closed) {
       return undefined;
     }
@@ -169,7 +169,7 @@ export default class Replicache implements ReadTransaction {
     return res.root;
   }
 
-  async _checkChange(root: string | undefined): Promise<void> {
+  private async _checkChange(root: string | undefined): Promise<void> {
     const currentRoot = await this._root; // instantaneous except maybe first time
     if (root !== undefined && root !== currentRoot) {
       this._root = Promise.resolve(root);
@@ -492,7 +492,7 @@ export default class Replicache implements ReadTransaction {
         .result;
   }
 
-  async _mutate<R extends JSONValue | void, A extends JSONValue>(
+  private async _mutate<R extends JSONValue | void, A extends JSONValue>(
     name: string,
     mutatorImpl: MutatorImpl<R, A>,
     args: A,

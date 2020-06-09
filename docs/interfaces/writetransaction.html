@@ -55,7 +55,7 @@
 					<a href="writetransaction.html">WriteTransaction</a>
 				</li>
 			</ul>
-			<h1>Class WriteTransaction</h1>
+			<h1>Interface WriteTransaction</h1>
 		</div>
 	</div>
 </header>
@@ -74,7 +74,7 @@
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
 					<li>
-						<span class="tsd-signature-type">ReadTransactionImpl</span>
+						<a href="readtransaction.html" class="tsd-signature-type">ReadTransaction</a>
 						<ul class="tsd-hierarchy">
 							<li>
 								<span class="target">WriteTransaction</span>
@@ -83,78 +83,36 @@
 					</li>
 				</ul>
 			</section>
-			<section class="tsd-panel">
-				<h3>Implements</h3>
-				<ul class="tsd-hierarchy">
-					<li><a href="../interfaces/readtransaction.html" class="tsd-signature-type">ReadTransaction</a></li>
-				</ul>
-			</section>
 			<section class="tsd-panel-group tsd-index-group">
 				<h2>Index</h2>
 				<section class="tsd-panel tsd-index-panel">
 					<div class="tsd-index-content">
-						<section class="tsd-index-section tsd-is-inherited">
-							<h3>Constructors</h3>
-							<ul class="tsd-index-list">
-								<li class="tsd-kind-constructor tsd-parent-kind-class tsd-is-inherited"><a href="writetransaction.html#constructor" class="tsd-kind-icon">constructor</a></li>
-							</ul>
-						</section>
 						<section class="tsd-index-section ">
 							<h3>Methods</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-method tsd-parent-kind-class"><a href="writetransaction.html#del" class="tsd-kind-icon">del</a></li>
-								<li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited"><a href="writetransaction.html#get" class="tsd-kind-icon">get</a></li>
-								<li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited"><a href="writetransaction.html#has" class="tsd-kind-icon">has</a></li>
-								<li class="tsd-kind-method tsd-parent-kind-class"><a href="writetransaction.html#put" class="tsd-kind-icon">put</a></li>
-								<li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited"><a href="writetransaction.html#scan" class="tsd-kind-icon">scan</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-interface"><a href="writetransaction.html#del" class="tsd-kind-icon">del</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-interface tsd-is-inherited"><a href="writetransaction.html#get" class="tsd-kind-icon">get</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-interface tsd-is-inherited"><a href="writetransaction.html#has" class="tsd-kind-icon">has</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-interface"><a href="writetransaction.html#put" class="tsd-kind-icon">put</a></li>
+								<li class="tsd-kind-method tsd-parent-kind-interface tsd-is-inherited"><a href="writetransaction.html#scan" class="tsd-kind-icon">scan</a></li>
 							</ul>
 						</section>
 					</div>
 				</section>
 			</section>
-			<section class="tsd-panel-group tsd-member-group tsd-is-inherited">
-				<h2>Constructors</h2>
-				<section class="tsd-panel tsd-member tsd-kind-constructor tsd-parent-kind-class tsd-is-inherited">
-					<a name="constructor" class="tsd-anchor"></a>
-					<h3>constructor</h3>
-					<ul class="tsd-signatures tsd-kind-constructor tsd-parent-kind-class tsd-is-inherited">
-						<li class="tsd-signature tsd-kind-icon">new <wbr>Write<wbr>Transaction<span class="tsd-signature-symbol">(</span>invoke<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Invoke</span>, transactionId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="writetransaction.html" class="tsd-signature-type">WriteTransaction</a></li>
-					</ul>
-					<ul class="tsd-descriptions">
-						<li class="tsd-description">
-							<aside class="tsd-sources">
-								<p>Inherited from <a href="writetransaction.html">WriteTransaction</a>.<a href="writetransaction.html#constructor">constructor</a></p>
-								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/aa1b8b8/src/transactions.ts#L30">transactions.ts:30</a></li>
-								</ul>
-							</aside>
-							<h4 class="tsd-parameters-title">Parameters</h4>
-							<ul class="tsd-parameters">
-								<li>
-									<h5>invoke: <span class="tsd-signature-type">Invoke</span></h5>
-								</li>
-								<li>
-									<h5>transactionId: <span class="tsd-signature-type">number</span></h5>
-								</li>
-							</ul>
-							<h4 class="tsd-returns-title">Returns <a href="writetransaction.html" class="tsd-signature-type">WriteTransaction</a></h4>
-						</li>
-					</ul>
-				</section>
-			</section>
 			<section class="tsd-panel-group tsd-member-group ">
 				<h2>Methods</h2>
-				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface">
 					<a name="del" class="tsd-anchor"></a>
 					<h3>del</h3>
-					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface">
 						<li class="tsd-signature tsd-kind-icon">del<span class="tsd-signature-symbol">(</span>key<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span></li>
 					</ul>
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/aa1b8b8/src/transactions.ts#L94">transactions.ts:94</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/161d46a/src/transactions.ts#L88">transactions.ts:88</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -173,21 +131,26 @@
 						</li>
 					</ul>
 				</section>
-				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class tsd-is-inherited">
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
 					<a name="get" class="tsd-anchor"></a>
 					<h3>get</h3>
-					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class tsd-is-inherited">
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
 						<li class="tsd-signature tsd-kind-icon">get<span class="tsd-signature-symbol">(</span>key<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">JSONValue</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol">&gt;</span></li>
 					</ul>
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
-								<p>Implementation of <a href="../interfaces/readtransaction.html">ReadTransaction</a>.<a href="../interfaces/readtransaction.html#get">get</a></p>
-								<p>Inherited from <a href="writetransaction.html">WriteTransaction</a>.<a href="writetransaction.html#get">get</a></p>
+								<p>Inherited from <a href="readtransaction.html">ReadTransaction</a>.<a href="readtransaction.html#get">get</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/aa1b8b8/src/transactions.ts#L37">transactions.ts:37</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/161d46a/src/transactions.ts#L15">transactions.ts:15</a></li>
 								</ul>
 							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Get a single value from the database. If the key is not present this
+									returns <code>undefined</code>.</p>
+								</div>
+							</div>
 							<h4 class="tsd-parameters-title">Parameters</h4>
 							<ul class="tsd-parameters">
 								<li>
@@ -198,21 +161,25 @@
 						</li>
 					</ul>
 				</section>
-				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class tsd-is-inherited">
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
 					<a name="has" class="tsd-anchor"></a>
 					<h3>has</h3>
-					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class tsd-is-inherited">
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
 						<li class="tsd-signature tsd-kind-icon">has<span class="tsd-signature-symbol">(</span>key<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">&gt;</span></li>
 					</ul>
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
-								<p>Implementation of <a href="../interfaces/readtransaction.html">ReadTransaction</a>.<a href="../interfaces/readtransaction.html#has">has</a></p>
-								<p>Inherited from <a href="writetransaction.html">WriteTransaction</a>.<a href="writetransaction.html#has">has</a></p>
+								<p>Inherited from <a href="readtransaction.html">ReadTransaction</a>.<a href="readtransaction.html#has">has</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/aa1b8b8/src/transactions.ts#L48">transactions.ts:48</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/161d46a/src/transactions.ts#L20">transactions.ts:20</a></li>
 								</ul>
 							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Determines if a single key is present in the database.</p>
+								</div>
+							</div>
 							<h4 class="tsd-parameters-title">Parameters</h4>
 							<ul class="tsd-parameters">
 								<li>
@@ -223,17 +190,17 @@
 						</li>
 					</ul>
 				</section>
-				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface">
 					<a name="put" class="tsd-anchor"></a>
 					<h3>put</h3>
-					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface">
 						<li class="tsd-signature tsd-kind-icon">put<span class="tsd-signature-symbol">(</span>key<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, value<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">JSONValue</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">ToJSON</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></li>
 					</ul>
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/aa1b8b8/src/transactions.ts#L82">transactions.ts:82</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/161d46a/src/transactions.ts#L82">transactions.ts:82</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -255,38 +222,32 @@
 						</li>
 					</ul>
 				</section>
-				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class tsd-is-inherited">
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
 					<a name="scan" class="tsd-anchor"></a>
 					<h3>scan</h3>
-					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class tsd-is-inherited">
-						<li class="tsd-signature tsd-kind-icon">scan<span class="tsd-signature-symbol">(</span>__namedParameters<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-symbol">{ </span>limit<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span>prefix<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>start<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><a href="../interfaces/scanbound.html" class="tsd-signature-type">ScanBound</a><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Iterable</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/scanitem.html" class="tsd-signature-type">ScanItem</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span></li>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
+						<li class="tsd-signature tsd-kind-icon">scan<span class="tsd-signature-symbol">(</span>options<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">ScanOptions</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Iterable</span><span class="tsd-signature-symbol">&lt;</span><a href="scanitem.html" class="tsd-signature-type">ScanItem</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span></li>
 					</ul>
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
-								<p>Inherited from <a href="writetransaction.html">WriteTransaction</a>.<a href="writetransaction.html#scan">scan</a></p>
+								<p>Inherited from <a href="readtransaction.html">ReadTransaction</a>.<a href="readtransaction.html#scan">scan</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/aa1b8b8/src/transactions.ts#L56">transactions.ts:56</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/161d46a/src/transactions.ts#L25">transactions.ts:25</a></li>
 								</ul>
 							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Gets many values from the database.</p>
+								</div>
+							</div>
 							<h4 class="tsd-parameters-title">Parameters</h4>
 							<ul class="tsd-parameters">
 								<li>
-									<h5><span class="tsd-flag ts-flagDefault value">Default value</span> __namedParameters: <span class="tsd-signature-symbol">{ </span>limit<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span>prefix<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>start<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><a href="../interfaces/scanbound.html" class="tsd-signature-type">ScanBound</a><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol"> = {}</span></h5>
-									<ul class="tsd-parameters">
-										<li class="tsd-parameter">
-											<h5>limit<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span></h5>
-										</li>
-										<li class="tsd-parameter">
-											<h5>prefix<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></h5>
-										</li>
-										<li class="tsd-parameter">
-											<h5>start<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><a href="../interfaces/scanbound.html" class="tsd-signature-type">ScanBound</a></h5>
-										</li>
-									</ul>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> options: <span class="tsd-signature-type">ScanOptions</span></h5>
 								</li>
 							</ul>
-							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Iterable</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/scanitem.html" class="tsd-signature-type">ScanItem</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span></h4>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Iterable</span><span class="tsd-signature-symbol">&lt;</span><a href="scanitem.html" class="tsd-signature-type">ScanItem</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span></h4>
 						</li>
 					</ul>
 				</section>
@@ -303,53 +264,50 @@
 			<nav class="tsd-navigation secondary menu-sticky">
 				<ul class="before-current">
 					<li class=" tsd-kind-class">
-						<a href="repmhttpinvoker.html" class="tsd-kind-icon">REPMHTTPInvoker</a>
+						<a href="../classes/repmhttpinvoker.html" class="tsd-kind-icon">REPMHTTPInvoker</a>
 					</li>
 					<li class=" tsd-kind-class">
-						<a href="replicache.html" class="tsd-kind-icon">Replicache</a>
+						<a href="../classes/replicache.html" class="tsd-kind-icon">Replicache</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-has-type-parameter">
+						<a href="repminvoke.html" class="tsd-kind-icon">REPMInvoke</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="scanbound.html" class="tsd-kind-icon">Scan<wbr>Bound</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="scanid.html" class="tsd-kind-icon">Scan<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="scanitem.html" class="tsd-kind-icon">Scan<wbr>Item</a>
 					</li>
 				</ul>
 				<ul class="current">
-					<li class="current tsd-kind-class">
+					<li class="current tsd-kind-interface">
 						<a href="writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a>
 						<ul>
-							<li class=" tsd-kind-constructor tsd-parent-kind-class tsd-is-inherited">
-								<a href="writetransaction.html#constructor" class="tsd-kind-icon">constructor</a>
-							</li>
-							<li class=" tsd-kind-method tsd-parent-kind-class">
+							<li class=" tsd-kind-method tsd-parent-kind-interface">
 								<a href="writetransaction.html#del" class="tsd-kind-icon">del</a>
 							</li>
-							<li class=" tsd-kind-method tsd-parent-kind-class tsd-is-inherited">
+							<li class=" tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
 								<a href="writetransaction.html#get" class="tsd-kind-icon">get</a>
 							</li>
-							<li class=" tsd-kind-method tsd-parent-kind-class tsd-is-inherited">
+							<li class=" tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
 								<a href="writetransaction.html#has" class="tsd-kind-icon">has</a>
 							</li>
-							<li class=" tsd-kind-method tsd-parent-kind-class">
+							<li class=" tsd-kind-method tsd-parent-kind-interface">
 								<a href="writetransaction.html#put" class="tsd-kind-icon">put</a>
 							</li>
-							<li class=" tsd-kind-method tsd-parent-kind-class tsd-is-inherited">
+							<li class=" tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
 								<a href="writetransaction.html#scan" class="tsd-kind-icon">scan</a>
 							</li>
 						</ul>
 					</li>
 				</ul>
 				<ul class="after-current">
-					<li class=" tsd-kind-interface tsd-has-type-parameter">
-						<a href="../interfaces/repminvoke.html" class="tsd-kind-icon">REPMInvoke</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="../interfaces/readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="../interfaces/scanbound.html" class="tsd-kind-icon">Scan<wbr>Bound</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="../interfaces/scanid.html" class="tsd-kind-icon">Scan<wbr>Id</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="../interfaces/scanitem.html" class="tsd-kind-icon">Scan<wbr>Item</a>
-					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="../globals.html#databaseinfo" class="tsd-kind-icon">Database<wbr>Info</a>
 					</li>

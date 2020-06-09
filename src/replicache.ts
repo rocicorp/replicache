@@ -7,8 +7,8 @@ import type {
   Invoke,
   OpenTransactionRequest,
 } from './repm-invoker.js';
-import {ReadTransactionImpl, WriteTransaction} from './transactions.js';
-import type {ReadTransaction} from './transactions.js';
+import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
+import type {ReadTransaction, WriteTransaction} from './transactions.js';
 
 type Mutator<Return extends JSONValue | void, Args extends JSONValue> = (
   args: Args,
@@ -512,7 +512,7 @@ export default class Replicache implements ReadTransaction {
     );
     let result: R;
     try {
-      const tx = new WriteTransaction(this._invoke, transactionId);
+      const tx = new WriteTransactionImpl(this._invoke, transactionId);
       result = await mutatorImpl(tx, args);
     } catch (ex) {
       // No need to await the response.

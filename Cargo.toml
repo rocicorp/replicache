@@ -10,8 +10,17 @@ sha2 = "0.8.1"
 wasm-bindgen = "0.2"
 wee_alloc = "0.4.5"
 
+[dev-dependencies]
+wasm-bindgen-test = "0.3.0"
+
 [lib]
-crate-type = ["cdylib"]
+# Note: Having both these here disabled lto, which makes the
+# bundles a bit bigger. This is due to a bug in Cargo:
+# https://github.com/rust-lang/rust/issues/51009.
+# But we need cdylib in order to build wasm, and we need
+# rlib in order to unit test in wasm:
+# https://github.com/rust-lang/cargo/issues/6659.
+crate-type = ["cdylib", "rlib"]
 
 [profile.release]
 codegen-units = 1

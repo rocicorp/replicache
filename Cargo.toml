@@ -5,6 +5,8 @@ authors = ["Rocicorp <replicache@roci.dev>"]
 edition = "2018"
 
 [dependencies]
+data-encoding = "1.1.1"
+sha2 = "0.8.1"
 wasm-bindgen = "0.2"
 wee_alloc = "0.4.5"
 
@@ -12,6 +14,7 @@ wee_alloc = "0.4.5"
 crate-type = ["cdylib"]
 
 [profile.release]
-opt-level = 'z'  # Optimize for size.
-lto = true
 codegen-units = 1
+lto = true
+opt-level = 'z'  # Optimize for size.
+panic = "abort"

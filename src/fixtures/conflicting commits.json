@@ -7,6 +7,14 @@
   },
   {
     "dbName": "conflict",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
+    }
+  },
+  {
+    "dbName": "conflict",
     "method": "openTransaction",
     "args": {
       "args": "a",
@@ -14,14 +22,6 @@
     },
     "result": {
       "transactionId": 1
-    }
-  },
-  {
-    "dbName": "conflict",
-    "method": "getRoot",
-    "args": {},
-    "result": {
-      "root": "e99uif9c7bpavajrt666es1ki52dv239"
     }
   },
   {
@@ -75,19 +75,19 @@
   },
   {
     "dbName": "conflict",
-    "method": "closeTransaction",
-    "args": {
-      "transactionId": 3
-    },
-    "result": {}
-  },
-  {
-    "dbName": "conflict",
     "method": "openTransaction",
     "args": {},
     "result": {
       "transactionId": 4
     }
+  },
+  {
+    "dbName": "conflict",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 3
+    },
+    "result": {}
   },
   {
     "dbName": "conflict",
@@ -160,19 +160,19 @@
   },
   {
     "dbName": "conflict",
-    "method": "openTransaction",
-    "args": {},
-    "result": {
-      "transactionId": 7
-    }
-  },
-  {
-    "dbName": "conflict",
     "method": "closeTransaction",
     "args": {
       "transactionId": 6
     },
     "result": {}
+  },
+  {
+    "dbName": "conflict",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 7
+    }
   },
   {
     "dbName": "conflict",

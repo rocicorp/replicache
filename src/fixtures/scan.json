@@ -293,19 +293,19 @@
   },
   {
     "dbName": "test4",
-    "method": "openTransaction",
-    "args": {},
-    "result": {
-      "transactionId": 6
-    }
-  },
-  {
-    "dbName": "test4",
     "method": "closeTransaction",
     "args": {
       "transactionId": 5
     },
     "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 6
+    }
   },
   {
     "dbName": "test4",
@@ -324,19 +324,19 @@
   },
   {
     "dbName": "test4",
-    "method": "openTransaction",
-    "args": {},
-    "result": {
-      "transactionId": 7
-    }
-  },
-  {
-    "dbName": "test4",
     "method": "closeTransaction",
     "args": {
       "transactionId": 6
     },
     "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 7
+    }
   },
   {
     "dbName": "test4",
@@ -404,19 +404,19 @@
   },
   {
     "dbName": "test4",
-    "method": "closeTransaction",
-    "args": {
-      "transactionId": 8
-    },
-    "result": {}
-  },
-  {
-    "dbName": "test4",
     "method": "openTransaction",
     "args": {},
     "result": {
       "transactionId": 9
     }
+  },
+  {
+    "dbName": "test4",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 8
+    },
+    "result": {}
   },
   {
     "dbName": "test4",
@@ -445,19 +445,19 @@
   },
   {
     "dbName": "test4",
-    "method": "openTransaction",
-    "args": {},
-    "result": {
-      "transactionId": 10
-    }
-  },
-  {
-    "dbName": "test4",
     "method": "closeTransaction",
     "args": {
       "transactionId": 9
     },
     "result": {}
+  },
+  {
+    "dbName": "test4",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 10
+    }
   },
   {
     "dbName": "test4",

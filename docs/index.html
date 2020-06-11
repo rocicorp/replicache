@@ -73,24 +73,23 @@
 				</a>
 				<ul>
 					<li>NodeJS/NPM</li>
-					<li>Go binary - <a href="https://golang.org/dl/">https://golang.org/dl/</a></li>
 				</ul>
 				<a href="#building-the-code" id="building-the-code" style="color: inherit; text-decoration: none;">
 					<h2>Building the code</h2>
 				</a>
+				<a href="#get-the-code" id="get-the-code" style="color: inherit; text-decoration: none;">
+					<h3>Get the Code</h3>
+				</a>
+				<p>Download the <a href="https://github.com/rocicorp/replicache-sdk-js/releases">latest release</a> from Github. It&#39;s important to get the typescript and binary from a release to ensure you have the correct version of the binary.</p>
 				<a href="#build-the-js" id="build-the-js" style="color: inherit; text-decoration: none;">
 					<h3>Build the JS</h3>
 				</a>
-				<p>Replicache JS SDK is written in TypeScript. Run <code>npm run build</code> to generate the JS source code (JS source is outputted in <code>out/</code>). By default we generate browser compatible JS but you can also build CommonJS modules by running <code>npm run build:cjs</code>. let us know what your needs are.</p>
-				<a href="#build-the-replicache-client-test-server-binary" id="build-the-replicache-client-test-server-binary" style="color: inherit; text-decoration: none;">
-					<h3>Build the Replicache Client test server binary</h3>
-				</a>
-				<p>Run <code>tool/build.sh</code> which downloads the source code for <a href="https://github.com/rocicorp/replicache-client">https://github.com/rocicorp/replicache-client</a> and builds the <code>build/replicache-client/test_server</code> binary.</p>
+				<p>Replicache JS SDK is written in TypeScript. Run <code>npm run build</code> to generate the JS source code (JS source is outputted in <code>out/</code>). By default we generate browser compatible JS but you can also build CommonJS modules by running <code>npm run build:cjs</code>. Let us know what your needs are.</p>
 				<a href="#run-the-binary" id="run-the-binary" style="color: inherit; text-decoration: none;">
 					<h2>Run the binary</h2>
 				</a>
-				<p>The Replicache Client test server binary was developed as a quick way to test the Replicache Client API. Eventually we will use a WASM version or have Electron/NodeJS start the binary automatically. But for now we need to manually start it.</p>
-				<pre><code class="language-sh">build/replicache-client/test_server --no-fake-time</code></pre>
+				<p>The Replicache Client binary was originally developed as a quick way to test the Replicache Client API. Eventually we will use a WASM version or have Electron/NodeJS start the binary automatically. But for now we need to manually start it.</p>
+				<pre><code class="language-sh">./repm-{arch}-{platform} --no-fake-time</code></pre>
 				<p>This starts an HTTP server on port 7002 (by default, use <code>--port</code> to change.)</p>
 				<p>We need to use the <code>--no-fake-time</code> flag for now or all the timestamps will be using a fake time.</p>
 				<a href="#including-the-js" id="including-the-js" style="color: inherit; text-decoration: none;">
@@ -100,10 +99,16 @@
 				<pre><code class="language-js"><span class="hljs-keyword">import</span> Replicache, {REPMHTTPInvoker} <span class="hljs-keyword">from</span> <span class="hljs-string">'./out/mod.js'</span>;</code></pre>
 				<p>To use <code>Replicache</code> you currently have to tell it how to invoke the <strong>Rep</strong>licache Client API <strong>M</strong>odule (REPM).</p>
 				<pre><code class="language-js"><span class="hljs-keyword">const</span> diffServerURL = <span class="hljs-string">'https://serve.replicache.dev/pull'</span>;
+<span class="hljs-keyword">const</span> diffServerAuth = <span class="hljs-string">'&lt;your diff-server account ID&gt;'</span>;
+<span class="hljs-keyword">const</span> batchURL = <span class="hljs-string">'https://youservice.com/replicache-batch'</span>;
+<span class="hljs-keyword">const</span> dataLayerAuth = <span class="hljs-string">'&lt;your data-layer auth token&gt;'</span>;
 <span class="hljs-keyword">const</span> repmInvoker = <span class="hljs-keyword">new</span> REPMHTTPInvoker(<span class="hljs-string">'http://localhost:7002'</span>);
 <span class="hljs-keyword">const</span> repmInvoke = repmInvoker.invoke;
 <span class="hljs-keyword">const</span> replicache = <span class="hljs-keyword">new</span> Replicache({
   diffServerURL,
+  diffServerAuth,
+  batchURL,
+  dataLayerAuth,
   repmInvoke,
 });
 <span class="hljs-keyword">await</span> replicache.query(<span class="hljs-keyword">async</span> tx =&gt; {
@@ -147,6 +152,9 @@
 					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="globals.html#databaseinfo" class="tsd-kind-icon">Database<wbr>Info</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
+						<a href="globals.html#mutator" class="tsd-kind-icon">Mutator</a>
 					</li>
 				</ul>
 			</nav>

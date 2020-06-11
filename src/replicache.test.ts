@@ -3,10 +3,6 @@ import fetch from 'node-fetch';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).fetch = fetch;
 
-import {ReadableStream} from 'web-streams-polyfill';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(globalThis as any).ReadableStream = ReadableStream;
-
 import {open} from 'fs/promises';
 import type {FileHandle} from 'fs/promises';
 
@@ -430,76 +426,22 @@ test('scan', async () => {
   ]);
 });
 
-function listen<R>(
-  s: {getReader: ReadableStream['getReader']},
-  callback: (r: R) => void,
-) {
-  let cancelled = false;
-  let paused = false;
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  let onDone = () => {};
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  let onError: (e: unknown) => void = () => {};
-
-  async function inner<R>(
-    s: {getReader: ReadableStream['getReader']},
-    callback: (r: R) => void,
-  ) {
-    const reader = s.getReader();
-    try {
-      for (;;) {
-        const res = await reader.read();
-        if (cancelled || res.done) {
-          return;
-        }
-        if (!paused) {
-          callback(res.value);
-        }
-      }
-    } catch (e) {
-      onError(e);
-    } finally {
-      reader.releaseLock();
-      onDone();
-    }
-  }
-
-  inner(s, callback);
-
-  return {
-    cancel() {
-      cancelled = true;
-    },
-    pause() {
-      paused = true;
-    },
-    resume() {
-      paused = false;
-    },
-    onDone(f: () => void) {
-      onDone = f;
-    },
-    onError(f: (e: unknown) => void) {
-      onError = f;
-    },
-  };
-}
-
 test('subscribe', async () => {
   await useReplay('subscribe');
 
-  rep = await replicacheForTesting('subscribe');
-  const repSub = rep.subscribe(
-    async (tx: ReadTransaction) => await tx.scan({prefix: 'a/'}),
-  );
-
   const log: ScanItem[] = [];
 
-  const sub = listen(repSub, (values: Iterable<ScanItem>) => {
-    for (const scanItem of values) {
-      log.push(scanItem);
-    }
-  });
+  rep = await replicacheForTesting('subscribe');
+  const cancel = rep.subscribe(
+    async (tx: ReadTransaction) => await tx.scan({prefix: 'a/'}),
+    {
+      onData: (values: Iterable<ScanItem>) => {
+        for (const scanItem of values) {
+          log.push(scanItem);
+        }
+      },
+    },
+  );
 
   expect(log).toHaveLength(0);
 
@@ -523,13 +465,7 @@ test('subscribe', async () => {
   ]);
 
   log.length = 0;
-  sub.pause();
-  await add({'a/1': 1});
-  await Promise.resolve();
-  expect(log).toHaveLength(0);
-
   log.length = 0;
-  sub.resume();
   await add({'a/1': 11});
   await Promise.resolve();
   expect(log).toEqual([
@@ -538,7 +474,7 @@ test('subscribe', async () => {
   ]);
 
   log.length = 0;
-  sub.cancel();
+  cancel();
   await add({'a/1': 11});
   await Promise.resolve();
   expect(log).toHaveLength(0);
@@ -548,11 +484,12 @@ test('subscribe close', async () => {
   await useReplay('subscribe close');
 
   rep = await replicacheForTesting('subscribe-close');
-  const repSub = rep.subscribe((tx: ReadTransaction) => tx.get('k'));
 
-  const log: (number | undefined)[] = [];
-  const sub = listen(repSub, (value: number | undefined) => {
-    log.push(value);
+  const log: (JSONValue | undefined)[] = [];
+
+  const cancel = rep.subscribe((tx: ReadTransaction) => tx.get('k'), {
+    onData: value => log.push(value),
+    onDone: () => (done = true),
   });
 
   expect(log).toHaveLength(0);
@@ -563,13 +500,10 @@ test('subscribe close', async () => {
   expect(log).toEqual([undefined, 0]);
 
   let done = false;
-  sub.onDone(() => {
-    done = true;
-  });
 
   await rep.close();
   expect(done).toBe(true);
-  sub.cancel();
+  cancel();
 });
 
 test('name', async () => {
@@ -615,23 +549,26 @@ test('subscribe with error', async () => {
 
   const add = rep.register('add-data', addData);
 
-  const repSub = rep.subscribe(async tx => {
-    const v = await tx.get('k');
-    if (v !== undefined && v !== null) {
-      throw v;
-    }
-  });
-  await Promise.resolve();
-
   let gottenValue = 0;
-  const sub = listen(repSub, () => {
-    gottenValue++;
-  });
-
   let error;
-  sub.onError(e => {
-    error = e;
-  });
+
+  const cancel = rep.subscribe(
+    async tx => {
+      const v = await tx.get('k');
+      if (v !== undefined && v !== null) {
+        throw v;
+      }
+    },
+    {
+      onData: () => {
+        gottenValue++;
+      },
+      onError: e => {
+        error = e;
+      },
+    },
+  );
+  await Promise.resolve();
 
   expect(error).toBeUndefined();
   expect(gottenValue).toBe(0);
@@ -641,7 +578,7 @@ test('subscribe with error', async () => {
   await Promise.resolve();
   expect(error).toBe('throw');
 
-  await sub.cancel();
+  cancel();
 });
 
 test('conflicting commits', async () => {

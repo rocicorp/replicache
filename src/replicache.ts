@@ -10,7 +10,7 @@ import type {
 import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
 
-type Mutator<Return extends JSONValue | void, Args extends JSONValue> = (
+export type Mutator<Return extends JSONValue | void, Args extends JSONValue> = (
   args: Args,
 ) => Promise<Return | void>;
 type MutatorImpl<Return extends JSONValue | void, Args extends JSONValue> = (
@@ -44,7 +44,7 @@ export default class Replicache implements ReadTransaction {
     MutatorImpl<JSONValue, JSONValue>
   >();
   private _syncPromise: Promise<void> | null = null;
-  private readonly _subscriptions = new Set<Subscription<unknown>>();
+  private readonly _subscriptions = new Set<Subscription<unknown, unknown>>();
   protected _syncInterval: number | null = 60_000;
   // NodeJS has a non standard setTimeout function :'(
   protected _timerId: ReturnType<typeof setTimeout> | 0 = 0;
@@ -154,7 +154,7 @@ export default class Replicache implements ReadTransaction {
 
     // Clear subscriptions
     for (const subscription of this._subscriptions) {
-      subscription.controller.close();
+      subscription.onDone?.();
     }
     this._subscriptions.clear();
 
@@ -217,7 +217,7 @@ export default class Replicache implements ReadTransaction {
       //
       // TODO: we can rethrow here once replicache-internal is improved to not
       // treat offlineness as an error.
-      console.info('Error: $e');
+      console.info(`Error: ${e}`);
       this._online = false;
     }
   }
@@ -375,7 +375,7 @@ export default class Replicache implements ReadTransaction {
       const promises = subscriptions.map(async s => {
         // Tag the result so we can deal with success vs error below.
         try {
-          return {ok: true, value: await s.callback(tx)};
+          return {ok: true, value: await s.body(tx)};
         } catch (ex) {
           return {ok: false, error: ex};
         }
@@ -385,50 +385,50 @@ export default class Replicache implements ReadTransaction {
     for (let i = 0; i < subscriptions.length; i++) {
       const result = results[i];
       if (result.ok) {
-        subscriptions[i].controller.enqueue(result.value);
+        subscriptions[i].onData(result.value);
       } else {
-        subscriptions[i].controller.error(result.error);
-        // After error the stream is no longer usable.
-        this._subscriptions.delete(subscriptions[i]);
+        subscriptions[i].onError?.(result.error);
       }
     }
   }
 
   /**
-   * Subcribe to changes to the underlying data. This returns a stream that can
-   * be listened to. Every time the underlying data changes the listener is
-   * invoked. The listener is also invoked once the first time the subscription
-   * is added. There is currently no guarantee that the result of this
-   * subscription changes and it might get called with the same value over and
-   * over.
+   * Subcribe to changes to the underlying data. Every time the underlying data
+   * changes `onData` is called. The function is also called once the first time
+   * the subscription is added. There is currently no guarantee that the result
+   * of this subscription changes and it might get called with the same value
+   * over and over.
+   *
+   * This returns a function that can be used to cancel the subscription.
+   *
+   * If an error occurs in the `body` the `onError` function is called if
+   * present.
    */
-  subscribe<R>(
-    callback: (tx: ReadTransaction) => Promise<R>,
-  ): ReadableStream<R> {
-    let controller: ReadableStreamDefaultController<R>;
-
-    const stream = new ReadableStream<R>({
-      start: async (c: ReadableStreamDefaultController<R>): Promise<void> => {
-        controller = c;
-        // One initial call.
-        const res = await this.query(callback);
-        c.enqueue(res);
-        this._subscriptions.add(subscription as Subscription<unknown>);
-      },
-      cancel: (): void => {
-        this._subscriptions.delete(subscription as Subscription<unknown>);
-      },
-    });
-
-    const subscription = {
-      callback,
-      // ReadableStream calls start synchronously so controller is defined here.
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      controller,
+  subscribe<R, E>(
+    body: (tx: ReadTransaction) => Promise<R>,
+    {
+      onData,
+      onError,
+      onDone,
+    }: {
+      onData: (result: R) => void;
+      onError?: (error: E) => void;
+      onDone?: () => void;
+    },
+  ): () => void {
+    const s = {body, onData, onError, onDone} as Subscription<unknown, unknown>;
+    this._subscriptions.add(s);
+    (async () => {
+      try {
+        const res = await this.query(s.body);
+        s.onData(res);
+      } catch (ex) {
+        s.onError?.(ex);
+      }
+    })();
+    return (): void => {
+      this._subscriptions.delete(s);
     };
-
-    return stream;
   }
 
   /**
@@ -436,12 +436,12 @@ export default class Replicache implements ReadTransaction {
    * to ensure you get a consistent view across multiple calls to `get`, `has`
    * and `scan`.
    */
-  async query<R>(callback: (tx: ReadTransaction) => Promise<R>): Promise<R> {
+  async query<R>(body: (tx: ReadTransaction) => Promise<R>): Promise<R> {
     const res = await this._invoke('openTransaction', {});
     const txId = res['transactionId'];
     try {
       const tx = new ReadTransactionImpl(this._invoke, txId);
-      return await callback(tx);
+      return await body(tx);
     } finally {
       // No need to await the response.
       this._closeTransaction(txId);
@@ -586,7 +586,9 @@ export class ReplicacheTest extends Replicache {
   }
 }
 
-type Subscription<R> = {
-  callback: (tx: ReadTransaction) => Promise<R>;
-  controller: ReadableStreamDefaultController<R>;
+type Subscription<R, E> = {
+  body: (tx: ReadTransaction) => Promise<R>;
+  onData: (r: R) => void;
+  onError?: (e: E) => void;
+  onDone?: () => void;
 };

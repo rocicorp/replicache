@@ -5,6 +5,15 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Debug Redo Sample in Edge ",
+      "request": "launch",
+      "type": "edge",
+      "version": "beta",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/sample/redo",
+      "skipFiles": ["${workspaceFolder}/sample/redo/node_modules/**/*.js"]
+    },
+    {
       "name": "Debug Jest Tests",
       "type": "node",
       "request": "launch",

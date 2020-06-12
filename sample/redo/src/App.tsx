@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useCallback} from 'react';
 import './App.css';
 
 import Replicache, {
@@ -8,32 +8,77 @@ import Replicache, {
   Mutator,
 } from 'replicache';
 import {diffServerURL, diffServerAuth, batchURL} from './settings';
+import {LoginScreen, logout} from './login';
+import type {LoginResult} from './login';
+import {List} from './List';
 
 const repmInvoke = new REPMHTTPInvoker('http://localhost:7002').invoke;
 
-const rep = new Replicache({
-  diffServerURL: diffServerURL,
-  dataLayerAuth: '1',
-  diffServerAuth: diffServerAuth,
-  batchURL: batchURL,
-  repmInvoke,
-});
-rep.syncInterval = 1000;
-
-let createTodo: Mutator<void, Todo>;
-let deleteTodo: Mutator<void, Todo>;
-let updateTodo: Mutator<void, Partial<Todo> & {id: number}>;
-
-registerMutations(rep);
+export interface MutationFunctions {
+  createTodo: Mutator<void, Todo>;
+  deleteTodo: Mutator<void, Todo>;
+  updateTodo: Mutator<void, Partial<Todo> & {id: number}>;
+}
 
 function App() {
+  const [loginResult, setLoginResult] = useState<LoginResult>();
+  let [rep, setRep] = useState<Replicache>();
+  let [mutations, setMutations] = useState<MutationFunctions>();
+
+  const logoutCallback = useCallback(async () => {
+    await logout();
+    rep?.close();
+    setRep(undefined);
+    setLoginResult(undefined);
+  }, [rep]);
+
+  if (!loginResult) {
+    return <LoginScreen onChange={setLoginResult} />;
+  }
+
+  if (!rep) {
+    const r = new Replicache({
+      name: loginResult.userId,
+      diffServerURL: diffServerURL,
+      dataLayerAuth: loginResult.userId,
+      diffServerAuth: diffServerAuth,
+      batchURL: batchURL,
+      repmInvoke,
+    });
+    r.syncInterval = 1000;
+    setMutations(registerMutations(r));
+    setRep(r);
+    return null;
+  }
+
+  return (
+    <LoggedInApp
+      email={loginResult.email}
+      rep={rep}
+      mutations={mutations!}
+      logout={logoutCallback}
+    />
+  );
+}
+
+function LoggedInApp({
+  rep,
+  mutations,
+  logout,
+  email,
+}: {
+  rep: Replicache;
+  mutations: MutationFunctions;
+  logout: () => void;
+  email: string;
+}) {
   const [allTodos, setAllTodos] = useState<Todo[]>([]);
   const [listIds, setListIds] = useState<number[]>([]);
   const [selectedListId, setSelectedListId] = useState<number | null>(null);
 
   useEffect(() => {
     return rep.subscribe(allTodosInTx, {onData: setAllTodos});
-  }, []);
+  }, [rep]);
 
   useEffect(() => {
     return rep.subscribe(
@@ -46,7 +91,25 @@ function App() {
         onData: setListIds,
       },
     );
-  }, []);
+  }, [rep]);
+
+  const createCallback = useCallback(() => {
+    if (!selectedListId) {
+      return;
+    }
+    const id = (Math.random() * 2 ** 31) | 0;
+    mutations.createTodo({
+      id,
+      listId: selectedListId,
+      text: prompt('Enter todo text', 'New item') ?? 'New item',
+      complete: false,
+      order: 13123,
+    });
+  }, [mutations, selectedListId]);
+
+  const syncCallback = useCallback(() => {
+    rep.sync();
+  }, [rep]);
 
   if (
     (selectedListId === null || !listIds.includes(selectedListId)) &&
@@ -58,7 +121,16 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">Hello from Replicache!</header>
-      <List allTodos={todosInList(allTodos, selectedListId)} />
+      <button onClick={createCallback} disabled={!selectedListId}>
+        Create Todo
+      </button>
+      <button onClick={syncCallback}>Sync</button>
+      <button onClick={logout}>Logout</button>
+      <div>Logged in as {email}</div>
+      <List
+        todos={todosInList(allTodos, selectedListId)}
+        mutations={mutations}
+      />
     </div>
   );
 }
@@ -67,34 +139,34 @@ export default App;
 
 const prefix = '/todo/';
 
-const addPrefix = (id: number) => `${prefix}${id}`;
-
-async function read(
-  tx: ReadTransaction,
-  id: number,
-): Promise<Todo | undefined> {
-  const data = await tx.get(addPrefix(id));
-  return data as Todo | undefined;
-}
-
-function write(tx: WriteTransaction, todo: Todo): Promise<void> {
-  const key = addPrefix(todo.id);
-  return tx.put(key, todo);
-}
-
-function del(tx: WriteTransaction, id: number): Promise<boolean> {
-  return tx.del(addPrefix(id));
-}
-
 function registerMutations(rep: Replicache) {
-  createTodo = rep.register(
+  const addPrefix = (id: number) => `${prefix}${id}`;
+
+  async function read(
+    tx: ReadTransaction,
+    id: number,
+  ): Promise<Todo | undefined> {
+    const data = await tx.get(addPrefix(id));
+    return data as Todo | undefined;
+  }
+
+  function write(tx: WriteTransaction, todo: Todo): Promise<void> {
+    const key = addPrefix(todo.id);
+    return tx.put(key, todo);
+  }
+
+  function del(tx: WriteTransaction, id: number): Promise<boolean> {
+    return tx.del(addPrefix(id));
+  }
+
+  const createTodo = rep.register(
     'createTodo',
     async (tx: WriteTransaction, args: Todo) => {
       await write(tx, args);
     },
   );
 
-  deleteTodo = rep.register(
+  const deleteTodo = rep.register(
     'deleteTodo',
     async (tx: WriteTransaction, args: Todo) => {
       const id = args['id'];
@@ -102,9 +174,7 @@ function registerMutations(rep: Replicache) {
     },
   );
 
-  console.log(createTodo, deleteTodo);
-
-  updateTodo = rep.register(
+  const updateTodo = rep.register(
     'updateTodo',
     async (tx: WriteTransaction, args: Partial<Todo> & {id: number}) => {
       const {id} = args;
@@ -122,6 +192,8 @@ function registerMutations(rep: Replicache) {
       await write(tx, todo);
     },
   );
+
+  return {createTodo, deleteTodo, updateTodo};
 }
 
 async function allTodosInTx(tx: ReadTransaction): Promise<Todo[]> {
@@ -134,37 +206,10 @@ function todosInList(allTodos: Todo[], listId: number | null): Todo[] {
   return todos;
 }
 
-type Todo = {
+export type Todo = {
   id: number;
   listId: number;
   text: string;
   complete: boolean;
   order: number;
 };
-
-function List({allTodos}: {allTodos: Todo[]}) {
-  return (
-    <ul className="App-list">
-      {allTodos.map(todo => (
-        <ListItem key={todo.id} todo={todo} />
-      ))}
-    </ul>
-  );
-}
-
-function ListItem({todo}: {todo: Todo}) {
-  return (
-    <li>
-      <label>
-        <input
-          type="checkbox"
-          checked={todo.complete}
-          onChange={() => {
-            updateTodo({id: todo.id, complete: !todo.complete});
-          }}
-        />{' '}
-        {todo.text}
-      </label>
-    </li>
-  );
-}

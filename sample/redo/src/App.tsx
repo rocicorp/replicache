@@ -11,6 +11,7 @@ import {diffServerURL, diffServerAuth, batchURL} from './settings';
 import {LoginScreen, logout} from './login';
 import type {LoginResult} from './login';
 import {List} from './List';
+import {newOrderBetween} from './order';
 
 const repmInvoke = new REPMHTTPInvoker('http://localhost:7002').invoke;
 
@@ -27,27 +28,36 @@ function App() {
 
   const logoutCallback = useCallback(async () => {
     await logout();
-    rep?.close();
+    await rep!.close();
     setRep(undefined);
     setLoginResult(undefined);
   }, [rep]);
+
+  useEffect(() => {
+    if (!loginResult) {
+      return;
+    }
+    const r = new Replicache({
+      name: loginResult.userId,
+      diffServerURL,
+      dataLayerAuth: loginResult.userId,
+      diffServerAuth,
+      batchURL,
+      repmInvoke,
+    });
+    r.syncInterval = 1000;
+    setRep(r);
+    setMutations(registerMutations(r));
+    return () => {
+      r.close();
+    };
+  }, [loginResult]);
 
   if (!loginResult) {
     return <LoginScreen onChange={setLoginResult} />;
   }
 
-  if (!rep) {
-    const r = new Replicache({
-      name: loginResult.userId,
-      diffServerURL: diffServerURL,
-      dataLayerAuth: loginResult.userId,
-      diffServerAuth: diffServerAuth,
-      batchURL: batchURL,
-      repmInvoke,
-    });
-    r.syncInterval = 1000;
-    setMutations(registerMutations(r));
-    setRep(r);
+  if (!rep || !mutations) {
     return null;
   }
 
@@ -55,7 +65,7 @@ function App() {
     <LoggedInApp
       email={loginResult.email}
       rep={rep}
-      mutations={mutations!}
+      mutations={mutations}
       logout={logoutCallback}
     />
   );
@@ -98,14 +108,21 @@ function LoggedInApp({
       return;
     }
     const id = (Math.random() * 2 ** 31) | 0;
+
+    const todos = todosInList(allTodos, selectedListId);
+    const order = newOrderBetween(
+      todos.length === 0 ? null : todos[todos.length - 1],
+      null,
+    );
+
     mutations.createTodo({
       id,
       listId: selectedListId,
       text: prompt('Enter todo text', 'New item') ?? 'New item',
       complete: false,
-      order: 13123,
+      order,
     });
-  }, [mutations, selectedListId]);
+  }, [allTodos, mutations, selectedListId]);
 
   const syncCallback = useCallback(() => {
     rep.sync();
@@ -130,6 +147,7 @@ function LoggedInApp({
       <List
         todos={todosInList(allTodos, selectedListId)}
         mutations={mutations}
+        rep={rep}
       />
     </div>
   );

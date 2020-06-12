@@ -19,7 +19,16 @@ echo "Fetching test-server..."
     exit
   fi
 
+  # Repm is an implementation detail of bindings, we do not maintain
+  # backward compatibility. We need to download the correct version
+  # this SDK works with.
   URL="https://github.com/rocicorp/replicache-client/releases/download/$REPM_VERSION/test-server-amd64-$PLATFORM"
   curl -L -f $URL > test-server
   chmod u+x test-server
+
+  # Diff server is a public interface. We *do* maintain backward compat.
+  # We download the latest release.
+  URL="https://github.com/rocicorp/diff-server/releases/latest/download/diffs-$PLATFORM"
+  curl -L -f $URL > diff-server
+  chmod u+x diff-server
 )

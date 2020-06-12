@@ -2,37 +2,54 @@
 
 ![Node.js CI](https://github.com/rocicorp/replicache-sdk-js/workflows/Node.js%20CI/badge.svg)
 
-## Getting Started
+## Development Instructions
 
 Eventually you will be able to `npm install` but until then...
 
-## Prerequisites
-
-- NodeJS/NPM
-
-## Building the code
-
 ### Get the Code
 
-Download the [latest release](https://github.com/rocicorp/replicache-sdk-js/releases) from Github. It's important to get the typescript and binary from a release to ensure you have the correct version of the binary.
+Either by `npm install`'ing the git repo, cloning it, or downloading a 
+release.
 
 ### Build the JS
 
 Replicache JS SDK is written in TypeScript. Run `npm run build` to generate the JS source code (JS source is outputted in `out/`). By default we generate browser compatible JS but you can also build CommonJS modules by running `npm run build:cjs`. Let us know what your needs are.
 
-## Run the binary
+### Get Binaries
 
-The Replicache Client binary was originally developed as a quick way to test the Replicache Client API. Eventually we will use a WASM version or have Electron/NodeJS start the binary automatically. But for now we need to manually start it.
+Download required helper binaries: `npm run build:binaries`. Do this again whenever you update the SDK.
 
-```sh
-./repm-{arch}-{platform} --no-fake-time
+### Run `test-server`
+
+Currently, the JavaScript SDK relies on a native local server that
+implements the guts of the sync protocol on the client side. This is
+temporary and will be removed.
+
+For now, you must have this server running whenever you are working
+with the SDK: `npm run start:test-server`.
+
+### Start your Data Layer
+
+See [Replicache Server Setup](https://github.com/rocicorp/replicache#server-side) for server-side instructions.
+
+For the rest of these instructions we will assume your data layer is
+running on `localhost:3000`.
+
+### Start Diff-Server
+
+In production, your app will talk to the production Replicache diff-server at https://serve.replicache.dev/.
+
+During development, that sever can't reach your workstation, so we
+provide a development instance to work against instead. Leave this
+running in a tab:
+
+```bash
+# The --client-view flag should point to the Client View endpoint
+# on your development data layer.
+npm run start:diff-server -- --client-view="http://localhost:3000/replicache-client-view"
 ```
 
-This starts an HTTP server on port 7002 (by default, use `--port` to change.)
-
-We need to use the `--no-fake-time` flag for now or all the timestamps will be using a fake time.
-
-# Including the JS
+### Including the JS
 
 By default we only compile the TS to an ES module.
 

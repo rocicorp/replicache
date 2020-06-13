@@ -1,5 +1,3 @@
-use std::fmt;
-
 use data_encoding::decode;
 use data_encoding::encode;
 use data_encoding::base;

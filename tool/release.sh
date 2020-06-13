@@ -18,7 +18,7 @@ ROOT=$DIR/../
     sed -i .bak 's/crate-type = \["cdylib", "rlib"\]/crate-type = ["cdylib"]/' Cargo.toml
 
     rm -rf pkg
-    wasm-pack build --release -t web
+    wasm-pack build --release -t web -- --no-default-features
     brotli pkg/replicache_client* -f
 
     mv Cargo.toml.bak Cargo.toml

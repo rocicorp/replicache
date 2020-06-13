@@ -1,3 +1,7 @@
 pub mod wasm;
-mod hash;
+
 mod chunk;
+#[macro_use]
+mod console;
+mod hash;
+mod idbstore;

@@ -27,8 +27,8 @@ function App() {
   let [mutations, setMutations] = useState<MutationFunctions>();
 
   const logoutCallback = useCallback(async () => {
-    await logout();
-    await rep!.close();
+    logout();
+    await rep?.close();
     setRep(undefined);
     setLoginResult(undefined);
   }, [rep]);
@@ -71,17 +71,16 @@ function App() {
   );
 }
 
-function LoggedInApp({
-  rep,
-  mutations,
-  logout,
-  email,
-}: {
+type LoggedInAppProps = {
   rep: Replicache;
   mutations: MutationFunctions;
   logout: () => void;
   email: string;
-}) {
+};
+
+function LoggedInApp(props: LoggedInAppProps) {
+  const {rep, mutations, logout, email} = props;
+
   const [allTodos, setAllTodos] = useState<Todo[]>([]);
   const [listIds, setListIds] = useState<number[]>([]);
   const [selectedListId, setSelectedListId] = useState<number | null>(null);

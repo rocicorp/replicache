@@ -7,18 +7,18 @@ export type LoginResult = {
   userId: string;
 };
 
-async function loggedInUser(): Promise<LoginResult | undefined> {
-  const resJson = localStorage.loggedInUser;
-  if (resJson === undefined) {
+function loggedInUser(): LoginResult | undefined {
+  const resJSON = localStorage.loggedInUser;
+  if (resJSON === undefined) {
     return undefined;
   }
-  return JSON.parse(resJson);
+  return JSON.parse(resJSON);
 }
 
 async function login(email: string) {
-  const resJson = localStorage.knownUsers;
+  const resJSON = localStorage.knownUsers;
 
-  const knownUsers = resJson !== undefined ? JSON.parse(resJson) : {};
+  const knownUsers = resJSON !== undefined ? JSON.parse(resJSON) : {};
   let userId = knownUsers[email];
   if (userId === undefined) {
     userId = await remoteLogin(email);
@@ -47,24 +47,23 @@ async function remoteLogin(email: string) {
   }
 }
 
-export async function logout() {
+export function logout() {
   delete localStorage.loggedInUser;
 }
 
-export function LoginScreen({
-  onChange,
-}: {
+type LoginScreenProps = {
   onChange: (loginResult: LoginResult) => void;
-}) {
+};
+
+export function LoginScreen(props: LoginScreenProps) {
+  const {onChange} = props;
   const ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    (async () => {
-      const loginResult = await loggedInUser();
-      if (loginResult !== undefined) {
-        onChange(loginResult);
-      }
-    })();
+    const loginResult = loggedInUser();
+    if (loginResult !== undefined) {
+      onChange(loginResult);
+    }
   }, [onChange, ref]);
 
   const submitCallback = useCallback(

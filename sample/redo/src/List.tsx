@@ -6,16 +6,15 @@ import type {DropResult} from 'react-beautiful-dnd';
 import type Replicache from '../../../out.cjs/mod';
 import {newOrderBetween} from './order';
 
+type ListProps = {
+  todos: Todo[];
+  mutations: MutationFunctions;
+  rep: Replicache;
+};
+
 export const List = React.memo(
-  ({
-    todos,
-    mutations,
-    rep,
-  }: {
-    todos: Todo[];
-    mutations: MutationFunctions;
-    rep: Replicache;
-  }) => {
+  (props: ListProps) => {
+    const {todos, mutations, rep} = props;
     const onDragEnd = useCallback(
       (result: DropResult) => {
         if (!result.destination) {

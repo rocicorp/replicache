@@ -1,22 +1,20 @@
-import React, {useCallback} from 'react';
+import React, {useCallback, FunctionComponent, ReactElement} from 'react';
 import type {Todo, MutationFunctions} from './App';
 import {Draggable} from 'react-beautiful-dnd';
 
-export function ListItem({
-  todo,
-  mutations,
-  index,
-}: {
-  todo: Todo;
-  mutations: MutationFunctions;
-  index: number;
-}) {
+type ListProps = {todo: Todo; mutations: MutationFunctions; index: number};
+
+export function ListItem(props: ListProps) {
+  const {todo, mutations, index} = props;
+
   const changeCallback = useCallback(() => {
     mutations.updateTodo({id: todo.id, complete: !todo.complete});
   }, [todo, mutations]);
+
   const deleteCallback = useCallback(() => {
     mutations.deleteTodo(todo);
   }, [todo, mutations]);
+
   return (
     <Draggable draggableId={String(todo.id)} index={index}>
       {provided => (

@@ -71,6 +71,18 @@ function App() {
   );
 }
 
+function useSubscribe<R>(
+  rep: Replicache,
+  query: (tx: ReadTransaction) => Promise<R>,
+  def: R,
+) {
+  const [snapshot, setSnapshot] = useState<R>(def);
+  useEffect(() => {
+    return rep.subscribe(query, {onData: setSnapshot});
+  }, []);
+  return snapshot;
+}
+
 type LoggedInAppProps = {
   rep: Replicache;
   mutations: MutationFunctions;
@@ -81,26 +93,20 @@ type LoggedInAppProps = {
 function LoggedInApp(props: LoggedInAppProps) {
   const {rep, mutations, logout, email} = props;
 
-  const [allTodos, setAllTodos] = useState<Todo[]>([]);
-  const [listIds, setListIds] = useState<number[]>([]);
   const [selectedListId, setSelectedListId] = useState<number | null>(null);
 
-  useEffect(() => {
-    return rep.subscribe(allTodosInTx, {onData: setAllTodos});
-  }, [rep]);
+  const allTodos = useSubscribe(rep, allTodosInTx, []);
 
-  useEffect(() => {
-    return rep.subscribe(
-      async (tx: ReadTransaction) => {
-        return [...(await tx.scan({prefix: '/list/', limit: 500}))].map(
-          item => (item.value as {id: number}).id,
-        );
-      },
-      {
-        onData: setListIds,
-      },
-    );
-  }, [rep]);
+  const listIds = useSubscribe(
+    rep,
+    async (tx: ReadTransaction) => {
+      return Array.from(
+        await tx.scan({prefix: '/list/', limit: 500}),
+        item => (item.value as {id: number}).id,
+      );
+    },
+    [],
+  );
 
   const createCallback = useCallback(() => {
     if (!selectedListId) {
@@ -214,7 +220,10 @@ function registerMutations(rep: Replicache) {
 }
 
 async function allTodosInTx(tx: ReadTransaction): Promise<Todo[]> {
-  return [...(await tx.scan({prefix, limit: 500}))].map(si => si.value as Todo);
+  return Array.from(
+    await tx.scan({prefix, limit: 500}),
+    si => si.value as Todo,
+  );
 }
 
 function todosInList(allTodos: Todo[], listId: number | null): Todo[] {

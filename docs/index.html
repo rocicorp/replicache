@@ -64,36 +64,49 @@
 					<h1>Replicache JS SDK</h1>
 				</a>
 				<p><img src="https://github.com/rocicorp/replicache-sdk-js/workflows/Node.js%20CI/badge.svg" alt="Node.js CI"></p>
-				<a href="#getting-started" id="getting-started" style="color: inherit; text-decoration: none;">
-					<h2>Getting Started</h2>
+				<a href="#development-instructions" id="development-instructions" style="color: inherit; text-decoration: none;">
+					<h2>Development Instructions</h2>
 				</a>
 				<p>Eventually you will be able to <code>npm install</code> but until then...</p>
-				<a href="#prerequisites" id="prerequisites" style="color: inherit; text-decoration: none;">
-					<h2>Prerequisites</h2>
-				</a>
-				<ul>
-					<li>NodeJS/NPM</li>
-				</ul>
-				<a href="#building-the-code" id="building-the-code" style="color: inherit; text-decoration: none;">
-					<h2>Building the code</h2>
-				</a>
 				<a href="#get-the-code" id="get-the-code" style="color: inherit; text-decoration: none;">
 					<h3>Get the Code</h3>
 				</a>
-				<p>Download the <a href="https://github.com/rocicorp/replicache-sdk-js/releases">latest release</a> from Github. It&#39;s important to get the typescript and binary from a release to ensure you have the correct version of the binary.</p>
+				<p>Either by <code>npm install</code>&#39;ing the git repo, cloning it, or downloading a
+				release.</p>
 				<a href="#build-the-js" id="build-the-js" style="color: inherit; text-decoration: none;">
 					<h3>Build the JS</h3>
 				</a>
 				<p>Replicache JS SDK is written in TypeScript. Run <code>npm run build</code> to generate the JS source code (JS source is outputted in <code>out/</code>). By default we generate browser compatible JS but you can also build CommonJS modules by running <code>npm run build:cjs</code>. Let us know what your needs are.</p>
-				<a href="#run-the-binary" id="run-the-binary" style="color: inherit; text-decoration: none;">
-					<h2>Run the binary</h2>
+				<a href="#get-binaries" id="get-binaries" style="color: inherit; text-decoration: none;">
+					<h3>Get Binaries</h3>
 				</a>
-				<p>The Replicache Client binary was originally developed as a quick way to test the Replicache Client API. Eventually we will use a WASM version or have Electron/NodeJS start the binary automatically. But for now we need to manually start it.</p>
-				<pre><code class="language-sh">./repm-{arch}-{platform} --no-fake-time</code></pre>
-				<p>This starts an HTTP server on port 7002 (by default, use <code>--port</code> to change.)</p>
-				<p>We need to use the <code>--no-fake-time</code> flag for now or all the timestamps will be using a fake time.</p>
+				<p>Download required helper binaries: <code>npm run build:binaries</code>. Do this again whenever you update the SDK.</p>
+				<a href="#run-test-server" id="run-test-server" style="color: inherit; text-decoration: none;">
+					<h3>Run <code>test-server</code></h3>
+				</a>
+				<p>Currently, the JavaScript SDK relies on a native local server that
+					implements the guts of the sync protocol on the client side. This is
+				temporary and will be removed.</p>
+				<p>For now, you must have this server running whenever you are working
+				with the SDK: <code>npm run start:test-server</code>.</p>
+				<a href="#start-your-data-layer" id="start-your-data-layer" style="color: inherit; text-decoration: none;">
+					<h3>Start your Data Layer</h3>
+				</a>
+				<p>See <a href="https://github.com/rocicorp/replicache#server-side">Replicache Server Setup</a> for server-side instructions.</p>
+				<p>For the rest of these instructions we will assume your data layer is
+				running on <code>localhost:3000</code>.</p>
+				<a href="#start-diff-server" id="start-diff-server" style="color: inherit; text-decoration: none;">
+					<h3>Start Diff-Server</h3>
+				</a>
+				<p>In production, your app will talk to the production Replicache diff-server at <a href="https://serve.replicache.dev/">https://serve.replicache.dev/</a>.</p>
+				<p>During development, that sever can&#39;t reach your workstation, so we
+					provide a development instance to work against instead. Leave this
+				running in a tab:</p>
+				<pre><code class="language-bash"><span class="hljs-comment"># The --client-view flag should point to the Client View endpoint</span>
+<span class="hljs-comment"># on your development data layer.</span>
+npm run start:diff-server -- --client-view=<span class="hljs-string">"http://localhost:3000/replicache-client-view"</span></code></pre>
 				<a href="#including-the-js" id="including-the-js" style="color: inherit; text-decoration: none;">
-					<h1>Including the JS</h1>
+					<h3>Including the JS</h3>
 				</a>
 				<p>By default we only compile the TS to an ES module.</p>
 				<pre><code class="language-js"><span class="hljs-keyword">import</span> Replicache, {REPMHTTPInvoker} <span class="hljs-keyword">from</span> <span class="hljs-string">'./out/mod.js'</span>;</code></pre>

@@ -94,7 +94,7 @@ export default class Replicache implements ReadTransaction {
     repmInvoke: REPMInvoke;
   }): Promise<DatabaseInfo[]> {
     const res = await repmInvoke('', 'list');
-    return res['databases'];
+    return res.databases;
   }
 
   private async _open(): Promise<void> {
@@ -438,13 +438,13 @@ export default class Replicache implements ReadTransaction {
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R>): Promise<R> {
     const res = await this._invoke('openTransaction', {});
-    const txId = res['transactionId'];
+    const {transactionId} = res;
     try {
-      const tx = new ReadTransactionImpl(this._invoke, txId);
+      const tx = new ReadTransactionImpl(this._invoke, transactionId);
       return await body(tx);
     } finally {
       // No need to await the response.
-      this._closeTransaction(txId);
+      this._closeTransaction(transactionId);
     }
   }
 

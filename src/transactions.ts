@@ -37,7 +37,7 @@ export class ReadTransactionImpl implements ReadTransaction {
   async get(key: string): Promise<JSONValue | undefined> {
     const result = await this._invoke('get', {
       transactionId: this._transactionId,
-      key: key,
+      key,
     });
     if (!result.has) {
       return undefined;
@@ -48,7 +48,7 @@ export class ReadTransactionImpl implements ReadTransaction {
   async has(key: string): Promise<boolean> {
     const result = await this._invoke('has', {
       transactionId: this._transactionId,
-      key: key,
+      key,
     });
     return result['has'];
   }
@@ -58,14 +58,10 @@ export class ReadTransactionImpl implements ReadTransaction {
   > {
     const args: ScanRequest = {
       transactionId: this._transactionId,
-      limit: limit,
+      limit,
+      prefix,
+      start,
     };
-    if (prefix !== undefined) {
-      args.prefix = prefix;
-    }
-    if (start !== undefined) {
-      args.start = start;
-    }
     return await this._invoke('scan', args);
   }
 }
@@ -93,16 +89,16 @@ export class WriteTransactionImpl extends ReadTransactionImpl
   async put(key: string, value: JSONValue | ToJSON): Promise<void> {
     await this._invoke('put', {
       transactionId: this._transactionId,
-      key: key,
-      value: value,
+      key,
+      value,
     });
   }
 
   async del(key: string): Promise<boolean> {
     const result = await this._invoke('del', {
       transactionId: this._transactionId,
-      key: key,
+      key,
     });
-    return result['ok'];
+    return result.ok;
   }
 }

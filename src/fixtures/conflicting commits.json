@@ -62,7 +62,7 @@
       "transactionId": 1
     },
     "result": {
-      "ref": "kb6k8lppbdsh6lpvudngtllh7p3h3eql"
+      "ref": "85u6edgdhgee9qpfhabn3foi57em67t8"
     }
   },
   {
@@ -71,14 +71,6 @@
     "args": {},
     "result": {
       "transactionId": 3
-    }
-  },
-  {
-    "dbName": "conflict",
-    "method": "openTransaction",
-    "args": {},
-    "result": {
-      "transactionId": 4
     }
   },
   {
@@ -88,6 +80,14 @@
       "transactionId": 3
     },
     "result": {}
+  },
+  {
+    "dbName": "conflict",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 4
+    }
   },
   {
     "dbName": "conflict",
@@ -147,7 +147,7 @@
       "transactionId": 5
     },
     "result": {
-      "ref": "m3323carbgqml43e2h54gq06kpbn5340"
+      "ref": "4utqjr35usf0o884sh3is4k0m3to1imo"
     }
   },
   {
@@ -156,6 +156,14 @@
     "args": {},
     "result": {
       "transactionId": 6
+    }
+  },
+  {
+    "dbName": "conflict",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 7
     }
   },
   {
@@ -165,14 +173,6 @@
       "transactionId": 6
     },
     "result": {}
-  },
-  {
-    "dbName": "conflict",
-    "method": "openTransaction",
-    "args": {},
-    "result": {
-      "transactionId": 7
-    }
   },
   {
     "dbName": "conflict",

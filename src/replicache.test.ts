@@ -7,7 +7,11 @@ import {open} from 'fs/promises';
 import type {FileHandle} from 'fs/promises';
 
 import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
-import {REPMHTTPInvoker} from './mod.js';
+import {REPMHTTPInvoker, ScanBound} from './mod.js';
+import {
+  restoreScanPageSizeForTesting,
+  setScanPageSizeForTesting,
+} from './transactions.js';
 
 import type {REPMInvoke, ReadTransaction, WriteTransaction} from './mod.js';
 import type {JSONValue, ToJSON} from './json.js';
@@ -16,7 +20,6 @@ import type {
   InvokeMap,
   BeginSyncResponse,
 } from './repm-invoker.js';
-import type {ScanItem} from './scan-item.js';
 
 let rep: ReplicacheTest | null = null;
 let rep2: ReplicacheTest | null = null;
@@ -239,6 +242,14 @@ function resolver(): {resolve: () => void; promise: Promise<void>} {
 
 const emptyHash = '00000000000000000000000000000000';
 
+async function asyncIterableToArray<T>(it: AsyncIterable<T>) {
+  const arr: T[] = [];
+  for await (const v of it) {
+    arr.push(v);
+  }
+  return arr;
+}
+
 beforeEach(async () => {
   if (testMode !== 'replay') {
     const dbs = await ReplicacheTest.list({repmInvoke: httpInvoke});
@@ -277,6 +288,14 @@ afterEach(async () => {
   expect(resultReplacements).toHaveLength(0);
 });
 
+beforeAll(() => {
+  setScanPageSizeForTesting(4);
+});
+
+afterAll(() => {
+  restoreScanPageSizeForTesting();
+});
+
 test('list and drop', async () => {
   await useReplay('list and drop');
 
@@ -302,7 +321,7 @@ test('get, has, scan on empty db', async () => {
     expect(await tx.get('key')).toBeUndefined();
     expect(await tx.has('key')).toBe(false);
 
-    const scanItems = await tx.scan();
+    const scanItems = await asyncIterableToArray(tx.scan());
     expect(scanItems).toHaveLength(0);
   }
 
@@ -361,83 +380,118 @@ test('scan', async () => {
     'c/0': 8,
   });
 
-  expect(await rep.scan()).toEqual([
-    {key: 'a/0', value: 0},
-    {key: 'a/1', value: 1},
-    {key: 'a/2', value: 2},
-    {key: 'a/3', value: 3},
-    {key: 'a/4', value: 4},
-    {key: 'b/0', value: 5},
-    {key: 'b/1', value: 6},
-    {key: 'b/2', value: 7},
-    {key: 'c/0', value: 8},
+  async function testScanResult<K, V>(
+    options: {prefix?: string; start?: ScanBound} | undefined,
+    entries: [K, V][],
+  ) {
+    if (!rep) {
+      fail();
+    }
+
+    await rep.query(async tx => {
+      expect(await asyncIterableToArray(tx.scan(options).entries())).toEqual(
+        entries,
+      );
+    });
+
+    await rep.query(async tx => {
+      expect(await asyncIterableToArray(tx.scan(options))).toEqual(
+        entries.map(([, v]) => v),
+      );
+    });
+
+    await rep.query(async tx => {
+      expect(await asyncIterableToArray(tx.scan(options).values())).toEqual(
+        entries.map(([, v]) => v),
+      );
+    });
+
+    await rep.query(async tx => {
+      expect(await asyncIterableToArray(tx.scan(options).keys())).toEqual(
+        entries.map(([k]) => k),
+      );
+    });
+  }
+
+  await testScanResult(undefined, [
+    ['a/0', 0],
+    ['a/1', 1],
+    ['a/2', 2],
+    ['a/3', 3],
+    ['a/4', 4],
+    ['b/0', 5],
+    ['b/1', 6],
+    ['b/2', 7],
+    ['c/0', 8],
   ]);
 
-  expect(await rep?.scan({prefix: 'a'})).toEqual([
-    {key: 'a/0', value: 0},
-    {key: 'a/1', value: 1},
-    {key: 'a/2', value: 2},
-    {key: 'a/3', value: 3},
-    {key: 'a/4', value: 4},
+  await testScanResult({prefix: 'a'}, [
+    ['a/0', 0],
+    ['a/1', 1],
+    ['a/2', 2],
+    ['a/3', 3],
+    ['a/4', 4],
   ]);
 
-  expect(await rep?.scan({prefix: 'b'})).toEqual([
-    {key: 'b/0', value: 5},
-    {key: 'b/1', value: 6},
-    {key: 'b/2', value: 7},
+  await testScanResult({prefix: 'b'}, [
+    ['b/0', 5],
+    ['b/1', 6],
+    ['b/2', 7],
   ]);
 
-  expect(await rep?.scan({prefix: 'c/'})).toEqual([{key: 'c/0', value: 8}]);
+  await testScanResult({prefix: 'c/'}, [['c/0', 8]]);
 
-  expect(await rep?.scan({limit: 3})).toEqual([
-    {key: 'a/0', value: 0},
-    {key: 'a/1', value: 1},
-    {key: 'a/2', value: 2},
-  ]);
+  await testScanResult(
+    {
+      start: {id: {value: 'b/1', exclusive: false}},
+    },
+    [
+      ['b/1', 6],
+      ['b/2', 7],
+      ['c/0', 8],
+    ],
+  );
 
-  expect(
-    await rep?.scan({
-      start: {id: {value: 'a/1', exclusive: false}},
-      limit: 2,
-    }),
-  ).toEqual([
-    {key: 'a/1', value: 1},
-    {key: 'a/2', value: 2},
-  ]);
+  await testScanResult(
+    {
+      start: {id: {value: 'b/1', exclusive: true}},
+    },
+    [
+      ['b/2', 7],
+      ['c/0', 8],
+    ],
+  );
 
-  expect(
-    await rep?.scan({
-      start: {id: {value: 'a/1', exclusive: true}},
-      limit: 2,
-    }),
-  ).toEqual([
-    {key: 'a/2', value: 2},
-    {key: 'a/3', value: 3},
-  ]);
-
-  expect(
-    await rep?.scan({
-      start: {id: {exclusive: false}, index: 1},
-      limit: 2,
-    }),
-  ).toEqual([
-    {key: 'a/1', value: 1},
-    {key: 'a/2', value: 2},
-  ]);
+  await testScanResult(
+    {
+      start: {index: 6},
+    },
+    [
+      ['b/1', 6],
+      ['b/2', 7],
+      ['c/0', 8],
+    ],
+  );
 });
 
 test('subscribe', async () => {
   await useReplay('subscribe');
 
-  const log: ScanItem[] = [];
+  const log: [string, JSONValue][] = [];
 
   rep = await replicacheForTesting('subscribe');
   const cancel = rep.subscribe(
-    async (tx: ReadTransaction) => await tx.scan({prefix: 'a/'}),
+    async (tx: ReadTransaction) => {
+      const rv = [];
+      for await (const entry of tx.scan({prefix: 'a/'}).entries()) {
+        rv.push(entry);
+      }
+      return rv;
+    },
     {
-      onData: (values: Iterable<ScanItem>) => {
-        for (const scanItem of values) {
-          log.push(scanItem);
+      onData: (values: Iterable<[string, JSONValue]>) => {
+        for (const entry of values) {
+          log.push(entry);
         }
       },
     },
@@ -447,30 +501,30 @@ test('subscribe', async () => {
 
   const add = rep.register('add-data', addData);
   await add({'a/0': 0});
-  await Promise.resolve();
-  expect(log).toEqual([{key: 'a/0', value: 0}]);
+  await delay(0);
+  expect(log).toEqual([['a/0', 0]]);
 
   // We might potentially remove this entry if we start checking equality.
   log.length = 0;
   await add({'a/0': 0});
-  await Promise.resolve();
-  expect(log).toEqual([{key: 'a/0', value: 0}]);
+  await delay(0);
+  expect(log).toEqual([['a/0', 0]]);
 
   log.length = 0;
   await add({'a/1': 1});
-  await Promise.resolve();
+  await delay(0);
   expect(log).toEqual([
-    {key: 'a/0', value: 0},
-    {key: 'a/1', value: 1},
+    ['a/0', 0],
+    ['a/1', 1],
   ]);
 
   log.length = 0;
   log.length = 0;
   await add({'a/1': 11});
-  await Promise.resolve();
+  await delay(0);
   expect(log).toEqual([
-    {key: 'a/0', value: 0},
-    {key: 'a/1', value: 11},
+    ['a/0', 0],
+    ['a/1', 11],
   ]);
 
   log.length = 0;

@@ -17,47 +17,48 @@ function App() {
     async (tx: ReadTransaction) => {
       // TODO: Scan API needs improvement.
       // See https://github.com/rocicorp/replicache-sdk-js/issues/30.
-      const res = Array.from(await tx.scan({prefix: '/event/', limit: 50000}));
-      const result = res
-        .map(item => {
-          let event = item.value as Event;
-          if (!event.start || !event.end) {
-            return null;
-          }
-          let normalized = (item.value as unknown) as NormalizedEvent;
-          normalized.start = eventDate(event.start);
-          normalized.end = eventDate(event.end);
-          return normalized;
-        })
-        .filter(item => {
-          if (!item) {
-            return false;
-          }
-          const now = new Date();
-          const viewInterval = {
-            start: setDay(
-              new Date(
-                now.getFullYear(),
-                now.getMonth(),
-                now.getDate(),
-              ).getTime(),
-              0,
-            ),
-            end: setDay(
-              new Date(
-                now.getFullYear(),
-                now.getMonth(),
-                now.getDate(),
-                23,
-                59,
-                59,
-                999,
-              ).getTime(),
-              6,
-            ),
-          };
-          return areIntervalsOverlapping(item, viewInterval);
-        }) as NormalizedEvent[];
+      const result: NormalizedEvent[] = [];
+
+      for await (const value of tx.scan({prefix: '/event/'})) {
+        const event = value as Event;
+        if (!event.start || !event.end) {
+          continue;
+        }
+        const normalized = {
+          ...event,
+          start: eventDate(event.start),
+          end: eventDate(event.end),
+        };
+
+        const now = new Date();
+        const viewInterval = {
+          start: setDay(
+            new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate(),
+            ).getTime(),
+            0,
+          ),
+          end: setDay(
+            new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate(),
+              23,
+              59,
+              59,
+              999,
+            ).getTime(),
+            6,
+          ),
+        };
+
+        if (areIntervalsOverlapping(normalized, viewInterval)) {
+          result.push(normalized);
+        }
+      }
+
       result.sort((a, b) => a.start.getTime() - b.start.getTime());
       return result;
     },

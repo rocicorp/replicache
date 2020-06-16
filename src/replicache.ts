@@ -1,5 +1,4 @@
 import type {JSONValue, ToJSON} from './json.js';
-import type {ScanItem} from './scan-item.js';
 import type {ScanOptions} from './scan-options.js';
 import type {DatabaseInfo} from './database-info.js';
 import type {
@@ -7,7 +6,11 @@ import type {
   Invoke,
   OpenTransactionRequest,
 } from './repm-invoker.js';
-import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
+import {
+  ReadTransactionImpl,
+  WriteTransactionImpl,
+  ScanResult,
+} from './transactions.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
 
 export type Mutator<Return extends JSONValue | void, Args extends JSONValue> = (
@@ -196,10 +199,17 @@ export default class Replicache implements ReadTransaction {
   }
 
   /** Gets many values from the database. */
-  scan({prefix = '', start, limit = 50}: ScanOptions = {}): Promise<
-    Iterable<ScanItem>
-  > {
-    return this.query(tx => tx.scan({prefix, start, limit}));
+  scan({prefix = '', start}: ScanOptions = {}): ScanResult {
+    return new ScanResult(
+      prefix,
+      start,
+      this._invoke,
+      async () => (await this._invoke('openTransaction', {})).transactionId,
+      async transactionId => {
+        // No need to await the response.
+        this._closeTransaction(transactionId);
+      },
+    );
   }
 
   private async _sync(): Promise<void> {
@@ -437,8 +447,7 @@ export default class Replicache implements ReadTransaction {
    * and `scan`.
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R>): Promise<R> {
-    const res = await this._invoke('openTransaction', {});
-    const {transactionId} = res;
+    const {transactionId} = await this._invoke('openTransaction', {});
     try {
       const tx = new ReadTransactionImpl(this._invoke, transactionId);
       return await body(tx);

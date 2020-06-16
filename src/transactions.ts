@@ -1,7 +1,8 @@
 import type {JSONValue, ToJSON} from './json.js';
 import type {ScanItem} from './scan-item.js';
+import type {Invoke} from './repm-invoker.js';
+import type {ScanBound} from './scan-bound.js';
 import type {ScanOptions} from './scan-options.js';
-import type {Invoke, ScanRequest} from './repm-invoker.js';
 
 /**
  * ReadTransactions are used with `Replicache.query` and allows read operations
@@ -22,7 +23,7 @@ export interface ReadTransaction {
   /**
    * Gets many values from the database.
    */
-  scan(options?: ScanOptions): Promise<Iterable<ScanItem>>;
+  scan(options?: ScanOptions): ScanResult;
 }
 
 export class ReadTransactionImpl implements ReadTransaction {
@@ -53,16 +54,174 @@ export class ReadTransactionImpl implements ReadTransaction {
     return result['has'];
   }
 
-  async scan({prefix = '', start, limit = 50}: ScanOptions = {}): Promise<
-    Iterable<ScanItem>
-  > {
-    const args: ScanRequest = {
-      transactionId: this._transactionId,
-      limit,
+  scan({prefix = '', start}: ScanOptions = {}): ScanResult {
+    return new ScanResult(
       prefix,
       start,
-    };
-    return await this._invoke('scan', args);
+      this._invoke,
+      () => this._transactionId,
+      undefined,
+    );
+  }
+}
+
+let scanPageSize = 100;
+
+export function setScanPageSizeForTesting(n: number): void {
+  scanPageSize = n;
+}
+
+export function restoreScanPageSizeForTesting(): void {
+  scanPageSize = 100;
+}
+
+export class ScanResult implements AsyncIterable<JSONValue> {
+  private readonly _args: [
+    string,
+    ScanBound | undefined,
+    Invoke,
+    () => Promise<number> | number,
+    ((txId: number) => Promise<void>) | undefined,
+  ];
+
+  constructor(
+    ...args: [
+      string,
+      ScanBound | undefined,
+      Invoke,
+      () => Promise<number> | number,
+      ((txId: number) => Promise<void>) | undefined,
+    ]
+  ) {
+    this._args = args;
+  }
+
+  [Symbol.asyncIterator](): AsyncIterableIterator<JSONValue> {
+    return this.values();
+  }
+
+  values(): AsyncIterableIterator<JSONValue> {
+    return this._newIterator('value');
+  }
+
+  keys(): AsyncIterableIterator<string> {
+    return this._newIterator('key');
+  }
+
+  entries(): AsyncIterableIterator<[string, JSONValue]> {
+    return this._newIterator('entry');
+  }
+
+  private _newIterator<V>(kind: ScanIterableKind): AsyncIterableIterator<V> {
+    return new ScanIterator<V>(kind, ...this._args);
+  }
+}
+
+type ScanIterableKind = 'key' | 'value' | 'entry';
+
+class ScanIterator<V> implements AsyncIterableIterator<V> {
+  private readonly _scanItems: ScanItem[] = [];
+  private _current = 0;
+  private _moreItemsToLoad = true;
+  private readonly _prefix: string;
+  private readonly _kind: ScanIterableKind;
+  private readonly _start?: ScanBound;
+  private _loadPromise?: Promise<void> = undefined;
+  private readonly _openTransaction: () => Promise<number> | number;
+  private readonly _closeTransaction?: (txId: number) => Promise<void>;
+  private _transactionId?: number = undefined;
+  private readonly _invoke: Invoke;
+
+  constructor(
+    kind: ScanIterableKind,
+    prefix: string,
+    start: ScanBound | undefined,
+    invoke: Invoke,
+    openTransaction: () => Promise<number> | number,
+    closeTransaction: ((txId: number) => Promise<void>) | undefined,
+  ) {
+    this._kind = kind;
+    this._prefix = prefix;
+    this._start = start;
+    this._invoke = invoke;
+    this._openTransaction = openTransaction;
+    this._closeTransaction = closeTransaction;
+  }
+
+  [Symbol.asyncIterator](): AsyncIterableIterator<V> {
+    return this;
+  }
+
+  async next(): Promise<IteratorResult<V>> {
+    // Preload if we have less than half a page left.
+    if (this._current + scanPageSize / 2 >= this._scanItems.length) {
+      if (this._moreItemsToLoad) {
+        // no await
+        this._loadPromise = this._load();
+      }
+    }
+    if (this._current >= this._scanItems.length) {
+      if (!this._moreItemsToLoad) {
+        return {done: true, value: undefined};
+      }
+      this._loadPromise = this._load();
+      await this._loadPromise;
+      this._loadPromise = undefined;
+      return this.next();
+    }
+    const value = this._scanItems[this._current++];
+
+    switch (this._kind) {
+      case 'value':
+        return {value: value.value} as IteratorResult<V>;
+      case 'key':
+        return {value: value.key} as IteratorResult<V>;
+      case 'entry':
+        return {value: [value.key, value.value]} as IteratorResult<V>;
+    }
+  }
+
+  async return(): Promise<IteratorResult<V>> {
+    if (this._closeTransaction && this._transactionId !== undefined) {
+      await this._closeTransaction(this._transactionId);
+    }
+    return {done: true, value: undefined};
+  }
+
+  private async _load(): Promise<void> {
+    if (this._loadPromise) {
+      return this._loadPromise;
+    }
+
+    if (!this._moreItemsToLoad) {
+      throw new Error('No more items to load');
+    }
+
+    let start = this._start;
+    if (this._scanItems.length > 0) {
+      // We loaded some items already, so continue where we left off.
+      start = {
+        id: {
+          value: this._scanItems[this._scanItems.length - 1].key,
+          exclusive: true,
+        },
+      };
+    }
+
+    if (this._transactionId === undefined) {
+      this._transactionId = await this._openTransaction();
+    }
+
+    const scanItems = await this._invoke('scan', {
+      transactionId: this._transactionId,
+      prefix: this._prefix,
+      start,
+      limit: scanPageSize,
+    });
+    if (scanItems.length !== scanPageSize) {
+      this._moreItemsToLoad = false;
+    }
+    this._scanItems.push(...scanItems);
   }
 }
 

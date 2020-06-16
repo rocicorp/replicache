@@ -1,18 +1,92 @@
 .App-header {
-  background-color: #282c34;
-  min-height: 20vh;
+  align-items: center;
+  background-color: var(--darkest);
+  color: var(--white);
   display: flex;
   flex-direction: column;
-  align-items: center;
+  font-size: 10vmin;
+  height: 10vh;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  padding: 10px;
 }
 
-.App-link {
+.App-sub-header {
+  background-color: #282c34;
+  color: var(--white);
+  display: flex;
+  flex-direction: row;
+  font-size: 15px;
+  height: 30px;
+  justify-content: space-around;
+}
+
+.App-sub-header button {
+  background: transparent;
+  border: 0;
+  color: var(--white);
+  cursor: pointer;
+  font: inherit;
+}
+
+.App-sub-header button:hover {
   color: #61dafb;
+  text-decoration: underline;
+}
+
+.App-list {
+  display: block;
+  font-size: 15px;
+  padding: 5px;
 }
 
 .App-list > li {
+  align-items: center;
+  background-color: var(--white);
+  color: var(--darkest);
   display: block;
+  display: flex;
+  justify-content: left;
+  margin: 0;
+}
+
+.App-list > li > label {
+  align-items: center;
+  display: flex;
+  flex: 1;
+}
+
+.App-list > li > label > input[type='text'] {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--lightest);
+  border-radius: 0;
+  color: inherit;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  margin: 2px;
+  padding: 5px;
+  transition: 0.3s border-bottom-color;
+}
+
+.App-list > li > label > input[type='text']:focus,
+.App-list > li > label > input[type='text']:hover {
+  border-bottom: 1px solid var(--dark);
+  outline: none;
+}
+
+.App-list > li > svg,
+.App-list > li > button {
+  background: transparent;
+  border: 0;
+  fill: var(--light);
+  transition: 0.3s fill;
+}
+
+.App-list > li > svg:focus,
+.App-list > li > svg:hover,
+.App-list > li > button:focus,
+.App-list > li > button:hover {
+  fill: var(--darkest);
+  outline: none;
 }

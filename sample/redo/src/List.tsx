@@ -10,11 +10,12 @@ type ListProps = {
   todos: Todo[];
   mutations: MutationFunctions;
   rep: Replicache;
+  focusedId: number | null;
 };
 
 export const List = React.memo(
   (props: ListProps) => {
-    const {todos, mutations, rep} = props;
+    const {todos, mutations, rep, focusedId} = props;
     const onDragEnd = useCallback(
       (result: DropResult) => {
         if (!result.destination) {
@@ -56,6 +57,7 @@ export const List = React.memo(
                   todo={todo}
                   mutations={mutations}
                   index={index}
+                  focusedId={focusedId}
                 />
               ))}
               {provided.placeholder}
@@ -66,6 +68,9 @@ export const List = React.memo(
     );
   },
   (prevProps, nextProps) => {
+    if (prevProps.focusedId !== nextProps.focusedId) {
+      return false;
+    }
     const prevTodos = prevProps.todos;
     const nextTodos = nextProps.todos;
     return (
@@ -100,7 +105,8 @@ async function handleReorder(
     return;
   }
 
-  let id = todos[oldIndex].id;
+  const todo = todos[oldIndex];
+  let {id} = todo;
   let left: Todo | null = null;
   let right: Todo | null = null;
   if (newIndex === 0) {

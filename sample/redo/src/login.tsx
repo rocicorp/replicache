@@ -1,4 +1,5 @@
 import React, {useRef, useEffect, useCallback} from 'react';
+import './LoginScreen.css';
 
 import {loginURL} from './settings';
 
@@ -76,7 +77,7 @@ export function LoginScreen(props: LoginScreenProps) {
   );
 
   return (
-    <form onSubmit={submitCallback}>
+    <form onSubmit={submitCallback} className="LoginScreen">
       <input placeholder="Email" ref={ref} />
       <button type="submit">Login</button>
     </form>

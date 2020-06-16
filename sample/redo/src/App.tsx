@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useCallback} from 'react';
+import React, {useEffect, useState, useCallback, DependencyList} from 'react';
 import './App.css';
 
 import Replicache, {
@@ -75,11 +75,13 @@ function useSubscribe<R>(
   rep: Replicache,
   query: (tx: ReadTransaction) => Promise<R>,
   def: R,
+  deps: DependencyList = [],
 ) {
   const [snapshot, setSnapshot] = useState<R>(def);
+  const q = useCallback(query, deps);
   useEffect(() => {
-    return rep.subscribe(query, {onData: setSnapshot});
-  }, []);
+    return rep.subscribe(q, {onData: setSnapshot});
+  }, [rep, q]);
   return snapshot;
 }
 
@@ -93,20 +95,14 @@ type LoggedInAppProps = {
 function LoggedInApp(props: LoggedInAppProps) {
   const {rep, mutations, logout, email} = props;
 
+  const [focusedId, setFocusedId] = useState<number | null>(null);
   const [selectedListId, setSelectedListId] = useState<number | null>(null);
 
   const allTodos = useSubscribe(rep, allTodosInTx, []);
 
-  const listIds = useSubscribe(
-    rep,
-    async (tx: ReadTransaction) => {
-      return Array.from(
-        await tx.scan({prefix: '/list/', limit: 500}),
-        item => (item.value as {id: number}).id,
-      );
-    },
-    [],
-  );
+  const listIds = useSubscribe(rep, allListsInTx, []);
+
+  const todos = todosInList(allTodos, selectedListId);
 
   const createCallback = useCallback(() => {
     if (!selectedListId) {
@@ -114,20 +110,20 @@ function LoggedInApp(props: LoggedInAppProps) {
     }
     const id = (Math.random() * 2 ** 31) | 0;
 
-    const todos = todosInList(allTodos, selectedListId);
     const order = newOrderBetween(
       todos.length === 0 ? null : todos[todos.length - 1],
       null,
     );
 
+    setFocusedId(id);
     mutations.createTodo({
       id,
       listId: selectedListId,
-      text: prompt('Enter todo text', 'New item') ?? 'New item',
+      text: '',
       complete: false,
       order,
     });
-  }, [allTodos, mutations, selectedListId]);
+  }, [todos, selectedListId, mutations]);
 
   const syncCallback = useCallback(() => {
     rep.sync();
@@ -142,17 +138,21 @@ function LoggedInApp(props: LoggedInAppProps) {
 
   return (
     <div className="App">
-      <header className="App-header">Hello from Replicache!</header>
-      <button onClick={createCallback} disabled={!selectedListId}>
-        Create Todo
-      </button>
-      <button onClick={syncCallback}>Sync</button>
-      <button onClick={logout}>Logout</button>
-      <div>Logged in as {email}</div>
+      <header className="App-header">Todo</header>
+      <header className="App-sub-header">
+        <button onClick={createCallback} disabled={!selectedListId}>
+          Create Todo
+        </button>
+        <button onClick={syncCallback}>Sync</button>
+        <button onClick={logout} title="Logout">
+          Logged in as {email}
+        </button>
+      </header>
       <List
         todos={todosInList(allTodos, selectedListId)}
         mutations={mutations}
         rep={rep}
+        focusedId={focusedId}
       />
     </div>
   );
@@ -209,9 +209,9 @@ function registerMutations(rep: Replicache) {
         );
         return;
       }
-      todo.text = args['text'] ?? todo.text;
-      todo.complete = args['complete'] ?? todo.complete;
-      todo.order = args['order'] ?? todo.order;
+      todo.text = args.text ?? todo.text;
+      todo.complete = args.complete ?? todo.complete;
+      todo.order = args.order ?? todo.order;
       await write(tx, todo);
     },
   );
@@ -230,6 +230,13 @@ function todosInList(allTodos: Todo[], listId: number | null): Todo[] {
   const todos = allTodos.filter(todo => todo.listId === listId);
   todos.sort((t1, t2) => t1.order - t2.order);
   return todos;
+}
+
+async function allListsInTx(tx: ReadTransaction): Promise<number[]> {
+  return Array.from(
+    await tx.scan({prefix: '/list/', limit: 500}),
+    item => (item.value as {id: number}).id,
+  );
 }
 
 export type Todo = {

@@ -239,6 +239,14 @@ function resolver(): {resolve: () => void; promise: Promise<void>} {
 
 const emptyHash = '00000000000000000000000000000000';
 
+async function asyncIterableToArray<T>(it: AsyncIterable<T>) {
+  const arr: T[] = [];
+  for await (const v of it) {
+    arr.push(v);
+  }
+  return arr;
+}
+
 beforeEach(async () => {
   if (testMode !== 'replay') {
     const dbs = await ReplicacheTest.list({repmInvoke: httpInvoke});
@@ -302,7 +310,7 @@ test('get, has, scan on empty db', async () => {
     expect(await tx.get('key')).toBeUndefined();
     expect(await tx.has('key')).toBe(false);
 
-    const scanItems = await tx.scan();
+    const scanItems = await asyncIterableToArray(tx.scan());
     expect(scanItems).toHaveLength(0);
   }
 
@@ -361,7 +369,7 @@ test('scan', async () => {
     'c/0': 8,
   });
 
-  expect(await rep.scan()).toEqual([
+  expect(await asyncIterableToArray(rep.scan())).toEqual([
     {key: 'a/0', value: 0},
     {key: 'a/1', value: 1},
     {key: 'a/2', value: 2},
@@ -373,7 +381,7 @@ test('scan', async () => {
     {key: 'c/0', value: 8},
   ]);
 
-  expect(await rep?.scan({prefix: 'a'})).toEqual([
+  expect(await asyncIterableToArray(rep?.scan({prefix: 'a'}))).toEqual([
     {key: 'a/0', value: 0},
     {key: 'a/1', value: 1},
     {key: 'a/2', value: 2},
@@ -381,45 +389,53 @@ test('scan', async () => {
     {key: 'a/4', value: 4},
   ]);
 
-  expect(await rep?.scan({prefix: 'b'})).toEqual([
+  expect(await asyncIterableToArray(rep?.scan({prefix: 'b'}))).toEqual([
     {key: 'b/0', value: 5},
     {key: 'b/1', value: 6},
     {key: 'b/2', value: 7},
   ]);
 
-  expect(await rep?.scan({prefix: 'c/'})).toEqual([{key: 'c/0', value: 8}]);
+  expect(await asyncIterableToArray(rep?.scan({prefix: 'c/'}))).toEqual([
+    {key: 'c/0', value: 8},
+  ]);
 
-  expect(await rep?.scan({limit: 3})).toEqual([
+  expect(await asyncIterableToArray(rep?.scan({limit: 3}))).toEqual([
     {key: 'a/0', value: 0},
     {key: 'a/1', value: 1},
     {key: 'a/2', value: 2},
   ]);
 
   expect(
-    await rep?.scan({
-      start: {id: {value: 'a/1', exclusive: false}},
-      limit: 2,
-    }),
+    await asyncIterableToArray(
+      rep?.scan({
+        start: {id: {value: 'a/1', exclusive: false}},
+        limit: 2,
+      }),
+    ),
   ).toEqual([
     {key: 'a/1', value: 1},
     {key: 'a/2', value: 2},
   ]);
 
   expect(
-    await rep?.scan({
-      start: {id: {value: 'a/1', exclusive: true}},
-      limit: 2,
-    }),
+    await asyncIterableToArray(
+      rep?.scan({
+        start: {id: {value: 'a/1', exclusive: true}},
+        limit: 2,
+      }),
+    ),
   ).toEqual([
     {key: 'a/2', value: 2},
     {key: 'a/3', value: 3},
   ]);
 
   expect(
-    await rep?.scan({
-      start: {id: {exclusive: false}, index: 1},
-      limit: 2,
-    }),
+    await asyncIterableToArray(
+      rep?.scan({
+        start: {id: {exclusive: false}, index: 1},
+        limit: 2,
+      }),
+    ),
   ).toEqual([
     {key: 'a/1', value: 1},
     {key: 'a/2', value: 2},
@@ -435,8 +451,8 @@ test('subscribe', async () => {
   const cancel = rep.subscribe(
     async (tx: ReadTransaction) => await tx.scan({prefix: 'a/'}),
     {
-      onData: (values: Iterable<ScanItem>) => {
-        for (const scanItem of values) {
+      onData: async (values: AsyncIterable<ScanItem>) => {
+        for await (const scanItem of values) {
           log.push(scanItem);
         }
       },
@@ -447,18 +463,18 @@ test('subscribe', async () => {
 
   const add = rep.register('add-data', addData);
   await add({'a/0': 0});
-  await Promise.resolve();
+  await delay(0);
   expect(log).toEqual([{key: 'a/0', value: 0}]);
 
   // We might potentially remove this entry if we start checking equality.
   log.length = 0;
   await add({'a/0': 0});
-  await Promise.resolve();
+  await delay(0);
   expect(log).toEqual([{key: 'a/0', value: 0}]);
 
   log.length = 0;
   await add({'a/1': 1});
-  await Promise.resolve();
+  await delay(0);
   expect(log).toEqual([
     {key: 'a/0', value: 0},
     {key: 'a/1', value: 1},
@@ -467,7 +483,7 @@ test('subscribe', async () => {
   log.length = 0;
   log.length = 0;
   await add({'a/1': 11});
-  await Promise.resolve();
+  await delay(0);
   expect(log).toEqual([
     {key: 'a/0', value: 0},
     {key: 'a/1', value: 11},

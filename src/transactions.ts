@@ -22,7 +22,7 @@ export interface ReadTransaction {
   /**
    * Gets many values from the database.
    */
-  scan(options?: ScanOptions): Promise<Iterable<ScanItem>>;
+  scan(options?: ScanOptions): AsyncIterable<ScanItem>;
 }
 
 export class ReadTransactionImpl implements ReadTransaction {
@@ -53,9 +53,11 @@ export class ReadTransactionImpl implements ReadTransaction {
     return result['has'];
   }
 
-  async scan({prefix = '', start, limit = 50}: ScanOptions = {}): Promise<
-    Iterable<ScanItem>
-  > {
+  async *scan({
+    prefix = '',
+    start,
+    limit = 50,
+  }: ScanOptions = {}): AsyncIterable<ScanItem> {
     const args: ScanRequest = {
       transactionId: this._transactionId,
       limit: limit,
@@ -66,7 +68,10 @@ export class ReadTransactionImpl implements ReadTransaction {
     if (start !== undefined) {
       args.start = start;
     }
-    return await this._invoke('scan', args);
+    const scanItems = await this._invoke('scan', args);
+    for (const scanItem of scanItems) {
+      yield scanItem;
+    }
   }
 }
 

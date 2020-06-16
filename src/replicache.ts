@@ -196,10 +196,14 @@ export default class Replicache implements ReadTransaction {
   }
 
   /** Gets many values from the database. */
-  scan({prefix = '', start, limit = 50}: ScanOptions = {}): Promise<
-    Iterable<ScanItem>
-  > {
-    return this.query(tx => tx.scan({prefix, start, limit}));
+  async *scan({
+    prefix = '',
+    start,
+    limit = 50,
+  }: ScanOptions = {}): AsyncIterable<ScanItem> {
+    yield* await this.query(async tx => {
+      return tx.scan({prefix, start, limit});
+    });
   }
 
   private async _sync(): Promise<void> {

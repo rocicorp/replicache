@@ -1,4 +1,4 @@
 export const diffServerURL = 'http://localhost:7001/pull';
 export const diffServerAuth = 'sandbox';
-export const batchURL = 'http://localhost:3000/replicache-batch';
-export const dataLayerAuth = 'Bearer ya29.a0AfH6SMBInrOBZ856T8R1IF0OtTpHrpSCDFxKDog6oZmbfu73CjdaOpQeWVI1B2K9B7I-6FlvxDIPt7P-o0K1erBSVkKTPChQhuug7upBcvLkMU31o_RUygPuYCkL_j6oiE5-aBtbqdQAuxfbN-DYv1AcHOvCu6DK3u8';
+export const batchURL = 'http://localhost:5000/replicache-batch';
+export const dataLayerAuth = 'Bearer ya29.a0AfH6SMBBZ2OMfzgCzF0EBslkJkCljilLVOZcTZNVXs01v2Hh6EvHCg3qv01aolGEGRaHwxxVWtqNqiHG0B34gKYkbpI1diSGo65Pc466f8Fj0pTsQtJOxbNXy1KmfDT9z60xVqlFyBhriTRIBr0TQaE7O9jalOGZG7gI';

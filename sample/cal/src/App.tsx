@@ -1,9 +1,11 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import './App.css';
 
 import Replicache, {
   REPMHTTPInvoker,
   ReadTransaction,
+  WriteTransaction,
+  Mutator,
 } from 'replicache';
 import {
   dataLayerAuth,
@@ -11,9 +13,13 @@ import {
   diffServerAuth,
   batchURL,
 } from './settings';
+
+import add from 'date-fns/add'
 import setDay from 'date-fns/setDay';
 import areIntervalsOverlapping from 'date-fns/areIntervalsOverlapping';
 import format from 'date-fns/format';
+
+import uuid from 'uuid-random';
 
 const repmInvoke = new REPMHTTPInvoker('http://localhost:7002').invoke;
 
@@ -23,6 +29,30 @@ const rep = new Replicache({
   diffServerAuth,
   batchURL,
   repmInvoke,
+});
+
+function eventKey(event: EventIdentity) {
+  return `/event/${event.calendarID}/${event.id}`;
+}
+
+const addEvent = rep.register('addEvent', async (tx: WriteTransaction, event: Event) => {
+  await tx.put(eventKey(event), event);
+});
+
+const updateEvent = rep.register('updateEvent', async (tx: WriteTransaction, update: EventUpdate) => {
+  const event = (await tx.get(eventKey(update))) as Event|null;
+  if (!event) {
+    console.warn(`Possible conflict - event ${update.id} not found`);
+    return;
+  }
+  event.summary = update.summary ?? event.summary;
+  event.start = update.start ?? event.start;
+  event.end = update.end ?? event.end;
+  await tx.put(eventKey(event), event);
+});
+
+const deleteEvent = rep.register('deleteEvent', async (tx: WriteTransaction, id: EventIdentity) => {
+  await tx.del(eventKey(id));
 });
 
 function App() {
@@ -59,6 +89,7 @@ function App() {
       <header className="App-header">
         This Week's Agenda<br/>
         <SyncButton/>
+        <NewEventButton/>
       </header>
       <List events={events} />
     </div>
@@ -67,16 +98,20 @@ function App() {
 
 export default App;
 
-type Event = {
+type EventIdentity = {
   id: string;
+  calendarID: string;
+};
+
+type Event = EventIdentity & {
   summary: string;
   start?: EventDate;
   end?: EventDate;
 }
 
-type NormalizedEvent = {
-  id: string;
-  summary: string;
+type EventUpdate = EventIdentity & Partial<Event>;
+
+type NormalizedEvent = Event & {
   start: Date;
   end: Date;
 }
@@ -90,17 +125,32 @@ function List({events}: {events: NormalizedEvent[]}) {
   return (
     <ul className="App-list">
       {events.map(event => (
-        <ListItem key={event.id} event={event} />
+        <ListItem key={`${event.calendarID}/${event.id}`} event={event} />
       ))}
     </ul>
   );
 }
 
 function ListItem({event}: {event: NormalizedEvent}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const handleSummaryBlur = () => {
+    if (!inputRef.current || inputRef.current.value == event.summary) {
+      return;
+    }
+    updateEvent({
+      id: event.id,
+      calendarID: event.calendarID,
+      summary: inputRef.current.value || '',
+    });
+  };
+  const handleDelete = () => {
+    deleteEvent(event);
+  };
   return <div style={{marginBottom:'1em'}}>
     <span style={{color:'#999'}}>{`${format(event.start, 'PPpp')}`}</span><br/>
-    <b>{event.summary}</b>
-  </div>
+    <input ref={inputRef} onBlur={handleSummaryBlur} defaultValue={event.summary}/>
+    <button onClick={handleDelete}>🗑</button>
+  </div>;
 }
 
 function SyncButton() {
@@ -111,6 +161,26 @@ function SyncButton() {
   return <button onClick={() => rep.sync()} disabled={syncing}>
     {syncing ? "Syncing..." : "Sync"}
   </button>
+}
+
+function NewEventButton() {
+  const handleClick = async () => {
+    const start = add(new Date(), {hours:1});
+    const end = add(start, {hours:1});
+    const calendarID = await rep.get('/user/primary') as string;
+    addEvent({
+      calendarID,
+      id: uuid().replace(/\-/g, ''),
+      summary: 'Untitled Event',
+      start: {
+        dateTime: start.toISOString(),
+      },
+      end: {
+        dateTime: end.toISOString(),
+      },
+    });
+  };
+  return <button onClick={() => handleClick()}>New Event</button>
 }
 
 function useSubscribe<R>(query: (tx: ReadTransaction) => Promise<R>, def: R, deps?: any[]) {

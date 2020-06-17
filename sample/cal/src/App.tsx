@@ -1,25 +1,33 @@
-import React, {useEffect, useRef, useState} from 'react';
-import './App.css';
-
+import React, {
+  useEffect,
+  useState
+} from 'react';
 import Replicache, {
   REPMHTTPInvoker,
   ReadTransaction,
   WriteTransaction,
   Mutator,
 } from 'replicache';
+import add from 'date-fns/add'
+import setDay from 'date-fns/setDay';
+import areIntervalsOverlapping from 'date-fns/areIntervalsOverlapping';
+import format from 'date-fns/format';
+import uuid from 'uuid-random';
+
+import './App.css';
 import {
   dataLayerAuth,
   diffServerURL,
   diffServerAuth,
   batchURL,
 } from './settings';
-
-import add from 'date-fns/add'
-import setDay from 'date-fns/setDay';
-import areIntervalsOverlapping from 'date-fns/areIntervalsOverlapping';
-import format from 'date-fns/format';
-
-import uuid from 'uuid-random';
+import type {
+  EventIdentity,
+  Event,
+  EventUpdate,
+  NormalizedEvent,
+  EventDate
+} from './types';
 
 const repmInvoke = new REPMHTTPInvoker('http://localhost:7002').invoke;
 
@@ -54,6 +62,8 @@ const updateEvent = rep.register('updateEvent', async (tx: WriteTransaction, upd
 const deleteEvent = rep.register('deleteEvent', async (tx: WriteTransaction, id: EventIdentity) => {
   await tx.del(eventKey(id));
 });
+
+export default App;
 
 function App() {
   const events = useSubscribe(async (tx: ReadTransaction) => {
@@ -96,31 +106,6 @@ function App() {
   );
 }
 
-export default App;
-
-type EventIdentity = {
-  id: string;
-  calendarID: string;
-};
-
-type Event = EventIdentity & {
-  summary: string;
-  start?: EventDate;
-  end?: EventDate;
-}
-
-type EventUpdate = EventIdentity & Partial<Event>;
-
-type NormalizedEvent = Event & {
-  start: Date;
-  end: Date;
-}
-
-type EventDate = {
-  date?: string;
-  dateTime?: string;
-};
-
 function List({events}: {events: NormalizedEvent[]}) {
   return (
     <ul className="App-list">
@@ -132,23 +117,27 @@ function List({events}: {events: NormalizedEvent[]}) {
 }
 
 function ListItem({event}: {event: NormalizedEvent}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const handleSummaryBlur = () => {
-    if (!inputRef.current || inputRef.current.value == event.summary) {
+  const [summaryEdit, setSummaryEdit] = useState<string|null>(null);
+  const handleSummaryBlur = async () => {
+    if (summaryEdit == null) {
       return;
     }
-    updateEvent({
+    // Wait for the local edit to go through then clear the edit state.
+    await updateEvent({
       id: event.id,
       calendarID: event.calendarID,
-      summary: inputRef.current.value || '',
+      summary: summaryEdit,
     });
+    setSummaryEdit(null);
   };
   const handleDelete = () => {
     deleteEvent(event);
   };
   return <div style={{marginBottom:'1em'}}>
     <span style={{color:'#999'}}>{`${format(event.start, 'PPpp')}`}</span><br/>
-    <input ref={inputRef} onBlur={handleSummaryBlur} defaultValue={event.summary}/>
+    <input value={summaryEdit ?? event.summary}
+      onChange={e => setSummaryEdit(e.target.value)}
+      onBlur={handleSummaryBlur} />
     <button onClick={handleDelete}>🗑</button>
   </div>;
 }

@@ -1,7 +1,7 @@
 ORIG=`pwd`
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 ROOT=$DIR/../
-REPM_VERSION='v0.9.0'
+REPM_VERSION='v0.10.0'
 
 echo "Fetching test-server..."
 

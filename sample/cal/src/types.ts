@@ -1,6 +1,5 @@
 export type EventIdentity = {
   id: string;
-  calendarID: string;
 };
 
 export type Event = EventIdentity & {

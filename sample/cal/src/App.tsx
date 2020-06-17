@@ -40,7 +40,7 @@ const rep = new Replicache({
 });
 
 function eventKey(event: EventIdentity) {
-  return `/event/${event.calendarID}/${event.id}`;
+  return `/event/${event.id}`;
 }
 
 const addEvent = rep.register('addEvent', async (tx: WriteTransaction, event: Event) => {
@@ -110,7 +110,7 @@ function List({events}: {events: NormalizedEvent[]}) {
   return (
     <ul className="App-list">
       {events.map(event => (
-        <ListItem key={`${event.calendarID}/${event.id}`} event={event} />
+        <ListItem key={event.id} event={event} />
       ))}
     </ul>
   );
@@ -125,7 +125,6 @@ function ListItem({event}: {event: NormalizedEvent}) {
     // Wait for the local edit to go through then clear the edit state.
     await updateEvent({
       id: event.id,
-      calendarID: event.calendarID,
       summary: summaryEdit,
     });
     setSummaryEdit(null);
@@ -156,9 +155,7 @@ function NewEventButton() {
   const handleClick = async () => {
     const start = add(new Date(), {hours:1});
     const end = add(start, {hours:1});
-    const calendarID = await rep.get('/user/primary') as string;
     addEvent({
-      calendarID,
       id: uuid().replace(/\-/g, ''),
       summary: 'Untitled Event',
       start: {

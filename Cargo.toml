@@ -9,8 +9,8 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 console_error_panic_hook = { version = "0.1.1", optional = true }
-futures = "0.3.5"
 data-encoding = "1.1.1"
+futures = "0.3.5"
 sha2 = "0.8.1"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4.13"

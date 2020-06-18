@@ -4,7 +4,7 @@ use wee_alloc;
 use wasm_bindgen::prelude::*;
 
 use crate::idbstore::IdbStore;
-use crate::prolly::buzhash::BuzHash;
+use crate::prolly::chunker::Chunker;
 
 // Use `wee_alloc` as the global allocator.
 #[global_allocator]
@@ -19,8 +19,8 @@ pub async fn newReplicache(name: String) {
 #[wasm_bindgen]
 pub fn buzhash() {
     initPanicHook();
-    let mut h = BuzHash::new(32);
-    h.hash_byte(b'f');
+    let mut c = Chunker::default();
+    c.hash_byte(b'f');
 }
 
 fn initPanicHook() {

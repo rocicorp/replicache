@@ -1,1 +1,2 @@
-pub mod buzhash;
+mod buzhash;
+pub mod chunker;

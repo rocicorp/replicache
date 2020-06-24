@@ -37,3 +37,9 @@ codegen-units = 1
 lto = true
 opt-level = "z"  # Optimize for size.
 panic = "abort"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz"]
+
+[package.metadata.wasm-pack.profile.profiling]
+wasm-opt = ["-Oz", "-g"]

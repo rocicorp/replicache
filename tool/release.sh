@@ -18,8 +18,12 @@ ROOT=$DIR/../
     sed -i .bak 's/crate-type = \["cdylib", "rlib"\]/crate-type = ["cdylib"]/' Cargo.toml
 
     rm -rf pkg
+    wasm-pack build --profiling -t web -- --no-default-features
+    mv pkg/replicache_client_bg.wasm pkg/replicache_client_bg.wasm.debug
     wasm-pack build --release -t web -- --no-default-features
-    brotli pkg/replicache_client* -f
+    brotli -f pkg/replicache_client.js pkg/replicache_client_bg.wasm
 
     mv Cargo.toml.bak Cargo.toml
+
+    ls -l pkg/replicache_client.js* pkg/replicache_client_bg.was*[mr] | awk '{print $9 ": " $5}'
 )

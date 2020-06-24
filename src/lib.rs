@@ -8,5 +8,6 @@ extern crate lazy_static;
 mod console;
 mod dag;
 mod dispatch;
+mod hash;
 mod kv;
 mod prolly;

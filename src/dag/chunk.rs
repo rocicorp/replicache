@@ -1,4 +1,4 @@
-use crate::hash::Hash;
+use super::hash::Hash;
 
 pub struct Chunk {
     d: Vec<u8>,

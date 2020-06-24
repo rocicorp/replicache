@@ -3,7 +3,7 @@ use wasm_bindgen::JsValue;
 use wee_alloc;
 
 use crate::dispatch;
-use crate::idbstore::IdbStore;
+use crate::kv::idbstore::IdbStore;
 use crate::prolly::chunker::Chunker;
 
 // Use `wee_alloc` as the global allocator.

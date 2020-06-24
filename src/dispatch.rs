@@ -1,4 +1,4 @@
-use crate::idbstore::IdbStore;
+use crate::kv::idbstore::IdbStore;
 use async_std::sync::{channel, Receiver, Sender};
 use std::collections::HashMap;
 use std::sync::Mutex;

@@ -9,5 +9,5 @@ mod chunk;
 mod console;
 mod dispatch;
 mod hash;
-mod idbstore;
+mod kv;
 mod prolly;

@@ -7,7 +7,7 @@ pub struct Chunker {
 
 impl Chunker {
     fn new(window: u32, pattern: u32) -> Chunker {
-        Chunker{
+        Chunker {
             bh: BuzHash::new(window),
             pattern,
         }
@@ -19,19 +19,20 @@ impl Chunker {
         // to test against its output.
         // TODO: It's likely we'd like bigger chunks, but we can
         // profile that later.
-        Chunker::new(67, 1<<12 - 1) // ~4kb chunks
+        Chunker::new(67, 1 << 12 - 1) // ~4kb chunks
     }
 
     // Special small chunk chunker for testing
+    #[allow(dead_code)]
     pub fn smol() -> Chunker {
-        Chunker::new(67, 1<<8-1) // ~256b chunks
+        Chunker::new(67, 1 << 8 - 1) // ~256b chunks
     }
 
     // Adds a byte to the rolling hasher. Returns true if the byte
     // was a boundary, false otherwise.
     pub fn hash_byte(&mut self, b: u8) -> bool {
         self.bh.hash_byte(b);
-        if self.bh.sum()&self.pattern == self.pattern {
+        if self.bh.sum() & self.pattern == self.pattern {
             self.bh.reset();
             return true;
         }
@@ -45,11 +46,11 @@ mod tests {
 
     #[test]
     fn test_hash_byte() {
-        const s: &str = "NaN";
+        const S: &str = "NaN";
         let mut expected = [0, 2].iter();
 
-        let mut c = Chunker::new(4, 1<<4-1);
-        for (i, b) in s.as_bytes().iter().enumerate() {
+        let mut c = Chunker::new(4, 1 << 4 - 1);
+        for (i, b) in S.as_bytes().iter().enumerate() {
             if c.hash_byte(*b) {
                 assert_eq!(Some(&i), expected.next());
             }

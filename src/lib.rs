@@ -1,7 +1,7 @@
 pub mod wasm;
 
-mod prolly;
 mod chunk;
+mod prolly;
 #[macro_use]
 mod console;
 mod hash;

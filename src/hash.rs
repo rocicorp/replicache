@@ -1,7 +1,7 @@
+use data_encoding::base;
 use data_encoding::decode;
 use data_encoding::encode;
-use data_encoding::base;
-use sha2::{Sha512, Digest};
+use sha2::{Digest, Sha512};
 
 pub const BYTE_LENGTH: usize = 20;
 const NOMS_ALPHABET: &'static [u8] = b"0123456789abcdefghijklmnopqrstuv";
@@ -17,33 +17,37 @@ impl base::Base for Base32 {
     }
 }
 
-
 pub struct Hash {
-    pub sum: [u8; BYTE_LENGTH]
+    pub sum: [u8; BYTE_LENGTH],
 }
 
-#[derive(Copy,Clone,Debug,PartialEq,Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Error {
-    InvalidHashSerialization
+    InvalidHashSerialization,
 }
 
 impl Hash {
     pub fn empty() -> Hash {
-        Hash{sum: [0; BYTE_LENGTH]}
+        Hash {
+            sum: [0; BYTE_LENGTH],
+        }
     }
 
+    #[allow(dead_code)]
     pub fn new(sum: [u8; BYTE_LENGTH]) -> Hash {
-        Hash{sum}
+        Hash { sum }
     }
 
+    #[allow(dead_code)]
     pub fn parse(s: &str) -> Result<Hash, Error> {
         let mut h = Hash::empty();
-        match decode::decode_mut(&Base32{}, s.as_bytes(), &mut h.sum) {
+        match decode::decode_mut(&Base32 {}, s.as_bytes(), &mut h.sum) {
             Err(_) => Err(Error::InvalidHashSerialization),
             Ok(_) => Ok(h),
         }
     }
 
+    #[allow(dead_code)]
     pub fn of(data: &[u8]) -> Hash {
         let mut hasher = Sha512::new();
         hasher.input(data);
@@ -53,12 +57,14 @@ impl Hash {
         return h;
     }
 
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         return self.sum == [0; BYTE_LENGTH];
     }
 
+    #[allow(dead_code)]
     pub fn to_string(&self) -> String {
-        encode::encode(&Base32{}, &self.sum)
+        encode::encode(&Base32 {}, &self.sum)
     }
 }
 

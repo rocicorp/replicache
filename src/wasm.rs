@@ -1,7 +1,5 @@
-use std::io::Write;
-
-use wee_alloc;
 use wasm_bindgen::prelude::*;
+use wee_alloc;
 
 use crate::idbstore::IdbStore;
 use crate::prolly::chunker::Chunker;
@@ -11,19 +9,19 @@ use crate::prolly::chunker::Chunker;
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[wasm_bindgen]
-pub async fn newReplicache(name: String) {
-    initPanicHook();
-    IdbStore::new(&name).await;
+pub async fn new_replicache(name: String) {
+    init_panic_hook();
+    IdbStore::new(&name).await.expect("IdbStore::new failed");
 }
 
 #[wasm_bindgen]
 pub fn buzhash() {
-    initPanicHook();
+    init_panic_hook();
     let mut c = Chunker::default();
     c.hash_byte(b'f');
 }
 
-fn initPanicHook() {
+fn init_panic_hook() {
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
 }

@@ -6,15 +6,18 @@ pub struct Chunk {
 }
 
 impl Chunk {
+    #[allow(dead_code)]
     pub fn new(data: Vec<u8>) -> Chunk {
         let h = Hash::of(&data);
-        Chunk{d: data, h: h}
+        Chunk { d: data, h: h }
     }
 
+    #[allow(dead_code)]
     pub fn data(&self) -> &[u8] {
         &self.d
     }
 
+    #[allow(dead_code)]
     pub fn hash(&self) -> &Hash {
         &self.h
     }

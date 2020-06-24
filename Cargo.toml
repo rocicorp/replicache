@@ -8,9 +8,11 @@ edition = "2018"
 default = ["console_error_panic_hook"]
 
 [dependencies]
+async-std = { version = "=1.6.0", features = ["unstable"] }
 console_error_panic_hook = { version = "0.1.1", optional = true }
 data-encoding = "1.1.1"
 futures = "0.3.5"
+lazy_static = "1.4.0"
 sha2 = "0.8.1"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4.13"

@@ -25,5 +25,6 @@ ROOT=$DIR/../
 
     mv Cargo.toml.bak Cargo.toml
 
-    ls -l pkg/replicache_client.js* pkg/replicache_client_bg.was*[mr] | awk '{print $9 ": " $5}'
+    cd pkg/
+    ls -l replicache_client.js* replicache_client_bg.was*[mr] | awk '{print $9 ": " $5}'
 )

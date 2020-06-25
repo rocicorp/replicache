@@ -39,3 +39,55 @@ async fn test_dispatch() {
     assert_eq!(dispatch("db2", "close", "").await.unwrap(), "");
     assert_eq!(dispatch("", "debug", "open_dbs").await.unwrap(), "[]");
 }
+
+#[wasm_bindgen_test]
+async fn test_get_put() {
+    assert_eq!(
+        dispatch("db", "put", "{\"k\", \"v\"}").await.unwrap_err(),
+        "\"db\" not open"
+    );
+    assert_eq!(dispatch("db", "open", "").await.unwrap(), "");
+
+    // Check request parsing, both missing and unexpected fields.
+    assert_eq!(
+        dispatch("db", "put", "{}").await.unwrap_err(),
+        "Failed to parse request"
+    );
+    assert_eq!(
+        dispatch("db", "get", "{\"key\": \"Hello\", \"value\": \"世界\"}")
+            .await
+            .unwrap_err(),
+        "Failed to parse request"
+    );
+
+    // Simple put then get test.
+    // TODO(nate): Resolve how to pass non-UTF-8 sequences through the API.
+    assert_eq!(
+        dispatch("db", "put", "{\"key\": \"Hello\", \"value\": \"世界\"}")
+            .await
+            .unwrap(),
+        ""
+    );
+    assert_eq!(
+        dispatch("db", "get", "{\"key\": \"Hello\"}").await.unwrap(),
+        "{\"has\":true,\"value\":\"世界\"}"
+    );
+
+    // Verify functioning of non-ASCII keys.
+    assert_eq!(
+        dispatch("db", "get", "{\"key\": \"你好\"}").await.unwrap(),
+        "{\"has\":false}"
+    );
+    assert_eq!(
+        dispatch("db", "put", "{\"key\": \"你好\", \"value\": \"world\"}")
+            .await
+            .unwrap(),
+        ""
+    );
+    assert_eq!(
+        dispatch("db", "get", "{\"key\": \"你好\"}").await.unwrap(),
+        "{\"has\":true,\"value\":\"world\"}"
+    );
+
+    assert_eq!(dispatch("db", "close", "").await.unwrap(), "");
+}

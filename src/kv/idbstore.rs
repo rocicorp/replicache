@@ -1,15 +1,45 @@
 use futures::channel::oneshot;
+use std::fmt;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::IdbDatabase;
 
+#[derive(Debug)]
+pub enum StorageError {
+    Str(String),
+}
+
+type Result<T> = std::result::Result<T, StorageError>;
+
+impl From<JsValue> for StorageError {
+    fn from(err: JsValue) -> StorageError {
+        // TODO(nate): Pick out a useful subset of this value.
+        StorageError::Str(format!("{:?}", err))
+    }
+}
+
+impl From<futures::channel::oneshot::Canceled> for StorageError {
+    fn from(_e: futures::channel::oneshot::Canceled) -> StorageError {
+        StorageError::Str("oneshot cancelled".to_string())
+    }
+}
+
+impl fmt::Display for StorageError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StorageError::Str(s) => write!(f, "{}", s),
+        }
+    }
+}
+
 pub struct IdbStore {
-    #[allow(dead_code)]
     idb: IdbDatabase,
 }
 
+const OBJECT_STORE: &str = "chunks";
+
 impl IdbStore {
-    pub async fn new(name: &str) -> Result<Option<IdbStore>, JsValue> {
+    pub async fn new(name: &str) -> Result<Option<IdbStore>> {
         let window = match web_sys::window() {
             Some(w) => w,
             None => return Ok(None),
@@ -25,15 +55,79 @@ impl IdbStore {
                 log!("oneshot send failed");
             }
         });
+        let request_copy = request.clone();
+        let onupgradeneeded = Closure::once(move |_event: web_sys::IdbVersionChangeEvent| {
+            let result = match request_copy.result() {
+                Ok(r) => r,
+                Err(e) => {
+                    log!("Error before ugradeneeded: {:?}", e);
+                    return;
+                }
+            };
+            let db = web_sys::IdbDatabase::unchecked_from_js(result);
+
+            if let Err(e) = db.create_object_store(OBJECT_STORE) {
+                log!("Create object store failed: {:?}", e);
+            }
+        });
         request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
         request.set_onerror(Some(callback.as_ref().unchecked_ref()));
-        if let Err(e) = receiver.await {
-            return Err(e.to_string().into());
-        }
-        let idb: IdbDatabase = match request.result() {
-            Ok(v) => v.into(),
-            Err(v) => return Err(v),
-        };
-        Ok(Some(IdbStore { idb: idb }))
+        request.set_onupgradeneeded(Some(onupgradeneeded.as_ref().unchecked_ref()));
+        receiver.await?;
+        Ok(Some(IdbStore {
+            idb: request.result()?.into(),
+        }))
+    }
+
+    pub async fn put(self: &Self, key: &[u8], value: &[u8]) -> Result<()> {
+        let tx = self
+            .idb
+            .transaction_with_str_and_mode(OBJECT_STORE, web_sys::IdbTransactionMode::Readwrite)?;
+
+        let (sender, txdonereceiver) = oneshot::channel::<()>();
+        let callback = Closure::once(move || {
+            if let Err(_) = sender.send(()) {
+                log!("oneshot send failed");
+            }
+        });
+        tx.set_oncomplete(Some(callback.as_ref().unchecked_ref()));
+
+        let store = tx.object_store(OBJECT_STORE)?;
+        let request = store.put_with_key(
+            &js_sys::Uint8Array::from(value),
+            &js_sys::Uint8Array::from(key),
+        )?;
+        let (sender, receiver) = oneshot::channel::<()>();
+        let putcallback = Closure::once(move || {
+            if let Err(_) = sender.send(()) {
+                log!("oneshot send failed");
+            }
+        });
+        request.set_onsuccess(Some(putcallback.as_ref().unchecked_ref()));
+        request.set_onerror(Some(putcallback.as_ref().unchecked_ref()));
+        receiver.await?;
+
+        // TODO(nate): Move into WriteTransaction.commit().
+        txdonereceiver.await?;
+        Ok(())
+    }
+
+    pub async fn get(self: &Self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        let tx = self.idb.transaction_with_str(OBJECT_STORE)?;
+        let store = tx.object_store(OBJECT_STORE)?;
+        let request = store.get(&js_sys::Uint8Array::from(key))?;
+        let (sender, receiver) = oneshot::channel::<()>();
+        let callback = Closure::once(move || {
+            if let Err(_) = sender.send(()) {
+                log!("oneshot send failed");
+            }
+        });
+        request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
+        request.set_onerror(Some(callback.as_ref().unchecked_ref()));
+        receiver.await?;
+        Ok(match request.result()? {
+            v if v.is_undefined() => None,
+            v => Some(js_sys::Uint8Array::new(&v).to_vec()),
+        })
     }
 }

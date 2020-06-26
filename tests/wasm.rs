@@ -75,6 +75,10 @@ async fn test_get_put() {
 
     // Verify functioning of non-ASCII keys.
     assert_eq!(
+        dispatch("db", "has", "{\"key\": \"你好\"}").await.unwrap(),
+        "{\"has\":false}"
+    );
+    assert_eq!(
         dispatch("db", "get", "{\"key\": \"你好\"}").await.unwrap(),
         "{\"has\":false}"
     );
@@ -83,6 +87,10 @@ async fn test_get_put() {
             .await
             .unwrap(),
         ""
+    );
+    assert_eq!(
+        dispatch("db", "has", "{\"key\": \"你好\"}").await.unwrap(),
+        "{\"has\":true}"
     );
     assert_eq!(
         dispatch("db", "get", "{\"key\": \"你好\"}").await.unwrap(),

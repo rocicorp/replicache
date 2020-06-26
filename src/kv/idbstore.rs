@@ -112,6 +112,25 @@ impl Store for IdbStore {
         Ok(())
     }
 
+    async fn has(self: &Self, key: &[u8]) -> Result<bool> {
+        let tx = self.idb.transaction_with_str(OBJECT_STORE)?;
+        let store = tx.object_store(OBJECT_STORE)?;
+        let request = store.count_with_key(&js_sys::Uint8Array::from(key))?;
+        let (sender, receiver) = oneshot::channel::<()>();
+        let callback = Closure::once(move || {
+            if let Err(_) = sender.send(()) {
+                log!("oneshot send failed");
+            }
+        });
+        request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
+        request.set_onerror(Some(callback.as_ref().unchecked_ref()));
+        receiver.await?;
+        Ok(match request.result()?.as_f64() {
+            Some(v) if v >= 1.0 => true,
+            _ => false,
+        })
+    }
+
     async fn get(self: &Self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let tx = self.idb.transaction_with_str(OBJECT_STORE)?;
         let store = tx.object_store(OBJECT_STORE)?;

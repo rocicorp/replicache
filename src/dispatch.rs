@@ -54,6 +54,7 @@ async fn dispatch_loop(rx: Receiver<Request>) {
                     }
                 };
                 let response = match req.rpc.as_str() {
+                    "has" => dispatcher.has(&**db, &req.data).await,
                     "get" => dispatcher.get(&**db, &req.data).await,
                     "put" => dispatcher.put(&**db, &req.data).await,
                     _ => Err("Unsupported rpc name".to_string()),
@@ -116,6 +117,24 @@ impl Dispatcher {
         self.connections.remove(&req.db_name);
 
         Ok("".to_string())
+    }
+
+    async fn has(&self, db: &dyn Store, data: &String) -> Response {
+        let req: GetRequest = match serde_json::from_str(data) {
+            Ok(v) => v,
+            Err(_) => return Err("Failed to parse request".into()),
+        };
+        match db.has(&req.key.into_bytes()).await {
+            /*
+            Ok(Some(v)) => match std::str::from_utf8(&v[..]) {
+                Ok(v) => Ok(json!({"has": true, "value": v}).to_string()),
+                Err(e) => Err(e.to_string()),
+            },
+            */
+            Ok(true) => Ok(json!({"has": true}).to_string()),
+            Ok(false) => Ok(json!({"has": false}).to_string()),
+            Err(e) => Err(format!("{}", e)),
+        }
     }
 
     async fn get(&self, db: &dyn Store, data: &String) -> Response {

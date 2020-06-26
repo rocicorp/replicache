@@ -79,7 +79,7 @@ impl IdbStore {
 
 #[async_trait(?Send)]
 impl Store for IdbStore {
-    async fn put(self: &Self, key: &[u8], value: &[u8]) -> Result<()> {
+    async fn put(self: &Self, key: &str, value: &[u8]) -> Result<()> {
         let tx = self
             .idb
             .transaction_with_str_and_mode(OBJECT_STORE, web_sys::IdbTransactionMode::Readwrite)?;
@@ -93,10 +93,7 @@ impl Store for IdbStore {
         tx.set_oncomplete(Some(callback.as_ref().unchecked_ref()));
 
         let store = tx.object_store(OBJECT_STORE)?;
-        let request = store.put_with_key(
-            &js_sys::Uint8Array::from(value),
-            &js_sys::Uint8Array::from(key),
-        )?;
+        let request = store.put_with_key(&js_sys::Uint8Array::from(value), &key.into())?;
         let (sender, receiver) = oneshot::channel::<()>();
         let putcallback = Closure::once(move || {
             if let Err(_) = sender.send(()) {
@@ -112,10 +109,10 @@ impl Store for IdbStore {
         Ok(())
     }
 
-    async fn has(self: &Self, key: &[u8]) -> Result<bool> {
+    async fn has(self: &Self, key: &str) -> Result<bool> {
         let tx = self.idb.transaction_with_str(OBJECT_STORE)?;
         let store = tx.object_store(OBJECT_STORE)?;
-        let request = store.count_with_key(&js_sys::Uint8Array::from(key))?;
+        let request = store.count_with_key(&key.into())?;
         let (sender, receiver) = oneshot::channel::<()>();
         let callback = Closure::once(move || {
             if let Err(_) = sender.send(()) {
@@ -131,10 +128,10 @@ impl Store for IdbStore {
         })
     }
 
-    async fn get(self: &Self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+    async fn get(self: &Self, key: &str) -> Result<Option<Vec<u8>>> {
         let tx = self.idb.transaction_with_str(OBJECT_STORE)?;
         let store = tx.object_store(OBJECT_STORE)?;
-        let request = store.get(&js_sys::Uint8Array::from(key))?;
+        let request = store.get(&key.into())?;
         let (sender, receiver) = oneshot::channel::<()>();
         let callback = Closure::once(move || {
             if let Err(_) = sender.send(()) {

@@ -124,13 +124,7 @@ impl Dispatcher {
             Ok(v) => v,
             Err(_) => return Err("Failed to parse request".into()),
         };
-        match db.has(&req.key.into_bytes()).await {
-            /*
-            Ok(Some(v)) => match std::str::from_utf8(&v[..]) {
-                Ok(v) => Ok(json!({"has": true, "value": v}).to_string()),
-                Err(e) => Err(e.to_string()),
-            },
-            */
+        match db.has(&req.key).await {
             Ok(true) => Ok(json!({"has": true}).to_string()),
             Ok(false) => Ok(json!({"has": false}).to_string()),
             Err(e) => Err(format!("{}", e)),
@@ -142,7 +136,7 @@ impl Dispatcher {
             Ok(v) => v,
             Err(_) => return Err("Failed to parse request".into()),
         };
-        match db.get(&req.key.into_bytes()).await {
+        match db.get(&req.key).await {
             Ok(Some(v)) => match std::str::from_utf8(&v[..]) {
                 Ok(v) => Ok(json!({"has": true, "value": v}).to_string()),
                 Err(e) => Err(e.to_string()),
@@ -157,7 +151,7 @@ impl Dispatcher {
             Ok(v) => v,
             Err(_) => return Err("Failed to parse request".into()),
         };
-        match db.put(&req.key.into_bytes(), &req.value.into_bytes()).await {
+        match db.put(&req.key, &req.value.into_bytes()).await {
             Ok(_) => Ok("".into()),
             Err(e) => Err(format!("{}", e)),
         }

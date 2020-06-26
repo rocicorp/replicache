@@ -29,6 +29,7 @@ export interface ReadTransaction {
 export class ReadTransactionImpl implements ReadTransaction {
   protected readonly _transactionId: number;
   protected readonly _invoke: Invoke;
+  private _count = 1;
 
   constructor(invoke: Invoke, transactionId: number) {
     this._invoke = invoke;
@@ -55,13 +56,35 @@ export class ReadTransactionImpl implements ReadTransaction {
   }
 
   scan({prefix = '', start}: ScanOptions = {}): ScanResult {
+    this.incRef();
     return new ScanResult(
       prefix,
       start,
       this._invoke,
       () => this._transactionId,
-      undefined,
+      () => this.decRef(),
     );
+  }
+
+  async close(): Promise<void> {
+    try {
+      await this._invoke('closeTransaction', {
+        transactionId: this._transactionId,
+      });
+    } catch (ex) {
+      console.error('Failed to close transaction', ex);
+    }
+  }
+
+  incRef(): void {
+    this._count++;
+  }
+
+  async decRef(): Promise<void> {
+    this._count--;
+    if (this._count === 0) {
+      await this.close();
+    }
   }
 }
 

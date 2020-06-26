@@ -1,33 +1,30 @@
+use crate::kv::{Store, StoreError};
+use async_trait::async_trait;
 use futures::channel::oneshot;
 use std::fmt;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::IdbDatabase;
 
-#[derive(Debug)]
-pub enum StorageError {
-    Str(String),
-}
+type Result<T> = std::result::Result<T, StoreError>;
 
-type Result<T> = std::result::Result<T, StorageError>;
-
-impl From<JsValue> for StorageError {
-    fn from(err: JsValue) -> StorageError {
+impl From<JsValue> for StoreError {
+    fn from(err: JsValue) -> StoreError {
         // TODO(nate): Pick out a useful subset of this value.
-        StorageError::Str(format!("{:?}", err))
+        StoreError::Str(format!("{:?}", err))
     }
 }
 
-impl From<futures::channel::oneshot::Canceled> for StorageError {
-    fn from(_e: futures::channel::oneshot::Canceled) -> StorageError {
-        StorageError::Str("oneshot cancelled".to_string())
+impl From<futures::channel::oneshot::Canceled> for StoreError {
+    fn from(_e: futures::channel::oneshot::Canceled) -> StoreError {
+        StoreError::Str("oneshot cancelled".to_string())
     }
 }
 
-impl fmt::Display for StorageError {
+impl fmt::Display for StoreError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            StorageError::Str(s) => write!(f, "{}", s),
+            StoreError::Str(s) => write!(f, "{}", s),
         }
     }
 }
@@ -78,8 +75,11 @@ impl IdbStore {
             idb: request.result()?.into(),
         }))
     }
+}
 
-    pub async fn put(self: &Self, key: &[u8], value: &[u8]) -> Result<()> {
+#[async_trait(?Send)]
+impl Store for IdbStore {
+    async fn put(self: &Self, key: &[u8], value: &[u8]) -> Result<()> {
         let tx = self
             .idb
             .transaction_with_str_and_mode(OBJECT_STORE, web_sys::IdbTransactionMode::Readwrite)?;
@@ -112,7 +112,7 @@ impl IdbStore {
         Ok(())
     }
 
-    pub async fn get(self: &Self, key: &[u8]) -> Result<Option<Vec<u8>>> {
+    async fn get(self: &Self, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let tx = self.idb.transaction_with_str(OBJECT_STORE)?;
         let store = tx.object_store(OBJECT_STORE)?;
         let request = store.get(&js_sys::Uint8Array::from(key))?;

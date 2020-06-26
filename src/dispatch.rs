@@ -1,4 +1,5 @@
 use crate::kv::idbstore::IdbStore;
+use crate::kv::Store;
 use async_std::sync::{channel, Receiver, Sender};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -53,8 +54,8 @@ async fn dispatch_loop(rx: Receiver<Request>) {
                     }
                 };
                 let response = match req.rpc.as_str() {
-                    "get" => dispatcher.get(db, &req.data).await,
-                    "put" => dispatcher.put(db, &req.data).await,
+                    "get" => dispatcher.get(&**db, &req.data).await,
+                    "put" => dispatcher.put(&**db, &req.data).await,
                     _ => Err("Unsupported rpc name".to_string()),
                 };
                 req.response.send(response).await;
@@ -83,7 +84,7 @@ struct PutRequest {
 }
 
 struct Dispatcher {
-    connections: HashMap<String, IdbStore>,
+    connections: HashMap<String, Box<dyn Store>>,
 }
 
 impl Dispatcher {
@@ -101,7 +102,7 @@ impl Dispatcher {
             }
             Ok(v) => {
                 if let Some(v) = v {
-                    self.connections.insert(req.db_name.clone(), v);
+                    self.connections.insert(req.db_name.clone(), Box::new(v));
                 }
             }
         }
@@ -117,7 +118,7 @@ impl Dispatcher {
         Ok("".to_string())
     }
 
-    async fn get(&self, db: &IdbStore, data: &String) -> Response {
+    async fn get(&self, db: &dyn Store, data: &String) -> Response {
         let req: GetRequest = match serde_json::from_str(data) {
             Ok(v) => v,
             Err(_) => return Err("Failed to parse request".into()),
@@ -132,7 +133,7 @@ impl Dispatcher {
         }
     }
 
-    async fn put(&self, db: &IdbStore, data: &String) -> Response {
+    async fn put(&self, db: &dyn Store, data: &String) -> Response {
         let req: PutRequest = match serde_json::from_str(data) {
             Ok(v) => v,
             Err(_) => return Err("Failed to parse request".into()),

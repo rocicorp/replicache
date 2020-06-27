@@ -1,7 +1,6 @@
 use crate::kv::{Store, StoreError};
 use async_trait::async_trait;
 use futures::channel::oneshot;
-use std::fmt;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::IdbDatabase;
@@ -18,14 +17,6 @@ impl From<JsValue> for StoreError {
 impl From<futures::channel::oneshot::Canceled> for StoreError {
     fn from(_e: futures::channel::oneshot::Canceled) -> StoreError {
         StoreError::Str("oneshot cancelled".to_string())
-    }
-}
-
-impl fmt::Display for StoreError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            StoreError::Str(s) => write!(f, "{}", s),
-        }
     }
 }
 
@@ -79,7 +70,7 @@ impl IdbStore {
 
 #[async_trait(?Send)]
 impl Store for IdbStore {
-    async fn put(self: &Self, key: &str, value: &[u8]) -> Result<()> {
+    async fn put(&mut self, key: &str, value: &[u8]) -> Result<()> {
         let tx = self
             .idb
             .transaction_with_str_and_mode(OBJECT_STORE, web_sys::IdbTransactionMode::Readwrite)?;
@@ -109,7 +100,7 @@ impl Store for IdbStore {
         Ok(())
     }
 
-    async fn has(self: &Self, key: &str) -> Result<bool> {
+    async fn has(&self, key: &str) -> Result<bool> {
         let tx = self.idb.transaction_with_str(OBJECT_STORE)?;
         let store = tx.object_store(OBJECT_STORE)?;
         let request = store.count_with_key(&key.into())?;
@@ -128,7 +119,7 @@ impl Store for IdbStore {
         })
     }
 
-    async fn get(self: &Self, key: &str) -> Result<Option<Vec<u8>>> {
+    async fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
         let tx = self.idb.transaction_with_str(OBJECT_STORE)?;
         let store = tx.object_store(OBJECT_STORE)?;
         let request = store.get(&key.into())?;

@@ -42,20 +42,18 @@ async fn dispatch_loop(rx: Receiver<Request>) {
                     req.response.send(response).await;
                     continue;
                 }
-                let db = {
-                    match dispatcher.connections.get(&req.db_name[..]) {
-                        Some(v) => v,
-                        None => {
-                            let err = Err(format!("\"{}\" not open", req.db_name));
-                            req.response.send(err).await;
-                            continue;
-                        }
+                let db = match dispatcher.connections.get_mut(&req.db_name[..]) {
+                    Some(v) => v,
+                    None => {
+                        let err = Err(format!("\"{}\" not open", req.db_name));
+                        req.response.send(err).await;
+                        continue;
                     }
                 };
                 let response = match req.rpc.as_str() {
-                    "has" => dispatcher.has(&**db, &req.data).await,
-                    "get" => dispatcher.get(&**db, &req.data).await,
-                    "put" => dispatcher.put(&**db, &req.data).await,
+                    "has" => Dispatcher::has(&**db, &req.data).await,
+                    "get" => Dispatcher::get(&**db, &req.data).await,
+                    "put" => Dispatcher::put(&mut **db, &req.data).await,
                     _ => Err("Unsupported rpc name".to_string()),
                 };
                 req.response.send(response).await;
@@ -116,7 +114,7 @@ impl Dispatcher {
         Ok("".to_string())
     }
 
-    async fn has(&self, db: &dyn Store, data: &String) -> Response {
+    async fn has(db: &dyn Store, data: &String) -> Response {
         let req: GetRequest = match DeJson::deserialize_json(data) {
             Ok(v) => v,
             Err(_) => return Err("Failed to parse request".into()),
@@ -130,7 +128,7 @@ impl Dispatcher {
         }
     }
 
-    async fn get(&self, db: &dyn Store, data: &String) -> Response {
+    async fn get(db: &dyn Store, data: &String) -> Response {
         let req: GetRequest = match DeJson::deserialize_json(data) {
             Ok(v) => v,
             Err(_) => return Err("Failed to parse request".into()),
@@ -151,7 +149,7 @@ impl Dispatcher {
         }
     }
 
-    async fn put(&self, db: &dyn Store, data: &String) -> Response {
+    async fn put(db: &mut dyn Store, data: &String) -> Response {
         let req: PutRequest = match DeJson::deserialize_json(data) {
             Ok(v) => v,
             Err(_) => return Err("Failed to parse request".into()),
@@ -162,7 +160,7 @@ impl Dispatcher {
         }
     }
 
-    async fn debug(&mut self, req: &Request) -> Response {
+    async fn debug(&self, req: &Request) -> Response {
         match req.data.as_str() {
             "open_dbs" => Ok(format!("{:?}", self.connections.keys())),
             _ => Err("Debug command not defined".to_string()),

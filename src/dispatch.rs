@@ -1,8 +1,7 @@
 use crate::kv::idbstore::IdbStore;
 use crate::kv::Store;
 use async_std::sync::{channel, Receiver, Sender};
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+use nanoserde::{DeJson, SerJson};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use wasm_bindgen_futures::spawn_local;
@@ -65,20 +64,18 @@ async fn dispatch_loop(rx: Receiver<Request>) {
     }
 }
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(DeJson)]
 struct GetRequest {
     key: String,
 }
 
-#[derive(Serialize)]
+#[derive(SerJson)]
 struct GetResponse {
-    has: bool,
-    value: Vec<u8>,
+    value: Option<String>,
+    has: bool, // Second to avoid trailing comma if value == None.
 }
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(DeJson)]
 struct PutRequest {
     key: String,
     value: String,
@@ -120,34 +117,42 @@ impl Dispatcher {
     }
 
     async fn has(&self, db: &dyn Store, data: &String) -> Response {
-        let req: GetRequest = match serde_json::from_str(data) {
+        let req: GetRequest = match DeJson::deserialize_json(data) {
             Ok(v) => v,
             Err(_) => return Err("Failed to parse request".into()),
         };
         match db.has(&req.key).await {
-            Ok(true) => Ok(json!({"has": true}).to_string()),
-            Ok(false) => Ok(json!({"has": false}).to_string()),
+            Ok(v) => Ok(SerJson::serialize_json(&GetResponse {
+                has: v,
+                value: None,
+            })),
             Err(e) => Err(format!("{}", e)),
         }
     }
 
     async fn get(&self, db: &dyn Store, data: &String) -> Response {
-        let req: GetRequest = match serde_json::from_str(data) {
+        let req: GetRequest = match DeJson::deserialize_json(data) {
             Ok(v) => v,
             Err(_) => return Err("Failed to parse request".into()),
         };
         match db.get(&req.key).await {
             Ok(Some(v)) => match std::str::from_utf8(&v[..]) {
-                Ok(v) => Ok(json!({"has": true, "value": v}).to_string()),
+                Ok(v) => Ok(SerJson::serialize_json(&GetResponse {
+                    has: true,
+                    value: Some(v.to_string()),
+                })),
                 Err(e) => Err(e.to_string()),
             },
-            Ok(None) => Ok(json!({"has": false}).to_string()),
+            Ok(None) => Ok(SerJson::serialize_json(&GetResponse {
+                has: false,
+                value: None,
+            })),
             Err(e) => Err(format!("{}", e)),
         }
     }
 
     async fn put(&self, db: &dyn Store, data: &String) -> Response {
-        let req: PutRequest = match serde_json::from_str(data) {
+        let req: PutRequest = match DeJson::deserialize_json(data) {
             Ok(v) => v,
             Err(_) => return Err("Failed to parse request".into()),
         };

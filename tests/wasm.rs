@@ -53,11 +53,13 @@ async fn test_get_put() {
         dispatch("db", "put", "{}").await.unwrap_err(),
         "Failed to parse request"
     );
+    // With serde we can use #[serde(deny_unknown_fields)] to parse strictly,
+    // but that's not available with nanoserde.
     assert_eq!(
         dispatch("db", "get", "{\"key\": \"Hello\", \"value\": \"世界\"}")
             .await
-            .unwrap_err(),
-        "Failed to parse request"
+            .unwrap(),
+        "{\"has\":false}", // unwrap_err() == "Failed to parse request"
     );
 
     // Simple put then get test.
@@ -70,7 +72,7 @@ async fn test_get_put() {
     );
     assert_eq!(
         dispatch("db", "get", "{\"key\": \"Hello\"}").await.unwrap(),
-        "{\"has\":true,\"value\":\"世界\"}"
+        "{\"value\":\"世界\",\"has\":true}"
     );
 
     // Verify functioning of non-ASCII keys.
@@ -94,7 +96,7 @@ async fn test_get_put() {
     );
     assert_eq!(
         dispatch("db", "get", "{\"key\": \"你好\"}").await.unwrap(),
-        "{\"has\":true,\"value\":\"world\"}"
+        "{\"value\":\"world\",\"has\":true}"
     );
 
     assert_eq!(dispatch("db", "close", "").await.unwrap(), "");

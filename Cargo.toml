@@ -10,12 +10,14 @@ default = ["console_error_panic_hook"]
 [dependencies]
 async-std = { version = "=1.6.0", features = ["unstable"] }
 async-trait = "0.1.36"
+console_log = { version = "0.2" }
 console_error_panic_hook = { version = "0.1.1", optional = true }
 data-encoding = "1.1.1"
 futures = "0.3.5"
 js-sys = "0.3.40"
 lazy_static = "1.4.0"
 nanoserde = "0.1"
+log = "0.4"
 sha2 = "0.8.1"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4.13"

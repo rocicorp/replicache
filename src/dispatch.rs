@@ -1,6 +1,7 @@
 use crate::kv::idbstore::IdbStore;
 use crate::kv::Store;
 use async_std::sync::{channel, Receiver, Sender};
+use log::warn;
 use nanoserde::{DeJson, SerJson};
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -30,7 +31,7 @@ async fn dispatch_loop(rx: Receiver<Request>) {
 
     loop {
         match rx.recv().await {
-            Err(why) => log!("Recv failed: {}", why),
+            Err(why) => warn!("Dispatch loop recv failed: {}", why),
             Ok(req) => {
                 let response = match req.rpc.as_str() {
                     "open" => Some(dispatcher.open(&req).await),
@@ -93,8 +94,7 @@ impl Dispatcher {
         }
         match IdbStore::new(&req.db_name[..]).await {
             Err(e) => {
-                log!("Failed to open! {}", e);
-                return Err(format!("Failed to open: {}", e));
+                return Err(format!("Failed to open \"{}\": {}", req.db_name, e));
             }
             Ok(v) => {
                 if let Some(v) = v {

@@ -1,6 +1,7 @@
 use crate::kv::{Store, StoreError};
 use async_trait::async_trait;
 use futures::channel::oneshot;
+use log::warn;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::IdbDatabase;
@@ -40,7 +41,7 @@ impl IdbStore {
         let (sender, receiver) = oneshot::channel::<()>();
         let callback = Closure::once(move || {
             if let Err(_) = sender.send(()) {
-                log!("oneshot send failed");
+                warn!("oneshot send failed");
             }
         });
         let request_copy = request.clone();
@@ -48,14 +49,14 @@ impl IdbStore {
             let result = match request_copy.result() {
                 Ok(r) => r,
                 Err(e) => {
-                    log!("Error before ugradeneeded: {:?}", e);
+                    warn!("Error before ugradeneeded: {:?}", e);
                     return;
                 }
             };
             let db = web_sys::IdbDatabase::unchecked_from_js(result);
 
             if let Err(e) = db.create_object_store(OBJECT_STORE) {
-                log!("Create object store failed: {:?}", e);
+                warn!("Create object store failed: {:?}", e);
             }
         });
         request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
@@ -78,7 +79,7 @@ impl Store for IdbStore {
         let (sender, txdonereceiver) = oneshot::channel::<()>();
         let callback = Closure::once(move || {
             if let Err(_) = sender.send(()) {
-                log!("oneshot send failed");
+                warn!("oneshot send failed");
             }
         });
         tx.set_oncomplete(Some(callback.as_ref().unchecked_ref()));
@@ -88,7 +89,7 @@ impl Store for IdbStore {
         let (sender, receiver) = oneshot::channel::<()>();
         let putcallback = Closure::once(move || {
             if let Err(_) = sender.send(()) {
-                log!("oneshot send failed");
+                warn!("oneshot send failed");
             }
         });
         request.set_onsuccess(Some(putcallback.as_ref().unchecked_ref()));
@@ -107,7 +108,7 @@ impl Store for IdbStore {
         let (sender, receiver) = oneshot::channel::<()>();
         let callback = Closure::once(move || {
             if let Err(_) = sender.send(()) {
-                log!("oneshot send failed");
+                warn!("oneshot send failed");
             }
         });
         request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
@@ -126,7 +127,7 @@ impl Store for IdbStore {
         let (sender, receiver) = oneshot::channel::<()>();
         let callback = Closure::once(move || {
             if let Err(_) = sender.send(()) {
-                log!("oneshot send failed");
+                warn!("oneshot send failed");
             }
         });
         request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));

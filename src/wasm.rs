@@ -1,3 +1,4 @@
+use std::sync::Once;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 use wee_alloc;
@@ -32,7 +33,14 @@ pub async fn dispatch(db_name: String, rpc: String, args: String) -> Result<Stri
     }
 }
 
+static INIT: Once = Once::new();
+
 fn init_panic_hook() {
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
+    INIT.call_once(|| {
+        if let Err(e) = console_log::init_with_level(log::Level::Info) {
+            web_sys::console::error_1(&format!("Error registering console_log: {}", e).into());
+        }
+    });
 }

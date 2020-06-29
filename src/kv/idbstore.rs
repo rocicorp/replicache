@@ -1,12 +1,10 @@
-use crate::kv::{Store, StoreError};
+use crate::kv::{Read, Result, Store, StoreError, Write};
 use async_trait::async_trait;
 use futures::channel::oneshot;
 use log::warn;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::IdbDatabase;
-
-type Result<T> = std::result::Result<T, StoreError>;
 
 impl From<JsValue> for StoreError {
     fn from(err: JsValue) -> StoreError {
@@ -71,6 +69,14 @@ impl IdbStore {
 
 #[async_trait(?Send)]
 impl Store for IdbStore {
+    async fn read<'a>(&'a self) -> Result<Box<dyn Read + 'a>> {
+        return Err(StoreError::Str("Not supported".to_string()));
+    }
+
+    async fn write<'a>(&'a self) -> Result<Box<dyn Write + 'a>> {
+        return Err(StoreError::Str("Not supported".into()));
+    }
+
     async fn put(&mut self, key: &str, value: &[u8]) -> Result<()> {
         let tx = self
             .idb

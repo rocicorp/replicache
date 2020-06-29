@@ -474,29 +474,6 @@ test('scan', async () => {
   );
 });
 
-test('scan escape', async () => {
-  await useReplay('scan escape');
-
-  rep = await replicacheForTesting('subscribe');
-  const add = rep.register('add-data', addData);
-  await add({
-    'a/0': 0,
-    'a/1': 1,
-    'a/2': 2,
-    'a/3': 3,
-    'a/4': 4,
-  });
-
-  const it = await rep.query(tx => tx.scan());
-  expect(await asyncIterableToArray(it.entries())).toEqual([
-    ['a/0', 0],
-    ['a/1', 1],
-    ['a/2', 2],
-    ['a/3', 3],
-    ['a/4', 4],
-  ]);
-});
-
 test('subscribe', async () => {
   await useReplay('subscribe');
 

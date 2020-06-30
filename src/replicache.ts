@@ -195,7 +195,11 @@ export default class Replicache implements ReadTransaction {
     return this.query(tx => tx.has(key));
   }
 
-  /** Gets many values from the database. */
+  /**
+   * Gets many values from the database. This returns a `ScanResult` which
+   * implements `AsyncIterable`. It also has methods to iterate over the `keys`
+   * and `entries`.
+   * */
   scan({prefix = '', start}: ScanOptions = {}): ScanResult {
     let tx: ReadTransactionImpl;
     return new ScanResult(

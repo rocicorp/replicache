@@ -25,7 +25,12 @@ export interface ReadTransaction {
   has(key: string): Promise<boolean>;
 
   /**
-   * Gets many values from the database.
+   * Gets many values from the database. This returns a `ScanResult` which
+   * implements `AsyncIterable`. It also has methods to iterate over the `keys`
+   * and `entries`.
+   *
+   * It the `ScanResult` is used after the `ReadTransaction` has been closed it
+   * will throw a {@link TransactionClosedError}.
    */
   scan(options?: ScanOptions): ScanResult;
 }

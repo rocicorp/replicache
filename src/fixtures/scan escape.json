@@ -1,23 +1,12 @@
 [
   {
-    "dbName": "regerr",
+    "dbName": "scan escape",
     "method": "open",
     "args": {},
     "result": ""
   },
   {
-    "dbName": "regerr",
-    "method": "openTransaction",
-    "args": {
-      "args": 42,
-      "name": "err"
-    },
-    "result": {
-      "transactionId": 1
-    }
-  },
-  {
-    "dbName": "regerr",
+    "dbName": "scan escape",
     "method": "getRoot",
     "args": {},
     "result": {
@@ -25,7 +14,15 @@
     }
   },
   {
-    "dbName": "regerr",
+    "dbName": "scan escape",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 1
+    }
+  },
+  {
+    "dbName": "scan escape",
     "method": "closeTransaction",
     "args": {
       "transactionId": 1
@@ -33,7 +30,7 @@
     "result": {}
   },
   {
-    "dbName": "regerr",
+    "dbName": "scan escape",
     "method": "close",
     "args": {},
     "result": ""

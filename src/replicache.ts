@@ -6,11 +6,8 @@ import type {
   Invoke,
   OpenTransactionRequest,
 } from './repm-invoker.js';
-import {
-  ReadTransactionImpl,
-  WriteTransactionImpl,
-  ScanResult,
-} from './transactions.js';
+import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
+import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
 
 export type Mutator<Return extends JSONValue | void, Args extends JSONValue> = (
@@ -200,15 +197,20 @@ export default class Replicache implements ReadTransaction {
 
   /** Gets many values from the database. */
   scan({prefix = '', start}: ScanOptions = {}): ScanResult {
+    let tx: ReadTransactionImpl;
     return new ScanResult(
       prefix,
       start,
       this._invoke,
-      async () => (await this._invoke('openTransaction', {})).transactionId,
-      async transactionId => {
-        // No need to await the response.
-        this._closeTransaction(transactionId);
+      async () => {
+        if (tx) {
+          return tx;
+        }
+        tx = new ReadTransactionImpl(this._invoke);
+        await tx.open({});
+        return tx;
       },
+      true,
     );
   }
 
@@ -446,14 +448,14 @@ export default class Replicache implements ReadTransaction {
    * to ensure you get a consistent view across multiple calls to `get`, `has`
    * and `scan`.
    */
-  async query<R>(body: (tx: ReadTransaction) => Promise<R>): Promise<R> {
-    const {transactionId} = await this._invoke('openTransaction', {});
+  async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
+    const tx = new ReadTransactionImpl(this._invoke);
+    await tx.open({});
     try {
-      const tx = new ReadTransactionImpl(this._invoke, transactionId);
       return await body(tx);
     } finally {
       // No need to await the response.
-      this._closeTransaction(transactionId);
+      tx.close();
     }
   }
 
@@ -515,21 +517,18 @@ export default class Replicache implements ReadTransaction {
       actualInvokeArgs = {...actualInvokeArgs, ...invokeArgs};
     }
 
-    const {transactionId} = await this._invoke(
-      'openTransaction',
-      actualInvokeArgs,
-    );
     let result: R;
+    const tx = new WriteTransactionImpl(this._invoke);
+    await tx.open(actualInvokeArgs);
     try {
-      const tx = new WriteTransactionImpl(this._invoke, transactionId);
       result = await mutatorImpl(tx, args);
     } catch (ex) {
       // No need to await the response.
-      this._closeTransaction(transactionId);
+      tx.close();
       throw ex;
     }
     const commitRes = await this._invoke('commitTransaction', {
-      transactionId,
+      transactionId: tx.id,
     });
     if (commitRes.retryCommit) {
       return await this._mutate(name, mutatorImpl, args, {
@@ -543,14 +542,6 @@ export default class Replicache implements ReadTransaction {
       await this._checkChange(ref);
     }
     return {result, ref};
-  }
-
-  private async _closeTransaction(txId: number): Promise<void> {
-    try {
-      await this._invoke('closeTransaction', {transactionId: txId});
-    } catch (ex) {
-      console.error('Failed to close transaction', ex);
-    }
   }
 }
 

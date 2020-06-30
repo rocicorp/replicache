@@ -57,7 +57,7 @@
       "transactionId": 1
     },
     "result": {
-      "ref": "emu5chiqv03dcjbt2b2hbenlvdlcln7g"
+      "ref": "idi79kd5godt1q480k7joofcs0483aua"
     }
   },
   {
@@ -106,7 +106,7 @@
       "transactionId": 1
     },
     "result": {
-      "ref": "37pbniq00v0be1qdgr98vjmmt67vlo9q"
+      "ref": "ib2uquactbl37a35mcomtufoan11s737"
     }
   },
   {
@@ -115,6 +115,14 @@
     "args": {},
     "result": {
       "transactionId": 2
+    }
+  },
+  {
+    "dbName": "a",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 3
     }
   },
   {
@@ -124,14 +132,6 @@
       "transactionId": 2
     },
     "result": {}
-  },
-  {
-    "dbName": "a",
-    "method": "openTransaction",
-    "args": {},
-    "result": {
-      "transactionId": 3
-    }
   },
   {
     "dbName": "a",

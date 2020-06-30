@@ -16,12 +16,7 @@
   {
     "dbName": "subscribe-close",
     "method": "openTransaction",
-    "args": {
-      "args": {
-        "k": 0
-      },
-      "name": "add-data"
-    },
+    "args": {},
     "result": {
       "transactionId": 1
     }
@@ -29,26 +24,21 @@
   {
     "dbName": "subscribe-close",
     "method": "openTransaction",
-    "args": {},
+    "args": {
+      "args": {
+        "k": 0
+      },
+      "name": "add-data"
+    },
     "result": {
       "transactionId": 2
     }
   },
   {
     "dbName": "subscribe-close",
-    "method": "put",
-    "args": {
-      "transactionId": 1,
-      "key": "k",
-      "value": 0
-    },
-    "result": {}
-  },
-  {
-    "dbName": "subscribe-close",
     "method": "get",
     "args": {
-      "transactionId": 2,
+      "transactionId": 1,
       "key": "k"
     },
     "result": {
@@ -57,9 +47,19 @@
   },
   {
     "dbName": "subscribe-close",
+    "method": "put",
+    "args": {
+      "transactionId": 2,
+      "key": "k",
+      "value": 0
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe-close",
     "method": "closeTransaction",
     "args": {
-      "transactionId": 2
+      "transactionId": 1
     },
     "result": {}
   },
@@ -67,10 +67,10 @@
     "dbName": "subscribe-close",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 1
+      "transactionId": 2
     },
     "result": {
-      "ref": "oku0effgrj2k4hf4psn78l97jq8bapni"
+      "ref": "tqp56qjgdntdpktfht1vke2qhkahv5fl"
     }
   },
   {
@@ -92,6 +92,14 @@
       "has": true,
       "value": 0
     }
+  },
+  {
+    "dbName": "subscribe-close",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 3
+    },
+    "result": {}
   },
   {
     "dbName": "subscribe-close",

@@ -1,8 +1,7 @@
 import type {JSONValue, ToJSON} from './json.js';
-import type {ScanItem} from './scan-item.js';
-import type {Invoke} from './repm-invoker.js';
-import type {ScanBound} from './scan-bound.js';
+import type {Invoke, OpenTransactionRequest} from './repm-invoker.js';
 import type {ScanOptions} from './scan-options.js';
+import {ScanResult} from './scan-iterator.js';
 
 /**
  * ReadTransactions are used with `Replicache.query` and allows read operations
@@ -27,12 +26,12 @@ export interface ReadTransaction {
 }
 
 export class ReadTransactionImpl implements ReadTransaction {
-  protected readonly _transactionId: number;
+  private _transactionId = -1;
   protected readonly _invoke: Invoke;
+  private _closed = false;
 
-  constructor(invoke: Invoke, transactionId: number) {
+  constructor(invoke: Invoke) {
     this._invoke = invoke;
-    this._transactionId = transactionId;
   }
 
   async get(key: string): Promise<JSONValue | undefined> {
@@ -55,173 +54,31 @@ export class ReadTransactionImpl implements ReadTransaction {
   }
 
   scan({prefix = '', start}: ScanOptions = {}): ScanResult {
-    return new ScanResult(
-      prefix,
-      start,
-      this._invoke,
-      () => this._transactionId,
-      undefined,
-    );
-  }
-}
-
-let scanPageSize = 100;
-
-export function setScanPageSizeForTesting(n: number): void {
-  scanPageSize = n;
-}
-
-export function restoreScanPageSizeForTesting(): void {
-  scanPageSize = 100;
-}
-
-export class ScanResult implements AsyncIterable<JSONValue> {
-  private readonly _args: [
-    string,
-    ScanBound | undefined,
-    Invoke,
-    () => Promise<number> | number,
-    ((txId: number) => Promise<void>) | undefined,
-  ];
-
-  constructor(
-    ...args: [
-      string,
-      ScanBound | undefined,
-      Invoke,
-      () => Promise<number> | number,
-      ((txId: number) => Promise<void>) | undefined,
-    ]
-  ) {
-    this._args = args;
+    return new ScanResult(prefix, start, this._invoke, () => this, false);
   }
 
-  [Symbol.asyncIterator](): AsyncIterableIterator<JSONValue> {
-    return this.values();
+  get id(): number {
+    return this._transactionId;
   }
 
-  values(): AsyncIterableIterator<JSONValue> {
-    return this._newIterator('value');
+  get closed(): boolean {
+    return this._closed;
   }
 
-  keys(): AsyncIterableIterator<string> {
-    return this._newIterator('key');
+  async open(args: OpenTransactionRequest): Promise<void> {
+    const {transactionId} = await this._invoke('openTransaction', args);
+    this._transactionId = transactionId;
   }
 
-  entries(): AsyncIterableIterator<[string, JSONValue]> {
-    return this._newIterator('entry');
-  }
-
-  private _newIterator<V>(kind: ScanIterableKind): AsyncIterableIterator<V> {
-    return new ScanIterator<V>(kind, ...this._args);
-  }
-}
-
-type ScanIterableKind = 'key' | 'value' | 'entry';
-
-class ScanIterator<V> implements AsyncIterableIterator<V> {
-  private readonly _scanItems: ScanItem[] = [];
-  private _current = 0;
-  private _moreItemsToLoad = true;
-  private readonly _prefix: string;
-  private readonly _kind: ScanIterableKind;
-  private readonly _start?: ScanBound;
-  private _loadPromise?: Promise<void> = undefined;
-  private readonly _openTransaction: () => Promise<number> | number;
-  private readonly _closeTransaction?: (txId: number) => Promise<void>;
-  private _transactionId?: number = undefined;
-  private readonly _invoke: Invoke;
-
-  constructor(
-    kind: ScanIterableKind,
-    prefix: string,
-    start: ScanBound | undefined,
-    invoke: Invoke,
-    openTransaction: () => Promise<number> | number,
-    closeTransaction: ((txId: number) => Promise<void>) | undefined,
-  ) {
-    this._kind = kind;
-    this._prefix = prefix;
-    this._start = start;
-    this._invoke = invoke;
-    this._openTransaction = openTransaction;
-    this._closeTransaction = closeTransaction;
-  }
-
-  [Symbol.asyncIterator](): AsyncIterableIterator<V> {
-    return this;
-  }
-
-  async next(): Promise<IteratorResult<V>> {
-    // Preload if we have less than half a page left.
-    if (this._current + scanPageSize / 2 >= this._scanItems.length) {
-      if (this._moreItemsToLoad) {
-        // no await
-        this._loadPromise = this._load();
-      }
+  async close(): Promise<void> {
+    try {
+      this._closed = true;
+      await this._invoke('closeTransaction', {
+        transactionId: this._transactionId,
+      });
+    } catch (ex) {
+      console.error('Failed to close transaction', ex);
     }
-    if (this._current >= this._scanItems.length) {
-      if (!this._moreItemsToLoad) {
-        return {done: true, value: undefined};
-      }
-      this._loadPromise = this._load();
-      await this._loadPromise;
-      this._loadPromise = undefined;
-      return this.next();
-    }
-    const value = this._scanItems[this._current++];
-
-    switch (this._kind) {
-      case 'value':
-        return {value: value.value} as IteratorResult<V>;
-      case 'key':
-        return {value: value.key} as IteratorResult<V>;
-      case 'entry':
-        return {value: [value.key, value.value]} as IteratorResult<V>;
-    }
-  }
-
-  async return(): Promise<IteratorResult<V>> {
-    if (this._closeTransaction && this._transactionId !== undefined) {
-      await this._closeTransaction(this._transactionId);
-    }
-    return {done: true, value: undefined};
-  }
-
-  private async _load(): Promise<void> {
-    if (this._loadPromise) {
-      return this._loadPromise;
-    }
-
-    if (!this._moreItemsToLoad) {
-      throw new Error('No more items to load');
-    }
-
-    let start = this._start;
-    if (this._scanItems.length > 0) {
-      // We loaded some items already, so continue where we left off.
-      start = {
-        id: {
-          value: this._scanItems[this._scanItems.length - 1].key,
-          exclusive: true,
-        },
-      };
-    }
-
-    if (this._transactionId === undefined) {
-      this._transactionId = await this._openTransaction();
-    }
-
-    const scanItems = await this._invoke('scan', {
-      transactionId: this._transactionId,
-      prefix: this._prefix,
-      start,
-      limit: scanPageSize,
-    });
-    if (scanItems.length !== scanPageSize) {
-      this._moreItemsToLoad = false;
-    }
-    this._scanItems.push(...scanItems);
   }
 }
 
@@ -247,7 +104,7 @@ export class WriteTransactionImpl extends ReadTransactionImpl
   implements WriteTransaction {
   async put(key: string, value: JSONValue | ToJSON): Promise<void> {
     await this._invoke('put', {
-      transactionId: this._transactionId,
+      transactionId: this.id,
       key,
       value,
     });
@@ -255,7 +112,7 @@ export class WriteTransactionImpl extends ReadTransactionImpl
 
   async del(key: string): Promise<boolean> {
     const result = await this._invoke('del', {
-      transactionId: this._transactionId,
+      transactionId: this.id,
       key,
     });
     return result.ok;

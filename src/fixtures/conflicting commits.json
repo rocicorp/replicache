@@ -17,8 +17,8 @@
     "dbName": "conflict",
     "method": "openTransaction",
     "args": {
-      "args": "a",
-      "name": "mutA"
+      "args": "b",
+      "name": "mutB"
     },
     "result": {
       "transactionId": 1
@@ -28,8 +28,8 @@
     "dbName": "conflict",
     "method": "openTransaction",
     "args": {
-      "args": "b",
-      "name": "mutB"
+      "args": "a",
+      "name": "mutA"
     },
     "result": {
       "transactionId": 2
@@ -41,7 +41,7 @@
     "args": {
       "transactionId": 1,
       "key": "k",
-      "value": "a"
+      "value": "b"
     },
     "result": {}
   },
@@ -51,7 +51,7 @@
     "args": {
       "transactionId": 2,
       "key": "k",
-      "value": "b"
+      "value": "a"
     },
     "result": {}
   },
@@ -59,10 +59,10 @@
     "dbName": "conflict",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 1
+      "transactionId": 2
     },
     "result": {
-      "ref": "85u6edgdhgee9qpfhabn3foi57em67t8"
+      "ref": "kb6k8lppbdsh6lpvudngtllh7p3h3eql"
     }
   },
   {
@@ -113,7 +113,7 @@
     "dbName": "conflict",
     "method": "commitTransaction",
     "args": {
-      "transactionId": 2
+      "transactionId": 1
     },
     "result": {
       "retryCommit": true
@@ -147,7 +147,7 @@
       "transactionId": 5
     },
     "result": {
-      "ref": "4utqjr35usf0o884sh3is4k0m3to1imo"
+      "ref": "m3323carbgqml43e2h54gq06kpbn5340"
     }
   },
   {

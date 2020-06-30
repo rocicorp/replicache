@@ -7,11 +7,11 @@ import {open} from 'fs/promises';
 import type {FileHandle} from 'fs/promises';
 
 import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
-import {REPMHTTPInvoker, ScanBound} from './mod.js';
+import {REPMHTTPInvoker, ScanBound, TransactionClosedError} from './mod.js';
 import {
   restoreScanPageSizeForTesting,
   setScanPageSizeForTesting,
-} from './transactions.js';
+} from './scan-iterator.js';
 
 import type {REPMInvoke, ReadTransaction, WriteTransaction} from './mod.js';
 import type {JSONValue, ToJSON} from './json.js';
@@ -472,6 +472,14 @@ test('scan', async () => {
       ['c/0', 8],
     ],
   );
+});
+
+test('scan escape', async () => {
+  await useReplay('scan escape');
+
+  rep = await replicacheForTesting('scan escape');
+  const it = await rep.query(tx => tx.scan());
+  await expect(it.values().next()).rejects.toThrow(TransactionClosedError);
 });
 
 test('subscribe', async () => {

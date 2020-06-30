@@ -39,8 +39,8 @@
     "method": "scan",
     "args": {
       "transactionId": 1,
-      "limit": 50,
-      "prefix": "a/"
+      "prefix": "a/",
+      "limit": 4
     },
     "result": []
   },
@@ -85,8 +85,8 @@
     "method": "scan",
     "args": {
       "transactionId": 3,
-      "limit": 50,
-      "prefix": "a/"
+      "prefix": "a/",
+      "limit": 4
     },
     "result": [
       {
@@ -94,6 +94,14 @@
         "value": 0
       }
     ]
+  },
+  {
+    "dbName": "subscribe",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 3
+    },
+    "result": {}
   },
   {
     "dbName": "subscribe",
@@ -107,14 +115,6 @@
     "result": {
       "transactionId": 4
     }
-  },
-  {
-    "dbName": "subscribe",
-    "method": "closeTransaction",
-    "args": {
-      "transactionId": 3
-    },
-    "result": {}
   },
   {
     "dbName": "subscribe",
@@ -149,8 +149,8 @@
     "method": "scan",
     "args": {
       "transactionId": 5,
-      "limit": 50,
-      "prefix": "a/"
+      "prefix": "a/",
+      "limit": 4
     },
     "result": [
       {
@@ -213,8 +213,8 @@
     "method": "scan",
     "args": {
       "transactionId": 7,
-      "limit": 50,
-      "prefix": "a/"
+      "prefix": "a/",
+      "limit": 4
     },
     "result": [
       {
@@ -229,6 +229,14 @@
   },
   {
     "dbName": "subscribe",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 7
+    },
+    "result": {}
+  },
+  {
+    "dbName": "subscribe",
     "method": "openTransaction",
     "args": {
       "args": {
@@ -239,14 +247,6 @@
     "result": {
       "transactionId": 8
     }
-  },
-  {
-    "dbName": "subscribe",
-    "method": "closeTransaction",
-    "args": {
-      "transactionId": 7
-    },
-    "result": {}
   },
   {
     "dbName": "subscribe",
@@ -281,8 +281,8 @@
     "method": "scan",
     "args": {
       "transactionId": 9,
-      "limit": 50,
-      "prefix": "a/"
+      "prefix": "a/",
+      "limit": 4
     },
     "result": [
       {

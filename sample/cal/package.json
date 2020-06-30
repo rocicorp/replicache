@@ -10,6 +10,7 @@
     "@types/node": "^12.12.46",
     "@types/react": "^16.9.35",
     "@types/react-dom": "^16.9.8",
+    "axax": "^0.2.2",
     "date-fns": "^2.14.0",
     "jest": "^26.0.1",
     "react": "^16.13.1",

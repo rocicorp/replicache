@@ -1,7 +1,12 @@
 import type {JSONValue, ToJSON} from './json.js';
-import type {ScanItem} from './scan-item.js';
+import type {
+  Invoke,
+  OpenTransactionRequest,
+  CommitTransactionResponse,
+} from './repm-invoker.js';
 import type {ScanOptions} from './scan-options.js';
-import type {Invoke, ScanRequest} from './repm-invoker.js';
+import {ScanResult} from './scan-iterator.js';
+import {TransactionClosedError} from './transaction-closed-error.js';
 
 /**
  * ReadTransactions are used with `Replicache.query` and allows read operations
@@ -20,21 +25,33 @@ export interface ReadTransaction {
   has(key: string): Promise<boolean>;
 
   /**
-   * Gets many values from the database.
+   * Gets many values from the database. This returns a `ScanResult` which
+   * implements `AsyncIterable`. It also has methods to iterate over the `keys`
+   * and `entries`.
+   *
+   * It the `ScanResult` is used after the `ReadTransaction` has been closed it
+   * will throw a {@link TransactionClosedError}.
    */
-  scan(options?: ScanOptions): Promise<Iterable<ScanItem>>;
+  scan(options?: ScanOptions): ScanResult;
+}
+
+export function throwIfClosed(tx: {closed: boolean}): void {
+  if (tx.closed) {
+    throw new TransactionClosedError();
+  }
 }
 
 export class ReadTransactionImpl implements ReadTransaction {
-  protected readonly _transactionId: number;
+  private _transactionId = -1;
   protected readonly _invoke: Invoke;
+  protected _closed = false;
 
-  constructor(invoke: Invoke, transactionId: number) {
+  constructor(invoke: Invoke) {
     this._invoke = invoke;
-    this._transactionId = transactionId;
   }
 
   async get(key: string): Promise<JSONValue | undefined> {
+    throwIfClosed(this);
     const result = await this._invoke('get', {
       transactionId: this._transactionId,
       key,
@@ -46,6 +63,7 @@ export class ReadTransactionImpl implements ReadTransaction {
   }
 
   async has(key: string): Promise<boolean> {
+    throwIfClosed(this);
     const result = await this._invoke('has', {
       transactionId: this._transactionId,
       key,
@@ -53,16 +71,32 @@ export class ReadTransactionImpl implements ReadTransaction {
     return result['has'];
   }
 
-  async scan({prefix = '', start, limit = 50}: ScanOptions = {}): Promise<
-    Iterable<ScanItem>
-  > {
-    const args: ScanRequest = {
-      transactionId: this._transactionId,
-      limit,
-      prefix,
-      start,
-    };
-    return await this._invoke('scan', args);
+  scan({prefix = '', start}: ScanOptions = {}): ScanResult {
+    return new ScanResult(prefix, start, this._invoke, () => this, false);
+  }
+
+  get id(): number {
+    return this._transactionId;
+  }
+
+  get closed(): boolean {
+    return this._closed;
+  }
+
+  async open(args: OpenTransactionRequest): Promise<void> {
+    const {transactionId} = await this._invoke('openTransaction', args);
+    this._transactionId = transactionId;
+  }
+
+  async close(): Promise<void> {
+    try {
+      this._closed = true;
+      await this._invoke('closeTransaction', {
+        transactionId: this._transactionId,
+      });
+    } catch (ex) {
+      console.error('Failed to close transaction', ex);
+    }
   }
 }
 
@@ -87,18 +121,28 @@ export interface WriteTransaction extends ReadTransaction {
 export class WriteTransactionImpl extends ReadTransactionImpl
   implements WriteTransaction {
   async put(key: string, value: JSONValue | ToJSON): Promise<void> {
+    throwIfClosed(this);
     await this._invoke('put', {
-      transactionId: this._transactionId,
+      transactionId: this.id,
       key,
       value,
     });
   }
 
   async del(key: string): Promise<boolean> {
+    throwIfClosed(this);
     const result = await this._invoke('del', {
-      transactionId: this._transactionId,
+      transactionId: this.id,
       key,
     });
     return result.ok;
+  }
+
+  async commit(): Promise<CommitTransactionResponse> {
+    this._closed = true;
+    const commitRes = await this._invoke('commitTransaction', {
+      transactionId: this.id,
+    });
+    return commitRes;
   }
 }

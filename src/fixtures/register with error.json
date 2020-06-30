@@ -7,14 +7,6 @@
   },
   {
     "dbName": "regerr",
-    "method": "getRoot",
-    "args": {},
-    "result": {
-      "root": "e99uif9c7bpavajrt666es1ki52dv239"
-    }
-  },
-  {
-    "dbName": "regerr",
     "method": "openTransaction",
     "args": {
       "args": 42,
@@ -22,6 +14,14 @@
     },
     "result": {
       "transactionId": 1
+    }
+  },
+  {
+    "dbName": "regerr",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
     }
   },
   {

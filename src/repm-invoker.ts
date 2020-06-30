@@ -71,8 +71,11 @@ type TransactionRequest = {
   transactionId: number;
 };
 
-export type ScanRequest = TransactionRequest & ScanOptions;
-type ScanResponse = ScanItem[];
+export type ScanRequest = TransactionRequest &
+  ScanOptions & {
+    limit?: number;
+  };
+export type ScanResponse = ScanItem[];
 
 type PutRequest = TransactionRequest & {
   key: string;
@@ -103,7 +106,7 @@ type CloseTransactionRequest = TransactionRequest;
 type CloseTransactionResponse = unknown;
 
 type CommitTransactionRequest = TransactionRequest;
-type CommitTransactionResponse =
+export type CommitTransactionResponse =
   | {
       retryCommit: false;
       ref: string;

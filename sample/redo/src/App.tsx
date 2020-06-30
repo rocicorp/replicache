@@ -220,10 +220,11 @@ function registerMutations(rep: Replicache) {
 }
 
 async function allTodosInTx(tx: ReadTransaction): Promise<Todo[]> {
-  return Array.from(
-    await tx.scan({prefix, limit: 500}),
-    si => si.value as Todo,
-  );
+  const todos: Todo[] = [];
+  for await (const value of tx.scan({prefix})) {
+    todos.push(value as Todo);
+  }
+  return todos;
 }
 
 function todosInList(allTodos: Todo[], listId: number | null): Todo[] {
@@ -233,10 +234,11 @@ function todosInList(allTodos: Todo[], listId: number | null): Todo[] {
 }
 
 async function allListsInTx(tx: ReadTransaction): Promise<number[]> {
-  return Array.from(
-    await tx.scan({prefix: '/list/', limit: 500}),
-    item => (item.value as {id: number}).id,
-  );
+  const listIds: number[] = [];
+  for await (const value of tx.scan({prefix: '/list/'})) {
+    listIds.push((value as {id: number}).id);
+  }
+  return listIds;
 }
 
 export type Todo = {

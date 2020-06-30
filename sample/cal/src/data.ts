@@ -1,9 +1,4 @@
-import Replicache, {
-  REPMHTTPInvoker,
-  ReadTransaction,
-  WriteTransaction,
-  Mutator,
-} from 'replicache';
+import Replicache, {REPMHTTPInvoker, WriteTransaction} from 'replicache';
 
 import {
   dataLayerAuth,

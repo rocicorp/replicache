@@ -91,9 +91,9 @@
       "diffServerAuth": "1"
     },
     "result": {
-      "syncHead": "m8j2tebbt7rfnbe61b4a8c8rvph4h2s1",
+      "syncHead": "thila00n3npmcbqqmqemojaligoq2ahq",
       "syncInfo": {
-        "syncID": "dQqNsxLcEqKgUPqytescdM-5ee17935-1",
+        "syncID": "oGFKLgakmjkCUdWJusJDbK-5efac751-1",
         "clientViewInfo": {
           "httpStatusCode": 200,
           "errorMessage": ""
@@ -105,8 +105,8 @@
     "dbName": "sync",
     "method": "maybeEndSync",
     "args": {
-      "syncID": "dQqNsxLcEqKgUPqytescdM-5ee17935-1",
-      "syncHead": "m8j2tebbt7rfnbe61b4a8c8rvph4h2s1"
+      "syncID": "oGFKLgakmjkCUdWJusJDbK-5efac751-1",
+      "syncHead": "thila00n3npmcbqqmqemojaligoq2ahq"
     },
     "result": {}
   },
@@ -138,7 +138,7 @@
     "result": {
       "syncHead": "00000000000000000000000000000000",
       "syncInfo": {
-        "syncID": "dQqNsxLcEqKgUPqytescdM-5ee17935-2",
+        "syncID": "oGFKLgakmjkCUdWJusJDbK-5efac751-2",
         "clientViewInfo": {
           "httpStatusCode": 200,
           "errorMessage": ""
@@ -186,7 +186,7 @@
       "transactionId": 4
     },
     "result": {
-      "ref": "2009jaum0gh92htt831cu3dqv6vra3t9"
+      "ref": "e95a9ekhhbu0bmmo5sook59n9159vhe0"
     }
   },
   {
@@ -249,9 +249,9 @@
       "diffServerAuth": "1"
     },
     "result": {
-      "syncHead": "heib9bfg7tukuqb3f410b52jvat2eoff",
+      "syncHead": "hceai6tu7ciclos41bn10ac86ct1i7tp",
       "syncInfo": {
-        "syncID": "dQqNsxLcEqKgUPqytescdM-5ee17935-3",
+        "syncID": "oGFKLgakmjkCUdWJusJDbK-5efac751-3",
         "batchPushInfo": {
           "httpStatusCode": 200,
           "errorMessage": "",
@@ -304,7 +304,7 @@
       "transactionId": 7
     },
     "result": {
-      "ref": "53m9llec0trirkgqhbcaf7f3n9o9msdr"
+      "ref": "6rr2lpel4tdnbgie3evgo0vgh8t3dj4o"
     }
   },
   {
@@ -361,8 +361,8 @@
     "dbName": "sync",
     "method": "maybeEndSync",
     "args": {
-      "syncID": "dQqNsxLcEqKgUPqytescdM-5ee17935-3",
-      "syncHead": "heib9bfg7tukuqb3f410b52jvat2eoff"
+      "syncID": "oGFKLgakmjkCUdWJusJDbK-5efac751-3",
+      "syncHead": "hceai6tu7ciclos41bn10ac86ct1i7tp"
     },
     "result": {
       "replayMutations": [
@@ -376,7 +376,7 @@
             "order": 20000,
             "text": "Test 2"
           },
-          "original": "53m9llec0trirkgqhbcaf7f3n9o9msdr"
+          "original": "6rr2lpel4tdnbgie3evgo0vgh8t3dj4o"
         }
       ]
     }
@@ -394,8 +394,8 @@
       },
       "name": "createTodo",
       "rebaseOpts": {
-        "basis": "heib9bfg7tukuqb3f410b52jvat2eoff",
-        "original": "53m9llec0trirkgqhbcaf7f3n9o9msdr"
+        "basis": "hceai6tu7ciclos41bn10ac86ct1i7tp",
+        "original": "6rr2lpel4tdnbgie3evgo0vgh8t3dj4o"
       }
     },
     "result": {
@@ -425,15 +425,15 @@
       "transactionId": 10
     },
     "result": {
-      "ref": "el3d1ho414dr1sct13lcu0auv0ov66m7"
+      "ref": "nrvip9bdkif9mfdsjf0d8s62lc65sv87"
     }
   },
   {
     "dbName": "sync",
     "method": "maybeEndSync",
     "args": {
-      "syncID": "dQqNsxLcEqKgUPqytescdM-5ee17935-3",
-      "syncHead": "el3d1ho414dr1sct13lcu0auv0ov66m7"
+      "syncID": "oGFKLgakmjkCUdWJusJDbK-5efac751-3",
+      "syncHead": "nrvip9bdkif9mfdsjf0d8s62lc65sv87"
     },
     "result": {}
   },
@@ -484,7 +484,7 @@
       "transactionId": 12
     },
     "result": {
-      "ref": "ecs1k0ede34adguu852tpf80j94gs5t0"
+      "ref": "83ff1r0ditb7qnd09a0lgbicaq89lif3"
     }
   },
   {
@@ -494,14 +494,6 @@
     "result": {
       "transactionId": 13
     }
-  },
-  {
-    "dbName": "sync",
-    "method": "closeTransaction",
-    "args": {
-      "transactionId": 13
-    },
-    "result": {}
   },
   {
     "dbName": "sync",
@@ -515,6 +507,14 @@
     "result": {
       "transactionId": 14
     }
+  },
+  {
+    "dbName": "sync",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 13
+    },
+    "result": {}
   },
   {
     "dbName": "sync",
@@ -534,7 +534,7 @@
       "transactionId": 14
     },
     "result": {
-      "ref": "34abhics3p1ch56jlkc50dser2mopls8"
+      "ref": "dqeiovu2k5tn338ue3afsog8urg89n2o"
     }
   },
   {
@@ -563,9 +563,9 @@
       "diffServerAuth": "1"
     },
     "result": {
-      "syncHead": "99q5mhlebhfure6l51jkuobdhe5m6jcr",
+      "syncHead": "3l8trk7um39n3t6kt6cnkgp6o3g512j7",
       "syncInfo": {
-        "syncID": "dQqNsxLcEqKgUPqytescdM-5ee17935-4",
+        "syncID": "oGFKLgakmjkCUdWJusJDbK-5efac751-4",
         "batchPushInfo": {
           "httpStatusCode": 200,
           "errorMessage": "",
@@ -582,8 +582,8 @@
     "dbName": "sync",
     "method": "maybeEndSync",
     "args": {
-      "syncID": "dQqNsxLcEqKgUPqytescdM-5ee17935-4",
-      "syncHead": "99q5mhlebhfure6l51jkuobdhe5m6jcr"
+      "syncID": "oGFKLgakmjkCUdWJusJDbK-5efac751-4",
+      "syncHead": "3l8trk7um39n3t6kt6cnkgp6o3g512j7"
     },
     "result": {}
   },

@@ -1,10 +1,11 @@
-import React, {useEffect, useState} from 'react';
-import type {ReadTransaction, WriteTransaction} from 'replicache';
+import React, {useEffect, useState, useCallback, DependencyList} from 'react';
+import type {ReadTransaction} from 'replicache';
 import add from 'date-fns/add';
 import setDay from 'date-fns/setDay';
 import areIntervalsOverlapping from 'date-fns/areIntervalsOverlapping';
 import format from 'date-fns/format';
 import uuid from 'uuid-random';
+import {pipe, toArray, map, filter} from 'axax/esnext';
 
 import './App.css';
 import type {Event, NormalizedEvent, EventDate} from './types';
@@ -15,50 +16,49 @@ export default App;
 function App() {
   const events = useSubscribe(
     async (tx: ReadTransaction) => {
-      // TODO: Scan API needs improvement.
-      // See https://github.com/rocicorp/replicache-sdk-js/issues/30.
-      const result: NormalizedEvent[] = [];
-
-      for await (const value of tx.scan({prefix: '/event/'})) {
-        const event = value as Event;
-        if (!event.start || !event.end) {
-          continue;
-        }
-        const normalized = {
-          ...event,
-          start: eventDate(event.start),
-          end: eventDate(event.end),
-        };
-
-        const now = new Date();
-        const viewInterval = {
-          start: setDay(
-            new Date(
-              now.getFullYear(),
-              now.getMonth(),
-              now.getDate(),
-            ).getTime(),
-            0,
-          ),
-          end: setDay(
-            new Date(
-              now.getFullYear(),
-              now.getMonth(),
-              now.getDate(),
-              23,
-              59,
-              59,
-              999,
-            ).getTime(),
-            6,
-          ),
-        };
-
-        if (areIntervalsOverlapping(normalized, viewInterval)) {
-          result.push(normalized);
-        }
-      }
-
+      const eventIterable = tx.scan({prefix: '/event/'});
+      const result = (await toArray(
+        pipe(
+          map((event: Event) => {
+            if (!event.start || !event.end) {
+              return null;
+            }
+            let normalized = event as NormalizedEvent;
+            normalized.start = eventDate(event.start);
+            normalized.end = eventDate(event.end);
+            return normalized;
+          }),
+          filter((event: NormalizedEvent | null) => {
+            if (!event) {
+              return false;
+            }
+            const now = new Date();
+            const viewInterval = {
+              start: setDay(
+                new Date(
+                  now.getFullYear(),
+                  now.getMonth(),
+                  now.getDate(),
+                ).getTime(),
+                0,
+              ),
+              end: setDay(
+                new Date(
+                  now.getFullYear(),
+                  now.getMonth(),
+                  now.getDate(),
+                  23,
+                  59,
+                  59,
+                  999,
+                ).getTime(),
+                6,
+              ),
+            };
+            return areIntervalsOverlapping(event, viewInterval);
+          }),
+        )(eventIterable),
+      )) as NormalizedEvent[];
       result.sort((a, b) => a.start.getTime() - b.start.getTime());
       return result;
     },
@@ -136,7 +136,7 @@ function NewEventButton() {
     const start = add(new Date(), {hours: 1});
     const end = add(start, {hours: 1});
     addEvent({
-      id: uuid().replace(/\-/g, ''),
+      id: uuid().replace(/-/g, ''),
       summary: 'Untitled Event',
       start: {
         dateTime: start.toISOString(),
@@ -152,12 +152,13 @@ function NewEventButton() {
 function useSubscribe<R>(
   query: (tx: ReadTransaction) => Promise<R>,
   def: R,
-  deps?: any[],
+  deps: DependencyList[] = [],
 ) {
   const [snapshot, setSnapshot] = useState<R>(def);
+  const q = useCallback(query, deps);
   useEffect(() => {
-    return rep.subscribe(query, {onData: setSnapshot});
-  }, deps);
+    return rep.subscribe(q, {onData: setSnapshot});
+  }, [q]);
   return snapshot;
 }
 

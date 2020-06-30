@@ -106,7 +106,7 @@ type CloseTransactionRequest = TransactionRequest;
 type CloseTransactionResponse = unknown;
 
 type CommitTransactionRequest = TransactionRequest;
-type CommitTransactionResponse =
+export type CommitTransactionResponse =
   | {
       retryCommit: false;
       ref: string;

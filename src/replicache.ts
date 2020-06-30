@@ -527,9 +527,7 @@ export default class Replicache implements ReadTransaction {
       tx.close();
       throw ex;
     }
-    const commitRes = await this._invoke('commitTransaction', {
-      transactionId: tx.id,
-    });
+    const commitRes = await tx.commit();
     if (commitRes.retryCommit) {
       return await this._mutate(name, mutatorImpl, args, {
         invokeArgs,

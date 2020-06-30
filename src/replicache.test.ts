@@ -474,14 +474,6 @@ test('scan', async () => {
   );
 });
 
-test('scan escape', async () => {
-  await useReplay('scan escape');
-
-  rep = await replicacheForTesting('scan escape');
-  const it = await rep.query(tx => tx.scan());
-  await expect(it.values().next()).rejects.toThrow(TransactionClosedError);
-});
-
 test('subscribe', async () => {
   await useReplay('subscribe');
 
@@ -796,4 +788,28 @@ test('reauth', async () => {
   await rep.beginSync();
 
   expect(rep.getDataLayerAuth).toBeCalledTimes(1);
+});
+
+test('closed tx', async () => {
+  await useReplay('closed tx');
+  rep = await replicacheForTesting('reauth');
+
+  let rtx: ReadTransaction;
+  await rep.query(tx => (rtx = tx));
+
+  await expect(() => rtx.get('x')).rejects.toThrow(TransactionClosedError);
+  await expect(() => rtx.has('y')).rejects.toThrow(TransactionClosedError);
+  await expect(() => rtx.scan().values().next()).rejects.toThrow(
+    TransactionClosedError,
+  );
+
+  let wtx: WriteTransaction | undefined;
+  const mut = rep.register('mut', async tx => {
+    wtx = tx;
+  });
+
+  await mut(0);
+  expect(wtx).toBeDefined();
+  await expect(() => wtx?.put('z', 1)).rejects.toThrow(TransactionClosedError);
+  await expect(() => wtx?.del('w')).rejects.toThrow(TransactionClosedError);
 });

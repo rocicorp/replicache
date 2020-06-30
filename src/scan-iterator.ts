@@ -1,8 +1,8 @@
-import {TransactionClosedError} from './transaction-closed-error.js';
 import type {ScanItem} from './scan-item.js';
 import type {ScanBound} from './scan-bound.js';
 import type {Invoke} from './repm-invoker.js';
 import type {JSONValue} from './json.js';
+import {throwIfClosed} from './transactions.js';
 
 export let scanPageSize = 100;
 
@@ -22,6 +22,9 @@ interface IdCloser {
 
 export type ScanIterableKind = 'key' | 'value' | 'entry';
 
+/**
+ * An async iterator that is used with {@link ReadTransaction.scan}.
+ */
 export class ScanIterator<V> implements AsyncIterableIterator<V> {
   private readonly _scanItems: ScanItem[] = [];
   private _current = 0;
@@ -55,17 +58,15 @@ export class ScanIterator<V> implements AsyncIterableIterator<V> {
     return this;
   }
 
-  private async _isClosed(): Promise<boolean> {
+  private async _ensureTransaction(): Promise<IdCloser> {
     if (!this._transaction) {
       this._transaction = await this._getTransaction();
     }
-    return this._transaction.closed;
+    return this._transaction;
   }
 
   async next(): Promise<IteratorResult<V>> {
-    if (await this._isClosed()) {
-      throw new TransactionClosedError();
-    }
+    throwIfClosed(await this._ensureTransaction());
 
     // Preload if we have less than half a page left.
     if (this._current + scanPageSize / 2 >= this._scanItems.length) {
@@ -96,12 +97,11 @@ export class ScanIterator<V> implements AsyncIterableIterator<V> {
   }
 
   async return(): Promise<IteratorResult<V>> {
-    if (await this._isClosed()) {
-      throw new TransactionClosedError();
-    }
-
-    if (this._shouldCloseTransaction && this._transaction) {
-      this._transaction.close();
+    if (this._transaction) {
+      throwIfClosed(this._transaction);
+      if (this._shouldCloseTransaction) {
+        this._transaction.close();
+      }
     }
     return {done: true, value: undefined};
   }

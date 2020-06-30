@@ -1,7 +1,12 @@
 import type {JSONValue, ToJSON} from './json.js';
-import type {Invoke, OpenTransactionRequest} from './repm-invoker.js';
+import type {
+  Invoke,
+  OpenTransactionRequest,
+  CommitTransactionResponse,
+} from './repm-invoker.js';
 import type {ScanOptions} from './scan-options.js';
 import {ScanResult} from './scan-iterator.js';
+import {TransactionClosedError} from './transaction-closed-error.js';
 
 /**
  * ReadTransactions are used with `Replicache.query` and allows read operations
@@ -25,16 +30,23 @@ export interface ReadTransaction {
   scan(options?: ScanOptions): ScanResult;
 }
 
+export function throwIfClosed(tx: {closed: boolean}): void {
+  if (tx.closed) {
+    throw new TransactionClosedError();
+  }
+}
+
 export class ReadTransactionImpl implements ReadTransaction {
   private _transactionId = -1;
   protected readonly _invoke: Invoke;
-  private _closed = false;
+  protected _closed = false;
 
   constructor(invoke: Invoke) {
     this._invoke = invoke;
   }
 
   async get(key: string): Promise<JSONValue | undefined> {
+    throwIfClosed(this);
     const result = await this._invoke('get', {
       transactionId: this._transactionId,
       key,
@@ -46,6 +58,7 @@ export class ReadTransactionImpl implements ReadTransaction {
   }
 
   async has(key: string): Promise<boolean> {
+    throwIfClosed(this);
     const result = await this._invoke('has', {
       transactionId: this._transactionId,
       key,
@@ -103,6 +116,7 @@ export interface WriteTransaction extends ReadTransaction {
 export class WriteTransactionImpl extends ReadTransactionImpl
   implements WriteTransaction {
   async put(key: string, value: JSONValue | ToJSON): Promise<void> {
+    throwIfClosed(this);
     await this._invoke('put', {
       transactionId: this.id,
       key,
@@ -111,10 +125,19 @@ export class WriteTransactionImpl extends ReadTransactionImpl
   }
 
   async del(key: string): Promise<boolean> {
+    throwIfClosed(this);
     const result = await this._invoke('del', {
       transactionId: this.id,
       key,
     });
     return result.ok;
+  }
+
+  async commit(): Promise<CommitTransactionResponse> {
+    this._closed = true;
+    const commitRes = await this._invoke('commitTransaction', {
+      transactionId: this.id,
+    });
+    return commitRes;
   }
 }

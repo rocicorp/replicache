@@ -17,7 +17,7 @@ export interface ReadTransaction {
    * Get a single value from the database. If the key is not present this
    * returns `undefined`.
    */
-  get(key: string): Promise<JSONValue | undefined>;
+  get<V extends JSONValue = JSONValue>(key: string): Promise<V | undefined>;
 
   /**
    * Determines if a single key is present in the database.
@@ -32,7 +32,7 @@ export interface ReadTransaction {
    * It the `ScanResult` is used after the `ReadTransaction` has been closed it
    * will throw a {@link TransactionClosedError}.
    */
-  scan(options?: ScanOptions): ScanResult;
+  scan<V extends JSONValue = JSONValue>(options?: ScanOptions): ScanResult<V>;
 }
 
 export function throwIfClosed(tx: {closed: boolean}): void {
@@ -50,7 +50,9 @@ export class ReadTransactionImpl implements ReadTransaction {
     this._invoke = invoke;
   }
 
-  async get(key: string): Promise<JSONValue | undefined> {
+  async get<V extends JSONValue = JSONValue>(
+    key: string,
+  ): Promise<V | undefined> {
     throwIfClosed(this);
     const result = await this._invoke('get', {
       transactionId: this._transactionId,
@@ -59,7 +61,7 @@ export class ReadTransactionImpl implements ReadTransaction {
     if (!result.has) {
       return undefined;
     }
-    return result.value;
+    return result.value as V;
   }
 
   async has(key: string): Promise<boolean> {
@@ -71,7 +73,10 @@ export class ReadTransactionImpl implements ReadTransaction {
     return result['has'];
   }
 
-  scan({prefix = '', start}: ScanOptions = {}): ScanResult {
+  scan<V extends JSONValue = JSONValue>({
+    prefix = '',
+    start,
+  }: ScanOptions = {}): ScanResult<V> {
     return new ScanResult(prefix, start, this._invoke, () => this, false);
   }
 

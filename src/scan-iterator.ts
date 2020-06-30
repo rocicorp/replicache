@@ -143,7 +143,7 @@ export class ScanIterator<V> implements AsyncIterableIterator<V> {
   }
 }
 
-export class ScanResult implements AsyncIterable<JSONValue> {
+export class ScanResult<V extends JSONValue> implements AsyncIterable<V> {
   private readonly _args: [
     string,
     ScanBound | undefined,
@@ -164,11 +164,11 @@ export class ScanResult implements AsyncIterable<JSONValue> {
     this._args = args;
   }
 
-  [Symbol.asyncIterator](): AsyncIterableIterator<JSONValue> {
+  [Symbol.asyncIterator](): AsyncIterableIterator<V> {
     return this.values();
   }
 
-  values(): AsyncIterableIterator<JSONValue> {
+  values(): AsyncIterableIterator<V> {
     return this._newIterator('value');
   }
 
@@ -176,7 +176,7 @@ export class ScanResult implements AsyncIterable<JSONValue> {
     return this._newIterator('key');
   }
 
-  entries(): AsyncIterableIterator<[string, JSONValue]> {
+  entries(): AsyncIterableIterator<[string, V]> {
     return this._newIterator('entry');
   }
 

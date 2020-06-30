@@ -169,8 +169,7 @@ function registerMutations(rep: Replicache) {
     tx: ReadTransaction,
     id: number,
   ): Promise<Todo | undefined> {
-    const data = await tx.get(addPrefix(id));
-    return data as Todo | undefined;
+    return await tx.get<Todo>(addPrefix(id));
   }
 
   function write(tx: WriteTransaction, todo: Todo): Promise<void> {
@@ -221,8 +220,8 @@ function registerMutations(rep: Replicache) {
 
 async function allTodosInTx(tx: ReadTransaction): Promise<Todo[]> {
   const todos: Todo[] = [];
-  for await (const value of tx.scan({prefix})) {
-    todos.push(value as Todo);
+  for await (const value of tx.scan<Todo>({prefix})) {
+    todos.push(value);
   }
   return todos;
 }
@@ -235,8 +234,8 @@ function todosInList(allTodos: Todo[], listId: number | null): Todo[] {
 
 async function allListsInTx(tx: ReadTransaction): Promise<number[]> {
   const listIds: number[] = [];
-  for await (const value of tx.scan({prefix: '/list/'})) {
-    listIds.push((value as {id: number}).id);
+  for await (const {id} of tx.scan<{id: number}>({prefix: '/list/'})) {
+    listIds.push(id);
   }
   return listIds;
 }

@@ -186,8 +186,8 @@ export default class Replicache implements ReadTransaction {
   };
 
   /** Get a single value from the database. */
-  get(key: string): Promise<JSONValue | undefined> {
-    return this.query(tx => tx.get(key));
+  get<V extends JSONValue = JSONValue>(key: string): Promise<V | undefined> {
+    return this.query(tx => tx.get<V>(key));
   }
 
   /** Determines if a single key is present in the database. */
@@ -200,7 +200,10 @@ export default class Replicache implements ReadTransaction {
    * implements `AsyncIterable`. It also has methods to iterate over the `keys`
    * and `entries`.
    * */
-  scan({prefix = '', start}: ScanOptions = {}): ScanResult {
+  scan<V extends JSONValue = JSONValue>({
+    prefix = '',
+    start,
+  }: ScanOptions = {}): ScanResult<V> {
     let tx: ReadTransactionImpl;
     return new ScanResult(
       prefix,

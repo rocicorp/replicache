@@ -362,6 +362,7 @@ export default class Replicache implements ReadTransaction {
 
     if (this._syncPromise !== null) {
       await this._syncPromise;
+      await this.sync();
       return;
     }
 

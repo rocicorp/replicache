@@ -7,7 +7,6 @@ echo "Fetching test-server..."
 
 (
   cd $ROOT
-  set -x
 
   PLATFORM=''
   if [ "$(uname)" == "Darwin" ]; then

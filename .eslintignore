@@ -3,3 +3,5 @@ coverage
 out
 out.cjs
 jest.*.js
+tool
+bin

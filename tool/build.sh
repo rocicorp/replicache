@@ -23,12 +23,12 @@ echo "Fetching test-server..."
   # backward compatibility. We need to download the correct version
   # this SDK works with.
   URL="https://github.com/rocicorp/replicache-client/releases/download/$REPM_VERSION/test-server-amd64-$PLATFORM"
-  curl -L -f $URL > test-server
-  chmod u+x test-server
+  curl -L -f $URL > bin/test-server
+  chmod u+x bin/test-server
 
   # Diff server is a public interface. We *do* maintain backward compat.
   # We download the latest release.
   URL="https://github.com/rocicorp/diff-server/releases/latest/download/diffs-$PLATFORM"
-  curl -L -f $URL > diff-server
-  chmod u+x diff-server
+  curl -L -f $URL > bin/diff-server
+  chmod u+x bin/diff-server
 )

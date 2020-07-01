@@ -176,6 +176,7 @@ async function replayInvoke(
 }
 
 let invoke: REPMInvoke = httpInvoke;
+let orgInvoke: REPMInvoke;
 
 type TestMode = 'live' | 'replay' | 'record';
 
@@ -258,9 +259,7 @@ beforeEach(async () => {
     }
   }
 
-  if (jest.isMockFunction(invoke)) {
-    invoke.mockClear();
-  }
+  orgInvoke = invoke;
 });
 
 afterEach(async () => {
@@ -290,6 +289,11 @@ afterEach(async () => {
   }
 
   expect(resultReplacements).toHaveLength(0);
+
+  if (jest.isMockFunction(invoke)) {
+    invoke.mockClear();
+    invoke = orgInvoke;
+  }
 });
 
 beforeAll(() => {
@@ -783,7 +787,6 @@ test('sync2', async () => {
   await s2;
 
   const {calls} = (invoke as jest.Mock).mock;
-  console.log(calls);
   const syncCalls = calls.filter(([, rpc]) => rpc === 'beginSync').length;
   expect(syncCalls).toBe(2);
 });

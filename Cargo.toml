@@ -13,6 +13,7 @@ async-trait = "0.1.36"
 console_log = { version = "0.2" }
 console_error_panic_hook = { version = "0.1.1", optional = true }
 data-encoding = "1.1.1"
+flatbuffers = "0.6.1"
 futures = "0.3.5"
 js-sys = "0.3.40"
 lazy_static = "1.4.0"

@@ -176,6 +176,7 @@ async function replayInvoke(
 }
 
 let invoke: REPMInvoke = httpInvoke;
+let orgInvoke: REPMInvoke;
 
 type TestMode = 'live' | 'replay' | 'record';
 
@@ -257,6 +258,8 @@ beforeEach(async () => {
       await ReplicacheTest.drop(info.name, {repmInvoke: httpInvoke});
     }
   }
+
+  orgInvoke = invoke;
 });
 
 afterEach(async () => {
@@ -286,6 +289,11 @@ afterEach(async () => {
   }
 
   expect(resultReplacements).toHaveLength(0);
+
+  if (jest.isMockFunction(invoke)) {
+    invoke.mockClear();
+    invoke = orgInvoke;
+  }
 });
 
 beforeAll(() => {
@@ -677,9 +685,6 @@ test('sync', async () => {
     diffServerAuth: '1',
   });
 
-  const c = resolver();
-  c.resolve();
-
   let createCount = 0;
   let deleteCount = 0;
   let syncHead: string;
@@ -763,6 +768,27 @@ test('sync', async () => {
 
   expect(deleteCount).toBe(4);
   expect(createCount).toBe(3);
+});
+
+test('sync2', async () => {
+  await useReplay('sync2');
+
+  invoke = jest.fn(invoke);
+
+  rep = await replicacheForTesting('sync2', {
+    batchURL: 'https://replicache-sample-todo.now.sh/serve/replicache-batch',
+    dataLayerAuth: '1',
+    diffServerAuth: '1',
+  });
+
+  const s1 = rep.sync();
+  const s2 = rep.sync();
+  await s1;
+  await s2;
+
+  const {calls} = (invoke as jest.Mock).mock;
+  const syncCalls = calls.filter(([, rpc]) => rpc === 'beginSync').length;
+  expect(syncCalls).toBe(2);
 });
 
 test('reauth', async () => {

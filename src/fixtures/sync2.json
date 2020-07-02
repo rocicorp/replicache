@@ -1,0 +1,87 @@
+[
+  {
+    "dbName": "sync2",
+    "method": "open",
+    "args": {},
+    "result": ""
+  },
+  {
+    "dbName": "sync2",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
+    }
+  },
+  {
+    "dbName": "sync2",
+    "method": "beginSync",
+    "args": {
+      "batchPushURL": "https://replicache-sample-todo.now.sh/serve/replicache-batch",
+      "diffServerURL": "https://serve.replicache.dev/pull",
+      "dataLayerAuth": "1",
+      "diffServerAuth": "1"
+    },
+    "result": {
+      "syncHead": "2cdcete40dc5h6f2p4de8hm11o0nb2l5",
+      "syncInfo": {
+        "syncID": "vGKkqrmRSCDED9pRHBbT7J-5efd13b0-1",
+        "clientViewInfo": {
+          "httpStatusCode": 200,
+          "errorMessage": ""
+        }
+      }
+    }
+  },
+  {
+    "dbName": "sync2",
+    "method": "maybeEndSync",
+    "args": {
+      "syncID": "vGKkqrmRSCDED9pRHBbT7J-5efd13b0-1",
+      "syncHead": "2cdcete40dc5h6f2p4de8hm11o0nb2l5"
+    },
+    "result": {}
+  },
+  {
+    "dbName": "sync2",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 1
+    }
+  },
+  {
+    "dbName": "sync2",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 1
+    },
+    "result": {}
+  },
+  {
+    "dbName": "sync2",
+    "method": "beginSync",
+    "args": {
+      "batchPushURL": "https://replicache-sample-todo.now.sh/serve/replicache-batch",
+      "diffServerURL": "https://serve.replicache.dev/pull",
+      "dataLayerAuth": "1",
+      "diffServerAuth": "1"
+    },
+    "result": {
+      "syncHead": "00000000000000000000000000000000",
+      "syncInfo": {
+        "syncID": "vGKkqrmRSCDED9pRHBbT7J-5efd13b0-2",
+        "clientViewInfo": {
+          "httpStatusCode": 200,
+          "errorMessage": ""
+        }
+      }
+    }
+  },
+  {
+    "dbName": "sync2",
+    "method": "close",
+    "args": {},
+    "result": ""
+  }
+]

@@ -1,0 +1,3 @@
+#!/usr/bin/env node
+console.error('test-server: Failed to install correctly');
+process.exit(1);

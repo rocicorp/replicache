@@ -113,6 +113,9 @@ impl Read for WriteTransaction<'_> {
 
 #[async_trait(?Send)]
 impl Write for WriteTransaction<'_> {
+    fn as_read<'a>(&'a self) -> &'a dyn Read {
+        self
+    }
     async fn put(&self, key: &str, value: &[u8]) -> Result<()> {
         self.check_open()?;
         self.pending

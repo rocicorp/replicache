@@ -18,3 +18,22 @@ pub mod chunk;
 pub mod key;
 #[allow(unused_imports)]
 mod meta_generated;
+mod read;
+pub mod store;
+mod write;
+
+use crate::kv;
+
+#[derive(Debug)]
+pub enum Error {
+    Storage(kv::StoreError),
+    CorruptStore,
+}
+
+impl From<kv::StoreError> for Error {
+    fn from(err: kv::StoreError) -> Error {
+        Error::Storage(err)
+    }
+}
+
+type Result<T> = std::result::Result<T, Error>;

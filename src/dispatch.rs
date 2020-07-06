@@ -55,7 +55,7 @@ async fn dispatch_loop(rx: Receiver<Request>) {
                     "has" => Dispatcher::has(&**db, &req.data).await,
                     "get" => Dispatcher::get(&**db, &req.data).await,
                     "put" => Dispatcher::put(&mut **db, &req.data).await,
-                    _ => Err("Unsupported rpc name".to_string()),
+                    _ => Err("Unsupported rpc name".into()),
                 };
                 req.response.send(response).await;
             }
@@ -87,10 +87,10 @@ struct Dispatcher {
 impl Dispatcher {
     async fn open(&mut self, req: &Request) -> Response {
         if req.db_name.is_empty() {
-            return Err("db_name must be non-empty".to_string());
+            return Err("db_name must be non-empty".into());
         }
         if self.connections.contains_key(&req.db_name[..]) {
-            return Ok("".to_string());
+            return Ok("".into());
         }
         match IdbStore::new(&req.db_name[..]).await {
             Err(e) => {
@@ -102,16 +102,16 @@ impl Dispatcher {
                 }
             }
         }
-        Ok("".to_string())
+        Ok("".into())
     }
 
     async fn close(&mut self, req: &Request) -> Response {
         if !self.connections.contains_key(&req.db_name[..]) {
-            return Ok("".to_string());
+            return Ok("".into());
         }
         self.connections.remove(&req.db_name);
 
-        Ok("".to_string())
+        Ok("".into())
     }
 
     async fn has(db: &dyn Store, data: &String) -> Response {
@@ -137,7 +137,7 @@ impl Dispatcher {
             Ok(Some(v)) => match std::str::from_utf8(&v[..]) {
                 Ok(v) => Ok(SerJson::serialize_json(&GetResponse {
                     has: true,
-                    value: Some(v.to_string()),
+                    value: Some(v.into()),
                 })),
                 Err(e) => Err(e.to_string()),
             },
@@ -163,7 +163,7 @@ impl Dispatcher {
     async fn debug(&self, req: &Request) -> Response {
         match req.data.as_str() {
             "open_dbs" => Ok(format!("{:?}", self.connections.keys())),
-            _ => Err("Debug command not defined".to_string()),
+            _ => Err("Debug command not defined".into()),
         }
     }
 }
@@ -178,10 +178,10 @@ pub async fn dispatch(db_name: String, rpc: String, data: String) -> Response {
     };
     match SENDER.lock() {
         Ok(v) => v.send(request).await,
-        Err(v) => return Err(v.to_string()),
+        Err(e) => return Err(e.to_string()),
     }
     match rx.recv().await {
-        Err(v) => Err(v.to_string()),
+        Err(e) => Err(e.to_string()),
         Ok(v) => v,
     }
 }

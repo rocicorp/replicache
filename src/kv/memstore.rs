@@ -94,12 +94,12 @@ impl Write for WriteTransaction<'_> {
         self.pending
             .lock()
             .await
-            .insert(key.to_string(), Some(value.to_vec()));
+            .insert(key.into(), Some(value.to_vec()));
         Ok(())
     }
 
     async fn del(&self, key: &str) -> Result<()> {
-        self.pending.lock().await.insert(key.to_string(), None);
+        self.pending.lock().await.insert(key.into(), None);
         Ok(())
     }
 

@@ -105,8 +105,8 @@ mod tests {
             assert_eq!(c, c2);
         }
 
-        test("".to_string(), vec![], &vec![]);
-        test("h".to_string(), vec![0], &vec!["r1"]);
-        test("h1".to_string(), vec![0, 1], &vec!["r1", "r2"]);
+        test("".into(), vec![], &vec![]);
+        test("h".into(), vec![0], &vec!["r1"]);
+        test("h1".into(), vec![0, 1], &vec!["r1", "r2"]);
     }
 }

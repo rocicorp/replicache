@@ -25,7 +25,7 @@ impl From<JsValue> for StoreError {
 
 impl From<futures::channel::oneshot::Canceled> for StoreError {
     fn from(_e: futures::channel::oneshot::Canceled) -> StoreError {
-        StoreError::Str("oneshot cancelled".to_string())
+        StoreError::Str("oneshot cancelled".into())
     }
 }
 
@@ -228,12 +228,12 @@ impl Write for WriteTransaction {
         self.pending
             .lock()
             .await
-            .insert(key.to_string(), Some(value.to_vec()));
+            .insert(key.into(), Some(value.to_vec()));
         Ok(())
     }
 
     async fn del(&self, key: &str) -> Result<()> {
-        self.pending.lock().await.insert(key.to_string(), None);
+        self.pending.lock().await.insert(key.into(), None);
         Ok(())
     }
 

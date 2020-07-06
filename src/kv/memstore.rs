@@ -25,25 +25,6 @@ impl Store for MemStore {
     async fn write<'a>(&'a self) -> Result<Box<dyn Write + 'a>> {
         return Ok(Box::new(WriteTransaction::new(self)));
     }
-
-    async fn put(&mut self, key: &str, value: &[u8]) -> Result<()> {
-        self.map
-            .lock()
-            .await
-            .insert(key.to_string(), value.to_vec());
-        Ok(())
-    }
-
-    async fn has(&self, key: &str) -> Result<bool> {
-        Ok(self.map.lock().await.contains_key(key))
-    }
-
-    async fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
-        match self.map.lock().await.get(key) {
-            None => Ok(None),
-            Some(v) => Ok(Some(v.to_vec())),
-        }
-    }
 }
 
 struct ReadTransaction<'a> {

@@ -21,12 +21,22 @@ type Result<T> = std::result::Result<T, StoreError>;
 
 #[async_trait(?Send)]
 pub trait Store {
-    async fn put(&mut self, key: &str, value: &[u8]) -> Result<()>;
-    async fn has(&self, key: &str) -> Result<bool>;
-    async fn get(&self, key: &str) -> Result<Option<Vec<u8>>>;
-
     async fn read<'a>(&'a self) -> Result<Box<dyn Read + 'a>>;
     async fn write<'a>(&'a self) -> Result<Box<dyn Write + 'a>>;
+
+    async fn put(&mut self, key: &str, value: &[u8]) -> Result<()> {
+        let wt = self.write().await?;
+        wt.put(key, value).await?;
+        Ok(wt.commit().await?)
+    }
+
+    async fn has(&self, key: &str) -> Result<bool> {
+        Ok(self.read().await?.has(key).await?)
+    }
+
+    async fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
+        Ok(self.read().await?.get(key).await?)
+    }
 }
 
 #[async_trait(?Send)]

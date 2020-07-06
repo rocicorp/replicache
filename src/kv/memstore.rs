@@ -1,4 +1,4 @@
-use crate::kv::{Read, Result, Store, StoreError, Write};
+use crate::kv::{Read, Result, Store, Write};
 use async_std::sync::Mutex;
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -73,7 +73,6 @@ impl Read for ReadTransaction<'_> {
 struct WriteTransaction<'a> {
     rt: ReadTransaction<'a>,
     pending: Mutex<HashMap<String, Vec<u8>>>,
-    open: bool,
 }
 
 impl WriteTransaction<'_> {
@@ -81,29 +80,19 @@ impl WriteTransaction<'_> {
         return WriteTransaction {
             rt: ReadTransaction { store },
             pending: Mutex::new(HashMap::new()),
-            open: true,
         };
-    }
-
-    fn check_open(&self) -> Result<()> {
-        match self.open {
-            true => Ok(()),
-            false => Err(StoreError::Str("Transaction already closed".into())),
-        }
     }
 }
 
 #[async_trait(?Send)]
 impl Read for WriteTransaction<'_> {
     async fn has(&self, key: &str) -> Result<bool> {
-        self.check_open()?;
         match self.pending.lock().await.contains_key(key) {
             true => Ok(true),
             false => self.rt.has(key).await,
         }
     }
     async fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
-        self.check_open()?;
         match self.pending.lock().await.get(key) {
             Some(v) => Ok(Some(v.to_vec())),
             None => self.rt.get(key).await,
@@ -117,7 +106,6 @@ impl Write for WriteTransaction<'_> {
         self
     }
     async fn put(&self, key: &str, value: &[u8]) -> Result<()> {
-        self.check_open()?;
         self.pending
             .lock()
             .await
@@ -125,8 +113,7 @@ impl Write for WriteTransaction<'_> {
         Ok(())
     }
 
-    async fn commit(&mut self) -> Result<()> {
-        self.check_open()?;
+    async fn commit(self: Box<Self>) -> Result<()> {
         let mut pending = self.pending.lock().await;
         let pending_ref: &HashMap<String, Vec<u8>> = &pending;
         self.rt
@@ -136,24 +123,22 @@ impl Write for WriteTransaction<'_> {
             .await
             .extend(pending_ref.into_iter().map(|(k, v)| (k.clone(), v.clone())));
         pending.clear();
-        self.open = false;
         Ok(())
     }
 
-    async fn rollback(&mut self) -> Result<()> {
-        self.check_open()?;
+    async fn rollback(self: Box<Self>) -> Result<()> {
         self.pending.lock().await.clear();
-        self.open = false;
         Ok(())
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::kv::StoreError;
 
     #[async_std::test]
-    #[cfg(not(target_arch = "wasm32"))]
     async fn basics() -> std::result::Result<(), StoreError> {
         let mut ms = MemStore::new();
         assert_eq!(false, ms.has("foo").await?);
@@ -168,7 +153,7 @@ mod tests {
         assert_eq!(false, rt.has("bar").await?);
         assert_eq!(None, rt.get("bar").await?);
 
-        let mut wt = ms.write().await?;
+        let wt = ms.write().await?;
         assert_eq!(false, wt.has("bar").await?);
         wt.put("bar", b"baz").await?;
         assert_eq!(Some(b"baz".to_vec()), wt.get("bar").await?);

@@ -26,6 +26,7 @@ wee_alloc = "0.4.5"
 
 [dev-dependencies]
 async-std = { version = "=1.6.0", features = ["attributes", "unstable"] }
+rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 wasm-bindgen-test = "0.3.0"
 
 [dependencies.web-sys]

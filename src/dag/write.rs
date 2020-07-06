@@ -2,7 +2,6 @@ use super::chunk::Chunk;
 use super::key::Key;
 use super::{read, Result};
 use crate::kv;
-use crate::kv::Store;
 
 #[allow(dead_code)]
 pub struct Write<'a> {
@@ -46,11 +45,11 @@ impl<'a> Write<'_> {
             .await?)
     }
 
-    pub async fn commit(&mut self) -> Result<()> {
+    pub async fn commit(self) -> Result<()> {
         Ok(self.kvw.commit().await?)
     }
 
-    pub async fn rollback(&mut self) -> Result<()> {
+    pub async fn rollback(self) -> Result<()> {
         Ok(self.kvw.rollback().await?)
     }
 }
@@ -59,6 +58,7 @@ impl<'a> Write<'_> {
 mod tests {
     use super::*;
     use crate::kv::memstore::MemStore;
+    use crate::kv::Store;
 
     #[async_std::test]
     async fn put_chunk() {
@@ -129,18 +129,11 @@ mod tests {
                 let kvr = kv.read().await.unwrap();
                 assert!(!kvr.has("c/h1/d").await.unwrap());
 
-                // After finalize, nothing should work because the tx is closed.
-                // TODO: Better to test for precise error.
                 if commit {
                     w.commit().await.unwrap();
                 } else {
                     w.rollback().await.unwrap();
                 }
-                assert!(w.has_chunk("").await.is_err());
-                assert!(w.get_chunk("").await.is_err());
-                assert!(w.put_chunk(&c).await.is_err());
-                assert!(w.get_head("").await.is_err());
-                assert!(w.set_head("", "").await.is_err());
             }
 
             // The data should now be visible if it was committed.

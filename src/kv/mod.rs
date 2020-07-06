@@ -42,6 +42,6 @@ pub trait Write: Read {
     async fn put(&self, key: &str, value: &[u8]) -> Result<()>;
     // TODO(nate): async fn del(&self, key: &str) -> Result<()>;
 
-    async fn commit(&mut self) -> Result<()>;
-    async fn rollback(&mut self) -> Result<()>;
+    async fn commit(self: Box<Self>) -> Result<()>;
+    async fn rollback(self: Box<Self>) -> Result<()>;
 }

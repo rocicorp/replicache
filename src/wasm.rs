@@ -6,6 +6,8 @@ use wee_alloc;
 
 use crate::dag::{chunk, key};
 use crate::dispatch;
+use crate::kv::idbstore::IdbStore;
+use crate::kv::Store;
 use crate::prolly::chunker::Chunker;
 
 // Use `wee_alloc` as the global allocator.
@@ -25,6 +27,15 @@ pub async fn exercise_dag() {
         c.meta().map(|b| b.to_vec()),
     );
     warn!("{:?} {:?} {:?} {:?} {:?}", c, c2, k1, k2, k3);
+}
+
+#[cfg(not(default))]
+pub async fn new_idbstore(name: String) -> Option<Box<dyn Store>> {
+    init_panic_hook();
+    match IdbStore::new(&name).await {
+        Ok(Some(v)) => Some(Box::new(v)),
+        _ => None,
+    }
 }
 
 #[wasm_bindgen]

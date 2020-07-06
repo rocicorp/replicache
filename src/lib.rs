@@ -8,5 +8,11 @@ extern crate log;
 mod dag;
 mod dispatch;
 mod hash;
+
+#[cfg(not(default))]
+pub mod kv;
+
+#[cfg(default)]
 mod kv;
+
 mod prolly;

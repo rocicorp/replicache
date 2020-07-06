@@ -39,6 +39,29 @@ pub mod idbstore {
     }
 
     #[wasm_bindgen_test]
+    async fn delete() {
+        let store = new_store().await;
+
+        // Start a write transaction, and put a value on it.
+        let wt = store.write().await.unwrap();
+        assert_eq!(false, wt.has("bar").await.unwrap());
+        wt.put("bar", b"baz").await.unwrap();
+        wt.commit().await.unwrap();
+
+        // Delete.
+        let wt = store.write().await.unwrap();
+        assert_eq!(true, wt.has("bar").await.unwrap());
+        wt.del("bar").await.unwrap();
+        assert_eq!(false, wt.has("bar").await.unwrap());
+        wt.commit().await.unwrap();
+
+        // Verify that the delete was effective.
+        let rt = store.read().await.unwrap();
+        assert_eq!(false, rt.has("bar").await.unwrap());
+        assert_eq!(None, rt.get("bar").await.unwrap());
+    }
+
+    #[wasm_bindgen_test]
     async fn read_only_commit() {
         let store = new_store().await;
 

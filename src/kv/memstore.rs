@@ -72,7 +72,7 @@ impl Read for ReadTransaction<'_> {
 
 struct WriteTransaction<'a> {
     rt: ReadTransaction<'a>,
-    pending: Mutex<HashMap<String, Vec<u8>>>,
+    pending: Mutex<HashMap<String, Option<Vec<u8>>>>,
 }
 
 impl WriteTransaction<'_> {
@@ -87,14 +87,17 @@ impl WriteTransaction<'_> {
 #[async_trait(?Send)]
 impl Read for WriteTransaction<'_> {
     async fn has(&self, key: &str) -> Result<bool> {
-        match self.pending.lock().await.contains_key(key) {
-            true => Ok(true),
-            false => self.rt.has(key).await,
+        match self.pending.lock().await.get(key) {
+            Some(Some(_)) => Ok(true),
+            Some(None) => Ok(false),
+            None => self.rt.has(key).await,
         }
     }
+
     async fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
         match self.pending.lock().await.get(key) {
-            Some(v) => Ok(Some(v.to_vec())),
+            Some(Some(v)) => Ok(Some(v.to_vec())),
+            Some(None) => Ok(None),
             None => self.rt.get(key).await,
         }
     }
@@ -105,29 +108,33 @@ impl Write for WriteTransaction<'_> {
     fn as_read<'a>(&'a self) -> &'a dyn Read {
         self
     }
+
     async fn put(&self, key: &str, value: &[u8]) -> Result<()> {
         self.pending
             .lock()
             .await
-            .insert(key.to_string(), value.to_vec());
+            .insert(key.to_string(), Some(value.to_vec()));
+        Ok(())
+    }
+
+    async fn del(&self, key: &str) -> Result<()> {
+        self.pending.lock().await.insert(key.to_string(), None);
         Ok(())
     }
 
     async fn commit(self: Box<Self>) -> Result<()> {
-        let mut pending = self.pending.lock().await;
-        let pending_ref: &HashMap<String, Vec<u8>> = &pending;
-        self.rt
-            .store
-            .map
-            .lock()
-            .await
-            .extend(pending_ref.into_iter().map(|(k, v)| (k.clone(), v.clone())));
-        pending.clear();
+        let pending = self.pending.lock().await;
+        let mut map = self.rt.store.map.lock().await;
+        for item in pending.iter() {
+            match item.1 {
+                Some(v) => map.insert(item.0.clone(), v.clone()),
+                None => map.remove(item.0),
+            };
+        }
         Ok(())
     }
 
     async fn rollback(self: Box<Self>) -> Result<()> {
-        self.pending.lock().await.clear();
         Ok(())
     }
 }
@@ -163,6 +170,27 @@ mod tests {
         let rt = ms.read().await?;
         assert_eq!(true, rt.has("bar").await?);
         assert_eq!(Some(b"baz".to_vec()), rt.get("bar").await?);
+
+        Ok(())
+    }
+
+    #[async_std::test]
+    async fn delete() -> std::result::Result<(), StoreError> {
+        let mut ms = MemStore::new();
+        ms.put("bar", "foo".as_bytes()).await?;
+
+        let wt = ms.write().await?;
+        assert_eq!(true, wt.has("bar").await?);
+        wt.del("bar").await?;
+        assert_eq!(false, wt.has("bar").await?);
+        wt.put("bar", b"overwrite").await?;
+        assert_eq!(true, wt.has("bar").await?);
+        assert_eq!(Some(b"overwrite".to_vec()), wt.get("bar").await?);
+        wt.del("bar").await?;
+        wt.commit().await?;
+
+        let rt = ms.read().await?;
+        assert_eq!(false, rt.has("bar").await?);
 
         Ok(())
     }

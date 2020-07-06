@@ -218,7 +218,7 @@ enum WriteState {
 
 struct WriteTransaction {
     rt: ReadTransaction,
-    pending: Mutex<HashMap<String, Vec<u8>>>,
+    pending: Mutex<HashMap<String, Option<Vec<u8>>>>,
     pair: Arc<(Mutex<WriteState>, Condvar)>,
     callbacks: Vec<Closure<dyn FnMut()>>,
 }
@@ -270,15 +270,17 @@ impl WriteTransaction {
 #[async_trait(?Send)]
 impl Read for WriteTransaction {
     async fn has(&self, key: &str) -> Result<bool> {
-        match self.pending.lock().await.contains_key(key) {
-            true => Ok(true),
-            false => self.rt.has(key).await,
+        match self.pending.lock().await.get(key) {
+            Some(Some(_)) => Ok(true),
+            Some(None) => Ok(false),
+            None => self.rt.has(key).await,
         }
     }
 
     async fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
         match self.pending.lock().await.get(key) {
-            Some(v) => Ok(Some(v.to_vec())),
+            Some(Some(v)) => Ok(Some(v.to_vec())),
+            Some(None) => Ok(None),
             None => self.rt.get(key).await,
         }
     }
@@ -294,7 +296,12 @@ impl Write for WriteTransaction {
         self.pending
             .lock()
             .await
-            .insert(key.to_string(), value.to_vec());
+            .insert(key.to_string(), Some(value.to_vec()));
+        Ok(())
+    }
+
+    async fn del(&self, key: &str) -> Result<()> {
+        self.pending.lock().await.insert(key.to_string(), None);
         Ok(())
     }
 
@@ -310,9 +317,12 @@ impl Write for WriteTransaction {
 
         let store = self.rt.tx.object_store(OBJECT_STORE)?;
         let mut callbacks = Vec::with_capacity(pending.len());
-        let mut puts: Vec<oneshot::Receiver<()>> = Vec::with_capacity(pending.len());
+        let mut requests: Vec<oneshot::Receiver<()>> = Vec::with_capacity(pending.len());
         for (key, value) in pending.iter() {
-            let request = store.put_with_key(&js_sys::Uint8Array::from(&value[..]), &key.into())?;
+            let request = match value {
+                Some(v) => store.put_with_key(&js_sys::Uint8Array::from(&v[..]), &key.into())?,
+                None => store.delete(&key.into())?,
+            };
             let (sender, receiver) = oneshot::channel::<()>();
             let callback = Closure::once(move || {
                 if let Err(_) = sender.send(()) {
@@ -321,9 +331,9 @@ impl Write for WriteTransaction {
             });
             request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
             callbacks.push(callback);
-            puts.push(receiver);
+            requests.push(receiver);
         }
-        join_all(puts).await;
+        join_all(requests).await;
 
         let (lock, cv) = &*self.pair;
         let state = cv

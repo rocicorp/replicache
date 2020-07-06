@@ -12,7 +12,7 @@ pub struct Read<'a> {
 #[allow(dead_code)]
 impl<'a> Read<'_> {
     pub fn new(kvr: Box<dyn kv::Read + 'a>) -> Read {
-        Read{kvr}
+        Read { kvr }
     }
 
     pub async fn has_chunk(&self, hash: &str) -> Result<bool> {
@@ -48,7 +48,7 @@ pub async fn get_head(kvr: &dyn kv::Read, name: &str) -> Result<Option<String>> 
             Ok(s) => return Ok(Some(s)),
             Err(e) => {
                 error!("Could not decode head: {}: {}", name, e);
-                return Err(Error::CorruptStore)
+                return Err(Error::CorruptStore);
             }
         }
     }

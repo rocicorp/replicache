@@ -31,7 +31,7 @@ impl<'a> Key<'_> {
                     "m" => Ok(Key::ChunkMeta(content)),
                     _ => Err(()),
                 }
-            },
+            }
             "h" => Ok(Key::Head(content)),
             _ => Err(()),
         }

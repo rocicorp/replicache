@@ -1,7 +1,7 @@
-use crate::kv;
-use super::Result;
 use super::read::Read;
 use super::write::Write;
+use super::Result;
+use crate::kv;
 
 #[allow(dead_code)]
 pub struct Store {
@@ -11,7 +11,7 @@ pub struct Store {
 #[allow(dead_code)]
 impl Store {
     pub fn new(kv: Box<dyn kv::Store>) -> Store {
-        Store{kv}
+        Store { kv }
     }
 
     pub async fn read<'a>(&'a self) -> Result<Read<'a>> {

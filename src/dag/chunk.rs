@@ -44,7 +44,7 @@ impl Chunk {
         if let Some(buf) = self.meta() {
             if let Some(refs) = meta::get_root_as_meta(buf).refs() {
                 return Some(refs.iter());
-            } 
+            }
         }
         None
     }
@@ -64,10 +64,7 @@ impl Chunk {
         // TODO: You're supposed to be able to use start_vector() and
         // push(), but cannot make compiler happy wih that.
         let refs = builder.create_vector_of_strings(refs);
-        let meta = meta::Meta::create(
-            &mut builder,
-            &meta::MetaArgs { refs: Some(refs) },
-        );
+        let meta = meta::Meta::create(&mut builder, &meta::MetaArgs { refs: Some(refs) });
         builder.finish(meta, None);
         Some(builder.collapse())
     }
@@ -77,12 +74,10 @@ impl PartialEq for Chunk {
     fn eq(&self, other: &Self) -> bool {
         match self.refs() {
             None => other.refs().is_none(),
-            Some(s) => {
-                match other.refs() {
-                    None => false,
-                    Some(o) => s.eq(o),
-                }
-            }
+            Some(s) => match other.refs() {
+                None => false,
+                Some(o) => s.eq(o),
+            },
         }
     }
 }

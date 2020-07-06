@@ -1,6 +1,6 @@
 use super::chunk::Chunk;
 use super::key::Key;
-use super::{Result, read};
+use super::{read, Result};
 use crate::kv;
 use crate::kv::Store;
 
@@ -12,7 +12,7 @@ pub struct Write<'a> {
 #[allow(dead_code)]
 impl<'a> Write<'_> {
     pub fn new(kvw: Box<dyn kv::Write + 'a>) -> Write {
-        Write{kvw}
+        Write { kvw }
     }
 
     pub async fn has_chunk(&mut self, hash: &str) -> Result<bool> {
@@ -40,7 +40,8 @@ impl<'a> Write<'_> {
     }
 
     pub async fn set_head(&mut self, name: &str, hash: &str) -> Result<()> {
-        Ok(self.kvw
+        Ok(self
+            .kvw
             .put(&Key::Head(name).to_string(), hash.as_bytes())
             .await?)
     }
@@ -64,7 +65,7 @@ mod tests {
         async fn test(hash: &str, data: &[u8], refs: &[&str]) {
             let kv = MemStore::new();
             let kvw = kv.write().await.unwrap();
-            let mut w = Write{kvw};
+            let mut w = Write { kvw };
 
             let c = Chunk::new(hash.into(), data.to_vec(), refs);
             w.put_chunk(&c).await.unwrap();
@@ -73,9 +74,7 @@ mod tests {
             let km = Key::ChunkMeta(hash).to_string();
 
             // The chunk data should always be there.
-            assert_eq!(
-                w.kvw.get(&kd).await.unwrap().unwrap().as_slice(),
-                c.data());
+            assert_eq!(w.kvw.get(&kd).await.unwrap().unwrap().as_slice(), c.data());
 
             // The chunk meta should only be there if there were refs.
             if refs.is_empty() {
@@ -83,7 +82,8 @@ mod tests {
             } else {
                 assert_eq!(
                     w.kvw.get(&km).await.unwrap().unwrap().as_slice(),
-                    c.meta().unwrap());
+                    c.meta().unwrap()
+                );
             }
         }
 
@@ -97,10 +97,13 @@ mod tests {
         async fn test(name: &str, hash: &str) {
             let kv = MemStore::new();
             let kvw = kv.write().await.unwrap();
-            let mut w = Write{kvw};
+            let mut w = Write { kvw };
             w.set_head(name, hash).await.unwrap();
-            assert_eq!(hash, String::from_utf8(
-                w.kvw.get(&format!("h/{}", name)).await.unwrap().unwrap()).unwrap());
+            assert_eq!(
+                hash,
+                String::from_utf8(w.kvw.get(&format!("h/{}", name)).await.unwrap().unwrap())
+                    .unwrap()
+            );
         }
 
         test("", "").await;
@@ -115,8 +118,8 @@ mod tests {
             let kv = MemStore::new();
             {
                 let kvw = kv.write().await.unwrap();
-                let mut w = Write{kvw};
-                let c= Chunk::new("h1".into(), vec![0,1], &vec![]);
+                let mut w = Write { kvw };
+                let c = Chunk::new("h1".into(), vec![0, 1], &vec![]);
                 w.put_chunk(&c).await.unwrap();
 
                 // The changes should be present inside the tx.
@@ -153,10 +156,10 @@ mod tests {
     async fn roundtrip() {
         async fn test(name: &str, hash: &str, data: &[u8], refs: &[&str]) {
             let kv = MemStore::new();
-            let c= Chunk::new(hash.into(), data.to_vec(), refs);
+            let c = Chunk::new(hash.into(), data.to_vec(), refs);
             {
                 let kvw = kv.write().await.unwrap();
-                let mut w = Write{kvw};
+                let mut w = Write { kvw };
                 w.put_chunk(&c).await.unwrap();
                 w.set_head(name, hash).await.unwrap();
 

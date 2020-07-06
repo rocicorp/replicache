@@ -1,15 +1,15 @@
 //! Transactional storage for an immutable, content-addressed
 //! directed acyclic graph.
-//! 
+//!
 //! Nodes in the graph are affectionately named "chunks", and
-//! the roots of the graph are known as "heads" (ala git). 
-//! 
+//! the roots of the graph are known as "heads" (ala git).
+//!
 //! Each chunk has a unique hash, an opaque blob of data, and
 //! zero or more references to other chunks.
-//! 
+//!
 //! Chunks that are not reachable from any head are garbage
 //! collected atomically with commit.
-//! 
+//!
 //! Users must ensure that the hash uniquely identifies a
 //! chunk: put()'ing a chunk with the same hash as some
 //! existing chunk is a no-op, and no error will be

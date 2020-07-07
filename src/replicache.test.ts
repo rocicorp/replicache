@@ -7,7 +7,11 @@ import {open} from 'fs/promises';
 import type {FileHandle} from 'fs/promises';
 
 import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
-import {REPMHTTPInvoker, ScanBound, TransactionClosedError} from './mod.js';
+import Replicache, {
+  REPMHTTPInvoker,
+  ScanBound,
+  TransactionClosedError,
+} from './mod.js';
 import {
   restoreScanPageSizeForTesting,
   setScanPageSizeForTesting,
@@ -838,4 +842,15 @@ test('closed tx', async () => {
   expect(wtx).toBeDefined();
   await expect(() => wtx?.put('z', 1)).rejects.toThrow(TransactionClosedError);
   await expect(() => wtx?.del('w')).rejects.toThrow(TransactionClosedError);
+});
+
+test('syncInterval in constructor', async () => {
+  await useReplay('syncInterval in constructor');
+  const rep = new Replicache({
+    syncInterval: 12.34,
+    repmInvoke: invoke,
+    diffServerURL: 'xxx',
+  });
+  expect(rep.syncInterval).toBe(12.34);
+  await rep.close();
 });

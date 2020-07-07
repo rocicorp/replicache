@@ -11,7 +11,7 @@ pub mod idbstore {
     async fn new_store() -> Box<dyn Store> {
         let mut rng = rand::thread_rng();
         let name = std::iter::repeat(())
-            .map(|()| rng.sample(rand::distributions::Alphanumeric))
+            .map(|_| rng.sample(rand::distributions::Alphanumeric))
             .take(12)
             .collect();
         wasm::new_idbstore(name)

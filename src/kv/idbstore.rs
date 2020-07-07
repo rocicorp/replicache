@@ -1,5 +1,6 @@
 use crate::kv::{Read, Result, Store, StoreError, Write};
 use async_std::sync::{Arc, Condvar, Mutex};
+use async_std::task;
 use async_trait::async_trait;
 use futures::channel::oneshot;
 use futures::future::join_all;
@@ -7,7 +8,6 @@ use log::warn;
 use std::collections::HashMap;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{JsCast, JsValue};
-use wasm_bindgen_futures::spawn_local;
 use web_sys::{IdbDatabase, IdbObjectStore, IdbTransaction};
 
 impl From<String> for StoreError {
@@ -30,7 +30,7 @@ impl From<futures::channel::oneshot::Canceled> for StoreError {
 }
 
 pub struct IdbStore {
-    idb: IdbDatabase,
+    db: IdbDatabase,
 }
 
 const OBJECT_STORE: &str = "chunks";
@@ -46,12 +46,7 @@ impl IdbStore {
             None => return Ok(None),
         };
         let request = factory.open(name)?;
-        let (sender, receiver) = oneshot::channel::<()>();
-        let callback = Closure::once(move || {
-            if let Err(_) = sender.send(()) {
-                warn!("oneshot send failed");
-            }
-        });
+        let (callback, receiver) = IdbStore::oneshot_callback();
         let request_copy = request.clone();
         let onupgradeneeded = Closure::once(move |_event: web_sys::IdbVersionChangeEvent| {
             let result = match request_copy.result() {
@@ -72,8 +67,22 @@ impl IdbStore {
         request.set_onupgradeneeded(Some(onupgradeneeded.as_ref().unchecked_ref()));
         receiver.await?;
         Ok(Some(IdbStore {
-            idb: request.result()?.into(),
+            db: request.result()?.into(),
         }))
+    }
+
+    /// Returns a oneshot callback and a Receiver to await it being called.
+    ///
+    /// Intended for use with Idb request callbacks, and may be registered for
+    /// multiple callbacks. Await on the Receiver returns when any is invoked.
+    fn oneshot_callback() -> (Closure<dyn FnMut()>, oneshot::Receiver<()>) {
+        let (sender, receiver) = oneshot::channel::<()>();
+        let callback = Closure::once(move || {
+            if let Err(_) = sender.send(()) {
+                warn!("oneshot send failed");
+            }
+        });
+        (callback, receiver)
     }
 }
 
@@ -94,8 +103,8 @@ struct ReadTransaction {
 }
 
 impl ReadTransaction {
-    fn new(idb: &IdbStore) -> Result<ReadTransaction> {
-        let tx = idb.idb.transaction_with_str(OBJECT_STORE)?;
+    fn new(store: &IdbStore) -> Result<ReadTransaction> {
+        let tx = store.db.transaction_with_str(OBJECT_STORE)?;
         Ok(ReadTransaction {
             store: tx.object_store(OBJECT_STORE)?,
             tx: tx,
@@ -107,29 +116,24 @@ impl ReadTransaction {
 impl Read for ReadTransaction {
     async fn has(&self, key: &str) -> Result<bool> {
         let request = self.store.count_with_key(&key.into())?;
-        let (sender, receiver) = oneshot::channel::<()>();
-        let callback = Closure::once(move || {
-            if let Err(_) = sender.send(()) {
-                warn!("oneshot send failed");
-            }
-        });
+        let (callback, receiver) = IdbStore::oneshot_callback();
         request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
         request.set_onerror(Some(callback.as_ref().unchecked_ref()));
         receiver.await?;
-        Ok(match request.result()?.as_f64() {
+        let result = request.result()?;
+        Ok(match result.as_f64() {
             Some(v) if v >= 1.0 => true,
-            _ => false,
+            Some(_) => false,
+            _ => {
+                warn!("IdbStore.count returned non-float {:?}", result);
+                false
+            }
         })
     }
 
     async fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
         let request = self.store.get(&key.into())?;
-        let (sender, receiver) = oneshot::channel::<()>();
-        let callback = Closure::once(move || {
-            if let Err(_) = sender.send(()) {
-                warn!("oneshot send failed");
-            }
-        });
+        let (callback, receiver) = IdbStore::oneshot_callback();
         request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
         request.set_onerror(Some(callback.as_ref().unchecked_ref()));
         receiver.await?;
@@ -156,9 +160,9 @@ struct WriteTransaction {
 }
 
 impl WriteTransaction {
-    fn new(idb: &IdbStore) -> Result<WriteTransaction> {
-        let tx = idb
-            .idb
+    fn new(store: &IdbStore) -> Result<WriteTransaction> {
+        let tx = store
+            .db
             .transaction_with_str_and_mode(OBJECT_STORE, web_sys::IdbTransactionMode::Readwrite)?;
         let mut wt = WriteTransaction {
             rt: ReadTransaction {
@@ -189,7 +193,7 @@ impl WriteTransaction {
     fn tx_callback(&self, new_state: WriteState) -> Closure<dyn FnMut()> {
         let pair = self.pair.clone();
         Closure::once(move || {
-            spawn_local(async move {
+            task::block_on(async move {
                 let (lock, cv) = &*pair;
                 let mut state = lock.lock().await;
                 *state = new_state;

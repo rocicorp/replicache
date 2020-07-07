@@ -45,7 +45,7 @@ export default class Replicache implements ReadTransaction {
   >();
   private _syncPromise: Promise<void> | null = null;
   private readonly _subscriptions = new Set<Subscription<unknown, unknown>>();
-  protected _syncInterval: number | null = 60_000;
+  private _syncInterval: number | null;
   // NodeJS has a non standard setTimeout function :'(
   protected _timerId: ReturnType<typeof setTimeout> | 0 = 0;
 
@@ -68,6 +68,7 @@ export default class Replicache implements ReadTransaction {
     diffServerURL,
     name = 'default',
     repmInvoke,
+    syncInterval = 60_000,
   }: {
     batchURL?: string;
     dataLayerAuth?: string;
@@ -75,6 +76,7 @@ export default class Replicache implements ReadTransaction {
     diffServerURL: string;
     name?: string;
     repmInvoke: REPMInvoke;
+    syncInterval?: number | null;
   }) {
     this._batchURL = batchURL;
     this._dataLayerAuth = dataLayerAuth;
@@ -82,6 +84,7 @@ export default class Replicache implements ReadTransaction {
     this._diffServerURL = diffServerURL;
     this._name = name;
     this._repmInvoke = repmInvoke;
+    this._syncInterval = syncInterval;
     this._open();
   }
 
@@ -132,10 +135,7 @@ export default class Replicache implements ReadTransaction {
     return this._syncInterval;
   }
   set syncInterval(duration: number | null) {
-    if (this._timerId !== 0) {
-      clearTimeout(this._timerId);
-      this._timerId = 0;
-    }
+    this._clearTimer();
     this._syncInterval = duration;
     this._scheduleSync();
   }
@@ -146,11 +146,18 @@ export default class Replicache implements ReadTransaction {
     }
   }
 
+  private _clearTimer() {
+    if (this._timerId !== 0) {
+      clearTimeout(this._timerId);
+      this._timerId = 0;
+    }
+  }
+
   async close(): Promise<void> {
     this._closed = true;
     const p = this._invoke('close');
 
-    // Clear timer
+    this._clearTimer();
 
     // Clear subscriptions
     for (const subscription of this._subscriptions) {
@@ -366,10 +373,7 @@ export default class Replicache implements ReadTransaction {
       return;
     }
 
-    if (this._timerId !== 0) {
-      clearTimeout(this._timerId);
-      this._timerId = 0;
-    }
+    this._clearTimer();
     this._fireOnSync(true);
 
     try {
@@ -571,14 +575,11 @@ export class ReplicacheTest extends Replicache {
       diffServerURL,
       name,
       repmInvoke,
+      syncInterval: null,
     });
     await rep._opened;
-    // await this._root;
     return rep;
   }
-
-  /** @override */
-  protected _syncInterval: number | null = null;
 
   beginSync(): Promise<BeginSyncResult> {
     return super._beginSync();

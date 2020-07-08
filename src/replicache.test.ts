@@ -854,3 +854,94 @@ test('syncInterval in constructor', async () => {
   expect(rep.syncInterval).toBe(12.34);
   await rep.close();
 });
+
+test('closeTransaction after rep.scan', async () => {
+  await useReplay('closeTransaction after rep.scan');
+
+  invoke = jest.fn(invoke);
+
+  rep = await replicacheForTesting('test5');
+  const add = rep.register('add-data', addData);
+  await add({
+    'a/0': 0,
+    'a/1': 1,
+  });
+
+  const mockInvoke = invoke as jest.Mock;
+  mockInvoke.mockClear();
+
+  function expectCalls(log: JSONValue[]) {
+    expect(log).toEqual(log);
+    const rpcs = mockInvoke.mock.calls.map(([, rpc]) => rpc);
+    expect(rpcs).toEqual(['openTransaction', 'scan', 'closeTransaction']);
+  }
+
+  const it = rep.scan();
+  const log: JSONValue[] = [];
+  for await (const v of it) {
+    log.push(v);
+  }
+  expectCalls([0, 1]);
+
+  // One more time with return in loop...
+  log.length = 0;
+  mockInvoke.mockClear();
+  await (async () => {
+    if (!rep) {
+      fail();
+    }
+    const it = rep.scan();
+    for await (const v of it) {
+      log.push(v);
+      return;
+    }
+  })();
+  expectCalls([0]);
+
+  // ... and with a break.
+  log.length = 0;
+  mockInvoke.mockClear();
+  {
+    const it = rep.scan();
+    for await (const v of it) {
+      log.push(v);
+      break;
+    }
+  }
+  expectCalls([0]);
+
+  // ... and with a throw.
+  log.length = 0;
+  mockInvoke.mockClear();
+  await expect(
+    (async () => {
+      if (!rep) {
+        fail();
+      }
+      const it = rep.scan();
+      for await (const v of it) {
+        log.push(v);
+        throw 'hi!';
+      }
+    })(),
+  ).rejects.toBe('hi!');
+
+  expectCalls([0]);
+
+  // ... and with a throw.
+  log.length = 0;
+  mockInvoke.mockClear();
+  await expect(
+    (async () => {
+      if (!rep) {
+        fail();
+      }
+      const it = rep.scan();
+      for await (const v of it) {
+        log.push(v);
+        throw 'hi!';
+      }
+    })(),
+  ).rejects.toBe('hi!');
+  expectCalls([0]);
+});

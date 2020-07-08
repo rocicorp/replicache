@@ -7,6 +7,19 @@
   },
   {
     "dbName": "subscribe-close",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "k": 0
+      },
+      "name": "add-data"
+    },
+    "result": {
+      "transactionId": 2
+    }
+  },
+  {
+    "dbName": "subscribe-close",
     "method": "getRoot",
     "args": {},
     "result": {
@@ -19,19 +32,6 @@
     "args": {},
     "result": {
       "transactionId": 1
-    }
-  },
-  {
-    "dbName": "subscribe-close",
-    "method": "openTransaction",
-    "args": {
-      "args": {
-        "k": 0
-      },
-      "name": "add-data"
-    },
-    "result": {
-      "transactionId": 2
     }
   },
   {

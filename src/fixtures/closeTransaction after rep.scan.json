@@ -1,0 +1,257 @@
+[
+  {
+    "dbName": "test5",
+    "method": "open",
+    "args": {},
+    "result": ""
+  },
+  {
+    "dbName": "test5",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
+    }
+  },
+  {
+    "dbName": "test5",
+    "method": "openTransaction",
+    "args": {
+      "args": {
+        "a/0": 0,
+        "a/1": 1
+      },
+      "name": "add-data"
+    },
+    "result": {
+      "transactionId": 1
+    }
+  },
+  {
+    "dbName": "test5",
+    "method": "put",
+    "args": {
+      "transactionId": 1,
+      "key": "a/0",
+      "value": 0
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test5",
+    "method": "put",
+    "args": {
+      "transactionId": 1,
+      "key": "a/1",
+      "value": 1
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test5",
+    "method": "commitTransaction",
+    "args": {
+      "transactionId": 1
+    },
+    "result": {
+      "ref": "b294lnb26c7i0dhcdpc0mtjbv5tf4ip2"
+    }
+  },
+  {
+    "dbName": "test5",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 2
+    }
+  },
+  {
+    "dbName": "test5",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 2
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test5",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 3
+    }
+  },
+  {
+    "dbName": "test5",
+    "method": "scan",
+    "args": {
+      "transactionId": 3,
+      "prefix": "",
+      "limit": 4
+    },
+    "result": [
+      {
+        "key": "a/0",
+        "value": 0
+      },
+      {
+        "key": "a/1",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "dbName": "test5",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 3
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test5",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 4
+    }
+  },
+  {
+    "dbName": "test5",
+    "method": "scan",
+    "args": {
+      "transactionId": 4,
+      "prefix": "",
+      "limit": 4
+    },
+    "result": [
+      {
+        "key": "a/0",
+        "value": 0
+      },
+      {
+        "key": "a/1",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "dbName": "test5",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 4
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test5",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 5
+    }
+  },
+  {
+    "dbName": "test5",
+    "method": "scan",
+    "args": {
+      "transactionId": 5,
+      "prefix": "",
+      "limit": 4
+    },
+    "result": [
+      {
+        "key": "a/0",
+        "value": 0
+      },
+      {
+        "key": "a/1",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "dbName": "test5",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 5
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test5",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 6
+    }
+  },
+  {
+    "dbName": "test5",
+    "method": "scan",
+    "args": {
+      "transactionId": 6,
+      "prefix": "",
+      "limit": 4
+    },
+    "result": [
+      {
+        "key": "a/0",
+        "value": 0
+      },
+      {
+        "key": "a/1",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "dbName": "test5",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 6
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test5",
+    "method": "openTransaction",
+    "args": {},
+    "result": {
+      "transactionId": 7
+    }
+  },
+  {
+    "dbName": "test5",
+    "method": "scan",
+    "args": {
+      "transactionId": 7,
+      "prefix": "",
+      "limit": 4
+    },
+    "result": [
+      {
+        "key": "a/0",
+        "value": 0
+      },
+      {
+        "key": "a/1",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "dbName": "test5",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 7
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test5",
+    "method": "close",
+    "args": {},
+    "result": ""
+  }
+]

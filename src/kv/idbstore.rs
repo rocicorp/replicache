@@ -78,7 +78,7 @@ impl IdbStore {
     fn oneshot_callback() -> (Closure<dyn FnMut()>, oneshot::Receiver<()>) {
         let (sender, receiver) = oneshot::channel::<()>();
         let callback = Closure::once(move || {
-            if let Err(_) = sender.send(()) {
+            if sender.send(()).is_err() {
                 warn!("oneshot send failed");
             }
         });
@@ -107,7 +107,7 @@ impl ReadTransaction {
         let tx = store.db.transaction_with_str(OBJECT_STORE)?;
         Ok(ReadTransaction {
             store: tx.object_store(OBJECT_STORE)?,
-            tx: tx,
+            tx,
         })
     }
 }
@@ -167,7 +167,7 @@ impl WriteTransaction {
         let mut wt = WriteTransaction {
             rt: ReadTransaction {
                 store: tx.object_store(OBJECT_STORE)?,
-                tx: tx,
+                tx,
             },
             pair: Arc::new((Mutex::new(WriteState::Open), Condvar::new())),
             pending: Mutex::new(HashMap::new()),
@@ -224,7 +224,7 @@ impl Read for WriteTransaction {
 
 #[async_trait(?Send)]
 impl Write for WriteTransaction {
-    fn as_read<'a>(&'a self) -> &'a dyn Read {
+    fn as_read(&self) -> &dyn Read {
         self
     }
 
@@ -259,12 +259,7 @@ impl Write for WriteTransaction {
                 Some(v) => store.put_with_key(&js_sys::Uint8Array::from(&v[..]), &key.into())?,
                 None => store.delete(&key.into())?,
             };
-            let (sender, receiver) = oneshot::channel::<()>();
-            let callback = Closure::once(move || {
-                if let Err(_) = sender.send(()) {
-                    warn!("oneshot send failed");
-                }
-            });
+            let (callback, receiver) = IdbStore::oneshot_callback();
             request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
             callbacks.push(callback);
             requests.push(receiver);
@@ -275,9 +270,8 @@ impl Write for WriteTransaction {
         let state = cv
             .wait_until(lock.lock().await, |state| *state != WriteState::Open)
             .await;
-        match self.rt.tx.error() {
-            Some(e) => return Err(format!("{:?}", e).into()),
-            _ => (),
+        if let Some(e) = self.rt.tx.error() {
+            return Err(format!("{:?}", e).into());
         }
         if *state != WriteState::Committed {
             return Err(StoreError::Str("Transaction aborted".into()));
@@ -302,9 +296,8 @@ impl Write for WriteTransaction {
         let state = cv
             .wait_until(lock.lock().await, |state| *state != WriteState::Open)
             .await;
-        match self.rt.tx.error() {
-            Some(e) => return Err(format!("{:?}", e).into()),
-            _ => (),
+        if let Some(e) = self.rt.tx.error() {
+            return Err(format!("{:?}", e).into());
         }
         if *state != WriteState::Aborted {
             return Err(StoreError::Str("Transaction abort failed".into()));

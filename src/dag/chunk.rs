@@ -1,5 +1,4 @@
 use super::meta_generated::meta;
-use flatbuffers;
 use flatbuffers::FlatBufferBuilder;
 
 // Chunk is an node in the immutable dag. Each node has a hash,
@@ -40,7 +39,7 @@ impl Chunk {
     // TODO: It would be nice to flatten the option down into an empty
     // iterator for caller convenience, but could not find a zero-alloc
     // way to do that.
-    pub fn refs<'a>(&'a self) -> Option<impl Iterator<Item = &str>> {
+    pub fn refs(&self) -> Option<impl Iterator<Item = &str>> {
         if let Some(buf) = self.meta() {
             if let Some(refs) = meta::get_root_as_meta(buf).refs() {
                 return Some(refs.iter());

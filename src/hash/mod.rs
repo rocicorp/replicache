@@ -2,15 +2,16 @@ use data_encoding::base;
 use data_encoding::decode;
 use data_encoding::encode;
 use sha2::{Digest, Sha512};
+use std::fmt;
 
 pub const BYTE_LENGTH: usize = 20;
-const NOMS_ALPHABET: &'static [u8] = b"0123456789abcdefghijklmnopqrstuv";
+const NOMS_ALPHABET: &[u8] = b"0123456789abcdefghijklmnopqrstuv";
 
 struct Base32 {}
 
 impl base::Base for Base32 {
     fn pad(&self) -> u8 {
-        '=' as u8
+        b'='
     }
     fn val(&self, x: u8) -> Option<u8> {
         Some(NOMS_ALPHABET.iter().position(|y| x == *y)? as u8)
@@ -54,17 +55,18 @@ impl Hash {
         let result = hasher.result();
         let mut h = Hash::empty();
         h.sum.copy_from_slice(&result[..BYTE_LENGTH]);
-        return h;
+        h
     }
 
     #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
-        return self.sum == [0; BYTE_LENGTH];
+        self.sum == [0; BYTE_LENGTH]
     }
+}
 
-    #[allow(dead_code)]
-    pub fn to_string(&self) -> String {
-        encode::encode(&Base32 {}, &self.sum)
+impl fmt::Display for Hash {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", encode::encode(&Base32 {}, &self.sum))
     }
 }
 

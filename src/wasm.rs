@@ -2,7 +2,6 @@ use log::warn;
 use std::sync::Once;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
-use wee_alloc;
 
 use crate::dag::{chunk, key};
 use crate::dispatch;
@@ -17,7 +16,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 #[wasm_bindgen]
 pub async fn exercise_dag() {
     init_panic_hook();
-    let c = chunk::Chunk::new("h1".into(), vec![0, 1], &vec!["r1"]);
+    let c = chunk::Chunk::new("h1".into(), vec![0, 1], &["r1"]);
     let k1 = key::Key::parse("c/h1/d").unwrap();
     let k2 = key::Key::parse("c/h1/m").unwrap();
     let k3 = key::Key::parse("h/n1").unwrap();

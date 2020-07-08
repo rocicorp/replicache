@@ -47,7 +47,7 @@ pub trait Read {
 
 #[async_trait(?Send)]
 pub trait Write: Read {
-    fn as_read<'a>(&'a self) -> &'a dyn Read;
+    fn as_read(&self) -> &dyn Read;
 
     async fn put(&self, key: &str, value: &[u8]) -> Result<()>;
     async fn del(&self, key: &str) -> Result<()>;

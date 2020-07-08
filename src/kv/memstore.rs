@@ -8,7 +8,6 @@ pub struct MemStore {
 }
 
 impl MemStore {
-    #[allow(dead_code)]
     pub fn new() -> MemStore {
         MemStore {
             map: Mutex::new(HashMap::new()),
@@ -16,14 +15,20 @@ impl MemStore {
     }
 }
 
+impl Default for MemStore {
+    fn default() -> Self {
+        MemStore::new()
+    }
+}
+
 #[async_trait(?Send)]
 impl Store for MemStore {
     async fn read<'a>(&'a self) -> Result<Box<dyn Read + 'a>> {
-        return Ok(Box::new(ReadTransaction::new(self)));
+        Ok(Box::new(ReadTransaction::new(self)))
     }
 
     async fn write<'a>(&'a self) -> Result<Box<dyn Write + 'a>> {
-        return Ok(Box::new(WriteTransaction::new(self)));
+        Ok(Box::new(WriteTransaction::new(self)))
     }
 }
 
@@ -33,7 +38,7 @@ struct ReadTransaction<'a> {
 
 impl ReadTransaction<'_> {
     fn new(store: &MemStore) -> ReadTransaction {
-        return ReadTransaction { store: store };
+        ReadTransaction { store }
     }
 }
 
@@ -58,10 +63,10 @@ struct WriteTransaction<'a> {
 
 impl WriteTransaction<'_> {
     fn new(store: &MemStore) -> WriteTransaction {
-        return WriteTransaction {
+        WriteTransaction {
             rt: ReadTransaction { store },
             pending: Mutex::new(HashMap::new()),
-        };
+        }
     }
 }
 
@@ -86,7 +91,7 @@ impl Read for WriteTransaction<'_> {
 
 #[async_trait(?Send)]
 impl Write for WriteTransaction<'_> {
-    fn as_read<'a>(&'a self) -> &'a dyn Read {
+    fn as_read(&self) -> &dyn Read {
         self
     }
 

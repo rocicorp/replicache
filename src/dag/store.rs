@@ -14,11 +14,11 @@ impl Store {
         Store { kv }
     }
 
-    pub async fn read<'a>(&'a self) -> Result<Read<'a>> {
+    pub async fn read(&self) -> Result<Read<'_>> {
         Ok(Read::new(self.kv.read().await?))
     }
 
-    pub async fn write<'a>(&'a mut self) -> Result<Write<'a>> {
+    pub async fn write(&mut self) -> Result<Write<'_>> {
         Ok(Write::new(self.kv.write().await?))
     }
 }

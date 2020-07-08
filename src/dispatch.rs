@@ -1,3 +1,5 @@
+#![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
+
 use crate::kv::idbstore::IdbStore;
 use crate::kv::Store;
 use async_std::sync::{channel, Receiver, Sender};
@@ -114,7 +116,7 @@ impl Dispatcher {
         Ok("".into())
     }
 
-    async fn has(db: &dyn Store, data: &String) -> Response {
+    async fn has(db: &dyn Store, data: &str) -> Response {
         let req: GetRequest = match DeJson::deserialize_json(data) {
             Ok(v) => v,
             Err(_) => return Err("Failed to parse request".into()),
@@ -128,7 +130,7 @@ impl Dispatcher {
         }
     }
 
-    async fn get(db: &dyn Store, data: &String) -> Response {
+    async fn get(db: &dyn Store, data: &str) -> Response {
         let req: GetRequest = match DeJson::deserialize_json(data) {
             Ok(v) => v,
             Err(_) => return Err("Failed to parse request".into()),
@@ -149,7 +151,7 @@ impl Dispatcher {
         }
     }
 
-    async fn put(db: &mut dyn Store, data: &String) -> Response {
+    async fn put(db: &mut dyn Store, data: &str) -> Response {
         let req: PutRequest = match DeJson::deserialize_json(data) {
             Ok(v) => v,
             Err(_) => return Err("Failed to parse request".into()),

@@ -17,7 +17,7 @@ type ParseError = ();
 // But I got lost in lifetime goop.
 impl<'a> Key<'_> {
     pub fn parse<'b>(s: &'b str) -> Result<Key<'b>, ParseError> {
-        let mut parts = s.split::<'b>("/");
+        let mut parts = s.split::<'b>('/');
         let prefix: &str = parts.next().ok_or(())?;
         let content = parts.next().ok_or(())?;
         match prefix {

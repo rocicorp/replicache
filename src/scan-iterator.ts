@@ -77,7 +77,7 @@ export class ScanIterator<V> implements AsyncIterableIterator<V> {
     }
     if (this._current >= this._scanItems.length) {
       if (!this._moreItemsToLoad) {
-        return {done: true, value: undefined};
+        return this.return();
       }
       this._loadPromise = this._load();
       await this._loadPromise;

@@ -23,9 +23,9 @@
       "diffServerAuth": "1"
     },
     "result": {
-      "syncHead": "2cdcete40dc5h6f2p4de8hm11o0nb2l5",
+      "syncHead": "ucvgrq0hjf9mbonf94t3bd4ivuja1hl4",
       "syncInfo": {
-        "syncID": "vGKkqrmRSCDED9pRHBbT7J-5efd13b0-1",
+        "syncID": "VaEkcTivYZqhErNSDd2PiH-5f064e26-1",
         "clientViewInfo": {
           "httpStatusCode": 200,
           "errorMessage": ""
@@ -37,8 +37,8 @@
     "dbName": "sync2",
     "method": "maybeEndSync",
     "args": {
-      "syncID": "vGKkqrmRSCDED9pRHBbT7J-5efd13b0-1",
-      "syncHead": "2cdcete40dc5h6f2p4de8hm11o0nb2l5"
+      "syncID": "VaEkcTivYZqhErNSDd2PiH-5f064e26-1",
+      "syncHead": "ucvgrq0hjf9mbonf94t3bd4ivuja1hl4"
     },
     "result": {}
   },
@@ -70,7 +70,7 @@
     "result": {
       "syncHead": "00000000000000000000000000000000",
       "syncInfo": {
-        "syncID": "vGKkqrmRSCDED9pRHBbT7J-5efd13b0-2",
+        "syncID": "VaEkcTivYZqhErNSDd2PiH-5f064e26-2",
         "clientViewInfo": {
           "httpStatusCode": 200,
           "errorMessage": ""

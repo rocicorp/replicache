@@ -7,18 +7,18 @@
   },
   {
     "dbName": "subscribe",
-    "method": "getRoot",
-    "args": {},
-    "result": {
-      "root": "e99uif9c7bpavajrt666es1ki52dv239"
-    }
-  },
-  {
-    "dbName": "subscribe",
     "method": "openTransaction",
     "args": {},
     "result": {
       "transactionId": 1
+    }
+  },
+  {
+    "dbName": "subscribe",
+    "method": "getRoot",
+    "args": {},
+    "result": {
+      "root": "e99uif9c7bpavajrt666es1ki52dv239"
     }
   },
   {

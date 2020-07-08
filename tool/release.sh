@@ -1,7 +1,17 @@
 #!/bin/sh
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+DIR="$( cd "$( dirname "$0" )" >/dev/null 2>&1 && pwd )"
 ROOT=$DIR/../
+
+report() {
+    (cd pkg/ && ls -l replicache_client.js* replicache_client_bg.was*[mr] |
+        awk '{print $9 ": " $5}')
+}
+
+if [ $# -eq 1 -a "$1" == "--report" ]; then
+    report
+    exit 0
+fi
 
 (
     cd $ROOT
@@ -25,6 +35,5 @@ ROOT=$DIR/../
 
     mv Cargo.toml.bak Cargo.toml
 
-    cd pkg/
-    ls -l replicache_client.js* replicache_client_bg.was*[mr] | awk '{print $9 ": " $5}'
+    report
 )

@@ -62,16 +62,16 @@ mod tests {
 
     #[async_std::test]
     async fn put_chunk() {
-        async fn test(hash: &str, data: &[u8], refs: &[&str]) {
+        async fn test(data: &[u8], refs: &[&str]) {
             let kv = MemStore::new();
             let kvw = kv.write().await.unwrap();
             let mut w = Write { kvw };
 
-            let c = Chunk::new(hash.into(), data.to_vec(), refs);
+            let c = Chunk::new((data.to_vec(), 0), refs);
             w.put_chunk(&c).await.unwrap();
 
-            let kd = Key::ChunkData(hash).to_string();
-            let km = Key::ChunkMeta(hash).to_string();
+            let kd = Key::ChunkData(c.hash()).to_string();
+            let km = Key::ChunkMeta(c.hash()).to_string();
 
             // The chunk data should always be there.
             assert_eq!(w.kvw.get(&kd).await.unwrap().unwrap().as_slice(), c.data());
@@ -87,9 +87,9 @@ mod tests {
             }
         }
 
-        test("", &vec![], &vec![]).await;
-        test("h1", &vec![0], &vec!["r1"]).await;
-        test("h2", &vec![0, 1], &vec!["r1", "r2"]).await;
+        test(&vec![], &vec![]).await;
+        test(&vec![0], &vec!["r1"]).await;
+        test(&vec![0, 1], &vec!["r1", "r2"]).await;
     }
 
     #[async_std::test]
@@ -115,19 +115,22 @@ mod tests {
     #[async_std::test]
     async fn commit_rollback() {
         async fn test(commit: bool) {
+            let key: String;
             let kv = MemStore::new();
             {
                 let kvw = kv.write().await.unwrap();
                 let mut w = Write { kvw };
-                let c = Chunk::new("h1".into(), vec![0, 1], &vec![]);
+                let c = Chunk::new((vec![0, 1], 0), &vec![]);
                 w.put_chunk(&c).await.unwrap();
 
+                key = format!("c/{}/d", c.hash());
+
                 // The changes should be present inside the tx.
-                assert!(w.kvw.has("c/h1/d").await.unwrap());
+                assert!(w.kvw.has(&key).await.unwrap());
 
                 // But not outside the tx.
                 let kvr = kv.read().await.unwrap();
-                assert!(!kvr.has("c/h1/d").await.unwrap());
+                assert!(!kvr.has(&key).await.unwrap());
 
                 if commit {
                     w.commit().await.unwrap();
@@ -138,7 +141,7 @@ mod tests {
 
             // The data should now be visible if it was committed.
             let kvr = kv.read().await.unwrap();
-            assert_eq!(commit, kvr.has("c/h1/d").await.unwrap());
+            assert_eq!(commit, kvr.has(&key).await.unwrap());
         }
 
         test(true).await;
@@ -147,34 +150,34 @@ mod tests {
 
     #[async_std::test]
     async fn roundtrip() {
-        async fn test(name: &str, hash: &str, data: &[u8], refs: &[&str]) {
+        async fn test(name: &str, data: &[u8], refs: &[&str]) {
             let kv = MemStore::new();
-            let c = Chunk::new(hash.into(), data.to_vec(), refs);
+            let c = Chunk::new((data.to_vec(), 0), refs);
             {
                 let kvw = kv.write().await.unwrap();
                 let mut w = Write { kvw };
                 w.put_chunk(&c).await.unwrap();
-                w.set_head(name, hash).await.unwrap();
+                w.set_head(name, c.hash()).await.unwrap();
 
                 // Read the changes inside the tx.
-                let c2 = w.get_chunk(hash).await.unwrap().unwrap();
+                let c2 = w.get_chunk(c.hash()).await.unwrap().unwrap();
                 let h = w.get_head(name).await.unwrap().unwrap();
                 assert_eq!(c, c2);
-                assert_eq!(h, hash);
+                assert_eq!(h, c.hash());
 
                 w.commit().await.unwrap();
             }
 
             // Read the changes outside the tx.
             let r = read::Read::new(kv.read().await.unwrap());
-            let c2 = r.get_chunk(hash).await.unwrap().unwrap();
+            let c2 = r.get_chunk(c.hash()).await.unwrap().unwrap();
             let h = r.get_head(name).await.unwrap().unwrap();
             assert_eq!(c, c2);
-            assert_eq!(h, hash);
+            assert_eq!(h, c.hash());
         }
 
-        test("", "", &vec![], &vec![]).await;
-        test("n1", "h1", &vec![0], &vec!["r1"]).await;
-        test("n2", "h2", &vec![0, 1], &vec!["r1", "r2"]).await;
+        test("", &vec![], &vec![]).await;
+        test("n1", &vec![0], &vec!["r1"]).await;
+        test("n2", &vec![0, 1], &vec!["r1", "r2"]).await;
     }
 }

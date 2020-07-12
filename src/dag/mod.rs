@@ -18,9 +18,9 @@ pub mod chunk;
 pub mod key;
 #[allow(unused_imports)]
 mod meta_generated;
-mod read;
+pub mod read;
 pub mod store;
-mod write;
+pub mod write;
 
 use crate::kv;
 

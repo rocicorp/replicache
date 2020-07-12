@@ -6,7 +6,7 @@ wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
 async fn test_dag() {
-    wasm::exercise_dag().await;
+    wasm::exercise_prolly().await;
 }
 
 async fn dispatch(db: &str, rpc: &str, data: &str) -> Result<String, String> {

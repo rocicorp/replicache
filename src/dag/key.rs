@@ -16,6 +16,7 @@ type ParseError = ();
 // as that is the convention, and then "foo".parse() would work.
 // But I got lost in lifetime goop.
 impl<'a> Key<'_> {
+    #[allow(dead_code)]
     pub fn parse<'b>(s: &'b str) -> Result<Key<'b>, ParseError> {
         let mut parts = s.split::<'b>('/');
         let prefix: &str = parts.next().ok_or(())?;

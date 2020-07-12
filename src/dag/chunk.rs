@@ -1,4 +1,5 @@
 use super::meta_generated::meta;
+use crate::hash::Hash;
 use flatbuffers::FlatBufferBuilder;
 
 // Chunk is an node in the immutable dag. Each node has a hash,
@@ -7,14 +8,15 @@ use flatbuffers::FlatBufferBuilder;
 #[derive(Debug)]
 pub struct Chunk {
     hash: String,
-    data: Vec<u8>,
+    data: (Vec<u8>, usize),
     meta: Option<(Vec<u8>, usize)>,
 }
 
 impl Chunk {
-    pub fn new(hash: String, data: Vec<u8>, refs: &[&str]) -> Chunk {
+    pub fn new(data: (Vec<u8>, usize), refs: &[&str]) -> Chunk {
+        let s: &[u8] = &data.0;
         Chunk {
-            hash,
+            hash: Hash::of(&s[data.1..]).to_string(),
             data,
             meta: Chunk::create_meta(refs),
         }
@@ -23,7 +25,7 @@ impl Chunk {
     pub fn read(hash: String, data: Vec<u8>, meta: Option<Vec<u8>>) -> Chunk {
         Chunk {
             hash,
-            data,
+            data: (data, 0),
             meta: meta.map(|v| (v, 0)),
         }
     }
@@ -33,7 +35,7 @@ impl Chunk {
     }
 
     pub fn data(&self) -> &[u8] {
-        &self.data
+        &(self.data.0[self.data.1..])
     }
 
     // TODO: It would be nice to flatten the option down into an empty
@@ -90,7 +92,7 @@ mod tests {
     #[test]
     fn round_trip() {
         fn test(hash: String, data: Vec<u8>, refs: &[&str]) {
-            let c = Chunk::new(hash.clone(), data.clone(), refs.clone());
+            let c = Chunk::new((data.clone(), 0), refs.clone());
             assert_eq!(&hash, c.hash());
             assert_eq!(data, c.data());
             if refs.is_empty() {
@@ -104,8 +106,16 @@ mod tests {
             assert_eq!(c, c2);
         }
 
-        test("".into(), vec![], &vec![]);
-        test("h".into(), vec![0], &vec!["r1"]);
-        test("h1".into(), vec![0, 1], &vec!["r1", "r2"]);
+        test("pu1u2dbutusbrsak518dcrc00vb21p05".into(), vec![], &vec![]);
+        test(
+            "n0i4q0k9g7b97brr8llfhrt4pbb3qa1e".into(),
+            vec![0],
+            &vec!["r1"],
+        );
+        test(
+            "g19moobgrm32dn083bokhksuobulq28c".into(),
+            vec![0, 1],
+            &vec!["r1", "r2"],
+        );
     }
 }

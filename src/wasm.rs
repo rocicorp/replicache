@@ -3,29 +3,27 @@ use std::sync::Once;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 
-use crate::dag::{chunk, key};
+use crate::dag;
 use crate::dispatch;
 use crate::kv::idbstore::IdbStore;
 use crate::kv::Store;
 use crate::prolly::chunker::Chunker;
+use crate::prolly::map::Map;
 
 // Use `wee_alloc` as the global allocator.
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[wasm_bindgen]
-pub async fn exercise_dag() {
+pub async fn exercise_prolly() {
     init_panic_hook();
-    let c = chunk::Chunk::new("h1".into(), vec![0, 1], &["r1"]);
-    let k1 = key::Key::parse("c/h1/d").unwrap();
-    let k2 = key::Key::parse("c/h1/m").unwrap();
-    let k3 = key::Key::parse("h/n1").unwrap();
-    let c2 = chunk::Chunk::read(
-        c.hash().into(),
-        c.data().to_vec(),
-        c.meta().map(|b| b.to_vec()),
-    );
-    warn!("{:?} {:?} {:?} {:?} {:?}", c, c2, k1, k2, k3);
+    let kv = IdbStore::new("foo").await.unwrap().unwrap();
+    let mut store = dag::store::Store::new(Box::new(kv));
+    let mut write = store.write().await.unwrap();
+    let mut map = Map::new();
+    map.put(b"foo".to_vec(), b"bar".to_vec());
+    let h = map.flush(&mut write).await.unwrap();
+    warn!("{}", h);
 }
 
 #[cfg(not(default))]

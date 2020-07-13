@@ -82,8 +82,8 @@ mod tests {
                 let kvw2 = kv.write().await.unwrap();
                 kvw2.del(k).await.unwrap();
                 kvw2.commit().await.unwrap();
-                assert_eq!(expect_has, r.has_chunk(&hash).await.unwrap());
             }
+            assert_eq!(expect_has, r.has_chunk(&hash).await.unwrap());
         }
 
         test("present", false, true).await;

@@ -54,3 +54,39 @@ pub async fn get_head(kvr: &dyn kv::Read, name: &str) -> Result<Option<String>> 
     }
     Ok(None)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::kv::memstore::MemStore;
+    use crate::kv::Store;
+
+    #[async_std::test]
+    async fn test_has_chunk() {
+        async fn test(hash: &str, del_haskey: bool, expect_has: bool) {
+            let kv = MemStore::new();
+            let kvw = kv.write().await.unwrap();
+            let kvr = kv.read().await.unwrap();
+            let r = Read { kvr };
+
+            kvw.put(&Key::ChunkData("haskey").to_string(), &vec![0u8, 1])
+                .await
+                .unwrap();
+            kvw.commit().await.unwrap();
+            assert_eq!(expect_has, r.has_chunk(&hash).await.unwrap());
+
+            // Mayve test isolation: other txs should not affect what the read tx, which is
+            // still open, sees.
+            if del_haskey {
+                let kvw2 = kv.write().await.unwrap();
+                kvw2.del("haskey".into()).await.unwrap();
+                kvw2.commit().await.unwrap();
+                assert_eq!(expect_has, r.has_chunk(&hash).await.unwrap());
+            }
+        }
+
+        test("haskey", false, true).await;
+        test("haskey", true, true).await;
+        test("missing", false, false).await;
+    }
+}

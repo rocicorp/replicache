@@ -22,12 +22,6 @@ impl Chunker {
         Chunker::new(67, (1 << 12) - 1) // ~4kb chunks
     }
 
-    // Special small chunk chunker for testing
-    #[allow(dead_code)]
-    pub fn smol() -> Chunker {
-        Chunker::new(67, (1 << 8) - 1) // ~256b chunks
-    }
-
     // Adds a byte to the rolling hasher. Returns true if the byte
     // was a boundary, false otherwise.
     pub fn hash_byte(&mut self, b: u8) -> bool {

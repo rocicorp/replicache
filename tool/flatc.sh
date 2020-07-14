@@ -3,6 +3,11 @@
 # Simple script to generate Flatbuffer sources from schema files
 # while maintaining rustfmt and Clippy cleanliness.
 
+if [ "$1" == "" ]; then
+  echo "Usage: flatc.sh foo.fbs"
+  exit
+fi
+
 TMP=`mktemp -d`
 
 function atexit {
@@ -10,8 +15,11 @@ function atexit {
 }
 trap atexit EXIT
 
-flatc --rust -o $TMP src/dag/meta.fbs
-rustfmt $TMP/meta_generated.rs
+  set -x
+DIR="$( cd "$( dirname "${1}" )" >/dev/null 2>&1 && pwd )"
+BASE=$(basename $1 .fbs)
+flatc --rust -o $TMP $1
+rustfmt $TMP/${BASE}_generated.rs
 echo "#![allow(clippy::redundant_field_names)]\n" | \
-    cat - $TMP/meta_generated.rs > $TMP/meta_generated.rs.clippy
-mv $TMP/meta_generated.rs.clippy src/dag/meta_generated.rs
+    cat - $TMP/${BASE}_generated.rs > $TMP/${BASE}_generated.rs.clippy
+mv $TMP/${BASE}_generated.rs.clippy $DIR/${BASE}_generated.rs

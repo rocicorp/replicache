@@ -1,0 +1,40 @@
+// This file describes the Commit struct used to track changes to a Replicache
+// instance.
+namespace commit;
+
+// Commit metadata specific to local commits.
+table LocalMeta {
+    mutator_name: string;
+    mutator_args_json: [ubyte];
+    mutation_id: ulong;
+    original_hash: string;
+}
+
+// Commit metadata specific to snapshot commits.
+table SnapshotMeta {
+    last_mutation_id: ulong;
+    server_state_id: string;
+}
+
+// Commit metadata specific to the type of commit.
+union MetaTyped {
+    LocalMeta,
+    SnapshotMeta,
+}
+
+// Commit metadata.
+table Meta {
+    local_create_date: string;
+    basis_hash: string;
+    checksum: string;
+    typed: MetaTyped;
+}
+
+// A commit is an immutable record of a change to Replicache and the resulting
+// state after that change.
+table Commit {
+    meta: Meta;
+    value_hash: string;
+}
+
+root_type Commit;

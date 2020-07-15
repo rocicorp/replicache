@@ -4,9 +4,9 @@ namespace commit;
 
 // Commit metadata specific to local commits.
 table LocalMeta {
+    mutation_id: ulong;
     mutator_name: string;
     mutator_args_json: [ubyte];
-    mutation_id: ulong;
     original_hash: string;
 }
 

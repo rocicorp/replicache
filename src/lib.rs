@@ -6,6 +6,7 @@ extern crate lazy_static;
 extern crate log;
 
 mod dag;
+mod db;
 mod dispatch;
 mod hash;
 

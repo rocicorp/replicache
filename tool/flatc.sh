@@ -15,11 +15,10 @@ function atexit {
 }
 trap atexit EXIT
 
-  set -x
 DIR="$( cd "$( dirname "${1}" )" >/dev/null 2>&1 && pwd )"
 BASE=$(basename $1 .fbs)
 flatc --rust -o $TMP $1
 rustfmt $TMP/${BASE}_generated.rs
-echo "#![allow(clippy::redundant_field_names)]\n" | \
+echo "#![allow(warnings)]\n" | \
     cat - $TMP/${BASE}_generated.rs > $TMP/${BASE}_generated.rs.clippy
 mv $TMP/${BASE}_generated.rs.clippy $DIR/${BASE}_generated.rs

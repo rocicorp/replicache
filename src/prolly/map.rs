@@ -437,10 +437,10 @@ mod tests {
             // Original map should still have same data.
             test(&map, &expected);
 
-            // The hash should yield a new map wit hsame data
+            // The hash should yield a new map with same data
             write.commit().await.unwrap();
             let read = store.read().await.unwrap();
-            let map2 = Map::load(&hash, read).await.unwrap();
+            let map2 = Map::load(&hash, read.read()).await.unwrap();
             test(&map2, &expected);
         }
 

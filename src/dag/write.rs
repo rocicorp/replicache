@@ -14,16 +14,8 @@ impl<'a> Write<'_> {
         Write { kvw }
     }
 
-    pub async fn has_chunk(&mut self, hash: &str) -> Result<bool> {
-        read::has_chunk(self.kvw.as_read(), hash).await
-    }
-
-    pub async fn get_chunk(&mut self, hash: &str) -> Result<Option<Chunk>> {
-        read::get_chunk(self.kvw.as_read(), hash).await
-    }
-
-    pub async fn get_head(&mut self, name: &str) -> Result<Option<String>> {
-        read::get_head(self.kvw.as_read(), name).await
+    pub fn read(&self) -> read::Read {
+        read::Read::new(self.kvw.as_read())
     }
 
     pub async fn put_chunk(&mut self, c: &Chunk) -> Result<()> {
@@ -160,8 +152,8 @@ mod tests {
                 w.set_head(name, c.hash()).await.unwrap();
 
                 // Read the changes inside the tx.
-                let c2 = w.get_chunk(c.hash()).await.unwrap().unwrap();
-                let h = w.get_head(name).await.unwrap().unwrap();
+                let c2 = w.read().get_chunk(c.hash()).await.unwrap().unwrap();
+                let h = w.read().get_head(name).await.unwrap().unwrap();
                 assert_eq!(c, c2);
                 assert_eq!(h, c.hash());
 
@@ -169,9 +161,9 @@ mod tests {
             }
 
             // Read the changes outside the tx.
-            let r = read::Read::new(kv.read().await.unwrap());
-            let c2 = r.get_chunk(c.hash()).await.unwrap().unwrap();
-            let h = r.get_head(name).await.unwrap().unwrap();
+            let r = read::OwnedRead::new(kv.read().await.unwrap());
+            let c2 = r.read().get_chunk(c.hash()).await.unwrap().unwrap();
+            let h = r.read().get_head(name).await.unwrap().unwrap();
             assert_eq!(c, c2);
             assert_eq!(h, c.hash());
         }

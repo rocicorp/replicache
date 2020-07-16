@@ -1,4 +1,4 @@
-use super::read::Read;
+use super::read::OwnedRead;
 use super::write::Write;
 use super::Result;
 use crate::kv;
@@ -14,8 +14,8 @@ impl Store {
         Store { kv }
     }
 
-    pub async fn read(&self) -> Result<Read<'_>> {
-        Ok(Read::new(self.kv.read().await?))
+    pub async fn read(&self) -> Result<OwnedRead<'_>> {
+        Ok(OwnedRead::new(self.kv.read().await?))
     }
 
     pub async fn write(&mut self) -> Result<Write<'_>> {

@@ -1,0 +1,13 @@
+<script type="module">
+    import init, { dispatch } from "../pkg/replicache_client.js";
+
+    async function start() {
+        await init();
+        await dispatch("db1", "open", "");
+        await dispatch("db1", "put", '{"key": "foo", "value": "bar"}');
+        let foo = await dispatch("db1", "get", '{"key": "foo"}');
+        console.log(foo);
+    }
+
+    start();
+</script>

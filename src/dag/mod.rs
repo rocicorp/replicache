@@ -14,13 +14,19 @@
 //! chunk: put()'ing a chunk with the same hash as some
 //! existing chunk is a no-op, and no error will be
 //! reported.
-pub mod chunk;
-pub mod key;
+mod chunk;
+mod key;
 #[allow(unused_imports)]
 mod meta_generated;
-pub mod read;
-pub mod store;
-pub mod write;
+mod read;
+mod store;
+mod write;
+
+pub use chunk::Chunk;
+pub use key::Key;
+pub use read::Read;
+pub use store::Store;
+pub use write::Write;
 
 use crate::kv;
 

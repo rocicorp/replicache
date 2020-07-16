@@ -4,8 +4,8 @@ use super::leaf;
 use super::leaf::Leaf;
 use super::Entry;
 use crate::dag;
-use crate::dag::read::Read;
-use crate::dag::write::Write;
+use crate::dag::Read;
+use crate::dag::Write;
 use std::collections::btree_map::Iter as BTreeMapIter;
 use std::collections::BTreeMap;
 use std::iter::{Iterator, Peekable};
@@ -174,7 +174,7 @@ pub struct DeletableEntry<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dag::store::Store;
+    use crate::dag::Store;
     use crate::kv::memstore::MemStore;
 
     fn make_map(mut base: Option<Vec<&str>>, pending: Vec<&str>, deleted: Vec<&str>) -> Map {

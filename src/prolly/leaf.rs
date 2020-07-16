@@ -1,6 +1,6 @@
 use super::leaf_generated::leaf;
 use super::Entry;
-use crate::dag::chunk::Chunk;
+use crate::dag::Chunk;
 use flatbuffers::FlatBufferBuilder;
 
 // Leaf is a leaf level node in the map tree structure.

@@ -1,9 +1,11 @@
 mod buzhash;
-pub mod chunker;
+mod chunker;
 mod leaf;
 #[allow(unused_imports)]
 mod leaf_generated;
-pub mod map;
+mod map;
+
+pub use map::Map;
 
 #[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]

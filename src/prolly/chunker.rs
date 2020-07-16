@@ -5,6 +5,7 @@ pub struct Chunker {
     pattern: u32,
 }
 
+#[allow(dead_code)]
 impl Chunker {
     fn new(window: u32, pattern: u32) -> Chunker {
         Chunker {

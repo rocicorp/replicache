@@ -7,8 +7,7 @@ use crate::dag;
 use crate::dispatch;
 use crate::kv::idbstore::IdbStore;
 use crate::kv::Store;
-use crate::prolly::chunker::Chunker;
-use crate::prolly::map::Map;
+use crate::prolly::Map;
 
 // Use `wee_alloc` as the global allocator.
 #[global_allocator]
@@ -33,13 +32,6 @@ pub async fn new_idbstore(name: String) -> Option<Box<dyn Store>> {
         Ok(Some(v)) => Some(Box::new(v)),
         _ => None,
     }
-}
-
-#[wasm_bindgen]
-pub fn buzhash() {
-    init_panic_hook();
-    let mut c = Chunker::default();
-    c.hash_byte(b'f');
 }
 
 #[wasm_bindgen]

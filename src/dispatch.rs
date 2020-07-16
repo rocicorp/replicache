@@ -1,10 +1,11 @@
 #![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
 
+use crate::dag;
+use crate::db;
 use crate::kv::idbstore::IdbStore;
-use crate::kv::Store;
 use async_std::sync::{channel, Receiver, Sender};
 use log::warn;
-use nanoserde::{DeJson, SerJson};
+use nanoserde::{DeJson, DeJsonErr, SerJson};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use wasm_bindgen_futures::spawn_local;
@@ -48,15 +49,16 @@ async fn dispatch_loop(rx: Receiver<Request>) {
                 let db = match dispatcher.connections.get_mut(&req.db_name[..]) {
                     Some(v) => v,
                     None => {
-                        let err = Err(format!("\"{}\" not open", req.db_name));
-                        req.response.send(err).await;
+                        req.response
+                            .send(Err(format!("\"{}\" not open", req.db_name)))
+                            .await;
                         continue;
                     }
                 };
                 let response = match req.rpc.as_str() {
-                    "has" => Dispatcher::has(&**db, &req.data).await,
-                    "get" => Dispatcher::get(&**db, &req.data).await,
-                    "put" => Dispatcher::put(&mut **db, &req.data).await,
+                    "has" => stringlify(Dispatcher::has(&mut **db, &req.data).await),
+                    "get" => stringlify(Dispatcher::get(&mut **db, &req.data).await),
+                    "put" => stringlify(Dispatcher::put(&mut **db, &req.data).await),
                     _ => Err("Unsupported rpc name".into()),
                 };
                 req.response.send(response).await;
@@ -68,6 +70,10 @@ async fn dispatch_loop(rx: Receiver<Request>) {
 #[derive(DeJson)]
 struct GetRequest {
     key: String,
+}
+
+fn stringlify<R, E: std::fmt::Debug>(result: Result<R, E>) -> Result<R, String> {
+    result.map_err(|e| format!("{:?}", e))
 }
 
 #[derive(SerJson)]
@@ -83,7 +89,7 @@ struct PutRequest {
 }
 
 struct Dispatcher {
-    connections: HashMap<String, Box<dyn Store>>,
+    connections: HashMap<String, Box<dag::Store>>,
 }
 
 impl Dispatcher {
@@ -99,8 +105,9 @@ impl Dispatcher {
                 return Err(format!("Failed to open \"{}\": {}", req.db_name, e));
             }
             Ok(v) => {
-                if let Some(v) = v {
-                    self.connections.insert(req.db_name.clone(), Box::new(v));
+                if let Some(kv) = v {
+                    self.connections
+                        .insert(req.db_name.clone(), Box::new(dag::Store::new(Box::new(kv))));
                 }
             }
         }
@@ -116,50 +123,72 @@ impl Dispatcher {
         Ok("".into())
     }
 
-    async fn has(db: &dyn Store, data: &str) -> Response {
-        let req: GetRequest = match DeJson::deserialize_json(data) {
-            Ok(v) => v,
-            Err(_) => return Err("Failed to parse request".into()),
-        };
-        match db.has(&req.key).await {
-            Ok(v) => Ok(SerJson::serialize_json(&GetResponse {
-                has: v,
-                value: None,
-            })),
-            Err(e) => Err(format!("{}", e)),
-        }
+    // TODO: Everything around databases and transaction management needs thought:
+    // - We need to actually implement the transactions
+    // - Should there be an err, DB, type in the in the db package, or should we continue to construct them on each tx? If so, it could do some of below.
+    // - We will def need some kind of "connection" struct, analagous to the corresponding one in Go, that keeps track of the transactions by ID
+    // - read/get need to use read txs
+    async fn open_transaction<'a>(
+        ds: &'_ mut dag::Store,
+    ) -> Result<db::Write<'_>, OpenTransactionError> {
+        use OpenTransactionError::*;
+        let dag_write = ds.write().await.map_err(DagWriteError)?;
+        let write = db::Write::new_from_head("main", dag_write)
+            .await
+            .map_err(DBWriteError)?;
+        Ok(write)
     }
 
-    async fn get(db: &dyn Store, data: &str) -> Response {
-        let req: GetRequest = match DeJson::deserialize_json(data) {
-            Ok(v) => v,
-            Err(_) => return Err("Failed to parse request".into()),
-        };
-        match db.get(&req.key).await {
-            Ok(Some(v)) => match std::str::from_utf8(&v[..]) {
-                Ok(v) => Ok(SerJson::serialize_json(&GetResponse {
-                    has: true,
-                    value: Some(v.into()),
-                })),
-                Err(e) => Err(e.to_string()),
-            },
-            Ok(None) => Ok(SerJson::serialize_json(&GetResponse {
-                has: false,
-                value: None,
-            })),
-            Err(e) => Err(format!("{}", e)),
-        }
+    async fn has(ds: &mut dag::Store, data: &str) -> Result<String, HasError> {
+        use HasError::*;
+        let req: GetRequest = DeJson::deserialize_json(data).map_err(InvalidJson)?;
+        let write = Dispatcher::open_transaction(ds)
+            .await
+            .map_err(OpenTransactionError)?;
+        Ok(SerJson::serialize_json(&GetResponse {
+            has: write.has(req.key.as_bytes()),
+            value: None,
+        }))
     }
 
-    async fn put(db: &mut dyn Store, data: &str) -> Response {
-        let req: PutRequest = match DeJson::deserialize_json(data) {
-            Ok(v) => v,
-            Err(_) => return Err("Failed to parse request".into()),
-        };
-        match db.put(&req.key, &req.value.into_bytes()).await {
-            Ok(_) => Ok("".into()),
-            Err(e) => Err(format!("{}", e)),
+    async fn get(ds: &mut dag::Store, data: &str) -> Result<String, GetError> {
+        use GetError::*;
+        let req: GetRequest = DeJson::deserialize_json(data).map_err(InvalidJson)?;
+        let write = Dispatcher::open_transaction(ds)
+            .await
+            .map_err(OpenTransactionError)?;
+        let got = write.get(req.key.as_bytes());
+        let got = got.map(|buf| String::from_utf8(buf.to_vec()));
+        if let Some(Err(e)) = got {
+            return Err(InvalidUtf8(e));
         }
+        let got = got.map(|r| r.unwrap());
+        Ok(SerJson::serialize_json(&GetResponse {
+            has: got.is_some(),
+            value: got,
+        }))
+    }
+
+    async fn put(ds: &mut dag::Store, data: &str) -> Result<String, PutError> {
+        use PutError::*;
+        let req: PutRequest = DeJson::deserialize_json(data).map_err(InvalidJson)?;
+        let mut write = Dispatcher::open_transaction(ds)
+            .await
+            .map_err(OpenTransactionError)?;
+        write.put(req.key.as_bytes().to_vec(), req.value.into_bytes());
+        write
+            .commit(
+                "main",
+                "local-create-date",
+                "checksum",
+                42,
+                "foo",
+                b"bar",
+                None,
+            )
+            .await
+            .map_err(CommitError)?;
+        Ok("{}".into())
     }
 
     async fn debug(&self, req: &Request) -> Response {
@@ -186,4 +215,27 @@ pub async fn dispatch(db_name: String, rpc: String, data: String) -> Response {
         Err(e) => Err(e.to_string()),
         Ok(v) => v,
     }
+}
+
+#[derive(Debug)]
+enum OpenTransactionError {
+    DagWriteError(dag::Error),
+    DBWriteError(db::NewError),
+}
+#[derive(Debug)]
+enum HasError {
+    InvalidJson(DeJsonErr),
+    OpenTransactionError(OpenTransactionError),
+}
+#[derive(Debug)]
+enum GetError {
+    InvalidJson(DeJsonErr),
+    OpenTransactionError(OpenTransactionError),
+    InvalidUtf8(std::string::FromUtf8Error),
+}
+#[derive(Debug)]
+enum PutError {
+    InvalidJson(DeJsonErr),
+    OpenTransactionError(OpenTransactionError),
+    CommitError(db::CommitError),
 }

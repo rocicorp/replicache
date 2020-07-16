@@ -51,7 +51,7 @@ async fn test_get_put() {
     // Check request parsing, both missing and unexpected fields.
     assert_eq!(
         dispatch("db", "put", "{}").await.unwrap_err(),
-        "Failed to parse request"
+        "InvalidJson(Json Deserialize error: Key not found key, line:1 col:3)"
     );
     // With serde we can use #[serde(deny_unknown_fields)] to parse strictly,
     // but that's not available with nanoserde.
@@ -68,7 +68,7 @@ async fn test_get_put() {
         dispatch("db", "put", "{\"key\": \"Hello\", \"value\": \"世界\"}")
             .await
             .unwrap(),
-        ""
+        "{}"
     );
     assert_eq!(
         dispatch("db", "get", "{\"key\": \"Hello\"}").await.unwrap(),
@@ -88,7 +88,7 @@ async fn test_get_put() {
         dispatch("db", "put", "{\"key\": \"你好\", \"value\": \"world\"}")
             .await
             .unwrap(),
-        ""
+        "{}"
     );
     assert_eq!(
         dispatch("db", "has", "{\"key\": \"你好\"}").await.unwrap(),

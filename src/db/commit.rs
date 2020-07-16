@@ -76,20 +76,18 @@ impl Commit {
         head_name: &str,
         dag_read: dag::Read<'_>,
     ) -> Result<Option<Commit>, FromHeadError> {
-        let basis_hash = dag_read
-            .get_head(head_name)
-            .await
-            .map_err(|e| FromHeadError::GetHeadFailed(e))?;
-        if let None = basis_hash {
+        use FromHeadError::*;
+        let basis_hash = dag_read.get_head(head_name).await.map_err(GetHeadFailed)?;
+        if basis_hash.is_none() {
             return Ok(None);
         }
         let basis_hash = basis_hash.unwrap();
         let chunk = dag_read
             .get_chunk(&basis_hash)
             .await
-            .map_err(|e| FromHeadError::GetChunkFailed(e))?
-            .ok_or(FromHeadError::ChunkMissing(basis_hash))?;
-        let commit = Commit::load(chunk).map_err(|e| FromHeadError::LoadCommitFailed(e))?;
+            .map_err(GetChunkFailed)?
+            .ok_or(ChunkMissing(basis_hash))?;
+        let commit = Commit::load(chunk).map_err(LoadCommitFailed)?;
         Ok(Some(commit))
     }
 
@@ -108,43 +106,42 @@ impl Commit {
     }
 
     fn validate(buffer: &[u8]) -> Result<(), LoadError> {
+        use LoadError::*;
         let root = commit::get_root_as_commit(buffer);
-        root.value_hash().ok_or(LoadError::MissingValueHash)?;
+        root.value_hash().ok_or(MissingValueHash)?;
 
-        let meta = root.meta().ok_or(LoadError::MissingMeta)?;
-        meta.local_create_date()
-            .ok_or(LoadError::MissingLocalCreateDate)?;
+        let meta = root.meta().ok_or(MissingMeta)?;
+        meta.local_create_date().ok_or(MissingLocalCreateDate)?;
         // basis_hash is optional -- the first commit lacks a basis
-        meta.checksum().ok_or(LoadError::MissingChecksum)?;
+        meta.checksum().ok_or(MissingChecksum)?;
 
         match meta.typed_type() {
-            commit::MetaTyped::LocalMeta => Commit::validate_local_meta(
-                meta.typed_as_local_meta().ok_or(LoadError::MissingTyped)?,
-            ),
-            commit::MetaTyped::SnapshotMeta => Commit::validate_snapshot_meta(
-                meta.typed_as_snapshot_meta()
-                    .ok_or(LoadError::MissingTyped)?,
-            ),
-            _ => Err(LoadError::UnknownMetaType),
+            commit::MetaTyped::LocalMeta => {
+                Commit::validate_local_meta(meta.typed_as_local_meta().ok_or(MissingTyped)?)
+            }
+            commit::MetaTyped::SnapshotMeta => {
+                Commit::validate_snapshot_meta(meta.typed_as_snapshot_meta().ok_or(MissingTyped)?)
+            }
+            _ => Err(UnknownMetaType),
         }
     }
 
     fn validate_local_meta(local_meta: commit::LocalMeta) -> Result<(), LoadError> {
-        local_meta
-            .mutator_name()
-            .ok_or(LoadError::MissingMutatorName)?;
+        use LoadError::*;
+        local_meta.mutator_name().ok_or(MissingMutatorName)?;
         local_meta
             .mutator_args_json()
-            .ok_or(LoadError::MissingMutatorArgsJSON)?;
+            .ok_or(MissingMutatorArgsJSON)?;
         // original_hash is optional
         Ok(())
     }
 
     fn validate_snapshot_meta(snapshot_meta: commit::SnapshotMeta) -> Result<(), LoadError> {
+        use LoadError::*;
         // zero is allowed for last_mutation_id (for the first snapshot)
         snapshot_meta
             .server_state_id()
-            .ok_or(LoadError::MissingServerStateID)?;
+            .ok_or(MissingServerStateID)?;
         Ok(())
     }
 
@@ -176,7 +173,7 @@ impl Commit {
         let commit = commit::Commit::create(&mut builder, commit_args);
         builder.finish(commit, None);
 
-        let chunk = dag::Chunk::new(builder.collapse(), &vec![value_hash]);
+        let chunk = dag::Chunk::new(builder.collapse(), &[value_hash]);
         Commit { chunk }
     }
 }

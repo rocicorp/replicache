@@ -5,7 +5,7 @@ mod leaf;
 mod leaf_generated;
 mod map;
 
-pub use map::Map;
+pub use map::{FlushError, LoadError, Map};
 
 #[allow(dead_code)]
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]

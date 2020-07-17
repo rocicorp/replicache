@@ -121,8 +121,8 @@ mod tests {
                 assert_eq!(None, got_option);
             }
         }
-        test(vec![1u8], &vec!["r1", "r2"], true).await;
-        test(vec![1u8], &vec![], true).await;
-        test(vec![1u8], &vec!["r1", "r2"], false).await;
+        test(vec![1], &vec!["r1", "r2"], true).await;
+        test(vec![1], &vec![], true).await;
+        test(vec![1], &vec!["r1", "r2"], false).await;
     }
 }

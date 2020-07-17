@@ -120,10 +120,6 @@ mod tests {
                 // The changes should be present inside the tx.
                 assert!(w.kvw.has(&key).await.unwrap());
 
-                // But not outside the tx.
-                let kvr = kv.read().await.unwrap();
-                assert!(!kvr.has(&key).await.unwrap());
-
                 if commit {
                     w.commit().await.unwrap();
                 } else {

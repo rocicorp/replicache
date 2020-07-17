@@ -77,7 +77,7 @@ mod tests {
             kvw.commit().await.unwrap();
 
             let kvr = kv.read().await.unwrap();
-            let r = Read { kvr };
+            let r = Read { kvr: kvr.as_ref() };
             assert_eq!(expect_has, r.has_chunk(&hash).await.unwrap());
         }
 

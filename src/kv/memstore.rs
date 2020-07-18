@@ -229,8 +229,8 @@ mod tests {
 
     #[async_std::test]
     async fn test_isolation() {
-        use std::time::Duration;
         use async_std::future::timeout;
+        use std::time::Duration;
 
         let ms = MemStore::new();
 

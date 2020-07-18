@@ -89,7 +89,6 @@ mod tests {
     async fn test_get_chunk() {
         async fn test(data: Vec<u8>, refs: &[&str], get_same_chunk: bool) {
             let kv = MemStore::new();
-            let cloned_data = data.clone();
             let kvw = kv.write().await.unwrap();
             let chunk = Chunk::new((data, 0), refs);
             kvw.put(&Key::ChunkData(&chunk.hash()).to_string(), chunk.data())
@@ -104,22 +103,16 @@ mod tests {
 
             let kvr = kv.read().await.unwrap();
             let r = Read { kvr: kvr.as_ref() };
+
+            let mut expected = Option::<Chunk>::None;
+            let chunk_hash: &str;
             if get_same_chunk {
-                let got_option = r.get_chunk(chunk.hash()).await.unwrap();
-                let got_chunk = got_option.unwrap();
-                assert_eq!(chunk.hash(), got_chunk.hash());
-                let d: &[u8] = &cloned_data;
-                assert_eq!(d, got_chunk.data());
-                if chunk.refs().is_some() {
-                    assert_eq!(
-                        refs,
-                        got_chunk.refs().unwrap().collect::<Vec<&str>>().as_slice()
-                    );
-                }
+                expected = Some(chunk);
+                chunk_hash = expected.as_ref().unwrap().hash();
             } else {
-                let got_option = r.get_chunk("no such hash").await.unwrap();
-                assert_eq!(None, got_option);
+                chunk_hash = "no such hash";
             }
+            assert_eq!(expected, r.get_chunk(chunk_hash).await.unwrap());
         }
         test(vec![1], &vec!["r1", "r2"], true).await;
         test(vec![1], &vec![], true).await;

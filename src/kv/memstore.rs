@@ -35,23 +35,23 @@ impl Store for MemStore {
 }
 
 struct ReadTransaction<'a> {
-    guard: RwLockReadGuard<'a, HashMap<String, Vec<u8>>>,
+    map: RwLockReadGuard<'a, HashMap<String, Vec<u8>>>,
 }
 
 impl ReadTransaction<'_> {
-    fn new(guard: RwLockReadGuard<'_, HashMap<String, Vec<u8>>>) -> ReadTransaction {
-        ReadTransaction { guard }
+    fn new(map: RwLockReadGuard<'_, HashMap<String, Vec<u8>>>) -> ReadTransaction {
+        ReadTransaction { map }
     }
 }
 
 #[async_trait(?Send)]
 impl Read for ReadTransaction<'_> {
     async fn has(&self, key: &str) -> Result<bool> {
-        Ok(self.guard.contains_key(key))
+        Ok(self.map.contains_key(key))
     }
 
     async fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
-        match self.guard.get(key) {
+        match self.map.get(key) {
             None => Ok(None),
             Some(v) => Ok(Some(v.to_vec())),
         }
@@ -59,14 +59,14 @@ impl Read for ReadTransaction<'_> {
 }
 
 struct WriteTransaction<'a> {
-    guard: RwLockWriteGuard<'a, HashMap<String, Vec<u8>>>,
+    map: RwLockWriteGuard<'a, HashMap<String, Vec<u8>>>,
     pending: Mutex<HashMap<String, Option<Vec<u8>>>>,
 }
 
 impl WriteTransaction<'_> {
-    fn new(guard: RwLockWriteGuard<'_, HashMap<String, Vec<u8>>>) -> WriteTransaction {
+    fn new(map: RwLockWriteGuard<'_, HashMap<String, Vec<u8>>>) -> WriteTransaction {
         WriteTransaction {
-            guard: guard,
+            map,
             pending: Mutex::new(HashMap::new()),
         }
     }
@@ -78,7 +78,7 @@ impl Read for WriteTransaction<'_> {
         match self.pending.lock().await.get(key) {
             Some(Some(_)) => Ok(true),
             Some(None) => Ok(false),
-            None => Ok(self.guard.contains_key(key)),
+            None => Ok(self.map.contains_key(key)),
         }
     }
 
@@ -86,10 +86,7 @@ impl Read for WriteTransaction<'_> {
         match self.pending.lock().await.get(key) {
             Some(Some(v)) => Ok(Some(v.to_vec())),
             Some(None) => Ok(None),
-            None => match self.guard.get(key) {
-                Some(v) => Ok(Some(v.to_vec())),
-                None => Ok(None),
-            },
+            None => Ok(self.map.get(key).map(|v| v.to_vec())),
         }
     }
 }
@@ -117,8 +114,8 @@ impl Write for WriteTransaction<'_> {
         let pending = self.pending.lock().await;
         for item in pending.iter() {
             match item.1 {
-                Some(v) => self.guard.insert(item.0.clone(), v.clone()),
-                None => self.guard.remove(item.0),
+                Some(v) => self.map.insert(item.0.clone(), v.clone()),
+                None => self.map.remove(item.0),
             };
         }
         Ok(())
@@ -144,22 +141,22 @@ mod tests {
         let mut ms = MemStore::new();
 
         // Test put/has/get, which use read() and write() for one-shot txs.
-        assert_eq!(false, ms.has("foo").await?);
+        assert!(!ms.has("foo").await?);
         assert_eq!(None, ms.get("foo").await?);
 
-        ms.put("foo", "bar".as_bytes()).await?;
-        assert_eq!(true, ms.has("foo").await?);
-        assert_eq!(Some("bar".as_bytes().to_vec()), ms.get("foo").await?);
+        ms.put("foo", b"bar").await?;
+        assert!(ms.has("foo").await?);
+        assert_eq!(Some(b"bar".to_vec()), ms.get("foo").await?);
 
-        ms.put("foo", "baz".as_bytes()).await?;
-        assert_eq!(true, ms.has("foo").await?);
-        assert_eq!(Some("baz".as_bytes().to_vec()), ms.get("foo").await?);
+        ms.put("foo", b"baz").await?;
+        assert!(ms.has("foo").await?);
+        assert_eq!(Some(b"baz".to_vec()), ms.get("foo").await?);
 
-        assert_eq!(false, ms.has("baz").await?);
+        assert!(!ms.has("baz").await?);
         assert_eq!(None, ms.get("baz").await?);
-        ms.put("baz", "bat".as_bytes()).await?;
-        assert_eq!(true, ms.has("baz").await?);
-        assert_eq!(Some("bat".as_bytes().to_vec()), ms.get("baz").await?);
+        ms.put("baz", b"bat").await?;
+        assert!(ms.has("baz").await?);
+        assert_eq!(Some(b"bat".to_vec()), ms.get("baz").await?);
 
         Ok(())
     }
@@ -167,10 +164,10 @@ mod tests {
     #[async_std::test]
     async fn test_read_transaction() -> std::result::Result<(), StoreError> {
         let mut ms = MemStore::new();
-        ms.put("k1", "v1".as_bytes()).await?;
+        ms.put("k1", b"v1").await?;
 
         let rt = ms.read().await?;
-        assert_eq!(true, rt.has("k1").await?);
+        assert!(rt.has("k1").await?);
         assert_eq!(Some(b"v1".to_vec()), rt.get("k1").await?);
 
         Ok(())
@@ -179,13 +176,13 @@ mod tests {
     #[async_std::test]
     async fn test_write_transaction() -> std::result::Result<(), StoreError> {
         let mut ms = MemStore::new();
-        ms.put("k1", "v1".as_bytes()).await?;
-        ms.put("k2", "v2".as_bytes()).await?;
+        ms.put("k1", b"v1").await?;
+        ms.put("k2", b"v2").await?;
 
         // Test put then commit.
         let wt = ms.write().await?;
-        assert_eq!(true, wt.has("k1").await?);
-        assert_eq!(true, wt.has("k2").await?);
+        assert!(wt.has("k1").await?);
+        assert!(wt.has("k2").await?);
         wt.put("k1", b"overwrite").await?;
         wt.commit().await?;
         assert_eq!(Some(b"overwrite".to_vec()), ms.get("k1").await?);
@@ -200,17 +197,17 @@ mod tests {
         // Test del then commit.
         let wt = ms.write().await?;
         wt.del("k1").await?;
-        assert_eq!(false, wt.has("k1").await?);
+        assert!(!wt.has("k1").await?);
         wt.commit().await?;
-        assert_eq!(false, ms.has("k1").await?);
+        assert!(!ms.has("k1").await?);
 
         // Test del then rollback.
         assert_eq!(true, ms.has("k2").await?);
         let wt = ms.write().await?;
         wt.del("k2").await?;
-        assert_eq!(false, wt.has("k2").await?);
+        assert!(!wt.has("k2").await?);
         wt.rollback().await?;
-        assert_eq!(true, ms.has("k2").await?);
+        assert!(ms.has("k2").await?);
 
         // Test overwrite multiple times then commit.
         let wt = ms.write().await?;
@@ -224,7 +221,7 @@ mod tests {
         let wt = ms.write().await?;
         wt.put("k2", b"new value").await?;
         let rt = wt.as_read();
-        assert_eq!(true, rt.has("k2").await?);
+        assert!(rt.has("k2").await?);
         assert_eq!(Some(b"new value".to_vec()), rt.get("k2").await?);
 
         Ok(())
@@ -232,26 +229,34 @@ mod tests {
 
     #[async_std::test]
     async fn test_isolation() {
+        use std::time::Duration;
+        use async_std::future::timeout;
+
         let ms = MemStore::new();
 
         // Assert there can be multiple concurrent read txs...
         let r1 = ms.read().await.unwrap();
         let r2 = ms.read().await.unwrap();
         // and that while outstanding they prevent write txs...
-        let dur = std::time::Duration::from_millis(100);
+        let dur = Duration::from_millis(100);
         let w = ms.write();
-        assert!(async_std::future::timeout(dur, w).await.is_err());
+        assert!(timeout(dur, w).await.is_err());
         // until both the reads are done...
         drop(r1);
         let w = ms.write();
-        assert!(async_std::future::timeout(dur, w).await.is_err());
+        assert!(timeout(dur, w).await.is_err());
         drop(r2);
         let w = ms.write().await.unwrap();
 
         // At this point we have a write tx outstanding. Assert that
-        // we cannot open a read tx until it is closed.
+        // we cannot open another write transaction.
+        let w2 = ms.write();
+        assert!(timeout(dur, w2).await.is_err());
+
+        // The write tx is still outstanding, ensure we cannot open
+        // a read tx until it is finished.
         let r = ms.read();
-        assert!(async_std::future::timeout(dur, r).await.is_err());
+        assert!(timeout(dur, r).await.is_err());
         w.rollback().await.unwrap();
         let r = ms.read().await.unwrap();
         assert!(!r.has("foo").await.unwrap());

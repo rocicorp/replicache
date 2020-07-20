@@ -45,12 +45,16 @@ pub async fn dispatch(db_name: String, rpc: String, args: String) -> Result<Stri
 
 static INIT: Once = Once::new();
 
-fn init_panic_hook() {
-    #[cfg(feature = "console_error_panic_hook")]
-    console_error_panic_hook::set_once();
+pub fn init_console_log() {
     INIT.call_once(|| {
         if let Err(e) = console_log::init_with_level(log::Level::Info) {
             web_sys::console::error_1(&format!("Error registering console_log: {}", e).into());
         }
     });
+}
+
+fn init_panic_hook() {
+    #[cfg(feature = "console_error_panic_hook")]
+    console_error_panic_hook::set_once();
+    init_console_log();
 }

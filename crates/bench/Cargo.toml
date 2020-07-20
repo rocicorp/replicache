@@ -1,0 +1,13 @@
+[package]
+name = "wasm-bench"
+version = "0.1.0"
+authors = ["Rocicorp <replicache@roci.dev>"]
+edition = "2018"
+
+[dependencies]
+log = "0.4"
+wasm-bench-macro = { path = "../bench-macro" }
+web-sys = "0.3.42"
+
+[lib]
+test = false

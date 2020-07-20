@@ -6,6 +6,7 @@ edition = "2018"
 
 [features]
 default = ["console_error_panic_hook"]
+benchmark = []
 
 [dependencies]
 async-std = { version = "=1.6.0", features = ["unstable"] }
@@ -17,8 +18,8 @@ flatbuffers = "0.6.1"
 futures = "0.3.5"
 js-sys = "0.3.40"
 lazy_static = "1.4.0"
-nanoserde = "0.1"
 log = "0.4"
+nanoserde = "0.1"
 sha2 = "0.8.1"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4.13"
@@ -27,6 +28,7 @@ wee_alloc = "0.4.5"
 [dev-dependencies]
 async-std = { version = "=1.6.0", features = ["attributes", "unstable"] }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+wasm-bench = { path = "crates/bench" }
 wasm-bindgen-test = "0.3.0"
 
 [dependencies.web-sys]
@@ -34,7 +36,6 @@ version = "0.3.40"
 features = [
     "console",
     "DomException",
-    "Window",
     "IdbDatabase",
     "IdbFactory",
     "IdbObjectStore",
@@ -42,6 +43,8 @@ features = [
     "IdbTransaction",
     "IdbTransactionMode",
     "IdbVersionChangeEvent",
+    "Performance",
+    "Window",
 ]
 
 [lib]

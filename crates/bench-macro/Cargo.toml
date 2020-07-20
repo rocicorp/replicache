@@ -1,0 +1,12 @@
+[package]
+name = "wasm-bench-macro"
+version = "0.1.0"
+authors = ["Rocicorp <replicache@roci.dev>"]
+edition = "2018"
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+
+[lib]
+proc-macro = true

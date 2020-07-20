@@ -40,6 +40,18 @@ jobs:
     - run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
     - run: wasm-pack test --chrome --headless
 
+  wasmbench:
+    name: Wasm Bench
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+    - run: ./tool/benchmark | tee > wasm-bench.txt
+    - uses: actions/upload-artifact@v2
+      with:
+        name: wasm-bench.txt
+        path: wasm-bench.txt
+
   wasmsize:
     name: Wasm Size
     runs-on: ubuntu-latest

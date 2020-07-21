@@ -305,3 +305,8 @@ impl Write for WriteTransaction {
         Ok(())
     }
 }
+
+mod tests {
+    // Idbstore is integation tested because web_sys only lives in browsers.
+    // See tests/ at top level.
+}

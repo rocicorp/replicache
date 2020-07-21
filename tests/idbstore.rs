@@ -1,7 +1,7 @@
+// Run tests with `wasm-pack test --chrome --headless`.
 pub mod idbstore {
-
     use rand::Rng;
-    use replicache_client::kv::Store;
+    use replicache_client::kv::{trait_tests, Store};
     use replicache_client::wasm;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use wasm_bindgen_test::*;
@@ -17,6 +17,18 @@ pub mod idbstore {
         wasm::new_idbstore(name)
             .await
             .expect("IdbStore::new failed")
+    }
+
+    #[wasm_bindgen_test]
+    async fn test_idbstore() {
+        let mut is = new_store().await;
+        trait_tests::store(&mut *is).await.unwrap();
+        let mut is = new_store().await;
+        trait_tests::read_transaction(&mut *is).await.unwrap();
+        let mut is = new_store().await;
+        trait_tests::write_transaction(&mut *is).await.unwrap();
+        let mut is = new_store().await;
+        trait_tests::isolation(&mut *is).await;
     }
 
     // TODO(nate): Test entering Errored state.

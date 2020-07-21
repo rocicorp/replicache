@@ -128,137 +128,24 @@ impl Write for WriteTransaction<'_> {
     }
 }
 
-// TODO these tests should run against a Store trait object so we can test all types of
-// stores, not just the memstore.
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::kv::trait_tests;
     use crate::kv::StoreError;
 
     #[async_std::test]
-    async fn test_store_trait() -> std::result::Result<(), StoreError> {
-        let ms = MemStore::new();
-
-        // Test put/has/get, which use read() and write() for one-shot txs.
-        assert!(!ms.has("foo").await?);
-        assert_eq!(None, ms.get("foo").await?);
-
-        ms.put("foo", b"bar").await?;
-        assert!(ms.has("foo").await?);
-        assert_eq!(Some(b"bar".to_vec()), ms.get("foo").await?);
-
-        ms.put("foo", b"baz").await?;
-        assert!(ms.has("foo").await?);
-        assert_eq!(Some(b"baz".to_vec()), ms.get("foo").await?);
-
-        assert!(!ms.has("baz").await?);
-        assert_eq!(None, ms.get("baz").await?);
-        ms.put("baz", b"bat").await?;
-        assert!(ms.has("baz").await?);
-        assert_eq!(Some(b"bat".to_vec()), ms.get("baz").await?);
+    async fn test_memstore() -> std::result::Result<(), StoreError> {
+        let ms = &mut MemStore::new();
+        trait_tests::store(ms).await?;
+        let ms = &mut MemStore::new();
+        trait_tests::read_transaction(ms).await?;
+        let ms = &mut MemStore::new();
+        trait_tests::write_transaction(ms).await?;
+        let ms = &mut MemStore::new();
+        trait_tests::isolation(ms).await;
 
         Ok(())
-    }
-
-    #[async_std::test]
-    async fn test_read_transaction() -> std::result::Result<(), StoreError> {
-        let ms = MemStore::new();
-        ms.put("k1", b"v1").await?;
-
-        let rt = ms.read().await?;
-        assert!(rt.has("k1").await?);
-        assert_eq!(Some(b"v1".to_vec()), rt.get("k1").await?);
-
-        Ok(())
-    }
-
-    #[async_std::test]
-    async fn test_write_transaction() -> std::result::Result<(), StoreError> {
-        let ms = MemStore::new();
-        ms.put("k1", b"v1").await?;
-        ms.put("k2", b"v2").await?;
-
-        // Test put then commit.
-        let wt = ms.write().await?;
-        assert!(wt.has("k1").await?);
-        assert!(wt.has("k2").await?);
-        wt.put("k1", b"overwrite").await?;
-        wt.commit().await?;
-        assert_eq!(Some(b"overwrite".to_vec()), ms.get("k1").await?);
-        assert_eq!(Some(b"v2".to_vec()), ms.get("k2").await?);
-
-        // Test put then rollback.
-        let wt = ms.write().await?;
-        wt.put("k1", b"should be rolled back").await?;
-        wt.rollback().await?;
-        assert_eq!(Some(b"overwrite".to_vec()), ms.get("k1").await?);
-
-        // Test del then commit.
-        let wt = ms.write().await?;
-        wt.del("k1").await?;
-        assert!(!wt.has("k1").await?);
-        wt.commit().await?;
-        assert!(!ms.has("k1").await?);
-
-        // Test del then rollback.
-        assert_eq!(true, ms.has("k2").await?);
-        let wt = ms.write().await?;
-        wt.del("k2").await?;
-        assert!(!wt.has("k2").await?);
-        wt.rollback().await?;
-        assert!(ms.has("k2").await?);
-
-        // Test overwrite multiple times then commit.
-        let wt = ms.write().await?;
-        wt.put("k2", b"overwrite").await?;
-        wt.del("k2").await?;
-        wt.put("k2", b"final").await?;
-        wt.commit().await?;
-        assert_eq!(Some(b"final".to_vec()), ms.get("k2").await?);
-
-        // Test as_read.
-        let wt = ms.write().await?;
-        wt.put("k2", b"new value").await?;
-        let rt = wt.as_read();
-        assert!(rt.has("k2").await?);
-        assert_eq!(Some(b"new value".to_vec()), rt.get("k2").await?);
-
-        Ok(())
-    }
-
-    #[async_std::test]
-    async fn test_isolation() {
-        use async_std::future::timeout;
-        use std::time::Duration;
-
-        let ms = MemStore::new();
-
-        // Assert there can be multiple concurrent read txs...
-        let r1 = ms.read().await.unwrap();
-        let r2 = ms.read().await.unwrap();
-        // and that while outstanding they prevent write txs...
-        let dur = Duration::from_millis(100);
-        let w = ms.write();
-        assert!(timeout(dur, w).await.is_err());
-        // until both the reads are done...
-        drop(r1);
-        let w = ms.write();
-        assert!(timeout(dur, w).await.is_err());
-        drop(r2);
-        let w = ms.write().await.unwrap();
-
-        // At this point we have a write tx outstanding. Assert that
-        // we cannot open another write transaction.
-        let w2 = ms.write();
-        assert!(timeout(dur, w2).await.is_err());
-
-        // The write tx is still outstanding, ensure we cannot open
-        // a read tx until it is finished.
-        let r = ms.read();
-        assert!(timeout(dur, r).await.is_err());
-        w.rollback().await.unwrap();
-        let r = ms.read().await.unwrap();
-        assert!(!r.has("foo").await.unwrap());
     }
 }

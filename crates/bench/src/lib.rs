@@ -1,6 +1,7 @@
 use core::future::Future;
 use log::error;
 use std::cmp;
+use thousands::Separable;
 pub use wasm_bench_macro::wasm_bench;
 
 fn now_nanos() -> u64 {
@@ -114,7 +115,7 @@ where
         "{} {} {} ns/iter{}",
         name,
         b.iterations,
-        b.ns_per_iter(),
+        b.ns_per_iter().separate_with_commas(),
         extra
     );
 }

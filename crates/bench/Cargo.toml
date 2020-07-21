@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 log = "0.4"
+thousands = "0.2.0"
 wasm-bench-macro = { path = "../bench-macro" }
 web-sys = "0.3.42"
 

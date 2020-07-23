@@ -31,17 +31,17 @@ impl From<futures::channel::oneshot::Canceled> for StoreError {
 
 pub struct IdbStore {
     // We would like:
-    // - Store to implement strict serializability.
+    // - tests that verify essential behavior such as tx isolation.
+    // - Store to be strictly serializabile.
     // - implementations of Store to work in as close to the same way as possible
     //      in order to ensure our tests are realistic and to make replicache easy
     //      to reason about.
-    // - tests that verify essential behavior such as tx isoation.
     //      
     // Idb v2 is (strictly I think) serializable but its API and spec have some features
-    // that make it hard to understand what it is doing:
-    // - the interface is that a tx can be created and start accepting requests
-    //      before the transaction actually starts, which happens asynchronously
-    //      and opaquely. This means you can open 20 write txs in parallel and start
+    // that make it hard to predict and test:
+    // - a tx can be created and begin accepting requests before the transaction 
+    //      actually starts, which happens asynchronously and opaquely. This 
+    //      means you can open 20 write txs in parallel and start
     //      sending them requests and while only one of them will actually start executing,
     //      you can't tell which one.
     // - per https://www.w3.org/TR/IndexedDB-2/#transaction-lifetime-concept
@@ -54,26 +54,27 @@ pub struct IdbStore {
     //      behavior: https://lists.w3.org/Archives/Public/public-webapps/2014JanMar/0586.html).
     //
     // The Memstore implementation we wrote had a simpler to implement interface: at most
-    // one write tx can be open at any time and it must be exclusive of all other txs;
+    // one write tx can be instantiated at any time and it must be exclusive of all other txs;
     // callers wait asynchronosly to start txs until this constraint can be met.
     // 
     // Here we use a RwLock around the underlying idb in order to bring the memstore
     // behavior (caller asynchronously waits to open a tx until it can proceed safely) to idb
-    // (caller creates a tx and sends its requests and it starts asynchronously and opaquely).
-    // This RwLock makes the Store easy to test and reason about. In principle
-    // adding this lock mirrors the constraints in play under the hood, so in principle
-    // nbd, but there are probably practical considerations that make this approach less
-    // efficient (eg if implementations increase concurrency with the snapshot isolation
+    // (caller creates a tx and sends it requests and it starts asynchronously and opaquely).
+    // This RwLock makes the Idbstore work like the Memstore, makes it easy to test,
+    // and (in my mind) makes it easier to reason about. In principle adding this lock 
+    // mirrors the constraints in play under the hood, so in principle nbd, but there 
+    // are probably practical considerations that make this approach less efficient 
+    // (e.g. if implementations increase concurrency with the snapshot isolation
     // loophole above). It's also the case that we lose a measure of fairness implemented by
     // idb, per the spec: "User agents must ensure a reasonable level of fairness across 
     // transactions to prevent starvation. For example, if multiple read-only transactions 
     // are started one after another the implementation must not indefinitely prevent a 
-    // pending read/write transaction from starting." Using the RwLock the Store is serializable,
-    // but not strictly so because the RwLock is not fair and so we don't guarantee temporal
-    // ordering (anyone waiting might acquire the lock).
+    // pending read/write transaction from starting." Using the RwLock means the IdbStore is 
+    // serializable, but not strictly so because the RwLock is not fair and so we don't 
+    // guarantee temporal ordering (anyone waiting might acquire the lock).
     //
     // It's possible we should have gone the other way and made memstore have the idb
-    // interface. But the thing we should not do is have memstore and idbstore work differently.
+    // interface. However the thing we should not do is have memstore and idbstore work differently.
     db: RwLock<IdbDatabase>,
 }
 
@@ -294,8 +295,6 @@ impl Write for WriteTransaction<'_> {
         Ok(())
     }
 
-    //   // We hold writes in memory until the API user calls commit
-    // to ensure that we don't let partial transactions auto-commit.
     async fn commit(self: Box<Self>) -> Result<()> {
         // Define rollback() to succeed if no writes have occurred, even if
         // the underlying transaction has exited. Users who expose themselves
@@ -362,6 +361,6 @@ impl Write for WriteTransaction<'_> {
 }
 
 mod tests {
-    // Idbstore is integation tested because web_sys only lives in browsers.
+    // Idbstore is integration tested because web_sys only lives in browsers.
     // See tests/ at top level.
 }

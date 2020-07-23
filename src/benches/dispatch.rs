@@ -19,6 +19,25 @@ async fn eval(code: &str) {
 }
 
 #[wasm_bench]
+async fn noop(b: &mut Bench) {
+    let dbname = opendb().await;
+
+    let _ = IdbStore::new(&dbname).await.unwrap().unwrap();
+    b.reset_timer();
+    eval(&format!(
+        "
+        (async _ => {{
+            for (let i = 0; i < {}; i++) {{
+                await dispatch('{}', 'open', '');
+            }}
+        }})()",
+        b.iterations(),
+        dbname
+    ))
+    .await;
+}
+
+#[wasm_bench]
 async fn has(b: &mut Bench) {
     let dbname = opendb().await;
 

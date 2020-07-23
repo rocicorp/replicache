@@ -218,8 +218,8 @@ struct WriteTransaction<'a> {
 impl WriteTransaction<'_> {
     fn new(db: RwLockWriteGuard<'_, IdbDatabase>, tx: IdbTransaction) -> Result<WriteTransaction> {
         let mut wt = WriteTransaction {
-            db: db,
-            tx: tx,
+            db,
+            tx,
             pair: Arc::new((Mutex::new(WriteState::Open), Condvar::new())),
             pending: Mutex::new(HashMap::new()),
             callbacks: Vec::with_capacity(3),

@@ -165,16 +165,16 @@ pub mod trait_tests {
         // and that while outstanding they prevent write txs...
         let dur = Duration::from_millis(200);
         let w = store.write();
-        if let Ok(_) = timeout(dur, w).await {
+        if timeout(dur, w).await.is_ok() {
             spew("2 open read tx should have prevented new write");
-            assert!(false);
+            panic!();
         }
         // until both the reads are done...
         drop(r1);
         let w = store.write();
-        if let Ok(_) = timeout(dur, w).await {
+        if timeout(dur, w).await.is_ok() {
             spew("1 open read tx should have prevented new write");
-            assert!(false);
+            panic!();
         }
         drop(r2);
         let w = store.write().await.unwrap();
@@ -182,17 +182,17 @@ pub mod trait_tests {
         // At this point we have a write tx outstanding. Assert that
         // we cannot open another write transaction.
         let w2 = store.write();
-        if let Ok(_) = timeout(dur, w2).await {
+        if timeout(dur, w2).await.is_ok() {
             spew("1 open write tx should have prevented new write");
-            assert!(false);
+            panic!();
         }
 
         // The write tx is still outstanding, ensure we cannot open
         // a read tx until it is finished.
         let r = store.read();
-        if let Ok(_) = timeout(dur, r).await {
+        if timeout(dur, r).await.is_ok() {
             spew("1 open write tx should have prevented new read");
-            assert!(false);
+            panic!();
         }
         w.rollback().await.unwrap();
         let r = store.read().await.unwrap();

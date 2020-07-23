@@ -1,5 +1,5 @@
 use crate::kv::{Read, Result, Store, StoreError, Write};
-use async_std::sync::{Arc, Condvar, Mutex};
+use async_std::sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use async_std::task;
 use async_trait::async_trait;
 use futures::channel::oneshot;
@@ -8,7 +8,7 @@ use log::warn;
 use std::collections::HashMap;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{IdbDatabase, IdbObjectStore, IdbTransaction};
+use web_sys::{IdbDatabase, IdbTransaction};
 
 impl From<String> for StoreError {
     fn from(err: String) -> StoreError {
@@ -30,7 +30,51 @@ impl From<futures::channel::oneshot::Canceled> for StoreError {
 }
 
 pub struct IdbStore {
-    db: IdbDatabase,
+    // We would like:
+    // - Store to implement strict serializability.
+    // - implementations of Store to work in as close to the same way as possible
+    //      in order to ensure our tests are realistic and to make replicache easy
+    //      to reason about.
+    // - tests that verify essential behavior such as tx isoation.
+    //      
+    // Idb v2 is (strictly I think) serializable but its API and spec have some features
+    // that make it hard to understand what it is doing:
+    // - the interface is that a tx can be created and start accepting requests
+    //      before the transaction actually starts, which happens asynchronously
+    //      and opaquely. This means you can open 20 write txs in parallel and start
+    //      sending them requests and while only one of them will actually start executing,
+    //      you can't tell which one.
+    // - per https://www.w3.org/TR/IndexedDB-2/#transaction-lifetime-concept
+    //      read transacitons can be executed concurrently with readwrite txs
+    //      if the read tx is snapshot isolated and started before the readwrite tx.
+    //      Unclear which browsers do this. If they do do this then this increases
+    //      concurrency.
+    // - Aside: idb v1 api allowed read txs to be re-ordered before write txs, meaning
+    //      that indexdb was potentially not read-after-write. Chrome apparently had this
+    //      behavior: https://lists.w3.org/Archives/Public/public-webapps/2014JanMar/0586.html).
+    //
+    // The Memstore implementation we wrote had a simpler to implement interface: at most
+    // one write tx can be open at any time and it must be exclusive of all other txs;
+    // callers wait asynchronosly to start txs until this constraint can be met.
+    // 
+    // Here we use a RwLock around the underlying idb in order to bring the memstore
+    // behavior (caller asynchronously waits to open a tx until it can proceed safely) to idb
+    // (caller creates a tx and sends its requests and it starts asynchronously and opaquely).
+    // This RwLock makes the Store easy to test and reason about. In principle
+    // adding this lock mirrors the constraints in play under the hood, so in principle
+    // nbd, but there are probably practical considerations that make this approach less
+    // efficient (eg if implementations increase concurrency with the snapshot isolation
+    // loophole above). It's also the case that we lose a measure of fairness implemented by
+    // idb, per the spec: "User agents must ensure a reasonable level of fairness across 
+    // transactions to prevent starvation. For example, if multiple read-only transactions 
+    // are started one after another the implementation must not indefinitely prevent a 
+    // pending read/write transaction from starting." Using the RwLock the Store is serializable,
+    // but not strictly so because the RwLock is not fair and so we don't guarantee temporal
+    // ordering (anyone waiting might acquire the lock).
+    //
+    // It's possible we should have gone the other way and made memstore have the idb
+    // interface. But the thing we should not do is have memstore and idbstore work differently.
+    db: RwLock<IdbDatabase>,
 }
 
 const OBJECT_STORE: &str = "chunks";
@@ -67,7 +111,7 @@ impl IdbStore {
         request.set_onupgradeneeded(Some(onupgradeneeded.as_ref().unchecked_ref()));
         receiver.await?;
         Ok(Some(IdbStore {
-            db: request.result()?.into(),
+            db: RwLock::new(request.result()?.into()),
         }))
     }
 
@@ -89,59 +133,69 @@ impl IdbStore {
 #[async_trait(?Send)]
 impl Store for IdbStore {
     async fn read<'a>(&'a self) -> Result<Box<dyn Read + 'a>> {
-        Ok(Box::new(ReadTransaction::new(self)?))
+        let db_guard = self.db.read().await;
+        let tx = db_guard.transaction_with_str(OBJECT_STORE)?;
+        Ok(Box::new(ReadTransaction::new(db_guard, tx)?))
     }
 
     async fn write<'a>(&'a self) -> Result<Box<dyn Write + 'a>> {
-        Ok(Box::new(WriteTransaction::new(self)?))
+        let db_guard = self.db.write().await;
+        let tx = db_guard
+            .transaction_with_str_and_mode(OBJECT_STORE, web_sys::IdbTransactionMode::Readwrite)?;
+        Ok(Box::new(WriteTransaction::new(db_guard, tx)?))
     }
 }
 
-struct ReadTransaction {
+struct ReadTransaction<'a> {
+    #[allow(dead_code)]
+    db: RwLockReadGuard<'a, IdbDatabase>,
     tx: IdbTransaction,
-    store: IdbObjectStore,
 }
 
-impl ReadTransaction {
-    fn new(store: &IdbStore) -> Result<ReadTransaction> {
-        let tx = store.db.transaction_with_str(OBJECT_STORE)?;
-        Ok(ReadTransaction {
-            store: tx.object_store(OBJECT_STORE)?,
-            tx,
-        })
+impl ReadTransaction<'_> {
+    fn new(db: RwLockReadGuard<'_, IdbDatabase>, tx: IdbTransaction) -> Result<ReadTransaction> {
+        Ok(ReadTransaction { db, tx })
     }
 }
 
 #[async_trait(?Send)]
-impl Read for ReadTransaction {
+impl Read for ReadTransaction<'_> {
     async fn has(&self, key: &str) -> Result<bool> {
-        let request = self.store.count_with_key(&key.into())?;
-        let (callback, receiver) = IdbStore::oneshot_callback();
-        request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
-        request.set_onerror(Some(callback.as_ref().unchecked_ref()));
-        receiver.await?;
-        let result = request.result()?;
-        Ok(match result.as_f64() {
-            Some(v) if v >= 1.0 => true,
-            Some(_) => false,
-            _ => {
-                warn!("IdbStore.count returned non-float {:?}", result);
-                false
-            }
-        })
+        has_impl(&self.tx, key).await
     }
 
     async fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
-        let request = self.store.get(&key.into())?;
-        let (callback, receiver) = IdbStore::oneshot_callback();
-        request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
-        request.set_onerror(Some(callback.as_ref().unchecked_ref()));
-        receiver.await?;
-        Ok(match request.result()? {
-            v if v.is_undefined() => None,
-            v => Some(js_sys::Uint8Array::new(&v).to_vec()),
-        })
+        get_impl(&self.tx, key).await
     }
+}
+
+async fn has_impl(tx: &IdbTransaction, key: &str) -> Result<bool> {
+    let request = tx.object_store(OBJECT_STORE)?.count_with_key(&key.into())?;
+    let (callback, receiver) = IdbStore::oneshot_callback();
+    request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
+    request.set_onerror(Some(callback.as_ref().unchecked_ref()));
+    receiver.await?;
+    let result = request.result()?;
+    Ok(match result.as_f64() {
+        Some(v) if v >= 1.0 => true,
+        Some(_) => false,
+        _ => {
+            warn!("IdbStore.count returned non-float {:?}", result);
+            false
+        }
+    })
+}
+
+async fn get_impl(tx: &IdbTransaction, key: &str) -> Result<Option<Vec<u8>>> {
+    let request = tx.object_store(OBJECT_STORE)?.get(&key.into())?;
+    let (callback, receiver) = IdbStore::oneshot_callback();
+    request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
+    request.set_onerror(Some(callback.as_ref().unchecked_ref()));
+    receiver.await?;
+    Ok(match request.result()? {
+        v if v.is_undefined() => None,
+        v => Some(js_sys::Uint8Array::new(&v).to_vec()),
+    })
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -152,29 +206,26 @@ enum WriteState {
     Errored,
 }
 
-struct WriteTransaction {
-    rt: ReadTransaction,
+struct WriteTransaction<'a> {
+    #[allow(dead_code)]
+    db: RwLockWriteGuard<'a, IdbDatabase>,
+    tx: IdbTransaction,
     pending: Mutex<HashMap<String, Option<Vec<u8>>>>,
     pair: Arc<(Mutex<WriteState>, Condvar)>,
     callbacks: Vec<Closure<dyn FnMut()>>,
 }
 
-impl WriteTransaction {
-    fn new(store: &IdbStore) -> Result<WriteTransaction> {
-        let tx = store
-            .db
-            .transaction_with_str_and_mode(OBJECT_STORE, web_sys::IdbTransactionMode::Readwrite)?;
+impl WriteTransaction<'_> {
+    fn new(db: RwLockWriteGuard<'_, IdbDatabase>, tx: IdbTransaction) -> Result<WriteTransaction> {
         let mut wt = WriteTransaction {
-            rt: ReadTransaction {
-                store: tx.object_store(OBJECT_STORE)?,
-                tx,
-            },
+            db: db,
+            tx: tx,
             pair: Arc::new((Mutex::new(WriteState::Open), Condvar::new())),
             pending: Mutex::new(HashMap::new()),
             callbacks: Vec::with_capacity(3),
         };
 
-        let tx = &wt.rt.tx;
+        let tx = &wt.tx;
         let callback = wt.tx_callback(WriteState::Committed);
         tx.set_oncomplete(Some(callback.as_ref().unchecked_ref()));
         wt.callbacks.push(callback);
@@ -204,12 +255,12 @@ impl WriteTransaction {
 }
 
 #[async_trait(?Send)]
-impl Read for WriteTransaction {
+impl Read for WriteTransaction<'_> {
     async fn has(&self, key: &str) -> Result<bool> {
         match self.pending.lock().await.get(key) {
             Some(Some(_)) => Ok(true),
             Some(None) => Ok(false),
-            None => self.rt.has(key).await,
+            None => has_impl(&self.tx, key).await,
         }
     }
 
@@ -217,17 +268,19 @@ impl Read for WriteTransaction {
         match self.pending.lock().await.get(key) {
             Some(Some(v)) => Ok(Some(v.to_vec())),
             Some(None) => Ok(None),
-            None => self.rt.get(key).await,
+            None => get_impl(&self.tx, key).await,
         }
     }
 }
 
 #[async_trait(?Send)]
-impl Write for WriteTransaction {
+impl Write for WriteTransaction<'_> {
     fn as_read(&self) -> &dyn Read {
         self
     }
 
+    // We hold writes in memory until the API user calls commit
+    // to ensure that we don't let partial transactions auto-commit.
     async fn put(&self, key: &str, value: &[u8]) -> Result<()> {
         self.pending
             .lock()
@@ -241,6 +294,8 @@ impl Write for WriteTransaction {
         Ok(())
     }
 
+    //   // We hold writes in memory until the API user calls commit
+    // to ensure that we don't let partial transactions auto-commit.
     async fn commit(self: Box<Self>) -> Result<()> {
         // Define rollback() to succeed if no writes have occurred, even if
         // the underlying transaction has exited. Users who expose themselves
@@ -251,7 +306,7 @@ impl Write for WriteTransaction {
             return Ok(());
         }
 
-        let store = self.rt.tx.object_store(OBJECT_STORE)?;
+        let store = self.tx.object_store(OBJECT_STORE)?;
         let mut callbacks = Vec::with_capacity(pending.len());
         let mut requests: Vec<oneshot::Receiver<()>> = Vec::with_capacity(pending.len());
         for (key, value) in pending.iter() {
@@ -270,7 +325,7 @@ impl Write for WriteTransaction {
         let state = cv
             .wait_until(lock.lock().await, |state| *state != WriteState::Open)
             .await;
-        if let Some(e) = self.rt.tx.error() {
+        if let Some(e) = self.tx.error() {
             return Err(format!("{:?}", e).into());
         }
         if *state != WriteState::Committed {
@@ -292,11 +347,11 @@ impl Write for WriteTransaction {
             _ => (),
         }
 
-        self.rt.tx.abort()?;
+        self.tx.abort()?;
         let state = cv
             .wait_until(lock.lock().await, |state| *state != WriteState::Open)
             .await;
-        if let Some(e) = self.rt.tx.error() {
+        if let Some(e) = self.tx.error() {
             return Err(format!("{:?}", e).into());
         }
         if *state != WriteState::Aborted {

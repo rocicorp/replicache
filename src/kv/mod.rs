@@ -145,7 +145,16 @@ pub mod trait_tests {
 
     pub async fn isolation(store: &mut dyn Store) {
         use async_std::future::timeout;
+        use log::error;
         use std::time::Duration;
+
+        // We don't get line numbers in stack traces in wasm so we use an error message
+        // which is logged to console to identify the issue. AFAICT this does nothing
+        // when running regular tests, but that's ok because we get useful stack traces
+        // in that case.
+        fn spew(msg: &str) {
+            error!("{}", msg);
+        }
 
         // Assert there can be multiple concurrent read txs...
         let r1 = store.read().await.unwrap();
@@ -157,14 +166,14 @@ pub mod trait_tests {
         let dur = Duration::from_millis(200);
         let w = store.write();
         if let Ok(_) = timeout(dur, w).await {
-            println!("2 open read tx should have prevented new write");
+            spew("2 open read tx should have prevented new write");
             assert!(false);
         }
         // until both the reads are done...
         drop(r1);
         let w = store.write();
         if let Ok(_) = timeout(dur, w).await {
-            println!("1 open read tx should have prevented new write");
+            spew("1 open read tx should have prevented new write");
             assert!(false);
         }
         drop(r2);
@@ -174,7 +183,7 @@ pub mod trait_tests {
         // we cannot open another write transaction.
         let w2 = store.write();
         if let Ok(_) = timeout(dur, w2).await {
-            println!("1 open write tx should have prevented new write");
+            spew("1 open write tx should have prevented new write");
             assert!(false);
         }
 
@@ -182,7 +191,7 @@ pub mod trait_tests {
         // a read tx until it is finished.
         let r = store.read();
         if let Ok(_) = timeout(dur, r).await {
-            println!("1 open write tx should have prevented new read");
+            spew("1 open write tx should have prevented new read");
             assert!(false);
         }
         w.rollback().await.unwrap();

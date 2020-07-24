@@ -12,7 +12,6 @@ use std::iter::{Iterator, Peekable};
 
 type Hash = String;
 
-#[allow(dead_code)]
 pub struct Map {
     base: Option<Leaf>,
     pending: BTreeMap<Vec<u8>, Option<Vec<u8>>>,
@@ -48,7 +47,6 @@ impl From<dag::Error> for FlushError {
     }
 }
 
-#[allow(dead_code)]
 impl Map {
     pub fn new() -> Map {
         Map {
@@ -80,6 +78,7 @@ impl Map {
         self.pending.insert(key, Some(val));
     }
 
+    #[allow(dead_code)]
     pub fn del(&mut self, key: Vec<u8>) {
         self.pending.insert(key, None);
     }

@@ -24,7 +24,7 @@ pub trait Store {
     async fn read<'a>(&'a self) -> Result<Box<dyn Read + 'a>>;
     async fn write<'a>(&'a self) -> Result<Box<dyn Write + 'a>>;
 
-    async fn put(&mut self, key: &str, value: &[u8]) -> Result<()> {
+    async fn put(&self, key: &str, value: &[u8]) -> Result<()> {
         let wt = self.write().await?;
         wt.put(key, value).await?;
         Ok(wt.commit().await?)

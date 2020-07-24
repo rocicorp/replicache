@@ -138,7 +138,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_store_trait() -> std::result::Result<(), StoreError> {
-        let mut ms = MemStore::new();
+        let ms = MemStore::new();
 
         // Test put/has/get, which use read() and write() for one-shot txs.
         assert!(!ms.has("foo").await?);
@@ -163,7 +163,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_read_transaction() -> std::result::Result<(), StoreError> {
-        let mut ms = MemStore::new();
+        let ms = MemStore::new();
         ms.put("k1", b"v1").await?;
 
         let rt = ms.read().await?;
@@ -175,7 +175,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_write_transaction() -> std::result::Result<(), StoreError> {
-        let mut ms = MemStore::new();
+        let ms = MemStore::new();
         ms.put("k1", b"v1").await?;
         ms.put("k2", b"v2").await?;
 

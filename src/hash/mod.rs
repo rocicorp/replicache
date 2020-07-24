@@ -48,7 +48,6 @@ impl Hash {
         }
     }
 
-    #[allow(dead_code)]
     pub fn of(data: &[u8]) -> Hash {
         let mut hasher = Sha512::new();
         hasher.input(data);

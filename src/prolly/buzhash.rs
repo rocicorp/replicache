@@ -45,7 +45,6 @@ pub struct BuzHash {
     overflow: bool,
 }
 
-#[allow(dead_code)]
 impl BuzHash {
     pub fn new(n: u32) -> BuzHash {
         let bshiftn = n % 32;

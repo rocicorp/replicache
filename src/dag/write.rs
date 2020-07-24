@@ -3,12 +3,10 @@ use super::key::Key;
 use super::{read, Result};
 use crate::kv;
 
-#[allow(dead_code)]
 pub struct Write<'a> {
     kvw: Box<dyn kv::Write + 'a>,
 }
 
-#[allow(dead_code)]
 impl<'a> Write<'_> {
     pub fn new(kvw: Box<dyn kv::Write + 'a>) -> Write {
         Write { kvw }
@@ -41,6 +39,7 @@ impl<'a> Write<'_> {
         Ok(self.kvw.commit().await?)
     }
 
+    #[allow(dead_code)]
     pub async fn rollback(self) -> Result<()> {
         Ok(self.kvw.rollback().await?)
     }

@@ -1,0 +1,5 @@
+[package]
+name = "async-fn"
+version = "0.1.0"
+authors = ["Rocicorp <replicache@roci.dev>"]
+edition = "2018"

@@ -3,10 +3,12 @@
 use crate::dag;
 use crate::db;
 use crate::kv::idbstore::IdbStore;
+use async_fn::AsyncFn2;
 use async_std::sync::{channel, Receiver, Sender};
 use log::warn;
 use nanoserde::{DeJson, DeJsonErr, SerJson};
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Mutex;
 use wasm_bindgen_futures::spawn_local;
 
@@ -46,7 +48,7 @@ async fn dispatch_loop(rx: Receiver<Request>) {
                     req.response.send(response).await;
                     continue;
                 }
-                let db = match dispatcher.connections.get_mut(&req.db_name[..]) {
+                let db = match dispatcher.connections.get(&req.db_name[..]) {
                     Some(v) => v,
                     None => {
                         req.response
@@ -55,25 +57,40 @@ async fn dispatch_loop(rx: Receiver<Request>) {
                         continue;
                     }
                 };
-                let response = match req.rpc.as_str() {
-                    "has" => stringlify(Dispatcher::has(&**db, &req.data).await),
-                    "get" => stringlify(Dispatcher::get(&**db, &req.data).await),
-                    "put" => stringlify(Dispatcher::put(&**db, &req.data).await),
-                    _ => Err("Unsupported rpc name".into()),
+                match req.rpc.as_str() {
+                    "has" => {
+                        spawn_local(execute(Dispatcher::has, db.clone(), req));
+                    }
+                    "get" => {
+                        spawn_local(execute(Dispatcher::get, db.clone(), req));
+                    }
+                    "put" => {
+                        spawn_local(execute(Dispatcher::put, db.clone(), req));
+                    }
+                    _ => {
+                        req.response.send(Err("Unsupported rpc name".into())).await;
+                    }
                 };
-                req.response.send(response).await;
             }
         }
     }
 }
 
+async fn execute<T, F>(func: F, store: Rc<dag::Store>, req: Request)
+where
+    T: std::fmt::Debug,
+    F: for<'r, 's> AsyncFn2<&'r dag::Store, &'s str, Output = Result<String, T>>,
+{
+    let response = func
+        .call(&*store, &req.data)
+        .await
+        .map_err(|e| format!("{:?}", e));
+    req.response.send(response).await;
+}
+
 #[derive(DeJson)]
 struct GetRequest {
     key: String,
-}
-
-fn stringlify<R, E: std::fmt::Debug>(result: Result<R, E>) -> Result<R, String> {
-    result.map_err(|e| format!("{:?}", e))
 }
 
 #[derive(SerJson)]
@@ -89,7 +106,7 @@ struct PutRequest {
 }
 
 struct Dispatcher {
-    connections: HashMap<String, Box<dag::Store>>,
+    connections: HashMap<String, Rc<dag::Store>>,
 }
 
 impl Dispatcher {
@@ -107,7 +124,7 @@ impl Dispatcher {
             Ok(v) => {
                 if let Some(kv) = v {
                     self.connections
-                        .insert(req.db_name.clone(), Box::new(dag::Store::new(Box::new(kv))));
+                        .insert(req.db_name.clone(), Rc::new(dag::Store::new(Box::new(kv))));
                 }
             }
         }
@@ -154,6 +171,18 @@ impl Dispatcher {
     async fn get(ds: &dag::Store, data: &str) -> Result<String, GetError> {
         use GetError::*;
         let req: GetRequest = DeJson::deserialize_json(data).map_err(InvalidJson)?;
+
+        #[cfg(not(default))] // Not enabled in production.
+        if req.key.starts_with("sleep") {
+            use async_std::task::sleep;
+            use core::time::Duration;
+
+            match req.key[5..].parse::<u64>() {
+                Ok(ms) => sleep(Duration::from_millis(ms)).await,
+                Err(_) => log::error!("No sleep"),
+            }
+        }
+
         let write = Dispatcher::open_transaction(ds)
             .await
             .map_err(OpenTransactionError)?;

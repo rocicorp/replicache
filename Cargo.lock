@@ -11,6 +11,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-fn"
+version = "0.1.0"
+
+[[package]]
 name = "async-std"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -565,6 +569,7 @@ checksum = "2439c63f3f6139d1b57529d16bc3b8bb855230c8efcc5d3a896c8bea7c3b1e84"
 name = "replicache-client"
 version = "0.1.0"
 dependencies = [
+ "async-fn",
  "async-std",
  "async-trait",
  "console_error_panic_hook",
@@ -700,6 +705,7 @@ checksum = "cccddf32554fecc6acb585f82a32a72e28b48f8c4c1883ddfeeeaa96f7d8e519"
 name = "wasm-bench"
 version = "0.1.0"
 dependencies = [
+ "async-fn",
  "log",
  "thousands",
  "wasm-bench-macro",

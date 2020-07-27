@@ -9,6 +9,7 @@ default = ["console_error_panic_hook"]
 benchmark = []
 
 [dependencies]
+async-fn = { path = "crates/async-fn" }
 async-std = { version = "=1.6.0", features = ["unstable"] }
 async-trait = "0.1.36"
 console_log = { version = "0.2" }

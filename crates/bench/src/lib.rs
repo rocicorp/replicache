@@ -1,4 +1,4 @@
-use core::future::Future;
+use async_fn::AsyncFn1;
 use log::error;
 use std::cmp;
 use thousands::Separable;
@@ -57,26 +57,6 @@ impl Bench {
 
     pub fn reset_timer(&mut self) {
         self.ns_elapsed = 0;
-    }
-}
-
-// Simplified workaround for async function pointers taking a reference from
-// https://github.com/rustasync/team/issues/19#issuecomment-515051308.
-pub trait AsyncFn1<A0> {
-    type Output;
-    type Future: Future<Output = Self::Output>;
-    fn call(&self, a0: A0) -> Self::Future;
-}
-
-impl<A0, F, Fut> AsyncFn1<A0> for F
-where
-    F: Fn(A0) -> Fut,
-    Fut: Future,
-{
-    type Output = Fut::Output;
-    type Future = Fut;
-    fn call(&self, a0: A0) -> Self::Future {
-        self(a0)
     }
 }
 

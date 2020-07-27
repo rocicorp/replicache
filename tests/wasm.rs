@@ -1,3 +1,4 @@
+use futures::join;
 use replicache_client::wasm;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 use wasm_bindgen_test::*;
@@ -38,6 +39,33 @@ async fn test_dispatch() {
     );
     assert_eq!(dispatch("db2", "close", "").await.unwrap(), "");
     assert_eq!(dispatch("", "debug", "open_dbs").await.unwrap(), "[]");
+}
+
+#[wasm_bindgen_test]
+async fn test_dispatch_concurrency() {
+    let window = web_sys::window().expect("should have a window in this context");
+    let performance = window
+        .performance()
+        .expect("performance should be available");
+
+    assert_eq!(dispatch("db", "open", "").await.unwrap(), "");
+    let now_ms = performance.now();
+    join!(
+        async {
+            dispatch("db", "get", "{\"key\": \"sleep100\"}")
+                .await
+                .unwrap();
+        },
+        async {
+            dispatch("db", "get", "{\"key\": \"sleep100\"}")
+                .await
+                .unwrap();
+        }
+    );
+    let elapsed_ms = performance.now() - now_ms;
+    assert_eq!(dispatch("db", "close", "").await.unwrap(), "");
+    assert_eq!(elapsed_ms >= 100., true);
+    assert_eq!(elapsed_ms < 200., true);
 }
 
 #[wasm_bindgen_test]

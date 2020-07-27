@@ -429,7 +429,7 @@ mod tests {
             test(&map, &expected);
 
             let kv = MemStore::new();
-            let mut store = Store::new(Box::new(kv));
+            let store = Store::new(Box::new(kv));
             let mut write = store.write().await.unwrap();
             let hash = map.flush(&mut write).await.unwrap();
 

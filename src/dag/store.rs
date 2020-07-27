@@ -17,7 +17,7 @@ impl Store {
         Ok(OwnedRead::new(self.kv.read().await?))
     }
 
-    pub async fn write(&mut self) -> Result<Write<'_>> {
+    pub async fn write(&self) -> Result<Write<'_>> {
         Ok(Write::new(self.kv.write().await?))
     }
 }

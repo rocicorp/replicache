@@ -56,9 +56,9 @@ async fn dispatch_loop(rx: Receiver<Request>) {
                     }
                 };
                 let response = match req.rpc.as_str() {
-                    "has" => stringlify(Dispatcher::has(&mut **db, &req.data).await),
-                    "get" => stringlify(Dispatcher::get(&mut **db, &req.data).await),
-                    "put" => stringlify(Dispatcher::put(&mut **db, &req.data).await),
+                    "has" => stringlify(Dispatcher::has(&**db, &req.data).await),
+                    "get" => stringlify(Dispatcher::get(&**db, &req.data).await),
+                    "put" => stringlify(Dispatcher::put(&**db, &req.data).await),
                     _ => Err("Unsupported rpc name".into()),
                 };
                 req.response.send(response).await;
@@ -129,7 +129,7 @@ impl Dispatcher {
     // - We will def need some kind of "connection" struct, analagous to the corresponding one in Go, that keeps track of the transactions by ID
     // - read/get need to use read txs
     async fn open_transaction<'a>(
-        ds: &'_ mut dag::Store,
+        ds: &'_ dag::Store,
     ) -> Result<db::Write<'_>, OpenTransactionError> {
         use OpenTransactionError::*;
         let dag_write = ds.write().await.map_err(DagWriteError)?;
@@ -139,7 +139,7 @@ impl Dispatcher {
         Ok(write)
     }
 
-    async fn has(ds: &mut dag::Store, data: &str) -> Result<String, HasError> {
+    async fn has(ds: &dag::Store, data: &str) -> Result<String, HasError> {
         use HasError::*;
         let req: GetRequest = DeJson::deserialize_json(data).map_err(InvalidJson)?;
         let write = Dispatcher::open_transaction(ds)
@@ -151,7 +151,7 @@ impl Dispatcher {
         }))
     }
 
-    async fn get(ds: &mut dag::Store, data: &str) -> Result<String, GetError> {
+    async fn get(ds: &dag::Store, data: &str) -> Result<String, GetError> {
         use GetError::*;
         let req: GetRequest = DeJson::deserialize_json(data).map_err(InvalidJson)?;
         let write = Dispatcher::open_transaction(ds)
@@ -169,7 +169,7 @@ impl Dispatcher {
         }))
     }
 
-    async fn put(ds: &mut dag::Store, data: &str) -> Result<String, PutError> {
+    async fn put(ds: &dag::Store, data: &str) -> Result<String, PutError> {
         use PutError::*;
         let req: PutRequest = DeJson::deserialize_json(data).map_err(InvalidJson)?;
         let mut write = Dispatcher::open_transaction(ds)

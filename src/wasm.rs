@@ -17,7 +17,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 pub async fn exercise_prolly() {
     init_panic_hook();
     let kv = IdbStore::new("foo").await.unwrap().unwrap();
-    let mut store = dag::Store::new(Box::new(kv));
+    let store = dag::Store::new(Box::new(kv));
     let mut write = store.write().await.unwrap();
     let mut map = Map::new();
     map.put(b"foo".to_vec(), b"bar".to_vec());

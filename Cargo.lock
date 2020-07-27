@@ -405,18 +405,18 @@ checksum = "8452105ba047068f40ff7093dd1d9da90898e63dd61736462e9cdda6a90ad3c3"
 
 [[package]]
 name = "nanoserde"
-version = "0.1.14"
+version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d44666f26d4e4e8b24e63ed5498a33e554ae1cafe2a17267884c0086df389ab"
+checksum = "efa691cc5c70da3a4909752eba40da252c046ae30ed34aba2aea5c20bd1e7978"
 dependencies = [
  "nanoserde-derive",
 ]
 
 [[package]]
 name = "nanoserde-derive"
-version = "0.1.10"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34e7f12dbbb6f3182f7100069af2d8eb761699dcf01460ce62e68f8268de99f3"
+checksum = "0e0d42774fb555d1dc23a985b52975fb39b4f1b53f26389389a926c49001c3b1"
 
 [[package]]
 name = "num_cpus"

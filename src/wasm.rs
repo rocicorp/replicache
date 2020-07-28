@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 
 use crate::dag;
-use crate::dispatch;
+use crate::embed;
 use crate::kv::idbstore::IdbStore;
 use crate::kv::Store;
 use crate::prolly::Map;
@@ -37,7 +37,7 @@ pub async fn new_idbstore(name: String) -> Option<Box<dyn Store>> {
 #[wasm_bindgen]
 pub async fn dispatch(db_name: String, rpc: String, args: String) -> Result<String, JsValue> {
     init_panic_hook();
-    match dispatch::dispatch(db_name, rpc, args).await {
+    match embed::dispatch(db_name, rpc, args).await {
         Err(v) => Err(JsValue::from_str(&v[..])),
         Ok(v) => Ok(v),
     }

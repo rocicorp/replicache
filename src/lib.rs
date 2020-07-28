@@ -7,7 +7,7 @@ extern crate log;
 
 mod dag;
 mod db;
-mod dispatch;
+mod embed;
 mod hash;
 
 #[cfg(not(default))]

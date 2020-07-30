@@ -1,8 +1,9 @@
+// Run tests with `wasm-pack test --chrome --headless`.
 pub mod idbstore {
-
     use rand::Rng;
-    use replicache_client::kv::Store;
+    use replicache_client::kv::{trait_tests, Store};
     use replicache_client::wasm;
+    use std::boxed::Box;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
     use wasm_bindgen_test::*;
 
@@ -17,6 +18,11 @@ pub mod idbstore {
         wasm::new_idbstore(name)
             .await
             .expect("IdbStore::new failed")
+    }
+
+    #[wasm_bindgen_test]
+    async fn test_idbstore() {
+        trait_tests::run_all(&new_store).await;
     }
 
     // TODO(nate): Test entering Errored state.
@@ -92,43 +98,7 @@ pub mod idbstore {
         assert_eq!(None, rt.get("bar").await.unwrap());
     }
 
-    #[wasm_bindgen_test]
-    async fn autocommit_rolls_back() {
-        let store = new_store().await;
-        let rt = store.read().await.unwrap();
-        assert_eq!(false, rt.has("bar").await.unwrap());
-
-        // Start a write transaction and put a value.
-        let wt = store.write().await.unwrap();
-        wt.put("bar", b"baz").await.unwrap();
-
-        // Start a read transaction and verify isolation.
-        let rt = store.read().await.unwrap();
-        assert_eq!(None, rt.get("bar").await.unwrap());
-
-        // Verify that attempts to commit will now fail, and the put was lost.
-        assert!(wt.commit().await.is_err());
-        let rt = store.read().await.unwrap();
-        assert_eq!(None, rt.get("bar").await.unwrap());
-    }
-
-    #[wasm_bindgen_test]
-    async fn autocommit_rollback_succeeds() {
-        let store = new_store().await;
-        let rt = store.read().await.unwrap();
-        assert_eq!(false, rt.has("bar").await.unwrap());
-
-        // Start a write transaction and put a value.
-        let wt = store.write().await.unwrap();
-        wt.put("bar", b"baz").await.unwrap();
-
-        // Start a read transaction and verify isolation.
-        let rt = store.read().await.unwrap();
-        assert_eq!(None, rt.get("bar").await.unwrap());
-
-        // Verify that an attempted rollback succeeds, and the put was lost.
-        wt.rollback().await.unwrap();
-        let rt = store.read().await.unwrap();
-        assert_eq!(None, rt.get("bar").await.unwrap());
-    }
+    // TODO: we should verify commit() fails if the underlying tx is
+    // already auto-committed.  We can't use the idbstore to do this
+    // because if you have a write tx open you can't open any other txs.
 }

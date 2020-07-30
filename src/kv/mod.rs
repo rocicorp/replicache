@@ -57,7 +57,7 @@ pub trait Write: Read {
 }
 
 pub mod trait_tests {
-    use super::{Store};
+    use super::Store;
     use std::future::Future;
 
     pub async fn run_all<F, T>(new_store: F)

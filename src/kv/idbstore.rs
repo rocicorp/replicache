@@ -36,11 +36,11 @@ pub struct IdbStore {
     // - implementations of Store to work in as close to the same way as possible
     //      in order to ensure our tests are realistic and to make replicache easy
     //      to reason about.
-    //      
+    //
     // Idb v2 is (strictly I think) serializable but its API and spec have some features
     // that make it hard to predict and test:
-    // - a tx can be created and begin accepting requests before the transaction 
-    //      actually starts, which happens asynchronously and opaquely. This 
+    // - a tx can be created and begin accepting requests before the transaction
+    //      actually starts, which happens asynchronously and opaquely. This
     //      means you can open 20 write txs in parallel and start
     //      sending them requests and while only one of them will actually start executing,
     //      you can't tell which one.
@@ -56,21 +56,21 @@ pub struct IdbStore {
     // The Memstore implementation we wrote had a simpler to implement interface: at most
     // one write tx can be instantiated at any time and it must be exclusive of all other txs;
     // callers wait asynchronosly to start txs until this constraint can be met.
-    // 
+    //
     // Here we use a RwLock around the underlying idb in order to bring the memstore
     // behavior (caller asynchronously waits to open a tx until it can proceed safely) to idb
     // (caller creates a tx and sends it requests and it starts asynchronously and opaquely).
     // This RwLock makes the Idbstore work like the Memstore, makes it easy to test,
-    // and (in my mind) makes it easier to reason about. In principle adding this lock 
-    // mirrors the constraints in play under the hood, so in principle nbd, but there 
-    // are probably practical considerations that make this approach less efficient 
+    // and (in my mind) makes it easier to reason about. In principle adding this lock
+    // mirrors the constraints in play under the hood, so in principle nbd, but there
+    // are probably practical considerations that make this approach less efficient
     // (e.g. if implementations increase concurrency with the snapshot isolation
     // loophole above). It's also the case that we lose a measure of fairness implemented by
-    // idb, per the spec: "User agents must ensure a reasonable level of fairness across 
-    // transactions to prevent starvation. For example, if multiple read-only transactions 
-    // are started one after another the implementation must not indefinitely prevent a 
-    // pending read/write transaction from starting." Using the RwLock means the IdbStore is 
-    // serializable, but not strictly so because the RwLock is not fair and so we don't 
+    // idb, per the spec: "User agents must ensure a reasonable level of fairness across
+    // transactions to prevent starvation. For example, if multiple read-only transactions
+    // are started one after another the implementation must not indefinitely prevent a
+    // pending read/write transaction from starting." Using the RwLock means the IdbStore is
+    // serializable, but not strictly so because the RwLock is not fair and so we don't
     // guarantee temporal ordering (anyone waiting might acquire the lock).
     //
     // It's possible we should have gone the other way and made memstore have the idb

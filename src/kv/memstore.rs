@@ -13,6 +13,10 @@ impl MemStore {
             map: RwLock::new(HashMap::new()),
         }
     }
+
+    pub async fn new_async() -> Box<dyn Store> {
+        Box::new(MemStore::new())
+    }
 }
 
 impl Default for MemStore {
@@ -133,19 +137,9 @@ impl Write for WriteTransaction<'_> {
 mod tests {
     use super::*;
     use crate::kv::trait_tests;
-    use crate::kv::StoreError;
 
     #[async_std::test]
-    async fn test_memstore() -> std::result::Result<(), StoreError> {
-        let ms = &mut MemStore::new();
-        trait_tests::store(ms).await?;
-        let ms = &mut MemStore::new();
-        trait_tests::read_transaction(ms).await?;
-        let ms = &mut MemStore::new();
-        trait_tests::write_transaction(ms).await?;
-        let ms = &mut MemStore::new();
-        trait_tests::isolation(ms).await;
-
-        Ok(())
+    async fn test_memstore() {
+        trait_tests::run_all(&MemStore::new_async).await;
     }
 }

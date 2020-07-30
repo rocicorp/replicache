@@ -57,90 +57,104 @@ pub trait Write: Read {
 }
 
 pub mod trait_tests {
-    use super::{Store, StoreError};
+    use super::{Store};
+    use std::future::Future;
 
-    pub async fn store(store: &mut dyn Store) -> std::result::Result<(), StoreError> {
+    pub async fn run_all<F, T>(new_store: F)
+    where
+        F: Fn() -> T,
+        T: Future<Output = Box<dyn Store>>,
+    {
+        // I played with listing references to each test function in a vec
+        // and iterating them instead of calling them explicitly like below,
+        // but it seems to require boxing them which just makes it awkward instead
+        // of elegant and simple.
+        let mut s = new_store().await;
+        store(&mut *s).await;
+        s = new_store().await;
+        read_transaction(&mut *s).await;
+        s = new_store().await;
+        write_transaction(&mut *s).await;
+        s = new_store().await;
+        isolation(&mut *s).await;
+    }
+
+    pub async fn store(store: &mut dyn Store) {
         // Test put/has/get, which use read() and write() for one-shot txs.
-        assert!(!store.has("foo").await?);
-        assert_eq!(None, store.get("foo").await?);
+        assert!(!store.has("foo").await.unwrap());
+        assert_eq!(None, store.get("foo").await.unwrap());
 
-        store.put("foo", b"bar").await?;
-        assert!(store.has("foo").await?);
-        assert_eq!(Some(b"bar".to_vec()), store.get("foo").await?);
+        store.put("foo", b"bar").await.unwrap();
+        assert!(store.has("foo").await.unwrap());
+        assert_eq!(Some(b"bar".to_vec()), store.get("foo").await.unwrap());
 
-        store.put("foo", b"baz").await?;
-        assert!(store.has("foo").await?);
-        assert_eq!(Some(b"baz".to_vec()), store.get("foo").await?);
+        store.put("foo", b"baz").await.unwrap();
+        assert!(store.has("foo").await.unwrap());
+        assert_eq!(Some(b"baz".to_vec()), store.get("foo").await.unwrap());
 
-        assert!(!store.has("baz").await?);
-        assert_eq!(None, store.get("baz").await?);
-        store.put("baz", b"bat").await?;
-        assert!(store.has("baz").await?);
-        assert_eq!(Some(b"bat".to_vec()), store.get("baz").await?);
-
-        Ok(())
+        assert!(!store.has("baz").await.unwrap());
+        assert_eq!(None, store.get("baz").await.unwrap());
+        store.put("baz", b"bat").await.unwrap();
+        assert!(store.has("baz").await.unwrap());
+        assert_eq!(Some(b"bat".to_vec()), store.get("baz").await.unwrap());
     }
 
-    pub async fn read_transaction(store: &mut dyn Store) -> std::result::Result<(), StoreError> {
-        store.put("k1", b"v1").await?;
+    pub async fn read_transaction(store: &mut dyn Store) {
+        store.put("k1", b"v1").await.unwrap();
 
-        let rt = store.read().await?;
-        assert!(rt.has("k1").await?);
-        assert_eq!(Some(b"v1".to_vec()), rt.get("k1").await?);
-
-        Ok(())
+        let rt = store.read().await.unwrap();
+        assert!(rt.has("k1").await.unwrap());
+        assert_eq!(Some(b"v1".to_vec()), rt.get("k1").await.unwrap());
     }
 
-    pub async fn write_transaction(store: &mut dyn Store) -> std::result::Result<(), StoreError> {
-        store.put("k1", b"v1").await?;
-        store.put("k2", b"v2").await?;
+    pub async fn write_transaction(store: &mut dyn Store) {
+        store.put("k1", b"v1").await.unwrap();
+        store.put("k2", b"v2").await.unwrap();
 
         // Test put then commit.
-        let wt = store.write().await?;
-        assert!(wt.has("k1").await?);
-        assert!(wt.has("k2").await?);
-        wt.put("k1", b"overwrite").await?;
-        wt.commit().await?;
-        assert_eq!(Some(b"overwrite".to_vec()), store.get("k1").await?);
-        assert_eq!(Some(b"v2".to_vec()), store.get("k2").await?);
+        let wt = store.write().await.unwrap();
+        assert!(wt.has("k1").await.unwrap());
+        assert!(wt.has("k2").await.unwrap());
+        wt.put("k1", b"overwrite").await.unwrap();
+        wt.commit().await.unwrap();
+        assert_eq!(Some(b"overwrite".to_vec()), store.get("k1").await.unwrap());
+        assert_eq!(Some(b"v2".to_vec()), store.get("k2").await.unwrap());
 
         // Test put then rollback.
-        let wt = store.write().await?;
-        wt.put("k1", b"should be rolled back").await?;
-        wt.rollback().await?;
-        assert_eq!(Some(b"overwrite".to_vec()), store.get("k1").await?);
+        let wt = store.write().await.unwrap();
+        wt.put("k1", b"should be rolled back").await.unwrap();
+        wt.rollback().await.unwrap();
+        assert_eq!(Some(b"overwrite".to_vec()), store.get("k1").await.unwrap());
 
         // Test del then commit.
-        let wt = store.write().await?;
-        wt.del("k1").await?;
-        assert!(!wt.has("k1").await?);
-        wt.commit().await?;
-        assert!(!store.has("k1").await?);
+        let wt = store.write().await.unwrap();
+        wt.del("k1").await.unwrap();
+        assert!(!wt.has("k1").await.unwrap());
+        wt.commit().await.unwrap();
+        assert!(!store.has("k1").await.unwrap());
 
         // Test del then rollback.
-        assert_eq!(true, store.has("k2").await?);
-        let wt = store.write().await?;
-        wt.del("k2").await?;
-        assert!(!wt.has("k2").await?);
-        wt.rollback().await?;
-        assert!(store.has("k2").await?);
+        assert_eq!(true, store.has("k2").await.unwrap());
+        let wt = store.write().await.unwrap();
+        wt.del("k2").await.unwrap();
+        assert!(!wt.has("k2").await.unwrap());
+        wt.rollback().await.unwrap();
+        assert!(store.has("k2").await.unwrap());
 
         // Test overwrite multiple times then commit.
-        let wt = store.write().await?;
-        wt.put("k2", b"overwrite").await?;
-        wt.del("k2").await?;
-        wt.put("k2", b"final").await?;
-        wt.commit().await?;
-        assert_eq!(Some(b"final".to_vec()), store.get("k2").await?);
+        let wt = store.write().await.unwrap();
+        wt.put("k2", b"overwrite").await.unwrap();
+        wt.del("k2").await.unwrap();
+        wt.put("k2", b"final").await.unwrap();
+        wt.commit().await.unwrap();
+        assert_eq!(Some(b"final".to_vec()), store.get("k2").await.unwrap());
 
         // Test as_read.
-        let wt = store.write().await?;
-        wt.put("k2", b"new value").await?;
+        let wt = store.write().await.unwrap();
+        wt.put("k2", b"new value").await.unwrap();
         let rt = wt.as_read();
-        assert!(rt.has("k2").await?);
-        assert_eq!(Some(b"new value".to_vec()), rt.get("k2").await?);
-
-        Ok(())
+        assert!(rt.has("k2").await.unwrap());
+        assert_eq!(Some(b"new value".to_vec()), rt.get("k2").await.unwrap());
     }
 
     pub async fn isolation(store: &mut dyn Store) {

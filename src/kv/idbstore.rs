@@ -37,19 +37,19 @@ pub struct IdbStore {
     //      in order to ensure our tests are realistic and to make replicache easy
     //      to reason about.
     //
-    // Idb v2 is (strictly I think) serializable but its API and spec have some features
-    // that make it hard to predict and test:
-    // - a tx can be created and begin accepting requests before the transaction
-    //      actually starts, which happens asynchronously and opaquely. This
-    //      means you can open 20 write txs in parallel and start
-    //      sending them requests and while only one of them will actually start executing,
-    //      you can't tell which one.
+    // Idb v2 is (strictly I think) serializable but its API makes it a bit awkward to
+    // test: a tx can be created and begin accepting requests before the transaction
+    // actually starts, which happens asynchronously and opaquely. This
+    // means you can open 20 write txs in parallel and start
+    // sending them requests and while only one of them will actually start executing,
+    // you can't tell which one.
+    //
+    // Note:
     // - per https://www.w3.org/TR/IndexedDB-2/#transaction-lifetime-concept
     //      read transacitons can be executed concurrently with readwrite txs
     //      if the read tx is snapshot isolated and started before the readwrite tx.
-    //      Unclear which browsers do this. If they do do this then this increases
-    //      concurrency.
-    // - Aside: idb v1 api allowed read txs to be re-ordered before write txs, meaning
+    //      Browsers however do not do this.
+    // - idb v1 api allowed read txs to be re-ordered before write txs, meaning
     //      that indexdb was potentially not read-after-write. Chrome apparently had this
     //      behavior: https://lists.w3.org/Archives/Public/public-webapps/2014JanMar/0586.html).
     //

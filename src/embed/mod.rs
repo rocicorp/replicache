@@ -8,6 +8,8 @@
 //! request/response message passing of byte arrays in and out so that
 //! it can work with a variety of hosts.
 
+mod connection;
 mod dispatch;
+pub mod types;
 
 pub use dispatch::dispatch;

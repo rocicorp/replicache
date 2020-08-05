@@ -1,22 +1,17 @@
-#![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
-
 use crate::dag;
-use crate::db;
+use crate::embed::connection;
 use crate::kv::idbstore::IdbStore;
-use async_fn::AsyncFn2;
 use async_std::sync::{channel, Receiver, Sender};
 use log::warn;
-use nanoserde::{DeJson, DeJsonErr, SerJson};
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::sync::Mutex;
 use wasm_bindgen_futures::spawn_local;
 
-struct Request {
+pub struct Request {
     db_name: String,
-    rpc: String,
-    data: String,
-    response: Sender<Response>,
+    pub rpc: String,
+    pub data: String,
+    pub response: Sender<Response>,
 }
 
 type Response = Result<String, String>;
@@ -29,202 +24,38 @@ lazy_static! {
     };
 }
 
+type ConnMap = HashMap<String, Sender<Request>>;
+
 async fn dispatch_loop(rx: Receiver<Request>) {
-    let mut dispatcher = Dispatcher {
-        connections: HashMap::new(),
-    };
+    let mut conns: ConnMap = HashMap::new();
 
     loop {
-        match rx.recv().await {
-            Err(why) => warn!("Dispatch loop recv failed: {}", why),
-            Ok(req) => {
-                let response = match req.rpc.as_str() {
-                    "open" => Some(dispatcher.open(&req).await),
-                    "close" => Some(dispatcher.close(&req).await),
-                    "debug" => Some(dispatcher.debug(&req).await),
-                    _ => None,
-                };
-                if let Some(response) = response {
-                    req.response.send(response).await;
-                    continue;
-                }
-                let db = match dispatcher.connections.get(&req.db_name[..]) {
-                    Some(v) => v,
-                    None => {
-                        req.response
-                            .send(Err(format!("\"{}\" not open", req.db_name)))
-                            .await;
-                        continue;
-                    }
-                };
-                match req.rpc.as_str() {
-                    "has" => {
-                        spawn_local(execute(Dispatcher::has, db.clone(), req));
-                    }
-                    "get" => {
-                        spawn_local(execute(Dispatcher::get, db.clone(), req));
-                    }
-                    "put" => {
-                        spawn_local(execute(Dispatcher::put, db.clone(), req));
-                    }
-                    _ => {
-                        req.response.send(Err("Unsupported rpc name".into())).await;
-                    }
-                };
+        let req = match rx.recv().await {
+            Ok(req) => req,
+            Err(why) => {
+                warn!("Dispatch loop recv failed: {}", why);
+                continue;
             }
+        };
+
+        let response = match req.rpc.as_str() {
+            "open" => Some(do_open(&mut conns, &req).await),
+            "close" => Some(do_close(&mut conns, &req).await),
+            "debug" => Some(do_debug(&conns, &req).await),
+            _ => None,
+        };
+        if let Some(response) = response {
+            req.response.send(response).await;
+            continue;
         }
-    }
-}
-
-async fn execute<T, F>(func: F, store: Rc<dag::Store>, req: Request)
-where
-    T: std::fmt::Debug,
-    F: for<'r, 's> AsyncFn2<&'r dag::Store, &'s str, Output = Result<String, T>>,
-{
-    let response = func
-        .call(&*store, &req.data)
-        .await
-        .map_err(|e| format!("{:?}", e));
-    req.response.send(response).await;
-}
-
-#[derive(DeJson)]
-struct GetRequest {
-    key: String,
-}
-
-#[derive(SerJson)]
-struct GetResponse {
-    value: Option<String>,
-    has: bool, // Second to avoid trailing comma if value == None.
-}
-
-#[derive(DeJson)]
-struct PutRequest {
-    key: String,
-    value: String,
-}
-
-struct Dispatcher {
-    connections: HashMap<String, Rc<dag::Store>>,
-}
-
-impl Dispatcher {
-    async fn open(&mut self, req: &Request) -> Response {
-        if req.db_name.is_empty() {
-            return Err("db_name must be non-empty".into());
-        }
-        if self.connections.contains_key(&req.db_name[..]) {
-            return Ok("".into());
-        }
-        match IdbStore::new(&req.db_name[..]).await {
-            Err(e) => {
-                return Err(format!("Failed to open \"{}\": {}", req.db_name, e));
+        match conns.get(&req.db_name[..]) {
+            Some(tx) => tx.send(req).await,
+            None => {
+                req.response
+                    .send(Err(format!("\"{}\" not open", req.db_name)))
+                    .await;
             }
-            Ok(v) => {
-                if let Some(kv) = v {
-                    self.connections
-                        .insert(req.db_name.clone(), Rc::new(dag::Store::new(Box::new(kv))));
-                }
-            }
-        }
-        Ok("".into())
-    }
-
-    async fn close(&mut self, req: &Request) -> Response {
-        if !self.connections.contains_key(&req.db_name[..]) {
-            return Ok("".into());
-        }
-        self.connections.remove(&req.db_name);
-
-        Ok("".into())
-    }
-
-    // TODO: Everything around databases and transaction management needs thought:
-    // - We need to actually implement the transactions
-    // - Should there be an err, DB, type in the in the db package, or should we continue to construct them on each tx? If so, it could do some of below.
-    // - We will def need some kind of "connection" struct, analagous to the corresponding one in Go, that keeps track of the transactions by ID
-    // - read/get need to use read txs
-    async fn open_transaction<'a>(
-        ds: &'_ dag::Store,
-    ) -> Result<db::Write<'_>, OpenTransactionError> {
-        use OpenTransactionError::*;
-        let dag_write = ds.write().await.map_err(DagWriteError)?;
-        let write = db::Write::new_from_head("main", dag_write)
-            .await
-            .map_err(DBWriteError)?;
-        Ok(write)
-    }
-
-    async fn has(ds: &dag::Store, data: &str) -> Result<String, HasError> {
-        use HasError::*;
-        let req: GetRequest = DeJson::deserialize_json(data).map_err(InvalidJson)?;
-        let write = Dispatcher::open_transaction(ds)
-            .await
-            .map_err(OpenTransactionError)?;
-        Ok(SerJson::serialize_json(&GetResponse {
-            has: write.has(req.key.as_bytes()),
-            value: None,
-        }))
-    }
-
-    async fn get(ds: &dag::Store, data: &str) -> Result<String, GetError> {
-        use GetError::*;
-        let req: GetRequest = DeJson::deserialize_json(data).map_err(InvalidJson)?;
-
-        #[cfg(not(default))] // Not enabled in production.
-        if req.key.starts_with("sleep") {
-            use async_std::task::sleep;
-            use core::time::Duration;
-
-            match req.key[5..].parse::<u64>() {
-                Ok(ms) => sleep(Duration::from_millis(ms)).await,
-                Err(_) => log::error!("No sleep"),
-            }
-        }
-
-        let write = Dispatcher::open_transaction(ds)
-            .await
-            .map_err(OpenTransactionError)?;
-        let got = write.get(req.key.as_bytes());
-        let got = got.map(|buf| String::from_utf8(buf.to_vec()));
-        if let Some(Err(e)) = got {
-            return Err(InvalidUtf8(e));
-        }
-        let got = got.map(|r| r.unwrap());
-        Ok(SerJson::serialize_json(&GetResponse {
-            has: got.is_some(),
-            value: got,
-        }))
-    }
-
-    async fn put(ds: &dag::Store, data: &str) -> Result<String, PutError> {
-        use PutError::*;
-        let req: PutRequest = DeJson::deserialize_json(data).map_err(InvalidJson)?;
-        let mut write = Dispatcher::open_transaction(ds)
-            .await
-            .map_err(OpenTransactionError)?;
-        write.put(req.key.as_bytes().to_vec(), req.value.into_bytes());
-        write
-            .commit(
-                "main",
-                "local-create-date",
-                "checksum",
-                42,
-                "foo",
-                b"bar",
-                None,
-            )
-            .await
-            .map_err(CommitError)?;
-        Ok("{}".into())
-    }
-
-    async fn debug(&self, req: &Request) -> Response {
-        match req.data.as_str() {
-            "open_dbs" => Ok(format!("{:?}", self.connections.keys())),
-            _ => Err("Debug command not defined".into()),
-        }
+        };
     }
 }
 
@@ -246,25 +77,47 @@ pub async fn dispatch(db_name: String, rpc: String, data: String) -> Response {
     }
 }
 
-#[derive(Debug)]
-enum OpenTransactionError {
-    DagWriteError(dag::Error),
-    DBWriteError(db::NewError),
+async fn do_open(conns: &mut ConnMap, req: &Request) -> Response {
+    if req.db_name.is_empty() {
+        return Err("db_name must be non-empty".into());
+    }
+    if conns.contains_key(&req.db_name[..]) {
+        return Ok("".into());
+    }
+    match IdbStore::new(&req.db_name[..]).await {
+        Err(e) => Err(format!("Failed to open \"{}\": {}", req.db_name, e)),
+        Ok(v) => {
+            if let Some(kv) = v {
+                let (tx, rx) = channel::<Request>(1);
+                spawn_local(connection::process(dag::Store::new(Box::new(kv)), rx));
+                conns.insert(req.db_name.clone(), tx);
+            }
+            Ok("".into())
+        }
+    }
 }
-#[derive(Debug)]
-enum HasError {
-    InvalidJson(DeJsonErr),
-    OpenTransactionError(OpenTransactionError),
+
+async fn do_close(conns: &mut ConnMap, req: &Request) -> Response {
+    let tx = match conns.get(&req.db_name[..]) {
+        None => return Ok("".into()),
+        Some(v) => v,
+    };
+    let (tx2, rx2) = channel::<Response>(1);
+    tx.send(Request {
+        db_name: req.db_name.clone(),
+        rpc: "close".into(),
+        data: "".into(),
+        response: tx2,
+    })
+    .await;
+    let _ = rx2.recv().await;
+    conns.remove(&req.db_name);
+    Ok("".into())
 }
-#[derive(Debug)]
-enum GetError {
-    InvalidJson(DeJsonErr),
-    OpenTransactionError(OpenTransactionError),
-    InvalidUtf8(std::string::FromUtf8Error),
-}
-#[derive(Debug)]
-enum PutError {
-    InvalidJson(DeJsonErr),
-    OpenTransactionError(OpenTransactionError),
-    CommitError(db::CommitError),
+
+async fn do_debug(conns: &ConnMap, req: &Request) -> Response {
+    match req.data.as_str() {
+        "open_dbs" => Ok(format!("{:?}", conns.keys())),
+        _ => Err("Debug command not defined".into()),
+    }
 }

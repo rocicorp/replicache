@@ -83,10 +83,11 @@ pub async fn process(store: dag::Store, rx: Receiver<Request>) {
     }
 }
 
-async fn execute<T, F>(func: F, txns: &TxnMap<'_>, req: Request)
+async fn execute<T, S, F>(func: F, txns: &TxnMap<'_>, req: Request)
 where
     T: DeJson + TransactionRequest,
-    F: for<'r, 's> AsyncFn2<&'r RwLock<db::Write<'s>>, T, Output = Result<String, String>>,
+    S: SerJson,
+    F: for<'r, 's> AsyncFn2<&'r RwLock<db::Write<'s>>, T, Output = Result<S, String>>,
 {
     let request: T = match deserialize(&req.data) {
         Ok(v) => v,
@@ -105,7 +106,13 @@ where
         }
     };
 
-    req.response.send(func.call(txn, request).await).await;
+    req.response
+        .send(
+            func.call(txn, request)
+                .await
+                .map(|v| SerJson::serialize_json(&v)),
+        )
+        .await;
 }
 
 async fn do_open<'a, 'b>(store: &'a dag::Store, txns: &'b TxnMap<'a>, req: Request) {
@@ -163,7 +170,7 @@ async fn do_commit(txns: &TxnMap<'_>, req: Request) {
 }
 
 async fn do_abort(txns: &TxnMap<'_>, req: Request) {
-    let request: CommitTransactionRequest = match DeJson::deserialize_json(&req.data) {
+    let request: CloseTransactionRequest = match deserialize(&req.data) {
         Ok(v) => v,
         Err(e) => return req.response.send(Err(format!("InvalidJson({})", e))).await,
     };
@@ -175,18 +182,17 @@ async fn do_abort(txns: &TxnMap<'_>, req: Request) {
             .await;
     };
     req.response
-        .send(Ok(SerJson::serialize_json(&CommitTransactionResponse {})))
+        .send(Ok(SerJson::serialize_json(&CloseTransactionResponse {})))
         .await;
 }
 
-async fn do_has(txn: &RwLock<db::Write<'_>>, req: GetRequest) -> Result<String, String> {
-    Ok(SerJson::serialize_json(&GetResponse {
+async fn do_has(txn: &RwLock<db::Write<'_>>, req: HasRequest) -> Result<HasResponse, String> {
+    Ok(HasResponse {
         has: txn.read().await.has(req.key.as_bytes()),
-        value: None,
-    }))
+    })
 }
 
-async fn do_get(txn: &RwLock<db::Write<'_>>, req: GetRequest) -> Result<String, String> {
+async fn do_get(txn: &RwLock<db::Write<'_>>, req: GetRequest) -> Result<GetResponse, String> {
     #[cfg(not(default))] // Not enabled in production.
     if req.key.starts_with("sleep") {
         use async_std::task::sleep;
@@ -209,17 +215,17 @@ async fn do_get(txn: &RwLock<db::Write<'_>>, req: GetRequest) -> Result<String, 
         return Err(format!("{:?}", e));
     }
     let got = got.map(|r| r.unwrap());
-    Ok(SerJson::serialize_json(&GetResponse {
+    Ok(GetResponse {
         has: got.is_some(),
         value: got,
-    }))
+    })
 }
 
-async fn do_put(txn: &RwLock<db::Write<'_>>, req: PutRequest) -> Result<String, String> {
+async fn do_put(txn: &RwLock<db::Write<'_>>, req: PutRequest) -> Result<PutResponse, String> {
     txn.write()
         .await
         .put(req.key.as_bytes().to_vec(), req.value.into_bytes());
-    Ok("{}".into())
+    Ok(PutResponse {})
 }
 
 #[derive(Debug)]
@@ -237,20 +243,16 @@ trait TransactionRequest {
     fn transaction_id(&self) -> u32;
 }
 
-impl TransactionRequest for CommitTransactionRequest {
-    fn transaction_id(&self) -> u32 {
-        self.transaction_id
-    }
+macro_rules! impl_transaction_request {
+    ($type_name:ident) => {
+        impl TransactionRequest for $type_name {
+            fn transaction_id(&self) -> u32 {
+                self.transaction_id
+            }
+        }
+    };
 }
 
-impl TransactionRequest for GetRequest {
-    fn transaction_id(&self) -> u32 {
-        self.transaction_id
-    }
-}
-
-impl TransactionRequest for PutRequest {
-    fn transaction_id(&self) -> u32 {
-        self.transaction_id
-    }
-}
+impl_transaction_request!(HasRequest);
+impl_transaction_request!(GetRequest);
+impl_transaction_request!(PutRequest);

@@ -40,6 +40,10 @@ impl<'a> Write<'a> {
         self.map.get(key)
     }
 
+    pub fn scan(&'a self, opts: super::ScanOptions<'a>) -> impl Iterator<Item = prolly::Entry<'a>> {
+        super::scan::scan(&self.map, opts)
+    }
+
     pub fn put(&mut self, key: Vec<u8>, val: Vec<u8>) {
         self.map.put(key, val)
     }

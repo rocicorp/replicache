@@ -1,6 +1,7 @@
 use super::commit;
 use crate::dag;
 use crate::prolly;
+
 pub struct Write<'a> {
     dag_write: dag::Write<'a>,
     map: prolly::Map,
@@ -31,17 +32,8 @@ impl<'a> Write<'a> {
         })
     }
 
-    // TODO: These should move to a read struct, similar to dag::Write.
-    pub fn has(&self, key: &[u8]) -> bool {
-        self.map.has(key)
-    }
-
-    pub fn get(&self, key: &[u8]) -> Option<&[u8]> {
-        self.map.get(key)
-    }
-
-    pub fn scan(&'a self, opts: super::ScanOptions<'a>) -> impl Iterator<Item = prolly::Entry<'a>> {
-        super::scan::scan(&self.map, opts)
+    pub fn as_read(&'a self) -> super::Read<'a> {
+        super::Read::new(self.dag_write.read(), &self.map)
     }
 
     pub fn put(&mut self, key: Vec<u8>, val: Vec<u8>) {
@@ -136,7 +128,8 @@ mod tests {
         let kvw = kv.write().await.unwrap();
         let dw = dag::Write::new(kvw);
         let w = Write::new_from_head("main", dw).await.unwrap();
-        let val = w.get("foo".as_bytes());
+        let r = w.as_read();
+        let val = r.get("foo".as_bytes());
         assert_eq!(Some("bar".as_bytes()), val);
     }
 }

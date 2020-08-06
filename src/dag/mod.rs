@@ -24,7 +24,7 @@ mod write;
 
 pub use chunk::Chunk;
 pub use key::Key;
-pub use read::Read;
+pub use read::{OwnedRead, Read};
 pub use store::Store;
 pub use write::Write;
 

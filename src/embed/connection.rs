@@ -15,7 +15,22 @@ lazy_static! {
     static ref TRANSACTION_COUNTER: AtomicU32 = AtomicU32::new(1);
 }
 
-type TxnMap<'a> = RwLock<HashMap<u32, RwLock<db::Write<'a>>>>;
+enum Transaction<'a> {
+    #[allow(dead_code)]
+    Read(db::OwnedRead<'a>),
+    Write(db::Write<'a>),
+}
+
+impl<'a> Transaction<'a> {
+    fn as_read(&self) -> db::Read {
+        match self {
+            Transaction::Read(r) => r.as_read(),
+            Transaction::Write(w) => w.as_read(),
+        }
+    }
+}
+
+type TxnMap<'a> = RwLock<HashMap<u32, RwLock<Transaction<'a>>>>;
 
 fn deserialize<T: DeJson>(data: &str) -> Result<T, String> {
     match DeJson::deserialize_json(data) {
@@ -87,7 +102,7 @@ async fn execute<T, S, F>(func: F, txns: &TxnMap<'_>, req: Request)
 where
     T: DeJson + TransactionRequest,
     S: SerJson,
-    F: for<'r, 's> AsyncFn2<&'r RwLock<db::Write<'s>>, T, Output = Result<S, String>>,
+    F: for<'r, 's> AsyncFn2<&'r RwLock<Transaction<'s>>, T, Output = Result<S, String>>,
 {
     let request: T = match deserialize(&req.data) {
         Ok(v) => v,
@@ -123,7 +138,9 @@ async fn do_open<'a, 'b>(store: &'a dag::Store, txns: &'b TxnMap<'a>, req: Reque
         .map_err(DBWriteError)
         .unwrap();
     let txn_id = TRANSACTION_COUNTER.fetch_add(1, Ordering::SeqCst);
-    txns.write().await.insert(txn_id, RwLock::new(write));
+    txns.write()
+        .await
+        .insert(txn_id, RwLock::new(Transaction::Write(write)));
     req.response
         .send(Ok(SerJson::serialize_json(&OpenTransactionResponse {
             transaction_id: txn_id,
@@ -146,7 +163,15 @@ async fn do_commit(txns: &TxnMap<'_>, req: Request) {
                 .await;
         }
     };
-    let txn = txn.into_inner();
+    let txn = match txn.into_inner() {
+        Transaction::Write(w) => w,
+        Transaction::Read(_) => {
+            return req
+                .response
+                .send(Err(format!("Transaction is read-only {}", txn_id)))
+                .await;
+        }
+    };
     let response = txn
         .commit(
             "main",
@@ -186,13 +211,13 @@ async fn do_abort(txns: &TxnMap<'_>, req: Request) {
         .await;
 }
 
-async fn do_has(txn: &RwLock<db::Write<'_>>, req: HasRequest) -> Result<HasResponse, String> {
+async fn do_has(txn: &RwLock<Transaction<'_>>, req: HasRequest) -> Result<HasResponse, String> {
     Ok(HasResponse {
-        has: txn.read().await.has(req.key.as_bytes()),
+        has: txn.read().await.as_read().has(req.key.as_bytes()),
     })
 }
 
-async fn do_get(txn: &RwLock<db::Write<'_>>, req: GetRequest) -> Result<GetResponse, String> {
+async fn do_get(txn: &RwLock<Transaction<'_>>, req: GetRequest) -> Result<GetResponse, String> {
     #[cfg(not(default))] // Not enabled in production.
     if req.key.starts_with("sleep") {
         use async_std::task::sleep;
@@ -209,6 +234,7 @@ async fn do_get(txn: &RwLock<db::Write<'_>>, req: GetRequest) -> Result<GetRespo
     let got = txn
         .read()
         .await
+        .as_read()
         .get(req.key.as_bytes())
         .map(|buf| String::from_utf8(buf.to_vec()));
     if let Some(Err(e)) = got {
@@ -221,10 +247,13 @@ async fn do_get(txn: &RwLock<db::Write<'_>>, req: GetRequest) -> Result<GetRespo
     })
 }
 
-async fn do_put(txn: &RwLock<db::Write<'_>>, req: PutRequest) -> Result<PutResponse, String> {
-    txn.write()
-        .await
-        .put(req.key.as_bytes().to_vec(), req.value.into_bytes());
+async fn do_put(txn: &RwLock<Transaction<'_>>, req: PutRequest) -> Result<PutResponse, String> {
+    let mut guard = txn.write().await;
+    let write = match &mut *guard {
+        Transaction::Write(w) => Ok(w),
+        Transaction::Read(_) => Err(format!("Specified transaction is read-only")),
+    }?;
+    write.put(req.key.as_bytes().to_vec(), req.value.into_bytes());
     Ok(PutResponse {})
 }
 

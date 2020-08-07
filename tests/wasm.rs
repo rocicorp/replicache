@@ -1,7 +1,7 @@
 #![recursion_limit = "256"]
 
 use futures::join;
-use nanoserde::DeJson;
+use nanoserde::{DeJson, SerJson};
 use rand::Rng;
 use replicache_client::embed::types::*;
 use replicache_client::wasm;
@@ -30,9 +30,11 @@ async fn dispatch(db: &str, rpc: &str, data: &str) -> Result<String, String> {
     }
 }
 
-async fn open_transaction(db_name: &str) -> u32 {
+async fn open_transaction(db_name: &str, fn_name: Option<String>) -> u32 {
+    let req = SerJson::serialize_json(&OpenTransactionRequest { name: fn_name });
     let resp: OpenTransactionResponse =
-        DeJson::deserialize_json(&dispatch(db_name, "openTransaction", "").await.unwrap()).unwrap();
+        DeJson::deserialize_json(&dispatch(db_name, "openTransaction", &req).await.unwrap())
+            .unwrap();
     resp.transaction_id
 }
 
@@ -132,7 +134,7 @@ async fn dispatch_concurrency() {
         .expect("performance should be available");
 
     assert_eq!(dispatch(db, "open", "").await.unwrap(), "");
-    let txn_id = open_transaction(db).await;
+    let txn_id = open_transaction(db, "foo".to_string().into()).await;
     let now_ms = performance.now();
     join!(
         async {
@@ -154,14 +156,14 @@ async fn write_concurrency() {
     let db = &random_db();
 
     dispatch(db, "open", "").await.unwrap();
-    let txn_id = open_transaction(db).await;
+    let txn_id = open_transaction(db, "foo".to_string().into()).await;
     put(db, txn_id, "value", "1").await;
     commit(db, txn_id).await.unwrap();
 
     // TODO(nate): Strengthen test to prove these open waits overlap.
     join!(
         async {
-            let txn_id = open_transaction(db).await;
+            let txn_id = open_transaction(db, "foo".to_string().into()).await;
             let value = get(db, txn_id, "value")
                 .await
                 .unwrap()
@@ -171,7 +173,7 @@ async fn write_concurrency() {
             commit(db, txn_id).await.unwrap();
         },
         async {
-            let txn_id = open_transaction(db).await;
+            let txn_id = open_transaction(db, "foo".to_string().into()).await;
             let value = get(db, txn_id, "value")
                 .await
                 .unwrap()
@@ -181,7 +183,7 @@ async fn write_concurrency() {
             commit(db, txn_id).await.unwrap();
         }
     );
-    let txn_id = open_transaction(db).await;
+    let txn_id = open_transaction(db, "foo".to_string().into()).await;
     assert_eq!(
         get(db, txn_id, "value")
             .await
@@ -211,7 +213,7 @@ async fn get_put() {
         "InvalidJson(Json Deserialize error: Key not found transaction_id, line:1 col:3)"
     );
 
-    let txn_id = open_transaction(db).await;
+    let txn_id = open_transaction(db, "foo".to_string().into()).await;
 
     // With serde we can use #[serde(deny_unknown_fields)] to parse strictly,
     // but that's not available with nanoserde.
@@ -236,7 +238,7 @@ async fn get_put() {
     commit(db, txn_id).await.unwrap();
 
     // Open new transaction, and verify write is persistent.
-    let txn_id = open_transaction(db).await;
+    let txn_id = open_transaction(db, "foo".to_string().into()).await;
     assert_eq!(get(db, txn_id, "Hello").await.unwrap(), "世界");
 
     // Verify functioning of non-ASCII keys.
@@ -247,7 +249,7 @@ async fn get_put() {
     assert_eq!(get(db, txn_id, "你好").await, Some("world".into()));
 
     commit(db, txn_id).await.unwrap();
-    let txn_id = open_transaction(db).await;
+    let txn_id = open_transaction(db, "foo".to_string().into()).await;
     assert_eq!(has(db, txn_id, "你好").await, true);
     assert_eq!(get(db, txn_id, "你好").await, Some("world".into()));
 

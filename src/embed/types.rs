@@ -3,6 +3,12 @@
 use nanoserde::{DeJson, SerJson};
 
 #[derive(DeJson, SerJson)]
+pub struct OpenTransactionRequest {
+    pub name: Option<String>, // not present in read transactions
+                              // TODO: args, rebaseOpts
+}
+
+#[derive(DeJson, SerJson)]
 pub struct OpenTransactionResponse {
     #[nserde(rename = "transactionId")]
     pub transaction_id: u32,

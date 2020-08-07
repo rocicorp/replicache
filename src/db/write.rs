@@ -13,8 +13,8 @@ impl<'a> Write<'a> {
     pub async fn new_from_head(
         head_name: &str,
         dag_write: dag::Write<'a>,
-    ) -> Result<Write<'a>, NewError> {
-        use NewError::*;
+    ) -> Result<Write<'a>, NewWriteFromHeadError> {
+        use NewWriteFromHeadError::*;
         let commit = commit::Commit::from_head(head_name, dag_write.read())
             .await
             .map_err(CommitFromHeadFailed)?;
@@ -86,7 +86,7 @@ impl<'a> Write<'a> {
 }
 
 #[derive(Debug)]
-pub enum NewError {
+pub enum NewWriteFromHeadError {
     CommitFromHeadFailed(commit::FromHeadError),
     MapLoadError(prolly::LoadError),
 }

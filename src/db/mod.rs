@@ -4,6 +4,6 @@ mod read;
 mod scan;
 mod write;
 
-pub use read::{OwnedRead, Read};
+pub use read::{NewReadFromHeadError, OwnedRead, Read};
 pub use scan::{ScanBound, ScanKey, ScanOptions};
-pub use write::{CommitError, NewError, Write};
+pub use write::{CommitError, NewWriteFromHeadError, Write};

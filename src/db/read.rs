@@ -9,7 +9,7 @@ pub struct OwnedRead<'a> {
 }
 
 #[derive(Debug)]
-pub enum NewFromHeadError {
+pub enum NewReadFromHeadError {
     CommitFromHeadError(FromHeadError),
     MapLoadError(prolly::LoadError),
 }
@@ -19,8 +19,8 @@ impl<'a> OwnedRead<'a> {
     pub async fn new_from_head(
         head_name: &str,
         dag_read: dag::OwnedRead<'a>,
-    ) -> Result<OwnedRead<'a>, NewFromHeadError> {
-        use NewFromHeadError::*;
+    ) -> Result<OwnedRead<'a>, NewReadFromHeadError> {
+        use NewReadFromHeadError::*;
         let commit = Commit::from_head(head_name, dag_read.read())
             .await
             .map_err(CommitFromHeadError)?;

@@ -2,7 +2,7 @@ use super::dispatch::Request;
 use super::types::*;
 use crate::dag;
 use crate::db;
-use async_fn::AsyncFn2;
+use async_fn::{AsyncFn2, AsyncFn3};
 use async_std::stream::StreamExt;
 use async_std::sync::{Receiver, RecvError, RwLock};
 use futures::stream::futures_unordered::FuturesUnordered;
@@ -56,12 +56,12 @@ async fn connection_future<'a, 'b>(
         Some(v) => v,
     };
     match req.rpc.as_str() {
-        "has" => execute(do_has, txns, req).await,
-        "get" => execute(do_get, txns, req).await,
-        "put" => execute(do_put, txns, req).await,
-        "openTransaction" => do_open(store, txns, req).await,
-        "commitTransaction" => do_commit(txns, req).await,
-        "closeTransaction" => do_abort(txns, req).await,
+        "has" => execute_in_txn(do_has, txns, req).await,
+        "get" => execute_in_txn(do_get, txns, req).await,
+        "put" => execute_in_txn(do_put, txns, req).await,
+        "openTransaction" => execute(do_open, store, txns, req).await,
+        "commitTransaction" => execute(do_commit, store, txns, req).await,
+        "closeTransaction" => execute(do_abort, store, txns, req).await,
         "close" => {
             req.response.send(Ok("".into())).await;
             return UnorderedResult::Stop();
@@ -98,7 +98,7 @@ pub async fn process(store: dag::Store, rx: Receiver<Request>) {
     }
 }
 
-async fn execute<T, S, F>(func: F, txns: &TxnMap<'_>, req: Request)
+async fn execute_in_txn<T, S, F>(func: F, txns: &TxnMap<'_>, req: Request)
 where
     T: DeJson + TransactionRequest,
     S: SerJson,
@@ -130,85 +130,100 @@ where
         .await;
 }
 
-async fn do_open<'a, 'b>(store: &'a dag::Store, txns: &'b TxnMap<'a>, req: Request) {
-    use OpenTransactionError::*;
-    let dag_write = store.write().await.map_err(DagWriteError).unwrap();
-    let write = db::Write::new_from_head("main", dag_write)
-        .await
-        .map_err(DBWriteError)
-        .unwrap();
-    let txn_id = TRANSACTION_COUNTER.fetch_add(1, Ordering::SeqCst);
-    txns.write()
-        .await
-        .insert(txn_id, RwLock::new(Transaction::Write(write)));
-    req.response
-        .send(Ok(SerJson::serialize_json(&OpenTransactionResponse {
-            transaction_id: txn_id,
-        })))
-        .await;
-}
-
-async fn do_commit(txns: &TxnMap<'_>, req: Request) {
-    let txn_id = match deserialize::<CommitTransactionRequest>(&req.data) {
-        Ok(v) => v.transaction_id,
+async fn execute<'a, 'b, T, S, F, E>(
+    func: F,
+    store: &'a dag::Store,
+    txns: &'b TxnMap<'a>,
+    req: Request,
+) where
+    T: DeJson,
+    S: SerJson,
+    E: std::fmt::Debug,
+    F: AsyncFn3<&'a dag::Store, &'b TxnMap<'a>, T, Output = Result<S, E>>,
+{
+    let request: T = match deserialize(&req.data) {
+        Ok(v) => v,
         Err(e) => return req.response.send(Err(e)).await,
     };
-    let mut txns = txns.write().await;
-    let txn = match txns.remove(&txn_id) {
-        Some(v) => v,
-        None => {
-            return req
-                .response
-                .send(Err(format!("No such transaction {}", txn_id)))
-                .await;
-        }
-    };
-    let txn = match txn.into_inner() {
-        Transaction::Write(w) => w,
-        Transaction::Read(_) => {
-            return req
-                .response
-                .send(Err(format!("Transaction is read-only {}", txn_id)))
-                .await;
-        }
-    };
-    let response = txn
-        .commit(
-            "main",
-            "local-create-date",
-            "checksum",
-            42,
-            "foo",
-            b"bar",
-            None,
-        )
-        .await;
-    if let Err(e) = response {
-        req.response
-            .send(Err(format!("{:?}", CommitError::CommitError(e))))
-            .await;
-        return;
-    }
-    req.response
-        .send(Ok(SerJson::serialize_json(&CommitTransactionResponse {})))
-        .await;
+
+    let result = func
+        .call(store, txns, request)
+        .await
+        .map(|v| SerJson::serialize_json(&v))
+        .map_err(|e| format!("{:?}", e));
+
+    req.response.send(result).await
 }
 
-async fn do_abort(txns: &TxnMap<'_>, req: Request) {
-    let request: CloseTransactionRequest = match deserialize(&req.data) {
-        Ok(v) => v,
-        Err(e) => return req.response.send(Err(format!("InvalidJson({})", e))).await,
+async fn do_open<'a, 'b>(
+    store: &'a dag::Store,
+    txns: &'b TxnMap<'a>,
+    req: OpenTransactionRequest,
+) -> Result<OpenTransactionResponse, OpenTransactionError> {
+    use OpenTransactionError::*;
+    let txn = match req.name {
+        Some(_) => {
+            let dag_write = store.write().await.map_err(DagWriteError)?;
+            let write = db::Write::new_from_head("main", dag_write)
+                .await
+                .map_err(DBWriteError)?;
+            Transaction::Write(write)
+        }
+        None => {
+            let dag_read = store.read().await.map_err(DagReadError)?;
+            let read = db::OwnedRead::new_from_head("main", dag_read)
+                .await
+                .map_err(DBReadError)?;
+            Transaction::Read(read)
+        }
     };
+
+    let txn_id = TRANSACTION_COUNTER.fetch_add(1, Ordering::SeqCst);
+    txns.write().await.insert(txn_id, RwLock::new(txn));
+    Ok(OpenTransactionResponse {
+        transaction_id: txn_id,
+    })
+}
+
+async fn do_commit<'a, 'b>(
+    _: &'a dag::Store,
+    txns: &'b TxnMap<'a>,
+    req: CommitTransactionRequest,
+) -> Result<CommitTransactionResponse, CommitTransactionError> {
+    use CommitTransactionError::*;
+    let txn_id = req.transaction_id;
+    let mut txns = txns.write().await;
+    let txn = txns.remove(&txn_id).ok_or(UnknownTransaction)?;
+    let txn = match txn.into_inner() {
+        Transaction::Write(w) => Ok(w),
+        Transaction::Read(_) => Err(TransactionIsReadOnly),
+    }?;
+    txn.commit(
+        "main",
+        "local-create-date",
+        "checksum",
+        42,
+        "foo",
+        b"bar",
+        None,
+    )
+    .await
+    .map_err(CommitError)?;
+    Ok(CommitTransactionResponse {})
+}
+
+async fn do_abort<'a, 'b>(
+    _: &'a dag::Store,
+    txns: &'b TxnMap<'a>,
+    request: CloseTransactionRequest,
+) -> Result<CloseTransactionResponse, CloseTransactionError> {
+    use CloseTransactionError::*;
     let txn_id = request.transaction_id;
-    if txns.write().await.remove(&txn_id).is_none() {
-        return req
-            .response
-            .send(Err(format!("No transaction {}", txn_id)))
-            .await;
-    };
-    req.response
-        .send(Ok(SerJson::serialize_json(&CloseTransactionResponse {})))
-        .await;
+    txns.write()
+        .await
+        .remove(&txn_id)
+        .ok_or(UnknownTransaction)?;
+    Ok(CloseTransactionResponse {})
 }
 
 async fn do_has(txn: &RwLock<Transaction<'_>>, req: HasRequest) -> Result<HasResponse, String> {
@@ -251,21 +266,31 @@ async fn do_put(txn: &RwLock<Transaction<'_>>, req: PutRequest) -> Result<PutRes
     let mut guard = txn.write().await;
     let write = match &mut *guard {
         Transaction::Write(w) => Ok(w),
-        Transaction::Read(_) => Err(format!("Specified transaction is read-only")),
+        Transaction::Read(_) => Err("Specified transaction is read-only".to_string()),
     }?;
     write.put(req.key.as_bytes().to_vec(), req.value.into_bytes());
     Ok(PutResponse {})
 }
 
 #[derive(Debug)]
+#[allow(clippy::enum_variant_names)]
 enum OpenTransactionError {
     DagWriteError(dag::Error),
-    DBWriteError(db::NewError),
+    DagReadError(dag::Error),
+    DBWriteError(db::NewWriteFromHeadError),
+    DBReadError(db::NewReadFromHeadError),
 }
 
 #[derive(Debug)]
-enum CommitError {
+enum CommitTransactionError {
     CommitError(db::CommitError),
+    UnknownTransaction,
+    TransactionIsReadOnly,
+}
+
+#[derive(Debug)]
+enum CloseTransactionError {
+    UnknownTransaction,
 }
 
 trait TransactionRequest {

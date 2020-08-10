@@ -1,4 +1,5 @@
 use super::dispatch::Request;
+use super::sync;
 use super::types::*;
 use crate::dag;
 use crate::db;
@@ -62,6 +63,7 @@ async fn connection_future<'a, 'b>(
         "openTransaction" => execute(do_open, store, txns, req).await,
         "commitTransaction" => execute(do_commit, store, txns, req).await,
         "closeTransaction" => execute(do_abort, store, txns, req).await,
+        "beginSync" => execute(do_begin_sync, store, txns, req).await,
         "close" => {
             req.response.send(Ok("".into())).await;
             return UnorderedResult::Stop();
@@ -270,6 +272,18 @@ async fn do_put(txn: &RwLock<Transaction<'_>>, req: PutRequest) -> Result<PutRes
     }?;
     write.put(req.key.as_bytes().to_vec(), req.value.into_bytes());
     Ok(PutResponse {})
+}
+
+// This fn just forwards to sync::begin_sync at this point. execute() requires its
+// do_ers to take txns even if they don't need it so this fn also helps begin_sync
+// have a simpler signature.
+async fn do_begin_sync<'a, 'b>(
+    _store: &'a dag::Store,
+    _txns: &'b TxnMap<'a>,
+    req: BeginSyncRequest,
+) -> Result<BeginSyncResponse, sync::BeginSyncError> {
+    let begin_sync_response = sync::begin_sync(&req).await?;
+    Ok(begin_sync_response)
 }
 
 #[derive(Debug)]

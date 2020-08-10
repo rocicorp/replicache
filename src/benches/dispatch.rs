@@ -1,5 +1,5 @@
 use crate::benches::{random_bytes, random_string};
-use crate::dispatch::*;
+use crate::embed::dispatch;
 use crate::kv::idbstore::IdbStore;
 use crate::kv::Store;
 use wasm_bench::*;
@@ -54,10 +54,13 @@ async fn has(b: &mut Bench) {
     eval(&format!(
         "
         (async _ => {{
+            let response = await dispatch('{}', 'openTransaction', '{{}}');
+            let txnId = JSON.parse(response)['transactionId'];
             for (let i = 0; i < {}; i++) {{
-                await dispatch(\"{}\", \"has\", '{{\"key\": \"' + i + '\"}}');
+                await dispatch(\"{}\", \"has\", '{{\"transactionId\": ' + txnId + ', \"key\": \"' + i + '\"}}');
             }}
         }})()",
+        dbname,
         b.iterations(),
         dbname
     ))
@@ -98,10 +101,13 @@ async fn get(b: &mut Bench, size: u64) {
     eval(&format!(
         "
         (async _ => {{
+            let response = await dispatch('{}', 'openTransaction', '{{}}');
+            let txnId = JSON.parse(response)['transactionId'];
             for (let i = 0; i < {}; i++) {{
-                await dispatch(\"{}\", \"get\", '{{\"key\": \"' + i + '\"}}');
+                await dispatch(\"{}\", \"get\", '{{\"transactionId\": ' + txnId + ', \"key\": \"' + i + '\"}}');
             }}
         }})()",
+        dbname,
         b.iterations(),
         dbname
     ))
@@ -133,12 +139,15 @@ async fn put(b: &mut Bench, size: u64) {
         "
         (async _ => {{
             var array = new Uint8Array({});
+            let response = await dispatch('{}', 'openTransaction', '{{\"name\": \"put\"}}');
+            let txnId = JSON.parse(response)['transactionId'];
             for (let i = 0; i < {}; i++) {{
                 window.crypto.getRandomValues(array);
-                await dispatch(\"{}\", \"put\", '{{\"key\": \"' + i + '\", \"value\": \"' + array.toString().substring(0, {}) + '\"}}');
+                await dispatch(\"{}\", \"put\", '{{\"transactionId\": ' + txnId + ', \"key\": \"' + i + '\", \"value\": \"' + array.toString().substring(0, {}) + '\"}}');
             }}
         }})()",
         size,
+        dbname,
         b.iterations(),
         dbname,
         size

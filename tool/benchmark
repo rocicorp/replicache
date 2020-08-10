@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 # Script to run WebAssembly benchmark tests within a browser.
 
 PREFIX=benches
@@ -37,10 +39,10 @@ fi
 
 export WASM_BINDGEN_TEST_TIMEOUT=120  # Raise as more benchmarks are added.
 
-wasm-pack test --release --chrome --headless -- --lib $PREFIX \
-    --features benchmark \
-    | grep "ns/iter" \
-    | python3 -c '
+OUTPUT=$(wasm-pack test --release --chrome --headless -- --lib $PREFIX \
+    --features benchmark) || exit $?
+
+echo "$OUTPUT" | grep "ns/iter" | python3 -c '
 import sys
 
 lines = sys.stdin.readlines()
@@ -48,7 +50,7 @@ lines.reverse()  # Restore tests to the order their functions appear in.
 
 if not lines:
     print("No benchmarks were selected.")
-    sys.exit(0)
+    sys.exit(1)
 
 # Figure out the maximum width of each column.
 cols = {}

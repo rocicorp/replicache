@@ -16,7 +16,6 @@ lazy_static! {
 }
 
 enum Transaction<'a> {
-    #[allow(dead_code)]
     Read(db::OwnedRead<'a>),
     Write(db::Write<'a>),
 }

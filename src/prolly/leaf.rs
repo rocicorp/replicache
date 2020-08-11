@@ -16,7 +16,6 @@ pub enum LoadError {
     Corrupt(&'static str),
 }
 
-#[allow(dead_code)]
 impl Leaf {
     pub fn chunk(&self) -> &Chunk {
         &self.chunk

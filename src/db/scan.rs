@@ -1,19 +1,16 @@
 use crate::prolly;
 
-#[allow(dead_code)]
 pub struct ScanKey<'a> {
     value: &'a [u8],
     exclusive: bool,
 }
 
-#[allow(dead_code)]
 pub struct ScanBound<'a> {
     // TODO: Make these two fields exclusive?
     key: Option<ScanKey<'a>>,
     index: Option<u64>,
 }
 
-#[allow(dead_code)]
 pub struct ScanOptions<'a> {
     // TODO: Make these two fields exclusive?
     prefix: Option<&'a [u8]>,
@@ -21,7 +18,6 @@ pub struct ScanOptions<'a> {
     limit: Option<u64>,
 }
 
-#[allow(dead_code)]
 pub fn scan<'a>(
     map: &'a prolly::Map,
     opts: ScanOptions<'a>,

@@ -148,14 +148,13 @@ impl Store for IdbStore {
 }
 
 struct ReadTransaction<'a> {
-    #[allow(dead_code)]
-    db: RwLockReadGuard<'a, IdbDatabase>,
+    _db: RwLockReadGuard<'a, IdbDatabase>, // Not referenced, holding lock.
     tx: IdbTransaction,
 }
 
 impl ReadTransaction<'_> {
     fn new(db: RwLockReadGuard<'_, IdbDatabase>, tx: IdbTransaction) -> Result<ReadTransaction> {
-        Ok(ReadTransaction { db, tx })
+        Ok(ReadTransaction { _db: db, tx })
     }
 }
 
@@ -208,8 +207,7 @@ enum WriteState {
 }
 
 struct WriteTransaction<'a> {
-    #[allow(dead_code)]
-    db: RwLockWriteGuard<'a, IdbDatabase>,
+    _db: RwLockWriteGuard<'a, IdbDatabase>, // Not referenced, holding lock.
     tx: IdbTransaction,
     pending: Mutex<HashMap<String, Option<Vec<u8>>>>,
     pair: Arc<(Mutex<WriteState>, Condvar)>,
@@ -219,7 +217,7 @@ struct WriteTransaction<'a> {
 impl WriteTransaction<'_> {
     fn new(db: RwLockWriteGuard<'_, IdbDatabase>, tx: IdbTransaction) -> Result<WriteTransaction> {
         let mut wt = WriteTransaction {
-            db,
+            _db: db,
             tx,
             pair: Arc::new((Mutex::new(WriteState::Open), Condvar::new())),
             pending: Mutex::new(HashMap::new()),

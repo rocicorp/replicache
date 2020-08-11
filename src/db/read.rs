@@ -2,7 +2,6 @@ use super::commit::{Commit, FromHeadError};
 use crate::dag;
 use crate::prolly;
 
-#[allow(dead_code)]
 pub struct OwnedRead<'a> {
     dag_read: dag::OwnedRead<'a>,
     map: prolly::Map,
@@ -14,7 +13,6 @@ pub enum NewReadFromHeadError {
     MapLoadError(prolly::LoadError),
 }
 
-#[allow(dead_code)]
 impl<'a> OwnedRead<'a> {
     pub async fn new_from_head(
         head_name: &str,
@@ -38,13 +36,13 @@ impl<'a> OwnedRead<'a> {
     }
 }
 
-#[allow(dead_code)]
 pub struct Read<'a> {
+    #[allow(dead_code)]
     dag_read: dag::Read<'a>,
+
     map: &'a prolly::Map,
 }
 
-#[allow(dead_code)]
 impl<'a> Read<'a> {
     pub fn new(dag_read: dag::Read<'a>, map: &'a prolly::Map) -> Read<'a> {
         Read { dag_read, map }
@@ -58,6 +56,7 @@ impl<'a> Read<'a> {
         self.map.get(key)
     }
 
+    #[allow(dead_code)]
     pub fn scan(&'a self, opts: super::ScanOptions<'a>) -> impl Iterator<Item = prolly::Entry<'a>> {
         super::scan::scan(&self.map, opts)
     }

@@ -8,7 +8,6 @@ pub struct OwnedRead<'a> {
     kvr: Box<dyn kv::Read + 'a>,
 }
 
-#[allow(dead_code)]
 impl<'a> OwnedRead<'a> {
     pub fn new(kvr: Box<dyn kv::Read + 'a>) -> OwnedRead {
         OwnedRead { kvr }
@@ -20,17 +19,17 @@ impl<'a> OwnedRead<'a> {
         }
     }
 }
-#[allow(dead_code)]
+
 pub struct Read<'a> {
     kvr: &'a dyn kv::Read,
 }
 
-#[allow(dead_code)]
 impl<'a> Read<'_> {
     pub fn new(kvr: &'a dyn kv::Read) -> Read {
         Read { kvr }
     }
 
+    #[allow(dead_code)]
     pub async fn has_chunk(&self, hash: &str) -> Result<bool> {
         Ok(self.kvr.has(&Key::ChunkData(hash).to_string()).await?)
     }

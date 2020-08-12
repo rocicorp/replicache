@@ -1,4 +1,3 @@
-use js_sys;
 use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt;

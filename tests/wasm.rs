@@ -268,17 +268,18 @@ async fn get_put() {
 //     - method
 //     - http headers
 //     - outgoing and incoming body
-#[wasm_bindgen_test]
-async fn test_browser_fetch() {
-    let pull_req = sync::PullRequest {
-        ..Default::default()
-    };
-    let http_req = sync::new_pull_http_request(
-        &pull_req,
-        "https://account-service.rocicorp.now.sh/api/hello",
-        "auth",
-    )
-    .unwrap();
-    let resp = http::browser_fetch(&http_req).await.unwrap();
-    assert!(resp.body().contains("Well hello to you"));
-}
+//
+// #[wasm_bindgen_test]
+// async fn test_browser_fetch() {
+//     let pull_req = sync::PullRequest {
+//         ..Default::default()
+//     };
+//     let http_req = sync::new_pull_http_request(
+//         &pull_req,
+//         "https://account-service.rocicorp.now.sh/api/hello",
+//         "auth",
+//     )
+//     .unwrap();
+//     let resp = http::browser_fetch(&http_req).await.unwrap();
+//     assert!(resp.body().contains("Well hello to you"));
+// }

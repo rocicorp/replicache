@@ -1,3 +1,5 @@
+#![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
+
 use super::http as embed_http;
 use super::types::*;
 use nanoserde::{DeJson, DeJsonErr, SerJson};

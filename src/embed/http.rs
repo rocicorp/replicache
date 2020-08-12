@@ -38,9 +38,9 @@ pub async fn browser_fetch(
     }
     let web_sys_resp: web_sys::Response = js_web_sys_resp.dyn_into().unwrap();
     let body_js_value = JsFuture::from(web_sys_resp.text()?).await?;
-    let resp_body = body_js_value.as_string().ok_or_else(|| FetchError::new(
-        "could not get http response body as string",
-    ))?;
+    let resp_body = body_js_value
+        .as_string()
+        .ok_or_else(|| FetchError::new("could not get http response body as string"))?;
 
     let builder = http::response::Builder::new();
     let http_resp = builder.status(web_sys_resp.status()).body(resp_body)?;

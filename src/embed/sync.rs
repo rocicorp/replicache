@@ -71,7 +71,7 @@ pub async fn pull(begin_sync_req: &BeginSyncRequest) -> Result<PullResponse, Pul
     if USE_BROWSER_FETCH {
         let http_resp = embed_http::browser_fetch(&http_req).await?;
         if http_resp.status() != http::StatusCode::OK {
-            return Err(PullError::FetchNotOk(http_resp.status().clone()));
+            return Err(PullError::FetchNotOk(http_resp.status()));
         }
         let pull_resp: PullResponse = DeJson::deserialize_json(http_resp.body())?;
         // TODO do something with it

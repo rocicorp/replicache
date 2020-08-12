@@ -29,7 +29,7 @@ pub async fn browser_fetch(
         h.set(k.as_ref(), v.to_str().unwrap())?;
     }
 
-    let window = web_sys::window().ok_or(FetchError::new("could not get window"))?;
+    let window = web_sys::window().ok_or_else(|| FetchError::new("could not get window"))?;
     let http_req_promise = window.fetch_with_request(&web_sys_req);
     let http_req_future = JsFuture::from(http_req_promise);
     let js_web_sys_resp = http_req_future.await?;
@@ -38,7 +38,7 @@ pub async fn browser_fetch(
     }
     let web_sys_resp: web_sys::Response = js_web_sys_resp.dyn_into().unwrap();
     let body_js_value = JsFuture::from(web_sys_resp.text()?).await?;
-    let resp_body = body_js_value.as_string().ok_or(FetchError::new(
+    let resp_body = body_js_value.as_string().ok_or_else(|| FetchError::new(
         "could not get http response body as string",
     ))?;
 

@@ -67,3 +67,21 @@ pub struct PutRequest {
 
 #[derive(DeJson, SerJson)]
 pub struct PutResponse {}
+
+#[derive(DeJson, SerJson)]
+pub struct BeginSyncRequest {
+    // TODO BatchPushURL   string `json:"batchPushURL"`
+    // data_layer_auth is used for push and for pull (as the client_view_auth).
+    #[nserde(rename = "dataLayerAuth")]
+    pub data_layer_auth: String,
+    #[nserde(rename = "diffServerURL")]
+    pub diff_server_url: String,
+    #[nserde(rename = "diffServerAuth")]
+    pub diff_server_auth: String,
+}
+
+#[derive(DeJson, SerJson)]
+pub struct BeginSyncResponse {
+    // TODO SyncHead jsnoms.Hash `json:"syncHead"`
+// TODO SyncInfo db.SyncInfo `json:"syncInfo"`
+}

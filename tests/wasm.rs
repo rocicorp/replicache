@@ -3,6 +3,10 @@
 use futures::join;
 use nanoserde::{DeJson, SerJson};
 use rand::Rng;
+#[allow(unused_imports)]
+use replicache_client::embed::http;
+#[allow(unused_imports)]
+use replicache_client::embed::sync;
 use replicache_client::embed::types::*;
 use replicache_client::wasm;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
@@ -255,3 +259,29 @@ async fn get_put() {
 
     assert_eq!(dispatch(db, "close", "").await.unwrap(), "");
 }
+
+// We can't run a web server in wasm-in-the-browser so this is the next
+// best thing: a manual test that FETCHES OVER THE NETWORK. To run it:
+// 1. uncomment it out
+// 2. wasm-pack test --chrome -- --test wasm
+// 3. open developer tools in a browser window
+// 4. navigate to 127.0.0.1:8000
+// 5. verify the request and response by inspection:
+//     - method
+//     - http headers
+//     - outgoing and incoming body
+//
+// #[wasm_bindgen_test]
+// async fn test_browser_fetch() {
+//     let pull_req = sync::PullRequest {
+//         ..Default::default()
+//     };
+//     let http_req = sync::new_pull_http_request(
+//         &pull_req,
+//         "https://account-service.rocicorp.now.sh/api/hello",
+//         "auth",
+//     )
+//     .unwrap();
+//     let resp = http::browser_fetch(&http_req).await.unwrap();
+//     assert!(resp.body().contains("Well hello to you"));
+// }

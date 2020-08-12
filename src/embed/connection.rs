@@ -278,8 +278,8 @@ async fn do_put(txn: &RwLock<Transaction<'_>>, req: PutRequest) -> Result<PutRes
 // do_ers to take txns even if they don't need it so this fn also helps begin_sync
 // have a simpler signature.
 async fn do_begin_sync<'a, 'b>(
-    _store: &'a dag::Store,
-    _txns: &'b TxnMap<'a>,
+    _: &'a dag::Store,
+    _: &'b TxnMap<'a>,
     req: BeginSyncRequest,
 ) -> Result<BeginSyncResponse, sync::BeginSyncError> {
     let begin_sync_response = sync::begin_sync(&req).await?;

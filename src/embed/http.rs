@@ -26,7 +26,11 @@ pub async fn browser_fetch(
     let web_sys_req = web_sys::Request::new_with_str_and_init(&http_req.uri().to_string(), &opts)?;
     let h = web_sys_req.headers();
     for (k, v) in http_req.headers().iter() {
-        h.set(k.as_ref(), v.to_str().unwrap())?;
+        h.set(
+            k.as_ref(),
+            v.to_str()
+                .map_err(|e| FetchError::new(&format!("{:?}", e)))?,
+        )?;
     }
 
     let window = web_sys::window().ok_or_else(|| FetchError::new("could not get window"))?;
@@ -50,6 +54,7 @@ pub async fn browser_fetch(
 // FetchErrors are returned by both the rust and browser versions of fetch. Since
 // lower level errors in each case will be coming from two different places I implemented
 // FetchError as lossy of the error types underneath: it holds an error string.
+// TODO turn this into an enumerated type.
 #[derive(Debug)]
 pub struct FetchError {
     msg: String,

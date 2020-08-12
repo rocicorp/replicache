@@ -3,7 +3,9 @@
 use futures::join;
 use nanoserde::{DeJson, SerJson};
 use rand::Rng;
+#[allow(unused_imports)]
 use replicache_client::embed::http;
+#[allow(unused_imports)]
 use replicache_client::embed::sync;
 use replicache_client::embed::types::*;
 use replicache_client::wasm;

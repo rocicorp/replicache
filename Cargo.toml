@@ -23,12 +23,9 @@ lazy_static = "1.4.0"
 log = "0.4"
 nanoserde = "0.1.18"
 sha2 = "0.8.1"
-#wasm-bindgen = { version = "0.2", features = ["serde-serialize"]  }
 wasm-bindgen = { version = "0.2"  }
 wasm-bindgen-futures = "0.4.13"
 wee_alloc = "0.4.5"
-serde = { version = "1.0.80", features = ["derive"] }
-serde_derive = "^1.0.59"
 
 
 [dev-dependencies]
@@ -36,14 +33,13 @@ async-std = { version = "=1.6.0", features = ["attributes", "unstable"] }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 wasm-bench = { path = "crates/bench" }
 wasm-bindgen-test = "0.3.0"
-serde = { version = "1.0.80", features = ["derive"] }
-serde_derive = "^1.0.59"
 
 [dependencies.web-sys]
 version = "0.3.40"
 features = [
     "console",
     "DomException",
+    "Headers",
     "IdbDatabase",
     "IdbFactory",
     "IdbObjectStore",
@@ -52,13 +48,11 @@ features = [
     "IdbTransactionMode",
     "IdbVersionChangeEvent",
     "Performance",
-    "Window",
-
-    "Headers",
     "Request",
     "RequestInit",
     "RequestMode",
     "Response",
+    "Window",
 ]
 
 [lib]

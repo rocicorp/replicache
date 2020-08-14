@@ -27,12 +27,19 @@ wasm-bindgen = { version = "0.2"  }
 wasm-bindgen-futures = "0.4.13"
 wee_alloc = "0.4.5"
 
-
 [dev-dependencies]
 async-std = { version = "=1.6.0", features = ["attributes", "unstable"] }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 wasm-bench = { path = "crates/bench" }
 wasm-bindgen-test = "0.3.0"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+bytes = "0.5.6"
+hyper = "0.13" # Implies tokio.
+tokio = { version = "0.2", features = ["full"] } # For hyper.
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+httptest = "0.13.1"
 
 [dependencies.web-sys]
 version = "0.3.40"

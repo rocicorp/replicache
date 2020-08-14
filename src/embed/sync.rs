@@ -1,20 +1,16 @@
 #![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
 
-use super::http as embed_http;
 use super::types::*;
+use crate::fetch;
+use crate::fetch::errors::FetchError;
 use nanoserde::{DeJson, DeJsonErr, SerJson};
 use std::fmt::Debug;
 
-#[cfg(default)]
-const USE_BROWSER_FETCH: bool = false;
-
-#[cfg(not(default))]
-const USE_BROWSER_FETCH: bool = true;
-
 pub async fn begin_sync(
+    fetch_client: &fetch::client::Client,
     begin_sync_req: &BeginSyncRequest,
 ) -> Result<BeginSyncResponse, BeginSyncError> {
-    let _pull_resp = pull(begin_sync_req).await?;
+    let _pull_resp = pull(fetch_client, begin_sync_req).await?;
     // TODO do something with the response
     Ok(BeginSyncResponse {})
 }
@@ -57,7 +53,11 @@ pub struct PullResponse {
     // TODO ClientViewInfo ClientViewInfo `json:"clientViewInfo"`
 }
 
-pub async fn pull(begin_sync_req: &BeginSyncRequest) -> Result<PullResponse, PullError> {
+// client will be none when using browser
+pub async fn pull(
+    fetch_client: &fetch::client::Client,
+    begin_sync_req: &BeginSyncRequest,
+) -> Result<PullResponse, PullError> {
     let pull_req = PullRequest {
         client_view_auth: begin_sync_req.data_layer_auth.clone(),
         client_id: "TODO".to_string(),
@@ -70,17 +70,13 @@ pub async fn pull(begin_sync_req: &BeginSyncRequest) -> Result<PullResponse, Pul
         &begin_sync_req.diff_server_auth,
     )?;
 
-    if USE_BROWSER_FETCH {
-        let http_resp = embed_http::browser_fetch(&http_req).await?;
-        if http_resp.status() != http::StatusCode::OK {
-            return Err(PullError::FetchNotOk(http_resp.status()));
-        }
-        let pull_resp: PullResponse = DeJson::deserialize_json(http_resp.body())?;
-        // TODO do something with it
-        return Ok(pull_resp);
+    let http_resp: http::Response<String> = fetch_client.request(http_req).await?;
+    if http_resp.status() != http::StatusCode::OK {
+        return Err(PullError::FetchNotOk(http_resp.status()));
     }
-
-    Err(PullError::NotYetImplemented)
+    let pull_resp: PullResponse = DeJson::deserialize_json(http_resp.body())?;
+    // TODO do something with it
+    Ok(pull_resp)
 }
 
 // Pulled into a helper fn because we use it integration tests.
@@ -103,12 +99,11 @@ pub fn new_pull_http_request(
 
 #[derive(Debug)]
 pub enum PullError {
-    InvalidRequest(http::Error),
-    FetchFailed(embed_http::FetchError),
+    FetchFailed(FetchError),
     FetchNotOk(http::StatusCode),
+    InvalidRequest(http::Error),
     InvalidResponse(DeJsonErr),
-
-    NotYetImplemented,
+    NoHttpClient,
 }
 
 impl From<http::Error> for PullError {
@@ -117,8 +112,8 @@ impl From<http::Error> for PullError {
     }
 }
 
-impl From<embed_http::FetchError> for PullError {
-    fn from(err: embed_http::FetchError) -> PullError {
+impl From<FetchError> for PullError {
+    fn from(err: FetchError) -> PullError {
         PullError::FetchFailed(err)
     }
 }

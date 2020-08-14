@@ -3,6 +3,7 @@ use super::sync;
 use super::types::*;
 use crate::dag;
 use crate::db;
+use crate::fetch;
 use async_fn::{AsyncFn2, AsyncFn3};
 use async_std::stream::StreamExt;
 use async_std::sync::{Receiver, RecvError, RwLock};
@@ -273,15 +274,14 @@ async fn do_put(txn: &RwLock<Transaction<'_>>, req: PutRequest) -> Result<PutRes
     Ok(PutResponse {})
 }
 
-// This fn just forwards to sync::begin_sync at this point. execute() requires its
-// do_ers to take txns even if they don't need it so this fn also helps begin_sync
-// have a simpler signature.
 async fn do_begin_sync<'a, 'b>(
     _: &'a dag::Store,
     _: &'b TxnMap<'a>,
     req: BeginSyncRequest,
 ) -> Result<BeginSyncResponse, sync::BeginSyncError> {
-    let begin_sync_response = sync::begin_sync(&req).await?;
+    // TODO move client up to process() or into a lazy static so we can re-use.
+    let fetch_client = fetch::client::Client::new();
+    let begin_sync_response = sync::begin_sync(&fetch_client, &req).await?;
     Ok(begin_sync_response)
 }
 

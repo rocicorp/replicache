@@ -4,10 +4,10 @@ use futures::join;
 use nanoserde::{DeJson, SerJson};
 use rand::Rng;
 #[allow(unused_imports)]
-use replicache_client::embed::http;
-#[allow(unused_imports)]
 use replicache_client::embed::sync;
 use replicache_client::embed::types::*;
+#[allow(unused_imports)]
+use replicache_client::fetch;
 use replicache_client::wasm;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 use wasm_bindgen_test::*;
@@ -282,6 +282,7 @@ async fn get_put() {
 //         "auth",
 //     )
 //     .unwrap();
-//     let resp = http::browser_fetch(&http_req).await.unwrap();
+//     let client = fetch::client::Client::new();
+//     let resp = client.request(http_req).await.unwrap();
 //     assert!(resp.body().contains("Well hello to you"));
 // }

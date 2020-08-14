@@ -262,7 +262,7 @@ async fn get_put() {
 
 // We can't run a web server in wasm-in-the-browser so this is the next
 // best thing: a manual test that FETCHES OVER THE NETWORK. To run it:
-// 1. uncomment it out
+// 1. uncomment the #[wasm_bindgen_test] line
 // 2. wasm-pack test --chrome -- --test wasm
 // 3. open developer tools in a browser window
 // 4. navigate to 127.0.0.1:8000
@@ -272,17 +272,18 @@ async fn get_put() {
 //     - outgoing and incoming body
 //
 // #[wasm_bindgen_test]
-// async fn test_browser_fetch() {
-//     let pull_req = sync::PullRequest {
-//         ..Default::default()
-//     };
-//     let http_req = sync::new_pull_http_request(
-//         &pull_req,
-//         "https://account-service.rocicorp.now.sh/api/hello",
-//         "auth",
-//     )
-//     .unwrap();
-//     let client = fetch::client::Client::new();
-//     let resp = client.request(http_req).await.unwrap();
-//     assert!(resp.body().contains("Well hello to you"));
-// }
+#[allow(dead_code)]
+async fn test_browser_fetch() {
+    let pull_req = sync::PullRequest {
+        ..Default::default()
+    };
+    let http_req = sync::new_pull_http_request(
+        &pull_req,
+        "https://account-service.rocicorp.now.sh/api/hello",
+        "auth",
+    )
+    .unwrap();
+    let client = fetch::client::Client::new();
+    let resp = client.request(http_req).await.unwrap();
+    assert!(resp.body().contains("Well hello to you"));
+}

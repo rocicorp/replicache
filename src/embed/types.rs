@@ -1,11 +1,13 @@
 #![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
 
+use crate::util::nanoserde::any;
 use nanoserde::{DeJson, SerJson};
 
 #[derive(DeJson, SerJson)]
 pub struct OpenTransactionRequest {
     pub name: Option<String>, // not present in read transactions
-                              // TODO: args, rebaseOpts
+    pub args: Option<any::Any>,
+    // TODO: rebaseOpts
 }
 
 #[derive(DeJson, SerJson)]

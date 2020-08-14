@@ -35,7 +35,10 @@ async fn dispatch(db: &str, rpc: &str, data: &str) -> Result<String, String> {
 }
 
 async fn open_transaction(db_name: &str, fn_name: Option<String>) -> u32 {
-    let req = SerJson::serialize_json(&OpenTransactionRequest { name: fn_name });
+    let req = SerJson::serialize_json(&OpenTransactionRequest {
+        name: fn_name,
+        args: None,
+    });
     let resp: OpenTransactionResponse =
         DeJson::deserialize_json(&dispatch(db_name, "openTransaction", &req).await.unwrap())
             .unwrap();

@@ -166,9 +166,14 @@ async fn do_open<'a, 'b>(
     let txn = match req.name {
         Some(_) => {
             let dag_write = store.write().await.map_err(DagWriteError)?;
-            let write = db::Write::new_from_head("main", dag_write)
-                .await
-                .map_err(DBWriteError)?;
+            let write = db::Write::new_from_head(
+                "main",
+                req.name.ok_or(NameRequired)?,
+                req.args.ok_or(ArgsRequired)?,
+                dag_write,
+            )
+            .await
+            .map_err(DBWriteError)?;
             Transaction::Write(write)
         }
         None => {
@@ -200,17 +205,9 @@ async fn do_commit<'a, 'b>(
         Transaction::Write(w) => Ok(w),
         Transaction::Read(_) => Err(TransactionIsReadOnly),
     }?;
-    txn.commit(
-        "main",
-        "local-create-date",
-        "checksum",
-        42,
-        "foo",
-        b"bar",
-        None,
-    )
-    .await
-    .map_err(CommitError)?;
+    txn.commit("main", "local-create-date", "checksum", 42, None)
+        .await
+        .map_err(CommitError)?;
     Ok(CommitTransactionResponse {})
 }
 
@@ -288,6 +285,8 @@ async fn do_begin_sync<'a, 'b>(
 #[derive(Debug)]
 #[allow(clippy::enum_variant_names)]
 enum OpenTransactionError {
+    NameRequired,
+    ArgsRequired,
     DagWriteError(dag::Error),
     DagReadError(dag::Error),
     DBWriteError(db::NewWriteFromHeadError),

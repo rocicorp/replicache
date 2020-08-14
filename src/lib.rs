@@ -13,7 +13,7 @@ mod db;
 pub mod embed;
 pub mod fetch;
 mod hash;
-mod util;
+pub mod util;
 
 #[cfg(not(default))]
 pub mod kv;

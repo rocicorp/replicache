@@ -1,17 +1,23 @@
 use super::commit;
 use crate::dag;
 use crate::prolly;
+use crate::util::nanoserde::any::Any;
+use nanoserde::SerJson;
 
 pub struct Write<'a> {
     dag_write: dag::Write<'a>,
     map: prolly::Map,
     basis_hash: Option<String>,
+    mutator_name: String,
+    mutator_args: Any,
 }
 
 #[allow(dead_code)]
 impl<'a> Write<'a> {
     pub async fn new_from_head(
         head_name: &str,
+        mutator_name: String,
+        mutator_args: Any,
         dag_write: dag::Write<'a>,
     ) -> Result<Write<'a>, NewWriteFromHeadError> {
         use NewWriteFromHeadError::*;
@@ -29,6 +35,8 @@ impl<'a> Write<'a> {
             basis_hash,
             dag_write,
             map,
+            mutator_name,
+            mutator_args,
         })
     }
 
@@ -47,8 +55,6 @@ impl<'a> Write<'a> {
         local_create_date: &str,
         checksum: &str,
         mutation_id: u64,
-        mutator_name: &str,
-        mutator_args_json: &[u8],
         original_hash: Option<&str>,
     ) -> Result<(), CommitError> {
         use CommitError::*;
@@ -63,8 +69,8 @@ impl<'a> Write<'a> {
             self.basis_hash.as_deref(),
             checksum,
             mutation_id,
-            mutator_name,
-            mutator_args_json,
+            &self.mutator_name,
+            self.mutator_args.serialize_json().as_bytes(),
             original_hash,
             &value_hash,
         );
@@ -105,29 +111,26 @@ mod tests {
     use crate::dag;
     use crate::kv::memstore::MemStore;
     use crate::kv::Store;
+    use str_macro::str;
 
     #[async_std::test]
     async fn basics() {
         let kv = MemStore::new();
         let kvw = kv.write().await.unwrap();
         let dw = dag::Write::new(kvw);
-        let mut w = Write::new_from_head("main", dw).await.unwrap();
+        let mut w = Write::new_from_head("main", str!("mutator_name"), Any::Array(vec![]), dw)
+            .await
+            .unwrap();
         w.put("foo".as_bytes().to_vec(), "bar".as_bytes().to_vec());
-        w.commit(
-            "main",
-            "local_create_date",
-            "checksum",
-            1,
-            "mutator_name",
-            &[],
-            None,
-        )
-        .await
-        .unwrap();
+        w.commit("main", "local_create_date", "checksum", 1, None)
+            .await
+            .unwrap();
 
         let kvw = kv.write().await.unwrap();
         let dw = dag::Write::new(kvw);
-        let w = Write::new_from_head("main", dw).await.unwrap();
+        let w = Write::new_from_head("main", str!("mutator_name"), Any::Null, dw)
+            .await
+            .unwrap();
         let r = w.as_read();
         let val = r.get("foo".as_bytes());
         assert_eq!(Some("bar".as_bytes()), val);

@@ -8,6 +8,7 @@ use replicache_client::embed::sync;
 use replicache_client::embed::types::*;
 #[allow(unused_imports)]
 use replicache_client::fetch;
+use replicache_client::util::nanoserde::any::Any;
 use replicache_client::wasm;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 use wasm_bindgen_test::*;
@@ -37,7 +38,7 @@ async fn dispatch(db: &str, rpc: &str, data: &str) -> Result<String, String> {
 async fn open_transaction(db_name: &str, fn_name: Option<String>) -> u32 {
     let req = SerJson::serialize_json(&OpenTransactionRequest {
         name: fn_name,
-        args: None,
+        args: Some(Any::Array(vec![])),
     });
     let resp: OpenTransactionResponse =
         DeJson::deserialize_json(&dispatch(db_name, "openTransaction", &req).await.unwrap())

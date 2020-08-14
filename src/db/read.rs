@@ -69,25 +69,22 @@ mod tests {
     use crate::dag;
     use crate::kv::memstore::MemStore;
     use crate::kv::Store;
+    use crate::util::nanoserde::any::Any;
+    use str_macro::str;
 
     #[async_std::test]
     async fn basics() {
         let kv = MemStore::new();
         let kvw = kv.write().await.unwrap();
         let dw = dag::Write::new(kvw);
-        let mut w = write::Write::new_from_head("main", dw).await.unwrap();
+        let mut w =
+            write::Write::new_from_head("main", str!("mutator_name"), Any::Array(vec![]), dw)
+                .await
+                .unwrap();
         w.put("foo".as_bytes().to_vec(), "bar".as_bytes().to_vec());
-        w.commit(
-            "main",
-            "local_create_date",
-            "checksum",
-            1,
-            "mutator_name",
-            &[],
-            None,
-        )
-        .await
-        .unwrap();
+        w.commit("main", "local_create_date", "checksum", 1, None)
+            .await
+            .unwrap();
 
         let kvr = kv.read().await.unwrap();
         let dr = dag::OwnedRead::new(kvr);

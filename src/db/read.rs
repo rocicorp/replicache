@@ -82,7 +82,7 @@ mod tests {
                 .await
                 .unwrap();
         w.put("foo".as_bytes().to_vec(), "bar".as_bytes().to_vec());
-        w.commit("main", "local_create_date", "checksum", 1, None)
+        w.commit("main", "local_create_date", "checksum", None)
             .await
             .unwrap();
 

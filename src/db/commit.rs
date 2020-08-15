@@ -105,6 +105,18 @@ impl Commit {
         self.commit().value_hash().unwrap()
     }
 
+    pub fn next_mutation_id(&self) -> u64 {
+        let meta = self.commit().meta().unwrap();
+        let mid = match meta.typed_type() {
+            commit::MetaTyped::LocalMeta => meta.typed_as_local_meta().unwrap().mutation_id(),
+            commit::MetaTyped::SnapshotMeta => {
+                meta.typed_as_snapshot_meta().unwrap().last_mutation_id()
+            }
+            commit::MetaTyped::NONE => unreachable!(),
+        };
+        mid + 1
+    }
+
     fn validate(buffer: &[u8]) -> Result<(), LoadError> {
         use LoadError::*;
         let root = commit::get_root_as_commit(buffer);
@@ -448,29 +460,31 @@ mod tests {
         assert_eq!(local.meta().basis_hash(), Some("basis_hash"));
         assert_eq!(local.meta().checksum(), "checksum");
         assert_eq!(local.value_hash(), "value_hash");
+        assert_eq!(local.next_mutation_id(), 2);
 
         let snapshot = Commit::load(make_commit(
             Some(Box::new(|b: &mut FlatBufferBuilder| {
-                make_snapshot_meta(b, 1, "server_state_id".into())
+                make_snapshot_meta(b, 2, "server_state_id 2".into())
             })),
-            "local_create_date".into(),
-            "basis_hash".into(),
-            "checksum".into(),
-            "value_hash".into(),
+            "local_create_date 2".into(),
+            "basis_hash 2".into(),
+            "checksum 2".into(),
+            "value_hash 2".into(),
         ))
         .unwrap();
 
         match snapshot.meta().typed() {
             MetaTyped::Local(_) => assert!(false),
             MetaTyped::Snapshot(sm) => {
-                assert_eq!(sm.last_mutation_id(), 1);
-                assert_eq!(sm.server_state_id(), "server_state_id");
+                assert_eq!(sm.last_mutation_id(), 2);
+                assert_eq!(sm.server_state_id(), "server_state_id 2");
             }
         }
-        assert_eq!(local.meta().local_create_date(), "local_create_date");
-        assert_eq!(local.meta().basis_hash(), Some("basis_hash"));
-        assert_eq!(local.meta().checksum(), "checksum");
-        assert_eq!(local.value_hash(), "value_hash");
+        assert_eq!(snapshot.meta().local_create_date(), "local_create_date 2");
+        assert_eq!(snapshot.meta().basis_hash(), Some("basis_hash 2"));
+        assert_eq!(snapshot.meta().checksum(), "checksum 2");
+        assert_eq!(snapshot.value_hash(), "value_hash 2");
+        assert_eq!(snapshot.next_mutation_id(), 3);
     }
 
     fn make_commit(

@@ -10,6 +10,7 @@ pub struct Write<'a> {
     basis_hash: Option<String>,
     mutator_name: String,
     mutator_args: Any,
+    mutation_id: u64,
 }
 
 #[allow(dead_code)]
@@ -31,12 +32,14 @@ impl<'a> Write<'a> {
                 .map_err(MapLoadError)?,
         };
         let basis_hash = commit.as_ref().map(|c| c.chunk().hash().into());
+        let mutation_id = commit.as_ref().map_or(0, |c| c.next_mutation_id());
         Ok(Write {
             basis_hash,
             dag_write,
             map,
             mutator_name,
             mutator_args,
+            mutation_id,
         })
     }
 
@@ -54,7 +57,6 @@ impl<'a> Write<'a> {
         head_name: &str,
         local_create_date: &str,
         checksum: &str,
-        mutation_id: u64,
         original_hash: Option<&str>,
     ) -> Result<(), CommitError> {
         use CommitError::*;
@@ -68,7 +70,7 @@ impl<'a> Write<'a> {
             local_create_date,
             self.basis_hash.as_deref(),
             checksum,
-            mutation_id,
+            self.mutation_id,
             &self.mutator_name,
             self.mutator_args.serialize_json().as_bytes(),
             original_hash,
@@ -122,7 +124,7 @@ mod tests {
             .await
             .unwrap();
         w.put("foo".as_bytes().to_vec(), "bar".as_bytes().to_vec());
-        w.commit("main", "local_create_date", "checksum", 1, None)
+        w.commit("main", "local_create_date", "checksum", None)
             .await
             .unwrap();
 

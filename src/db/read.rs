@@ -77,12 +77,17 @@ mod tests {
         let kv = MemStore::new();
         let kvw = kv.write().await.unwrap();
         let dw = dag::Write::new(kvw);
-        let mut w =
-            write::Write::new_from_head("main", str!("mutator_name"), Any::Array(vec![]), dw)
-                .await
-                .unwrap();
+        let mut w = write::Write::new_from_head(
+            str!("main"),
+            str!("mutator_name"),
+            Any::Array(vec![]),
+            None,
+            dw,
+        )
+        .await
+        .unwrap();
         w.put("foo".as_bytes().to_vec(), "bar".as_bytes().to_vec());
-        w.commit("main", "local_create_date", "checksum", None)
+        w.commit("main", "local_create_date", "checksum")
             .await
             .unwrap();
 

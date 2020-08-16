@@ -11,18 +11,20 @@ pub struct Write<'a> {
     mutator_name: String,
     mutator_args: Any,
     mutation_id: u64,
+    original_hash: Option<String>,
 }
 
 #[allow(dead_code)]
 impl<'a> Write<'a> {
     pub async fn new_from_head(
-        head_name: &str,
+        head_name: String,
         mutator_name: String,
         mutator_args: Any,
+        original_hash: Option<String>,
         dag_write: dag::Write<'a>,
     ) -> Result<Write<'a>, NewWriteFromHeadError> {
         use NewWriteFromHeadError::*;
-        let commit = commit::Commit::from_head(head_name, dag_write.read())
+        let commit = commit::Commit::from_head(&head_name, dag_write.read())
             .await
             .map_err(CommitFromHeadFailed)?;
         let map = match &commit {
@@ -40,6 +42,7 @@ impl<'a> Write<'a> {
             mutator_name,
             mutator_args,
             mutation_id,
+            original_hash,
         })
     }
 
@@ -57,7 +60,6 @@ impl<'a> Write<'a> {
         head_name: &str,
         local_create_date: &str,
         checksum: &str,
-        original_hash: Option<&str>,
     ) -> Result<(), CommitError> {
         use CommitError::*;
         let value_hash = self
@@ -66,14 +68,23 @@ impl<'a> Write<'a> {
             .await
             .map_err(FlushError)?;
 
+        let Write {
+            basis_hash,
+            mutation_id,
+            mutator_name,
+            mutator_args,
+            original_hash,
+            ..
+        } = self;
+
         let commit = commit::Commit::new_local(
             local_create_date,
-            self.basis_hash.as_deref(),
+            basis_hash.as_deref(),
             checksum,
-            self.mutation_id,
-            &self.mutator_name,
-            self.mutator_args.serialize_json().as_bytes(),
-            original_hash,
+            mutation_id,
+            &mutator_name,
+            mutator_args.serialize_json().as_bytes(),
+            original_hash.as_deref(),
             &value_hash,
         );
 
@@ -120,17 +131,23 @@ mod tests {
         let kv = MemStore::new();
         let kvw = kv.write().await.unwrap();
         let dw = dag::Write::new(kvw);
-        let mut w = Write::new_from_head("main", str!("mutator_name"), Any::Array(vec![]), dw)
-            .await
-            .unwrap();
+        let mut w = Write::new_from_head(
+            str!("main"),
+            str!("mutator_name"),
+            Any::Array(vec![]),
+            None,
+            dw,
+        )
+        .await
+        .unwrap();
         w.put("foo".as_bytes().to_vec(), "bar".as_bytes().to_vec());
-        w.commit("main", "local_create_date", "checksum", None)
+        w.commit("main", "local_create_date", "checksum")
             .await
             .unwrap();
 
         let kvw = kv.write().await.unwrap();
         let dw = dag::Write::new(kvw);
-        let w = Write::new_from_head("main", str!("mutator_name"), Any::Null, dw)
+        let w = Write::new_from_head(str!("main"), str!("mutator_name"), Any::Null, None, dw)
             .await
             .unwrap();
         let r = w.as_read();

@@ -165,15 +165,28 @@ async fn do_open<'a, 'b>(
     req: OpenTransactionRequest,
 ) -> Result<OpenTransactionResponse, OpenTransactionError> {
     use OpenTransactionError::*;
+
     let txn = match req.name {
-        Some(_) => {
+        Some(mutator_name) => {
+            let OpenTransactionRequest {
+                name: _,
+                rebase_opts,
+                args: mutator_args,
+            } = req;
+
+            let (basis, original_hash) = match rebase_opts {
+                Some(rebase_opts) => (rebase_opts.basis, rebase_opts.original_hash),
+                None => (None, None),
+            };
+
+            let head_name = basis.unwrap_or_else(|| DEFAULT_HEAD_NAME.to_string());
+            let mutator_args = mutator_args.ok_or(ArgsRequired)?;
             let dag_write = store.write().await.map_err(DagWriteError)?;
             let write = db::Write::new_from_head(
-                &req.rebase_opts
-                    .and_then(|opts| opts.basis)
-                    .unwrap_or_else(|| DEFAULT_HEAD_NAME.to_string()), // blech: copy
-                req.name.ok_or(NameRequired)?,
-                req.args.ok_or(ArgsRequired)?,
+                head_name,
+                mutator_name,
+                mutator_args,
+                original_hash,
                 dag_write,
             )
             .await
@@ -209,7 +222,7 @@ async fn do_commit<'a, 'b>(
         Transaction::Write(w) => Ok(w),
         Transaction::Read(_) => Err(TransactionIsReadOnly),
     }?;
-    txn.commit("main", "local-create-date", "checksum", None)
+    txn.commit("main", "local-create-date", "checksum")
         .await
         .map_err(CommitError)?;
     Ok(CommitTransactionResponse {})
@@ -289,7 +302,6 @@ async fn do_begin_sync<'a, 'b>(
 #[derive(Debug)]
 #[allow(clippy::enum_variant_names)]
 enum OpenTransactionError {
-    NameRequired,
     ArgsRequired,
     DagWriteError(dag::Error),
     DagReadError(dag::Error),

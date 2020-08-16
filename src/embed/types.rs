@@ -5,9 +5,18 @@ use nanoserde::{DeJson, SerJson};
 
 #[derive(DeJson, SerJson)]
 pub struct OpenTransactionRequest {
-    pub name: Option<String>, // not present in read transactions
-    pub args: Option<any::Any>,
-    // TODO: rebaseOpts
+    pub name: Option<String>,   // not present in read transactions
+    pub args: Option<any::Any>, // not present in read transactions
+    #[nserde(rename = "rebaseOpts")]
+    pub rebase_opts: Option<RebaseOpts>,
+}
+
+#[derive(DeJson, SerJson)]
+pub struct RebaseOpts {
+    // TODO: It seems like in reality both are required.
+    pub basis: Option<String>,
+    #[nserde(rename = "original")]
+    pub original_hash: Option<String>,
 }
 
 #[derive(DeJson, SerJson)]

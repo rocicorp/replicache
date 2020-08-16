@@ -17,6 +17,8 @@ lazy_static! {
     static ref TRANSACTION_COUNTER: AtomicU32 = AtomicU32::new(1);
 }
 
+const DEFAULT_HEAD_NAME: &str = "main";
+
 enum Transaction<'a> {
     Read(db::OwnedRead<'a>),
     Write(db::Write<'a>),
@@ -167,7 +169,9 @@ async fn do_open<'a, 'b>(
         Some(_) => {
             let dag_write = store.write().await.map_err(DagWriteError)?;
             let write = db::Write::new_from_head(
-                "main",
+                &req.rebase_opts
+                    .and_then(|opts| opts.basis)
+                    .unwrap_or_else(|| DEFAULT_HEAD_NAME.to_string()), // blech: copy
                 req.name.ok_or(NameRequired)?,
                 req.args.ok_or(ArgsRequired)?,
                 dag_write,

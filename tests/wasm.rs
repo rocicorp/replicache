@@ -39,6 +39,7 @@ async fn open_transaction(db_name: &str, fn_name: Option<String>) -> u32 {
     let req = SerJson::serialize_json(&OpenTransactionRequest {
         name: fn_name,
         args: Some(Any::Array(vec![])),
+        rebase_opts: None,
     });
     let resp: OpenTransactionResponse =
         DeJson::deserialize_json(&dispatch(db_name, "openTransaction", &req).await.unwrap())

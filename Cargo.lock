@@ -709,8 +709,7 @@ dependencies = [
 [[package]]
 name = "nanoserde"
 version = "0.1.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efa691cc5c70da3a4909752eba40da252c046ae30ed34aba2aea5c20bd1e7978"
+source = "git+https://github.com/aboodman/nanoserde#0c12c10254e862d8cf1bc89bd8c8f328c97a7ceb"
 dependencies = [
  "nanoserde-derive",
 ]
@@ -718,8 +717,7 @@ dependencies = [
 [[package]]
 name = "nanoserde-derive"
 version = "0.1.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e0d42774fb555d1dc23a985b52975fb39b4f1b53f26389389a926c49001c3b1"
+source = "git+https://github.com/aboodman/nanoserde#0c12c10254e862d8cf1bc89bd8c8f328c97a7ceb"
 
 [[package]]
 name = "net2"

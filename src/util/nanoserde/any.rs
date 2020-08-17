@@ -166,8 +166,7 @@ mod tests {
             ]),
             r#"[null,true,false,42,-42,88.8,"foo",[],{"foo":true}]"#,
         );
-        // TODO: Enable this when https://github.com/not-fl3/nanoserde/issues/13 is fixed.
-        // test(Any::Object(hashmap![]), r#"{}"#);
+        test(Any::Object(hashmap![]), r#"{}"#);
         test(
             Any::Object(hashmap![
                 str!("a") => Any::Null,

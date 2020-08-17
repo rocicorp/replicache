@@ -22,7 +22,7 @@ js-sys = "0.3.40"
 lazy_static = "1.4.0"
 log = "0.4"
 maplit = "1.0.2"
-nanoserde = { git = "https://github.com/aboodman/nanoserde" }
+nanoserde = "0.1.19"
 sha2 = "0.8.1"
 str-macro = "0.1.4"
 wasm-bindgen = { version = "0.2"  }

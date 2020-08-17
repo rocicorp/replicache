@@ -1,11 +1,17 @@
 use crate::dag;
 use crate::embed::connection;
 use crate::kv::idbstore::IdbStore;
+use crate::kv::Store;
 use async_std::sync::{channel, Receiver, Sender};
 use log::warn;
 use std::collections::HashMap;
 use std::sync::Mutex;
+
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::spawn_local;
+
+#[cfg(not(target_arch = "wasm32"))]
+use async_std::task::spawn_local;
 
 pub struct Request {
     db_name: String,
@@ -19,7 +25,15 @@ type Response = Result<String, String>;
 lazy_static! {
     static ref SENDER: Mutex<Sender::<Request>> = {
         let (tx, rx) = channel::<Request>(1);
+
+        #[cfg(target_arch = "wasm32")]
         spawn_local(dispatch_loop(rx));
+
+        #[cfg(not(target_arch = "wasm32"))]
+        std::thread::spawn(move || {
+            async_std::task::block_on(dispatch_loop(rx));
+        });
+
         Mutex::new(tx)
     };
 }
@@ -84,17 +98,23 @@ async fn do_open(conns: &mut ConnMap, req: &Request) -> Response {
     if conns.contains_key(&req.db_name[..]) {
         return Ok("".into());
     }
-    match IdbStore::new(&req.db_name[..]).await {
-        Err(e) => Err(format!("Failed to open \"{}\": {}", req.db_name, e)),
-        Ok(v) => {
-            if let Some(kv) = v {
-                let (tx, rx) = channel::<Request>(1);
-                spawn_local(connection::process(dag::Store::new(Box::new(kv)), rx));
-                conns.insert(req.db_name.clone(), tx);
-            }
-            Ok("".into())
-        }
-    }
+
+    let kv: Box<dyn Store> = match &req.db_name[..] {
+        #[cfg(not(target_arch = "wasm32"))]
+        "mem" => Box::new(crate::kv::memstore::MemStore::new()),
+        _ => match IdbStore::new(&req.db_name[..]).await {
+            Err(e) => return Err(format!("Failed to open \"{}\": {}", req.db_name, e)),
+            Ok(v) => match v {
+                None => return Err(format!("Didn't open \"{}\"", req.db_name)),
+                Some(v) => Box::new(v),
+            },
+        },
+    };
+
+    let (tx, rx) = channel::<Request>(1);
+    spawn_local(connection::process(dag::Store::new(kv), rx));
+    conns.insert(req.db_name.clone(), tx);
+    Ok("".into())
 }
 
 async fn do_close(conns: &mut ConnMap, req: &Request) -> Response {

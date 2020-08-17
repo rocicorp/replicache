@@ -6,13 +6,15 @@ pub struct ScanKey<'a> {
 }
 
 pub struct ScanBound<'a> {
-    // TODO: Make these two fields exclusive?
     key: Option<ScanKey<'a>>,
     index: Option<u64>,
 }
 
 pub struct ScanOptions<'a> {
-    // TODO: Make these two fields exclusive?
+    // Note: Currently all scan constraints are allowed, in any combination. This adds
+    // complexity and isn't *that* valuable as a feature, but it was what the Go
+    // implementation did and was ported faithfully. It could probably be removed if it
+    // starts getting in the way and no customers need it.
     prefix: Option<&'a [u8]>,
     start: Option<ScanBound<'a>>,
     limit: Option<u64>,

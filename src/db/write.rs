@@ -16,14 +16,14 @@ pub struct Write<'a> {
 
 #[allow(dead_code)]
 impl<'a> Write<'a> {
-    pub async fn new_from_head(
+    pub async fn new_local(
         head_name: String,
         mutator_name: String,
         mutator_args: Any,
         original_hash: Option<String>,
         dag_write: dag::Write<'a>,
-    ) -> Result<Write<'a>, NewWriteFromHeadError> {
-        use NewWriteFromHeadError::*;
+    ) -> Result<Write<'a>, NewLocalError> {
+        use NewLocalError::*;
         let basis_hash = dag_write
             .read()
             .get_head(&head_name)
@@ -117,7 +117,7 @@ impl<'a> Write<'a> {
 }
 
 #[derive(Debug)]
-pub enum NewWriteFromHeadError {
+pub enum NewLocalError {
     GetHeadError(dag::Error),
     CommitFromHashError(commit::FromHashError),
     MapLoadError(prolly::LoadError),
@@ -144,7 +144,7 @@ mod tests {
         let kv = MemStore::new();
         let kvw = kv.write().await.unwrap();
         let dw = dag::Write::new(kvw);
-        let mut w = Write::new_from_head(
+        let mut w = Write::new_local(
             str!("main"),
             str!("mutator_name"),
             Any::Array(vec![]),
@@ -160,7 +160,7 @@ mod tests {
 
         let kvw = kv.write().await.unwrap();
         let dw = dag::Write::new(kvw);
-        let w = Write::new_from_head(str!("main"), str!("mutator_name"), Any::Null, None, dw)
+        let w = Write::new_local(str!("main"), str!("mutator_name"), Any::Null, None, dw)
             .await
             .unwrap();
         let r = w.as_read();

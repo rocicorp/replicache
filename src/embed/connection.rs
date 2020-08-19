@@ -182,7 +182,7 @@ async fn do_open<'a, 'b>(
             let head_name = basis.unwrap_or_else(|| DEFAULT_HEAD_NAME.to_string());
             let mutator_args = mutator_args.ok_or(ArgsRequired)?;
             let dag_write = store.write().await.map_err(DagWriteError)?;
-            let write = db::Write::new_from_head(
+            let write = db::Write::new_local(
                 head_name,
                 mutator_name,
                 mutator_args,
@@ -305,7 +305,7 @@ enum OpenTransactionError {
     ArgsRequired,
     DagWriteError(dag::Error),
     DagReadError(dag::Error),
-    DBWriteError(db::NewWriteFromHeadError),
+    DBWriteError(db::NewLocalError),
     DBReadError(db::NewReadFromHeadError),
 }
 

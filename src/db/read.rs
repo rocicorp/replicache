@@ -85,7 +85,7 @@ mod tests {
         let kv = MemStore::new();
         let kvw = kv.write().await.unwrap();
         let dw = dag::Write::new(kvw);
-        let mut w = write::Write::new_from_head(
+        let mut w = write::Write::new_local(
             str!("main"),
             str!("mutator_name"),
             Any::Array(vec![]),

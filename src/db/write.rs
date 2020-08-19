@@ -1,4 +1,4 @@
-use super::commit;
+use super::{commit, read_commit, ReadCommitError, Whence};
 use crate::dag;
 use crate::kv::Store;
 use crate::prolly;
@@ -54,28 +54,13 @@ pub async fn init_db(
 #[allow(dead_code)]
 impl<'a> Write<'a> {
     pub async fn new_local(
-        head_name: String,
+        whence: Whence,
         mutator_name: String,
         mutator_args: Any,
         original_hash: Option<String>,
         dag_write: dag::Write<'a>,
-    ) -> Result<Write<'a>, NewLocalError> {
-        use NewLocalError::*;
-        let basis_hash = dag_write
-            .read()
-            .get_head(&head_name)
-            .await
-            .map_err(GetHeadError)?
-            .ok_or(UnknownHead(head_name.to_string()))?;
-
-        let commit = commit::Commit::from_hash(basis_hash.as_str(), dag_write.read())
-            .await
-            .map_err(CommitFromHashError)?;
-
-        let map = prolly::Map::load(commit.value_hash(), dag_write.read())
-            .await
-            .map_err(MapLoadError)?;
-
+    ) -> Result<Write<'a>, ReadCommitError> {
+        let (basis_hash, commit, map) = read_commit(whence, &dag_write.read()).await?;
         let mutation_id = commit.next_mutation_id();
         let basis_hash = Some(basis_hash);
         Ok(Write {
@@ -167,14 +152,6 @@ impl<'a> Write<'a> {
 }
 
 #[derive(Debug)]
-pub enum NewLocalError {
-    GetHeadError(dag::Error),
-    UnknownHead(String),
-    CommitFromHashError(commit::FromHashError),
-    MapLoadError(prolly::LoadError),
-}
-
-#[derive(Debug)]
 pub enum CommitError {
     DagPutChunkError(dag::Error),
     DagSetHeadError(dag::Error),
@@ -195,7 +172,7 @@ mod tests {
         let kvw = kv.write().await.unwrap();
         let dw = dag::Write::new(kvw);
         let mut w = Write::new_local(
-            str!("main"),
+            Whence::Head(str!("main")),
             str!("mutator_name"),
             Any::Array(vec![]),
             None,
@@ -210,9 +187,15 @@ mod tests {
 
         let kvw = kv.write().await.unwrap();
         let dw = dag::Write::new(kvw);
-        let w = Write::new_local(str!("main"), str!("mutator_name"), Any::Null, None, dw)
-            .await
-            .unwrap();
+        let w = Write::new_local(
+            Whence::Head(str!("main")),
+            str!("mutator_name"),
+            Any::Null,
+            None,
+            dw,
+        )
+        .await
+        .unwrap();
         let r = w.as_read();
         let val = r.get("foo".as_bytes());
         assert_eq!(Some("bar".as_bytes()), val);

@@ -2,13 +2,19 @@ use super::commit::{Commit, FromHashError};
 use crate::dag;
 use crate::prolly;
 
+pub enum Whence {
+    Head(String),
+    #[allow(dead_code)]
+    Hash(String),
+}
+
 pub struct OwnedRead<'a> {
     dag_read: dag::OwnedRead<'a>,
     map: prolly::Map,
 }
 
 #[derive(Debug)]
-pub enum NewReadFromHeadError {
+pub enum ReadCommitError {
     UnknownHead(String),
     GetHeadError(dag::Error),
     CommitFromHeadError(FromHashError),
@@ -16,29 +22,39 @@ pub enum NewReadFromHeadError {
 }
 
 impl<'a> OwnedRead<'a> {
-    pub async fn new_from_head(
-        head_name: &str,
+    pub async fn from_whence(
+        whence: Whence,
         dag_read: dag::OwnedRead<'a>,
-    ) -> Result<OwnedRead<'a>, NewReadFromHeadError> {
-        use NewReadFromHeadError::*;
-        let read = dag_read.read();
-        let hash = read
-            .get_head(head_name)
-            .await
-            .map_err(GetHeadError)?
-            .ok_or(UnknownHead(head_name.to_string()))?;
-        let commit = Commit::from_hash(&hash, read)
-            .await
-            .map_err(CommitFromHeadError)?;
-        let map = prolly::Map::load(commit.value_hash(), dag_read.read())
-            .await
-            .map_err(MapLoadError)?;
+    ) -> Result<OwnedRead<'a>, ReadCommitError> {
+        let (_, _, map) = read_commit(whence, &dag_read.read()).await?;
         Ok(OwnedRead { dag_read, map })
     }
 
     pub fn as_read(&'a self) -> Read<'a> {
         Read::new(self.dag_read.read(), &self.map)
     }
+}
+
+pub async fn read_commit(
+    whence: Whence,
+    read: &dag::Read<'_>,
+) -> Result<(String, Commit, prolly::Map), ReadCommitError> {
+    use ReadCommitError::*;
+    let hash = match whence {
+        Whence::Hash(s) => s,
+        Whence::Head(s) => read
+            .get_head(&s)
+            .await
+            .map_err(GetHeadError)?
+            .ok_or_else(|| UnknownHead(s.to_string()))?,
+    };
+    let commit = Commit::from_hash(&hash, read)
+        .await
+        .map_err(CommitFromHeadError)?;
+    let map = prolly::Map::load(commit.value_hash(), read)
+        .await
+        .map_err(MapLoadError)?;
+    Ok((hash, commit, map))
 }
 
 pub struct Read<'a> {
@@ -85,7 +101,7 @@ mod tests {
         let kvw = kv.write().await.unwrap();
         let dw = dag::Write::new(kvw);
         let mut w = write::Write::new_local(
-            str!("main"),
+            Whence::Head(str!("main")),
             str!("mutator_name"),
             Any::Array(vec![]),
             None,
@@ -100,7 +116,9 @@ mod tests {
 
         let kvr = kv.read().await.unwrap();
         let dr = dag::OwnedRead::new(kvr);
-        let r = OwnedRead::new_from_head("main", dr).await.unwrap();
+        let r = OwnedRead::from_whence(Whence::Head(str!("main")), dr)
+            .await
+            .unwrap();
         let rr = r.as_read();
         let val = rr.get("foo".as_bytes());
         assert_eq!(Some("bar".as_bytes()), val);

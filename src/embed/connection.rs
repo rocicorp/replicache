@@ -2,7 +2,7 @@ use super::dispatch::Request;
 use super::sync;
 use super::types::*;
 use crate::dag;
-use crate::db;
+use crate::db::{CommitError, OwnedRead, Read, ReadCommitError, Whence, Write};
 use crate::fetch;
 use async_fn::{AsyncFn2, AsyncFn3};
 use async_std::stream::StreamExt;
@@ -20,12 +20,12 @@ lazy_static! {
 const DEFAULT_HEAD_NAME: &str = "main";
 
 enum Transaction<'a> {
-    Read(db::OwnedRead<'a>),
-    Write(db::Write<'a>),
+    Read(OwnedRead<'a>),
+    Write(Write<'a>),
 }
 
 impl<'a> Transaction<'a> {
-    fn as_read(&self) -> db::Read {
+    fn as_read(&self) -> Read {
         match self {
             Transaction::Read(r) => r.as_read(),
             Transaction::Write(w) => w.as_read(),
@@ -182,8 +182,8 @@ async fn do_open<'a, 'b>(
             let head_name = basis.unwrap_or_else(|| DEFAULT_HEAD_NAME.to_string());
             let mutator_args = mutator_args.ok_or(ArgsRequired)?;
             let dag_write = store.write().await.map_err(DagWriteError)?;
-            let write = db::Write::new_local(
-                head_name,
+            let write = Write::new_local(
+                Whence::Head(head_name),
                 mutator_name,
                 mutator_args,
                 original_hash,
@@ -195,9 +195,10 @@ async fn do_open<'a, 'b>(
         }
         None => {
             let dag_read = store.read().await.map_err(DagReadError)?;
-            let read = db::OwnedRead::new_from_head("main", dag_read)
-                .await
-                .map_err(DBReadError)?;
+            let read =
+                OwnedRead::from_whence(Whence::Head(DEFAULT_HEAD_NAME.to_string()), dag_read)
+                    .await
+                    .map_err(DBReadError)?;
             Transaction::Read(read)
         }
     };
@@ -305,13 +306,13 @@ enum OpenTransactionError {
     ArgsRequired,
     DagWriteError(dag::Error),
     DagReadError(dag::Error),
-    DBWriteError(db::NewLocalError),
-    DBReadError(db::NewReadFromHeadError),
+    DBWriteError(ReadCommitError),
+    DBReadError(ReadCommitError),
 }
 
 #[derive(Debug)]
 enum CommitTransactionError {
-    CommitError(db::CommitError),
+    CommitError(CommitError),
     UnknownTransaction,
     TransactionIsReadOnly,
 }

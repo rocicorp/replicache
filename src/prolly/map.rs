@@ -55,7 +55,7 @@ impl Map {
         }
     }
 
-    pub async fn load(hash: &str, read: Read<'_>) -> Result<Map, LoadError> {
+    pub async fn load(hash: &str, read: &Read<'_>) -> Result<Map, LoadError> {
         let chunk = read.get_chunk(hash).await?;
         let chunk = chunk.ok_or(LoadError::UnknownHash)?;
         let base = Leaf::load(chunk)?;
@@ -439,7 +439,7 @@ mod tests {
             // The hash should yield a new map with same data
             write.commit().await.unwrap();
             let read = store.read().await.unwrap();
-            let map2 = Map::load(&hash, read.read()).await.unwrap();
+            let map2 = Map::load(&hash, &read.read()).await.unwrap();
             test(&map2, &expected);
         }
 

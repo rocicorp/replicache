@@ -2,7 +2,9 @@ use super::dispatch::Request;
 use super::sync;
 use super::types::*;
 use crate::dag;
-use crate::db::{CommitError, OwnedRead, Read, ReadCommitError, Whence, Write};
+use crate::db::{
+    init_db, CommitError, InitDBError, OwnedRead, Read, ReadCommitError, Whence, Write,
+};
 use crate::fetch;
 use async_fn::{AsyncFn2, AsyncFn3};
 use async_std::stream::StreamExt;
@@ -80,6 +82,11 @@ async fn connection_future<'a, 'b>(
 }
 
 pub async fn process(store: dag::Store, rx: Receiver<Request>) {
+    if let Err(err) = do_init(&store).await {
+        warn!("Could not initialize db: {:?}", err);
+        return;
+    }
+
     let txns = RwLock::new(HashMap::new());
     let mut futures = FuturesUnordered::new();
     let mut recv = true;
@@ -157,6 +164,30 @@ async fn execute<'a, 'b, T, S, F, E>(
         .map_err(|e| format!("{:?}", e));
 
     req.response.send(result).await
+}
+
+#[derive(Debug)]
+pub enum DoInitError {
+    WriteError(dag::Error),
+    GetHeadError(dag::Error),
+    InitDBError(InitDBError),
+}
+
+async fn do_init(store: &dag::Store) -> Result<(), DoInitError> {
+    use DoInitError::*;
+    let dw = store.write().await.map_err(WriteError)?;
+    if dw
+        .read()
+        .get_head(DEFAULT_HEAD_NAME)
+        .await
+        .map_err(GetHeadError)?
+        .is_none()
+    {
+        init_db(dw, DEFAULT_HEAD_NAME, "local_create_date")
+            .await
+            .map_err(InitDBError)?;
+    }
+    Ok(())
 }
 
 async fn do_open<'a, 'b>(

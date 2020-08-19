@@ -1,6 +1,5 @@
 use super::{commit, read_commit, ReadCommitError, Whence};
 use crate::dag;
-use crate::kv::Store;
 use crate::prolly;
 use crate::util::nanoserde::any::Any;
 use nanoserde::SerJson;
@@ -31,14 +30,18 @@ pub struct Write<'a> {
     meta: Meta,
 }
 
+#[derive(Debug)]
+pub enum InitDBError {
+    CommitError(CommitError),
+}
+
 #[allow(dead_code)]
 pub async fn init_db(
-    kv: &dyn Store,
+    dag_write: dag::Write<'_>,
     head_name: &str,
     local_create_date: &str,
-) -> Result<(), CommitError> {
-    let kvw = kv.write().await.unwrap();
-    let dag_write = dag::Write::new(kvw);
+) -> Result<(), InitDBError> {
+    use InitDBError::*;
     let w = Write {
         dag_write,
         map: prolly::Map::new(),
@@ -48,7 +51,9 @@ pub async fn init_db(
             server_state_id: str!(""),
         }),
     };
-    w.commit(head_name, local_create_date, "checksum").await
+    Ok(w.commit(head_name, local_create_date, "checksum")
+        .await
+        .map_err(CommitError)?)
 }
 
 #[allow(dead_code)]
@@ -186,16 +191,16 @@ mod tests {
 
     #[async_std::test]
     async fn basics() {
-        let kv = MemStore::new();
-        init_db(&kv, "main", "local_create_date").await.unwrap();
-        let kvw = kv.write().await.unwrap();
-        let dw = dag::Write::new(kvw);
+        let ds = dag::Store::new(Box::new(MemStore::new()));
+        init_db(ds.write().await.unwrap(), "main", "local_create_date")
+            .await
+            .unwrap();
         let mut w = Write::new_local(
             Whence::Head(str!("main")),
             str!("mutator_name"),
             Any::Array(vec![]),
             None,
-            dw,
+            ds.write().await.unwrap(),
         )
         .await
         .unwrap();
@@ -204,14 +209,12 @@ mod tests {
             .await
             .unwrap();
 
-        let kvw = kv.write().await.unwrap();
-        let dw = dag::Write::new(kvw);
         let w = Write::new_local(
             Whence::Head(str!("main")),
             str!("mutator_name"),
             Any::Null,
             None,
-            dw,
+            ds.write().await.unwrap(),
         )
         .await
         .unwrap();

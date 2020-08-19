@@ -90,22 +90,21 @@ mod tests {
     use crate::dag;
     use crate::db::write::init_db;
     use crate::kv::memstore::MemStore;
-    use crate::kv::Store;
     use crate::util::nanoserde::any::Any;
     use str_macro::str;
 
     #[async_std::test]
     async fn basics() {
-        let kv = MemStore::new();
-        init_db(&kv, "main", "local_create_date").await.unwrap();
-        let kvw = kv.write().await.unwrap();
-        let dw = dag::Write::new(kvw);
+        let ds = dag::Store::new(Box::new(MemStore::new()));
+        init_db(ds.write().await.unwrap(), "main", "local_create_date")
+            .await
+            .unwrap();
         let mut w = write::Write::new_local(
             Whence::Head(str!("main")),
             str!("mutator_name"),
             Any::Array(vec![]),
             None,
-            dw,
+            ds.write().await.unwrap(),
         )
         .await
         .unwrap();
@@ -114,8 +113,7 @@ mod tests {
             .await
             .unwrap();
 
-        let kvr = kv.read().await.unwrap();
-        let dr = dag::OwnedRead::new(kvr);
+        let dr = ds.read().await.unwrap();
         let r = OwnedRead::from_whence(Whence::Head(str!("main")), dr)
             .await
             .unwrap();

@@ -16,7 +16,7 @@ fi
 (
     cd $ROOT
 
-    # Grumble. Having both these here disables lto, which makes the bundles
+    # Grumble. Having multiple crate types disables lto, which makes the bundles
     # significantly (~23% at time of writing) bigger. This is due to a bug
     # in Cargo: https://github.com/rust-lang/rust/issues/51009.
     #
@@ -25,7 +25,7 @@ fi
     # https://github.com/rust-lang/cargo/issues/6659.
     #
     # So hack hack hack for now.
-    sed -i .bak 's/crate-type = \["cdylib", "rlib"\]/crate-type = ["cdylib"]/' Cargo.toml
+    sed -i .bak 's/crate-type = .*/crate-type = ["cdylib"]/' Cargo.toml
 
     rm -rf pkg
     wasm-pack build --profiling -t web -- --no-default-features

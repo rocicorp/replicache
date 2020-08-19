@@ -30,12 +30,9 @@ impl<'a> OwnedRead<'a> {
         let commit = Commit::from_hash(&hash, read)
             .await
             .map_err(CommitFromHeadError)?;
-        let map = match &commit {
-            None => prolly::Map::new(),
-            Some(commit) => prolly::Map::load(commit.value_hash(), dag_read.read())
-                .await
-                .map_err(MapLoadError)?,
-        };
+        let map = prolly::Map::load(commit.value_hash(), dag_read.read())
+            .await
+            .map_err(MapLoadError)?;
         Ok(OwnedRead { dag_read, map })
     }
 
@@ -75,6 +72,7 @@ mod tests {
     use super::super::*;
     use super::*;
     use crate::dag;
+    use crate::db::write::init_db;
     use crate::kv::memstore::MemStore;
     use crate::kv::Store;
     use crate::util::nanoserde::any::Any;
@@ -83,6 +81,7 @@ mod tests {
     #[async_std::test]
     async fn basics() {
         let kv = MemStore::new();
+        init_db(&kv, "main", "local_create_date").await.unwrap();
         let kvw = kv.write().await.unwrap();
         let dw = dag::Write::new(kvw);
         let mut w = write::Write::new_local(

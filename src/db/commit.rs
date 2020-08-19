@@ -72,10 +72,7 @@ impl Commit {
         Ok(Commit { chunk })
     }
 
-    pub async fn from_hash(
-        hash: &str,
-        dag_read: dag::Read<'_>,
-    ) -> Result<Option<Commit>, FromHashError> {
+    pub async fn from_hash(hash: &str, dag_read: dag::Read<'_>) -> Result<Commit, FromHashError> {
         use FromHashError::*;
         let chunk = dag_read
             .get_chunk(&hash)
@@ -83,7 +80,7 @@ impl Commit {
             .map_err(GetChunkFailed)?
             .ok_or(ChunkMissing(hash.to_string()))?;
         let commit = Commit::from_chunk(chunk).map_err(LoadCommitFailed)?;
-        Ok(Some(commit))
+        Ok(commit)
     }
 
     pub fn chunk(&self) -> &dag::Chunk {

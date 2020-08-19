@@ -24,16 +24,28 @@ impl<'a> Write<'a> {
         dag_write: dag::Write<'a>,
     ) -> Result<Write<'a>, NewWriteFromHeadError> {
         use NewWriteFromHeadError::*;
-        let commit = commit::Commit::from_head(&head_name, dag_write.read())
+        let basis_hash = dag_write
+            .read()
+            .get_head(&head_name)
             .await
-            .map_err(CommitFromHeadFailed)?;
+            .map_err(GetHeadError)?;
+        // TODO: when we have new_genesis
+        //.ok_or(UnknownHead(head_name.to_string()))?;
+
+        let mut commit: Option<commit::Commit> = None;
+        if let Some(basis_hash) = basis_hash.as_ref() {
+            commit = commit::Commit::from_hash(basis_hash.as_str(), dag_write.read())
+                .await
+                .map_err(CommitFromHashError)?;
+        }
+
+        // TODO: This branch goes away once we have new_genesis.
         let map = match &commit {
             None => prolly::Map::new(),
             Some(commit) => prolly::Map::load(commit.value_hash(), dag_write.read())
                 .await
                 .map_err(MapLoadError)?,
         };
-        let basis_hash = commit.as_ref().map(|c| c.chunk().hash().into());
         let mutation_id = commit.as_ref().map_or(0, |c| c.next_mutation_id());
         Ok(Write {
             basis_hash,
@@ -106,7 +118,8 @@ impl<'a> Write<'a> {
 
 #[derive(Debug)]
 pub enum NewWriteFromHeadError {
-    CommitFromHeadFailed(commit::FromHeadError),
+    GetHeadError(dag::Error),
+    CommitFromHashError(commit::FromHashError),
     MapLoadError(prolly::LoadError),
 }
 

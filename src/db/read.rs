@@ -1,4 +1,4 @@
-use super::commit::{Commit, FromHeadError};
+use super::commit::{Commit, FromHashError};
 use crate::dag;
 use crate::prolly;
 
@@ -9,7 +9,9 @@ pub struct OwnedRead<'a> {
 
 #[derive(Debug)]
 pub enum NewReadFromHeadError {
-    CommitFromHeadError(FromHeadError),
+    UnknownHead(String),
+    GetHeadError(dag::Error),
+    CommitFromHeadError(FromHashError),
     MapLoadError(prolly::LoadError),
 }
 
@@ -19,7 +21,13 @@ impl<'a> OwnedRead<'a> {
         dag_read: dag::OwnedRead<'a>,
     ) -> Result<OwnedRead<'a>, NewReadFromHeadError> {
         use NewReadFromHeadError::*;
-        let commit = Commit::from_head(head_name, dag_read.read())
+        let read = dag_read.read();
+        let hash = read
+            .get_head(head_name)
+            .await
+            .map_err(GetHeadError)?
+            .ok_or(UnknownHead(head_name.to_string()))?;
+        let commit = Commit::from_hash(&hash, read)
             .await
             .map_err(CommitFromHeadError)?;
         let map = match &commit {

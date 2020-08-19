@@ -67,27 +67,22 @@ impl Commit {
         )
     }
 
-    pub fn load(chunk: dag::Chunk) -> Result<Commit, LoadError> {
+    pub fn from_chunk(chunk: dag::Chunk) -> Result<Commit, LoadError> {
         Commit::validate(chunk.data())?;
         Ok(Commit { chunk })
     }
 
-    pub async fn from_head(
-        head_name: &str,
+    pub async fn from_hash(
+        hash: &str,
         dag_read: dag::Read<'_>,
-    ) -> Result<Option<Commit>, FromHeadError> {
-        use FromHeadError::*;
-        let basis_hash = dag_read.get_head(head_name).await.map_err(GetHeadFailed)?;
-        if basis_hash.is_none() {
-            return Ok(None);
-        }
-        let basis_hash = basis_hash.unwrap();
+    ) -> Result<Option<Commit>, FromHashError> {
+        use FromHashError::*;
         let chunk = dag_read
-            .get_chunk(&basis_hash)
+            .get_chunk(&hash)
             .await
             .map_err(GetChunkFailed)?
-            .ok_or(ChunkMissing(basis_hash))?;
-        let commit = Commit::load(chunk).map_err(LoadCommitFailed)?;
+            .ok_or(ChunkMissing(hash.to_string()))?;
+        let commit = Commit::from_chunk(chunk).map_err(LoadCommitFailed)?;
         Ok(Some(commit))
     }
 
@@ -279,8 +274,7 @@ pub enum LoadError {
 }
 
 #[derive(Debug)]
-pub enum FromHeadError {
-    GetHeadFailed(dag::Error),
+pub enum FromHashError {
     GetChunkFailed(dag::Error),
     ChunkMissing(String),
     LoadCommitFailed(LoadError),
@@ -294,7 +288,7 @@ mod tests {
     #[test]
     fn load_roundtrip() {
         fn test(chunk: Chunk, expected: Result<Commit, LoadError>) {
-            let actual = Commit::load(chunk);
+            let actual = Commit::from_chunk(chunk);
             assert_eq!(expected, actual);
         }
         test(
@@ -430,7 +424,7 @@ mod tests {
 
     #[test]
     fn accessors() {
-        let local = Commit::load(make_commit(
+        let local = Commit::from_chunk(make_commit(
             Some(Box::new(|b: &mut FlatBufferBuilder| {
                 make_local_meta(
                     b,
@@ -462,7 +456,7 @@ mod tests {
         assert_eq!(local.value_hash(), "value_hash");
         assert_eq!(local.next_mutation_id(), 2);
 
-        let snapshot = Commit::load(make_commit(
+        let snapshot = Commit::from_chunk(make_commit(
             Some(Box::new(|b: &mut FlatBufferBuilder| {
                 make_snapshot_meta(b, 2, "server_state_id 2".into())
             })),

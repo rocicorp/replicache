@@ -76,6 +76,25 @@ impl<'a> Write<'a> {
         })
     }
 
+    pub async fn new_snapshot(
+        whence: Whence,
+        last_mutation_id: u64,
+        server_state_id: String,
+        dag_write: dag::Write<'a>,
+    ) -> Result<Write<'a>, ReadCommitError> {
+        let (basis_hash, _, map) = read_commit(whence, &dag_write.read()).await?;
+        let basis_hash = Some(basis_hash);
+        Ok(Write {
+            basis_hash,
+            dag_write,
+            map,
+            meta: Meta::Snapshot(SnapshotMeta {
+                last_mutation_id,
+                server_state_id,
+            }),
+        })
+    }
+
     pub fn as_read(&'a self) -> super::Read<'a> {
         super::Read::new(self.dag_write.read(), &self.map)
     }

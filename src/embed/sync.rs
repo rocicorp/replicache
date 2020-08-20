@@ -10,7 +10,22 @@ pub async fn begin_sync(
     fetch_client: &fetch::client::Client,
     begin_sync_req: &BeginSyncRequest,
 ) -> Result<BeginSyncResponse, BeginSyncError> {
-    let _pull_resp = pull(fetch_client, begin_sync_req).await?;
+    let pull_req = PullRequest {
+        client_view_auth: begin_sync_req.data_layer_auth.clone(),
+        client_id: "TODO".to_string(),
+        base_state_id: "TODO".to_string(),
+        checksum: "TODO".to_string(),
+    };
+    let sync_id = "TODO";
+
+    let _ = pull(
+        fetch_client,
+        &pull_req,
+        &begin_sync_req.diff_server_url,
+        &begin_sync_req.diff_server_auth,
+        sync_id,
+    )
+    .await?;
     // TODO do something with the response
     Ok(BeginSyncResponse {})
 }
@@ -38,7 +53,7 @@ pub struct PullRequest {
     pub checksum: String,
 }
 
-#[derive(Default, DeJson)]
+#[derive(Debug, Default, DeJson, PartialEq)]
 pub struct PullResponse {
     #[nserde(rename = "stateID")]
     #[allow(dead_code)]
@@ -53,29 +68,19 @@ pub struct PullResponse {
     // TODO ClientViewInfo ClientViewInfo `json:"clientViewInfo"`
 }
 
-// client will be none when using browser
 pub async fn pull(
     fetch_client: &fetch::client::Client,
-    begin_sync_req: &BeginSyncRequest,
+    pull_req: &PullRequest,
+    diff_server_url: &str,
+    diff_server_auth: &str,
+    sync_id: &str,
 ) -> Result<PullResponse, PullError> {
-    let pull_req = PullRequest {
-        client_view_auth: begin_sync_req.data_layer_auth.clone(),
-        client_id: "TODO".to_string(),
-        base_state_id: "TODO".to_string(),
-        checksum: "TODO".to_string(),
-    };
-    let http_req = new_pull_http_request(
-        &pull_req,
-        &begin_sync_req.diff_server_url,
-        &begin_sync_req.diff_server_auth,
-    )?;
-
+    let http_req = new_pull_http_request(pull_req, diff_server_url, diff_server_auth, sync_id)?;
     let http_resp: http::Response<String> = fetch_client.request(http_req).await?;
     if http_resp.status() != http::StatusCode::OK {
         return Err(PullError::FetchNotOk(http_resp.status()));
     }
     let pull_resp: PullResponse = DeJson::deserialize_json(http_resp.body())?;
-    // TODO do something with it
     Ok(pull_resp)
 }
 
@@ -84,6 +89,7 @@ pub fn new_pull_http_request(
     pull_req: &PullRequest,
     diff_server_url: &str,
     diff_server_auth: &str,
+    sync_id: &str,
 ) -> Result<http::Request<String>, PullError> {
     let body = SerJson::serialize_json(pull_req);
     let builder = http::request::Builder::new();
@@ -92,7 +98,7 @@ pub fn new_pull_http_request(
         .uri(diff_server_url)
         .header("Content-type", "application/json")
         .header("Authorization", diff_server_auth)
-        .header("X-Replicache-SyncID", "TODO")
+        .header("X-Replicache-SyncID", sync_id)
         .body(body)?;
     Ok(http_req)
 }
@@ -121,5 +127,105 @@ impl From<FetchError> for PullError {
 impl From<DeJsonErr> for PullError {
     fn from(err: DeJsonErr) -> PullError {
         PullError::InvalidResponse(err)
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use httptest::{matchers::*, Expectation, Server};
+    use str_macro::str;
+
+    #[tokio::test]
+    async fn test_pull() {
+        let pull_req = PullRequest {
+            client_view_auth: str!("client-view-auth"),
+            client_id: str!("TODO"),
+            base_state_id: str!("base-state-id"),
+            checksum: str!("checksum"),
+        };
+        let exp_body = SerJson::serialize_json(&pull_req);
+        let diff_server_auth = "diff-server-auth";
+        let sync_id = "TODO";
+        let path = "/pull";
+
+        struct Case<'a> {
+            pub name: &'a str,
+            pub resp_status: u16,
+            pub resp_body: &'a str,
+            pub exp_err: Option<&'a str>,
+            pub exp_resp: Option<PullResponse>,
+        }
+        let cases = [
+            Case {
+                name: "200",
+                resp_status: 200,
+                resp_body: r#"{"stateID": "1", "lastMutationID": "2", "checksum": "12345678"}"#,
+                exp_err: None,
+                exp_resp: Some(PullResponse {
+                    state_id: str!("1"),
+                    last_mutation_id: str!("2"),
+                    checksum: str!("12345678"),
+                }),
+            },
+            Case {
+                name: "403",
+                resp_status: 403,
+                resp_body: "forbidden",
+                exp_err: Some("FetchNotOk(403)"),
+                exp_resp: None,
+            },
+            Case {
+                name: "invalid response",
+                resp_status: 200,
+                resp_body: r#"not json"#,
+                exp_err: Some("Json Deserialize error"),
+                exp_resp: None,
+            },
+        ];
+        for c in cases.iter() {
+            let server = Server::run();
+            let resp = http::Response::builder()
+                .status(c.resp_status)
+                .body(c.resp_body)
+                .unwrap();
+            server.expect(
+                Expectation::matching(all_of![
+                    request::method_path("POST", path),
+                    request::headers(contains(("authorization", diff_server_auth))),
+                    request::headers(contains(("content-type", "application/json"))),
+                    request::headers(contains(("x-replicache-syncid", sync_id))),
+                    request::body(exp_body.clone()),
+                ])
+                .respond_with(resp),
+            );
+            let client = fetch::client::Client::new();
+            let result = pull(
+                &client,
+                &pull_req,
+                &server.url(path).to_string(),
+                diff_server_auth,
+                sync_id,
+            )
+            .await;
+
+            match &c.exp_err {
+                None => {
+                    let got_pull_resp = result.expect(c.name);
+                    assert_eq!(c.exp_resp.as_ref().unwrap(), &got_pull_resp);
+                }
+                Some(err_str) => {
+                    let got_err_str = format!("{:?}", result.expect_err(c.name));
+                    assert!(
+                        got_err_str.contains(err_str),
+                        format!(
+                            "{}: '{}' does not contain '{}'",
+                            c.name, got_err_str, err_str
+                        )
+                    );
+                }
+            }
+        }
     }
 }

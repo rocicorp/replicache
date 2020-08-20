@@ -286,6 +286,7 @@ async fn test_browser_fetch() {
         &pull_req,
         "https://account-service.rocicorp.now.sh/api/hello",
         "auth",
+        "sync_id",
     )
     .unwrap();
     let client = fetch::client::Client::new();

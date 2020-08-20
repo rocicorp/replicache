@@ -16,8 +16,9 @@ pub async fn begin_sync(
         base_state_id: "TODO".to_string(),
         checksum: "TODO".to_string(),
     };
-    let sync_id = "TODO";
+    use BeginSyncError::*;
 
+    let sync_id = "TODO";
     let _ = pull(
         fetch_client,
         &pull_req,
@@ -25,7 +26,8 @@ pub async fn begin_sync(
         &begin_sync_req.diff_server_auth,
         sync_id,
     )
-    .await?;
+    .await
+    .map_err(PullFailed)?;
     // TODO do something with the response
     Ok(BeginSyncResponse {})
 }
@@ -33,12 +35,6 @@ pub async fn begin_sync(
 #[derive(Debug)]
 pub enum BeginSyncError {
     PullFailed(PullError),
-}
-
-impl From<PullError> for BeginSyncError {
-    fn from(err: PullError) -> BeginSyncError {
-        BeginSyncError::PullFailed(err)
-    }
 }
 
 #[derive(Default, SerJson)]
@@ -75,12 +71,15 @@ pub async fn pull(
     diff_server_auth: &str,
     sync_id: &str,
 ) -> Result<PullResponse, PullError> {
+    use PullError::*;
     let http_req = new_pull_http_request(pull_req, diff_server_url, diff_server_auth, sync_id)?;
-    let http_resp: http::Response<String> = fetch_client.request(http_req).await?;
+    let http_resp: http::Response<String> =
+        fetch_client.request(http_req).await.map_err(FetchFailed)?;
     if http_resp.status() != http::StatusCode::OK {
         return Err(PullError::FetchNotOk(http_resp.status()));
     }
-    let pull_resp: PullResponse = DeJson::deserialize_json(http_resp.body())?;
+    let pull_resp: PullResponse =
+        DeJson::deserialize_json(http_resp.body()).map_err(InvalidResponse)?;
     Ok(pull_resp)
 }
 
@@ -91,6 +90,7 @@ pub fn new_pull_http_request(
     diff_server_auth: &str,
     sync_id: &str,
 ) -> Result<http::Request<String>, PullError> {
+    use PullError::*;
     let body = SerJson::serialize_json(pull_req);
     let builder = http::request::Builder::new();
     let http_req = builder
@@ -99,7 +99,8 @@ pub fn new_pull_http_request(
         .header("Content-type", "application/json")
         .header("Authorization", diff_server_auth)
         .header("X-Replicache-SyncID", sync_id)
-        .body(body)?;
+        .body(body)
+        .map_err(InvalidRequest)?;
     Ok(http_req)
 }
 
@@ -109,25 +110,6 @@ pub enum PullError {
     FetchNotOk(http::StatusCode),
     InvalidRequest(http::Error),
     InvalidResponse(DeJsonErr),
-    NoHttpClient,
-}
-
-impl From<http::Error> for PullError {
-    fn from(err: http::Error) -> PullError {
-        PullError::InvalidRequest(err)
-    }
-}
-
-impl From<FetchError> for PullError {
-    fn from(err: FetchError) -> PullError {
-        PullError::FetchFailed(err)
-    }
-}
-
-impl From<DeJsonErr> for PullError {
-    fn from(err: DeJsonErr) -> PullError {
-        PullError::InvalidResponse(err)
-    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

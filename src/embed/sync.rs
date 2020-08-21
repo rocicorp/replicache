@@ -1,22 +1,47 @@
 #![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
 
 use super::types::*;
+use crate::dag;
+use crate::db;
+use crate::db::{Commit, MetaTyped};
 use crate::fetch;
 use crate::fetch::errors::FetchError;
 use nanoserde::{DeJson, DeJsonErr, SerJson};
 use std::fmt::Debug;
 
 pub async fn begin_sync(
+    store: &dag::Store,
     fetch_client: &fetch::client::Client,
     begin_sync_req: &BeginSyncRequest,
 ) -> Result<BeginSyncResponse, BeginSyncError> {
+    use BeginSyncError::*;
+
+    let read = store.read().await.map_err(DbError)?;
+    let base_snapshot = Commit::base_snapshot(
+        &read
+            .read()
+            .get_head("main")
+            .await
+            .map_err(DbError)?
+            .unwrap(),
+        &read.read(),
+    )
+    .await
+    .map_err(CommitLoadError)?;
+    let checksum = base_snapshot.meta().checksum().to_string();
+    let base_state_id: String;
+    match base_snapshot.meta().typed() {
+        MetaTyped::Local(_) => std::unreachable!(),
+        MetaTyped::Snapshot(sm) => {
+            base_state_id = sm.server_state_id().to_string();
+        }
+    }
     let pull_req = PullRequest {
         client_view_auth: begin_sync_req.data_layer_auth.clone(),
         client_id: "TODO".to_string(),
-        base_state_id: "TODO".to_string(),
-        checksum: "TODO".to_string(),
+        base_state_id,
+        checksum,
     };
-    use BeginSyncError::*;
 
     let sync_id = "TODO";
     let _ = pull(
@@ -34,6 +59,8 @@ pub async fn begin_sync(
 
 #[derive(Debug)]
 pub enum BeginSyncError {
+    CommitLoadError(db::FromHashError),
+    DbError(dag::Error),
     PullFailed(PullError),
 }
 

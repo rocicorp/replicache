@@ -180,6 +180,22 @@ impl Commit {
         let chunk = dag::Chunk::new(builder.collapse(), &[value_hash]);
         Commit { chunk }
     }
+
+    pub async fn base_snapshot(
+        hash: &str,
+        dag_read: &dag::Read<'_>,
+    ) -> Result<Commit, FromHashError> {
+        use FromHashError::*;
+        let mut commit = Commit::from_hash(hash, dag_read).await?;
+        while !commit.meta().is_snapshot() {
+            let meta = commit.meta();
+            let basis_hash = meta
+                .basis_hash()
+                .ok_or_else(|| ChunkMissing("None".to_string()))?;
+            commit = Commit::from_hash(basis_hash, dag_read).await?;
+        }
+        Ok(commit)
+    }
 }
 
 pub struct Meta<'a> {
@@ -208,6 +224,13 @@ impl<'a> Meta<'a> {
                 fb: self.fb.typed_as_snapshot_meta().unwrap(),
             }),
             commit::MetaTyped::NONE => panic!("notreached"),
+        }
+    }
+
+    pub fn is_snapshot(&self) -> bool {
+        match self.typed() {
+            MetaTyped::Local(_) => false,
+            MetaTyped::Snapshot(_) => true,
         }
     }
 }
@@ -278,9 +301,152 @@ pub enum FromHashError {
 }
 
 #[cfg(test)]
+pub mod test_helpers {
+    use super::super::read::*;
+    use super::super::write::*;
+    use super::*;
+    use crate::util::nanoserde::any::Any;
+    use str_macro::str;
+
+    pub type Chain = Vec<Commit>;
+
+    pub async fn add_genesis<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut Chain {
+        assert_eq!(0, chain.len());
+        init_db(store.write().await.unwrap(), "main", "local_create_date")
+            .await
+            .unwrap();
+        let (_, commit, _) = read_commit(
+            Whence::Head(str!("main")),
+            &store.read().await.unwrap().read(),
+        )
+        .await
+        .unwrap();
+        chain.push(commit);
+        chain
+    }
+
+    pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut Chain {
+        assert!(chain.len() > 0);
+        let w = Write::new_local(
+            Whence::Head(str!("main")),
+            str!("mutator_name"),
+            Any::Array(vec![]),
+            None,
+            store.write().await.unwrap(),
+        )
+        .await
+        .unwrap();
+        w.commit("main", "local_create_date", "checksum")
+            .await
+            .unwrap();
+        let (_, commit, _) = read_commit(
+            Whence::Head(str!("main")),
+            &store.read().await.unwrap().read(),
+        )
+        .await
+        .unwrap();
+        chain.push(commit);
+        chain
+    }
+
+    pub async fn add_snapshot<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut Chain {
+        assert!(chain.len() > 0);
+        let w = Write::new_snapshot(
+            Whence::Head(str!("main")),
+            chain[chain.len() - 1].next_mutation_id() - 1,
+            str!("server_state_id"),
+            store.write().await.unwrap(),
+        )
+        .await
+        .unwrap();
+        w.commit("main", "local_create_date", "checksum")
+            .await
+            .unwrap();
+        let (_, commit, _) = read_commit(
+            Whence::Head(str!("main")),
+            &store.read().await.unwrap().read(),
+        )
+        .await
+        .unwrap();
+        chain.push(commit);
+        chain
+    }
+}
+
+#[cfg(test)]
 mod tests {
+    use super::test_helpers::*;
     use super::*;
     use crate::dag::Chunk;
+    use crate::kv::memstore::MemStore;
+
+    #[async_std::test]
+    async fn test_base_snapshot() {
+        let store = dag::Store::new(Box::new(MemStore::new()));
+        let mut chain: Chain = vec![];
+
+        add_genesis(&mut chain, &store).await;
+        let genesis_hash = chain[0].chunk().hash();
+        assert_eq!(
+            genesis_hash,
+            Commit::base_snapshot(genesis_hash, &store.read().await.unwrap().read())
+                .await
+                .unwrap()
+                .chunk()
+                .hash()
+        );
+
+        add_local(&mut chain, &store).await;
+        add_local(&mut chain, &store).await;
+        let genesis_hash = chain[0].chunk().hash();
+        assert_eq!(
+            genesis_hash,
+            Commit::base_snapshot(
+                chain[chain.len() - 1].chunk().hash(),
+                &store.read().await.unwrap().read()
+            )
+            .await
+            .unwrap()
+            .chunk()
+            .hash()
+        );
+
+        add_snapshot(&mut chain, &store).await;
+        let base_hash = store
+            .read()
+            .await
+            .unwrap()
+            .read()
+            .get_head("main")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            base_hash,
+            Commit::base_snapshot(
+                chain[chain.len() - 1].chunk().hash(),
+                &store.read().await.unwrap().read()
+            )
+            .await
+            .unwrap()
+            .chunk()
+            .hash()
+        );
+
+        add_local(&mut chain, &store).await;
+        add_local(&mut chain, &store).await;
+        assert_eq!(
+            base_hash,
+            Commit::base_snapshot(
+                chain[chain.len() - 1].chunk().hash(),
+                &store.read().await.unwrap().read()
+            )
+            .await
+            .unwrap()
+            .chunk()
+            .hash()
+        );
+    }
 
     #[test]
     fn load_roundtrip() {

@@ -321,13 +321,13 @@ async fn do_put(txn: &RwLock<Transaction<'_>>, req: PutRequest) -> Result<PutRes
 }
 
 async fn do_begin_sync<'a, 'b>(
-    _: &'a dag::Store,
+    store: &'a dag::Store,
     _: &'b TxnMap<'a>,
     req: BeginSyncRequest,
 ) -> Result<BeginSyncResponse, sync::BeginSyncError> {
     // TODO move client up to process() or into a lazy static so we can re-use.
     let fetch_client = fetch::client::Client::new();
-    let begin_sync_response = sync::begin_sync(&fetch_client, &req).await?;
+    let begin_sync_response = sync::begin_sync(store, &fetch_client, &req).await?;
     Ok(begin_sync_response)
 }
 

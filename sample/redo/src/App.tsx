@@ -1,24 +1,24 @@
-import React, {useEffect, useState, useCallback, DependencyList} from 'react';
+import React, { useEffect, useState, useCallback, DependencyList } from 'react';
 import './App.css';
 
 import Replicache, {
-  REPMHTTPInvoker,
+  WASMInvoker,
   ReadTransaction,
   WriteTransaction,
   Mutator,
 } from 'replicache';
-import {diffServerURL, diffServerAuth, batchURL} from './settings';
-import {LoginScreen, logout} from './login';
-import type {LoginResult} from './login';
-import {List} from './List';
-import {newOrderBetween} from './order';
+import { diffServerURL, diffServerAuth, batchURL } from './settings';
+import { LoginScreen, logout } from './login';
+import type { LoginResult } from './login';
+import { List } from './List';
+import { newOrderBetween } from './order';
 
-const repmInvoke = new REPMHTTPInvoker('http://localhost:7002').invoke;
+const repmInvoke = new WASMInvoker().invoke;
 
 export interface MutationFunctions {
   createTodo: Mutator<void, Todo>;
   deleteTodo: Mutator<void, Todo>;
-  updateTodo: Mutator<void, Partial<Todo> & {id: number}>;
+  updateTodo: Mutator<void, Partial<Todo> & { id: number }>;
 }
 
 function App() {
@@ -80,7 +80,7 @@ function useSubscribe<R>(
   const [snapshot, setSnapshot] = useState<R>(def);
   const q = useCallback(query, deps);
   useEffect(() => {
-    return rep.subscribe(q, {onData: setSnapshot});
+    return rep.subscribe(q, { onData: setSnapshot });
   }, [rep, q]);
   return snapshot;
 }
@@ -93,7 +93,7 @@ type LoggedInAppProps = {
 };
 
 function LoggedInApp(props: LoggedInAppProps) {
-  const {rep, mutations, logout, email} = props;
+  const { rep, mutations, logout, email } = props;
 
   const [focusedId, setFocusedId] = useState<number | null>(null);
   const [selectedListId, setSelectedListId] = useState<number | null>(null);
@@ -199,13 +199,13 @@ function registerMutations(rep: Replicache) {
 
   const updateTodo = rep.register(
     'updateTodo',
-    async (tx: WriteTransaction, args: Partial<Todo> & {id: number}) => {
-      const {id} = args;
+    async (tx: WriteTransaction, args: Partial<Todo> & { id: number }) => {
+      const { id } = args;
       const todo = await read(tx, id);
       if (!todo) {
         console.info(
           'Warning: Possible conflict - Specified Todo $id is not present.' +
-            ' Skipping reorder.',
+          ' Skipping reorder.',
         );
         return;
       }
@@ -216,12 +216,12 @@ function registerMutations(rep: Replicache) {
     },
   );
 
-  return {createTodo, deleteTodo, updateTodo};
+  return { createTodo, deleteTodo, updateTodo };
 }
 
 async function allTodosInTx(tx: ReadTransaction): Promise<Todo[]> {
   return Array.from(
-    await tx.scan({prefix, limit: 500}),
+    await tx.scan({ prefix, limit: 500 }),
     si => si.value as Todo,
   );
 }
@@ -234,8 +234,8 @@ function todosInList(allTodos: Todo[], listId: number | null): Todo[] {
 
 async function allListsInTx(tx: ReadTransaction): Promise<number[]> {
   return Array.from(
-    await tx.scan({prefix: '/list/', limit: 500}),
-    item => (item.value as {id: number}).id,
+    await tx.scan({ prefix: '/list/', limit: 500 }),
+    item => (item.value as { id: number }).id,
   );
 }
 

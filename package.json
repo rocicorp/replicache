@@ -36,7 +36,7 @@
   },
   "module": "out/mod.js",
   "main": "out.cjs/mod.js",
-  "dependencies": {},
+  "types": "out/mod.js",
   "files": [
     "out",
     "out.cjs",

@@ -2,7 +2,11 @@ import type { JSONValue, ToJSON } from './json.js';
 import type { ScanItem } from './scan-item.js';
 import type { ScanOptions } from './scan-options.js';
 import type { DatabaseInfo } from './database-info.js';
-import init, { dispatch } from './wasm/replicache_client.js';
+
+// TODO: Consider publishing replicache-client to npm as some
+// kind of core package to just sort of "go with the flow" rather
+// than doing our own thing to pull it in.
+import init, { dispatch } from './wasm/replicache_client';
 
 export interface Invoke {
   <Rpc extends keyof InvokeMapNoArgs>(rpc: Rpc): Promise<InvokeMapNoArgs[Rpc]>;

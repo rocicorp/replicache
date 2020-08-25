@@ -33,6 +33,8 @@ const moduleFileExtensions = [
   'json',
   'web.jsx',
   'jsx',
+  // Cannot use wasm due to broken wasm support in wp4.
+  'wasm.awsm',
 ];
 
 // Resolve file paths in the same order as webpack

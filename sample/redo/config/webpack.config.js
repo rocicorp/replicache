@@ -344,6 +344,10 @@ module.exports = function (webpackEnv) {
           include: paths.appSrc,
         },
         {
+          test: /\.wasm$/,
+          loaders: ['wasm-loader']
+        },
+        {
           test: /\.js$/,
           loader: require.resolve('@open-wc/webpack-import-meta-loader'),
         },

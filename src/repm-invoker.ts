@@ -7,6 +7,7 @@ import type { DatabaseInfo } from './database-info.js';
 // kind of core package to just sort of "go with the flow" rather
 // than doing our own thing to pull it in.
 import init, { dispatch } from './wasm/replicache_client';
+import foo from './wasm/replicache_client_bg.wasm';
 
 export interface Invoke {
   <Rpc extends keyof InvokeMapNoArgs>(rpc: Rpc): Promise<InvokeMapNoArgs[Rpc]>;
@@ -60,7 +61,7 @@ export class REPMHTTPInvoker {
 export class REPMWASMInvoker {
   private readonly _inited: Promise<any>;
   constructor() {
-    this._inited = init();
+    this._inited = init(foo);
   }
 
   invoke: REPMInvoke = async (

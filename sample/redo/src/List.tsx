@@ -1,10 +1,10 @@
-import React, {useCallback} from 'react';
-import type {Todo, MutationFunctions} from './App';
-import {ListItem} from './ListItem';
-import {DragDropContext, Droppable} from 'react-beautiful-dnd';
-import type {DropResult} from 'react-beautiful-dnd';
-import type Replicache from '../../../out.cjs/mod';
-import {newOrderBetween} from './order';
+import React, { useCallback } from 'react';
+import type { Todo, MutationFunctions } from './App';
+import { ListItem } from './ListItem';
+import { DragDropContext, Droppable } from 'react-beautiful-dnd';
+import type { DropResult } from 'react-beautiful-dnd';
+import type Replicache from 'replicache';
+import { newOrderBetween } from './order';
 
 type ListProps = {
   todos: Todo[];
@@ -15,7 +15,7 @@ type ListProps = {
 
 export const List = React.memo(
   (props: ListProps) => {
-    const {todos, mutations, rep, focusedId} = props;
+    const { todos, mutations, rep, focusedId } = props;
     const onDragEnd = useCallback(
       (result: DropResult) => {
         if (!result.destination) {
@@ -106,7 +106,7 @@ async function handleReorder(
   }
 
   const todo = todos[oldIndex];
-  let {id} = todo;
+  let { id } = todo;
   let left: Todo | null = null;
   let right: Todo | null = null;
   if (newIndex === 0) {
@@ -124,6 +124,6 @@ async function handleReorder(
   }
 
   const order = newOrderBetween(left, right);
-  await updateTodo({id, order});
+  await updateTodo({ id, order });
   rep.sync();
 }

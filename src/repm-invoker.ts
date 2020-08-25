@@ -2,6 +2,7 @@ import type {JSONValue, ToJSON} from './json.js';
 import type {ScanItem} from './scan-item.js';
 import type {ScanOptions} from './scan-options.js';
 import type {DatabaseInfo} from './database-info.js';
+import init, {dispatch} from './wasm/replicache_client';
 
 export interface Invoke {
   <Rpc extends keyof InvokeMapNoArgs>(rpc: Rpc): Promise<InvokeMapNoArgs[Rpc]>;
@@ -49,6 +50,22 @@ export class REPMHTTPInvoker {
         resp.statusText
       }: ${await resp.text()}`,
     );
+  };
+}
+
+export class REPMWASMInvoker {
+  private readonly _inited: Promise<any>;
+  constructor() {
+    this._inited = init();
+  }
+
+  invoke: REPMInvoke = async (
+    dbName: string,
+    rpc: string,
+    args: JSONValue | ToJSON = {},
+  ): Promise<JSONValue> => {
+    await this._inited;
+    return await dispatch(dbName, rpc, JSON.stringify(args));
   };
 }
 

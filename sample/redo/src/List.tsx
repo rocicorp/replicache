@@ -3,7 +3,7 @@ import type {Todo, MutationFunctions} from './App';
 import {ListItem} from './ListItem';
 import {DragDropContext, Droppable} from 'react-beautiful-dnd';
 import type {DropResult} from 'react-beautiful-dnd';
-import type Replicache from '../../../out.cjs/mod';
+import type Replicache from 'replicache';
 import {newOrderBetween} from './order';
 
 type ListProps = {

@@ -53,7 +53,7 @@ export class REPMHTTPInvoker {
   };
 }
 
-export class WASMInvoker {
+export class REPMWASMInvoker {
   private readonly _inited: Promise<any>;
   constructor() {
     this._inited = init();

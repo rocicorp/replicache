@@ -1,7 +1,8 @@
-import type {JSONValue, ToJSON} from './json.js';
-import type {ScanItem} from './scan-item.js';
-import type {ScanOptions} from './scan-options.js';
-import type {DatabaseInfo} from './database-info.js';
+import type { JSONValue, ToJSON } from './json.js';
+import type { ScanItem } from './scan-item.js';
+import type { ScanOptions } from './scan-options.js';
+import type { DatabaseInfo } from './database-info.js';
+import init, { dispatch } from './wasm/replicache_client.js';
 
 export interface Invoke {
   <Rpc extends keyof InvokeMapNoArgs>(rpc: Rpc): Promise<InvokeMapNoArgs[Rpc]>;
@@ -46,9 +47,25 @@ export class REPMHTTPInvoker {
     }
     throw new Error(
       `Test server failed: ${resp.status} ${
-        resp.statusText
+      resp.statusText
       }: ${await resp.text()}`,
     );
+  };
+}
+
+export class WASMInvoker {
+  private readonly _inited: Promise<any>;
+  constructor() {
+    this._inited = init();
+  }
+
+  invoke: REPMInvoke = async (
+    dbName: string,
+    rpc: string,
+    args: JSONValue | ToJSON = {},
+  ): Promise<JSONValue> => {
+    await this._inited;
+    return await dispatch(dbName, rpc, JSON.stringify(args));
   };
 }
 
@@ -83,15 +100,15 @@ type PutRequest = TransactionRequest & {
 };
 type PutResponse = unknown;
 
-type DelRequest = TransactionRequest & {key: string};
-type DelResponse = {ok: boolean};
+type DelRequest = TransactionRequest & { key: string };
+type DelResponse = { ok: boolean };
 
 type RebaseOpts =
   | Record<string, unknown>
   | {
-      basis: string;
-      original: string;
-    };
+    basis: string;
+    original: string;
+  };
 
 export type OpenTransactionRequest = {
   name?: string;
@@ -108,12 +125,12 @@ type CloseTransactionResponse = unknown;
 type CommitTransactionRequest = TransactionRequest;
 export type CommitTransactionResponse =
   | {
-      retryCommit: false;
-      ref: string;
-    }
+    retryCommit: false;
+    ref: string;
+  }
   | {
-      retryCommit: true;
-    };
+    retryCommit: true;
+  };
 
 type BeginSyncRequest = {
   batchPushURL: string;
@@ -189,7 +206,7 @@ export type InvokeMap = {
 
 type OpenResponse = '';
 type CloseResponse = '';
-type ListRespones = {databases: DatabaseInfo[]};
+type ListRespones = { databases: DatabaseInfo[] };
 type DropResponse = '';
 
 type GetRootResponse = {

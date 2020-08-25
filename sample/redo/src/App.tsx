@@ -2,7 +2,7 @@ import React, {useEffect, useState, useCallback, DependencyList} from 'react';
 import './App.css';
 
 import Replicache, {
-  REPMHTTPInvoker,
+  WASMInvoker,
   ReadTransaction,
   WriteTransaction,
   Mutator,
@@ -13,7 +13,7 @@ import type {LoginResult} from './login';
 import {List} from './List';
 import {newOrderBetween} from './order';
 
-const repmInvoke = new REPMHTTPInvoker('http://localhost:7002').invoke;
+const repmInvoke = new WASMInvoker().invoke;
 
 export interface MutationFunctions {
   createTodo: Mutator<void, Todo>;

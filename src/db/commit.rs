@@ -3,6 +3,8 @@ use crate::dag;
 use flatbuffers::FlatBufferBuilder;
 use str_macro::str;
 
+pub const DEFAULT_HEAD_NAME: &str = "main";
+
 // Commit is a thin wrapper around the Commit flatbuffer that makes it
 // easier to read and write them. Commit::load() does validation
 // so that users don't have to worry about missing fields.
@@ -185,15 +187,19 @@ impl Commit {
     pub async fn base_snapshot(
         hash: &str,
         dag_read: &dag::Read<'_>,
-    ) -> Result<Commit, FromHashError> {
-        use FromHashError::*;
-        let mut commit = Commit::from_hash(hash, dag_read).await?;
+    ) -> Result<Commit, BaseSnapshotError> {
+        use BaseSnapshotError::*;
+        let mut commit = Commit::from_hash(hash, dag_read)
+            .await
+            .map_err(NoSuchCommit)?;
         while !commit.meta().is_snapshot() {
             let meta = commit.meta();
             let basis_hash = meta
                 .basis_hash()
-                .ok_or_else(|| ChunkMissing("None".to_string()))?;
-            commit = Commit::from_hash(basis_hash, dag_read).await?;
+                .ok_or_else(|| NoBasis(format!("Commit {} has no basis", commit.chunk.hash())))?;
+            commit = Commit::from_hash(basis_hash, dag_read)
+                .await
+                .map_err(NoSuchCommit)?;
         }
         Ok(commit)
     }
@@ -207,6 +213,12 @@ impl Commit {
             }
         }
     }
+}
+
+#[derive(Debug)]
+pub enum BaseSnapshotError {
+    NoBasis(String),
+    NoSuchCommit(FromHashError),
 }
 
 pub struct Meta<'a> {

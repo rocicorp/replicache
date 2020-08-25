@@ -4,6 +4,7 @@ use super::types::*;
 use crate::dag;
 use crate::db::{
     init_db, CommitError, InitDBError, OwnedRead, Read, ReadCommitError, Whence, Write,
+    DEFAULT_HEAD_NAME,
 };
 use crate::fetch;
 use async_fn::{AsyncFn2, AsyncFn3};
@@ -18,8 +19,6 @@ use std::sync::atomic::{AtomicU32, Ordering};
 lazy_static! {
     static ref TRANSACTION_COUNTER: AtomicU32 = AtomicU32::new(1);
 }
-
-const DEFAULT_HEAD_NAME: &str = "main";
 
 enum Transaction<'a> {
     Read(OwnedRead<'a>),
@@ -254,7 +253,7 @@ async fn do_commit<'a, 'b>(
         Transaction::Write(w) => Ok(w),
         Transaction::Read(_) => Err(TransactionIsReadOnly),
     }?;
-    txn.commit("main", "local-create-date", "checksum")
+    txn.commit(DEFAULT_HEAD_NAME, "local-create-date", "checksum")
         .await
         .map_err(CommitError)?;
     Ok(CommitTransactionResponse {})

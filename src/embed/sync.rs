@@ -3,7 +3,7 @@
 use super::types::*;
 use crate::dag;
 use crate::db;
-use crate::db::{Commit, Whence};
+use crate::db::{Commit, Whence, DEFAULT_HEAD_NAME};
 use crate::fetch;
 use crate::fetch::errors::FetchError;
 use async_trait::async_trait;
@@ -20,18 +20,18 @@ pub async fn begin_sync(
 ) -> Result<BeginSyncResponse, BeginSyncError> {
     use BeginSyncError::*;
 
-    let read = store.read().await.map_err(DbError)?;
+    let read = store.read().await.map_err(ReadError)?;
     let base_snapshot = Commit::base_snapshot(
         &read
             .read()
-            .get_head("main")
+            .get_head(DEFAULT_HEAD_NAME)
             .await
-            .map_err(DbError)?
+            .map_err(GetHeadError)?
             .unwrap(),
         &read.read(),
     )
     .await
-    .map_err(CommitLoadError)?;
+    .map_err(NoBaseSnapshot)?;
     drop(read); // Important! Don't hold the lock through an HTTP request!
     let base_checksum = base_snapshot.meta().checksum().to_string();
     let (base_last_mutation_id, base_state_id) =
@@ -80,13 +80,16 @@ pub async fn begin_sync(
     // that is not the case by re-checking the base snapshot.
     let dag_write = store.write().await.map_err(LockError)?;
     let dag_read = dag_write.read();
-    let main_head_post_pull = dag_read.get_head("main").await.map_err(DbError)?;
+    let main_head_post_pull = dag_read
+        .get_head(DEFAULT_HEAD_NAME)
+        .await
+        .map_err(GetHeadError)?;
     if main_head_post_pull.is_none() {
         return Err(MainHeadDisappeared);
     }
     let base_snapshot_post_pull = Commit::base_snapshot(&main_head_post_pull.unwrap(), &dag_read)
         .await
-        .map_err(CommitLoadError)?;
+        .map_err(NoBaseSnapshot)?;
     if base_snapshot.chunk().hash() != base_snapshot_post_pull.chunk().hash() {
         return Err(OverlappingSyncs);
     }
@@ -118,15 +121,17 @@ pub async fn begin_sync(
 #[derive(Debug)]
 pub enum BeginSyncError {
     CommitError(db::CommitError),
-    CommitLoadError(db::FromHashError),
     DbError(dag::Error),
+    GetHeadError(dag::Error),
     InvalidStateID,
     LockError(dag::Error),
     MainHeadDisappeared,
+    NoBaseSnapshot(db::BaseSnapshotError),
     OverlappingSyncs,
     ProgrammerError(db::ProgrammerError),
     PullFailed(PullError),
     ReadCommitError(db::ReadCommitError),
+    ReadError(dag::Error),
     TimeTravelProhibited(String),
 }
 
@@ -366,7 +371,7 @@ mod tests {
         for c in cases.iter() {
             // Reset state of the store.
             let mut w = store.write().await.unwrap();
-            w.set_head("main", Some(base_snapshot.chunk().hash()))
+            w.set_head(DEFAULT_HEAD_NAME, Some(base_snapshot.chunk().hash()))
                 .await
                 .unwrap();
             w.set_head(SYNC_HEAD_NAME, None).await.unwrap();

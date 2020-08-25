@@ -189,16 +189,21 @@ pub enum CommitError {
 mod tests {
     use super::*;
     use crate::dag;
+    use crate::db;
     use crate::kv::memstore::MemStore;
 
     #[async_std::test]
     async fn basics() {
         let ds = dag::Store::new(Box::new(MemStore::new()));
-        init_db(ds.write().await.unwrap(), "main", "local_create_date")
-            .await
-            .unwrap();
+        init_db(
+            ds.write().await.unwrap(),
+            db::DEFAULT_HEAD_NAME,
+            "local_create_date",
+        )
+        .await
+        .unwrap();
         let mut w = Write::new_local(
-            Whence::Head(str!("main")),
+            Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
             str!("mutator_name"),
             Any::Array(vec![]),
             None,
@@ -207,12 +212,12 @@ mod tests {
         .await
         .unwrap();
         w.put("foo".as_bytes().to_vec(), "bar".as_bytes().to_vec());
-        w.commit("main", "local_create_date", "checksum")
+        w.commit(db::DEFAULT_HEAD_NAME, "local_create_date", "checksum")
             .await
             .unwrap();
 
         let w = Write::new_local(
-            Whence::Head(str!("main")),
+            Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
             str!("mutator_name"),
             Any::Null,
             None,

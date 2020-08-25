@@ -52,6 +52,29 @@ export class REPMHTTPInvoker {
   };
 }
 
+export class REPMWASMInvoker {
+  private readonly _inited: Promise<any>;
+  private _dispatch?: (dbName: string, rpc: string, args: string) => any;
+  constructor(wasm_module: any) {
+    this._inited = (async () => {
+      // TODO: Have to import dynamically to hide this from Jest.
+      // Jest cannot parse the es6 behind this import, I don't know why.
+      let { default: init, dispatch } = await import('./wasm/replicache_client');
+      this._dispatch = dispatch;
+      return init(wasm_module);
+    })();
+  }
+
+  invoke: REPMInvoke = async (
+    dbName: string,
+    rpc: string,
+    args: JSONValue | ToJSON = {},
+  ): Promise<JSONValue> => {
+    await this._inited;
+    return await this._dispatch!(dbName, rpc, JSON.stringify(args));
+  };
+}
+
 type GetRequest = TransactionRequest & {
   key: string;
 };

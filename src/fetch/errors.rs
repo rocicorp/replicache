@@ -7,7 +7,7 @@ pub enum FetchError {
     ErrorReadingResponseBody(String),
     FailedToWrapHttpResponse(String),
     InvalidRequestBody(String),
-    InvalidRequestHeader(Box<dyn std::error::Error>),
+    InvalidRequestHeader(String),
     InvalidResponseFromJS,
     NoWindow,
     RequestFailed(String),

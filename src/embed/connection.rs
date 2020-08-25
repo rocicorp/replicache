@@ -327,7 +327,8 @@ async fn do_begin_sync<'a, 'b>(
 ) -> Result<BeginSyncResponse, sync::BeginSyncError> {
     // TODO move client up to process() or into a lazy static so we can re-use.
     let fetch_client = fetch::client::Client::new();
-    let begin_sync_response = sync::begin_sync(store, &fetch_client, &req).await?;
+    let puller = sync::FetchPuller::new(&fetch_client);
+    let begin_sync_response = sync::begin_sync(store, &puller, &req).await?;
     Ok(begin_sync_response)
 }
 

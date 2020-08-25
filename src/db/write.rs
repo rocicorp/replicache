@@ -35,12 +35,13 @@ pub enum InitDBError {
     CommitError(CommitError),
 }
 
+// Return value is the hash of the commit.
 #[allow(dead_code)]
 pub async fn init_db(
     dag_write: dag::Write<'_>,
     head_name: &str,
     local_create_date: &str,
-) -> Result<(), InitDBError> {
+) -> Result<String, InitDBError> {
     use InitDBError::*;
     let w = Write {
         dag_write,
@@ -108,13 +109,14 @@ impl<'a> Write<'a> {
         self.map.put(key, val)
     }
 
+    // Return value is the hash of the new commit.
     #[allow(clippy::too_many_arguments)]
     pub async fn commit(
         mut self,
         head_name: &str,
         local_create_date: &str,
         checksum: &str,
-    ) -> Result<(), CommitError> {
+    ) -> Result<String, CommitError> {
         use CommitError::*;
         let value_hash = self
             .map
@@ -165,13 +167,13 @@ impl<'a> Write<'a> {
             .await
             .map_err(DagPutChunkError)?;
         self.dag_write
-            .set_head(head_name, commit.chunk().hash())
+            .set_head(head_name, Some(commit.chunk().hash()))
             .await
             .map_err(DagSetHeadError)?;
 
         self.dag_write.commit().await.map_err(DagCommitError)?;
 
-        Ok(())
+        Ok(commit.chunk().hash().to_string())
     }
 }
 

@@ -1,6 +1,7 @@
 use super::commit_generated::commit;
 use crate::dag;
 use flatbuffers::FlatBufferBuilder;
+use str_macro::str;
 
 // Commit is a thin wrapper around the Commit flatbuffer that makes it
 // easier to read and write them. Commit::load() does validation
@@ -196,6 +197,16 @@ impl Commit {
         }
         Ok(commit)
     }
+
+    // Parts are (last_mutation_id, server_state_id).
+    pub fn snapshot_meta_parts(c: &Commit) -> Result<(u64, String), ProgrammerError> {
+        match c.meta().typed() {
+            MetaTyped::Local(_) => Err(ProgrammerError::WrongType(str!("Snapshot meta expected"))),
+            MetaTyped::Snapshot(sm) => {
+                Ok((sm.last_mutation_id(), sm.server_state_id().to_string()))
+            }
+        }
+    }
 }
 
 pub struct Meta<'a> {
@@ -300,82 +311,14 @@ pub enum FromHashError {
     LoadCommitFailed(LoadError),
 }
 
-#[cfg(test)]
-pub mod test_helpers {
-    use super::super::read::*;
-    use super::super::write::*;
-    use super::*;
-    use crate::util::nanoserde::any::Any;
-    use str_macro::str;
-
-    pub type Chain = Vec<Commit>;
-
-    pub async fn add_genesis<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut Chain {
-        assert_eq!(0, chain.len());
-        init_db(store.write().await.unwrap(), "main", "local_create_date")
-            .await
-            .unwrap();
-        let (_, commit, _) = read_commit(
-            Whence::Head(str!("main")),
-            &store.read().await.unwrap().read(),
-        )
-        .await
-        .unwrap();
-        chain.push(commit);
-        chain
-    }
-
-    pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut Chain {
-        assert!(chain.len() > 0);
-        let w = Write::new_local(
-            Whence::Head(str!("main")),
-            str!("mutator_name"),
-            Any::Array(vec![]),
-            None,
-            store.write().await.unwrap(),
-        )
-        .await
-        .unwrap();
-        w.commit("main", "local_create_date", "checksum")
-            .await
-            .unwrap();
-        let (_, commit, _) = read_commit(
-            Whence::Head(str!("main")),
-            &store.read().await.unwrap().read(),
-        )
-        .await
-        .unwrap();
-        chain.push(commit);
-        chain
-    }
-
-    pub async fn add_snapshot<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut Chain {
-        assert!(chain.len() > 0);
-        let w = Write::new_snapshot(
-            Whence::Head(str!("main")),
-            chain[chain.len() - 1].next_mutation_id() - 1,
-            str!("server_state_id"),
-            store.write().await.unwrap(),
-        )
-        .await
-        .unwrap();
-        w.commit("main", "local_create_date", "checksum")
-            .await
-            .unwrap();
-        let (_, commit, _) = read_commit(
-            Whence::Head(str!("main")),
-            &store.read().await.unwrap().read(),
-        )
-        .await
-        .unwrap();
-        chain.push(commit);
-        chain
-    }
+#[derive(Debug)]
+pub enum ProgrammerError {
+    WrongType(String),
 }
 
 #[cfg(test)]
 mod tests {
-    use super::test_helpers::*;
+    use super::super::test_helpers::*;
     use super::*;
     use crate::dag::Chunk;
     use crate::kv::memstore::MemStore;

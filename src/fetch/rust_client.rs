@@ -45,10 +45,7 @@ impl Client {
             .method(parts.method.as_str())
             .uri(&parts.uri.to_string());
         for (k, v) in parts.headers.iter() {
-            builder = builder.header(
-                k,
-                v.to_str().map_err(|e| InvalidRequestHeader(Box::new(e)))?,
-            );
+            builder = builder.header(k, v.to_str().map_err(|e| InvalidRequestHeader(s(e)))?);
         }
         let hyper_req = builder
             .body(hyper::Body::from(req_body))

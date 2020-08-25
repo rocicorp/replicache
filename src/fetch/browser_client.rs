@@ -61,7 +61,7 @@ impl Client {
         for (k, v) in http_req.headers().iter() {
             h.set(
                 k.as_ref(),
-                v.to_str().map_err(|e| InvalidRequestHeader(Box::new(e)))?,
+                v.to_str().map_err(|e| InvalidRequestHeader(s(e)))?,
             )
             .map_err(|e| UnableToSetRequestHeader(s(e)))?;
         }

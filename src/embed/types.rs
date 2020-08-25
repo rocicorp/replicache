@@ -2,6 +2,7 @@
 
 use crate::util::nanoserde::any;
 use nanoserde::{DeJson, SerJson};
+use std::default::Default;
 
 #[derive(DeJson, SerJson)]
 pub struct OpenTransactionRequest {
@@ -91,8 +92,9 @@ pub struct BeginSyncRequest {
     pub diff_server_auth: String,
 }
 
-#[derive(DeJson, SerJson)]
+#[derive(Debug, Default, DeJson, SerJson)]
 pub struct BeginSyncResponse {
-    // TODO SyncHead jsnoms.Hash `json:"syncHead"`
-// TODO SyncInfo db.SyncInfo `json:"syncInfo"`
+    #[nserde(rename = "syncHead")]
+    pub sync_head: String,
+    // TODO SyncInfo db.SyncInfo `json:"syncInfo"`
 }

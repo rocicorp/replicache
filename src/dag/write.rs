@@ -28,11 +28,14 @@ impl<'a> Write<'_> {
         Ok(())
     }
 
-    pub async fn set_head(&mut self, name: &str, hash: &str) -> Result<()> {
-        Ok(self
-            .kvw
-            .put(&Key::Head(name).to_string(), hash.as_bytes())
-            .await?)
+    pub async fn set_head(&mut self, name: &str, hash: Option<&str>) -> Result<()> {
+        match hash {
+            None => Ok(self.kvw.del(&Key::Head(name).to_string()).await?),
+            Some(h) => Ok(self
+                .kvw
+                .put(&Key::Head(name).to_string(), h.as_bytes())
+                .await?),
+        }
     }
 
     pub async fn commit(self) -> Result<()> {
@@ -85,22 +88,27 @@ mod tests {
 
     #[async_std::test]
     async fn set_head() {
-        async fn test(name: &str, hash: &str) {
+        async fn test(name: &str, hash: Option<&str>) {
             let kv = MemStore::new();
             let kvw = kv.write().await.unwrap();
             let mut w = Write { kvw };
             w.set_head(name, hash).await.unwrap();
-            assert_eq!(
-                hash,
-                String::from_utf8(w.kvw.get(&format!("h/{}", name)).await.unwrap().unwrap())
-                    .unwrap()
-            );
+            match hash {
+                Some(h) => assert_eq!(
+                    h,
+                    String::from_utf8(w.kvw.get(&format!("h/{}", name)).await.unwrap().unwrap())
+                        .unwrap()
+                ),
+                None => assert!(w.kvw.get(&format!("h/{}", name)).await.unwrap().is_none()),
+            }
         }
 
-        test("", "").await;
-        test("", "h1").await;
-        test("n1", "").await;
-        test("n1", "h1").await;
+        test("", Some("")).await;
+        test("", Some("h1")).await;
+        test("n1", Some("")).await;
+        test("n1", Some("h1")).await;
+        test("n1", Some("h1")).await;
+        test("n1", None).await;
     }
 
     #[async_std::test]
@@ -144,7 +152,7 @@ mod tests {
                 let kvw = kv.write().await.unwrap();
                 let mut w = Write { kvw };
                 w.put_chunk(&c).await.unwrap();
-                w.set_head(name, c.hash()).await.unwrap();
+                w.set_head(name, Some(c.hash())).await.unwrap();
 
                 // Read the changes inside the tx.
                 let c2 = w.read().get_chunk(c.hash()).await.unwrap().unwrap();

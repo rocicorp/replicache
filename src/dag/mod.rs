@@ -22,13 +22,12 @@ mod read;
 mod store;
 mod write;
 
+use crate::kv;
 pub use chunk::Chunk;
 pub use key::Key;
 pub use read::{OwnedRead, Read};
 pub use store::Store;
 pub use write::Write;
-
-use crate::kv;
 
 #[derive(Debug)]
 pub enum Error {

@@ -11,6 +11,7 @@ extern crate log;
 extern crate maplit;
 extern crate str_macro;
 
+pub mod checksum;
 mod dag;
 mod db;
 pub mod embed;

@@ -1,5 +1,8 @@
 use crate::fetch::errors::FetchError;
 use crate::fetch::errors::FetchError::*;
+use http::Request;
+
+mod tokio_compat;
 
 // s makes map_err calls nicer by mapping a error to its debug-printed string.
 fn s<D: std::fmt::Debug>(err: D) -> String {
@@ -7,7 +10,7 @@ fn s<D: std::fmt::Debug>(err: D) -> String {
 }
 
 pub struct Client {
-    hyper_client: hyper::Client<hyper::client::HttpConnector>,
+    hyper_client: hyper::Client<tokio_compat::AsyncStdTcpConnector>,
 }
 
 impl Default for Client {
@@ -19,7 +22,9 @@ impl Default for Client {
 impl Client {
     pub fn new() -> Client {
         Client {
-            hyper_client: hyper::Client::new(),
+            hyper_client: hyper::Client::builder()
+                .executor(tokio_compat::AsyncStdExecutor)
+                .build::<_, hyper::Body>(tokio_compat::AsyncStdTcpConnector),
         }
     }
 
@@ -38,7 +43,7 @@ impl Client {
     // TODO understand what if any tokio runtime assumptions are implied here
     pub async fn request(
         &self,
-        http_req: http::Request<String>,
+        http_req: Request<String>,
     ) -> Result<http::Response<String>, FetchError> {
         let (parts, req_body) = http_req.into_parts();
         let mut builder = hyper::Request::builder()
@@ -73,91 +78,92 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use httptest::{matchers::*, Expectation, Server};
+    use async_std::net::TcpListener;
+    use tide::{Body, Response};
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_rust_fetch() {
-        let path = "/test";
         struct Case<'a> {
             pub name: &'a str,
-            pub req_body: &'a str,
-            pub resp_status: u16,
-            pub resp_body: &'a str,
-            pub exp_error: Option<FetchError>,
-            pub exp_status: u16,
-            pub exp_body: &'a str,
+            pub path: &'a str,
+            pub body: &'a str,
+            pub status: u16,
         }
         let cases = [
             Case {
                 name: "ok",
-                req_body: "body",
-                resp_status: 200,
-                resp_body: "hello",
-                exp_error: None,
-                exp_status: 200,
-                exp_body: "hello",
+                path: "/",
+                body: "body",
+                status: 200,
             },
             Case {
                 name: "ok no body",
-                req_body: "",
-                resp_status: 200,
-                resp_body: "",
-                exp_error: None,
-                exp_status: 200,
-                exp_body: "",
+                path: "/",
+                body: "",
+                status: 200,
             },
             Case {
                 name: "404",
-                req_body: "",
-                resp_status: 404,
-                resp_body: "",
-                exp_error: None,
-                exp_status: 404,
-                exp_body: "",
+                path: "/404",
+                body: "",
+                status: 404,
             },
         ];
-        for c in cases.iter() {
-            let server = Server::run();
-            let resp = http::Response::builder()
-                .status(c.resp_status)
-                .body(c.resp_body)
-                .unwrap();
-            server.expect(
-                Expectation::matching(all_of![
-                    request::method_path("POST", path),
-                    // sic lowercase header below; it does that apparently though http request
-                    // headers are supposed to be case-insensitive.
-                    request::headers(contains(("x-header-name", "Header Value"))),
-                    request::body(c.req_body.to_string()),
-                ])
-                .respond_with(resp),
+
+        let mut app = tide::new();
+        app.at("/").post(|mut req: tide::Request<()>| async move {
+            assert_eq!(
+                "Header Value",
+                req.header("X-Header-Name").unwrap().as_str()
             );
+            Ok(Response::builder(200).body(Body::from_string(req.body_string().await?)))
+        });
+        app.at("/404").post(|_| async { Ok(Response::new(404)) });
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let handle = async_std::task::spawn_local(app.listen(listener));
 
-            let mut req_builder = http::request::Builder::new();
-            req_builder = req_builder
+        for c in cases.iter() {
+            let req = http::request::Builder::new()
                 .method("POST")
-                .uri(server.url(path))
-                .header("X-Header-Name", "Header Value");
-            let req = req_builder.body(c.req_body.to_string()).unwrap();
-            let client = Client::new();
-            let resp = client.request(req).await;
+                .uri(format!("http://{}{}", addr, c.path))
+                .header("X-Header-Name", "Header Value")
+                .body(c.body.to_string())
+                .unwrap();
+            let resp = Client::new().request(req).await.unwrap();
+            assert_eq!(c.status, resp.status());
+            assert_eq!(c.body, resp.body());
+        }
+        handle.cancel().await;
+    }
 
-            // Is there a simpler way to write this?
-            match &c.exp_error {
-                None => {
-                    if let Err(e) = &resp {
-                        assert!(false, "expected no error, got {:?}", e);
-                    }
-                    let got = resp.unwrap();
-                    assert_eq!(c.exp_status, got.status());
-                    assert_eq!(c.exp_body, got.body());
-                }
-                Some(e) => {
-                    if let Ok(_) = resp {
-                        assert!(false, "expected {:?}, got Ok", e);
-                    }
-                }
-            }
+    #[async_std::test]
+    async fn rust_tls_fetch() {
+        let resp = Client::new()
+            .request(Request::get("http://quip.com").body("".to_owned()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(301, resp.status());
+
+        let resp = Client::new()
+            .request(
+                Request::get("https://quip.com")
+                    .body("".to_owned())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(200, resp.status());
+    }
+
+    #[async_std::test]
+    async fn dns_error() {
+        for host in vec!["http://roci.invalid", "https://roci.invalid"] {
+            let err = Client::new()
+                .request(Request::get(host).body("".to_owned()).unwrap())
+                .await
+                .unwrap_err();
+            assert!(s(err).contains("failed to lookup address"));
         }
     }
 }

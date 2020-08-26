@@ -244,9 +244,10 @@ mod tests {
     use super::*;
     use crate::db::test_helpers::*;
     use crate::kv::memstore::MemStore;
-    use httptest::{matchers::*, Expectation, Server};
+    use async_std::net::TcpListener;
     use std::clone::Clone;
     use str_macro::str;
+    use tide::{Body, Response};
 
     // TODO: we don't have a way to test overlapping syncs. Augmenting
     // FakePuller to land a snapshot during pull() doesn't work because
@@ -487,15 +488,18 @@ mod tests {
         }
     }
 
-    #[tokio::test]
+    #[async_std::test]
     async fn test_pull() {
-        let pull_req = PullRequest {
-            client_view_auth: str!("client-view-auth"),
-            client_id: str!("TODO"),
-            base_state_id: str!("base-state-id"),
-            checksum: str!("checksum"),
-        };
-        let exp_body = SerJson::serialize_json(&pull_req);
+        lazy_static! {
+            static ref PULL_REQ: PullRequest = PullRequest {
+                client_view_auth: str!("client-view-auth"),
+                client_id: str!("TODO"),
+                base_state_id: str!("base-state-id"),
+                checksum: str!("checksum"),
+            };
+            // EXP_BODY must be 'static to be used in HTTP handler closure.
+            static ref EXP_BODY: String = SerJson::serialize_json(&*PULL_REQ);
+        }
         let diff_server_auth = "diff-server-auth";
         let sync_id = "TODO";
         let path = "/pull";
@@ -534,28 +538,37 @@ mod tests {
                 exp_resp: None,
             },
         ];
+
         for c in cases.iter() {
-            let server = Server::run();
-            let resp = http::Response::builder()
-                .status(c.resp_status)
-                .body(c.resp_body)
-                .unwrap();
-            server.expect(
-                Expectation::matching(all_of![
-                    request::method_path("POST", path),
-                    request::headers(contains(("authorization", diff_server_auth))),
-                    request::headers(contains(("content-type", "application/json"))),
-                    request::headers(contains(("x-replicache-syncid", sync_id))),
-                    request::body(exp_body.clone()),
-                ])
-                .respond_with(resp),
-            );
+            let mut app = tide::new();
+
+            let status = c.resp_status;
+            let body = c.resp_body;
+            app.at(path)
+                .post(move |mut req: tide::Request<()>| async move {
+                    assert_eq!(
+                        req.header("Authorization").unwrap().as_str(),
+                        diff_server_auth
+                    );
+                    assert_eq!(
+                        req.header("Content-Type").unwrap().as_str(),
+                        "application/json"
+                    );
+                    assert_eq!(req.header("X-Replicache-SyncID").unwrap().as_str(), sync_id);
+                    assert_eq!(req.body_string().await?, *EXP_BODY);
+                    Ok(Response::builder(status).body(Body::from_string(body.to_string())))
+                });
+
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let addr = listener.local_addr().unwrap();
+            let handle = async_std::task::spawn_local(app.listen(listener));
+
             let client = fetch::client::Client::new();
             let puller = FetchPuller::new(&client);
             let result = puller
                 .pull(
-                    &pull_req,
-                    &server.url(path).to_string(),
+                    &PULL_REQ,
+                    &format!("http://{}{}", addr, path),
                     diff_server_auth,
                     sync_id,
                 )
@@ -577,6 +590,7 @@ mod tests {
                     );
                 }
             }
+            handle.cancel().await;
         }
     }
 }

@@ -27,11 +27,14 @@ fi
     # So hack hack hack for now.
     sed -i .bak 's/crate-type = .*/crate-type = ["cdylib"]/' Cargo.toml
 
+    rm repc.zip
     rm -rf pkg
     wasm-pack build --profiling -t web -- --no-default-features
     mv pkg/replicache_client_bg.wasm pkg/replicache_client_bg.debug.wasm
     wasm-pack build --release -t web -- --no-default-features
     brotli -f pkg/replicache_client.js pkg/replicache_client_bg.wasm
+    zip -r pkg pkg
+    mv pkg.zip repc.zip
 
     mv Cargo.toml.bak Cargo.toml
 

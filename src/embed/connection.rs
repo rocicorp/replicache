@@ -253,7 +253,7 @@ async fn do_commit<'a, 'b>(
         Transaction::Write(w) => Ok(w),
         Transaction::Read(_) => Err(TransactionIsReadOnly),
     }?;
-    txn.commit(DEFAULT_HEAD_NAME, "local-create-date", "checksum")
+    txn.commit(DEFAULT_HEAD_NAME, "local-create-date")
         .await
         .map_err(CommitError)?;
     Ok(CommitTransactionResponse {})

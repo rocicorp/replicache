@@ -29,7 +29,7 @@ pub async fn add_genesis<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mu
 
 pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut Chain {
     assert!(chain.len() > 0);
-    let w = Write::new_local(
+    let mut w = Write::new_local(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
         str!("mutator_name"),
         Any::Array(vec![]),
@@ -38,8 +38,8 @@ pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut 
     )
     .await
     .unwrap();
-    let checksum = format!("checksum{}", chain.len());
-    w.commit(db::DEFAULT_HEAD_NAME, "local_create_date", &checksum)
+    w.put(vec![4, 2], format!("{}", chain.len()).into_bytes());
+    w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
         .await
         .unwrap();
     let (_, commit, _) = read_commit(
@@ -55,7 +55,7 @@ pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut 
 pub async fn add_snapshot<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut Chain {
     assert!(chain.len() > 0);
     let ssid = format!("server_state_id_{}", chain.len());
-    let w = Write::new_snapshot(
+    let mut w = Write::new_snapshot(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
         chain[chain.len() - 1].next_mutation_id(),
         ssid,
@@ -63,8 +63,8 @@ pub async fn add_snapshot<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a m
     )
     .await
     .unwrap();
-    let checksum = format!("checksum{}", chain.len());
-    w.commit(db::DEFAULT_HEAD_NAME, "local_create_date", &checksum)
+    w.put(vec![4, 2], format!("{}", chain.len()).into_bytes());
+    w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
         .await
         .unwrap();
     let (_, commit, _) = read_commit(

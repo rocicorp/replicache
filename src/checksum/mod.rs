@@ -1,5 +1,6 @@
 use crc::{crc32, Hasher32};
 use std::fmt;
+use std::marker::Copy;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
@@ -8,7 +9,7 @@ use std::str::FromStr;
 // is commutative (it is not sensitive to the order of adds/removes)
 // so two maps with the same contents will have the same checksum no
 // matter in what order the keys were added (or removed/replaced).
-#[derive(PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Checksum {
     v: u32,
 }
@@ -61,7 +62,7 @@ impl Default for Checksum {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ParseError {
     InvalidChecksum(ParseIntError),
 }

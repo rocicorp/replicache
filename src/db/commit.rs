@@ -1,6 +1,8 @@
 use super::commit_generated::commit;
+use crate::checksum::Checksum;
 use crate::dag;
 use flatbuffers::FlatBufferBuilder;
+use std::str::FromStr;
 use str_macro::str;
 
 pub const DEFAULT_HEAD_NAME: &str = "main";
@@ -19,7 +21,7 @@ impl Commit {
     pub fn new_local(
         local_create_date: &str,
         basis_hash: Option<&str>,
-        checksum: &str,
+        checksum: Checksum,
         mutation_id: u64,
         mutator_name: &str,
         mutator_args_json: &[u8],
@@ -48,7 +50,7 @@ impl Commit {
     pub fn new_snapshot(
         local_create_date: &str,
         basis_hash: Option<&str>,
-        checksum: &str,
+        checksum: Checksum,
         last_mutation_id: u64,
         server_state_id: &str,
         value_hash: &str,
@@ -121,6 +123,7 @@ impl Commit {
         meta.local_create_date().ok_or(MissingLocalCreateDate)?;
         // basis_hash is optional -- the first commit lacks a basis
         meta.checksum().ok_or(MissingChecksum)?;
+        Checksum::from_str(meta.checksum().unwrap()).map_err(|_| InvalidChecksum)?;
 
         match meta.typed_type() {
             commit::MetaTyped::LocalMeta => {
@@ -160,7 +163,7 @@ impl Commit {
         mut builder: FlatBufferBuilder,
         local_create_date: &str,
         basis_hash: Option<&str>,
-        checksum: &str,
+        checksum: Checksum,
         union_type: commit::MetaTyped,
         union_value: flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
         value_hash: &str,
@@ -168,7 +171,7 @@ impl Commit {
         let meta_args = &commit::MetaArgs {
             local_create_date: builder.create_string(local_create_date).into(),
             basis_hash: basis_hash.map(|s| builder.create_string(s)),
-            checksum: builder.create_string(checksum).into(),
+            checksum: builder.create_string(&checksum.to_string()).into(),
             typed_type: union_type,
             typed: union_value.into(),
         };
@@ -305,15 +308,16 @@ impl<'a> SnapshotMeta<'a> {
 
 #[derive(Debug, PartialEq)]
 pub enum LoadError {
+    InvalidChecksum,
     MissingMutatorName,
     MissingMutatorArgsJSON,
     MissingServerStateID,
     MissingLocalCreateDate,
     MissingChecksum,
-    UnknownMetaType,
     MissingTyped,
     MissingMeta,
     MissingValueHash,
+    UnknownMetaType,
 }
 
 #[derive(Debug)]
@@ -405,6 +409,9 @@ mod tests {
 
     #[test]
     fn load_roundtrip() {
+        let checksum = Checksum::from_str("12345678").unwrap();
+        let tmp = checksum.to_string();
+        let checksum_str = Some(tmp.as_ref());
         fn test(chunk: Chunk, expected: Result<Commit, LoadError>) {
             let actual = Commit::from_chunk(chunk);
             assert_eq!(expected, actual);
@@ -416,13 +423,13 @@ mod tests {
                 })),
                 "".into(),
                 "".into(),
-                "".into(),
+                checksum_str,
                 "".into(),
             ),
             Ok(Commit::new_local(
                 "",
                 "".into(),
-                "",
+                checksum,
                 0,
                 "",
                 &[],
@@ -437,7 +444,7 @@ mod tests {
                 })),
                 "".into(),
                 "".into(),
-                "".into(),
+                checksum_str,
                 "".into(),
             ),
             Err(LoadError::MissingMutatorName),
@@ -449,7 +456,7 @@ mod tests {
                 })),
                 "".into(),
                 "".into(),
-                "".into(),
+                checksum_str,
                 "".into(),
             ),
             Err(LoadError::MissingMutatorArgsJSON),
@@ -461,10 +468,19 @@ mod tests {
                 })),
                 "".into(),
                 "".into(),
-                "".into(),
+                checksum_str,
                 "".into(),
             ),
-            Ok(Commit::new_local("", "".into(), "", 0, "", &[], None, "")),
+            Ok(Commit::new_local(
+                "",
+                "".into(),
+                checksum,
+                0,
+                "",
+                &[],
+                None,
+                "",
+            )),
         );
         test(
             make_commit(
@@ -473,7 +489,7 @@ mod tests {
                 })),
                 None,
                 "".into(),
-                "".into(),
+                checksum_str,
                 "".into(),
             ),
             Err(LoadError::MissingLocalCreateDate),
@@ -485,10 +501,19 @@ mod tests {
                 })),
                 "".into(),
                 None,
-                "".into(),
+                checksum_str,
                 "".into(),
             ),
-            Ok(Commit::new_local("", None, "", 0, "", &[], "".into(), "")),
+            Ok(Commit::new_local(
+                "",
+                None,
+                checksum,
+                0,
+                "",
+                &[],
+                "".into(),
+                "",
+            )),
         );
         test(
             make_commit(
@@ -509,6 +534,18 @@ mod tests {
                 })),
                 "".into(),
                 "".into(),
+                "BOOM".into(),
+                "".into(),
+            ),
+            Err(LoadError::InvalidChecksum),
+        );
+        test(
+            make_commit(
+                Some(Box::new(|b: &mut FlatBufferBuilder| {
+                    make_local_meta(b, 0, "".into(), Some(&[]), "".into())
+                })),
+                "".into(),
+                "".into(),
                 "".into(),
                 None,
             ),
@@ -521,10 +558,10 @@ mod tests {
                 })),
                 "".into(),
                 "".into(),
-                "".into(),
+                checksum_str,
                 "".into(),
             ),
-            Ok(Commit::new_snapshot("", "".into(), "", 0, "", "")),
+            Ok(Commit::new_snapshot("", "".into(), checksum, 0, "", "")),
         );
         test(
             make_commit(
@@ -533,7 +570,7 @@ mod tests {
                 })),
                 "".into(),
                 "".into(),
-                "".into(),
+                checksum_str,
                 "".into(),
             ),
             Err(LoadError::MissingServerStateID),
@@ -554,7 +591,7 @@ mod tests {
             })),
             "local_create_date".into(),
             "basis_hash".into(),
-            "checksum".into(),
+            "11111111".into(),
             "value_hash".into(),
         ))
         .unwrap();
@@ -570,7 +607,7 @@ mod tests {
         }
         assert_eq!(local.meta().local_create_date(), "local_create_date");
         assert_eq!(local.meta().basis_hash(), Some("basis_hash"));
-        assert_eq!(local.meta().checksum(), "checksum");
+        assert_eq!(local.meta().checksum(), "11111111");
         assert_eq!(local.value_hash(), "value_hash");
         assert_eq!(local.next_mutation_id(), 2);
 
@@ -580,7 +617,7 @@ mod tests {
             })),
             "local_create_date 2".into(),
             "basis_hash 2".into(),
-            "checksum 2".into(),
+            "22222222".into(),
             "value_hash 2".into(),
         ))
         .unwrap();
@@ -594,7 +631,7 @@ mod tests {
         }
         assert_eq!(snapshot.meta().local_create_date(), "local_create_date 2");
         assert_eq!(snapshot.meta().basis_hash(), Some("basis_hash 2"));
-        assert_eq!(snapshot.meta().checksum(), "checksum 2");
+        assert_eq!(snapshot.meta().checksum(), "22222222");
         assert_eq!(snapshot.value_hash(), "value_hash 2");
         assert_eq!(snapshot.next_mutation_id(), 3);
     }

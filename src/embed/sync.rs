@@ -1,6 +1,8 @@
 #![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
 
 use super::types::*;
+use crate::checksum;
+use crate::checksum::Checksum;
 use crate::dag;
 use crate::db;
 use crate::db::{Commit, Whence, DEFAULT_HEAD_NAME};
@@ -10,6 +12,7 @@ use async_trait::async_trait;
 use nanoserde::{DeJson, DeJsonErr, SerJson};
 use std::default::Default;
 use std::fmt::Debug;
+use std::str::FromStr;
 
 const SYNC_HEAD_NAME: &str = "sync";
 
@@ -53,6 +56,8 @@ pub async fn begin_sync(
         )
         .await
         .map_err(PullFailed)?;
+
+    let _ = Checksum::from_str(&pull_resp.checksum).map_err(InvalidChecksum)?;
     if pull_resp.state_id.is_empty() {
         return Err(InvalidStateID);
     } else if pull_resp.state_id == base_state_id {
@@ -103,11 +108,7 @@ pub async fn begin_sync(
     .await
     .map_err(ReadCommitError)?;
     let commit_hash = db_write
-        .commit(
-            SYNC_HEAD_NAME,
-            "TODO_local_create_date",
-            &pull_resp.checksum,
-        )
+        .commit(SYNC_HEAD_NAME, "TODO_local_create_date")
         .await
         .map_err(CommitError)?;
 
@@ -123,6 +124,7 @@ pub enum BeginSyncError {
     CommitError(db::CommitError),
     DbError(dag::Error),
     GetHeadError(dag::Error),
+    InvalidChecksum(checksum::ParseError),
     InvalidStateID,
     LockError(dag::Error),
     MainHeadDisappeared,
@@ -299,13 +301,13 @@ mod tests {
                 pull_result: Ok(PullResponse {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 10,
-                    checksum: str!("new_checksum"),
+                    checksum: str!("12345678"), // TODO update when patch works
                 }),
                 exp_err: None,
                 exp_new_sync_head: Some(ExpCommit {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 10,
-                    checksum: str!("new_checksum"),
+                    checksum: base_checksum.clone(), // TODO update when patch works
                 }),
             },
             Case {
@@ -335,7 +337,7 @@ mod tests {
                 pull_result: Ok(PullResponse {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 0,
-                    checksum: str!("new_checksum"),
+                    checksum: str!("12345678"),
                 }),
                 exp_err: Some("TimeTravel"),
                 exp_new_sync_head: None,
@@ -351,9 +353,25 @@ mod tests {
                 pull_result: Ok(PullResponse {
                     state_id: str!(""),
                     last_mutation_id: 0,
-                    checksum: str!("new_checksum"),
+                    checksum: str!("12345678"),
                 }),
                 exp_err: Some("InvalidStateID"),
+                exp_new_sync_head: None,
+            },
+            Case {
+                name: "pulls new state w/invalid checksum -> beginsync errors",
+                exp_pull_req: PullRequest {
+                    client_view_auth: client_view_auth.clone(),
+                    client_id: client_id.clone(),
+                    base_state_id: base_server_state_id.clone(),
+                    checksum: base_checksum.clone(),
+                },
+                pull_result: Ok(PullResponse {
+                    state_id: str!("new_state_id"),
+                    last_mutation_id: 0,
+                    checksum: str!(""),
+                }),
+                exp_err: Some("InvalidChecksum"),
                 exp_new_sync_head: None,
             },
             Case {
@@ -434,7 +452,12 @@ mod tests {
                         Commit::snapshot_meta_parts(&sync_head).unwrap();
                     assert_eq!(exp_sync_head.last_mutation_id, got_last_mutation_id);
                     assert_eq!(exp_sync_head.state_id, got_server_state_id);
-                    assert_eq!(exp_sync_head.checksum, sync_head.meta().checksum());
+                    assert_eq!(
+                        exp_sync_head.checksum,
+                        sync_head.meta().checksum(),
+                        "{}",
+                        c.name
+                    );
 
                     assert_eq!(sync_head_hash, got_resp.unwrap().sync_head);
                 }
@@ -495,7 +518,7 @@ mod tests {
                 client_view_auth: str!("client-view-auth"),
                 client_id: str!("TODO"),
                 base_state_id: str!("base-state-id"),
-                checksum: str!("checksum"),
+                checksum: str!("00000000"),
             };
             // EXP_BODY must be 'static to be used in HTTP handler closure.
             static ref EXP_BODY: String = SerJson::serialize_json(&*PULL_REQ);

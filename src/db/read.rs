@@ -1,4 +1,5 @@
 use super::commit::{Commit, FromHashError};
+use crate::checksum;
 use crate::dag;
 use crate::prolly;
 
@@ -15,10 +16,11 @@ pub struct OwnedRead<'a> {
 
 #[derive(Debug)]
 pub enum ReadCommitError {
-    UnknownHead(String),
-    GetHeadError(dag::Error),
     CommitFromHeadError(FromHashError),
+    GetHeadError(dag::Error),
+    InvalidChecksum(checksum::ParseError),
     MapLoadError(prolly::LoadError),
+    UnknownHead(String),
 }
 
 impl<'a> OwnedRead<'a> {
@@ -114,7 +116,7 @@ mod tests {
         .await
         .unwrap();
         w.put("foo".as_bytes().to_vec(), "bar".as_bytes().to_vec());
-        w.commit(db::DEFAULT_HEAD_NAME, "local_create_date", "checksum")
+        w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
             .await
             .unwrap();
 

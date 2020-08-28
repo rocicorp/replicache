@@ -1,8 +1,10 @@
 use super::{commit, read_commit, ReadCommitError, Whence};
+use crate::checksum::Checksum;
 use crate::dag;
 use crate::prolly;
 use crate::util::nanoserde::any::Any;
 use nanoserde::SerJson;
+use std::str::FromStr;
 use str_macro::str;
 
 #[allow(dead_code)]
@@ -26,6 +28,7 @@ struct SnapshotMeta {
 pub struct Write<'a> {
     dag_write: dag::Write<'a>,
     map: prolly::Map,
+    checksum: Checksum,
     basis_hash: Option<String>,
     meta: Meta,
 }
@@ -46,13 +49,14 @@ pub async fn init_db(
     let w = Write {
         dag_write,
         map: prolly::Map::new(),
+        checksum: Checksum::new(),
         basis_hash: None,
         meta: Meta::Snapshot(SnapshotMeta {
             last_mutation_id: 0,
             server_state_id: str!(""),
         }),
     };
-    Ok(w.commit(head_name, local_create_date, "checksum")
+    Ok(w.commit(head_name, local_create_date)
         .await
         .map_err(CommitError)?)
 }
@@ -66,13 +70,16 @@ impl<'a> Write<'a> {
         original_hash: Option<String>,
         dag_write: dag::Write<'a>,
     ) -> Result<Write<'a>, ReadCommitError> {
+        use ReadCommitError::*;
         let (basis_hash, commit, map) = read_commit(whence, &dag_write.read()).await?;
         let mutation_id = commit.next_mutation_id();
         let basis_hash = Some(basis_hash);
+        let checksum = Checksum::from_str(commit.meta().checksum()).map_err(InvalidChecksum)?;
         Ok(Write {
             basis_hash,
             dag_write,
             map,
+            checksum,
             meta: Meta::Local(LocalMeta {
                 mutator_name,
                 mutator_args,
@@ -88,12 +95,15 @@ impl<'a> Write<'a> {
         server_state_id: String,
         dag_write: dag::Write<'a>,
     ) -> Result<Write<'a>, ReadCommitError> {
-        let (basis_hash, _, map) = read_commit(whence, &dag_write.read()).await?;
+        use ReadCommitError::*;
+        let (basis_hash, commit, map) = read_commit(whence, &dag_write.read()).await?;
         let basis_hash = Some(basis_hash);
+        let checksum = Checksum::from_str(commit.meta().checksum()).map_err(InvalidChecksum)?;
         Ok(Write {
             basis_hash,
             dag_write,
             map,
+            checksum,
             meta: Meta::Snapshot(SnapshotMeta {
                 last_mutation_id,
                 server_state_id,
@@ -106,7 +116,20 @@ impl<'a> Write<'a> {
     }
 
     pub fn put(&mut self, key: Vec<u8>, val: Vec<u8>) {
+        match self.map.get(&key) {
+            None => self.checksum.add(&key, &val),
+            Some(old_val) => self.checksum.replace(&key, old_val, &val),
+        };
         self.map.put(key, val)
+    }
+
+    pub fn del(&mut self, key: Vec<u8>) {
+        let old_val = self.map.get(&key);
+        match old_val {
+            None => {}
+            Some(old_val) => self.checksum.remove(&key, old_val),
+        };
+        self.map.del(key)
     }
 
     // Return value is the hash of the new commit.
@@ -115,7 +138,6 @@ impl<'a> Write<'a> {
         mut self,
         head_name: &str,
         local_create_date: &str,
-        checksum: &str,
     ) -> Result<String, CommitError> {
         use CommitError::*;
         let value_hash = self
@@ -136,7 +158,7 @@ impl<'a> Write<'a> {
                 commit::Commit::new_local(
                     local_create_date,
                     self.basis_hash.as_deref(),
-                    checksum,
+                    self.checksum,
                     mutation_id,
                     &mutator_name,
                     mutator_args.serialize_json().as_bytes(),
@@ -153,7 +175,7 @@ impl<'a> Write<'a> {
                 commit::Commit::new_snapshot(
                     local_create_date,
                     self.basis_hash.as_deref(),
-                    checksum,
+                    self.checksum,
                     last_mutation_id,
                     &server_state_id,
                     &value_hash,
@@ -212,7 +234,7 @@ mod tests {
         .await
         .unwrap();
         w.put("foo".as_bytes().to_vec(), "bar".as_bytes().to_vec());
-        w.commit(db::DEFAULT_HEAD_NAME, "local_create_date", "checksum")
+        w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
             .await
             .unwrap();
 
@@ -228,5 +250,42 @@ mod tests {
         let r = w.as_read();
         let val = r.get("foo".as_bytes());
         assert_eq!(Some("bar".as_bytes()), val);
+    }
+
+    #[async_std::test]
+    async fn test_put_del_update_hash() {
+        let ds = dag::Store::new(Box::new(MemStore::new()));
+        init_db(
+            ds.write().await.unwrap(),
+            db::DEFAULT_HEAD_NAME,
+            "local_create_date",
+        )
+        .await
+        .unwrap();
+        let mut w = Write::new_local(
+            Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+            str!("mutator_name"),
+            Any::Array(vec![]),
+            None,
+            ds.write().await.unwrap(),
+        )
+        .await
+        .unwrap();
+
+        let mut exp_checksum = Checksum::new();
+        assert_eq!(exp_checksum, w.checksum);
+
+        exp_checksum.add(&[0], &[1]);
+        w.put(vec![0], vec![1]);
+        assert_eq!(exp_checksum, w.checksum);
+
+        // Ensure Write is calling Checksum.replace() if the key already exists.
+        exp_checksum.replace(&[0], &[1], &[2]);
+        w.put(vec![0], vec![2]);
+        assert_eq!(exp_checksum, w.checksum);
+
+        exp_checksum.remove(&[0], &[2]);
+        w.del(vec![0]);
+        assert_eq!(exp_checksum, w.checksum);
     }
 }

@@ -1,11 +1,11 @@
 #![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
 
-use super::types::*;
 use crate::checksum;
 use crate::checksum::Checksum;
 use crate::dag;
 use crate::db;
 use crate::db::{Commit, Whence, DEFAULT_HEAD_NAME};
+use crate::embed::types::*;
 use crate::fetch;
 use crate::fetch::errors::FetchError;
 use async_trait::async_trait;
@@ -122,7 +122,6 @@ pub async fn begin_sync(
 #[derive(Debug)]
 pub enum BeginSyncError {
     CommitError(db::CommitError),
-    DbError(dag::Error),
     GetHeadError(dag::Error),
     InvalidChecksum(checksum::ParseError),
     InvalidStateID,

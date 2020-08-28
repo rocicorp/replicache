@@ -11,6 +11,5 @@
 mod connection;
 mod dispatch;
 
-pub mod sync;
 pub mod types;
 pub use dispatch::dispatch;

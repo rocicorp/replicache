@@ -3,11 +3,11 @@
 use futures::join;
 use nanoserde::{DeJson, SerJson};
 use rand::Rng;
-#[allow(unused_imports)]
-use replicache_client::embed::sync;
 use replicache_client::embed::types::*;
 #[allow(unused_imports)]
 use replicache_client::fetch;
+#[allow(unused_imports)]
+use replicache_client::sync;
 use replicache_client::util::nanoserde::any::Any;
 use replicache_client::wasm;
 use wasm_bindgen_test::wasm_bindgen_test_configure;

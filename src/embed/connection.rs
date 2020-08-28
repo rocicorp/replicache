@@ -1,5 +1,4 @@
 use super::dispatch::Request;
-use super::sync;
 use super::types::*;
 use crate::dag;
 use crate::db::{
@@ -7,6 +6,7 @@ use crate::db::{
     DEFAULT_HEAD_NAME,
 };
 use crate::fetch;
+use crate::sync;
 use async_fn::{AsyncFn2, AsyncFn3};
 use async_std::stream::StreamExt;
 use async_std::sync::{Receiver, RecvError, RwLock};

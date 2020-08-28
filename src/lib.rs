@@ -17,6 +17,7 @@ mod db;
 pub mod embed;
 pub mod fetch;
 mod hash;
+pub mod sync;
 pub mod util;
 
 #[cfg(not(default))]

@@ -22,10 +22,14 @@
     "diff-server": "bin/diff-server"
   },
   "devDependencies": {
+    "@babel/plugin-syntax-import-meta": "^7.10.4",
+    "@babel/preset-env": "^7.11.0",
     "@types/jest": "^25.2.3",
     "@types/node-fetch": "^2.5.7",
     "@typescript-eslint/eslint-plugin": "^3.0.2",
     "@typescript-eslint/parser": "^3.0.2",
+    "babel-jest": "^26.3.0",
+    "babel-preset-es2015": "^6.24.1",
     "eslint": "^7.1.0",
     "jest": "^26.0.1",
     "node-fetch": "^2.6.0",
@@ -37,7 +41,6 @@
   "module": "out/mod.js",
   "main": "out.cjs/mod.js",
   "types": "out/mod.js",
-  "dependencies": {},
   "files": [
     "out",
     "out.cjs",

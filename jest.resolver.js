@@ -1,4 +1,4 @@
-// We use a custom resolver because Jest does not resolve src/x.js to src/x.js
+// We use a custom resolver because Jest does not resolve src/x.js to src/x.ts
 module.exports = (request, options) => {
   if (
     options.basedir.endsWith('replicache-sdk-js/src') &&

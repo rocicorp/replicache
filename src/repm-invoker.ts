@@ -1,7 +1,7 @@
-import type {JSONValue, ToJSON} from './json.js';
-import type {ScanItem} from './scan-item.js';
-import type {ScanOptions} from './scan-options.js';
-import type {DatabaseInfo} from './database-info.js';
+import type { JSONValue, ToJSON } from './json.js';
+import type { ScanItem } from './scan-item.js';
+import type { ScanOptions } from './scan-options.js';
+import type { DatabaseInfo } from './database-info.js';
 
 export interface Invoke {
   <Rpc extends keyof InvokeMapNoArgs>(rpc: Rpc): Promise<InvokeMapNoArgs[Rpc]>;
@@ -46,7 +46,7 @@ export class REPMHTTPInvoker {
     }
     throw new Error(
       `Test server failed: ${resp.status} ${
-        resp.statusText
+      resp.statusText
       }: ${await resp.text()}`,
     );
   };
@@ -55,7 +55,7 @@ export class REPMHTTPInvoker {
 export class REPMWASMInvoker {
   private readonly _inited: Promise<any>;
   private _dispatch?: (dbName: string, rpc: string, args: string) => any;
-  constructor(wasm_module: any) {
+  constructor(wasm_module?: any) {
     this._inited = (async () => {
       // TODO: Have to import dynamically to hide this from Jest.
       // Jest cannot parse the es6 behind this import, I don't know why.
@@ -106,15 +106,15 @@ type PutRequest = TransactionRequest & {
 };
 type PutResponse = unknown;
 
-type DelRequest = TransactionRequest & {key: string};
-type DelResponse = {ok: boolean};
+type DelRequest = TransactionRequest & { key: string };
+type DelResponse = { ok: boolean };
 
 type RebaseOpts =
   | Record<string, unknown>
   | {
-      basis: string;
-      original: string;
-    };
+    basis: string;
+    original: string;
+  };
 
 export type OpenTransactionRequest = {
   name?: string;
@@ -131,12 +131,12 @@ type CloseTransactionResponse = unknown;
 type CommitTransactionRequest = TransactionRequest;
 export type CommitTransactionResponse =
   | {
-      retryCommit: false;
-      ref: string;
-    }
+    retryCommit: false;
+    ref: string;
+  }
   | {
-      retryCommit: true;
-    };
+    retryCommit: true;
+  };
 
 type BeginSyncRequest = {
   batchPushURL: string;
@@ -212,7 +212,7 @@ export type InvokeMap = {
 
 type OpenResponse = '';
 type CloseResponse = '';
-type ListRespones = {databases: DatabaseInfo[]};
+type ListRespones = { databases: DatabaseInfo[] };
 type DropResponse = '';
 
 type GetRootResponse = {

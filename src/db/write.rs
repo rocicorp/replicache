@@ -132,6 +132,15 @@ impl<'a> Write<'a> {
         self.map.del(key)
     }
 
+    pub fn reset_map(&mut self) {
+        self.checksum = Checksum::new();
+        self.map = prolly::Map::new();
+    }
+
+    pub fn checksum(&self) -> String {
+        self.checksum.to_string()
+    }
+
     // Return value is the hash of the new commit.
     #[allow(clippy::too_many_arguments)]
     pub async fn commit(
@@ -253,7 +262,7 @@ mod tests {
     }
 
     #[async_std::test]
-    async fn test_put_del_update_hash() {
+    async fn test_put_del_reset_update_hash() {
         let ds = dag::Store::new(Box::new(MemStore::new()));
         init_db(
             ds.write().await.unwrap(),
@@ -287,5 +296,12 @@ mod tests {
         exp_checksum.remove(&[0], &[2]);
         w.del(vec![0]);
         assert_eq!(exp_checksum, w.checksum);
+
+        // Ensure reset_map works and replaces the checksum.
+        w.put(vec![0], vec![1]);
+        assert_ne!("00000000", w.checksum());
+        w.reset_map();
+        assert_eq!("00000000", w.checksum());
+        assert!(!w.as_read().has(vec![0].as_ref()));
     }
 }

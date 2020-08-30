@@ -52,7 +52,12 @@ pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut 
     chain
 }
 
-pub async fn add_snapshot<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut Chain {
+// The optional map for the commit is treated as key, value pairs.
+pub async fn add_snapshot<'a>(
+    chain: &'a mut Chain,
+    store: &dag::Store,
+    map: Option<Vec<String>>,
+) -> &'a mut Chain {
     assert!(chain.len() > 0);
     let ssid = format!("server_state_id_{}", chain.len());
     let mut w = Write::new_snapshot(
@@ -63,7 +68,13 @@ pub async fn add_snapshot<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a m
     )
     .await
     .unwrap();
-    w.put(vec![4, 2], format!("{}", chain.len()).into_bytes());
+    if let Some(m) = map {
+        let mut i = 0;
+        while i <= m.len() - 2 {
+            w.put(m[i].as_bytes().into(), m[i + 1].as_bytes().into());
+            i += 2;
+        }
+    }
     w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
         .await
         .unwrap();

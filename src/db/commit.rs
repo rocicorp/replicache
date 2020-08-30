@@ -370,7 +370,7 @@ mod tests {
             .hash()
         );
 
-        add_snapshot(&mut chain, &store).await;
+        add_snapshot(&mut chain, &store, None).await;
         let base_hash = store
             .read()
             .await

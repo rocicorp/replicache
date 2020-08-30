@@ -1,5 +1,7 @@
 #![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
 
+mod patch;
+
 use crate::checksum;
 use crate::checksum::Checksum;
 use crate::dag;
@@ -57,9 +59,9 @@ pub async fn begin_sync(
         .await
         .map_err(PullFailed)?;
 
-    let _ = Checksum::from_str(&pull_resp.checksum).map_err(InvalidChecksum)?;
+    let expected_checksum = Checksum::from_str(&pull_resp.checksum).map_err(InvalidChecksum)?;
     if pull_resp.state_id.is_empty() {
-        return Err(InvalidStateID);
+        return Err(MissingStateID);
     } else if pull_resp.state_id == base_state_id {
         return Ok(Default::default());
     }
@@ -68,18 +70,6 @@ pub async fn begin_sync(
     if pull_resp.last_mutation_id < base_last_mutation_id {
         return Err(TimeTravelProhibited(format!("base state lastMutationID {} is > than client view lastMutationID {}; ignoring client view", base_last_mutation_id, pull_resp.last_mutation_id)));
     }
-    // TODO: apply patch and verify checksum. Here's the go code:
-    // patchedMap, err := kv.ApplyPatch(noms, baseMap, pullResp.Patch)
-    // if err != nil {
-    // 	return Commit{}, pullResp.ClientViewInfo, errors.Wrap(err, "couldn't apply patch")
-    // }
-    // expectedChecksum, err := kv.ChecksumFromString(pullResp.Checksum)
-    // if err != nil {
-    // 	return Commit{}, pullResp.ClientViewInfo, errors.Wrapf(err, "response checksum malformed: %s", pullResp.Checksum)
-    // }
-    // if patchedMap.Checksum() != expectedChecksum.String() {
-    // 	return Commit{}, pullResp.ClientViewInfo, fmt.Errorf("checksum mismatch! Expected %s, got %s", expectedChecksum, patchedMap.Checksum())
-    // }
 
     // It is possible that another sync completed while we were pulling. Ensure
     // that is not the case by re-checking the base snapshot.
@@ -99,7 +89,7 @@ pub async fn begin_sync(
         return Err(OverlappingSyncs);
     }
 
-    let db_write = db::Write::new_snapshot(
+    let mut db_write = db::Write::new_snapshot(
         Whence::Hash(base_snapshot.chunk().hash().to_string()),
         pull_resp.last_mutation_id,
         pull_resp.state_id.clone(),
@@ -107,6 +97,17 @@ pub async fn begin_sync(
     )
     .await
     .map_err(ReadCommitError)?;
+
+    patch::apply(&mut db_write, &pull_resp.patch).map_err(PatchFailed)?;
+    if db_write.checksum() != expected_checksum.to_string().as_str() {
+        return Err(WrongChecksum(format!(
+            "expected {}, got {}",
+            expected_checksum,
+            db_write.checksum()
+        )));
+    }
+    // TODO ClientViewInfo
+
     let commit_hash = db_write
         .commit(SYNC_HEAD_NAME, "TODO_local_create_date")
         .await
@@ -124,16 +125,18 @@ pub enum BeginSyncError {
     CommitError(db::CommitError),
     GetHeadError(dag::Error),
     InvalidChecksum(checksum::ParseError),
-    InvalidStateID,
     LockError(dag::Error),
     MainHeadDisappeared,
+    MissingStateID,
     NoBaseSnapshot(db::BaseSnapshotError),
     OverlappingSyncs,
+    PatchFailed(patch::PatchError),
     ProgrammerError(db::ProgrammerError),
     PullFailed(PullError),
     ReadCommitError(db::ReadCommitError),
     ReadError(dag::Error),
     TimeTravelProhibited(String),
+    WrongChecksum(String),
 }
 
 #[derive(Debug, Default, PartialEq, SerJson)]
@@ -156,7 +159,7 @@ pub struct PullResponse {
     #[nserde(rename = "lastMutationID")]
     #[allow(dead_code)]
     last_mutation_id: u64,
-    // 	TODO Patch          []kv.Operation `json:"patch"`
+    patch: Vec<patch::Operation>,
     #[nserde(rename = "checksum")]
     #[allow(dead_code)]
     checksum: String,
@@ -242,6 +245,7 @@ pub enum PullError {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod tests {
+    use super::patch::Operation;
     use super::*;
     use crate::db::test_helpers::*;
     use crate::kv::memstore::MemStore;
@@ -259,7 +263,7 @@ mod tests {
         let store = dag::Store::new(Box::new(MemStore::new()));
         let mut chain: Chain = vec![];
         add_genesis(&mut chain, &store).await;
-        add_snapshot(&mut chain, &store).await;
+        add_snapshot(&mut chain, &store, Some(vec![str!("foo"), str!("bar")])).await;
         let base_snapshot = &chain[chain.len() - 1];
         let (base_last_mutation_id, base_server_state_id) =
             Commit::snapshot_meta_parts(base_snapshot).unwrap();
@@ -270,6 +274,24 @@ mod tests {
         let diff_server_url = str!("diff_server_url");
         let diff_server_auth = str!("diff_server_auth");
         let sync_id = str!("TODO");
+
+        let good_pull_resp = PullResponse {
+            state_id: str!("new_state_id"),
+            last_mutation_id: 10,
+            patch: vec![
+                Operation {
+                    op: str!("remove"),
+                    path: str!("/"),
+                    value_string: str!(""),
+                },
+                Operation {
+                    op: str!("add"),
+                    path: str!("/new"),
+                    value_string: str!("\"value\""),
+                },
+            ],
+            checksum: str!("f9ef007b"),
+        };
 
         struct ExpCommit {
             state_id: String,
@@ -297,18 +319,18 @@ mod tests {
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
                 },
-                pull_result: Ok(PullResponse {
-                    state_id: str!("new_state_id"),
-                    last_mutation_id: 10,
-                    checksum: str!("12345678"), // TODO update when patch works
-                }),
+                pull_result: Ok(good_pull_resp.clone()),
                 exp_err: None,
                 exp_new_sync_head: Some(ExpCommit {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 10,
-                    checksum: base_checksum.clone(), // TODO update when patch works
+                    checksum: str!("f9ef007b"),
                 }),
             },
+            // TODO: add test for same state id but later mutation id. Right now we treat
+            // it as a nop because the state id does not change, but probably we should treat
+            // it like success and complete the sync. Current behavior mirrors the (probably
+            // incorrect?) go behavior.
             Case {
                 name: "pulls same state -> beginsync succeeds with no synchead",
                 exp_pull_req: PullRequest {
@@ -320,6 +342,7 @@ mod tests {
                 pull_result: Ok(PullResponse {
                     state_id: base_server_state_id.clone(),
                     last_mutation_id: base_last_mutation_id,
+                    patch: vec![],
                     checksum: base_checksum.clone(),
                 }),
                 exp_err: None,
@@ -334,9 +357,8 @@ mod tests {
                     checksum: base_checksum.clone(),
                 },
                 pull_result: Ok(PullResponse {
-                    state_id: str!("new_state_id"),
                     last_mutation_id: 0,
-                    checksum: str!("12345678"),
+                    ..good_pull_resp.clone()
                 }),
                 exp_err: Some("TimeTravel"),
                 exp_new_sync_head: None,
@@ -351,14 +373,13 @@ mod tests {
                 },
                 pull_result: Ok(PullResponse {
                     state_id: str!(""),
-                    last_mutation_id: 0,
-                    checksum: str!("12345678"),
+                    ..good_pull_resp.clone()
                 }),
-                exp_err: Some("InvalidStateID"),
+                exp_err: Some("MissingStateID"),
                 exp_new_sync_head: None,
             },
             Case {
-                name: "pulls new state w/invalid checksum -> beginsync errors",
+                name: "pulls new state w/no checksum -> beginsync errors",
                 exp_pull_req: PullRequest {
                     client_view_auth: client_view_auth.clone(),
                     client_id: client_id.clone(),
@@ -366,11 +387,25 @@ mod tests {
                     checksum: base_checksum.clone(),
                 },
                 pull_result: Ok(PullResponse {
-                    state_id: str!("new_state_id"),
-                    last_mutation_id: 0,
                     checksum: str!(""),
+                    ..good_pull_resp.clone()
                 }),
                 exp_err: Some("InvalidChecksum"),
+                exp_new_sync_head: None,
+            },
+            Case {
+                name: "pulls new state w/bad checksum -> beginsync errors",
+                exp_pull_req: PullRequest {
+                    client_view_auth: client_view_auth.clone(),
+                    client_id: client_id.clone(),
+                    base_state_id: base_server_state_id.clone(),
+                    checksum: base_checksum.clone(),
+                },
+                pull_result: Ok(PullResponse {
+                    checksum: str!(12345678),
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: Some("WrongChecksum"),
                 exp_new_sync_head: None,
             },
             Case {
@@ -453,7 +488,7 @@ mod tests {
                     assert_eq!(exp_sync_head.state_id, got_server_state_id);
                     assert_eq!(
                         exp_sync_head.checksum,
-                        sync_head.meta().checksum(),
+                        sync_head.meta().checksum().to_string().as_str(),
                         "{}",
                         c.name
                     );
@@ -537,11 +572,16 @@ mod tests {
             Case {
                 name: "200",
                 resp_status: 200,
-                resp_body: r#"{"stateID": "1", "lastMutationID": 2, "checksum": "12345678"}"#,
+                resp_body: r#"{"stateID": "1", "lastMutationID": 2, "checksum": "12345678", "patch": [{"op":"remove","path":"/"}]}"#,
                 exp_err: None,
                 exp_resp: Some(PullResponse {
                     state_id: str!("1"),
                     last_mutation_id: 2,
+                    patch: vec![Operation {
+                        op: str!("remove"),
+                        path: str!("/"),
+                        value_string: str!(""),
+                    }],
                     checksum: str!("12345678"),
                 }),
             },

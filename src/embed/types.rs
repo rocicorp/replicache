@@ -9,15 +9,15 @@ pub struct OpenTransactionRequest {
     pub name: Option<String>,   // not present in read transactions
     pub args: Option<any::Any>, // not present in read transactions
     #[nserde(rename = "rebaseOpts")]
+    #[nserde(skip_serializing_if = "Option::is_none")]
     pub rebase_opts: Option<RebaseOpts>,
 }
 
-#[derive(DeJson, SerJson)]
+#[derive(Clone, DeJson, SerJson)]
 pub struct RebaseOpts {
-    // TODO: It seems like in reality both are required.
-    pub basis: Option<String>,
+    pub basis: String,
     #[nserde(rename = "original")]
-    pub original_hash: Option<String>,
+    pub original_hash: String,
 }
 
 #[derive(DeJson, SerJson)]
@@ -32,8 +32,16 @@ pub struct CommitTransactionRequest {
     pub transaction_id: u32,
 }
 
-#[derive(SerJson)]
-pub struct CommitTransactionResponse {}
+#[derive(DeJson, SerJson)]
+pub struct CommitTransactionResponse {
+    // Note: the field is named "ref" in go but "ref" is a reserved word in rust.
+    #[nserde(rename = "ref")]
+    pub hash: String,
+    // TODO I think retry_commit was required to accommodate noms' optimistic locking
+    // and we can do away with it in repc once compatability is no longer an issue.
+    #[nserde(rename = "retryCommit")]
+    pub retry_commit: bool,
+}
 
 #[derive(DeJson)]
 pub struct CloseTransactionRequest {
@@ -44,8 +52,12 @@ pub struct CloseTransactionRequest {
 #[derive(SerJson)]
 pub struct CloseTransactionResponse {}
 
-#[derive(DeJson)]
-pub struct GetRootRequest {}
+#[derive(Debug, DeJson, SerJson)]
+pub struct GetRootRequest {
+    #[nserde(rename = "headName")]
+    #[nserde(skip_serializing_if = "Option::is_none")]
+    pub head_name: Option<String>,
+}
 
 #[derive(DeJson, SerJson)]
 pub struct GetRootResponse {

@@ -10,6 +10,7 @@ use replicache_client::fetch;
 use replicache_client::sync;
 use replicache_client::util::nanoserde::any::Any;
 use replicache_client::wasm;
+use str_macro::str;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 use wasm_bindgen_test::*;
 
@@ -35,16 +36,33 @@ async fn dispatch(db: &str, rpc: &str, data: &str) -> Result<String, String> {
     }
 }
 
-async fn open_transaction(db_name: &str, fn_name: Option<String>) -> u32 {
+async fn open_transaction(
+    db_name: &str,
+    fn_name: Option<String>,
+    args: Option<Any>,
+    rebase_opts: Option<RebaseOpts>,
+) -> OpenTransactionResponse {
+    let resp: OpenTransactionResponse = DeJson::deserialize_json(
+        &open_transaction_result(db_name, fn_name, args, rebase_opts)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    resp
+}
+
+async fn open_transaction_result(
+    db_name: &str,
+    fn_name: Option<String>,
+    args: Option<Any>,
+    rebase_opts: Option<RebaseOpts>,
+) -> Result<String, String> {
     let req = SerJson::serialize_json(&OpenTransactionRequest {
         name: fn_name,
-        args: Some(Any::Array(vec![])),
-        rebase_opts: None,
+        args,
+        rebase_opts: rebase_opts,
     });
-    let resp: OpenTransactionResponse =
-        DeJson::deserialize_json(&dispatch(db_name, "openTransaction", &req).await.unwrap())
-            .unwrap();
-    resp.transaction_id
+    dispatch(db_name, "openTransaction", &req).await
 }
 
 async fn put(db_name: &str, txn_id: u32, key: &str, value: &str) {
@@ -90,14 +108,27 @@ async fn get(db_name: &str, txn_id: u32, key: &str) -> Option<String> {
     }
 }
 
-async fn commit(db_name: &str, txn_id: u32) -> Result<(), String> {
+async fn get_root(db_name: &str, head_name: Option<String>) -> String {
+    let req = SerJson::serialize_json(&GetRootRequest { head_name });
+    let result = dispatch(db_name, "getRoot", req.as_str()).await.unwrap();
+    let response: GetRootResponse = DeJson::deserialize_json(&result).unwrap();
+    response.root
+}
+
+async fn commit(db_name: &str, txn_id: u32) -> Result<String, String> {
     dispatch(
         db_name,
         "commitTransaction",
         &format!("{{\"transactionId\": {}}}", txn_id),
     )
     .await
-    .map(|_| ())
+}
+
+// Like commit, but returns the hash of the new commit.
+async fn commit_hash(db_name: &str, txn_id: u32) -> String {
+    let resp_string = commit(db_name, txn_id).await.unwrap();
+    let response: CommitTransactionResponse = DeJson::deserialize_json(&resp_string).unwrap();
+    response.hash
 }
 
 async fn abort(db_name: &str, txn_id: u32) {
@@ -111,7 +142,7 @@ async fn abort(db_name: &str, txn_id: u32) {
 }
 
 #[wasm_bindgen_test]
-async fn open_close() {
+async fn test_open_close() {
     assert_eq!(dispatch("", "debug", "open_dbs").await.unwrap(), "[]");
     assert_eq!(
         dispatch("", "open", "").await.unwrap_err(),
@@ -135,7 +166,7 @@ async fn open_close() {
 }
 
 #[wasm_bindgen_test]
-async fn dispatch_concurrency() {
+async fn test_dispatch_concurrency() {
     let db = &random_db();
     let window = web_sys::window().expect("should have a window in this context");
     let performance = window
@@ -143,7 +174,9 @@ async fn dispatch_concurrency() {
         .expect("performance should be available");
 
     assert_eq!(dispatch(db, "open", "").await.unwrap(), "");
-    let txn_id = open_transaction(db, "foo".to_string().into()).await;
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+        .await
+        .transaction_id;
     let now_ms = performance.now();
     join!(
         async {
@@ -161,18 +194,23 @@ async fn dispatch_concurrency() {
 }
 
 #[wasm_bindgen_test]
-async fn write_concurrency() {
+async fn test_write_concurrency() {
     let db = &random_db();
 
     dispatch(db, "open", "").await.unwrap();
-    let txn_id = open_transaction(db, "foo".to_string().into()).await;
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+        .await
+        .transaction_id;
     put(db, txn_id, "value", "1").await;
     commit(db, txn_id).await.unwrap();
 
     // TODO(nate): Strengthen test to prove these open waits overlap.
     join!(
         async {
-            let txn_id = open_transaction(db, "foo".to_string().into()).await;
+            let txn_id =
+                open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+                    .await
+                    .transaction_id;
             let value = get(db, txn_id, "value")
                 .await
                 .unwrap()
@@ -182,7 +220,10 @@ async fn write_concurrency() {
             commit(db, txn_id).await.unwrap();
         },
         async {
-            let txn_id = open_transaction(db, "foo".to_string().into()).await;
+            let txn_id =
+                open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+                    .await
+                    .transaction_id;
             let value = get(db, txn_id, "value")
                 .await
                 .unwrap()
@@ -192,7 +233,9 @@ async fn write_concurrency() {
             commit(db, txn_id).await.unwrap();
         }
     );
-    let txn_id = open_transaction(db, "foo".to_string().into()).await;
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+        .await
+        .transaction_id;
     assert_eq!(
         get(db, txn_id, "value")
             .await
@@ -207,7 +250,7 @@ async fn write_concurrency() {
 }
 
 #[wasm_bindgen_test]
-async fn get_put() {
+async fn test_get_put() {
     let db = &random_db();
 
     assert_eq!(
@@ -222,7 +265,9 @@ async fn get_put() {
         "InvalidJson(Json Deserialize error: Key not found transaction_id, line:1 col:3)"
     );
 
-    let txn_id = open_transaction(db, "foo".to_string().into()).await;
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+        .await
+        .transaction_id;
 
     // With serde we can use #[serde(deny_unknown_fields)] to parse strictly,
     // but that's not available with nanoserde.
@@ -247,7 +292,9 @@ async fn get_put() {
     commit(db, txn_id).await.unwrap();
 
     // Open new transaction, and verify write is persistent.
-    let txn_id = open_transaction(db, "foo".to_string().into()).await;
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+        .await
+        .transaction_id;
     assert_eq!(get(db, txn_id, "Hello").await.unwrap(), "世界");
 
     // Verify functioning of non-ASCII keys.
@@ -258,7 +305,9 @@ async fn get_put() {
     assert_eq!(get(db, txn_id, "你好").await, Some("world".into()));
 
     commit(db, txn_id).await.unwrap();
-    let txn_id = open_transaction(db, "foo".to_string().into()).await;
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+        .await
+        .transaction_id;
     assert_eq!(has(db, txn_id, "你好").await, true);
     assert_eq!(get(db, txn_id, "你好").await, Some("world".into()));
 
@@ -266,14 +315,16 @@ async fn get_put() {
 }
 
 #[wasm_bindgen_test]
-async fn get_root() {
+async fn test_get_root() {
     let db = &random_db();
     assert_eq!(dispatch(db, "open", "").await.unwrap(), "");
     assert_eq!(
         dispatch(db, "getRoot", "{}").await.unwrap(),
         "{\"root\":\"b3l9pgiide3am771eu08kfgg5sprjs2e\"}"
     );
-    let txn_id = open_transaction(db, "foo".to_string().into()).await;
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+        .await
+        .transaction_id;
     put(db, txn_id, "foo", "bar").await;
     let _ = commit(db, txn_id).await;
     assert_eq!(
@@ -281,6 +332,90 @@ async fn get_root() {
         "{\"root\":\"ug6tod81n4l0fm8ob1iud4hetomibm02\"}"
     );
     assert_eq!(dispatch(db, "close", "").await.unwrap(), "");
+}
+
+#[wasm_bindgen_test]
+async fn test_rebase_opts() {
+    let db_name = &random_db();
+    assert_eq!(dispatch(db_name, "open", "").await.unwrap(), "");
+
+    let genesis_hash = get_root(db_name, None).await;
+
+    // Land a commit on the main chain.
+    let txn_id = open_transaction(
+        db_name,
+        "fname".to_string().into(),
+        Some(Any::Array(vec![Any::Bool(true)])),
+        None,
+    )
+    .await
+    .transaction_id;
+    put(db_name, txn_id, "main", "true").await;
+    let main_head_hash = commit_hash(db_name, txn_id).await;
+
+    // Land a commit on the sync chain and verify that it updates the correct head.
+    let rebase_opts = RebaseOpts {
+        basis: genesis_hash.clone(),
+        original_hash: main_head_hash.clone(),
+    };
+    let txn_id = open_transaction(
+        db_name,
+        "fname".to_string().into(),
+        Some(Any::Array(vec![Any::Bool(true)])),
+        Some(rebase_opts.clone()),
+    )
+    .await
+    .transaction_id;
+    put(db_name, txn_id, "main", "false").await;
+    let sync_head_hash = commit_hash(db_name, txn_id).await;
+    assert_eq!(main_head_hash, get_root(db_name, Some(str!("main"))).await);
+    assert_eq!(sync_head_hash, get_root(db_name, Some(str!("sync"))).await);
+    assert_ne!(main_head_hash, sync_head_hash);
+
+    // Ensure open_transaction doesn't allow changing the function or args during rebase.
+    let err = open_transaction_result(
+        db_name,
+        "WRONG".to_string().into(),
+        Some(Any::Array(vec![Any::Bool(true)])),
+        Some(rebase_opts.clone()),
+    )
+    .await
+    .unwrap_err();
+    assert!(err.contains("InconsistentMutator"));
+    let err = open_transaction_result(
+        db_name,
+        "fname".to_string().into(),
+        Some(Any::Array(vec![])),
+        Some(rebase_opts.clone()),
+    )
+    .await
+    .unwrap_err();
+    assert!(err.contains("InconsistentArgs"));
+
+    // Ensure it doesn't let us rebase with a different mutation id.
+    let txn_id = open_transaction(
+        db_name,
+        "fname".to_string().into(),
+        Some(Any::Array(vec![Any::Bool(true)])),
+        None,
+    )
+    .await
+    .transaction_id;
+    let new_head_hash = commit_hash(db_name, txn_id).await;
+    let err = open_transaction_result(
+        db_name,
+        "fname".to_string().into(),
+        Some(Any::Array(vec![Any::Bool(true)])),
+        Some(RebaseOpts {
+            basis: genesis_hash.clone(),
+            original_hash: new_head_hash,
+        }),
+    )
+    .await
+    .unwrap_err();
+    assert!(err.contains("InconsistentMutationId"));
+
+    assert_eq!(dispatch(db_name, "close", "").await.unwrap(), "");
 }
 
 // We can't run a web server in wasm-in-the-browser so this is the next

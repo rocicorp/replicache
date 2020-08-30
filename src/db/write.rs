@@ -71,10 +71,10 @@ impl<'a> Write<'a> {
         dag_write: dag::Write<'a>,
     ) -> Result<Write<'a>, ReadCommitError> {
         use ReadCommitError::*;
-        let (basis_hash, commit, map) = read_commit(whence, &dag_write.read()).await?;
-        let mutation_id = commit.next_mutation_id();
+        let (basis_hash, basis, map) = read_commit(whence, &dag_write.read()).await?;
+        let mutation_id = basis.next_mutation_id();
         let basis_hash = Some(basis_hash);
-        let checksum = Checksum::from_str(commit.meta().checksum()).map_err(InvalidChecksum)?;
+        let checksum = Checksum::from_str(basis.meta().checksum()).map_err(InvalidChecksum)?;
         Ok(Write {
             basis_hash,
             dag_write,
@@ -113,6 +113,13 @@ impl<'a> Write<'a> {
 
     pub fn as_read(&'a self) -> super::Read<'a> {
         super::Read::new(self.dag_write.read(), &self.map)
+    }
+
+    pub fn is_rebase(&self) -> bool {
+        match &self.meta {
+            Meta::Local(lm) => lm.original_hash.is_some(),
+            _ => false,
+        }
     }
 
     pub fn put(&mut self, key: Vec<u8>, val: Vec<u8>) {

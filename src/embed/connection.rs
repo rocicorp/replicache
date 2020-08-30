@@ -4,6 +4,7 @@ use crate::dag;
 use crate::db;
 use crate::fetch;
 use crate::sync;
+use crate::util::nanoserde::any;
 use async_fn::{AsyncFn2, AsyncFn3};
 use async_std::stream::StreamExt;
 use async_std::sync::{Receiver, RecvError, RwLock};
@@ -61,7 +62,7 @@ async fn connection_future<'a, 'b>(
         "has" => execute_in_txn(do_has, txns, req).await,
         "get" => execute_in_txn(do_get, txns, req).await,
         "put" => execute_in_txn(do_put, txns, req).await,
-        "openTransaction" => execute(do_open, store, txns, req).await,
+        "openTransaction" => execute(do_open_transaction, store, txns, req).await,
         "commitTransaction" => execute(do_commit, store, txns, req).await,
         "closeTransaction" => execute(do_abort, store, txns, req).await,
         "beginSync" => execute(do_begin_sync, store, txns, req).await,
@@ -187,7 +188,7 @@ async fn do_init(store: &dag::Store) -> Result<(), DoInitError> {
     Ok(())
 }
 
-async fn do_open<'a, 'b>(
+async fn do_open_transaction<'a, 'b>(
     store: &'a dag::Store,
     txns: &'b TxnMap<'a>,
     req: OpenTransactionRequest,
@@ -198,27 +199,24 @@ async fn do_open<'a, 'b>(
         Some(mutator_name) => {
             let OpenTransactionRequest {
                 name: _,
-                rebase_opts,
                 args: mutator_args,
+                rebase_opts,
             } = req;
+            let mutator_args = mutator_args.ok_or(ArgsRequired)?;
 
-            let (basis, original_hash) = match rebase_opts {
-                Some(rebase_opts) => (rebase_opts.basis, rebase_opts.original_hash),
-                None => (None, None),
+            let dag_write = store.write().await.map_err(DagWriteError)?;
+            let (whence, original_hash) = match rebase_opts {
+                None => (db::Whence::Head(db::DEFAULT_HEAD_NAME.to_string()), None),
+                Some(opts) => {
+                    validate_rebase(&opts, dag_write.read(), &mutator_name, &mutator_args).await?;
+                    (db::Whence::Hash(opts.basis), Some(opts.original_hash))
+                }
             };
 
-            let head_name = basis.unwrap_or_else(|| db::DEFAULT_HEAD_NAME.to_string());
-            let mutator_args = mutator_args.ok_or(ArgsRequired)?;
-            let dag_write = store.write().await.map_err(DagWriteError)?;
-            let write = db::Write::new_local(
-                db::Whence::Head(head_name),
-                mutator_name,
-                mutator_args,
-                original_hash,
-                dag_write,
-            )
-            .await
-            .map_err(DBWriteError)?;
+            let write =
+                db::Write::new_local(whence, mutator_name, mutator_args, original_hash, dag_write)
+                    .await
+                    .map_err(DBWriteError)?;
             Transaction::Write(write)
         }
         None => {
@@ -240,6 +238,52 @@ async fn do_open<'a, 'b>(
     })
 }
 
+async fn validate_rebase<'a>(
+    opts: &'a RebaseOpts,
+    dag_read: dag::Read<'_>,
+    mutator_name: &'a str,
+    args: &'a any::Any,
+) -> Result<(), OpenTransactionError> {
+    use OpenTransactionError::*;
+
+    // TODO should we also enforce here that the basis is equal to the sync head?
+    let (_, original, _) = db::read_commit(db::Whence::Hash(opts.original_hash.clone()), &dag_read)
+        .await
+        .map_err(NoSuchOriginal)?;
+    match original.meta().typed() {
+        db::MetaTyped::Local(lm) => {
+            if lm.mutator_name() != mutator_name {
+                return Err(InconsistentMutator(format!(
+                    "original: {}, request: {}",
+                    lm.mutator_name(),
+                    mutator_name
+                )));
+            }
+            if lm.mutator_args_json() != args.serialize_json().as_bytes() {
+                return Err(InconsistentArgs(format!(
+                    "original: {}, request: {}",
+                    std::str::from_utf8(lm.mutator_args_json()).unwrap_or("<invalid>"),
+                    args.serialize_json()
+                )));
+            }
+        }
+        _ => return Err(ProgrammerError("Commit is not a local commit".to_string())),
+    };
+
+    let (_, basis, _) = db::read_commit(db::Whence::Hash(opts.basis.clone()), &dag_read)
+        .await
+        .map_err(NoSuchBasis)?;
+    if basis.next_mutation_id() != original.mutation_id() {
+        return Err(InconsistentMutationId(format!(
+            "original: {}, next: {}",
+            original.mutation_id(),
+            basis.next_mutation_id(),
+        )));
+    }
+
+    Ok(())
+}
+
 async fn do_commit<'a, 'b>(
     _: &'a dag::Store,
     txns: &'b TxnMap<'a>,
@@ -253,10 +297,18 @@ async fn do_commit<'a, 'b>(
         Transaction::Write(w) => Ok(w),
         Transaction::Read(_) => Err(TransactionIsReadOnly),
     }?;
-    txn.commit(db::DEFAULT_HEAD_NAME, "local-create-date")
+    let head_name = match txn.is_rebase() {
+        false => db::DEFAULT_HEAD_NAME,
+        true => sync::SYNC_HEAD_NAME,
+    };
+    let hash = txn
+        .commit(head_name, "local-create-date")
         .await
         .map_err(CommitError)?;
-    Ok(CommitTransactionResponse {})
+    Ok(CommitTransactionResponse {
+        hash,
+        retry_commit: false,
+    })
 }
 
 async fn do_abort<'a, 'b>(
@@ -276,10 +328,14 @@ async fn do_abort<'a, 'b>(
 async fn do_get_root<'a, 'b>(
     store: &'a dag::Store,
     _: &'b TxnMap<'a>,
-    _: GetRootRequest,
+    req: GetRootRequest,
 ) -> Result<GetRootResponse, GetRootError> {
+    let head_name = match req.head_name {
+        Some(name) => name,
+        None => db::DEFAULT_HEAD_NAME.to_string(),
+    };
     Ok(GetRootResponse {
-        root: db::get_root(store, db::DEFAULT_HEAD_NAME)
+        root: db::get_root(store, head_name.as_str())
             .await
             .map_err(GetRootError::DBError)?,
     })
@@ -357,13 +413,19 @@ enum OpenTransactionError {
     DagReadError(dag::Error),
     DBWriteError(db::ReadCommitError),
     DBReadError(db::ReadCommitError),
+    InconsistentMutationId(String),
+    InconsistentMutator(String),
+    InconsistentArgs(String),
+    NoSuchBasis(db::ReadCommitError),
+    NoSuchOriginal(db::ReadCommitError),
+    ProgrammerError(String),
 }
 
 #[derive(Debug)]
 enum CommitTransactionError {
     CommitError(db::CommitError),
-    UnknownTransaction,
     TransactionIsReadOnly,
+    UnknownTransaction,
 }
 
 #[derive(Debug)]

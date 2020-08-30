@@ -16,7 +16,7 @@ use std::default::Default;
 use std::fmt::Debug;
 use std::str::FromStr;
 
-const SYNC_HEAD_NAME: &str = "sync";
+pub const SYNC_HEAD_NAME: &str = "sync";
 
 pub async fn begin_sync(
     store: &dag::Store,

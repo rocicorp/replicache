@@ -102,16 +102,19 @@ impl Commit {
         self.commit().value_hash().unwrap()
     }
 
-    pub fn next_mutation_id(&self) -> u64 {
+    pub fn mutation_id(&self) -> u64 {
         let meta = self.commit().meta().unwrap();
-        let mid = match meta.typed_type() {
+        match meta.typed_type() {
             commit::MetaTyped::LocalMeta => meta.typed_as_local_meta().unwrap().mutation_id(),
             commit::MetaTyped::SnapshotMeta => {
                 meta.typed_as_snapshot_meta().unwrap().last_mutation_id()
             }
             commit::MetaTyped::NONE => unreachable!(),
-        };
-        mid + 1
+        }
+    }
+
+    pub fn next_mutation_id(&self) -> u64 {
+        self.mutation_id() + 1
     }
 
     fn validate(buffer: &[u8]) -> Result<(), LoadError> {

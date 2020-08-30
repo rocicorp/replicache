@@ -2,10 +2,9 @@ use crate::dag;
 use crate::embed::connection;
 use crate::kv::idbstore::IdbStore;
 use crate::kv::Store;
-use async_std::sync::{channel, Receiver, Sender};
+use async_std::sync::{channel, Mutex, Receiver, Sender};
 use log::warn;
 use std::collections::HashMap;
-use std::sync::Mutex;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures::spawn_local;
@@ -81,10 +80,7 @@ pub async fn dispatch(db_name: String, rpc: String, data: String) -> Response {
         data,
         response: tx,
     };
-    match SENDER.lock() {
-        Ok(v) => v.send(request).await,
-        Err(e) => return Err(e.to_string()),
-    }
+    SENDER.lock().await.send(request).await;
     match rx.recv().await {
         Err(e) => Err(e.to_string()),
         Ok(v) => v,

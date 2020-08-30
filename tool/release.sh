@@ -30,7 +30,8 @@ fi
     rm repc.zip
     rm -rf pkg
     wasm-pack build --profiling -t web -- --no-default-features
-    mv pkg/replicache_client_bg.wasm pkg/replicache_client_bg.debug.wasm
+    mv pkg/replicache_client_bg.wasm pkg/replicache_client_bg_debug.wasm
+    mv pkg/replicache_client_bg.d.ts pkg/replicache_client_bg_debug.d.ts
     wasm-pack build --release -t web -- --no-default-features
     brotli -f pkg/replicache_client.js pkg/replicache_client_bg.wasm
     zip -r pkg pkg

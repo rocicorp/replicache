@@ -1,10 +1,7 @@
 use super::dispatch::Request;
 use super::types::*;
 use crate::dag;
-use crate::db::{
-    init_db, CommitError, InitDBError, OwnedRead, Read, ReadCommitError, Whence, Write,
-    DEFAULT_HEAD_NAME,
-};
+use crate::db;
 use crate::fetch;
 use crate::sync;
 use async_fn::{AsyncFn2, AsyncFn3};
@@ -21,12 +18,12 @@ lazy_static! {
 }
 
 enum Transaction<'a> {
-    Read(OwnedRead<'a>),
-    Write(Write<'a>),
+    Read(db::OwnedRead<'a>),
+    Write(db::Write<'a>),
 }
 
 impl<'a> Transaction<'a> {
-    fn as_read(&self) -> Read {
+    fn as_read(&self) -> db::Read {
         match self {
             Transaction::Read(r) => r.as_read(),
             Transaction::Write(w) => w.as_read(),
@@ -60,6 +57,7 @@ async fn connection_future<'a, 'b>(
         Some(v) => v,
     };
     match req.rpc.as_str() {
+        "getRoot" => execute(do_get_root, store, txns, req).await,
         "has" => execute_in_txn(do_has, txns, req).await,
         "get" => execute_in_txn(do_get, txns, req).await,
         "put" => execute_in_txn(do_put, txns, req).await,
@@ -169,7 +167,7 @@ async fn execute<'a, 'b, T, S, F, E>(
 pub enum DoInitError {
     WriteError(dag::Error),
     GetHeadError(dag::Error),
-    InitDBError(InitDBError),
+    InitDBError(db::InitDBError),
 }
 
 async fn do_init(store: &dag::Store) -> Result<(), DoInitError> {
@@ -177,12 +175,12 @@ async fn do_init(store: &dag::Store) -> Result<(), DoInitError> {
     let dw = store.write().await.map_err(WriteError)?;
     if dw
         .read()
-        .get_head(DEFAULT_HEAD_NAME)
+        .get_head(db::DEFAULT_HEAD_NAME)
         .await
         .map_err(GetHeadError)?
         .is_none()
     {
-        init_db(dw, DEFAULT_HEAD_NAME, "local_create_date")
+        db::init_db(dw, db::DEFAULT_HEAD_NAME, "local_create_date")
             .await
             .map_err(InitDBError)?;
     }
@@ -209,11 +207,11 @@ async fn do_open<'a, 'b>(
                 None => (None, None),
             };
 
-            let head_name = basis.unwrap_or_else(|| DEFAULT_HEAD_NAME.to_string());
+            let head_name = basis.unwrap_or_else(|| db::DEFAULT_HEAD_NAME.to_string());
             let mutator_args = mutator_args.ok_or(ArgsRequired)?;
             let dag_write = store.write().await.map_err(DagWriteError)?;
-            let write = Write::new_local(
-                Whence::Head(head_name),
+            let write = db::Write::new_local(
+                db::Whence::Head(head_name),
                 mutator_name,
                 mutator_args,
                 original_hash,
@@ -225,10 +223,12 @@ async fn do_open<'a, 'b>(
         }
         None => {
             let dag_read = store.read().await.map_err(DagReadError)?;
-            let read =
-                OwnedRead::from_whence(Whence::Head(DEFAULT_HEAD_NAME.to_string()), dag_read)
-                    .await
-                    .map_err(DBReadError)?;
+            let read = db::OwnedRead::from_whence(
+                db::Whence::Head(db::DEFAULT_HEAD_NAME.to_string()),
+                dag_read,
+            )
+            .await
+            .map_err(DBReadError)?;
             Transaction::Read(read)
         }
     };
@@ -253,7 +253,7 @@ async fn do_commit<'a, 'b>(
         Transaction::Write(w) => Ok(w),
         Transaction::Read(_) => Err(TransactionIsReadOnly),
     }?;
-    txn.commit(DEFAULT_HEAD_NAME, "local-create-date")
+    txn.commit(db::DEFAULT_HEAD_NAME, "local-create-date")
         .await
         .map_err(CommitError)?;
     Ok(CommitTransactionResponse {})
@@ -271,6 +271,18 @@ async fn do_abort<'a, 'b>(
         .remove(&txn_id)
         .ok_or(UnknownTransaction)?;
     Ok(CloseTransactionResponse {})
+}
+
+async fn do_get_root<'a, 'b>(
+    store: &'a dag::Store,
+    _: &'b TxnMap<'a>,
+    _: GetRootRequest,
+) -> Result<GetRootResponse, GetRootError> {
+    Ok(GetRootResponse {
+        root: db::get_root(store, db::DEFAULT_HEAD_NAME)
+            .await
+            .map_err(GetRootError::DBError)?,
+    })
 }
 
 async fn do_has(txn: &RwLock<Transaction<'_>>, req: HasRequest) -> Result<HasResponse, String> {
@@ -333,17 +345,23 @@ async fn do_begin_sync<'a, 'b>(
 
 #[derive(Debug)]
 #[allow(clippy::enum_variant_names)]
+enum GetRootError {
+    DBError(db::GetRootError),
+}
+
+#[derive(Debug)]
+#[allow(clippy::enum_variant_names)]
 enum OpenTransactionError {
     ArgsRequired,
     DagWriteError(dag::Error),
     DagReadError(dag::Error),
-    DBWriteError(ReadCommitError),
-    DBReadError(ReadCommitError),
+    DBWriteError(db::ReadCommitError),
+    DBReadError(db::ReadCommitError),
 }
 
 #[derive(Debug)]
 enum CommitTransactionError {
-    CommitError(CommitError),
+    CommitError(db::CommitError),
     UnknownTransaction,
     TransactionIsReadOnly,
 }

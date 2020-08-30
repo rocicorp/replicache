@@ -265,6 +265,24 @@ async fn get_put() {
     assert_eq!(dispatch(db, "close", "").await.unwrap(), "");
 }
 
+#[wasm_bindgen_test]
+async fn get_root() {
+    let db = &random_db();
+    assert_eq!(dispatch(db, "open", "").await.unwrap(), "");
+    assert_eq!(
+        dispatch(db, "getRoot", "{}").await.unwrap(),
+        "{\"root\":\"b3l9pgiide3am771eu08kfgg5sprjs2e\"}"
+    );
+    let txn_id = open_transaction(db, "foo".to_string().into()).await;
+    put(db, txn_id, "foo", "bar").await;
+    let _ = commit(db, txn_id).await;
+    assert_eq!(
+        dispatch(db, "getRoot", "{}").await.unwrap(),
+        "{\"root\":\"ug6tod81n4l0fm8ob1iud4hetomibm02\"}"
+    );
+    assert_eq!(dispatch(db, "close", "").await.unwrap(), "");
+}
+
 // We can't run a web server in wasm-in-the-browser so this is the next
 // best thing: a manual test that FETCHES OVER THE NETWORK. To run it:
 // 1. uncomment the #[wasm_bindgen_test] line

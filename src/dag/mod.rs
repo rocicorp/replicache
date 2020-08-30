@@ -29,7 +29,7 @@ pub use read::{OwnedRead, Read};
 pub use store::Store;
 pub use write::Write;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error {
     Storage(kv::StoreError),
     CorruptStore,

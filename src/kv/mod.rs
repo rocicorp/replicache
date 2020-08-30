@@ -4,7 +4,7 @@ pub mod memstore;
 use async_trait::async_trait;
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum StoreError {
     Str(String),
 }

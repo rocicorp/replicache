@@ -45,6 +45,14 @@ pub struct CloseTransactionRequest {
 pub struct CloseTransactionResponse {}
 
 #[derive(DeJson)]
+pub struct GetRootRequest {}
+
+#[derive(DeJson, SerJson)]
+pub struct GetRootResponse {
+    pub root: String,
+}
+
+#[derive(DeJson)]
 pub struct HasRequest {
     #[nserde(rename = "transactionId")]
     pub transaction_id: u32,

@@ -1,11 +1,14 @@
 mod commit;
 mod commit_generated;
 mod read;
+mod root;
 mod scan;
 mod write;
 
 #[cfg(test)]
 pub mod test_helpers;
+
+pub use root::{get_root, GetRootError};
 
 pub use commit::{
     BaseSnapshotError, Commit, FromHashError, MetaTyped, ProgrammerError, DEFAULT_HEAD_NAME,

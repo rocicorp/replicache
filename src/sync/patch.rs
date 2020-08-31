@@ -22,10 +22,10 @@ pub fn apply(db_write: &mut db::Write, patch: &[Operation]) -> Result<(), PatchE
         if op.path[..1] != str!("/") {
             return Err(InvalidPath(op.path.clone()));
         }
-        // Strip first character from path.
+        // Strip first character from path and
         let mut chars = op.path.chars();
         chars.next();
-        let key = chars.as_str().as_bytes().to_vec();
+        let key = json_pointer_unescape(chars.as_str()).as_bytes().to_vec();
 
         match op.op.as_str() {
             OP_ADD | OP_REPLACE => {
@@ -45,6 +45,10 @@ pub fn apply(db_write: &mut db::Write, patch: &[Operation]) -> Result<(), PatchE
         };
     }
     Ok(())
+}
+
+fn json_pointer_unescape(s: &str) -> String {
+    s.replace("~1", "/").replace("~0", "~")
 }
 
 #[derive(Debug)]
@@ -127,6 +131,20 @@ mod tests {
                 exp_map: Some(map!("foo" => "\"bar\"",
                     "key" => "\"newvalue\"",
                     "baz" => "\"baz\"")),
+                exp_checksum: None,
+            },
+            Case {
+                name: "escape 1",
+                patch: vec![r#"{"op":"add","path":"/~1","valueString":"\"bar\""}"#],
+                exp_err: None,
+                exp_map: Some(map!("key" => "value", "/" => "\"bar\"")),
+                exp_checksum: None,
+            },
+            Case {
+                name: "escape 2",
+                patch: vec![r#"{"op":"add","path":"/~0","valueString":"\"bar\""}"#],
+                exp_err: None,
+                exp_map: Some(map!("key" => "value", "~" => "\"bar\"")),
                 exp_checksum: None,
             },
             Case {

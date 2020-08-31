@@ -6,7 +6,7 @@ use crate::checksum;
 use crate::checksum::Checksum;
 use crate::dag;
 use crate::db;
-use crate::db::{Commit, Whence, DEFAULT_HEAD_NAME};
+use crate::db::{Commit, MetaTyped, Whence, DEFAULT_HEAD_NAME};
 use crate::embed::types::*;
 use crate::fetch;
 use crate::fetch::errors::FetchError;
@@ -17,6 +17,15 @@ use std::fmt::Debug;
 use std::str::FromStr;
 
 pub const SYNC_HEAD_NAME: &str = "sync";
+
+#[derive(Debug, DeJson, SerJson)]
+pub struct Mutation {
+    id: u64,
+    name: String,
+    args: Vec<u8>,
+    #[nserde(skip_serializing_if = "Option::is_none")]
+    original: Option<String>,
+}
 
 pub async fn begin_sync(
     store: &dag::Store,
@@ -137,6 +146,114 @@ pub enum BeginSyncError {
     ReadError(dag::Error),
     TimeTravelProhibited(String),
     WrongChecksum(String),
+}
+
+pub async fn maybe_end_sync(
+    store: &dag::Store,
+    maybe_end_sync_req: &MaybeEndSyncRequest,
+) -> Result<MaybeEndSyncResponse, MaybeEndSyncError> {
+    use MaybeEndSyncError::*;
+
+    // Ensure sync head is what the caller thinks it is.
+    let mut dag_write = store.write().await.map_err(WriteError)?;
+    let dag_read = dag_write.read();
+    let sync_head_hash = dag_read
+        .get_head(SYNC_HEAD_NAME)
+        .await
+        .map_err(ReadError)?
+        .ok_or(MissingSyncHead)?;
+    if sync_head_hash != maybe_end_sync_req.sync_head {
+        return Err(WrongSyncHead);
+    }
+
+    // Ensure another sync has not landed a new snapshot on the main chain.
+    let sync_snapshot = Commit::base_snapshot(&sync_head_hash, &dag_read)
+        .await
+        .map_err(NoBaseSnapshot)?;
+    let main_head_hash = dag_read
+        .get_head(db::DEFAULT_HEAD_NAME)
+        .await
+        .map_err(ReadError)?
+        .ok_or(MissingMainHead)?;
+    let main_snapshot = Commit::base_snapshot(&main_head_hash, &dag_read)
+        .await
+        .map_err(NoBaseSnapshot)?;
+    let meta = sync_snapshot.meta();
+    let sync_snapshot_basis = meta.basis_hash().ok_or(SyncSnapshotWithNoBasis)?;
+    if sync_snapshot_basis != main_snapshot.chunk().hash() {
+        return Err(OverlappingSyncs);
+    }
+
+    // Collect pending commits from the main chain and determine which
+    // of them if any need to be replayed.
+    let mut pending = Commit::pending(&main_head_hash, &dag_read)
+        .await
+        .map_err(PendingError)?;
+    let sync_head = Commit::from_hash(&sync_head_hash, &dag_read)
+        .await
+        .map_err(LoadCommitError)?;
+    pending.retain(|c| c.mutation_id() > sync_head.mutation_id());
+    // pending() gave us the pending mutations in sync-head-first order whereas
+    // caller wants them in the order to replay (lower mutation ids first).
+    pending.reverse();
+
+    // Return replay commits if any.
+    if !pending.is_empty() {
+        let mut replay_mutations: Vec<Mutation> = Vec::new();
+        for c in pending {
+            let (name, args) = match c.meta().typed() {
+                MetaTyped::Local(lm) => (
+                    lm.mutator_name().to_string(),
+                    lm.mutator_args_json().to_vec(),
+                ),
+                _ => return Err(ProgrammerError("pending mutation is not local".to_string())),
+            };
+            replay_mutations.push(Mutation {
+                id: c.mutation_id(),
+                name,
+                args,
+                original: Some(c.chunk().hash().to_string()),
+            })
+        }
+        return Ok(MaybeEndSyncResponse {
+            sync_head: sync_head_hash,
+            replay_mutations,
+        });
+    }
+
+    // TODO check invariants
+
+    // No mutations to replay so set the main head to the sync head and sync complete!
+    dag_write
+        .set_head(db::DEFAULT_HEAD_NAME, Some(&sync_head_hash))
+        .await
+        .map_err(WriteError)?;
+    dag_write
+        .set_head(SYNC_HEAD_NAME, None)
+        .await
+        .map_err(WriteError)?;
+    dag_write.commit().await.map_err(CommitError)?;
+    Ok(MaybeEndSyncResponse {
+        sync_head: sync_head_hash.to_string(),
+        replay_mutations: Vec::new(),
+    })
+}
+
+#[derive(Debug)]
+pub enum MaybeEndSyncError {
+    CommitError(dag::Error),
+    InvalidArgs(std::str::Utf8Error),
+    LoadCommitError(db::FromHashError),
+    MissingMainHead,
+    MissingSyncHead,
+    NoBaseSnapshot(db::BaseSnapshotError),
+    OverlappingSyncs,
+    PendingError(db::PendingError),
+    ProgrammerError(String),
+    ReadError(dag::Error),
+    SyncSnapshotWithNoBasis,
+    WriteError(dag::Error),
+    WrongSyncHead,
 }
 
 #[derive(Debug, Default, PartialEq, SerJson)]
@@ -542,6 +659,158 @@ mod tests {
                     Ok(r.unwrap().clone())
                 }
             }
+        }
+    }
+
+    #[async_std::test]
+    async fn test_maybe_end_sync() {
+        use crate::util::nanoserde::any;
+
+        struct Case<'a> {
+            pub name: &'a str,
+            pub num_pending: usize,
+            pub num_needing_replay: usize,
+            pub intervening_sync: bool,
+            pub exp_replay_ids: Vec<u64>,
+            pub exp_err: Option<&'a str>,
+        }
+        let cases = [
+            Case {
+                name: "nothing pending",
+                num_pending: 0,
+                num_needing_replay: 0,
+                intervening_sync: false,
+                exp_replay_ids: vec![],
+                exp_err: None,
+            },
+            Case {
+                name: "2 pending but nothing to replay",
+                num_pending: 2,
+                num_needing_replay: 0,
+                intervening_sync: false,
+                exp_replay_ids: vec![],
+                exp_err: None,
+            },
+            Case {
+                name: "3 pending, 2 to replay",
+                num_pending: 3,
+                num_needing_replay: 2,
+                intervening_sync: false,
+                exp_replay_ids: vec![2, 3],
+                exp_err: None,
+            },
+            Case {
+                name: "another sync landed during replay",
+                num_pending: 0,
+                num_needing_replay: 0,
+                intervening_sync: true,
+                exp_replay_ids: vec![],
+                exp_err: Some("OverlappingSync"),
+            },
+        ];
+        for c in cases.iter() {
+            let store = dag::Store::new(Box::new(MemStore::new()));
+            let mut chain: Chain = vec![];
+            add_genesis(&mut chain, &store).await;
+            // Add pending commits to the main chain.
+            for _ in 0..c.num_pending {
+                add_local(&mut chain, &store).await;
+            }
+            if c.intervening_sync {
+                add_snapshot(&mut chain, &store, None).await;
+            }
+            let mut dag_write = store.write().await.unwrap();
+            dag_write
+                .set_head(
+                    db::DEFAULT_HEAD_NAME,
+                    Some(chain[chain.len() - 1].chunk().hash()),
+                )
+                .await
+                .unwrap();
+
+            // Add snapshot and replayed commits to the sync chain.
+            let w = db::Write::new_snapshot(
+                db::Whence::Hash(chain[0].chunk().hash().to_string()),
+                0,
+                str!("sync_ssid"),
+                dag_write,
+            )
+            .await
+            .unwrap();
+            let mut basis_hash = w.commit(SYNC_HEAD_NAME, "TODO local date").await.unwrap();
+
+            for i in 0..c.num_pending - c.num_needing_replay {
+                let chain_index = i + 1; // chain[0] is genesis
+                let original = &chain[chain_index];
+                let (mutator_name, mutator_args) = match original.meta().typed() {
+                    db::MetaTyped::Local(lm) => (
+                        lm.mutator_name().to_string(),
+                        any::Any::deserialize_json(
+                            std::str::from_utf8(lm.mutator_args_json()).unwrap(),
+                        )
+                        .unwrap(),
+                    ),
+                    _ => panic!("impossible"),
+                };
+                let w = db::Write::new_local(
+                    Whence::Hash(basis_hash),
+                    mutator_name,
+                    mutator_args,
+                    Some(original.chunk().hash().to_string()),
+                    store.write().await.unwrap(),
+                )
+                .await
+                .unwrap();
+                basis_hash = w.commit(SYNC_HEAD_NAME, "local_create_date").await.unwrap();
+            }
+            let sync_head = basis_hash;
+
+            let req = MaybeEndSyncRequest {
+                sync_id: str!("TODO"),
+                sync_head: sync_head.clone(),
+            };
+            let result = maybe_end_sync(&store, &req).await;
+
+            match c.exp_err {
+                Some(e) => assert!(format!("{:?}", result.unwrap_err()).contains(e)),
+                None => {
+                    assert!(result.is_ok(), format!("{}: {:?}", c.name, result));
+                    let resp = result.unwrap();
+                    assert_eq!(sync_head, resp.sync_head);
+                    assert_eq!(
+                        c.exp_replay_ids.len(),
+                        resp.replay_mutations.len(),
+                        "{}: expected {:?}, got {:?}",
+                        c.name,
+                        c.exp_replay_ids,
+                        &resp.replay_mutations
+                    );
+                    for i in 0..c.exp_replay_ids.len() {
+                        assert_eq!(c.exp_replay_ids[i], resp.replay_mutations[i].id);
+                        match chain[chain.len() - 1 - i].meta().typed() {
+                            db::MetaTyped::Local(lm) => {
+                                assert_eq!(lm.mutator_name(), resp.replay_mutations[i].name);
+                                let args_slice = &resp.replay_mutations[i].args[..];
+                                assert_eq!(lm.mutator_args_json(), args_slice);
+                            }
+                            _ => panic!("inconceivable"),
+                        };
+                    }
+
+                    // Check if we set the main head like we should have.
+                    if c.exp_replay_ids.len() == 0 {
+                        let owned_read = store.read().await.unwrap();
+                        let read = owned_read.read();
+                        assert_eq!(
+                            Some(sync_head),
+                            read.get_head(db::DEFAULT_HEAD_NAME).await.unwrap(),
+                            "{}",
+                            c.name
+                        );
+                        assert_eq!(None, read.get_head(SYNC_HEAD_NAME).await.unwrap());
+                    }
+                }
+            };
         }
     }
 

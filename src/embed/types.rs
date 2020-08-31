@@ -1,5 +1,6 @@
 #![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
 
+use crate::sync;
 use crate::util::nanoserde::any;
 use nanoserde::{DeJson, SerJson};
 use std::default::Default;
@@ -117,4 +118,21 @@ pub struct BeginSyncResponse {
     #[nserde(rename = "syncHead")]
     pub sync_head: String,
     // TODO SyncInfo db.SyncInfo `json:"syncInfo"`
+}
+
+#[derive(DeJson, SerJson)]
+pub struct MaybeEndSyncRequest {
+    // TODO return sync_id in sync_info in BeginSyncResponse.
+    #[nserde(rename = "syncID")]
+    pub sync_id: String,
+    #[nserde(rename = "syncHead")]
+    pub sync_head: String,
+}
+
+#[derive(Debug, DeJson, SerJson)]
+pub struct MaybeEndSyncResponse {
+    #[nserde(rename = "replayMutations")]
+    pub replay_mutations: Vec<sync::Mutation>,
+    #[nserde(rename = "syncHead")]
+    pub sync_head: String,
 }

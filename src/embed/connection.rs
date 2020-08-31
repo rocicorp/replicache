@@ -66,6 +66,7 @@ async fn connection_future<'a, 'b>(
         "commitTransaction" => execute(do_commit, store, txns, req).await,
         "closeTransaction" => execute(do_abort, store, txns, req).await,
         "beginSync" => execute(do_begin_sync, store, txns, req).await,
+        "maybeEndSync" => execute(do_maybe_end_sync, store, txns, req).await,
         "close" => {
             req.response.send(Ok("".into())).await;
             return UnorderedResult::Stop();
@@ -397,6 +398,15 @@ async fn do_begin_sync<'a, 'b>(
     let puller = sync::FetchPuller::new(&fetch_client);
     let begin_sync_response = sync::begin_sync(store, &puller, &req).await?;
     Ok(begin_sync_response)
+}
+
+async fn do_maybe_end_sync<'a, 'b>(
+    store: &'a dag::Store,
+    _: &'b TxnMap<'a>,
+    req: MaybeEndSyncRequest,
+) -> Result<MaybeEndSyncResponse, sync::MaybeEndSyncError> {
+    let maybe_end_sync_response = sync::maybe_end_sync(store, &req).await?;
+    Ok(maybe_end_sync_response)
 }
 
 #[derive(Debug)]

@@ -210,6 +210,30 @@ impl Commit {
         Ok(commit)
     }
 
+    // Vector returned in chain-head-first order.
+    pub async fn pending(
+        hash: &str,
+        dag_read: &dag::Read<'_>,
+    ) -> Result<Vec<Commit>, PendingError> {
+        use PendingError::*;
+        let mut commit = Commit::from_hash(hash, dag_read)
+            .await
+            .map_err(NoSuchCommit)?;
+        let mut commits = Vec::new();
+        while !commit.meta().is_snapshot() {
+            let meta = commit.meta();
+            let basis_hash = meta
+                .basis_hash()
+                .ok_or_else(|| NoBasis(format!("Commit {} has no basis", commit.chunk.hash())))?
+                .to_string();
+            commits.push(commit);
+            commit = Commit::from_hash(&basis_hash, dag_read)
+                .await
+                .map_err(NoSuchCommit)?;
+        }
+        Ok(commits)
+    }
+
     // Parts are (last_mutation_id, server_state_id).
     pub fn snapshot_meta_parts(c: &Commit) -> Result<(u64, String), ProgrammerError> {
         match c.meta().typed() {
@@ -223,6 +247,12 @@ impl Commit {
 
 #[derive(Debug)]
 pub enum BaseSnapshotError {
+    NoBasis(String),
+    NoSuchCommit(FromHashError),
+}
+
+#[derive(Debug)]
+pub enum PendingError {
     NoBasis(String),
     NoSuchCommit(FromHashError),
 }
@@ -261,6 +291,10 @@ impl<'a> Meta<'a> {
             MetaTyped::Local(_) => false,
             MetaTyped::Snapshot(_) => true,
         }
+    }
+
+    pub fn is_local(&self) -> bool {
+        !self.is_snapshot()
     }
 }
 
@@ -408,6 +442,32 @@ mod tests {
             .chunk()
             .hash()
         );
+    }
+
+    #[async_std::test]
+    async fn test_pending() {
+        let store = dag::Store::new(Box::new(MemStore::new()));
+        let mut chain: Chain = vec![];
+
+        add_genesis(&mut chain, &store).await;
+        let genesis_hash = chain[0].chunk().hash();
+        assert_eq!(
+            0,
+            Commit::pending(genesis_hash, &store.read().await.unwrap().read())
+                .await
+                .unwrap()
+                .len()
+        );
+
+        add_local(&mut chain, &store).await;
+        add_local(&mut chain, &store).await;
+        let head_hash = chain[2].chunk().hash();
+        let commits = Commit::pending(head_hash, &store.read().await.unwrap().read())
+            .await
+            .unwrap();
+        assert_eq!(2, commits.len());
+        assert_eq!(chain[2], commits[0]);
+        assert_eq!(chain[1], commits[1]);
     }
 
     #[test]

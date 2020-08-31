@@ -10,6 +10,7 @@ use crate::db::{Commit, MetaTyped, Whence, DEFAULT_HEAD_NAME};
 use crate::embed::types::*;
 use crate::fetch;
 use crate::fetch::errors::FetchError;
+use crate::util::nanoserde::any;
 use async_trait::async_trait;
 use nanoserde::{DeJson, DeJsonErr, SerJson};
 use std::default::Default;
@@ -22,7 +23,7 @@ pub const SYNC_HEAD_NAME: &str = "sync";
 pub struct Mutation {
     id: u64,
     name: String,
-    args: Vec<u8>,
+    args: any::Any,
     #[nserde(skip_serializing_if = "Option::is_none")]
     original: Option<String>,
 }
@@ -204,7 +205,11 @@ pub async fn maybe_end_sync(
             let (name, args) = match c.meta().typed() {
                 MetaTyped::Local(lm) => (
                     lm.mutator_name().to_string(),
-                    lm.mutator_args_json().to_vec(),
+                    any::Any::deserialize_json(
+                        std::str::from_utf8(lm.mutator_args_json())
+                            .map_err(InternalArgsUtf8Error)?,
+                    )
+                    .map_err(InternalArgsJsonError)?,
                 ),
                 _ => return Err(ProgrammerError("pending mutation is not local".to_string())),
             };
@@ -242,6 +247,8 @@ pub async fn maybe_end_sync(
 #[derive(Debug)]
 pub enum MaybeEndSyncError {
     CommitError(dag::Error),
+    InternalArgsJsonError(DeJsonErr),
+    InternalArgsUtf8Error(std::str::Utf8Error),
     InvalidArgs(std::str::Utf8Error),
     LoadCommitError(db::FromHashError),
     MissingMainHead,
@@ -790,8 +797,12 @@ mod tests {
                         match chain[chain.len() - 1 - i].meta().typed() {
                             db::MetaTyped::Local(lm) => {
                                 assert_eq!(lm.mutator_name(), resp.replay_mutations[i].name);
-                                let args_slice = &resp.replay_mutations[i].args[..];
-                                assert_eq!(lm.mutator_args_json(), args_slice);
+                                let got_args = &resp.replay_mutations[i].args;
+                                let exp_args = any::Any::deserialize_json(
+                                    std::str::from_utf8(lm.mutator_args_json()).unwrap(),
+                                )
+                                .unwrap();
+                                assert_eq!(&exp_args, got_args);
                             }
                             _ => panic!("inconceivable"),
                         };

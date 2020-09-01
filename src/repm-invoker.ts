@@ -101,9 +101,11 @@ type TransactionRequest = {
 
 export type ScanRequest = TransactionRequest &
   ScanOptions & {
-    limit?: number;
+    opts?: ScanOptions,
   };
-export type ScanResponse = ScanItem[];
+export type ScanResponse = ScanItem[] | {
+  items: ScanItem[],
+};
 
 type PutRequest = TransactionRequest & {
   key: string;

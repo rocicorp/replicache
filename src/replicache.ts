@@ -274,7 +274,7 @@ export default class Replicache implements ReadTransaction {
       }
     }
 
-    const {batchPushInfo} = syncInfo;
+    const {batchPushInfo} = {...syncInfo};
     if (batchPushInfo) {
       checkStatus(batchPushInfo, 'batch');
       const mutationInfos = batchPushInfo.batchPushResponse.mutationInfos;
@@ -287,7 +287,10 @@ export default class Replicache implements ReadTransaction {
       }
     }
 
-    checkStatus(syncInfo.clientViewInfo, 'client view');
+    const {clientViewInfo} = {...syncInfo};
+    if (clientViewInfo) {
+      checkStatus(syncInfo.clientViewInfo, 'client view');
+    }
 
     if (reauth && this.getDataLayerAuth) {
       const dataLayerAuth = await this.getDataLayerAuth();

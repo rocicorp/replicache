@@ -61,6 +61,7 @@ async fn connection_future<'a, 'b>(
         "getRoot" => execute(do_get_root, store, txns, req).await,
         "has" => execute_in_txn(do_has, txns, req).await,
         "get" => execute_in_txn(do_get, txns, req).await,
+        "scan" => execute_in_txn(do_scan, txns, req).await,
         "put" => execute_in_txn(do_put, txns, req).await,
         "openTransaction" => execute(do_open_transaction, store, txns, req).await,
         "commitTransaction" => execute(do_commit, store, txns, req).await,
@@ -378,6 +379,15 @@ async fn do_get(txn: &RwLock<Transaction<'_>>, req: GetRequest) -> Result<GetRes
     })
 }
 
+async fn do_scan(txn: &RwLock<Transaction<'_>>, req: ScanRequest) -> Result<ScanResponse, String> {
+    use std::convert::TryFrom;
+    let mut res = Vec::<ScanItem>::new();
+    for pe in txn.read().await.as_read().scan((&req.opts).into()) {
+        res.push(ScanItem::try_from(pe).map_err(|e| format!("{:?}", e))?);
+    }
+    Ok(ScanResponse { items: res })
+}
+
 async fn do_put(txn: &RwLock<Transaction<'_>>, req: PutRequest) -> Result<PutResponse, String> {
     let mut guard = txn.write().await;
     let write = match &mut *guard {
@@ -459,4 +469,5 @@ macro_rules! impl_transaction_request {
 
 impl_transaction_request!(HasRequest);
 impl_transaction_request!(GetRequest);
+impl_transaction_request!(ScanRequest);
 impl_transaction_request!(PutRequest);

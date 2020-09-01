@@ -79,7 +79,6 @@ impl<'a> Read<'a> {
         self.map.get(key)
     }
 
-    #[allow(dead_code)]
     pub fn scan(&'a self, opts: super::ScanOptions<'a>) -> impl Iterator<Item = prolly::Entry<'a>> {
         super::scan::scan(&self.map, opts)
     }

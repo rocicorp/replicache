@@ -1,13 +1,13 @@
 use crate::prolly;
 
 pub struct ScanKey<'a> {
-    value: &'a [u8],
-    exclusive: bool,
+    pub value: &'a [u8],
+    pub exclusive: bool,
 }
 
 pub struct ScanBound<'a> {
-    key: Option<ScanKey<'a>>,
-    index: Option<u64>,
+    pub key: Option<ScanKey<'a>>,
+    pub index: Option<u64>,
 }
 
 pub struct ScanOptions<'a> {
@@ -15,9 +15,9 @@ pub struct ScanOptions<'a> {
     // complexity and isn't *that* valuable as a feature, but it was what the Go
     // implementation did and was ported faithfully. It could probably be removed if it
     // starts getting in the way and no customers need it.
-    prefix: Option<&'a [u8]>,
-    start: Option<ScanBound<'a>>,
-    limit: Option<u64>,
+    pub prefix: Option<&'a [u8]>,
+    pub start: Option<ScanBound<'a>>,
+    pub limit: Option<u64>,
 }
 
 pub fn scan<'a>(

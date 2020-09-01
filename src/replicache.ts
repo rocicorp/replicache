@@ -429,7 +429,7 @@ export default class Replicache implements ReadTransaction {
    * This returns a function that can be used to cancel the subscription.
    *
    * If an error occurs in the `body` the `onError` function is called if
-   * present.
+   * present. Otherwise, the error is thrown.
    */
   subscribe<R, E>(
     body: (tx: ReadTransaction) => Promise<R>,
@@ -450,7 +450,11 @@ export default class Replicache implements ReadTransaction {
         const res = await this.query(s.body);
         s.onData(res);
       } catch (ex) {
-        s.onError?.(ex);
+        if (s.onError) {
+          s.onError(ex);
+        } else {
+          throw ex;
+        }
       }
     })();
     return (): void => {

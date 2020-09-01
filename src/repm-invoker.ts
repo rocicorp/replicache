@@ -59,7 +59,8 @@ export class REPMWASMInvoker {
     this._inited = (async () => {
       // TODO: Have to import dynamically to hide this from Jest.
       // Jest cannot parse the es6 behind this import, I don't know why.
-      let { default: init, dispatch } = await import('./wasm/replicache_client');
+      // TODO: We need to have some way to switch between debug and release.
+      let { default: init, dispatch } = await import('./wasm/debug/replicache_client');
       this._dispatch = dispatch;
       return init(wasm_module);
     })();

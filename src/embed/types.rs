@@ -196,6 +196,9 @@ pub struct BeginSyncRequest {
     pub diff_server_auth: String,
 }
 
+// If BeginSync did not pull new state then sync_head will be empty and the sync
+// is complete: the caller should not call MaybeEndSync. If sync_head is present
+// then it pulled new state and the caller should proceed to call MaybeEndSync.
 #[derive(Debug, Default, DeJson, SerJson)]
 pub struct BeginSyncResponse {
     #[nserde(rename = "syncHead")]
@@ -214,6 +217,9 @@ pub struct MaybeEndSyncRequest {
     pub sync_head: String,
 }
 
+// If replay_mutations is empty then there are no pending mutations to replay
+// and sync is complete. If replay_mutations is not empty the returned mutations
+// should be replayed and MaybeEndSync invoked again.
 #[derive(Debug, DeJson, SerJson)]
 pub struct MaybeEndSyncResponse {
     #[nserde(rename = "replayMutations")]

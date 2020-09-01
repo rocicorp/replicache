@@ -1,5 +1,7 @@
 #![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
 
+use crate::db;
+use crate::prolly;
 use crate::sync;
 use crate::util::nanoserde::any;
 use nanoserde::{DeJson, SerJson};
@@ -88,6 +90,87 @@ pub struct GetRequest {
 pub struct GetResponse {
     pub value: Option<String>,
     pub has: bool, // Second to avoid trailing comma if value == None.
+}
+
+#[derive(DeJson)]
+pub struct ScanKey {
+    value: String,
+    exclusive: bool,
+}
+
+impl<'a> From<&'a ScanKey> for db::ScanKey<'a> {
+    fn from(source: &'a ScanKey) -> db::ScanKey<'a> {
+        db::ScanKey {
+            value: source.value.as_bytes(),
+            exclusive: source.exclusive,
+        }
+    }
+}
+
+#[derive(DeJson)]
+pub struct ScanBound {
+    key: Option<ScanKey>,
+    index: Option<u64>,
+}
+
+impl<'a> From<&'a ScanBound> for db::ScanBound<'a> {
+    fn from(source: &'a ScanBound) -> db::ScanBound<'a> {
+        db::ScanBound {
+            key: source.key.as_ref().map(|key| key.into()),
+            index: source.index,
+        }
+    }
+}
+
+#[derive(DeJson)]
+pub struct ScanOptions {
+    prefix: Option<String>,
+    start: Option<ScanBound>,
+    limit: Option<u64>,
+}
+
+impl<'a> From<&'a ScanOptions> for db::ScanOptions<'a> {
+    fn from(source: &'a ScanOptions) -> db::ScanOptions<'a> {
+        db::ScanOptions {
+            prefix: source.prefix.as_ref().map(|s| s.as_bytes()),
+            start: source.start.as_ref().map(|s| s.into()),
+            limit: source.limit,
+        }
+    }
+}
+
+#[derive(DeJson)]
+pub struct ScanRequest {
+    #[nserde(rename = "transactionId")]
+    pub transaction_id: u32,
+    pub opts: ScanOptions,
+}
+
+#[derive(SerJson)]
+pub struct ScanItem {
+    key: String,
+    value: String,
+}
+
+#[derive(Debug)]
+pub enum FromProllyEntryError {
+    BadUTF8(std::string::FromUtf8Error),
+}
+
+impl<'a> std::convert::TryFrom<prolly::Entry<'a>> for ScanItem {
+    fn try_from(entry: prolly::Entry) -> Result<Self, Self::Error> {
+        use FromProllyEntryError::*;
+        Ok(Self {
+            key: String::from_utf8(entry.key.to_vec()).map_err(BadUTF8)?,
+            value: String::from_utf8(entry.val.to_vec()).map_err(BadUTF8)?,
+        })
+    }
+    type Error = FromProllyEntryError;
+}
+
+#[derive(SerJson)]
+pub struct ScanResponse {
+    pub items: Vec<ScanItem>,
 }
 
 #[derive(DeJson)]

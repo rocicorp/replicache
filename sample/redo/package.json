@@ -73,7 +73,7 @@
   "scripts": {
     "start": "node scripts/start.js",
     "build": "node scripts/build.js",
-    "prebuild": "pushd node_modules/replicache/out/wasm; ls *.wasm | xargs -I{} cp {} {}.awsm; popd",
+    "prebuild": "pushd node_modules/replicache/out/wasm/debug; ls *.wasm | xargs -I{} cp {} {}.awsm; popd",
     "test": "node scripts/test.js"
   },
   "eslintConfig": {

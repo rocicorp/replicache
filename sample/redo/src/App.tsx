@@ -15,9 +15,9 @@ import type {LoginResult} from './login';
 import {List} from './List';
 import {newOrderBetween} from './order';
 
-const repmInvoke = process.env.REACT_APP_WASM_INVOKE == '' ?
-  new REPMHTTPInvoker('http://localhost:7002').invoke :
-  new REPMWASMInvoker(fetch(String(wasm_path))).invoke;
+const repmInvoke = process.env.REACT_APP_WASM_INVOKE ?
+  new REPMWASMInvoker(fetch(String(wasm_path))).invoke :
+  new REPMHTTPInvoker('http://localhost:7002').invoke;
 
 export interface MutationFunctions {
   createTodo: Mutator<void, Todo>;

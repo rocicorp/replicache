@@ -214,6 +214,14 @@ struct WriteTransaction<'a> {
     callbacks: Vec<Closure<dyn FnMut()>>,
 }
 
+impl std::ops::Drop for WriteTransaction<'_> {
+    fn drop(&mut self) {
+        self.tx.set_oncomplete(None);
+        self.tx.set_onabort(None);
+        self.tx.set_onerror(None);
+    }
+}
+
 impl WriteTransaction<'_> {
     fn new(db: RwLockWriteGuard<'_, IdbDatabase>, tx: IdbTransaction) -> Result<WriteTransaction> {
         let mut wt = WriteTransaction {

@@ -8,7 +8,7 @@ import Replicache, {
   WriteTransaction,
   Mutator,
 } from 'replicache';
-import wasm_path from 'replicache/out/wasm/replicache_client_bg';
+import wasm_path from 'replicache/out/wasm/debug/replicache_client_bg';
 import {diffServerURL, diffServerAuth, batchURL} from './settings';
 import {LoginScreen, logout} from './login';
 import type {LoginResult} from './login';
@@ -16,8 +16,8 @@ import {List} from './List';
 import {newOrderBetween} from './order';
 
 const repmInvoke = process.env.REACT_APP_WASM_INVOKE == '' ?
-    new REPMHTTPInvoker('http://localhost:7002').invoke :
-    new REPMWASMInvoker(fetch(String(wasm_path))).invoke ;
+  new REPMHTTPInvoker('http://localhost:7002').invoke :
+  new REPMWASMInvoker(fetch(String(wasm_path))).invoke;
 
 export interface MutationFunctions {
   createTodo: Mutator<void, Todo>;
@@ -209,7 +209,7 @@ function registerMutations(rep: Replicache) {
       if (!todo) {
         console.info(
           'Warning: Possible conflict - Specified Todo $id is not present.' +
-            ' Skipping reorder.',
+          ' Skipping reorder.',
         );
         return;
       }

@@ -259,6 +259,7 @@ export default class Replicache implements ReadTransaction {
 
     let reauth = false;
 
+    // TODO:(repc-switchover): checkStatus only used by replicache-client.
     function checkStatus(
       data: {httpStatusCode?: number; errorMessage?: string},
       serverName: string,

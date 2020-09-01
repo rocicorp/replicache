@@ -130,14 +130,31 @@ export class ScanIterator<V> implements AsyncIterableIterator<V> {
       this._transaction = await this._getTransaction();
     }
 
-    const scanItems = await this._invoke('scan', {
+    const response = await this._invoke('scan', {
       transactionId: this._transaction.id,
+      // TODO(repc-switchover): The next three keys can be removed.
+      // They are only needed for replicache-client.
       prefix: this._prefix,
       start,
       limit: scanPageSize,
+      opts: {
+        prefix: this._prefix,
+        start,
+        limit: scanPageSize,
+      },
     });
+    // TODO(repc-switchover): only the !array path is needed for repc.
+    const scanItems = Array.isArray(response) ? response : response.items;
     if (scanItems.length !== scanPageSize) {
       this._moreItemsToLoad = false;
+    }
+    // TODO(repc-switchover): we should always do this parsing for repc.
+    const isRepc = !Array.isArray(response);
+    if (isRepc) {
+      for (var item of scanItems) {
+        // Temporarily circument the readonly-ness of item.value to parse.
+        (item as any).value = JSON.parse(item.value as string);
+      }
     }
     this._scanItems.push(...scanItems);
   }

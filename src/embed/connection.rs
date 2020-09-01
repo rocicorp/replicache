@@ -97,7 +97,7 @@ pub async fn process(store: dag::Store, rx: Receiver<Request>) {
         }
         match value {
             UnorderedResult::Request(value) => match value {
-                Err(why) => warn!("Dispatch loop recv failed: {}", why),
+                Err(why) => warn!("Connection loop recv failed: {}", why),
                 Ok(req) => {
                     futures.push(connection_future(&rx, &store, &txns, Some(req)));
                 }

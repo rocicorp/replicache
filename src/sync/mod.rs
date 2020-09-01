@@ -57,6 +57,7 @@ pub async fn begin_sync(
         client_id: "TODO".to_string(),
         base_state_id: base_state_id.clone(),
         checksum: base_checksum.clone(),
+        version: 1,
     };
     let sync_id = "TODO";
     let pull_resp = puller
@@ -273,6 +274,7 @@ pub struct PullRequest {
     pub base_state_id: String,
     #[nserde(rename = "checksum")]
     pub checksum: String,
+    pub version: u32,
 }
 
 #[derive(Clone, Debug, Default, DeJson, PartialEq)]
@@ -393,6 +395,7 @@ mod tests {
             Commit::snapshot_meta_parts(base_snapshot).unwrap();
         let base_checksum = base_snapshot.meta().checksum().to_string();
 
+        let version = 1u32;
         let client_view_auth = str!("client_view_auth");
         let client_id = str!("TODO");
         let diff_server_url = str!("diff_server_url");
@@ -442,6 +445,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    version: 1,
                 },
                 pull_result: Ok(good_pull_resp.clone()),
                 exp_err: None,
@@ -462,6 +466,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    version: 1,
                 },
                 pull_result: Ok(PullResponse {
                     state_id: base_server_state_id.clone(),
@@ -479,6 +484,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    version: 1,
                 },
                 pull_result: Ok(PullResponse {
                     last_mutation_id: 0,
@@ -494,6 +500,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    version: 1,
                 },
                 pull_result: Ok(PullResponse {
                     state_id: str!(""),
@@ -509,6 +516,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    version: 1,
                 },
                 pull_result: Ok(PullResponse {
                     checksum: str!(""),
@@ -524,6 +532,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    version: 1,
                 },
                 pull_result: Ok(PullResponse {
                     checksum: str!(12345678),
@@ -539,6 +548,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    version: 1,
                 },
                 pull_result: Err(str!("FetchNotOk")),
                 exp_err: Some("FetchNotOk(500)"),
@@ -833,6 +843,7 @@ mod tests {
                 client_id: str!("TODO"),
                 base_state_id: str!("base-state-id"),
                 checksum: str!("00000000"),
+                version: 1,
             };
             // EXP_BODY must be 'static to be used in HTTP handler closure.
             static ref EXP_BODY: String = SerJson::serialize_json(&*PULL_REQ);

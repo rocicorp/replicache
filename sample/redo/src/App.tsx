@@ -49,7 +49,7 @@ function App() {
       batchURL,
       repmInvoke,
     });
-    r.syncInterval = 1000;
+    r.syncInterval = 60 * 1000;
     setRep(r);
     setMutations(registerMutations(r));
     return () => {

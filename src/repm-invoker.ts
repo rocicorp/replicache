@@ -46,7 +46,7 @@ export class REPMHTTPInvoker {
     }
     throw new Error(
       `Test server failed: ${resp.status} ${
-        resp.statusText
+      resp.statusText
       }: ${await resp.text()}`,
     );
   };
@@ -60,7 +60,7 @@ export class REPMWASMInvoker {
       // TODO: Have to import dynamically to hide this from Jest.
       // Jest cannot parse the es6 behind this import, I don't know why.
       // TODO: We need to have some way to switch between debug and release.
-      let { default: init, dispatch } = await import('./wasm/debug/replicache_client');
+      let {default: init, dispatch} = await import('./wasm/debug/replicache_client');
       this._dispatch = dispatch;
       return init(wasm_module);
     })();
@@ -71,8 +71,12 @@ export class REPMWASMInvoker {
     rpc: string,
     args: JSONValue | ToJSON = {},
   ): Promise<JSONValue> => {
+    console.debug(">", dbName, rpc, args);
     await this._inited;
-    return await this._dispatch!(dbName, rpc, JSON.stringify(args));
+    const json = await this._dispatch!(dbName, rpc, JSON.stringify(args));
+    const ret = json == '' ? null : JSON.parse(json);
+    console.debug("<", dbName, rpc, ret);
+    return ret;
   };
 }
 
@@ -113,9 +117,9 @@ type DelResponse = {ok: boolean};
 type RebaseOpts =
   | Record<string, unknown>
   | {
-      basis: string;
-      original: string;
-    };
+    basis: string;
+    original: string;
+  };
 
 export type OpenTransactionRequest = {
   name?: string;
@@ -132,12 +136,12 @@ type CloseTransactionResponse = unknown;
 type CommitTransactionRequest = TransactionRequest;
 export type CommitTransactionResponse =
   | {
-      retryCommit: false;
-      ref: string;
-    }
+    retryCommit: false;
+    ref: string;
+  }
   | {
-      retryCommit: true;
-    };
+    retryCommit: true;
+  };
 
 type BeginSyncRequest = {
   batchPushURL: string;

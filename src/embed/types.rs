@@ -117,7 +117,9 @@ pub struct BeginSyncRequest {
 pub struct BeginSyncResponse {
     #[nserde(rename = "syncHead")]
     pub sync_head: String,
-    // TODO SyncInfo db.SyncInfo `json:"syncInfo"`
+    #[nserde(rename = "syncInfo")]
+    pub sync_info: sync::SyncInfo,
+    // TODO Fill in the rest of SyncInfo
 }
 
 #[derive(DeJson, SerJson)]

@@ -126,6 +126,9 @@ pub async fn begin_sync(
 
     let resp = BeginSyncResponse {
         sync_head: commit_hash,
+        sync_info: SyncInfo {
+            sync_id: sync_id.to_string(),
+        },
     };
 
     Ok(resp)
@@ -264,6 +267,12 @@ pub enum MaybeEndSyncError {
     WrongSyncHead,
 }
 
+#[derive(Debug, Default, DeJson, SerJson)]
+pub struct SyncInfo {
+    #[nserde(rename = "syncID")]
+    pub sync_id: String,
+}
+
 #[derive(Debug, Default, PartialEq, SerJson)]
 pub struct PullRequest {
     #[nserde(rename = "clientViewAuth")]
@@ -395,7 +404,6 @@ mod tests {
             Commit::snapshot_meta_parts(base_snapshot).unwrap();
         let base_checksum = base_snapshot.meta().checksum().to_string();
 
-        let version = 1u32;
         let client_view_auth = str!("client_view_auth");
         let client_id = str!("TODO");
         let diff_server_url = str!("diff_server_url");

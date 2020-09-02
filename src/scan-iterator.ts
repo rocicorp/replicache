@@ -26,6 +26,7 @@ export type ScanIterableKind = 'key' | 'value' | 'entry';
  * An async iterator that is used with {@link ReadTransaction.scan}.
  */
 export class ScanIterator<V> implements AsyncIterableIterator<V> {
+  private readonly _isWASM: boolean;
   private readonly _scanItems: ScanItem[] = [];
   private _current = 0;
   private _moreItemsToLoad = true;
@@ -39,6 +40,7 @@ export class ScanIterator<V> implements AsyncIterableIterator<V> {
   private readonly _invoke: Invoke;
 
   constructor(
+    isWASM: boolean,
     kind: ScanIterableKind,
     prefix: string,
     start: ScanBound | undefined,
@@ -46,6 +48,7 @@ export class ScanIterator<V> implements AsyncIterableIterator<V> {
     getTransaction: () => Promise<IdCloser> | IdCloser,
     shouldCloseTranscation: boolean,
   ) {
+    this._isWASM = isWASM;
     this._kind = kind;
     this._prefix = prefix;
     this._start = start;
@@ -130,27 +133,22 @@ export class ScanIterator<V> implements AsyncIterableIterator<V> {
       this._transaction = await this._getTransaction();
     }
 
-    const response = await this._invoke('scan', {
-      transactionId: this._transaction.id,
-      // TODO(repc-switchover): The next three keys can be removed.
-      // They are only needed for replicache-client.
+    const opts = {
       prefix: this._prefix,
       start,
       limit: scanPageSize,
-      opts: {
-        prefix: this._prefix,
-        start,
-        limit: scanPageSize,
-      },
-    });
+    };
+    const args = {
+      transactionId: this._transaction.id,
+      ...(this._isWASM ? {opts} : opts),
+    };
+    const response = await this._invoke('scan', args);
     // TODO(repc-switchover): only the !array path is needed for repc.
     const scanItems = Array.isArray(response) ? response : response.items;
     if (scanItems.length !== scanPageSize) {
       this._moreItemsToLoad = false;
     }
-    // TODO(repc-switchover): we should always do this parsing for repc.
-    const isRepc = !Array.isArray(response);
-    if (isRepc) {
+    if (this._isWASM) {
       for (var item of scanItems) {
         // Temporarily circument the readonly-ness of item.value to parse.
         (item as any).value = JSON.parse(item.value as string);
@@ -161,6 +159,7 @@ export class ScanIterator<V> implements AsyncIterableIterator<V> {
 }
 
 export class ScanResult implements AsyncIterable<JSONValue> {
+  private readonly _isWASM: boolean;
   private readonly _args: [
     string,
     ScanBound | undefined,
@@ -170,6 +169,7 @@ export class ScanResult implements AsyncIterable<JSONValue> {
   ];
 
   constructor(
+    isWASM: boolean,
     ...args: [
       string,
       ScanBound | undefined,
@@ -178,6 +178,7 @@ export class ScanResult implements AsyncIterable<JSONValue> {
       boolean,
     ]
   ) {
+    this._isWASM = isWASM;
     this._args = args;
   }
 
@@ -186,18 +187,18 @@ export class ScanResult implements AsyncIterable<JSONValue> {
   }
 
   values(): AsyncIterableIterator<JSONValue> {
-    return this._newIterator('value');
+    return this._newIterator(this._isWASM, 'value');
   }
 
   keys(): AsyncIterableIterator<string> {
-    return this._newIterator('key');
+    return this._newIterator(this._isWASM, 'key');
   }
 
   entries(): AsyncIterableIterator<[string, JSONValue]> {
-    return this._newIterator('entry');
+    return this._newIterator(this._isWASM, 'entry');
   }
 
-  private _newIterator<V>(kind: ScanIterableKind): AsyncIterableIterator<V> {
-    return new ScanIterator<V>(kind, ...this._args);
+  private _newIterator<V>(isWASM: boolean, kind: ScanIterableKind): AsyncIterableIterator<V> {
+    return new ScanIterator<V>(isWASM, kind, ...this._args);
   }
 }

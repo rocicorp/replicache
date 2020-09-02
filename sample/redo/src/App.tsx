@@ -15,9 +15,9 @@ import type {LoginResult} from './login';
 import {List} from './List';
 import {newOrderBetween} from './order';
 
-const repmInvoke = process.env.REACT_APP_WASM_INVOKE ?
-  new REPMWASMInvoker(fetch(String(wasm_path))).invoke :
-  new REPMHTTPInvoker('http://localhost:7002').invoke;
+const repmInvoker = process.env.REACT_APP_WASM_INVOKE ?
+  new REPMWASMInvoker(fetch(String(wasm_path))) :
+  new REPMHTTPInvoker('http://localhost:7002');
 
 export interface MutationFunctions {
   createTodo: Mutator<void, Todo>;
@@ -47,7 +47,7 @@ function App() {
       dataLayerAuth: loginResult.userId,
       diffServerAuth,
       batchURL,
-      repmInvoke,
+      repmInvoker,
     });
     r.syncInterval = 60 * 1000;
     setRep(r);

@@ -224,7 +224,9 @@ async function replicacheForTesting(
     diffServerAuth,
     diffServerURL,
     name,
-    repmInvoke: invoke,
+    repmInvoker: {
+      invoke,
+    },
   });
 }
 
@@ -848,7 +850,7 @@ test('syncInterval in constructor', async () => {
   await useReplay('syncInterval in constructor');
   const rep = new Replicache({
     syncInterval: 12.34,
-    repmInvoke: invoke,
+    repmInvoker: {invoke},
     diffServerURL: 'xxx',
   });
   expect(rep.syncInterval).toBe(12.34);

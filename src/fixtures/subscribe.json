@@ -40,11 +40,7 @@
     "args": {
       "transactionId": 1,
       "prefix": "a/",
-      "limit": 4,
-      "opts": {
-        "prefix": "a/",
-        "limit": 4
-      }
+      "limit": 4
     },
     "result": []
   },
@@ -90,11 +86,7 @@
     "args": {
       "transactionId": 3,
       "prefix": "a/",
-      "limit": 4,
-      "opts": {
-        "prefix": "a/",
-        "limit": 4
-      }
+      "limit": 4
     },
     "result": [
       {
@@ -158,11 +150,7 @@
     "args": {
       "transactionId": 5,
       "prefix": "a/",
-      "limit": 4,
-      "opts": {
-        "prefix": "a/",
-        "limit": 4
-      }
+      "limit": 4
     },
     "result": [
       {
@@ -226,11 +214,7 @@
     "args": {
       "transactionId": 7,
       "prefix": "a/",
-      "limit": 4,
-      "opts": {
-        "prefix": "a/",
-        "limit": 4
-      }
+      "limit": 4
     },
     "result": [
       {
@@ -298,11 +282,7 @@
     "args": {
       "transactionId": 9,
       "prefix": "a/",
-      "limit": 4,
-      "opts": {
-        "prefix": "a/",
-        "limit": 4
-      }
+      "limit": 4
     },
     "result": [
       {

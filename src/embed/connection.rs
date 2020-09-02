@@ -244,7 +244,7 @@ async fn validate_rebase<'a>(
     opts: &'a RebaseOpts,
     dag_read: dag::Read<'_>,
     mutator_name: &'a str,
-    args: &'a any::Any,
+    _args: &'a any::Any,
 ) -> Result<(), OpenTransactionError> {
     use OpenTransactionError::*;
 
@@ -259,13 +259,6 @@ async fn validate_rebase<'a>(
                     "original: {}, request: {}",
                     lm.mutator_name(),
                     mutator_name
-                )));
-            }
-            if lm.mutator_args_json() != args.serialize_json().as_bytes() {
-                return Err(InconsistentArgs(format!(
-                    "original: {}, request: {}",
-                    std::str::from_utf8(lm.mutator_args_json()).unwrap_or("<invalid>"),
-                    args.serialize_json()
                 )));
             }
         }
@@ -436,7 +429,6 @@ enum OpenTransactionError {
     DBReadError(db::ReadCommitError),
     InconsistentMutationId(String),
     InconsistentMutator(String),
-    InconsistentArgs(String),
     NoSuchBasis(db::ReadCommitError),
     NoSuchOriginal(db::ReadCommitError),
     ProgrammerError(String),

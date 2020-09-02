@@ -81,11 +81,7 @@
     "args": {
       "transactionId": 3,
       "prefix": "",
-      "limit": 4,
-      "opts": {
-        "prefix": "",
-        "limit": 4
-      }
+      "limit": 4
     },
     "result": []
   },
@@ -133,11 +129,7 @@
     "args": {
       "transactionId": 4,
       "prefix": "",
-      "limit": 4,
-      "opts": {
-        "prefix": "",
-        "limit": 4
-      }
+      "limit": 4
     },
     "result": []
   },

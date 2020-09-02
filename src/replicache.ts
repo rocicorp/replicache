@@ -2,6 +2,7 @@ import type {JSONValue, ToJSON} from './json.js';
 import type {ScanOptions} from './scan-options.js';
 import type {DatabaseInfo} from './database-info.js';
 import type {
+  Invoker,
   REPMInvoke,
   Invoke,
   OpenTransactionRequest,
@@ -33,7 +34,7 @@ export default class Replicache implements ReadTransaction {
   private readonly _diffServerAuth: string;
   private readonly _diffServerURL: string;
   private readonly _name: string;
-  private readonly _repmInvoke: REPMInvoke;
+  private readonly _repmInvoker: Invoker;
 
   private _closed = false;
   private _online = true;
@@ -67,7 +68,7 @@ export default class Replicache implements ReadTransaction {
     diffServerAuth = '',
     diffServerURL,
     name = 'default',
-    repmInvoke,
+    repmInvoker,
     syncInterval = 60_000,
   }: {
     batchURL?: string;
@@ -75,7 +76,7 @@ export default class Replicache implements ReadTransaction {
     diffServerAuth?: string;
     diffServerURL: string;
     name?: string;
-    repmInvoke: REPMInvoke;
+    repmInvoker: Invoker;
     syncInterval?: number | null;
   }) {
     this._batchURL = batchURL;
@@ -83,7 +84,7 @@ export default class Replicache implements ReadTransaction {
     this._diffServerAuth = diffServerAuth;
     this._diffServerURL = diffServerURL;
     this._name = name;
-    this._repmInvoke = repmInvoke;
+    this._repmInvoker = repmInvoker;
     this._syncInterval = syncInterval;
     this._open();
   }
@@ -101,7 +102,7 @@ export default class Replicache implements ReadTransaction {
   }
 
   private async _open(): Promise<void> {
-    this._opened = this._repmInvoke(this._name, 'open');
+    this._opened = this._repmInvoker.invoke(this._name, 'open');
     this._root = this._getRoot();
     await this._root;
     if (this._syncInterval !== null) {
@@ -117,6 +118,10 @@ export default class Replicache implements ReadTransaction {
     {repmInvoke}: {repmInvoke: REPMInvoke},
   ): Promise<void> {
     await repmInvoke(name, 'drop');
+  }
+
+  get isWASM(): boolean {
+    return this._repmInvoker.isWASM || false;
   }
 
   get online(): boolean {
@@ -189,7 +194,7 @@ export default class Replicache implements ReadTransaction {
     args?: JSONValue | ToJSON,
   ): Promise<JSONValue> => {
     await this._opened;
-    return await this._repmInvoke(this._name, rpc, args);
+    return await this._repmInvoker.invoke(this._name, rpc, args);
   };
 
   /** Get a single value from the database. */
@@ -210,6 +215,7 @@ export default class Replicache implements ReadTransaction {
   scan({prefix = '', start}: ScanOptions = {}): ScanResult {
     let tx: ReadTransactionImpl;
     return new ScanResult(
+      this.isWASM,
       prefix,
       start,
       this._invoke,
@@ -217,7 +223,7 @@ export default class Replicache implements ReadTransaction {
         if (tx) {
           return tx;
         }
-        tx = new ReadTransactionImpl(this._invoke);
+        tx = new ReadTransactionImpl(this.isWASM, this._invoke);
         await tx.open({});
         return tx;
       },
@@ -229,6 +235,7 @@ export default class Replicache implements ReadTransaction {
     try {
       const beginSyncResult = await this._beginSync();
 
+      // TODO(repc-switchover)
       // replicache-client sends all zeros for null sync,
       // repc sends empty string.
       if (beginSyncResult.syncHead.replace(/0/g, '') !== '') {
@@ -468,7 +475,7 @@ export default class Replicache implements ReadTransaction {
    * and `scan`.
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
-    const tx = new ReadTransactionImpl(this._invoke);
+    const tx = new ReadTransactionImpl(this.isWASM, this._invoke);
     await tx.open({});
     try {
       return await body(tx);
@@ -537,7 +544,7 @@ export default class Replicache implements ReadTransaction {
     }
 
     let result: R;
-    const tx = new WriteTransactionImpl(this._invoke);
+    const tx = new WriteTransactionImpl(this.isWASM, this._invoke);
     await tx.open(actualInvokeArgs);
     try {
       result = await mutatorImpl(tx, args);
@@ -569,14 +576,14 @@ export class ReplicacheTest extends Replicache {
     diffServerAuth,
     diffServerURL,
     name = '',
-    repmInvoke,
+    repmInvoker,
   }: {
     diffServerURL: string;
     batchURL?: string;
     dataLayerAuth?: string;
     diffServerAuth?: string;
     name?: string;
-    repmInvoke: REPMInvoke;
+    repmInvoker: Invoker;
   }): Promise<ReplicacheTest> {
     const rep = new ReplicacheTest({
       batchURL,
@@ -584,7 +591,7 @@ export class ReplicacheTest extends Replicache {
       diffServerAuth,
       diffServerURL,
       name,
-      repmInvoke,
+      repmInvoker,
       syncInterval: null,
     });
     await rep._opened;

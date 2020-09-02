@@ -3,6 +3,14 @@ import type {ScanItem} from './scan-item.js';
 import type {ScanOptions} from './scan-options.js';
 import type {DatabaseInfo} from './database-info.js';
 
+// TODO(repc-switchover): isWASM can go away, but so can this whole
+// type and all the machinery connected to it. Look at the commit
+// that introduced this to unwind it.
+export type Invoker = {
+  readonly invoke: REPMInvoke,
+  readonly isWASM?: boolean,
+}
+
 export interface Invoke {
   <Rpc extends keyof InvokeMapNoArgs>(rpc: Rpc): Promise<InvokeMapNoArgs[Rpc]>;
   <Rpc extends keyof InvokeMap>(rpc: Rpc, args: InvokeMap[Rpc][0]): Promise<
@@ -55,6 +63,7 @@ export class REPMHTTPInvoker {
 export class REPMWASMInvoker {
   private readonly _inited: Promise<any>;
   private _dispatch?: (dbName: string, rpc: string, args: string) => any;
+  public readonly isWASM = true;
   constructor(wasm_module: any) {
     this._inited = (async () => {
       // TODO: Have to import dynamically to hide this from Jest.

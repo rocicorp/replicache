@@ -67,14 +67,6 @@
   },
   {
     "dbName": "test5",
-    "method": "closeTransaction",
-    "args": {
-      "transactionId": 2
-    },
-    "result": {}
-  },
-  {
-    "dbName": "test5",
     "method": "openTransaction",
     "args": {},
     "result": {
@@ -83,15 +75,19 @@
   },
   {
     "dbName": "test5",
+    "method": "closeTransaction",
+    "args": {
+      "transactionId": 2
+    },
+    "result": {}
+  },
+  {
+    "dbName": "test5",
     "method": "scan",
     "args": {
       "transactionId": 3,
       "prefix": "",
-      "limit": 4,
-      "opts": {
-        "prefix": "",
-        "limit": 4
-      }
+      "limit": 4
     },
     "result": [
       {
@@ -126,11 +122,7 @@
     "args": {
       "transactionId": 4,
       "prefix": "",
-      "limit": 4,
-      "opts": {
-        "prefix": "",
-        "limit": 4
-      }
+      "limit": 4
     },
     "result": [
       {
@@ -165,11 +157,7 @@
     "args": {
       "transactionId": 5,
       "prefix": "",
-      "limit": 4,
-      "opts": {
-        "prefix": "",
-        "limit": 4
-      }
+      "limit": 4
     },
     "result": [
       {
@@ -204,11 +192,7 @@
     "args": {
       "transactionId": 6,
       "prefix": "",
-      "limit": 4,
-      "opts": {
-        "prefix": "",
-        "limit": 4
-      }
+      "limit": 4
     },
     "result": [
       {
@@ -243,11 +227,7 @@
     "args": {
       "transactionId": 7,
       "prefix": "",
-      "limit": 4,
-      "opts": {
-        "prefix": "",
-        "limit": 4
-      }
+      "limit": 4
     },
     "result": [
       {

@@ -29,10 +29,11 @@ pub async fn add_genesis<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mu
 
 pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut Chain {
     assert!(chain.len() > 0);
+    let i = chain.len() as u64;
     let mut w = Write::new_local(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
-        str!("mutator_name"),
-        Any::Array(vec![]),
+        format!("mutator_name_{}", i),
+        Any::Array(vec![Any::U64(i)]),
         None,
         store.write().await.unwrap(),
     )

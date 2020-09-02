@@ -403,10 +403,11 @@ async fn do_begin_sync<'a, 'b>(
     _: &'b TxnMap<'a>,
     req: BeginSyncRequest,
 ) -> Result<BeginSyncResponse, sync::BeginSyncError> {
-    // TODO move client up to process() or into a lazy static so we can re-use.
+    // TODO move client, puller, pusher up to process() or into a lazy static so we can share.
     let fetch_client = fetch::client::Client::new();
+    let pusher = sync::push::FetchPusher::new(&fetch_client);
     let puller = sync::FetchPuller::new(&fetch_client);
-    let begin_sync_response = sync::begin_sync(store, &puller, &req).await?;
+    let begin_sync_response = sync::begin_sync(store, &pusher, &puller, &req).await?;
     Ok(begin_sync_response)
 }
 

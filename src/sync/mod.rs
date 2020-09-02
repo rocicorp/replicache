@@ -1,6 +1,7 @@
 #![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
 
 mod patch;
+pub mod push;
 
 use crate::checksum;
 use crate::checksum::Checksum;
@@ -16,56 +17,94 @@ use nanoserde::{DeJson, DeJsonErr, SerJson};
 use std::default::Default;
 use std::fmt::Debug;
 use std::str::FromStr;
+use str_macro::str;
 
 pub const SYNC_HEAD_NAME: &str = "sync";
 
+// ReplayMutation is returned in the MaybeEndPushResponse, not be confused with
+// sync::push::Mutation, which is used in batch push.
 #[derive(Debug, DeJson, SerJson)]
-pub struct Mutation {
+pub struct ReplayMutation {
     id: u64,
     name: String,
     args: any::Any,
     #[nserde(skip_serializing_if = "Option::is_none")]
-    original: Option<String>,
+    original: String,
 }
 
 pub async fn begin_sync(
     store: &dag::Store,
+    pusher: &dyn push::Pusher,
     puller: &dyn Puller,
     begin_sync_req: &BeginSyncRequest,
 ) -> Result<BeginSyncResponse, BeginSyncError> {
     use BeginSyncError::*;
 
-    let read = store.read().await.map_err(ReadError)?;
-    let base_snapshot = Commit::base_snapshot(
-        &read
-            .read()
-            .get_head(DEFAULT_HEAD_NAME)
-            .await
-            .map_err(GetHeadError)?
-            .unwrap(),
-        &read.read(),
-    )
-    .await
-    .map_err(NoBaseSnapshot)?;
-    drop(read); // Important! Don't hold the lock through an HTTP request!
+    // TODO
+    let client_id = str!("TODO_client_id");
+    let sync_id = str!("TODO_sync_id");
+
+    // Push: find pending commits between the base snapshot and the main head
+    // and push them to the data layer.
+    let dag_read = store.read().await.map_err(ReadError)?;
+    let main_head_hash = dag_read
+        .read()
+        .get_head(DEFAULT_HEAD_NAME)
+        .await
+        .map_err(GetHeadError)?
+        .ok_or(InternalNoMainHeadError)?;
+    let base_snapshot = Commit::base_snapshot(&main_head_hash, &dag_read.read())
+        .await
+        .map_err(NoBaseSnapshot)?;
+    let mut pending = Commit::pending(&main_head_hash, &dag_read.read())
+        .await
+        .map_err(InternalGetPendingCommitsError)?;
+    // Commit::pending gave us commits in head-first order; the bindings
+    // want tail first (in mutation id order).
+    pending.reverse();
+    drop(dag_read); // Important! Don't hold the lock through an HTTP request!
+    if !pending.is_empty() {
+        let mut push_mutations: Vec<push::Mutation> = Vec::new();
+        for commit in pending.iter() {
+            match commit.meta().typed() {
+                MetaTyped::Local(lm) => push_mutations.push(lm.into()),
+                _ => return Err(InternalNonLocalPendingCommit),
+            }
+        }
+        let push_req = push::BatchPushRequest {
+            client_id: client_id.clone(),
+            mutations: push_mutations,
+        };
+        let _ = pusher
+            .push(
+                &push_req,
+                &begin_sync_req.batch_push_url,
+                &begin_sync_req.data_layer_auth,
+                &sync_id,
+            )
+            .await;
+        // Note: no map_err(). A failed push does not fail sync.
+        // TODO surface this failure in SyncInfo.
+    }
+
+    // Pull.
     let base_checksum = base_snapshot.meta().checksum().to_string();
     let (base_last_mutation_id, base_state_id) =
         Commit::snapshot_meta_parts(&base_snapshot).map_err(ProgrammerError)?;
 
     let pull_req = PullRequest {
         client_view_auth: begin_sync_req.data_layer_auth.clone(),
-        client_id: "TODO".to_string(),
+        client_id: client_id.clone(),
         base_state_id: base_state_id.clone(),
         checksum: base_checksum.clone(),
         version: 1,
     };
-    let sync_id = "TODO";
     let pull_resp = puller
         .pull(
             &pull_req,
             &begin_sync_req.diff_server_url,
             &begin_sync_req.diff_server_auth,
-            sync_id,
+            &sync_id,
         )
         .await
         .map_err(PullFailed)?;
@@ -138,6 +177,9 @@ pub async fn begin_sync(
 pub enum BeginSyncError {
     CommitError(db::CommitError),
     GetHeadError(dag::Error),
+    InternalGetPendingCommitsError(db::PendingError),
+    InternalNoMainHeadError,
+    InternalNonLocalPendingCommit,
     InvalidChecksum(checksum::ParseError),
     LockError(dag::Error),
     MainHeadDisappeared,
@@ -204,7 +246,7 @@ pub async fn maybe_end_sync(
 
     // Return replay commits if any.
     if !pending.is_empty() {
-        let mut replay_mutations: Vec<Mutation> = Vec::new();
+        let mut replay_mutations: Vec<ReplayMutation> = Vec::new();
         for c in pending {
             let (name, args) = match c.meta().typed() {
                 MetaTyped::Local(lm) => (
@@ -217,11 +259,11 @@ pub async fn maybe_end_sync(
                 ),
                 _ => return Err(ProgrammerError("pending mutation is not local".to_string())),
             };
-            replay_mutations.push(Mutation {
+            replay_mutations.push(ReplayMutation {
                 id: c.mutation_id(),
                 name,
                 args,
-                original: Some(c.chunk().hash().to_string()),
+                original: c.chunk().hash().to_string(),
             })
         }
         return Ok(MaybeEndSyncResponse {
@@ -404,11 +446,16 @@ mod tests {
             Commit::snapshot_meta_parts(base_snapshot).unwrap();
         let base_checksum = base_snapshot.meta().checksum().to_string();
 
-        let client_view_auth = str!("client_view_auth");
-        let client_id = str!("TODO");
+        let sync_id = str!("TODO_sync_id");
+        let client_id = str!("TODO_client_id");
+        let data_layer_auth = str!("data_layer_auth");
+
+        // Push
+        let batch_push_url = str!("batch_push_url");
+
+        // Pull
         let diff_server_url = str!("diff_server_url");
         let diff_server_auth = str!("diff_server_auth");
-        let sync_id = str!("TODO");
 
         let good_pull_resp = PullResponse {
             state_id: str!("new_state_id"),
@@ -437,6 +484,11 @@ mod tests {
         struct Case<'a> {
             pub name: &'a str,
 
+            // Push expectations.
+            pub num_pending_mutations: u32,
+            pub exp_push_req: Option<push::BatchPushRequest>,
+            pub push_result: Option<Result<push::BatchPushResponse, String>>,
+
             // Pull expectations.
             pub exp_pull_req: PullRequest,
             pub pull_result: Result<PullResponse, String>,
@@ -445,11 +497,14 @@ mod tests {
             pub exp_err: Option<&'a str>,
             pub exp_new_sync_head: Option<ExpCommit>,
         }
-        let cases = [
+        let cases: Vec<Case> = vec![
             Case {
-                name: "pulls new state -> beginsync succeeds w/synchead set",
+                name: "0 mutations to push, pulls new state -> beginsync succeeds w/synchead set",
+                num_pending_mutations: 0,
+                exp_push_req: None,
+                push_result: None,
                 exp_pull_req: PullRequest {
-                    client_view_auth: client_view_auth.clone(),
+                    client_view_auth: data_layer_auth.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
@@ -463,14 +518,92 @@ mod tests {
                     checksum: str!("f9ef007b"),
                 }),
             },
+            Case {
+                name: "2 mutations to push, push succeeds, pulls new state -> beginsync succeeds w/synchead set",
+                num_pending_mutations: 2,
+                exp_push_req: Some(push::BatchPushRequest {
+                    client_id: client_id.clone(),
+                    mutations: vec![
+                        // These mutations aren't actually added to the chain until the test
+                        // case runs, but we happen to know how they are created by the db
+                        // test helpers so we use that knowledge here.
+                        push::Mutation {
+                            id: 2,
+                            name: "mutator_name_2".to_string(),
+                            args: any::Any::Array(vec![any::Any::U64(2)]),
+                        },
+                        push::Mutation {
+                            id: 3,
+                            name: "mutator_name_3".to_string(),
+                            args: any::Any::Array(vec![any::Any::U64(3)]),
+                        },
+                    ],
+                }),
+                push_result: Some(Ok(push::BatchPushResponse {})),
+                exp_pull_req: PullRequest {
+                    client_view_auth: data_layer_auth.clone(),
+                    client_id: client_id.clone(),
+                    base_state_id: base_server_state_id.clone(),
+                    checksum: base_checksum.clone(),
+                    version: 1,
+                },
+                pull_result: Ok(good_pull_resp.clone()),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    state_id: str!("new_state_id"),
+                    last_mutation_id: 10,
+                    checksum: str!("f9ef007b"),
+                }),
+            },
+            Case {
+                name: "2 mutations to push, push errors, pulls new state -> beginsync succeeds w/synchead set",
+                num_pending_mutations: 2,
+                exp_push_req: Some(push::BatchPushRequest {
+                    client_id: client_id.clone(),
+                    mutations: vec![
+                        // These mutations aren't actually added to the chain until the test
+                        // case runs, but we happen to know how they are created by the db
+                        // test helpers so we use that knowledge here.
+                        push::Mutation {
+                            id: 2,
+                            name: "mutator_name_2".to_string(),
+                            args: any::Any::Array(vec![any::Any::U64(2)]),
+                        },
+                        push::Mutation {
+                            id: 3,
+                            name: "mutator_name_3".to_string(),
+                            args: any::Any::Array(vec![any::Any::U64(3)]),
+                        },
+                    ],
+                }),
+                push_result: Some(Err(str!("FetchNotOk"))),
+                exp_pull_req: PullRequest {
+                    client_view_auth: data_layer_auth.clone(),
+                    client_id: client_id.clone(),
+                    base_state_id: base_server_state_id.clone(),
+                    checksum: base_checksum.clone(),
+                    version: 1,
+                },
+                pull_result: Ok(good_pull_resp.clone()),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    state_id: str!("new_state_id"),
+                    last_mutation_id: 10,
+                    checksum: str!("f9ef007b"),
+                }),
+            },
+
             // TODO: add test for same state id but later mutation id. Right now we treat
             // it as a nop because the state id does not change, but probably we should treat
             // it like success and complete the sync. Current behavior mirrors the (probably
             // incorrect?) go behavior.
             Case {
-                name: "pulls same state -> beginsync succeeds with no synchead",
+                name: "nop push, pulls same state -> beginsync succeeds with no synchead",
+                num_pending_mutations: 0,
+                exp_push_req: None,
+                push_result: None,
                 exp_pull_req: PullRequest {
-                    client_view_auth: client_view_auth.clone(),
+                    client_view_auth: data_layer_auth.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
@@ -486,9 +619,12 @@ mod tests {
                 exp_new_sync_head: None,
             },
             Case {
-                name: "pulls new state w/lesser mutation id -> beginsync errors",
+                name: "nop push, pulls new state w/lesser mutation id -> beginsync errors",
+                num_pending_mutations: 0,
+                exp_push_req: None,
+                push_result: None,
                 exp_pull_req: PullRequest {
-                    client_view_auth: client_view_auth.clone(),
+                    client_view_auth: data_layer_auth.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
@@ -502,9 +638,12 @@ mod tests {
                 exp_new_sync_head: None,
             },
             Case {
-                name: "pulls new state w/empty state id -> beginsync errors",
+                name: "nop push, pulls new state w/empty state id -> beginsync errors",
+                num_pending_mutations: 0,
+                exp_push_req: None,
+                push_result: None,
                 exp_pull_req: PullRequest {
-                    client_view_auth: client_view_auth.clone(),
+                    client_view_auth: data_layer_auth.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
@@ -518,9 +657,12 @@ mod tests {
                 exp_new_sync_head: None,
             },
             Case {
-                name: "pulls new state w/no checksum -> beginsync errors",
+                name: "nop push, pulls new state w/no checksum -> beginsync errors",
+                num_pending_mutations: 0,
+                exp_push_req: None,
+                push_result: None,
                 exp_pull_req: PullRequest {
-                    client_view_auth: client_view_auth.clone(),
+                    client_view_auth: data_layer_auth.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
@@ -534,9 +676,12 @@ mod tests {
                 exp_new_sync_head: None,
             },
             Case {
-                name: "pulls new state w/bad checksum -> beginsync errors",
+                name: "nop push, pulls new state w/bad checksum -> beginsync errors",
+                num_pending_mutations: 0,
+                exp_push_req: None,
+                push_result: None,
                 exp_pull_req: PullRequest {
-                    client_view_auth: client_view_auth.clone(),
+                    client_view_auth: data_layer_auth.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
@@ -550,9 +695,12 @@ mod tests {
                 exp_new_sync_head: None,
             },
             Case {
-                name: "pull 500s -> beginsync errors",
+                name: "nop push, pull 500s -> beginsync errors",
+                num_pending_mutations: 0,
+                exp_push_req: None,
+                push_result: None,
                 exp_pull_req: PullRequest {
-                    client_view_auth: client_view_auth.clone(),
+                    client_view_auth: data_layer_auth.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
@@ -565,15 +713,38 @@ mod tests {
         ];
         for c in cases.iter() {
             // Reset state of the store.
+            chain.truncate(2);
             let mut w = store.write().await.unwrap();
-            w.set_head(DEFAULT_HEAD_NAME, Some(base_snapshot.chunk().hash()))
-                .await
-                .unwrap();
+            w.set_head(
+                DEFAULT_HEAD_NAME,
+                Some(chain[chain.len() - 1].chunk().hash()),
+            )
+            .await
+            .unwrap();
             w.set_head(SYNC_HEAD_NAME, None).await.unwrap();
             w.commit().await.unwrap();
+            for _ in 0..c.num_pending_mutations {
+                add_local(&mut chain, &store).await;
+            }
+
+            // See explanation in FakePusher for why we do this dance with the push_result.
+            let (exp_push, push_resp, push_err) = match &c.push_result {
+                Some(Ok(resp)) => (true, Some(resp.clone()), None),
+                Some(Err(e)) => (true, None, Some(e.clone())),
+                None => (false, None, None),
+            };
+            let fake_pusher = FakePusher {
+                exp_push,
+                exp_push_req: c.exp_push_req.as_ref(),
+                exp_batch_push_url: &batch_push_url,
+                exp_batch_push_auth: &data_layer_auth,
+                exp_sync_id: &sync_id,
+                resp: push_resp,
+                err: push_err,
+            };
 
             // See explanation in FakePuller for why we do this dance with the pull_result.
-            let (resp, err) = match &c.pull_result {
+            let (pull_resp, pull_err) = match &c.pull_result {
                 Ok(resp) => (Some(resp.clone()), None),
                 Err(e) => (None, Some(e.clone())),
             };
@@ -582,16 +753,17 @@ mod tests {
                 exp_diff_server_url: &diff_server_url,
                 exp_diff_server_auth: &diff_server_auth,
                 exp_sync_id: &sync_id,
-                resp,
-                err,
+                resp: pull_resp,
+                err: pull_err,
             };
 
             let begin_sync_req = BeginSyncRequest {
-                data_layer_auth: client_view_auth.clone(),
+                batch_push_url: batch_push_url.clone(),
+                data_layer_auth: data_layer_auth.clone(),
                 diff_server_url: diff_server_url.clone(),
                 diff_server_auth: diff_server_auth.clone(),
             };
-            let result = begin_sync(&store, &fake_puller, &begin_sync_req).await;
+            let result = begin_sync(&store, &fake_pusher, &fake_puller, &begin_sync_req).await;
             let mut got_resp: Option<BeginSyncResponse> = None;
             match c.exp_err {
                 None => {
@@ -638,6 +810,57 @@ mod tests {
                     assert_eq!(sync_head_hash, got_resp.unwrap().sync_head);
                 }
             };
+        }
+    }
+
+    pub struct FakePusher<'a> {
+        exp_push: bool,
+        exp_push_req: Option<&'a push::BatchPushRequest>,
+        exp_batch_push_url: &'a str,
+        exp_batch_push_auth: &'a str,
+        exp_sync_id: &'a str,
+
+        // We would like to write here:
+        //    result: Result<BatchPushResponse, PushError>,
+        // but pull takes &self so we can't move out of result if we did.
+        // Cloning and returning result would work except for that our error
+        // enums contain values that are not cloneable, eg http::Status and
+        // DeJSONErr. (Or, I guess we could make pull take &mut self as another
+        // solution, so long as all contained errors are Send. I think.)
+        resp: Option<push::BatchPushResponse>,
+        err: Option<String>,
+    }
+
+    #[async_trait(?Send)]
+    impl<'a> push::Pusher for FakePusher<'a> {
+        async fn push(
+            &self,
+            push_req: &push::BatchPushRequest,
+            batch_push_url: &str,
+            batch_push_auth: &str,
+            sync_id: &str,
+        ) -> Result<push::BatchPushResponse, push::PushError> {
+            assert!(self.exp_push);
+
+            if self.exp_push_req.is_some() {
+                assert_eq!(self.exp_push_req.unwrap(), push_req);
+                assert_eq!(self.exp_batch_push_url, batch_push_url);
+                assert_eq!(self.exp_batch_push_auth, batch_push_auth);
+                assert_eq!(self.exp_sync_id, sync_id);
+            }
+
+            match &self.err {
+                Some(s) => match s.as_str() {
+                    "FetchNotOk" => Err(push::PushError::FetchNotOk(
+                        http::StatusCode::INTERNAL_SERVER_ERROR,
+                    )),
+                    _ => panic!("not implemented"),
+                },
+                None => {
+                    let r = self.resp.as_ref();
+                    Ok(r.unwrap().clone())
+                }
+            }
         }
     }
 
@@ -811,10 +1034,18 @@ mod tests {
                         &resp.replay_mutations
                     );
                     for i in 0..c.exp_replay_ids.len() {
+                        let chain_idx = chain.len() - c.num_needing_replay + i;
                         assert_eq!(c.exp_replay_ids[i], resp.replay_mutations[i].id);
-                        match chain[chain.len() - 1 - i].meta().typed() {
+                        match chain[chain_idx].meta().typed() {
                             db::MetaTyped::Local(lm) => {
-                                assert_eq!(lm.mutator_name(), resp.replay_mutations[i].name);
+                                assert_eq!(
+                                    lm.mutator_name(),
+                                    resp.replay_mutations[i].name,
+                                    "{}: expected {:?}, got {:?}",
+                                    c.name,
+                                    lm.mutator_name(),
+                                    resp.replay_mutations[i].name
+                                );
                                 let got_args = &resp.replay_mutations[i].args;
                                 let exp_args = any::Any::deserialize_json(
                                     std::str::from_utf8(lm.mutator_args_json()).unwrap(),

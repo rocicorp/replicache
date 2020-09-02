@@ -186,7 +186,8 @@ pub struct PutResponse {}
 
 #[derive(DeJson, SerJson)]
 pub struct BeginSyncRequest {
-    // TODO BatchPushURL   string `json:"batchPushURL"`
+    #[nserde(rename = "batchPushURL")]
+    pub batch_push_url: String,
     // data_layer_auth is used for push and for pull (as the client_view_auth).
     #[nserde(rename = "dataLayerAuth")]
     pub data_layer_auth: String,
@@ -223,7 +224,7 @@ pub struct MaybeEndSyncRequest {
 #[derive(Debug, DeJson, SerJson)]
 pub struct MaybeEndSyncResponse {
     #[nserde(rename = "replayMutations")]
-    pub replay_mutations: Vec<sync::Mutation>,
+    pub replay_mutations: Vec<sync::ReplayMutation>,
     #[nserde(rename = "syncHead")]
     pub sync_head: String,
 }

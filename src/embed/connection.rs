@@ -63,6 +63,7 @@ async fn connection_future<'a, 'b>(
         "get" => execute_in_txn(do_get, txns, req).await,
         "scan" => execute_in_txn(do_scan, txns, req).await,
         "put" => execute_in_txn(do_put, txns, req).await,
+        "del" => execute_in_txn(do_del, txns, req).await,
         "openTransaction" => execute(do_open_transaction, store, txns, req).await,
         "commitTransaction" => execute(do_commit, store, txns, req).await,
         "closeTransaction" => execute(do_abort, store, txns, req).await,
@@ -391,6 +392,17 @@ async fn do_put(txn: &RwLock<Transaction<'_>>, req: PutRequest) -> Result<PutRes
     Ok(PutResponse {})
 }
 
+async fn do_del(txn: &RwLock<Transaction<'_>>, req: DelRequest) -> Result<DelResponse, String> {
+    let mut guard = txn.write().await;
+    let write = match &mut *guard {
+        Transaction::Write(w) => Ok(w),
+        Transaction::Read(_) => Err("Specified transaction is read-only".to_string()),
+    }?;
+    let had = write.as_read().has(req.key.as_bytes());
+    write.del(req.key.as_bytes().to_vec());
+    Ok(DelResponse { had })
+}
+
 async fn do_begin_sync<'a, 'b>(
     store: &'a dag::Store,
     _: &'b TxnMap<'a>,
@@ -464,3 +476,4 @@ impl_transaction_request!(HasRequest);
 impl_transaction_request!(GetRequest);
 impl_transaction_request!(ScanRequest);
 impl_transaction_request!(PutRequest);
+impl_transaction_request!(DelRequest);

@@ -89,7 +89,7 @@ async fn has(db_name: &str, txn_id: u32, key: &str) -> bool {
     )
     .await
     .unwrap();
-    let response: GetResponse = DeJson::deserialize_json(&result).unwrap();
+    let response: HasResponse = DeJson::deserialize_json(&result).unwrap();
     response.has
 }
 
@@ -106,6 +106,18 @@ async fn get(db_name: &str, txn_id: u32, key: &str) -> Option<String> {
         true => Some(response.value.unwrap()),
         false => None,
     }
+}
+
+async fn del(db_name: &str, txn_id: u32, key: &str) -> bool {
+    let result = dispatch(
+        db_name,
+        "del",
+        &format!("{{\"transactionId\": {}, \"key\": \"{}\"}}", txn_id, key),
+    )
+    .await
+    .unwrap();
+    let response: DelResponse = DeJson::deserialize_json(&result).unwrap();
+    response.had
 }
 
 async fn get_root(db_name: &str, head_name: Option<String>) -> String {
@@ -250,7 +262,7 @@ async fn test_write_concurrency() {
 }
 
 #[wasm_bindgen_test]
-async fn test_get_put() {
+async fn test_get_put_del() {
     let db = &random_db();
 
     assert_eq!(
@@ -310,6 +322,22 @@ async fn test_get_put() {
         .transaction_id;
     assert_eq!(has(db, txn_id, "你好").await, true);
     assert_eq!(get(db, txn_id, "你好").await, Some("world".into()));
+    abort(db, txn_id).await;
+
+    // Delete a key
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+        .await
+        .transaction_id;
+    assert_eq!(del(db, txn_id, "Hello").await, true);
+    assert_eq!(has(db, txn_id, "Hello").await, false);
+    assert_eq!(del(db, txn_id, "Hello").await, false);
+    commit(db, txn_id).await.unwrap();
+
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+        .await
+        .transaction_id;
+    assert_eq!(has(db, txn_id, "Hello").await, false);
+    abort(db, txn_id).await;
 
     assert_eq!(dispatch(db, "close", "").await.unwrap(), "");
 }

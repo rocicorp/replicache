@@ -2,6 +2,10 @@
 
 DIR="$( cd "$( dirname "$0" )" >/dev/null 2>&1 && pwd )"
 ROOT=$DIR/../
+VERSION="$(git describe --tag)"
+
+# Strip leading "v" from git tag.
+VERSION=$(echo $VERSION | sed -n -E 's/v(.*)/\1/p')
 
 report() {
     (cd pkg/release && ls -l replicache_client.js* replicache_client_bg.was*[mr] |
@@ -16,6 +20,8 @@ fi
 (
     cd $ROOT
 
+    perl -pi -e"s/version = \".*?REPLACE\"/version = \"$VERSION\"/" Cargo.toml
+
     # Grumble. Having multiple crate types disables lto, which makes the bundles
     # significantly (~23% at time of writing) bigger. This is due to a bug
     # in Cargo: https://github.com/rust-lang/rust/issues/51009.
@@ -25,7 +31,7 @@ fi
     # https://github.com/rust-lang/cargo/issues/6659.
     #
     # So hack hack hack for now.
-    sed -i .bak 's/crate-type = .*/crate-type = ["cdylib"]/' Cargo.toml
+    perl -pi -e's/crate-type = .*/crate-type = ["cdylib"]/' Cargo.toml
 
     rm repc.zip
     rm -rf pkg

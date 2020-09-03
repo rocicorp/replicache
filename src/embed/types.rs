@@ -184,6 +184,19 @@ pub struct PutRequest {
 #[derive(DeJson, SerJson)]
 pub struct PutResponse {}
 
+#[derive(DeJson)]
+pub struct DelRequest {
+    #[nserde(rename = "transactionId")]
+    pub transaction_id: u32,
+    pub key: String,
+}
+
+#[derive(DeJson, SerJson)]
+pub struct DelResponse {
+    #[nserde(rename = "ok")]
+    pub had: bool,
+}
+
 #[derive(DeJson, SerJson)]
 pub struct BeginSyncRequest {
     #[nserde(rename = "batchPushURL")]

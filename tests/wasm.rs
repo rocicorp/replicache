@@ -382,15 +382,6 @@ async fn test_rebase_opts() {
     .await
     .unwrap_err();
     assert!(err.contains("InconsistentMutator"));
-    let err = open_transaction_result(
-        db_name,
-        "fname".to_string().into(),
-        Some(Any::Array(vec![])),
-        Some(rebase_opts.clone()),
-    )
-    .await
-    .unwrap_err();
-    assert!(err.contains("InconsistentArgs"));
 
     // Ensure it doesn't let us rebase with a different mutation id.
     let txn_id = open_transaction(

@@ -4,6 +4,7 @@ use wasm_bindgen_test::*;
 
 mod dispatch;
 mod idbstore;
+mod hash;
 
 wasm_bindgen_test_configure!(run_in_browser);
 

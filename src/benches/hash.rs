@@ -1,5 +1,5 @@
-use wasm_bench::*;
 use crate::hash::Hash;
+use wasm_bench::*;
 
 #[wasm_bench]
 async fn hash_encode(b: &mut Bench) {

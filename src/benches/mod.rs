@@ -3,8 +3,8 @@ use wasm_bench::*;
 use wasm_bindgen_test::*;
 
 mod dispatch;
-mod idbstore;
 mod hash;
+mod idbstore;
 
 wasm_bindgen_test_configure!(run_in_browser);
 

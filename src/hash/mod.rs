@@ -1,22 +1,16 @@
-use data_encoding::base;
-use data_encoding::decode;
-use data_encoding::encode;
+use data_encoding::{Encoding, Specification};
 use sha2::{Digest, Sha512};
 use std::fmt;
 
-pub const BYTE_LENGTH: usize = 20;
-const NOMS_ALPHABET: &[u8] = b"0123456789abcdefghijklmnopqrstuv";
-
-struct Base32 {}
-
-impl base::Base for Base32 {
-    fn pad(&self) -> u8 {
-        b'='
-    }
-    fn val(&self, x: u8) -> Option<u8> {
-        Some(NOMS_ALPHABET.iter().position(|y| x == *y)? as u8)
-    }
+lazy_static! {
+    static ref NOMS: Encoding = {
+        let mut spec = Specification::new();
+        spec.symbols.push_str("0123456789abcdefghijklmnopqrstuv");
+        spec.encoding().unwrap()
+    };
 }
+
+pub const BYTE_LENGTH: usize = 20;
 
 pub struct Hash {
     pub sum: [u8; BYTE_LENGTH],
@@ -42,7 +36,7 @@ impl Hash {
     #[allow(dead_code)]
     pub fn parse(s: &str) -> Result<Hash, Error> {
         let mut h = Hash::empty();
-        match decode::decode_mut(&Base32 {}, s.as_bytes(), &mut h.sum) {
+        match NOMS.decode_mut(s.as_bytes(), &mut h.sum) {
             Err(_) => Err(Error::InvalidHashSerialization),
             Ok(_) => Ok(h),
         }
@@ -65,7 +59,7 @@ impl Hash {
 
 impl fmt::Display for Hash {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", encode::encode(&Base32 {}, &self.sum))
+        write!(f, "{}", NOMS.encode(&self.sum))
     }
 }
 

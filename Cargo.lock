@@ -463,12 +463,6 @@ dependencies = [
 
 [[package]]
 name = "data-encoding"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d867ddbf09de0b73e09ec798972fb7f870495a0893f6f736c1855448c5a56789"
-
-[[package]]
-name = "data-encoding"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4d0e2d24e5ee3b23a01de38eefdcd978907890701f08ffffd4cb457ca4ee8d6"
@@ -1298,7 +1292,7 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "crc",
- "data-encoding 1.2.0",
+ "data-encoding",
  "env_logger",
  "flatbuffers",
  "futures",
@@ -1447,7 +1441,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c6f3acf84e23ab27c01cb5917551765c01c50b2000089db8fa47fe018a3260cf"
 dependencies = [
- "data-encoding 2.3.0",
+ "data-encoding",
  "error-chain",
  "percent-encoding",
  "serde",

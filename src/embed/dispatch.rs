@@ -54,6 +54,7 @@ async fn dispatch_loop(rx: Receiver<Request>) {
         let response = match req.rpc.as_str() {
             "open" => Some(do_open(&mut conns, &req).await),
             "close" => Some(do_close(&mut conns, &req).await),
+            "drop" => Some(do_drop(&mut conns, &req).await),
             "debug" => Some(do_debug(&conns, &req).await),
             _ => None,
         };
@@ -129,6 +130,19 @@ async fn do_close(conns: &mut ConnMap, req: &Request) -> Response {
     let _ = rx2.recv().await;
     conns.remove(&req.db_name);
     Ok("".into())
+}
+
+async fn do_drop(_: &mut ConnMap, req: &Request) -> Response {
+    match &req.db_name[..] {
+        #[cfg(not(target_arch = "wasm32"))]
+        "mem" => Ok("".into()),
+        _ => {
+            IdbStore::drop_store(&req.db_name)
+                .await
+                .map_err(|e| e.to_string())?;
+            Ok("".into())
+        }
+    }
 }
 
 async fn do_debug(conns: &ConnMap, req: &Request) -> Response {

@@ -6,6 +6,7 @@ use futures::channel::oneshot;
 use futures::future::join_all;
 use log::warn;
 use std::collections::HashMap;
+use str_macro::str;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{IdbDatabase, IdbTransaction};
@@ -114,6 +115,24 @@ impl IdbStore {
         Ok(Some(IdbStore {
             db: RwLock::new(request.result()?.into()),
         }))
+    }
+
+    pub async fn drop_store(name: &str) -> Result<()> {
+        let window =
+            web_sys::window().ok_or_else(|| StoreError::Str(str!("could not get window")))?;
+        let factory = window
+            .indexed_db()?
+            .ok_or_else(|| StoreError::Str(str!("could not get indexeddb")))?;
+        let request = factory.delete_database(name)?;
+        let (callback, receiver) = IdbStore::oneshot_callback();
+        request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
+        request.set_onerror(Some(callback.as_ref().unchecked_ref()));
+        receiver.await?;
+        Ok(())
+    }
+
+    pub async fn name(&self) -> String {
+        self.db.read().await.name()
     }
 
     /// Returns a oneshot callback and a Receiver to await it being called.

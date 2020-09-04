@@ -24,11 +24,6 @@ fn random_db() -> String {
         .collect()
 }
 
-#[wasm_bindgen_test]
-async fn dag() {
-    wasm::exercise_prolly().await;
-}
-
 async fn dispatch(db: &str, rpc: &str, data: &str) -> Result<String, String> {
     match wasm::dispatch(db.to_string(), rpc.to_string(), data.to_string()).await {
         Ok(v) => Ok(v),
@@ -175,6 +170,36 @@ async fn test_open_close() {
     );
     assert_eq!(dispatch("db2", "close", "").await.unwrap(), "");
     assert_eq!(dispatch("", "debug", "open_dbs").await.unwrap(), "[]");
+}
+
+#[wasm_bindgen_test]
+async fn test_drop() {
+    assert_eq!(dispatch("db", "open", "").await.unwrap(), "");
+    assert_eq!(dispatch("", "debug", "open_dbs").await.unwrap(), "[\"db\"]");
+
+    let txn_id = open_transaction(
+        "db",
+        "foo".to_string().into(),
+        Some(Any::Array(vec![])),
+        None,
+    )
+    .await
+    .transaction_id;
+    put("db", txn_id, "value", "1").await;
+    commit("db", txn_id).await.unwrap();
+
+    assert_eq!(dispatch("db", "close", "").await.unwrap(), "");
+
+    // drop db
+    assert_eq!(dispatch("db", "drop", "").await.unwrap(), "");
+
+    // re-open, should be empty
+    assert_eq!(dispatch("db", "open", "").await.unwrap(), "");
+    let txn_id = open_transaction("db", None, None, None)
+        .await
+        .transaction_id;
+    assert_eq!(has("db", txn_id, "foo").await, false);
+    assert_eq!(dispatch("db", "close", "").await.unwrap(), "");
 }
 
 #[wasm_bindgen_test]

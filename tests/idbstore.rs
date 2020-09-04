@@ -1,6 +1,7 @@
 // Run tests with `wasm-pack test --chrome --headless`.
 pub mod idbstore {
     use rand::Rng;
+    use replicache_client::kv::idbstore::IdbStore;
     use replicache_client::kv::{trait_tests, Store};
     use replicache_client::wasm;
     use std::boxed::Box;
@@ -9,13 +10,16 @@ pub mod idbstore {
 
     wasm_bindgen_test_configure!(run_in_browser);
 
-    async fn new_store() -> Box<dyn Store> {
+    fn random_store_name() -> String {
         let mut rng = rand::thread_rng();
-        let name = std::iter::repeat(())
+        std::iter::repeat(())
             .map(|_| rng.sample(rand::distributions::Alphanumeric))
             .take(12)
-            .collect();
-        wasm::new_idbstore(name)
+            .collect()
+    }
+
+    async fn new_store() -> Box<dyn Store> {
+        wasm::new_idbstore(random_store_name())
             .await
             .expect("IdbStore::new failed")
     }
@@ -96,6 +100,34 @@ pub mod idbstore {
 
         let rt = store.read().await.unwrap();
         assert_eq!(None, rt.get("bar").await.unwrap());
+    }
+
+    #[wasm_bindgen_test]
+    async fn drop() {
+        let name = random_store_name();
+        {
+            let store = wasm::new_idbstore(name.clone()).await.unwrap();
+
+            // Write a value.
+            let wt = store.write().await.unwrap();
+            wt.put("foo", b"bar").await.unwrap();
+            wt.commit().await.unwrap();
+
+            // Verify it's there.
+            let rt = store.read().await.unwrap();
+            assert_eq!(rt.get("foo").await.unwrap(), Some(b"bar".to_vec()));
+
+            // Must drop reference to store before drop_store() works.
+            // There must be some internal locking.
+        }
+
+        // Drop db
+        IdbStore::drop_store(&name).await.unwrap();
+
+        // Reopen store, verify data is gone
+        let store = wasm::new_idbstore(name.clone()).await.unwrap();
+        let rt = store.read().await.unwrap();
+        assert_eq!(rt.has("foo").await.unwrap(), false);
     }
 
     // TODO: we should verify commit() fails if the underlying tx is

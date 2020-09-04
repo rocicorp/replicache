@@ -1,29 +1,14 @@
-use log::warn;
 use std::sync::Once;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 
-use crate::dag;
 use crate::embed;
 use crate::kv::idbstore::IdbStore;
 use crate::kv::Store;
-use crate::prolly::Map;
 
 // Use `wee_alloc` as the global allocator.
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
-#[wasm_bindgen]
-pub async fn exercise_prolly() {
-    init_panic_hook();
-    let kv = IdbStore::new("foo").await.unwrap().unwrap();
-    let store = dag::Store::new(Box::new(kv));
-    let mut write = store.write().await.unwrap();
-    let mut map = Map::new();
-    map.put(b"foo".to_vec(), b"bar".to_vec());
-    let h = map.flush(&mut write).await.unwrap();
-    warn!("{}", h);
-}
 
 #[cfg(not(default))]
 pub async fn new_idbstore(name: String) -> Option<Box<dyn Store>> {

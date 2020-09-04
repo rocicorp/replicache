@@ -109,6 +109,7 @@ impl<'a> From<&'a ScanKey> for db::ScanKey<'a> {
 
 #[derive(DeJson)]
 pub struct ScanBound {
+    #[nserde(rename = "id")]
     key: Option<ScanKey>,
     index: Option<u64>,
 }

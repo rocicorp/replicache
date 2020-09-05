@@ -1,0 +1,98 @@
+<!doctype html>
+<script type='module'>
+  import Replicache, { REPMWASMInvoker, REPMHTTPInvoker } from './node_modules/replicache/out/mod.js';
+
+  const repmInvoker = location.hash == '#go' ?
+    new REPMHTTPInvoker('http://localhost:7002/') :
+    new REPMWASMInvoker();
+
+  console.log('Using repmInvoker', repmInvoker);
+
+  let counter = 0;
+  async function makeRep() {
+    const name = 'bench' + (counter++);
+    await Replicache.drop(name, { repmInvoke: repmInvoker.invoke });
+    return new Replicache({
+      batchURL: '',
+      dataLayerAuth: '',
+      diffServerAuth: '',
+      diffServerURL: '',
+      repmInvoker,
+      syncInterval: null,
+    });
+  }
+
+  async function populate(rep, { numKeys, parallel }) {
+    var set = rep.register("populate", async (tx, args) => {
+      var promises = [];
+      for (var i = 0; i < numKeys; i++) {
+        var p = tx.put(`key${i}`, 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+        if (parallel) {
+          promises.push(p);
+        } else {
+          await p;
+        }
+      }
+      if (promises.length) {
+        await Promise.all(promises);
+      }
+    });
+    await set({});
+  }
+
+  async function benchmark_populate(bench, opts) {
+    var rep = await makeRep();
+    bench.reset();
+    bench.setName(`populate 1024x${opts.numKeys} (${opts.parallel ? 'parallel' : 'serial'})`);
+    await populate(rep, opts);
+  }
+
+  async function benchmark(opts, fn) {
+    const n = opts.n || 3;
+    const times = [];
+    let sum = 0;
+    let name = String(fn);
+    for (var i = 0; i < n; i++) {
+      let t0 = Date.now();
+      await fn({
+        reset: () => {
+          t0 = Date.now();
+        },
+        setName: (n) => name = n,
+      });
+      const dur = Date.now() - t0;
+      times.push(dur);
+      sum += dur;
+    }
+
+    times.sort();
+    const median = times[Math.floor(n / 2)];
+    const out = [
+      name,
+      `Median: ${median}, `,
+    ];
+    if (opts.size) {
+      out.push('Throughput: ' + humanSize(opts.size / median * 1000) + '/s');
+    }
+    console.log(...out);
+  }
+
+  async function main() {
+    console.log('Running benchmarks, please wait...')
+    await benchmark({ size: 1024 * 1000 },
+      (bench) => benchmark_populate(bench, { numKeys: 1000, parallel: false }));
+    await benchmark({ size: 1024 * 1000 },
+      (bench) => benchmark_populate(bench, { numKeys: 1000, parallel: true }));
+    console.log('Done!');
+  }
+
+  function humanSize(bytes) {
+    if (bytes == 0) { return "0.00 B"; }
+    var e = Math.floor(Math.log(bytes) / Math.log(1024));
+    return (bytes / Math.pow(1024, e)).toFixed(2) + ' ' + ' KMGTP'.charAt(e) + 'B';
+  }
+
+  main();
+</script>
+
+Hi! Open your developer console for benchmark results.

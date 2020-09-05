@@ -2,14 +2,11 @@
 <script type='module'>
   import Replicache, { REPMWASMInvoker, REPMHTTPInvoker } from './node_modules/replicache/out/mod.js';
 
-  const repmInvoker = location.hash == '#go' ?
-    new REPMHTTPInvoker('http://localhost:7002/') :
-    new REPMWASMInvoker();
-
-  console.log('Using repmInvoker', repmInvoker);
+  window.httpInvoker = new REPMHTTPInvoker('http://localhost:7002/');
+  window.wasmInvoker = new REPMWASMInvoker();
 
   let counter = 0;
-  async function makeRep() {
+  async function makeRep(repmInvoker) {
     const name = 'bench' + (counter++);
     await Replicache.drop(name, { repmInvoke: repmInvoker.invoke });
     return new Replicache({
@@ -23,7 +20,7 @@
   }
 
   async function populate(rep, { numKeys, parallel }) {
-    var set = rep.register("populate", async (tx, args) => {
+    var set = rep.register('populate', async (tx, args) => {
       var promises = [];
       for (var i = 0; i < numKeys; i++) {
         var p = tx.put(`key${i}`, 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
@@ -40,11 +37,24 @@
     await set({});
   }
 
-  async function benchmark_populate(bench, opts) {
-    var rep = await makeRep();
+  async function benchmark_populate(invoker, bench, opts) {
+    var rep = await makeRep(invoker);
     bench.reset();
     bench.setName(`populate 1024x${opts.numKeys} (${opts.parallel ? 'parallel' : 'serial'})`);
     await populate(rep, opts);
+  }
+
+  async function benchmark_scan(invoker, bench, opts) {
+    var rep = await makeRep(invoker);
+    bench.setName(`scan 1024x${opts.numKeys}`);
+    await populate(rep, opts);
+    bench.reset();
+    await rep.query(async (tx) => {
+      let i = 0;
+      for await (const value of tx.scan()) {
+        i++;
+      }
+    });
   }
 
   async function benchmark(opts, fn) {
@@ -69,30 +79,39 @@
     const median = times[Math.floor(n / 2)];
     const out = [
       name,
-      `Median: ${median}, `,
+      `Median: ${median}`,
     ];
     if (opts.size) {
       out.push('Throughput: ' + humanSize(opts.size / median * 1000) + '/s');
     }
-    console.log(...out);
+    log(...out);
   }
 
-  async function main() {
-    console.log('Running benchmarks, please wait...')
+  window.main = async function (invoker) {
+    log(`Running benchmarks with ${invoker.constructor.name} please wait...`)
     await benchmark({ size: 1024 * 1000 },
-      (bench) => benchmark_populate(bench, { numKeys: 1000, parallel: false }));
+      (bench) => benchmark_populate(invoker, bench, { numKeys: 1000, parallel: false }));
     await benchmark({ size: 1024 * 1000 },
-      (bench) => benchmark_populate(bench, { numKeys: 1000, parallel: true }));
-    console.log('Done!');
+      (bench) => benchmark_populate(invoker, bench, { numKeys: 1000, parallel: true }));
+    await benchmark({ size: 1024 * 1000 },
+      (bench) => benchmark_scan(invoker, bench, { numKeys: 1000 }));
+    log('Done!');
   }
 
   function humanSize(bytes) {
-    if (bytes == 0) { return "0.00 B"; }
+    if (bytes == 0) { return '0.00 B'; }
     var e = Math.floor(Math.log(bytes) / Math.log(1024));
     return (bytes / Math.pow(1024, e)).toFixed(2) + ' ' + ' KMGTP'.charAt(e) + 'B';
   }
 
-  main();
+  function log() {
+    document.querySelector('#output').value += Array.prototype.join.call(arguments, ' | ') + '\n';
+  }
 </script>
 
-Hi! Open your developer console for benchmark results.
+<p>
+  <button onclick='main(wasmInvoker)'>Run Rust Benchmarks</button>
+  <button onclick='main(httpInvoker)'>Run Go Benchmarks</button>
+
+<p>
+  <textarea id='output' disabled style='display:block; width:100%; height: 400px;'></textarea>

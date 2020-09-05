@@ -56,10 +56,12 @@
     await populate(rep, opts);
     bench.reset();
     await rep.query(async (tx) => {
-      let i = 0;
+      var count = 0;
       for await (const value of tx.scan()) {
-        i++;
+        // use the value to be confident we're not optimizing away.
+        count += value.length;
       }
+      console.log(count);
     });
   }
 

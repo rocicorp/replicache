@@ -101,7 +101,7 @@
     log(`Running benchmarks with ${invoker.constructor.name} please wait...`)
     await benchmark((bench) => benchmark_populate(invoker, bench, { numKeys: 1000, parallel: false }));
     await benchmark((bench) => benchmark_populate(invoker, bench, { numKeys: 1000, parallel: true }));
-    await benchmark((bench) => benchmark_scan(invoker, bench, { numKeys: 1000 }));
+    await benchmark((bench) => benchmark_scan(invoker, bench, { numKeys: 5000 }));
     log('Done!');
   }
 

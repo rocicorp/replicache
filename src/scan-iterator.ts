@@ -4,14 +4,15 @@ import type {Invoke} from './repm-invoker.js';
 import type {JSONValue} from './json.js';
 import {throwIfClosed} from './transactions.js';
 
-export let scanPageSize = 100;
+const defaultScanSize = 500;
+export let scanPageSize = defaultScanSize;
 
 export function setScanPageSizeForTesting(n: number): void {
   scanPageSize = n;
 }
 
 export function restoreScanPageSizeForTesting(): void {
-  scanPageSize = 100;
+  scanPageSize = defaultScanSize;
 }
 
 interface IdCloser {

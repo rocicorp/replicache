@@ -2,6 +2,8 @@
 <script type='module'>
   import Replicache, { REPMWASMInvoker, REPMHTTPInvoker } from './node_modules/replicache/out/mod.js';
 
+  const value = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+
   window.httpInvoker = new REPMHTTPInvoker('http://localhost:7002/');
   window.wasmInvoker = new REPMWASMInvoker();
 
@@ -23,7 +25,7 @@
     var set = rep.register('populate', async (tx, args) => {
       var promises = [];
       for (var i = 0; i < numKeys; i++) {
-        var p = tx.put(`key${i}`, 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+        var p = tx.put(`key${i}`, value);
         if (parallel) {
           promises.push(p);
         } else {
@@ -39,14 +41,18 @@
 
   async function benchmark_populate(invoker, bench, opts) {
     var rep = await makeRep(invoker);
+    const valSize = value.length;
     bench.reset();
-    bench.setName(`populate 1024x${opts.numKeys} (${opts.parallel ? 'parallel' : 'serial'})`);
+    bench.setName(`populate ${valSize}x${opts.numKeys} (${opts.parallel ? 'parallel' : 'serial'})`);
+    bench.setSize(opts.numKeys * valSize);
     await populate(rep, opts);
   }
 
   async function benchmark_scan(invoker, bench, opts) {
     var rep = await makeRep(invoker);
-    bench.setName(`scan 1024x${opts.numKeys}`);
+    const valSize = value.length;
+    bench.setName(`scan ${valSize}x${opts.numKeys}`);
+    bench.setSize(opts.numKeys * valSize);
     await populate(rep, opts);
     bench.reset();
     await rep.query(async (tx) => {
@@ -57,11 +63,12 @@
     });
   }
 
-  async function benchmark(opts, fn) {
-    const n = opts.n || 3;
+  async function benchmark(fn) {
+    const n = 3;
     const times = [];
     let sum = 0;
     let name = String(fn);
+    let size = null;
     for (var i = 0; i < n; i++) {
       let t0 = Date.now();
       await fn({
@@ -69,6 +76,7 @@
           t0 = Date.now();
         },
         setName: (n) => name = n,
+        setSize: (s) => size = s,
       });
       const dur = Date.now() - t0;
       times.push(dur);
@@ -81,20 +89,17 @@
       name,
       `Median: ${median}`,
     ];
-    if (opts.size) {
-      out.push('Throughput: ' + humanSize(opts.size / median * 1000) + '/s');
+    if (size) {
+      out.push('Throughput: ' + humanSize(size / median * 1000) + '/s');
     }
     log(...out);
   }
 
   window.main = async function (invoker) {
     log(`Running benchmarks with ${invoker.constructor.name} please wait...`)
-    await benchmark({ size: 1024 * 1000 },
-      (bench) => benchmark_populate(invoker, bench, { numKeys: 1000, parallel: false }));
-    await benchmark({ size: 1024 * 1000 },
-      (bench) => benchmark_populate(invoker, bench, { numKeys: 1000, parallel: true }));
-    await benchmark({ size: 1024 * 1000 },
-      (bench) => benchmark_scan(invoker, bench, { numKeys: 1000 }));
+    await benchmark((bench) => benchmark_populate(invoker, bench, { numKeys: 1000, parallel: false }));
+    await benchmark((bench) => benchmark_populate(invoker, bench, { numKeys: 1000, parallel: true }));
+    await benchmark((bench) => benchmark_scan(invoker, bench, { numKeys: 1000 }));
     log('Done!');
   }
 

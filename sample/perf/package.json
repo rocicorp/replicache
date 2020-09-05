@@ -1,0 +1,10 @@
+{
+  "name": "Replicache perf demo",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@thi.ng/bench": "^2.0.19",
+    "benchmark": "^2.1.4",
+    "replicache": "file:../.."
+  }
+}

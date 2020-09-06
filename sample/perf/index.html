@@ -22,19 +22,10 @@
     });
   }
 
-  async function populate(rep, { numKeys, parallel }) {
+  async function populate(rep, { numKeys }) {
     var set = rep.register('populate', async (tx, args) => {
-      var promises = [];
       for (var i = 0; i < numKeys; i++) {
-        var p = tx.put(`key${i}`, value);
-        if (parallel) {
-          promises.push(p);
-        } else {
-          await p;
-        }
-      }
-      if (promises.length) {
-        await Promise.all(promises);
+        await tx.put(`key${i}`, value);
       }
     });
     await set({});
@@ -43,8 +34,11 @@
   async function benchmark_populate(invoker, bench, opts) {
     var rep = await makeRep(invoker);
     const valSize = value.length;
+    if (!opts.clean) {
+      await populate(rep, opts);
+    }
     bench.reset();
-    bench.setName(`populate ${valSize}x${opts.numKeys} (${opts.parallel ? 'parallel' : 'serial'})`);
+    bench.setName(`populate ${valSize}x${opts.numKeys} (${opts.clean ? 'clean' : 'dirty'})`);
     bench.setSize(opts.numKeys * valSize);
     await populate(rep, opts);
   }
@@ -100,8 +94,8 @@
 
   window.main = async function (invoker) {
     log(`Running benchmarks with ${invoker.constructor.name} please wait...`)
-    await benchmark((bench) => benchmark_populate(invoker, bench, { numKeys: 1000, parallel: false }));
-    await benchmark((bench) => benchmark_populate(invoker, bench, { numKeys: 1000, parallel: true }));
+    await benchmark((bench) => benchmark_populate(invoker, bench, { numKeys: 1000, clean: true }));
+    await benchmark((bench) => benchmark_populate(invoker, bench, { numKeys: 1000, clean: false }));
     await benchmark((bench) => benchmark_scan(invoker, bench, { numKeys: 1000 }));
     await benchmark((bench) => benchmark_scan(invoker, bench, { numKeys: 5000 }));
     log('Done!');

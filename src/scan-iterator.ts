@@ -150,9 +150,9 @@ export class ScanIterator<V> implements AsyncIterableIterator<V> {
       this._moreItemsToLoad = false;
     }
     if (this._isWASM) {
-      for (var item of scanItems) {
+      for (const item of scanItems) {
         // Temporarily circument the readonly-ness of item.value to parse.
-        (item as any).value = JSON.parse(item.value as string);
+        (item as any).value = JSON.parse(item.value as string); // eslint-disable-line @typescript-eslint/no-explicit-any
       }
     }
     this._scanItems.push(...scanItems);

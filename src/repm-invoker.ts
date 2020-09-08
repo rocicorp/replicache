@@ -61,15 +61,15 @@ export class REPMHTTPInvoker {
 }
 
 export class REPMWASMInvoker {
-  private readonly _inited: Promise<any>;
-  private _dispatch?: (dbName: string, rpc: string, args: string) => any;
+  private readonly _inited: Promise<any>;  // eslint-disable-line @typescript-eslint/no-explicit-any
+  private _dispatch?: (dbName: string, rpc: string, args: string) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
   public readonly isWASM = true;
-  constructor(wasm_module: any) {
+  constructor(wasm_module: any) { // eslint-disable-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
     this._inited = (async () => {
       // TODO: Have to import dynamically to hide this from Jest.
       // Jest cannot parse the es6 behind this import, I don't know why.
       // TODO: We need to have some way to switch between debug and release.
-      let {default: init, dispatch} = await import('./wasm/debug/replicache_client.js');
+      const {default: init, dispatch} = await import('./wasm/debug/replicache_client.js');
       this._dispatch = dispatch;
       return init(wasm_module);
     })();
@@ -82,7 +82,7 @@ export class REPMWASMInvoker {
   ): Promise<JSONValue> => {
     console.debug(">", dbName, rpc, args);
     await this._inited;
-    const json = await this._dispatch!(dbName, rpc, JSON.stringify(args));
+    const json = await this._dispatch!(dbName, rpc, JSON.stringify(args)); // eslint-disable-line @typescript-eslint/no-non-null-assertion
     const ret = json == '' ? null : JSON.parse(json);
     console.debug("<", dbName, rpc, ret);
     return ret;

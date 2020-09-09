@@ -1,11 +1,12 @@
 import type {JSONValue, ToJSON} from './json.js';
 import type {ScanOptions} from './scan-options.js';
 import type {DatabaseInfo} from './database-info.js';
-import type {
+import {
   Invoker,
   REPMInvoke,
   Invoke,
   OpenTransactionRequest,
+  REPMWASMInvoker,
 } from './repm-invoker.js';
 import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
 import {ScanResult} from './scan-iterator.js';
@@ -68,7 +69,7 @@ export default class Replicache implements ReadTransaction {
     diffServerAuth = '',
     diffServerURL,
     name = 'default',
-    repmInvoker,
+    repmInvoker = new REPMWASMInvoker(),
     syncInterval = 60_000,
   }: {
     batchURL?: string;

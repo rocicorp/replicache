@@ -64,7 +64,7 @@ export class REPMWASMInvoker {
   private readonly _inited: Promise<any>;  // eslint-disable-line @typescript-eslint/no-explicit-any
   private _dispatch?: (dbName: string, rpc: string, args: string) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
   public readonly isWASM = true;
-  constructor(wasm_module: any) { // eslint-disable-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
+  constructor(wasm_module?: any) { // eslint-disable-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
     this._inited = (async () => {
       // TODO: Have to import dynamically to hide this from Jest.
       // Jest cannot parse the es6 behind this import, I don't know why.

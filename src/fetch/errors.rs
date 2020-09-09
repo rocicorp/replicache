@@ -11,6 +11,7 @@ pub enum FetchError {
     InvalidResponseFromJS,
     NoWindow,
     RequestFailed(String),
+    RequestTimeout(async_std::future::TimeoutError),
     UnableToCreateRequest(String),
     UnableToSetRequestHeader(String),
 }

@@ -1,6 +1,8 @@
 use crate::fetch::errors::FetchError;
 use crate::fetch::errors::FetchError::*;
+use crate::fetch::timeout::with_timeout;
 use http::Request;
+use std::time::Duration;
 
 mod tokio_compat;
 
@@ -11,6 +13,7 @@ fn s<D: std::fmt::Debug>(err: D) -> String {
 
 pub struct Client {
     hyper_client: hyper::Client<tokio_compat::AsyncStdTcpConnector>,
+    pub timeout: Duration,
 }
 
 impl Default for Client {
@@ -25,6 +28,7 @@ impl Client {
             hyper_client: hyper::Client::builder()
                 .executor(tokio_compat::AsyncStdExecutor)
                 .build::<_, hyper::Body>(tokio_compat::AsyncStdTcpConnector),
+            timeout: Duration::from_secs(super::DEFAULT_FETCH_TIMEOUT_SECS),
         }
     }
 
@@ -33,15 +37,25 @@ impl Client {
     // The response returned will have the status and body set but not the headers,
     // but only because we haven't writtent that code. Non-200 status code does not
     // constitute an Err Result.
+    //     _ _   ____  ________          __     _____  ______   _ _
+    //    | | | |  _ \|  ____\ \        / /\   |  __ \|  ____| | | |
+    //    | | | | |_) | |__   \ \  /\  / /  \  | |__) | |__    | | |
+    //    | | | |  _ <|  __|   \ \/  \/ / /\ \ |  _  /|  __|   | | |
+    //    |_|_| | |_) | |____   \  /\  / ____ \| | \ \| |____  |_|_|
+    //    (_|_) |____/|______|   \/  \/_/    \_\_|  \_\______| (_|_)
     //
     // IF YOU CHANGE THE BEHAVIOR OR CAPABILITIES OF THIS FUNCTION please be sure to reflect
-    // the same changes into the rust client.
+    // the same changes into the browser client.
     //
-    // TODO TLS
-    // TODO timeout/abort
     // TODO log req/resp
-    // TODO understand what if any tokio runtime assumptions are implied here
     pub async fn request(
+        &self,
+        http_req: Request<String>,
+    ) -> Result<http::Response<String>, FetchError> {
+        with_timeout(self.request_impl(http_req), self.timeout).await
+    }
+
+    pub async fn request_impl(
         &self,
         http_req: Request<String>,
     ) -> Result<http::Response<String>, FetchError> {
@@ -134,6 +148,32 @@ mod tests {
             assert_eq!(c.status, resp.status());
             assert_eq!(c.body, resp.body());
         }
+        handle.cancel().await;
+    }
+
+    #[async_std::test]
+    async fn test_timeout() {
+        use str_macro::str;
+
+        let mut app = tide::new();
+        app.at("/").post(|_: tide::Request<()>| async {
+            async_std::task::sleep(Duration::from_millis(100)).await;
+            Ok(Response::builder(200))
+        });
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let handle = async_std::task::spawn_local(app.listen(listener));
+        let req = http::request::Builder::new()
+            .method("POST")
+            .uri(format!("http://{}/", addr))
+            .body(str!(""))
+            .unwrap();
+        let mut client = Client::new();
+        client.timeout = Duration::from_millis(5);
+        match client.request(req).await {
+            Err(e) => assert!(format!("{:?}", e).contains("RequestTimeout")),
+            _ => panic!("should have timed out"),
+        };
         handle.cancel().await;
     }
 

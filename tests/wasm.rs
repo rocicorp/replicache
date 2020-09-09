@@ -473,7 +473,7 @@ async fn test_rebase_opts() {
 //     - http headers
 //     - outgoing and incoming body
 //
-// #[wasm_bindgen_test]
+//#[wasm_bindgen_test]
 #[allow(dead_code)]
 async fn test_browser_fetch() {
     let pull_req = sync::PullRequest {
@@ -489,4 +489,20 @@ async fn test_browser_fetch() {
     let client = fetch::client::Client::new();
     let resp = client.request(http_req).await.unwrap();
     assert!(resp.body().contains("Well hello to you"));
+}
+
+// See note above about wasm fetch tests.
+//#[wasm_bindgen_test]
+#[allow(dead_code)]
+async fn test_browser_fetch_timeout() {
+    let req = http::request::Builder::new()
+        .method("GET")
+        .uri("https://yahoo.com/") // Safe bet it is slow as anything.
+        .body(str!(""))
+        .unwrap();
+
+    let mut client = fetch::client::Client::new();
+    client.timeout = std::time::Duration::from_millis(1);
+    let err = client.request(req).await.unwrap_err();
+    assert!(format!("{:?}", err).contains("Timeout"));
 }

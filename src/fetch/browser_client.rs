@@ -1,6 +1,8 @@
 use crate::fetch::errors::FetchError;
 use crate::fetch::errors::FetchError::*;
+use crate::fetch::timeout::with_timeout;
 use std::convert::TryFrom;
+use std::time::Duration;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
@@ -20,7 +22,9 @@ fn js(err: JsValue) -> String {
     }
 }
 
-pub struct Client {}
+pub struct Client {
+    pub timeout: Duration,
+}
 
 impl Default for Client {
     fn default() -> Self {
@@ -30,7 +34,9 @@ impl Default for Client {
 
 impl Client {
     pub fn new() -> Client {
-        Client {}
+        Client {
+            timeout: Duration::from_secs(super::DEFAULT_FETCH_TIMEOUT_SECS),
+        }
     }
 
     // request() makes an HTTP request over the network via the browser's Fetch API.
@@ -39,13 +45,25 @@ impl Client {
     // This function consumes the request by design. Non-200 status code is not an Err.
     // Since there is no web server in wasm and we can't run this function in rust you have
     // to run the manual test in tests/wasm.rs to test changes.
+    //     _ _   ____  ________          __     _____  ______   _ _
+    //    | | | |  _ \|  ____\ \        / /\   |  __ \|  ____| | | |
+    //    | | | | |_) | |__   \ \  /\  / /  \  | |__) | |__    | | |
+    //    | | | |  _ <|  __|   \ \/  \/ / /\ \ |  _  /|  __|   | | |
+    //    |_|_| | |_) | |____   \  /\  / ____ \| | \ \| |____  |_|_|
+    //    (_|_) |____/|______|   \/  \/_/    \_\_|  \_\______| (_|_)
     //
     // IF YOU CHANGE THE BEHAVIOR OR CAPABILITIES OF THIS FUNCTION please be sure to reflect
     // the same changes into the rust client.
     //
-    // TODO timeout/abort
     // TODO log request/response
     pub async fn request(
+        &self,
+        http_req: http::Request<String>,
+    ) -> Result<http::Response<String>, FetchError> {
+        with_timeout(self.request_impl(http_req), self.timeout).await
+    }
+
+    async fn request_impl(
         &self,
         http_req: http::Request<String>,
     ) -> Result<http::Response<String>, FetchError> {

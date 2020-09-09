@@ -31,6 +31,7 @@
 
     const handleCheckbox = async (id, e) => {
         await updateTodo({ id, complete: e.srcElement.checked });
+        rep.sync();
     }
 
     rep.subscribe(async tx => {

@@ -1,0 +1,7 @@
+{
+  "name": "lit-todo",
+  "version": "1.0.0",
+  "dependencies": {
+    "replicache": "0.0.7"
+  }
+}

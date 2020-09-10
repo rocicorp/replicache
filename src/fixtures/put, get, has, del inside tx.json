@@ -785,10 +785,7 @@
     "args": {
       "args": {
         "key": "i",
-        "value": [
-          0,
-          1
-        ]
+        "value": [0, 1]
       },
       "name": "mut"
     },
@@ -802,10 +799,7 @@
     "args": {
       "transactionId": 17,
       "key": "i",
-      "value": [
-        0,
-        1
-      ]
+      "value": [0, 1]
     },
     "result": {}
   },
@@ -829,10 +823,7 @@
     },
     "result": {
       "has": true,
-      "value": [
-        0,
-        1
-      ]
+      "value": [0, 1]
     }
   },
   {

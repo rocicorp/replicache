@@ -74,7 +74,14 @@ export class ReadTransactionImpl implements ReadTransaction {
   }
 
   scan({prefix = '', start}: ScanOptions = {}): ScanResult {
-    return new ScanResult(this._isWASM, prefix, start, this._invoke, () => this, false);
+    return new ScanResult(
+      this._isWASM,
+      prefix,
+      start,
+      this._invoke,
+      () => this,
+      false,
+    );
   }
 
   get id(): number {

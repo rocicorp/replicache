@@ -7,9 +7,9 @@ import type {DatabaseInfo} from './database-info.js';
 // type and all the machinery connected to it. Look at the commit
 // that introduced this to unwind it.
 export type Invoker = {
-  readonly invoke: REPMInvoke,
-  readonly isWASM?: boolean,
-}
+  readonly invoke: REPMInvoke;
+  readonly isWASM?: boolean;
+};
 
 export interface Invoke {
   <Rpc extends keyof InvokeMapNoArgs>(rpc: Rpc): Promise<InvokeMapNoArgs[Rpc]>;
@@ -54,22 +54,25 @@ export class REPMHTTPInvoker {
     }
     throw new Error(
       `Test server failed: ${resp.status} ${
-      resp.statusText
+        resp.statusText
       }: ${await resp.text()}`,
     );
   };
 }
 
 export class REPMWASMInvoker {
-  private readonly _inited: Promise<any>;  // eslint-disable-line @typescript-eslint/no-explicit-any
+  private readonly _inited: Promise<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   private _dispatch?: (dbName: string, rpc: string, args: string) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
   public readonly isWASM = true;
-  constructor(wasm_module?: any) { // eslint-disable-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
+  constructor(wasm_module?: any) {
+    // eslint-disable-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
     this._inited = (async () => {
       // TODO: Have to import dynamically to hide this from Jest.
       // Jest cannot parse the es6 behind this import, I don't know why.
       // TODO: We need to have some way to switch between debug and release.
-      const {default: init, dispatch} = await import('./wasm/debug/replicache_client.js');
+      const {default: init, dispatch} = await import(
+        './wasm/debug/replicache_client.js'
+      );
       this._dispatch = dispatch;
       return init(wasm_module);
     })();
@@ -80,11 +83,11 @@ export class REPMWASMInvoker {
     rpc: string,
     args: JSONValue | ToJSON = {},
   ): Promise<JSONValue> => {
-    console.debug(">", dbName, rpc, args);
+    console.debug('>', dbName, rpc, args);
     await this._inited;
     const json = await this._dispatch!(dbName, rpc, JSON.stringify(args)); // eslint-disable-line @typescript-eslint/no-non-null-assertion
     const ret = json == '' ? null : JSON.parse(json);
-    console.debug("<", dbName, rpc, ret);
+    console.debug('<', dbName, rpc, ret);
     return ret;
   };
 }
@@ -110,11 +113,13 @@ type TransactionRequest = {
 
 export type ScanRequest = TransactionRequest &
   ScanOptions & {
-    opts?: ScanOptions,
+    opts?: ScanOptions;
   };
-export type ScanResponse = ScanItem[] | {
-  items: ScanItem[],
-};
+export type ScanResponse =
+  | ScanItem[]
+  | {
+      items: ScanItem[];
+    };
 
 type PutRequest = TransactionRequest & {
   key: string;
@@ -128,9 +133,9 @@ type DelResponse = {ok: boolean};
 type RebaseOpts =
   | Record<string, unknown>
   | {
-    basis: string;
-    original: string;
-  };
+      basis: string;
+      original: string;
+    };
 
 export type OpenTransactionRequest = {
   name?: string;
@@ -147,12 +152,12 @@ type CloseTransactionResponse = unknown;
 type CommitTransactionRequest = TransactionRequest;
 export type CommitTransactionResponse =
   | {
-    retryCommit: false;
-    ref: string;
-  }
+      retryCommit: false;
+      ref: string;
+    }
   | {
-    retryCommit: true;
-  };
+      retryCommit: true;
+    };
 
 type BeginSyncRequest = {
   batchPushURL: string;

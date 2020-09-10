@@ -199,7 +199,10 @@ export class ScanResult implements AsyncIterable<JSONValue> {
     return this._newIterator(this._isWASM, 'entry');
   }
 
-  private _newIterator<V>(isWASM: boolean, kind: ScanIterableKind): AsyncIterableIterator<V> {
+  private _newIterator<V>(
+    isWASM: boolean,
+    kind: ScanIterableKind,
+  ): AsyncIterableIterator<V> {
     return new ScanIterator<V>(isWASM, kind, ...this._args);
   }
 }

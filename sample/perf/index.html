@@ -1,16 +1,20 @@
-<!doctype html>
-<script type='module'>
-  import Replicache, { REPMWASMInvoker, REPMHTTPInvoker } from './node_modules/replicache/out/mod.js';
+<!DOCTYPE html>
+<script type="module">
+  import Replicache, {
+    REPMWASMInvoker,
+    REPMHTTPInvoker,
+  } from './node_modules/replicache/out/mod.js';
 
-  const value = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+  const value =
+    'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
 
   window.httpInvoker = new REPMHTTPInvoker('http://localhost:7002/');
   window.wasmInvoker = new REPMWASMInvoker();
 
   let counter = 0;
   async function makeRep(repmInvoker) {
-    const name = 'bench' + (counter++);
-    await Replicache.drop(name, { repmInvoke: repmInvoker.invoke });
+    const name = 'bench' + counter++;
+    await Replicache.drop(name, {repmInvoke: repmInvoker.invoke});
     return new Replicache({
       batchURL: '',
       dataLayerAuth: '',
@@ -22,7 +26,7 @@
     });
   }
 
-  async function populate(rep, { numKeys }) {
+  async function populate(rep, {numKeys}) {
     var set = rep.register('populate', async (tx, args) => {
       for (var i = 0; i < numKeys; i++) {
         await tx.put(`key${i}`, value);
@@ -38,7 +42,9 @@
       await populate(rep, opts);
     }
     bench.reset();
-    bench.setName(`populate ${valSize}x${opts.numKeys} (${opts.clean ? 'clean' : 'dirty'})`);
+    bench.setName(
+      `populate ${valSize}x${opts.numKeys} (${opts.clean ? 'clean' : 'dirty'})`,
+    );
     bench.setSize(opts.numKeys * valSize);
     await populate(rep, opts);
   }
@@ -50,7 +56,7 @@
     bench.setSize(opts.numKeys * valSize);
     await populate(rep, opts);
     bench.reset();
-    await rep.query(async (tx) => {
+    await rep.query(async tx => {
       var count = 0;
       for await (const value of tx.scan()) {
         // use the value to be confident we're not optimizing away.
@@ -72,8 +78,8 @@
         reset: () => {
           t0 = Date.now();
         },
-        setName: (n) => name = n,
-        setSize: (s) => size = s,
+        setName: n => (name = n),
+        setSize: s => (size = s),
       });
       const dur = Date.now() - t0;
       times.push(dur);
@@ -82,42 +88,53 @@
 
     times.sort();
     const median = times[Math.floor(n / 2)];
-    const out = [
-      name,
-      `Median: ${median}`,
-    ];
+    const out = [name, `Median: ${median}`];
     if (size) {
-      out.push('Throughput: ' + humanSize(size / median * 1000) + '/s');
+      out.push('Throughput: ' + humanSize((size / median) * 1000) + '/s');
     }
     log(...out);
   }
 
   window.main = async function (invoker) {
-    log(`Running benchmarks with ${invoker.constructor.name} please wait...`)
-    await benchmark((bench) => benchmark_populate(invoker, bench, { numKeys: 1000, clean: true }));
-    await benchmark((bench) => benchmark_populate(invoker, bench, { numKeys: 1000, clean: false }));
-    await benchmark((bench) => benchmark_scan(invoker, bench, { numKeys: 1000 }));
-    await benchmark((bench) => benchmark_scan(invoker, bench, { numKeys: 5000 }));
+    log(`Running benchmarks with ${invoker.constructor.name} please wait...`);
+    await benchmark(bench =>
+      benchmark_populate(invoker, bench, {numKeys: 1000, clean: true}),
+    );
+    await benchmark(bench =>
+      benchmark_populate(invoker, bench, {numKeys: 1000, clean: false}),
+    );
+    await benchmark(bench => benchmark_scan(invoker, bench, {numKeys: 1000}));
+    await benchmark(bench => benchmark_scan(invoker, bench, {numKeys: 5000}));
     log('Done!');
-  }
+  };
 
   function humanSize(bytes) {
-    if (bytes == 0) { return '0.00 B'; }
+    if (bytes == 0) {
+      return '0.00 B';
+    }
     var e = Math.floor(Math.log(bytes) / Math.log(1024));
-    return (bytes / Math.pow(1024, e)).toFixed(2) + ' ' + ' KMGTP'.charAt(e) + 'B';
+    return (
+      (bytes / Math.pow(1024, e)).toFixed(2) + ' ' + ' KMGTP'.charAt(e) + 'B'
+    );
   }
 
   function log() {
-    document.querySelector('#output').value += Array.prototype.join.call(arguments, ' | ') + '\n';
+    document.querySelector('#output').value +=
+      Array.prototype.join.call(arguments, ' | ') + '\n';
   }
 </script>
 
-<p>
-  <b>IMPORTANT:</b> Close web inspector to get accurate benchmark results.
+<p><b>IMPORTANT:</b> Close web inspector to get accurate benchmark results.</p>
 
 <p>
-  <button onclick='main(wasmInvoker)'>Run Rust Benchmarks</button>
-  <button onclick='main(httpInvoker)'>Run Go Benchmarks</button>
+  <button onclick="main(wasmInvoker)">Run Rust Benchmarks</button>
+  <button onclick="main(httpInvoker)">Run Go Benchmarks</button>
+</p>
 
 <p>
-  <textarea id='output' disabled style='display:block; width:100%; height: 400px;'></textarea>
+  <textarea
+    id="output"
+    disabled
+    style="display: block; width: 100%; height: 400px;"
+  ></textarea>
+</p>

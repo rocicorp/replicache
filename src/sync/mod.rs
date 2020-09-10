@@ -2,6 +2,8 @@
 
 mod patch;
 pub mod push;
+#[cfg(test)]
+pub mod test_helpers;
 
 use crate::checksum;
 use crate::checksum::Checksum;
@@ -136,7 +138,7 @@ pub async fn begin_sync(
         .await
         .map_err(NoBaseSnapshot)?;
     if base_snapshot.chunk().hash() != base_snapshot_post_pull.chunk().hash() {
-        return Err(OverlappingSyncs);
+        return Err(OverlappingSyncsJSLogInfo);
     }
 
     let mut db_write = db::Write::new_snapshot(
@@ -185,7 +187,7 @@ pub enum BeginSyncError {
     MainHeadDisappeared,
     MissingStateID,
     NoBaseSnapshot(db::BaseSnapshotError),
-    OverlappingSyncs,
+    OverlappingSyncsJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
     PatchFailed(patch::PatchError),
     ProgrammerError(db::ProgrammerError),
     PullFailed(PullError),
@@ -210,7 +212,7 @@ pub async fn maybe_end_sync(
         .map_err(ReadError)?
         .ok_or(MissingSyncHead)?;
     if sync_head_hash != maybe_end_sync_req.sync_head {
-        return Err(WrongSyncHead);
+        return Err(WrongSyncHeadJSLogInfo);
     }
 
     // Ensure another sync has not landed a new snapshot on the main chain.
@@ -228,7 +230,7 @@ pub async fn maybe_end_sync(
     let meta = sync_snapshot.meta();
     let sync_snapshot_basis = meta.basis_hash().ok_or(SyncSnapshotWithNoBasis)?;
     if sync_snapshot_basis != main_snapshot.chunk().hash() {
-        return Err(OverlappingSyncs);
+        return Err(OverlappingSyncsJSLogInfo);
     }
 
     // Collect pending commits from the main chain and determine which
@@ -300,13 +302,13 @@ pub enum MaybeEndSyncError {
     MissingMainHead,
     MissingSyncHead,
     NoBaseSnapshot(db::BaseSnapshotError),
-    OverlappingSyncs,
+    OverlappingSyncsJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
     PendingError(db::PendingError),
     ProgrammerError(String),
     ReadError(dag::Error),
     SyncSnapshotWithNoBasis,
     WriteError(dag::Error),
-    WrongSyncHead,
+    WrongSyncHeadJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
 }
 
 #[derive(Debug, Default, DeJson, SerJson)]
@@ -953,7 +955,7 @@ mod tests {
                 num_needing_replay: 0,
                 intervening_sync: true,
                 exp_replay_ids: vec![],
-                exp_err: Some("OverlappingSync"),
+                exp_err: Some("OverlappingSyncsJSLogInfo"),
             },
         ];
         for c in cases.iter() {

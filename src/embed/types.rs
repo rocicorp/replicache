@@ -23,7 +23,7 @@ pub struct RebaseOpts {
     pub original_hash: String,
 }
 
-#[derive(DeJson, SerJson)]
+#[derive(Debug, DeJson, SerJson)]
 pub struct OpenTransactionResponse {
     #[nserde(rename = "transactionId")]
     pub transaction_id: u32,

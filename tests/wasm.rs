@@ -115,13 +115,6 @@ async fn del(db_name: &str, txn_id: u32, key: &str) -> bool {
     response.had
 }
 
-async fn get_root(db_name: &str, head_name: Option<String>) -> String {
-    let req = SerJson::serialize_json(&GetRootRequest { head_name });
-    let result = dispatch(db_name, "getRoot", req.as_str()).await.unwrap();
-    let response: GetRootResponse = DeJson::deserialize_json(&result).unwrap();
-    response.root
-}
-
 async fn commit(db_name: &str, txn_id: u32) -> Result<String, String> {
     dispatch(
         db_name,
@@ -129,13 +122,6 @@ async fn commit(db_name: &str, txn_id: u32) -> Result<String, String> {
         &format!("{{\"transactionId\": {}}}", txn_id),
     )
     .await
-}
-
-// Like commit, but returns the hash of the new commit.
-async fn commit_hash(db_name: &str, txn_id: u32) -> String {
-    let resp_string = commit(db_name, txn_id).await.unwrap();
-    let response: CommitTransactionResponse = DeJson::deserialize_json(&resp_string).unwrap();
-    response.hash
 }
 
 async fn abort(db_name: &str, txn_id: u32) {
@@ -385,81 +371,6 @@ async fn test_get_root() {
         "{\"root\":\"ug6tod81n4l0fm8ob1iud4hetomibm02\"}"
     );
     assert_eq!(dispatch(db, "close", "").await.unwrap(), "");
-}
-
-#[wasm_bindgen_test]
-async fn test_rebase_opts() {
-    let db_name = &random_db();
-    assert_eq!(dispatch(db_name, "open", "").await.unwrap(), "");
-
-    let genesis_hash = get_root(db_name, None).await;
-
-    // Land a commit on the main chain.
-    let txn_id = open_transaction(
-        db_name,
-        "fname".to_string().into(),
-        Some(Any::Array(vec![Any::Bool(true)])),
-        None,
-    )
-    .await
-    .transaction_id;
-    put(db_name, txn_id, "main", "true").await;
-    let main_head_hash = commit_hash(db_name, txn_id).await;
-
-    // Land a commit on the sync chain and verify that it updates the correct head.
-    let rebase_opts = RebaseOpts {
-        basis: genesis_hash.clone(),
-        original_hash: main_head_hash.clone(),
-    };
-    let txn_id = open_transaction(
-        db_name,
-        "fname".to_string().into(),
-        Some(Any::Array(vec![Any::Bool(true)])),
-        Some(rebase_opts.clone()),
-    )
-    .await
-    .transaction_id;
-    put(db_name, txn_id, "main", "false").await;
-    let sync_head_hash = commit_hash(db_name, txn_id).await;
-    assert_eq!(main_head_hash, get_root(db_name, Some(str!("main"))).await);
-    assert_eq!(sync_head_hash, get_root(db_name, Some(str!("sync"))).await);
-    assert_ne!(main_head_hash, sync_head_hash);
-
-    // Ensure open_transaction doesn't allow changing the function or args during rebase.
-    let err = open_transaction_result(
-        db_name,
-        "WRONG".to_string().into(),
-        Some(Any::Array(vec![Any::Bool(true)])),
-        Some(rebase_opts.clone()),
-    )
-    .await
-    .unwrap_err();
-    assert!(err.contains("InconsistentMutator"));
-
-    // Ensure it doesn't let us rebase with a different mutation id.
-    let txn_id = open_transaction(
-        db_name,
-        "fname".to_string().into(),
-        Some(Any::Array(vec![Any::Bool(true)])),
-        None,
-    )
-    .await
-    .transaction_id;
-    let new_head_hash = commit_hash(db_name, txn_id).await;
-    let err = open_transaction_result(
-        db_name,
-        "fname".to_string().into(),
-        Some(Any::Array(vec![Any::Bool(true)])),
-        Some(RebaseOpts {
-            basis: genesis_hash.clone(),
-            original_hash: new_head_hash,
-        }),
-    )
-    .await
-    .unwrap_err();
-    assert!(err.contains("InconsistentMutationId"));
-
-    assert_eq!(dispatch(db_name, "close", "").await.unwrap(), "");
 }
 
 // We can't run a web server in wasm-in-the-browser so this is the next

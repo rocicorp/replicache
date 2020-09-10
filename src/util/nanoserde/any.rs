@@ -1,7 +1,7 @@
 use nanoserde::{DeJson, DeJsonTok, SerJson};
 use std::collections::HashMap;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Any {
     Null,
     Bool(bool),

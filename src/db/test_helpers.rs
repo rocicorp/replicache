@@ -53,6 +53,9 @@ pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut 
     chain
 }
 
+// See also sync::test_helpers for add_sync_snapshot, which can't go here because
+// it depends on details of sync and sync depends on db.
+
 // The optional map for the commit is treated as key, value pairs.
 pub async fn add_snapshot<'a>(
     chain: &'a mut Chain,

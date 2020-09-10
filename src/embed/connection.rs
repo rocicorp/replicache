@@ -66,7 +66,7 @@ async fn connection_future<'a, 'b>(
         "del" => execute_in_txn(do_del, txns, req).await,
         "openTransaction" => execute(do_open_transaction, store, txns, req).await,
         "commitTransaction" => execute(do_commit, store, txns, req).await,
-        "closeTransaction" => execute(do_abort, store, txns, req).await,
+        "closeTransaction" => execute(do_close_transaction, store, txns, req).await,
         "beginSync" => execute(do_begin_sync, store, txns, req).await,
         "maybeEndSync" => execute(do_maybe_end_sync, store, txns, req).await,
         "close" => {
@@ -249,7 +249,19 @@ async fn validate_rebase<'a>(
 ) -> Result<(), OpenTransactionError> {
     use OpenTransactionError::*;
 
-    // TODO should we also enforce here that the basis is equal to the sync head?
+    // Ensure the rebase commit is going on top of the current sync head.
+    let sync_head_hash = dag_read
+        .get_head(sync::SYNC_HEAD_NAME)
+        .await
+        .map_err(GetHeadError)?;
+    if sync_head_hash.as_ref() != Some(&opts.basis) {
+        return Err(WrongSyncHeadJSLogInfo(format!(
+            "sync head is {:?}, transaction basis is {:?}",
+            sync_head_hash, opts.basis
+        )));
+    }
+
+    // Ensure rebase and original commit mutator names match.
     let (_, original, _) = db::read_commit(db::Whence::Hash(opts.original_hash.clone()), &dag_read)
         .await
         .map_err(NoSuchOriginal)?;
@@ -266,6 +278,7 @@ async fn validate_rebase<'a>(
         _ => return Err(ProgrammerError("Commit is not a local commit".to_string())),
     };
 
+    // Ensure rebase and original commit mutation ids names match.
     let (_, basis, _) = db::read_commit(db::Whence::Hash(opts.basis.clone()), &dag_read)
         .await
         .map_err(NoSuchBasis)?;
@@ -276,6 +289,9 @@ async fn validate_rebase<'a>(
             basis.next_mutation_id(),
         )));
     }
+
+    // TODO: temporarily skipping check that args are the same.
+    // https://github.com/rocicorp/repc/issues/151
 
     Ok(())
 }
@@ -307,7 +323,7 @@ async fn do_commit<'a, 'b>(
     })
 }
 
-async fn do_abort<'a, 'b>(
+async fn do_close_transaction<'a, 'b>(
     _: &'a dag::Store,
     txns: &'b TxnMap<'a>,
     request: CloseTransactionRequest,
@@ -439,11 +455,13 @@ enum OpenTransactionError {
     DagReadError(dag::Error),
     DBWriteError(db::ReadCommitError),
     DBReadError(db::ReadCommitError),
+    GetHeadError(dag::Error),
     InconsistentMutationId(String),
     InconsistentMutator(String),
     NoSuchBasis(db::ReadCommitError),
     NoSuchOriginal(db::ReadCommitError),
     ProgrammerError(String),
+    WrongSyncHeadJSLogInfo(String), // "JSLogInfo" is a signal to bindings to not log this alarmingly.
 }
 
 #[derive(Debug)]
@@ -477,3 +495,141 @@ impl_transaction_request!(GetRequest);
 impl_transaction_request!(ScanRequest);
 impl_transaction_request!(PutRequest);
 impl_transaction_request!(DelRequest);
+
+// Note: dispatch is mostly tested in tests/wasm.rs.
+// TODO those tests should move here and *also* be run from there so we have
+// coverage in both rust using memstore and in wasm using idbstore.
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::test_helpers::*;
+    use crate::kv::memstore::MemStore;
+    use crate::sync::test_helpers::*;
+    use crate::util::nanoserde::any::Any;
+    use str_macro::str;
+
+    #[async_std::test]
+    async fn test_open_transaction_rebase_opts() {
+        // Note: store needs to outlive txns.
+        let store = dag::Store::new(Box::new(MemStore::new()));
+        {
+            let txns = RwLock::new(HashMap::new());
+            let mut main_chain: Chain = vec![];
+            add_genesis(&mut main_chain, &store).await;
+            add_local(&mut main_chain, &store).await;
+            let sync_chain = add_sync_snapshot(&mut main_chain, &store, false).await;
+            let original = &main_chain[1];
+            let meta = original.meta();
+            let (original_hash, original_name, original_args) = match meta.typed() {
+                db::MetaTyped::Local(lm) => (
+                    str!(original.chunk().hash()),
+                    str!(lm.mutator_name()),
+                    Any::deserialize_json(std::str::from_utf8(lm.mutator_args_json()).unwrap())
+                        .unwrap(),
+                ),
+                _ => panic!("not local"),
+            };
+            drop(meta);
+            drop(original);
+
+            // Error: rebase commit's basis must be sync head.
+            let result = do_open_transaction(
+                &store,
+                &txns,
+                OpenTransactionRequest {
+                    name: Some(original_name.clone()),
+                    args: Some(original_args.clone()),
+                    rebase_opts: Some(RebaseOpts {
+                        basis: original_hash.clone(), // <-- not the sync head
+                        original_hash: original_hash.clone(),
+                    }),
+                },
+            )
+            .await;
+            assert!(format!("{:?}", result.unwrap_err()).contains("WrongSyncHeadJSLogInfo"));
+
+            // Error: rebase commit's name should not change.
+            let result = do_open_transaction(
+                &store,
+                &txns,
+                OpenTransactionRequest {
+                    name: Some(str!("different!")),
+                    args: Some(original_args.clone()),
+                    rebase_opts: Some(RebaseOpts {
+                        basis: str!(sync_chain[0].chunk().hash()),
+                        original_hash: original_hash.clone(),
+                    }),
+                },
+            )
+            .await;
+            assert!(format!("{:?}", result.unwrap_err()).contains("InconsistentMutator"));
+
+            // TODO test error: rebase commit's args should not change.
+            // https://github.com/rocicorp/repc/issues/151
+
+            // Ensure it doesn't let us rebase with a different mutation id.
+            add_local(&mut main_chain, &store).await;
+            let new_local = &main_chain[main_chain.len() - 1];
+            let meta = new_local.meta();
+            let (new_local_hash, new_local_name, new_local_args) = match meta.typed() {
+                db::MetaTyped::Local(lm) => (
+                    str!(new_local.chunk().hash()),
+                    str!(lm.mutator_name()),
+                    Any::deserialize_json(std::str::from_utf8(lm.mutator_args_json()).unwrap())
+                        .unwrap(),
+                ),
+                _ => panic!("not local"),
+            };
+            let result = do_open_transaction(
+                &store,
+                &txns,
+                OpenTransactionRequest {
+                    name: Some(new_local_name),
+                    args: Some(new_local_args),
+                    rebase_opts: Some(RebaseOpts {
+                        basis: str!(sync_chain[0].chunk().hash()),
+                        original_hash: new_local_hash, // <-- has different mutation id
+                    }),
+                },
+            )
+            .await;
+            let err = result.unwrap_err();
+            print!("{:?}", err);
+            //assert!(format!("{:?}", result.unwrap_err()).contains("InconsistentMutationId"));
+            assert!(format!("{:?}", err).contains("InconsistentMutationId"));
+
+            // Correct rebase_opt (test this last because it affects the chain).
+            let otr = do_open_transaction(
+                &store,
+                &txns,
+                OpenTransactionRequest {
+                    name: Some(original_name.clone()),
+                    args: Some(original_args.clone()),
+                    rebase_opts: Some(RebaseOpts {
+                        basis: str!(sync_chain[0].chunk().hash()),
+                        original_hash: original_hash.clone(),
+                    }),
+                },
+            )
+            .await
+            .unwrap();
+            let ctr = do_commit(
+                &store,
+                &txns,
+                CommitTransactionRequest {
+                    transaction_id: otr.transaction_id,
+                },
+            )
+            .await
+            .unwrap();
+            let w = store.write().await.unwrap();
+            let sync_head_hash = w
+                .read()
+                .get_head(sync::SYNC_HEAD_NAME)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(ctr.hash, sync_head_hash);
+        }
+    }
+}

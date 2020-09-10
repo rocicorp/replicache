@@ -5,7 +5,7 @@ use crate::db;
 use crate::fetch;
 use crate::sync;
 use crate::util::nanoserde::any;
-use async_fn::{AsyncFn2, AsyncFn3};
+use async_fn::AsyncFn2;
 use async_std::stream::StreamExt;
 use async_std::sync::{Receiver, RecvError, RwLock};
 use futures::stream::futures_unordered::FuturesUnordered;
@@ -49,8 +49,7 @@ enum UnorderedResult {
 
 async fn connection_future<'a, 'b>(
     rx: &Receiver<Request>,
-    store: &'a dag::Store,
-    txns: &'b TxnMap<'a>,
+    ctx: Context<'a, 'b>,
     request: Option<Request>,
 ) -> UnorderedResult {
     let req = match request {
@@ -58,17 +57,17 @@ async fn connection_future<'a, 'b>(
         Some(v) => v,
     };
     match req.rpc.as_str() {
-        "getRoot" => execute(do_get_root, store, txns, req).await,
-        "has" => execute_in_txn(do_has, txns, req).await,
-        "get" => execute_in_txn(do_get, txns, req).await,
-        "scan" => execute_in_txn(do_scan, txns, req).await,
-        "put" => execute_in_txn(do_put, txns, req).await,
-        "del" => execute_in_txn(do_del, txns, req).await,
-        "openTransaction" => execute(do_open_transaction, store, txns, req).await,
-        "commitTransaction" => execute(do_commit, store, txns, req).await,
-        "closeTransaction" => execute(do_close_transaction, store, txns, req).await,
-        "beginSync" => execute(do_begin_sync, store, txns, req).await,
-        "maybeEndSync" => execute(do_maybe_end_sync, store, txns, req).await,
+        "getRoot" => execute(ctx, do_get_root, req).await,
+        "has" => execute_in_txn(do_has, ctx.txns, req).await,
+        "get" => execute_in_txn(do_get, ctx.txns, req).await,
+        "scan" => execute_in_txn(do_scan, ctx.txns, req).await,
+        "put" => execute_in_txn(do_put, ctx.txns, req).await,
+        "del" => execute_in_txn(do_del, ctx.txns, req).await,
+        "openTransaction" => execute(ctx, do_open_transaction, req).await,
+        "commitTransaction" => execute(ctx, do_commit, req).await,
+        "closeTransaction" => execute(ctx, do_close_transaction, req).await,
+        "beginSync" => execute(ctx, do_begin_sync, req).await,
+        "maybeEndSync" => execute(ctx, do_maybe_end_sync, req).await,
         "close" => {
             req.response.send(Ok("".into())).await;
             return UnorderedResult::Stop();
@@ -82,7 +81,7 @@ async fn connection_future<'a, 'b>(
     UnorderedResult::None()
 }
 
-pub async fn process(store: dag::Store, rx: Receiver<Request>) {
+pub async fn process(store: dag::Store, rx: Receiver<Request>, client_id: String) {
     if let Err(err) = do_init(&store).await {
         warn!("Could not initialize db: {:?}", err);
         return;
@@ -92,16 +91,28 @@ pub async fn process(store: dag::Store, rx: Receiver<Request>) {
     let mut futures = FuturesUnordered::new();
     let mut recv = true;
 
-    futures.push(connection_future(&rx, &store, &txns, None));
+    futures.push(connection_future(
+        &rx,
+        Context::new(&store, &txns, client_id.clone()),
+        None,
+    ));
     while let Some(value) = futures.next().await {
         if recv {
-            futures.push(connection_future(&rx, &store, &txns, None));
+            futures.push(connection_future(
+                &rx,
+                Context::new(&store, &txns, client_id.clone()),
+                None,
+            ));
         }
         match value {
             UnorderedResult::Request(value) => match value {
                 Err(why) => warn!("Connection loop recv failed: {}", why),
                 Ok(req) => {
-                    futures.push(connection_future(&rx, &store, &txns, Some(req)));
+                    futures.push(connection_future(
+                        &rx,
+                        Context::new(&store, &txns, client_id.clone()),
+                        Some(req),
+                    ));
                 }
             },
             UnorderedResult::Stop() => recv = false,
@@ -142,16 +153,28 @@ where
         .await;
 }
 
-async fn execute<'a, 'b, T, S, F, E>(
-    func: F,
+struct Context<'a, 'b> {
     store: &'a dag::Store,
     txns: &'b TxnMap<'a>,
-    req: Request,
-) where
+    client_id: String,
+}
+
+impl<'a, 'b> Context<'a, 'b> {
+    fn new(store: &'a dag::Store, txns: &'b TxnMap<'a>, client_id: String) -> Context<'a, 'b> {
+        Context {
+            store,
+            txns,
+            client_id,
+        }
+    }
+}
+
+async fn execute<'a, 'b, T, S, F, E>(ctx: Context<'a, 'b>, func: F, req: Request)
+where
     T: DeJson,
     S: SerJson,
     E: std::fmt::Debug,
-    F: AsyncFn3<&'a dag::Store, &'b TxnMap<'a>, T, Output = Result<S, E>>,
+    F: AsyncFn2<Context<'a, 'b>, T, Output = Result<S, E>>,
 {
     let request: T = match deserialize(&req.data) {
         Ok(v) => v,
@@ -159,7 +182,7 @@ async fn execute<'a, 'b, T, S, F, E>(
     };
 
     let result = func
-        .call(store, txns, request)
+        .call(ctx, request)
         .await
         .map(|v| SerJson::serialize_json(&v))
         .map_err(|e| format!("{:?}", e));
@@ -192,8 +215,7 @@ async fn do_init(store: &dag::Store) -> Result<(), DoInitError> {
 }
 
 async fn do_open_transaction<'a, 'b>(
-    store: &'a dag::Store,
-    txns: &'b TxnMap<'a>,
+    ctx: Context<'a, 'b>,
     req: OpenTransactionRequest,
 ) -> Result<OpenTransactionResponse, OpenTransactionError> {
     use OpenTransactionError::*;
@@ -207,7 +229,7 @@ async fn do_open_transaction<'a, 'b>(
             } = req;
             let mutator_args = mutator_args.ok_or(ArgsRequired)?;
 
-            let dag_write = store.write().await.map_err(DagWriteError)?;
+            let dag_write = ctx.store.write().await.map_err(DagWriteError)?;
             let (whence, original_hash) = match rebase_opts {
                 None => (db::Whence::Head(db::DEFAULT_HEAD_NAME.to_string()), None),
                 Some(opts) => {
@@ -223,7 +245,7 @@ async fn do_open_transaction<'a, 'b>(
             Transaction::Write(write)
         }
         None => {
-            let dag_read = store.read().await.map_err(DagReadError)?;
+            let dag_read = ctx.store.read().await.map_err(DagReadError)?;
             let read = db::OwnedRead::from_whence(
                 db::Whence::Head(db::DEFAULT_HEAD_NAME.to_string()),
                 dag_read,
@@ -235,7 +257,7 @@ async fn do_open_transaction<'a, 'b>(
     };
 
     let txn_id = TRANSACTION_COUNTER.fetch_add(1, Ordering::SeqCst);
-    txns.write().await.insert(txn_id, RwLock::new(txn));
+    ctx.txns.write().await.insert(txn_id, RwLock::new(txn));
     Ok(OpenTransactionResponse {
         transaction_id: txn_id,
     })
@@ -297,21 +319,21 @@ async fn validate_rebase<'a>(
 }
 
 async fn do_commit<'a, 'b>(
-    _: &'a dag::Store,
-    txns: &'b TxnMap<'a>,
+    ctx: Context<'a, 'b>,
     req: CommitTransactionRequest,
 ) -> Result<CommitTransactionResponse, CommitTransactionError> {
     use CommitTransactionError::*;
     let txn_id = req.transaction_id;
-    let mut txns = txns.write().await;
+    let mut txns = ctx.txns.write().await;
     let txn = txns.remove(&txn_id).ok_or(UnknownTransaction)?;
     let txn = match txn.into_inner() {
         Transaction::Write(w) => Ok(w),
         Transaction::Read(_) => Err(TransactionIsReadOnly),
     }?;
-    let head_name = match txn.is_rebase() {
-        false => db::DEFAULT_HEAD_NAME,
-        true => sync::SYNC_HEAD_NAME,
+    let head_name = if txn.is_rebase() {
+        sync::SYNC_HEAD_NAME
+    } else {
+        db::DEFAULT_HEAD_NAME
     };
     let hash = txn
         .commit(head_name, "local-create-date")
@@ -324,13 +346,13 @@ async fn do_commit<'a, 'b>(
 }
 
 async fn do_close_transaction<'a, 'b>(
-    _: &'a dag::Store,
-    txns: &'b TxnMap<'a>,
+    ctx: Context<'a, 'b>,
     request: CloseTransactionRequest,
 ) -> Result<CloseTransactionResponse, CloseTransactionError> {
     use CloseTransactionError::*;
     let txn_id = request.transaction_id;
-    txns.write()
+    ctx.txns
+        .write()
         .await
         .remove(&txn_id)
         .ok_or(UnknownTransaction)?;
@@ -338,8 +360,7 @@ async fn do_close_transaction<'a, 'b>(
 }
 
 async fn do_get_root<'a, 'b>(
-    store: &'a dag::Store,
-    _: &'b TxnMap<'a>,
+    ctx: Context<'a, 'b>,
     req: GetRootRequest,
 ) -> Result<GetRootResponse, GetRootError> {
     let head_name = match req.head_name {
@@ -347,7 +368,7 @@ async fn do_get_root<'a, 'b>(
         None => db::DEFAULT_HEAD_NAME.to_string(),
     };
     Ok(GetRootResponse {
-        root: db::get_root(store, head_name.as_str())
+        root: db::get_root(ctx.store, head_name.as_str())
             .await
             .map_err(GetRootError::DBError)?,
     })
@@ -420,24 +441,23 @@ async fn do_del(txn: &RwLock<Transaction<'_>>, req: DelRequest) -> Result<DelRes
 }
 
 async fn do_begin_sync<'a, 'b>(
-    store: &'a dag::Store,
-    _: &'b TxnMap<'a>,
+    ctx: Context<'a, 'b>,
     req: BeginSyncRequest,
 ) -> Result<BeginSyncResponse, sync::BeginSyncError> {
     // TODO move client, puller, pusher up to process() or into a lazy static so we can share.
     let fetch_client = fetch::client::Client::new();
     let pusher = sync::push::FetchPusher::new(&fetch_client);
     let puller = sync::FetchPuller::new(&fetch_client);
-    let begin_sync_response = sync::begin_sync(store, &pusher, &puller, &req).await?;
+    let begin_sync_response =
+        sync::begin_sync(ctx.store, &pusher, &puller, &req, ctx.client_id).await?;
     Ok(begin_sync_response)
 }
 
 async fn do_maybe_end_sync<'a, 'b>(
-    store: &'a dag::Store,
-    _: &'b TxnMap<'a>,
+    ctx: Context<'a, 'b>,
     req: MaybeEndSyncRequest,
 ) -> Result<MaybeEndSyncResponse, sync::MaybeEndSyncError> {
-    let maybe_end_sync_response = sync::maybe_end_sync(store, &req).await?;
+    let maybe_end_sync_response = sync::maybe_end_sync(ctx.store, &req).await?;
     Ok(maybe_end_sync_response)
 }
 
@@ -534,8 +554,7 @@ mod tests {
 
             // Error: rebase commit's basis must be sync head.
             let result = do_open_transaction(
-                &store,
-                &txns,
+                Context::new(&store, &txns, str!("client_id")),
                 OpenTransactionRequest {
                     name: Some(original_name.clone()),
                     args: Some(original_args.clone()),
@@ -550,8 +569,7 @@ mod tests {
 
             // Error: rebase commit's name should not change.
             let result = do_open_transaction(
-                &store,
-                &txns,
+                Context::new(&store, &txns, str!("client_id")),
                 OpenTransactionRequest {
                     name: Some(str!("different!")),
                     args: Some(original_args.clone()),
@@ -581,8 +599,7 @@ mod tests {
                 _ => panic!("not local"),
             };
             let result = do_open_transaction(
-                &store,
-                &txns,
+                Context::new(&store, &txns, str!("client_id")),
                 OpenTransactionRequest {
                     name: Some(new_local_name),
                     args: Some(new_local_args),
@@ -600,8 +617,7 @@ mod tests {
 
             // Correct rebase_opt (test this last because it affects the chain).
             let otr = do_open_transaction(
-                &store,
-                &txns,
+                Context::new(&store, &txns, str!("client_id")),
                 OpenTransactionRequest {
                     name: Some(original_name.clone()),
                     args: Some(original_args.clone()),
@@ -614,8 +630,7 @@ mod tests {
             .await
             .unwrap();
             let ctr = do_commit(
-                &store,
-                &txns,
+                Context::new(&store, &txns, str!("client_id")),
                 CommitTransactionRequest {
                     transaction_id: otr.transaction_id,
                 },

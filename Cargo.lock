@@ -1305,6 +1305,7 @@ dependencies = [
  "maplit",
  "nanoserde",
  "rand",
+ "regex",
  "sha2 0.8.2",
  "str-macro",
  "tide",

@@ -131,7 +131,7 @@ mod tests {
     async fn test_push() {
         lazy_static! {
             static ref PUSH_REQ: BatchPushRequest = BatchPushRequest {
-                client_id: str!("TODO"),
+                client_id: str!("client_id"),
                 mutations: vec![Mutation {
                     id: 1,
                     name: "mutator_name".to_string(),

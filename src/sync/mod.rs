@@ -39,11 +39,11 @@ pub async fn begin_sync(
     pusher: &dyn push::Pusher,
     puller: &dyn Puller,
     begin_sync_req: &BeginSyncRequest,
+    client_id: String,
 ) -> Result<BeginSyncResponse, BeginSyncError> {
     use BeginSyncError::*;
 
     // TODO
-    let client_id = str!("TODO_client_id");
     let sync_id = str!("TODO_sync_id");
 
     // Push: find pending commits between the base snapshot and the main head
@@ -96,7 +96,7 @@ pub async fn begin_sync(
 
     let pull_req = PullRequest {
         client_view_auth: begin_sync_req.data_layer_auth.clone(),
-        client_id: client_id.clone(),
+        client_id,
         base_state_id: base_state_id.clone(),
         checksum: base_checksum.clone(),
         version: 1,
@@ -449,7 +449,7 @@ mod tests {
         let base_checksum = base_snapshot.meta().checksum().to_string();
 
         let sync_id = str!("TODO_sync_id");
-        let client_id = str!("TODO_client_id");
+        let client_id = str!("test_client_id");
         let data_layer_auth = str!("data_layer_auth");
 
         // Push
@@ -765,7 +765,14 @@ mod tests {
                 diff_server_url: diff_server_url.clone(),
                 diff_server_auth: diff_server_auth.clone(),
             };
-            let result = begin_sync(&store, &fake_pusher, &fake_puller, &begin_sync_req).await;
+            let result = begin_sync(
+                &store,
+                &fake_pusher,
+                &fake_puller,
+                &begin_sync_req,
+                str!("test_client_id"),
+            )
+            .await;
             let mut got_resp: Option<BeginSyncResponse> = None;
             match c.exp_err {
                 None => {
@@ -1081,7 +1088,7 @@ mod tests {
         lazy_static! {
             static ref PULL_REQ: PullRequest = PullRequest {
                 client_view_auth: str!("client-view-auth"),
-                client_id: str!("TODO"),
+                client_id: str!("client_id"),
                 base_state_id: str!("base-state-id"),
                 checksum: str!("00000000"),
                 version: 1,

@@ -1,7 +1,8 @@
 use crate::dag;
 use crate::embed::connection;
 use crate::kv::idbstore::IdbStore;
-use crate::kv::Store;
+use crate::kv::{Store, StoreError};
+use crate::util::uuid::uuid;
 use async_std::sync::{channel, Mutex, Receiver, Sender};
 use log::warn;
 use std::collections::HashMap;
@@ -108,8 +109,12 @@ async fn do_open(conns: &mut ConnMap, req: &Request) -> Response {
         },
     };
 
+    let client_id = init_client_id(kv.as_ref())
+        .await
+        .map_err(|e| format!("{:?}", e))?;
+
     let (tx, rx) = channel::<Request>(1);
-    spawn_local(connection::process(dag::Store::new(kv), rx));
+    spawn_local(connection::process(dag::Store::new(kv), rx, client_id));
     conns.insert(req.db_name.clone(), tx);
     Ok("".into())
 }
@@ -150,4 +155,31 @@ async fn do_debug(conns: &ConnMap, req: &Request) -> Response {
         "open_dbs" => Ok(format!("{:?}", conns.keys())),
         _ => Err("Debug command not defined".into()),
     }
+}
+
+#[derive(Debug)]
+enum InitClientIdError {
+    GetErr(StoreError),
+    OpenErr(StoreError),
+    InvalidUtf8(std::string::FromUtf8Error),
+    PutClientIdErr(StoreError),
+    CommitErr(StoreError),
+}
+
+async fn init_client_id(s: &dyn Store) -> Result<String, InitClientIdError> {
+    use InitClientIdError::*;
+
+    const CID_KEY: &str = "sys/cid";
+    let cid = s.get(CID_KEY).await.map_err(GetErr)?;
+    if let Some(cid) = cid {
+        let s = String::from_utf8(cid).map_err(InvalidUtf8)?;
+        return Ok(s);
+    }
+    let wt = s.write().await.map_err(OpenErr)?;
+    let uuid = uuid();
+    wt.put(CID_KEY, &uuid.as_bytes())
+        .await
+        .map_err(PutClientIdErr)?;
+    wt.commit().await.map_err(CommitErr)?;
+    Ok(uuid)
 }

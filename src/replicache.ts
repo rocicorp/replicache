@@ -233,7 +233,7 @@ export default class Replicache implements ReadTransaction {
   }
 
   private async _sync(): Promise<void> {
-    var online = true;
+    let online = true;
 
     try {
       const beginSyncResult = await this._beginSync();

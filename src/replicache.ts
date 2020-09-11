@@ -233,6 +233,8 @@ export default class Replicache implements ReadTransaction {
   }
 
   private async _sync(): Promise<void> {
+    var online = true;
+
     try {
       const beginSyncResult = await this._beginSync();
 
@@ -242,17 +244,24 @@ export default class Replicache implements ReadTransaction {
       if (beginSyncResult.syncHead.replace(/0/g, '') !== '') {
         await this._maybeEndSync(beginSyncResult);
       }
-      this._online = true;
     } catch (e) {
-      // We purposely don't rethrow here because a common case is that an
-      // exception is from beginSync() and we are offline. We don't want such
-      // cases to look so exceptional in the console output.
+      // The error paths of beginSync and maybeEndSync need to be reworked.
       //
-      // TODO: we can rethrow here once replicache-internal is improved to not
-      // treat offlineness as an error.
+      // We want to distinguish between:
+      // a) network requests failed -- we're offline basically
+      // b) sync was aborted because one's already in progress
+      // c) oh noes - something unexpected happened
+      //
+      // Right now, all of these come out as errors. We distinguish (b) with a
+      // hacky string search. (a) and (c) are not distinguishable currently
+      // because repc doesn't provide sufficient information, so we treat all
+      // errors that aren't (b) as (a).
+      if (e.toString().indexOf('JSLogInfo') == -1) {
+        online = false;
+      }
       console.info(`Error: ${e}`);
-      this._online = false;
     }
+    this._online = online;
   }
 
   protected async _beginSync(): Promise<BeginSyncResult> {

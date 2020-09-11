@@ -1,0 +1,56 @@
+body {
+  margin: 0;
+}
+
+mwc-fab {
+  position: fixed;
+  bottom: 1.5em;
+  right: 1.5em;
+}
+
+mwc-check-list-item .text {
+  display: inline-block;
+  padding: 0.8em 0.4em;
+  border: 2px dashed rgba(0, 0, 0, 0);
+}
+
+mwc-check-list-item .text:hover,
+mwc-check-list-item .text:focus {
+  border-bottom-color: rgb(98, 0, 238);
+}
+
+mwc-check-list-item .text:focus {
+  outline: none !important;
+}
+
+.sync-icon {
+  opacity: 0;
+  animation-duration: 500ms;
+  animation-iteration-count: 1;
+  animation-timing-function: ease-in-out;
+}
+
+.sync-icon.syncing {
+  animation-name: spin;
+}
+
+@keyframes spin {
+  from {
+    opacity: 0;
+    transform: rotate(0deg);
+  }
+  25% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: rotate(540deg);
+  }
+}
+
+.sync-icon.offline {
+  opacity: 1;
+}

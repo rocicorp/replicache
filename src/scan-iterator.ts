@@ -27,7 +27,7 @@ export type ScanIterableKind = 'key' | 'value' | 'entry';
  * An async iterator that is used with {@link ReadTransaction.scan}.
  */
 export class ScanIterator<V> implements AsyncIterableIterator<V> {
-  private readonly _isWASM: boolean;
+  private readonly _isWasm: boolean;
   private readonly _scanItems: ScanItem[] = [];
   private _current = 0;
   private _moreItemsToLoad = true;
@@ -41,7 +41,7 @@ export class ScanIterator<V> implements AsyncIterableIterator<V> {
   private readonly _invoke: Invoke;
 
   constructor(
-    isWASM: boolean,
+    isWasm: boolean,
     kind: ScanIterableKind,
     prefix: string,
     start: ScanBound | undefined,
@@ -49,7 +49,7 @@ export class ScanIterator<V> implements AsyncIterableIterator<V> {
     getTransaction: () => Promise<IdCloser> | IdCloser,
     shouldCloseTranscation: boolean,
   ) {
-    this._isWASM = isWASM;
+    this._isWasm = isWasm;
     this._kind = kind;
     this._prefix = prefix;
     this._start = start;
@@ -141,7 +141,7 @@ export class ScanIterator<V> implements AsyncIterableIterator<V> {
     };
     const args = {
       transactionId: this._transaction.id,
-      ...(this._isWASM ? {opts} : opts),
+      ...(this._isWasm ? {opts} : opts),
     };
     const response = await this._invoke('scan', args);
     // TODO(repc-switchover): only the !array path is needed for repc.
@@ -149,7 +149,7 @@ export class ScanIterator<V> implements AsyncIterableIterator<V> {
     if (scanItems.length !== scanPageSize) {
       this._moreItemsToLoad = false;
     }
-    if (this._isWASM) {
+    if (this._isWasm) {
       for (const item of scanItems) {
         // Temporarily circument the readonly-ness of item.value to parse.
         (item as any).value = JSON.parse(item.value as string); // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -160,7 +160,7 @@ export class ScanIterator<V> implements AsyncIterableIterator<V> {
 }
 
 export class ScanResult implements AsyncIterable<JSONValue> {
-  private readonly _isWASM: boolean;
+  private readonly _isWasm: boolean;
   private readonly _args: [
     string,
     ScanBound | undefined,
@@ -170,7 +170,7 @@ export class ScanResult implements AsyncIterable<JSONValue> {
   ];
 
   constructor(
-    isWASM: boolean,
+    isWasm: boolean,
     ...args: [
       string,
       ScanBound | undefined,
@@ -179,7 +179,7 @@ export class ScanResult implements AsyncIterable<JSONValue> {
       boolean,
     ]
   ) {
-    this._isWASM = isWASM;
+    this._isWasm = isWasm;
     this._args = args;
   }
 
@@ -188,21 +188,21 @@ export class ScanResult implements AsyncIterable<JSONValue> {
   }
 
   values(): AsyncIterableIterator<JSONValue> {
-    return this._newIterator(this._isWASM, 'value');
+    return this._newIterator(this._isWasm, 'value');
   }
 
   keys(): AsyncIterableIterator<string> {
-    return this._newIterator(this._isWASM, 'key');
+    return this._newIterator(this._isWasm, 'key');
   }
 
   entries(): AsyncIterableIterator<[string, JSONValue]> {
-    return this._newIterator(this._isWASM, 'entry');
+    return this._newIterator(this._isWasm, 'entry');
   }
 
   private _newIterator<V>(
-    isWASM: boolean,
+    isWasm: boolean,
     kind: ScanIterableKind,
   ): AsyncIterableIterator<V> {
-    return new ScanIterator<V>(isWASM, kind, ...this._args);
+    return new ScanIterator<V>(isWasm, kind, ...this._args);
   }
 }

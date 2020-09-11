@@ -3,12 +3,12 @@ import type {ScanItem} from './scan-item.js';
 import type {ScanOptions} from './scan-options.js';
 import type {DatabaseInfo} from './database-info.js';
 
-// TODO(repc-switchover): isWASM can go away, but so can this whole
+// TODO(repc-switchover): isWasm can go away, but so can this whole
 // type and all the machinery connected to it. Look at the commit
 // that introduced this to unwind it.
 export type Invoker = {
   readonly invoke: REPMInvoke;
-  readonly isWASM?: boolean;
+  readonly isWasm?: boolean;
 };
 
 export interface Invoke {
@@ -60,10 +60,10 @@ export class REPMHTTPInvoker {
   };
 }
 
-export class REPMWASMInvoker {
+export class REPMWasmInvoker {
   private readonly _inited: Promise<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   private _dispatch?: (dbName: string, rpc: string, args: string) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
-  public readonly isWASM = true;
+  public readonly isWasm = true;
   // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
   constructor(wasm_module?: any) {
     this._inited = (async () => {

@@ -6,7 +6,7 @@ import {
   REPMInvoke,
   Invoke,
   OpenTransactionRequest,
-  REPMWASMInvoker,
+  REPMWasmInvoker,
 } from './repm-invoker.js';
 import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
 import {ScanResult} from './scan-iterator.js';
@@ -69,7 +69,7 @@ export default class Replicache implements ReadTransaction {
     diffServerAuth = '',
     diffServerURL,
     name = 'default',
-    repmInvoker = new REPMWASMInvoker(),
+    repmInvoker = new REPMWasmInvoker(),
     syncInterval = 60_000,
   }: {
     batchURL?: string;
@@ -121,8 +121,8 @@ export default class Replicache implements ReadTransaction {
     await repmInvoke(name, 'drop');
   }
 
-  get isWASM(): boolean {
-    return this._repmInvoker.isWASM || false;
+  get isWasm(): boolean {
+    return this._repmInvoker.isWasm || false;
   }
 
   get online(): boolean {
@@ -216,7 +216,7 @@ export default class Replicache implements ReadTransaction {
   scan({prefix = '', start}: ScanOptions = {}): ScanResult {
     let tx: ReadTransactionImpl;
     return new ScanResult(
-      this.isWASM,
+      this.isWasm,
       prefix,
       start,
       this._invoke,
@@ -224,7 +224,7 @@ export default class Replicache implements ReadTransaction {
         if (tx) {
           return tx;
         }
-        tx = new ReadTransactionImpl(this.isWASM, this._invoke);
+        tx = new ReadTransactionImpl(this.isWasm, this._invoke);
         await tx.open({});
         return tx;
       },
@@ -485,7 +485,7 @@ export default class Replicache implements ReadTransaction {
    * and `scan`.
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
-    const tx = new ReadTransactionImpl(this.isWASM, this._invoke);
+    const tx = new ReadTransactionImpl(this.isWasm, this._invoke);
     await tx.open({});
     try {
       return await body(tx);
@@ -554,7 +554,7 @@ export default class Replicache implements ReadTransaction {
     }
 
     let result: R;
-    const tx = new WriteTransactionImpl(this.isWASM, this._invoke);
+    const tx = new WriteTransactionImpl(this.isWasm, this._invoke);
     await tx.open(actualInvokeArgs);
     try {
       result = await mutatorImpl(tx, args);

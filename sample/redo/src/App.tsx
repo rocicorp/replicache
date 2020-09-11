@@ -3,12 +3,12 @@ import './App.css';
 
 import Replicache, {
   REPMHTTPInvoker,
-  REPMWASMInvoker,
+  REPMWasmInvoker,
   ReadTransaction,
   WriteTransaction,
   Mutator,
 } from 'replicache';
-import wasm_path from 'replicache/out/wasm/debug/replicache_client_bg';
+import wasmPath from 'replicache/out/wasm/debug/replicache_client_bg';
 import {diffServerURL, diffServerAuth, batchURL} from './settings';
 import {LoginScreen, logout} from './login';
 import type {LoginResult} from './login';
@@ -17,7 +17,7 @@ import {newOrderBetween} from './order';
 
 const repmInvoker = process.env.REACT_APP_HTTP_INVOKE
   ? new REPMHTTPInvoker('http://localhost:7002')
-  : new REPMWASMInvoker(fetch(String(wasm_path)));
+  : new REPMWasmInvoker(fetch(String(wasmPath)));
 
 export interface MutationFunctions {
   createTodo: Mutator<void, Todo>;

@@ -19,4 +19,8 @@ impl Store {
     pub async fn write(&self) -> Result<Write<'_>> {
         Ok(Write::new(self.kv.write().await?))
     }
+
+    pub async fn close(&self) {
+        self.kv.close().await;
+    }
 }

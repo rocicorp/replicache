@@ -37,6 +37,8 @@ pub trait Store {
     async fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
         Ok(self.read().await?.get(key).await?)
     }
+
+    async fn close(&self);
 }
 
 #[async_trait(?Send)]

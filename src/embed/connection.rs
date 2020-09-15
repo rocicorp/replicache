@@ -69,6 +69,7 @@ async fn connection_future<'a, 'b>(
         "beginSync" => execute(ctx, do_begin_sync, req).await,
         "maybeEndSync" => execute(ctx, do_maybe_end_sync, req).await,
         "close" => {
+            ctx.store.close().await;
             req.response.send(Ok("".into())).await;
             return UnorderedResult::Stop();
         }

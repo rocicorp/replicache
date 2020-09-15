@@ -36,6 +36,8 @@ impl Store for MemStore {
         let guard = self.map.write().await;
         Ok(Box::new(WriteTransaction::new(guard)))
     }
+
+    async fn close(&self) {}
 }
 
 struct ReadTransaction<'a> {

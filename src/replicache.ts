@@ -3,7 +3,6 @@ import type {ScanOptions} from './scan-options.js';
 import type {DatabaseInfo} from './database-info.js';
 import {
   Invoker,
-  REPMInvoke,
   Invoke,
   OpenTransactionRequest,
   REPMWasmInvoker,
@@ -98,11 +97,11 @@ export default class Replicache implements ReadTransaction {
    * Lists information about available local databases.
    */
   static async list({
-    repmInvoke,
+    repmInvoker,
   }: {
-    repmInvoke: REPMInvoke;
+    repmInvoker: Invoker;
   }): Promise<DatabaseInfo[]> {
-    const res = await repmInvoke('', 'list');
+    const res = await repmInvoker.invoke('', 'list');
     return res.databases;
   }
 
@@ -120,9 +119,9 @@ export default class Replicache implements ReadTransaction {
    */
   static async drop(
     name: string,
-    {repmInvoke}: {repmInvoke: REPMInvoke},
+    {repmInvoker}: {repmInvoker: Invoker},
   ): Promise<void> {
-    await repmInvoke(name, 'drop');
+    await repmInvoker.invoke(name, 'drop');
   }
 
   get isWasm(): boolean {

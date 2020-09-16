@@ -1,14 +1,6 @@
-// NodeJS does not have fetch
-import fetch from 'node-fetch';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(globalThis as any).fetch = fetch;
-
-import {open} from 'fs/promises';
-import type {FileHandle} from 'fs/promises';
-
 import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
 import Replicache, {
-  REPMHTTPInvoker,
+  REPMWasmInvoker,
   ScanBound,
   TransactionClosedError,
 } from './mod.js';
@@ -17,192 +9,20 @@ import {
   setScanPageSizeForTesting,
 } from './scan-iterator.js';
 
-import type {REPMInvoke, ReadTransaction, WriteTransaction} from './mod.js';
-import type {JSONValue, ToJSON} from './json.js';
-import type {
-  InvokeMapNoArgs,
-  InvokeMap,
-  BeginSyncResponse,
-} from './repm-invoker.js';
+import type {ReadTransaction, WriteTransaction} from './mod.js';
+import type {JSONValue} from './json.js';
+import type {BeginSyncResponse} from './repm-invoker.js';
+
+import {assert, expect} from '@esm-bundle/chai';
+import * as sinon from 'sinon';
+import type {SinonSpy, SinonStub} from 'sinon';
+
+const {fail} = assert;
 
 let rep: ReplicacheTest | null = null;
 let rep2: ReplicacheTest | null = null;
 
-type ReplayResult = JSONValue;
-
-type Replay = {
-  method: string;
-  dbName: string;
-  args: JSONValue | ToJSON;
-  result: ReplayResult;
-};
-
-type ReplayInput = Omit<Replay, 'result'>;
-
-function replayMatches(
-  r: Replay,
-  dbName: string,
-  method: string,
-  args: JSONValue,
-): boolean {
-  return (
-    r.method === method &&
-    r.dbName === dbName &&
-    JSON.stringify(r.args) === JSON.stringify(args)
-  );
-}
-
-let fixtureFile: FileHandle | undefined;
-let replays: Replay[];
-
-async function useReplay(name: string): Promise<void> {
-  function ff() {
-    return open(
-      `${__dirname}/fixtures/${name}.json`,
-      testMode === 'record' ? 'w' : 'r',
-    );
-  }
-
-  switch (testMode) {
-    case 'replay': {
-      fixtureFile = await ff();
-      const replaysString = await fixtureFile.readFile({encoding: 'utf-8'});
-      if (replaysString.length === 0) {
-        replays = [];
-      } else {
-        replays = JSON.parse(replaysString);
-      }
-      break;
-    }
-    case 'record':
-      fixtureFile = await ff();
-      replays = [];
-      break;
-    case 'live':
-      break;
-  }
-}
-
-const resultReplacements: {
-  matcher: (replay: ReplayInput) => boolean;
-  result: ReplayResult;
-}[] = [];
-
-function addResultReplacement(
-  matcher: (replay: ReplayInput) => boolean,
-  result: ReplayResult,
-) {
-  if (testMode !== 'replay') {
-    // We already store the replacements in the json.
-    resultReplacements.push({matcher, result});
-  }
-}
-
-function maybeReplaceResult(replay: ReplayInput): ReplayResult | undefined {
-  const i = resultReplacements.findIndex(({matcher}) => matcher(replay));
-  if (i === -1) {
-    return undefined;
-  }
-  const {result} = resultReplacements[i];
-  resultReplacements.splice(i, 1);
-  return result;
-}
-
-function invokeMock(invoke: REPMInvoke): REPMInvoke {
-  return async (...args: Parameters<REPMInvoke>) => {
-    const [dbName, method, args2 = {}] = args;
-    const mockResult = maybeReplaceResult({dbName, method, args: args2});
-    let result: ReplayResult;
-    if (mockResult !== undefined) {
-      result = mockResult;
-    } else {
-      result = await invoke(dbName, method, args2);
-    }
-    return result;
-  };
-}
-
-const httpInvoker = new REPMHTTPInvoker('http://localhost:7002');
-const httpInvoke: REPMInvoke = invokeMock(httpInvoker.invoke);
-
-function delay(ms: number): Promise<void> {
-  return new Promise(res => {
-    setTimeout(res, ms);
-  });
-}
-
-function recordInvoke<Rpc extends keyof InvokeMapNoArgs>(
-  dbName: string,
-  rpc: Rpc,
-): Promise<InvokeMapNoArgs[Rpc]>;
-function recordInvoke<Rpc extends keyof InvokeMap>(
-  dbName: string,
-  rpc: Rpc,
-  args: InvokeMap[Rpc][0],
-): Promise<InvokeMap[Rpc][1]>;
-async function recordInvoke(
-  dbName: string,
-  rpc: string,
-  args: JSONValue = {},
-): Promise<JSONValue> {
-  expect(fixtureFile).toBeTruthy();
-  const result = await httpInvoke(dbName, rpc, args);
-  replays.push({dbName, method: rpc, args, result});
-  return result;
-}
-
-async function replayInvoke<Rpc extends keyof InvokeMapNoArgs>(
-  dbName: string,
-  rpc: Rpc,
-): Promise<InvokeMapNoArgs[Rpc]>;
-async function replayInvoke<Rpc extends keyof InvokeMap>(
-  dbName: string,
-  rpc: Rpc,
-  args: InvokeMap[Rpc][0],
-): Promise<InvokeMap[Rpc][1]>;
-async function replayInvoke(
-  dbName: string,
-  rpc: string,
-  args: JSONValue = {},
-): Promise<JSONValue> {
-  expect(fixtureFile).toBeTruthy();
-  expect(replays).toBeDefined();
-
-  const i = replays.findIndex(r => replayMatches(r, dbName, rpc, args));
-  expect(i).not.toBe(-1);
-
-  const replay = replays[i];
-  replays.splice(i, 1);
-  // A microtask is not sufficient to emulate the RPC. We need to go to the
-  // event loop.
-  await delay(0);
-  return replay.result;
-}
-
-let invoke: REPMInvoke = httpInvoke;
-let orgInvoke: REPMInvoke;
-
-type TestMode = 'live' | 'replay' | 'record';
-
-let testMode: TestMode;
-const testModeDefault = 'replay';
-
-switch (process.env['TEST_MODE'] ?? testModeDefault) {
-  case 'replay':
-    testMode = 'replay';
-    invoke = replayInvoke;
-    break;
-  case 'live':
-    testMode = 'live';
-    invoke = httpInvoke;
-    break;
-  case 'record':
-    testMode = 'record';
-    invoke = recordInvoke;
-    break;
-  default:
-    fail('Unexpected TEST_MODE');
-}
+const wasmInvoker = new REPMWasmInvoker();
 
 async function replicacheForTesting(
   name: string,
@@ -218,16 +38,30 @@ async function replicacheForTesting(
     batchURL?: string;
   } = {},
 ): Promise<ReplicacheTest> {
+  dbsToDrop.add(name);
   return await ReplicacheTest.new({
     batchURL,
     dataLayerAuth,
     diffServerAuth,
     diffServerURL,
     name,
-    repmInvoker: {
-      invoke,
-    },
+    repmInvoker: wasmInvoker,
   });
+}
+
+const dbsToDrop = new Set<string>();
+
+async function clear(name: string): Promise<void> {
+  async function clearData(tx: WriteTransaction) {
+    for await (const key of tx.scan().keys()) {
+      await tx.del(key);
+    }
+  }
+
+  const r = await replicacheForTesting(name);
+  const clear = r.register('clearData', clearData);
+  await clear(0);
+  await r.close();
 }
 
 async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
@@ -247,7 +81,7 @@ function resolver(): {resolve: () => void; promise: Promise<void>} {
   };
 }
 
-const emptyHash = '00000000000000000000000000000000';
+const emptyHash = '';
 
 async function asyncIterableToArray<T>(it: AsyncIterable<T>) {
   const arr: T[] = [];
@@ -257,22 +91,8 @@ async function asyncIterableToArray<T>(it: AsyncIterable<T>) {
   return arr;
 }
 
-beforeEach(async () => {
-  if (testMode !== 'replay') {
-    const dbs = await ReplicacheTest.list({repmInvoke: httpInvoke});
-    for (const info of dbs) {
-      await ReplicacheTest.drop(info.name, {repmInvoke: httpInvoke});
-    }
-  }
-
-  orgInvoke = invoke;
-});
-
-afterEach(async () => {
-  // _closeTransaction is async but we do not wait for it which can lead to
-  // us closing the db before the tx is done. For the tests we do not want
-  // these errors.
-  await delay(300);
+teardown(async () => {
+  sinon.restore();
 
   if (rep !== null && !rep.closed) {
     await rep.close();
@@ -283,69 +103,62 @@ afterEach(async () => {
     rep2 = null;
   }
 
-  if (testMode === 'record') {
-    if (!fixtureFile) fail();
-    await fixtureFile.writeFile(JSON.stringify(replays, null, 2), 'utf-8');
+  for (const name of dbsToDrop) {
+    await clear(name);
   }
-
-  replays = [];
-  if (fixtureFile) {
-    await fixtureFile.close();
-    fixtureFile = undefined;
-  }
-
-  expect(resultReplacements).toHaveLength(0);
-
-  if (jest.isMockFunction(invoke)) {
-    invoke.mockClear();
-    invoke = orgInvoke;
-  }
+  dbsToDrop.clear();
 });
 
-beforeAll(() => {
+suiteSetup(() => {
   setScanPageSizeForTesting(4);
 });
 
-afterAll(() => {
+suiteTeardown(() => {
   restoreScanPageSizeForTesting();
 });
 
-test('list and drop', async () => {
-  await useReplay('list and drop');
+async function expectPromiseToReject(p: unknown): Promise<Chai.Assertion> {
+  let e;
+  try {
+    await p;
+  } catch (ex) {
+    e = ex;
+  }
+  return expect(e);
+}
 
+async function expectAsyncFuncToThrow(f: () => unknown, c: unknown) {
+  (await expectPromiseToReject(f())).to.be.instanceof(c);
+}
+
+test.skip('list and drop', async () => {
   rep = await replicacheForTesting('def');
   rep2 = await replicacheForTesting('abc');
 
-  const dbs = await ReplicacheTest.list({repmInvoke: invoke});
-  expect(dbs).toEqual([{name: 'abc'}, {name: 'def'}]);
+  const dbs = await ReplicacheTest.list({repmInvoker: wasmInvoker});
+  expect(dbs).to.eql([{name: 'abc'}, {name: 'def'}]);
 
   {
-    await ReplicacheTest.drop('abc', {repmInvoke: invoke});
-    const dbs = await ReplicacheTest.list({repmInvoke: invoke});
-    expect(dbs).toEqual([{name: 'def'}]);
+    await ReplicacheTest.drop('abc', {repmInvoker: wasmInvoker});
+    const dbs = await ReplicacheTest.list({repmInvoker: wasmInvoker});
+    expect(dbs).to.eql([{name: 'def'}]);
   }
 });
 
 test('get, has, scan on empty db', async () => {
-  await useReplay('get, has, scan on empty db');
-
   rep = await replicacheForTesting('test2');
-
   async function t(tx: ReadTransaction) {
-    expect(await tx.get('key')).toBeUndefined();
-    expect(await tx.has('key')).toBe(false);
+    expect(await tx.get('key')).to.equal(undefined);
+    expect(await tx.has('key')).to.be.false;
 
     const scanItems = await asyncIterableToArray(tx.scan());
-    expect(scanItems).toHaveLength(0);
+    expect(scanItems).to.have.length(0);
   }
 
   await t(rep);
-  await rep.query(t);
 });
 
 test('put, get, has, del inside tx', async () => {
-  await useReplay('put, get, has, del inside tx');
-
   rep = await replicacheForTesting('test3');
   const mut = rep.register(
     'mut',
@@ -353,12 +166,12 @@ test('put, get, has, del inside tx', async () => {
       const key = args['key'];
       const value = args['value'];
       await tx.put(key, value);
-      expect(await tx.has(key)).toBe(true);
+      expect(await tx.has(key)).to.equal(true);
       const v = await tx.get(key);
-      expect(v).toEqual(value);
+      expect(v).to.eql(value);
 
-      expect(await tx.del(key)).toBe(true);
-      expect(await tx.has(key)).toBe(false);
+      expect(await tx.del(key)).to.equal(true);
+      expect(await tx.has(key)).to.be.false;
     },
   );
 
@@ -378,8 +191,6 @@ test('put, get, has, del inside tx', async () => {
 });
 
 test('scan', async () => {
-  await useReplay('scan');
-
   rep = await replicacheForTesting('test4');
   const add = rep.register('add-data', addData);
   await add({
@@ -400,28 +211,29 @@ test('scan', async () => {
   ) {
     if (!rep) {
       fail();
+      return;
     }
 
     await rep.query(async tx => {
-      expect(await asyncIterableToArray(tx.scan(options).entries())).toEqual(
+      expect(await asyncIterableToArray(tx.scan(options).entries())).to.eql(
         entries,
       );
     });
 
     await rep.query(async tx => {
-      expect(await asyncIterableToArray(tx.scan(options))).toEqual(
+      expect(await asyncIterableToArray(tx.scan(options))).to.eql(
         entries.map(([, v]) => v),
       );
     });
 
     await rep.query(async tx => {
-      expect(await asyncIterableToArray(tx.scan(options).values())).toEqual(
+      expect(await asyncIterableToArray(tx.scan(options).values())).to.eql(
         entries.map(([, v]) => v),
       );
     });
 
     await rep.query(async tx => {
-      expect(await asyncIterableToArray(tx.scan(options).keys())).toEqual(
+      expect(await asyncIterableToArray(tx.scan(options).keys())).to.eql(
         entries.map(([k]) => k),
       );
     });
@@ -489,8 +301,6 @@ test('scan', async () => {
 });
 
 test('subscribe', async () => {
-  await useReplay('subscribe');
-
   const log: [string, JSONValue][] = [];
 
   rep = await replicacheForTesting('subscribe');
@@ -511,23 +321,20 @@ test('subscribe', async () => {
     },
   );
 
-  expect(log).toHaveLength(0);
+  expect(log).to.have.length(0);
 
   const add = rep.register('add-data', addData);
   await add({'a/0': 0});
-  await delay(0);
-  expect(log).toEqual([['a/0', 0]]);
+  expect(log).to.eql([['a/0', 0]]);
 
   // We might potentially remove this entry if we start checking equality.
   log.length = 0;
   await add({'a/0': 0});
-  await delay(0);
-  expect(log).toEqual([['a/0', 0]]);
+  expect(log).to.eql([['a/0', 0]]);
 
   log.length = 0;
   await add({'a/1': 1});
-  await delay(0);
-  expect(log).toEqual([
+  expect(log).to.eql([
     ['a/0', 0],
     ['a/1', 1],
   ]);
@@ -535,8 +342,7 @@ test('subscribe', async () => {
   log.length = 0;
   log.length = 0;
   await add({'a/1': 11});
-  await delay(0);
-  expect(log).toEqual([
+  expect(log).to.eql([
     ['a/0', 0],
     ['a/1', 11],
   ]);
@@ -545,12 +351,10 @@ test('subscribe', async () => {
   cancel();
   await add({'a/1': 11});
   await Promise.resolve();
-  expect(log).toHaveLength(0);
+  expect(log).to.have.length(0);
 });
 
 test('subscribe close', async () => {
-  await useReplay('subscribe close');
-
   rep = await replicacheForTesting('subscribe-close');
 
   const log: (JSONValue | undefined)[] = [];
@@ -560,23 +364,21 @@ test('subscribe close', async () => {
     onDone: () => (done = true),
   });
 
-  expect(log).toHaveLength(0);
+  expect(log).to.have.length(0);
 
   const add = rep.register('add-data', addData);
   await add({k: 0});
   await Promise.resolve();
-  expect(log).toEqual([undefined, 0]);
+  expect(log).to.eql([undefined, 0]);
 
   let done = false;
 
   await rep.close();
-  expect(done).toBe(true);
+  expect(done).to.equal(true);
   cancel();
 });
 
 test('name', async () => {
-  await useReplay('name');
-
   const repA = await replicacheForTesting('a');
   const repB = await replicacheForTesting('b');
 
@@ -586,16 +388,17 @@ test('name', async () => {
   await addA({key: 'A'});
   await addB({key: 'B'});
 
-  expect(await repA.get('key')).toBe('A');
-  expect(await repB.get('key')).toBe('B');
+  expect(await repA.get('key')).to.equal('A');
+  expect(await repB.get('key')).to.equal('B');
 
   await repA.close();
   await repB.close();
+
+  await clear('a');
+  await clear('b');
 });
 
 test('register with error', async () => {
-  await useReplay('register with error');
-
   rep = await replicacheForTesting('regerr');
 
   const doErr = rep.register('err', async (_, args) => {
@@ -606,13 +409,11 @@ test('register with error', async () => {
     await doErr(42);
     fail('Should have thrown');
   } catch (ex) {
-    expect(ex).toBe(42);
+    expect(ex).to.equal(42);
   }
 });
 
 test('subscribe with error', async () => {
-  await useReplay('subscribe with error');
-
   rep = await replicacheForTesting('suberr');
 
   const add = rep.register('add-data', addData);
@@ -638,20 +439,18 @@ test('subscribe with error', async () => {
   );
   await Promise.resolve();
 
-  expect(error).toBeUndefined();
-  expect(gottenValue).toBe(0);
+  expect(error).to.equal(undefined);
+  expect(gottenValue).to.equal(0);
 
   await add({k: 'throw'});
-  expect(gottenValue).toBe(1);
+  expect(gottenValue).to.equal(1);
   await Promise.resolve();
-  expect(error).toBe('throw');
+  expect(error).to.equal('throw');
 
   cancel();
 });
 
-test('conflicting commits', async () => {
-  await useReplay('conflicting commits');
-
+test.skip('conflicting commits', async () => {
   // This test does not use pure functions in the mutations. This is of course
   // not a good practice but it makes testing easier.
   const ar = resolver();
@@ -674,17 +473,15 @@ test('conflicting commits', async () => {
   // Finish A.
   ar.resolve();
   await resAFuture;
-  expect(await rep.get('k')).toBe('a');
+  expect(await rep.get('k')).to.equal('a');
 
   // Finish B. B will conflict and retry!
   br.resolve();
   await resBFuture;
-  expect(await rep.get('k')).toBe('b');
+  expect(await rep.get('k')).to.equal('b');
 });
 
 test('sync', async () => {
-  await useReplay('sync');
-
   rep = await replicacheForTesting('sync', {
     batchURL: 'https://replicache-sample-todo.now.sh/serve/replicache-batch',
     dataLayerAuth: '1',
@@ -721,15 +518,15 @@ test('sync', async () => {
   await deleteTodo({id: id1});
   await deleteTodo({id: id2});
 
-  expect(deleteCount).toBe(2);
+  expect(deleteCount).to.equal(2);
 
   await rep?.sync();
-  expect(deleteCount).toBe(2);
+  expect(deleteCount).to.equal(2);
 
   beginSyncResult = await rep?.beginSync();
   syncHead = beginSyncResult.syncHead;
-  expect(syncHead).toBe(emptyHash);
-  expect(deleteCount).toBe(2);
+  expect(syncHead).to.equal(emptyHash);
+  expect(deleteCount).to.equal(2);
 
   await createTodo({
     id: id1,
@@ -738,14 +535,14 @@ test('sync', async () => {
     complete: false,
     order: 10000,
   });
-  expect(createCount).toBe(1);
-  expect(((await rep?.get(`/todo/${id1}`)) as {text: string}).text).toBe(
+  expect(createCount).to.equal(1);
+  expect(((await rep?.get(`/todo/${id1}`)) as {text: string}).text).to.equal(
     'Test',
   );
 
   beginSyncResult = await rep?.beginSync();
   syncHead = beginSyncResult.syncHead;
-  expect(syncHead).not.toBe(emptyHash);
+  expect(syncHead).not.to.equal(emptyHash);
 
   await createTodo({
     id: id2,
@@ -754,32 +551,30 @@ test('sync', async () => {
     complete: false,
     order: 20000,
   });
-  expect(createCount).toBe(2);
-  expect(((await rep?.get(`/todo/${id2}`)) as {text: string}).text).toBe(
+  expect(createCount).to.equal(2);
+  expect(((await rep?.get(`/todo/${id2}`)) as {text: string}).text).to.equal(
     'Test 2',
   );
 
   await rep?.maybeEndSync(beginSyncResult);
 
-  expect(createCount).toBe(3);
+  expect(createCount).to.equal(3);
 
   // Clean up
   await deleteTodo({id: id1});
   await deleteTodo({id: id2});
 
-  expect(deleteCount).toBe(4);
-  expect(createCount).toBe(3);
+  expect(deleteCount).to.equal(4);
+  expect(createCount).to.equal(3);
 
   await rep?.sync();
 
-  expect(deleteCount).toBe(4);
-  expect(createCount).toBe(3);
+  expect(deleteCount).to.equal(4);
+  expect(createCount).to.equal(3);
 });
 
 test('sync2', async () => {
-  await useReplay('sync2');
-
-  invoke = jest.fn(invoke);
+  sinon.spy(wasmInvoker, 'invoke');
 
   rep = await replicacheForTesting('sync2', {
     batchURL: 'https://replicache-sample-todo.now.sh/serve/replicache-batch',
@@ -791,47 +586,50 @@ test('sync2', async () => {
   const s2 = rep.sync();
   await s1;
   await s2;
-
-  const {calls} = (invoke as jest.Mock).mock;
+  const calls = (wasmInvoker.invoke as SinonSpy).args;
   const syncCalls = calls.filter(([, rpc]) => rpc === 'beginSync').length;
-  expect(syncCalls).toBe(2);
+  expect(syncCalls).to.equal(2);
 });
 
 test('reauth', async () => {
-  await useReplay('reauth');
-
-  addResultReplacement(({method}) => method === 'beginSync', {
-    syncHead: '62f6ki43l12mujhubcfhjuugiause17b',
-    syncInfo: {
-      syncID: 'XY6WhbbdeUdytMJNtsBejG-5ed87fed-1',
-      clientViewInfo: {
-        httpStatusCode: httpStatusUnauthorized,
-        errorMessage: 'xxx',
-      },
-    },
-  } as BeginSyncResponse);
+  const orgInvoke = wasmInvoker.invoke;
+  sinon.stub(wasmInvoker, 'invoke').callsFake(async (dbName, rpc, args) => {
+    if (rpc === 'beginSync') {
+      return {
+        syncHead: '62f6ki43l12mujhubcfhjuugiause17b',
+        syncInfo: {
+          syncID: 'XY6WhbbdeUdytMJNtsBejG-5ed87fed-1',
+          clientViewInfo: {
+            httpStatusCode: httpStatusUnauthorized,
+            errorMessage: 'xxx',
+          },
+        },
+      } as BeginSyncResponse;
+    }
+    return orgInvoke(dbName, rpc, args);
+  });
 
   rep = await replicacheForTesting('reauth');
 
-  rep.getDataLayerAuth = jest.fn(() => {
-    return null;
-  });
+  const getDataLayerAuthFake = sinon.fake.returns(null);
+  rep.getDataLayerAuth = getDataLayerAuthFake;
 
   await rep.beginSync();
 
-  expect(rep.getDataLayerAuth).toBeCalledTimes(1);
+  expect(getDataLayerAuthFake.callCount).to.equal(1);
+  (wasmInvoker.invoke as SinonStub).restore();
 });
 
 test('closed tx', async () => {
-  await useReplay('closed tx');
   rep = await replicacheForTesting('reauth');
 
   let rtx: ReadTransaction;
   await rep.query(tx => (rtx = tx));
 
-  await expect(() => rtx.get('x')).rejects.toThrow(TransactionClosedError);
-  await expect(() => rtx.has('y')).rejects.toThrow(TransactionClosedError);
-  await expect(() => rtx.scan().values().next()).rejects.toThrow(
+  await expectAsyncFuncToThrow(() => rtx.get('x'), TransactionClosedError);
+  await expectAsyncFuncToThrow(() => rtx.has('y'), TransactionClosedError);
+  await expectAsyncFuncToThrow(
+    () => rtx.scan().values().next(),
     TransactionClosedError,
   );
 
@@ -841,26 +639,23 @@ test('closed tx', async () => {
   });
 
   await mut(0);
-  expect(wtx).toBeDefined();
-  await expect(() => wtx?.put('z', 1)).rejects.toThrow(TransactionClosedError);
-  await expect(() => wtx?.del('w')).rejects.toThrow(TransactionClosedError);
+  expect(wtx).to.not.be.undefined;
+  await expectAsyncFuncToThrow(() => wtx?.put('z', 1), TransactionClosedError);
+  await expectAsyncFuncToThrow(() => wtx?.del('w'), TransactionClosedError);
 });
 
 test('syncInterval in constructor', async () => {
-  await useReplay('syncInterval in constructor');
   const rep = new Replicache({
     syncInterval: 12.34,
-    repmInvoker: {invoke},
+    repmInvoker: wasmInvoker,
     diffServerURL: 'xxx',
   });
-  expect(rep.syncInterval).toBe(12.34);
+  expect(rep.syncInterval).to.equal(12.34);
   await rep.close();
 });
 
 test('closeTransaction after rep.scan', async () => {
-  await useReplay('closeTransaction after rep.scan');
-
-  invoke = jest.fn(invoke);
+  sinon.spy(wasmInvoker, 'invoke');
 
   rep = await replicacheForTesting('test5');
   const add = rep.register('add-data', addData);
@@ -869,13 +664,13 @@ test('closeTransaction after rep.scan', async () => {
     'a/1': 1,
   });
 
-  const mockInvoke = invoke as jest.Mock;
-  mockInvoke.mockClear();
+  const invokeSpy = wasmInvoker.invoke as SinonSpy;
+  invokeSpy.resetHistory();
 
   function expectCalls(log: JSONValue[]) {
-    expect(log).toEqual(log);
-    const rpcs = mockInvoke.mock.calls.map(([, rpc]) => rpc);
-    expect(rpcs).toEqual(['openTransaction', 'scan', 'closeTransaction']);
+    expect(log).to.eql(log);
+    const rpcs = invokeSpy.args.map(([, rpc]) => rpc);
+    expect(rpcs).to.eql(['openTransaction', 'scan', 'closeTransaction']);
   }
 
   const it = rep.scan();
@@ -887,7 +682,7 @@ test('closeTransaction after rep.scan', async () => {
 
   // One more time with return in loop...
   log.length = 0;
-  mockInvoke.mockClear();
+  invokeSpy.resetHistory();
   await (async () => {
     if (!rep) {
       fail();
@@ -902,7 +697,7 @@ test('closeTransaction after rep.scan', async () => {
 
   // ... and with a break.
   log.length = 0;
-  mockInvoke.mockClear();
+  invokeSpy.resetHistory();
   {
     const it = rep.scan();
     for await (const v of it) {
@@ -914,36 +709,40 @@ test('closeTransaction after rep.scan', async () => {
 
   // ... and with a throw.
   log.length = 0;
-  mockInvoke.mockClear();
-  await expect(
-    (async () => {
-      if (!rep) {
-        fail();
-      }
-      const it = rep.scan();
-      for await (const v of it) {
-        log.push(v);
-        throw 'hi!';
-      }
-    })(),
-  ).rejects.toBe('hi!');
+  invokeSpy.resetHistory();
+  (
+    await expectPromiseToReject(
+      (async () => {
+        if (!rep) {
+          fail();
+        }
+        const it = rep.scan();
+        for await (const v of it) {
+          log.push(v);
+          throw 'hi!';
+        }
+      })(),
+    )
+  ).to.equal('hi!');
 
   expectCalls([0]);
 
   // ... and with a throw.
   log.length = 0;
-  mockInvoke.mockClear();
-  await expect(
-    (async () => {
-      if (!rep) {
-        fail();
-      }
-      const it = rep.scan();
-      for await (const v of it) {
-        log.push(v);
-        throw 'hi!';
-      }
-    })(),
-  ).rejects.toBe('hi!');
+  invokeSpy.resetHistory();
+  (
+    await expectPromiseToReject(
+      (async () => {
+        if (!rep) {
+          fail();
+        }
+        const it = rep.scan();
+        for await (const v of it) {
+          log.push(v);
+          throw 'hi!';
+        }
+      })(),
+    )
+  ).to.equal('hi!');
   expectCalls([0]);
 });

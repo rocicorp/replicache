@@ -3,12 +3,14 @@ import type {ScanItem} from './scan-item.js';
 import type {ScanOptions} from './scan-options.js';
 import type {DatabaseInfo} from './database-info.js';
 
+import init, {dispatch} from './wasm/release/replicache_client.js';
+
 // TODO(repc-switchover): isWasm can go away, but so can this whole
 // type and all the machinery connected to it. Look at the commit
 // that introduced this to unwind it.
 export type Invoker = {
   readonly invoke: REPMInvoke;
-  readonly isWasm?: boolean;
+  readonly isWasm: boolean;
 };
 
 export interface Invoke {
@@ -33,6 +35,9 @@ export interface REPMInvoke {
 
 export class REPMHTTPInvoker {
   private readonly _url: string;
+
+  readonly isWasm = false;
+
   constructor(url: string) {
     this._url = url;
   }
@@ -70,9 +75,9 @@ export class REPMWasmInvoker {
       // TODO: Have to import dynamically to hide this from Jest.
       // Jest cannot parse the es6 behind this import, I don't know why.
       // TODO: We need to have some way to switch between debug and release.
-      const {default: init, dispatch} = await import(
-        './wasm/debug/replicache_client.js'
-      );
+      // const {default: init, dispatch} = await import(
+      //   './wasm/debug/replicache_client.js'
+      // );
       this._dispatch = dispatch;
       return init(wasm_module);
     })();

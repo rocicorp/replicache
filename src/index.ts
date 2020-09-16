@@ -35,20 +35,20 @@ import Replicache from './replicache.js';
 
   await invoker.invoke('test', 'close');
 
-  const repmInvoke = invoker.invoke;
+  const repmInvoker = invoker;
   document.body.textContent = JSON.stringify(
-    await Replicache.list({repmInvoke}),
+    await Replicache.list({repmInvoker}),
     null,
     2,
   );
 
   document.body.textContent += ';\n';
 
-  await Replicache.drop('test', {repmInvoke});
+  await Replicache.drop('test', {repmInvoker});
 
   document.body.textContent += ';\n';
   document.body.textContent += JSON.stringify(
-    await Replicache.list({repmInvoke}),
+    await Replicache.list({repmInvoker}),
     null,
     2,
   );

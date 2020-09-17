@@ -26,4 +26,6 @@ jobs:
       - uses: microsoft/playwright-github-action@v1
       - run: npm ci
       - run: npm run build --if-present
+      - run: npm run check-format
+      - run: npm run lint
       - run: npm test

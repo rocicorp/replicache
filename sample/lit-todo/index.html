@@ -1,181 +1,224 @@
 <!DOCTYPE html>
 <html>
-
-<head>
+  <head>
     <title>Redo: Offline-First Todos with Replicache</title>
-    <link href='https://fonts.googleapis.com/css?family=Roboto:300,400,500' rel='stylesheet'>
-    <link href='https://fonts.googleapis.com/css?family=Material+Icons&display=block' rel='stylesheet'>
-    <link href='styles.css' rel='stylesheet'>
-</head>
+    <link
+      href="https://fonts.googleapis.com/css?family=Roboto:300,400,500"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css?family=Material+Icons&display=block"
+      rel="stylesheet"
+    />
+    <link href="styles.css" rel="stylesheet" />
+  </head>
 
-<body>
+  <body>
     <mwc-top-app-bar>
-        <div slot='title'>
-            <div>Redo</div>
-            <div class='subtitle'>Absurdly Fast, Local-First,
-                Synchronizing Todo Editor — Built with <a href="https://replicache.dev">Replicache</a>!</div>
+      <div slot="title">
+        <div>Redo</div>
+        <div class="subtitle">
+          Absurdly Fast, Local-First, Synchronizing Todo Editor — Built with
+          <a href="https://replicache.dev">Replicache</a>!
         </div>
-        <mwc-icon slot='actionItems' class='sync-icon'>sync</mwc-icon>
-        <div class='todo-list'></div>
+      </div>
+      <mwc-icon slot="actionItems" class="sync-icon">sync</mwc-icon>
+      <div class="todo-list"></div>
     </mwc-top-app-bar>
-    <mwc-fab icon='edit'></mwc-fab>
+    <mwc-fab icon="edit"></mwc-fab>
 
-    <script type='module'>
-        import { handleDragStart, isDragging } from './drag.js';
-        import Replicache from './node_modules/replicache/out/mod.js';
-        import { html, render } from 'lit-html';
-        import { classMap } from 'lit-html/directives/class-map.js';
-        import { live } from 'lit-html/directives/live';
-        import { repeat } from 'lit-html/directives/repeat.js';
-        import '@material/mwc-checkbox/mwc-checkbox.js';
-        import '@material/mwc-fab';
-        import '@material/mwc-icon';
-        import '@material/mwc-icon-button';
-        import '@material/mwc-textfield';
-        import '@material/mwc-top-app-bar/mwc-top-app-bar.js';
+    <script type="module">
+      import {handleDragStart, isDragging} from './drag.js';
+      import Replicache from './node_modules/replicache/out/mod.js';
+      import {html, render} from 'lit-html';
+      import {classMap} from 'lit-html/directives/class-map.js';
+      import {live} from 'lit-html/directives/live';
+      import {repeat} from 'lit-html/directives/repeat.js';
+      import '@material/mwc-checkbox/mwc-checkbox.js';
+      import '@material/mwc-fab';
+      import '@material/mwc-icon';
+      import '@material/mwc-icon-button';
+      import '@material/mwc-textfield';
+      import '@material/mwc-top-app-bar/mwc-top-app-bar.js';
 
+      const key = id => `/todo/${id}`;
 
-        const key = id => `/todo/${id}`;
+      var rep = (window.rep = new Replicache({
+        // URL of the diff server to use. The diff server periodically fetches
+        // the 'client view' from your service and returns any delta. You can
+        // use our hosted diff server (as here) or a local diff server, which
+        // is useful during development. See
+        // https://github.com/rocicorp/replicache#server-side for more
+        // information.
+        diffServerURL: 'https://serve.replicache.dev/pull',
 
-        var rep = window.rep = new Replicache({
-            // URL of the diff server to use. The diff server periodically fetches
-            // the 'client view' from your service and returns any delta. You can
-            // use our hosted diff server (as here) or a local diff server, which
-            // is useful during development. See
-            // https://github.com/rocicorp/replicache#server-side for more
-            // information.
-            diffServerURL: 'https://serve.replicache.dev/pull',
+        // Auth token for the diff server, if any.
+        diffServerAuth: '1',
 
-            // Auth token for the diff server, if any.
-            diffServerAuth: '1',
+        // URL of your service's Replicache batch endpoint. Replicache
+        // will send batches of mutations here for application when the
+        // network is available.
+        batchURL:
+          'https://replicache-sample-todo.now.sh/serve/replicache-batch',
 
-            // URL of your service's Replicache batch endpoint. Replicache
-            // will send batches of mutations here for application when the
-            // network is available.
-            batchURL: 'https://replicache-sample-todo.now.sh/serve/replicache-batch',
+        // Auth token for your client view and batch endpoints, if any.
+        dataLayerAuth: '2',
+      }));
 
-            // Auth token for your client view and batch endpoints, if any.
-            dataLayerAuth: '2',
-        });
-
-        rep.onSync = syncing => {
-            const icon = document.querySelector('.sync-icon');
-            icon.textContent = 'sync';
-            icon.classList.toggle('offline', false);
-            if (syncing) {
-                icon.classList.toggle('syncing', true);
-                window.setTimeout(() => icon.classList.toggle('syncing', false), 500);
-            }
-            if (!rep.online) {
-                icon.classList.toggle('offline', true);
-                icon.textContent = 'sync_problem';
-            }
-        };
-
-        rep.subscribe(async tx => {
-            const todos = (await tx.scanAll({ prefix: '/todo/' })).map(([k, v]) => v);
-            todos.sort((a, b) => a.order - b.order);
-            return todos;
-        }, {
-            onData: update,
-        });
-
-        const updateTodo = rep.register('updateTodo', async (tx, changes) => {
-            const todo = await tx.get(key(changes.id));
-            Object.assign(todo, changes);
-            await tx.put(key(todo.id), todo);
-        });
-
-        const deleteTodo = rep.register('deleteTodo', async (tx, { id }) => {
-            await tx.del(key(id));
-        });
-
-        const createTodo = rep.register('createTodo', async (tx, todo) => {
-            await tx.put(key(todo.id), todo);
-        });
-
-        async function handleCreate() {
-            const [first] = todos;
-            await createTodo({
-                id: Math.round(Math.random() * Math.pow(2, 30)),
-                listID: 2,
-                text: 'Untitled',
-                order: first ? (first.order / 2) : 0.5,
-                complete: false,
-            });
-            document.querySelector('.todo-list .textwrap span').focus();
-        };
-
-        async function handleDelete(id, e) {
-            e.stopPropagation();
-            await deleteTodo({ id });
-        };
-
-        async function handleFocus(e) {
-            const selection = window.getSelection();
-            const range = document.createRange();
-            range.selectNodeContents(e.srcElement);
-            selection.removeAllRanges();
-            selection.addRange(range);
-        };
-
-        async function handleBlur(id, e) {
-            const text = e.srcElement.textContent;
-            await updateTodo({ id, text });
-        };
-
-        async function handleCheck(id, e) {
-            updateTodo({ id, complete: !e.currentTarget.checked });
-        };
-
-        async function handleItemClick(id, e) {
-            const checkbox = e.currentTarget.parentElement.querySelector('mwc-checkbox');
-            checkbox.checked = !checkbox.checked;
-            updateTodo({ id, complete: checkbox.checked });
-        };
-
-        async function handleTextClick(e) {
-            e.stopPropagation();
+      rep.onSync = syncing => {
+        const icon = document.querySelector('.sync-icon');
+        icon.textContent = 'sync';
+        icon.classList.toggle('offline', false);
+        if (syncing) {
+          icon.classList.toggle('syncing', true);
+          window.setTimeout(() => icon.classList.toggle('syncing', false), 500);
         }
-
-        async function handleDragEnd(id, order) {
-            await updateTodo({ id, order });
+        if (!rep.online) {
+          icon.classList.toggle('offline', true);
+          icon.textContent = 'sync_problem';
         }
+      };
 
-        let todos = [];
-        function update(newTodos) {
-            todos = newTodos;
+      rep.subscribe(
+        async tx => {
+          const todos = (await tx.scanAll({prefix: '/todo/'})).map(
+            ([k, v]) => v,
+          );
+          todos.sort((a, b) => a.order - b.order);
+          return todos;
+        },
+        {
+          onData: update,
+        },
+      );
 
-            // Using lit-html, but the principle is the same in any UI framework.
-            // See https://github.com/rocicorp/replicache-sdk-js/tree/master/sample/cal
-            // for an example using React.
-            const item = (todo, index) => html`<div class=${classMap({ 'todo-item': true, 'dragging': isDragging(todo.id) })}>
-                <mwc-icon class='handle' @mousedown=${e => handleDragStart(e, todo.id, index, () => todos, update, handleDragEnd)}>drag_handle</mwc-icon>
-                <mwc-checkbox .checked=${live(todo.complete)} @input=${(e) => handleCheck(todo.id, e)}></mwc-checkbox>
-                <div class='textwrap' @click=${e => handleItemClick(todo.id, e)}>
-                    <span @focus=${handleFocus} @click=${handleTextClick} @blur=${e => handleBlur(todo.id, e)} contenteditable>${todo.text}</span></div>
-                <mwc-icon-button @click=${(e) => handleDelete(todo.id, e)} icon='delete'></mwc-icon-button>
-            </div>`;
-            render(repeat(newTodos, todo => todo.id, item), document.querySelector('.todo-list'));
-        };
+      const updateTodo = rep.register('updateTodo', async (tx, changes) => {
+        const todo = await tx.get(key(changes.id));
+        Object.assign(todo, changes);
+        await tx.put(key(todo.id), todo);
+      });
 
-        document.querySelector('mwc-fab').addEventListener('click', handleCreate);
+      const deleteTodo = rep.register('deleteTodo', async (tx, {id}) => {
+        await tx.del(key(id));
+      });
+
+      const createTodo = rep.register('createTodo', async (tx, todo) => {
+        await tx.put(key(todo.id), todo);
+      });
+
+      async function handleCreate() {
+        const [first] = todos;
+        await createTodo({
+          id: Math.round(Math.random() * Math.pow(2, 30)),
+          listID: 2,
+          text: 'Untitled',
+          order: first ? first.order / 2 : 0.5,
+          complete: false,
+        });
+        document.querySelector('.todo-list .textwrap span').focus();
+      }
+
+      async function handleDelete(id, e) {
+        e.stopPropagation();
+        await deleteTodo({id});
+      }
+
+      async function handleFocus(e) {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(e.srcElement);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+
+      async function handleBlur(id, e) {
+        const text = e.srcElement.textContent;
+        await updateTodo({id, text});
+      }
+
+      async function handleCheck(id, e) {
+        updateTodo({id, complete: !e.currentTarget.checked});
+      }
+
+      async function handleItemClick(id, e) {
+        const checkbox = e.currentTarget.parentElement.querySelector(
+          'mwc-checkbox',
+        );
+        checkbox.checked = !checkbox.checked;
+        updateTodo({id, complete: checkbox.checked});
+      }
+
+      async function handleTextClick(e) {
+        e.stopPropagation();
+      }
+
+      async function handleDragEnd(id, order) {
+        await updateTodo({id, order});
+      }
+
+      let todos = [];
+      function update(newTodos) {
+        todos = newTodos;
+
+        // Using lit-html, but the principle is the same in any UI framework.
+        // See https://github.com/rocicorp/replicache-sdk-js/tree/master/sample/cal
+        // for an example using React.
+        const item = (todo, index) => html`<div
+          class=${classMap({'todo-item': true, dragging: isDragging(todo.id)})}
+        >
+          <mwc-icon
+            class="handle"
+            @mousedown=${e =>
+              handleDragStart(
+                e,
+                todo.id,
+                index,
+                () => todos,
+                update,
+                handleDragEnd,
+              )}
+            >drag_handle</mwc-icon
+          >
+          <mwc-checkbox
+            .checked=${live(todo.complete)}
+            @input=${e => handleCheck(todo.id, e)}
+          ></mwc-checkbox>
+          <div class="textwrap" @click=${e => handleItemClick(todo.id, e)}>
+            <span
+              @focus=${handleFocus}
+              @click=${handleTextClick}
+              @blur=${e => handleBlur(todo.id, e)}
+              contenteditable
+              >${todo.text}</span
+            >
+          </div>
+          <mwc-icon-button
+            @click=${e => handleDelete(todo.id, e)}
+            icon="delete"
+          ></mwc-icon-button>
+        </div>`;
+        render(
+          repeat(newTodos, todo => todo.id, item),
+          document.querySelector('.todo-list'),
+        );
+      }
+
+      document.querySelector('mwc-fab').addEventListener('click', handleCreate);
     </script>
 
     <script src="https://js.pusher.com/7.0/pusher.min.js"></script>
     <script>
-        // Enable pusher logging - don't include this in production
-        Pusher.logToConsole = true;
+      // Enable pusher logging - don't include this in production
+      Pusher.logToConsole = true;
 
-        var pusher = new Pusher('8084fa6056631d43897d', {
-            cluster: 'us3'
-        });
+      var pusher = new Pusher('8084fa6056631d43897d', {
+        cluster: 'us3',
+      });
 
-        var channel = pusher.subscribe('u-2');
-        channel.bind('poke', function (data) {
-            window.rep.sync();
-        });
+      var channel = pusher.subscribe('u-2');
+      channel.bind('poke', function (data) {
+        window.rep.sync();
+      });
     </script>
-</body>
-
+  </body>
 </html>

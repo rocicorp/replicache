@@ -42,7 +42,7 @@ mwc-fab {
 /* When the todo item is hovered, it is highlighted and a drag cursor shows up */
 
 .todo-item:hover {
-  background: rgba(0,0,0,0.05);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .todo-item:hover .handle {
@@ -77,16 +77,18 @@ body.dragging .todo-item.dragging .handle {
 }
 
 .todo-item .textwrap span {
-  font-family: var(--mdc-typography-subtitle1-font-family, var(--mdc-typography-font-family, Roboto, sans-serif));
+  font-family: var(
+    --mdc-typography-subtitle1-font-family,
+    var(--mdc-typography-font-family, Roboto, sans-serif)
+  );
   font-size: var(--mdc-typography-subtitle1-font-size, 1rem);
   font-weight: var(--mdc-typography-subtitle1-font-weight, 400);
   letter-spacing: var(--mdc-typography-subtitle1-letter-spacing, 0.009375em);
   text-decoration: var(--mdc-typography-subtitle1-text-decoration, inherit);
   text-transform: var(--mdc-typography-subtitle1-text-transform, inherit);
   padding: 0.9em 0.4em;
-  border-bottom: 2px solid rgba(0,0,0,0);
+  border-bottom: 2px solid rgba(0, 0, 0, 0);
   transition: border-bottom-color ease-in 100ms;
-
 }
 
 .todo-item .textwrap span:focus {
@@ -97,8 +99,8 @@ body.dragging .todo-item.dragging .handle {
 .todo-item mwc-textfield {
   display: inline-block;
   min-width: 0;
-  --mdc-text-field-fill-color: rgba(0,0,0,0);
-  --mdc-text-field-idle-line-color: rgba(0,0,0,0);
+  --mdc-text-field-fill-color: rgba(0, 0, 0, 0);
+  --mdc-text-field-idle-line-color: rgba(0, 0, 0, 0);
 }
 
 mwc-check-list-item .text {

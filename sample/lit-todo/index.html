@@ -63,18 +63,19 @@
 
         // Auth token for your client view and batch endpoints, if any.
         dataLayerAuth: '2',
+        pushDelay: 300,
       }));
 
       rep.onSync = syncing => {
         const icon = document.querySelector('.sync-icon');
         icon.textContent = 'sync';
-        icon.classList.toggle('offline', false);
+        icon.classList.remove('offline');
         if (syncing) {
-          icon.classList.toggle('syncing', true);
+          icon.classList.add('syncing');
           window.setTimeout(() => icon.classList.toggle('syncing', false), 500);
         }
         if (!rep.online) {
-          icon.classList.toggle('offline', true);
+          icon.classList.add('offline');
           icon.textContent = 'sync_problem';
         }
       };

@@ -1,13 +1,23 @@
 <!DOCTYPE html>
+
+<p><b>IMPORTANT:</b> Close web inspector to get accurate benchmark results.</p>
+
+<p>
+  <button id="run-button">Run Rust Benchmarks</button>
+</p>
+
+<p>
+  <textarea
+    id="output"
+    disabled
+    style="display: block; width: 100%; height: 400px;"
+  ></textarea>
+</p>
+
 <script type="module">
-  import Replicache, {
-    REPMWasmInvoker,
-  } from './node_modules/replicache/out/mod.js';
+  import Replicache from './node_modules/replicache/out/mod.js';
 
-  const value =
-    'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
-
-  window.wasmInvoker = new REPMWasmInvoker();
+  const value = 'x'.repeat(1024);
 
   function deleteDatabase(name) {
     return new Promise((resolve, reject) => {
@@ -18,31 +28,27 @@
   }
 
   let counter = 0;
-  async function makeRep(repmInvoker) {
-    const name = 'bench' + counter++;
+  async function makeRep() {
+    const name = `bench${counter++}`;
     await deleteDatabase(name);
     return new Replicache({
-      batchURL: '',
-      dataLayerAuth: '',
-      diffServerAuth: '',
       diffServerURL: '',
       name,
-      repmInvoker,
       syncInterval: null,
     });
   }
 
   async function populate(rep, {numKeys}) {
-    var set = rep.register('populate', async (tx, args) => {
-      for (var i = 0; i < numKeys; i++) {
+    const set = rep.register('populate', async (tx, args) => {
+      for (let i = 0; i < numKeys; i++) {
         await tx.put(`key${i}`, value);
       }
     });
     await set({});
   }
 
-  async function benchmark_populate(invoker, bench, opts) {
-    var rep = await makeRep(invoker);
+  async function benchmarkPopulate(bench, opts) {
+    const rep = await makeRep();
     const valSize = value.length;
     if (!opts.clean) {
       await populate(rep, opts);
@@ -55,15 +61,15 @@
     await populate(rep, opts);
   }
 
-  async function benchmark_scan(invoker, bench, opts) {
-    var rep = await makeRep(invoker);
+  async function benchmarkScan(bench, opts) {
+    const rep = await makeRep();
     const valSize = value.length;
     bench.setName(`scan ${valSize}x${opts.numKeys}`);
     bench.setSize(opts.numKeys * valSize);
     await populate(rep, opts);
     bench.reset();
     await rep.query(async tx => {
-      var count = 0;
+      let count = 0;
       for await (const value of tx.scan()) {
         // use the value to be confident we're not optimizing away.
         count += value.length;
@@ -77,8 +83,8 @@
     const times = [];
     let sum = 0;
     let name = String(fn);
-    let size = null;
-    for (var i = 0; i < n; i++) {
+    let size = 0;
+    for (let i = 0; i < n; i++) {
       let t0 = Date.now();
       await fn({
         reset: () => {
@@ -101,45 +107,30 @@
     log(...out);
   }
 
-  window.main = async function (invoker) {
-    log(`Running benchmarks with ${invoker.constructor.name} please wait...`);
+  async function main() {
+    log(`Running benchmarks please wait...`);
     await benchmark(bench =>
-      benchmark_populate(invoker, bench, {numKeys: 1000, clean: true}),
+      benchmarkPopulate(bench, {numKeys: 1000, clean: true}),
     );
     await benchmark(bench =>
-      benchmark_populate(invoker, bench, {numKeys: 1000, clean: false}),
+      benchmarkPopulate(bench, {numKeys: 1000, clean: false}),
     );
-    await benchmark(bench => benchmark_scan(invoker, bench, {numKeys: 1000}));
-    await benchmark(bench => benchmark_scan(invoker, bench, {numKeys: 5000}));
+    await benchmark(bench => benchmarkScan(bench, {numKeys: 1000}));
+    await benchmark(bench => benchmarkScan(bench, {numKeys: 5000}));
     log('Done!');
-  };
+  }
 
   function humanSize(bytes) {
-    if (bytes == 0) {
+    if (bytes === 0) {
       return '0.00 B';
     }
-    var e = Math.floor(Math.log(bytes) / Math.log(1024));
-    return (
-      (bytes / Math.pow(1024, e)).toFixed(2) + ' ' + ' KMGTP'.charAt(e) + 'B'
-    );
+    const e = Math.floor(Math.log(bytes) / Math.log(1024));
+    return (bytes / 1024 ** e).toFixed(2) + ' ' + ' KMGTP'[e] + 'B';
   }
 
-  function log() {
-    document.querySelector('#output').value +=
-      Array.prototype.join.call(arguments, ' | ') + '\n';
+  function log(...args) {
+    document.querySelector('#output').value += args.join(' | ') + '\n';
   }
+
+  document.getElementById('run-button').onclick = main;
 </script>
-
-<p><b>IMPORTANT:</b> Close web inspector to get accurate benchmark results.</p>
-
-<p>
-  <button onclick="main(wasmInvoker)">Run Rust Benchmarks</button>
-</p>
-
-<p>
-  <textarea
-    id="output"
-    disabled
-    style="display: block; width: 100%; height: 400px;"
-  ></textarea>
-</p>

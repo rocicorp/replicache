@@ -120,32 +120,27 @@ mwc-check-list-item .text:focus {
 
 .sync-icon {
   opacity: 0;
-  animation-duration: 500ms;
-  animation-iteration-count: 1;
-  animation-timing-function: ease-in-out;
+  animation-duration: 200ms;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+  transition: opacity ease-in 200ms;
+  animation-name: spin;
 }
 
 .sync-icon.syncing {
-  animation-name: spin;
+  opacity: 1;
 }
 
 @keyframes spin {
   from {
-    opacity: 0;
     transform: rotate(0deg);
   }
-  25% {
-    opacity: 1;
-  }
-  75% {
-    opacity: 1;
-  }
   to {
-    opacity: 0;
-    transform: rotate(540deg);
+    transform: rotate(360deg);
   }
 }
 
 .sync-icon.offline {
+  animation-name: none;
   opacity: 1;
 }

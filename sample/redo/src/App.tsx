@@ -2,12 +2,12 @@ import React, {useEffect, useState, useCallback, DependencyList} from 'react';
 import './App.css';
 
 import Replicache, {
-  REPMHTTPInvoker,
   REPMWasmInvoker,
   ReadTransaction,
   WriteTransaction,
   Mutator,
 } from 'replicache';
+// This depends on Webpack hacks... it actually returns a path to the static resource for the wasm file.
 import wasmPath from 'replicache/out/wasm/debug/replicache_client_bg';
 import {diffServerURL, diffServerAuth, batchURL} from './settings';
 import {LoginScreen, logout} from './login';
@@ -15,9 +15,7 @@ import type {LoginResult} from './login';
 import {List} from './List';
 import {newOrderBetween} from './order';
 
-const repmInvoker = process.env.REACT_APP_HTTP_INVOKE
-  ? new REPMHTTPInvoker('http://localhost:7002')
-  : new REPMWasmInvoker(fetch(String(wasmPath)));
+const repmInvoker = new REPMWasmInvoker(wasmPath);
 
 export interface MutationFunctions {
   createTodo: Mutator<void, Todo>;

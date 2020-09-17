@@ -72,7 +72,7 @@
         icon.classList.remove('offline');
         if (syncing) {
           icon.classList.add('syncing');
-          window.setTimeout(() => icon.classList.toggle('syncing', false), 500);
+          setTimeout(() => icon.classList.toggle('syncing', false), 500);
         }
         if (!rep.online) {
           icon.classList.add('offline');
@@ -110,7 +110,7 @@
       async function handleCreate() {
         const last = todos[todos.length - 1];
         await createTodo({
-          id: Math.round(Math.random() * Math.pow(2, 30)),
+          id: Math.round(Math.random() * 2 ** 30),
           listID: 2,
           text: 'Untitled',
           order: last ? last.order + (1 - last.order) / 2 : 0.5,
@@ -122,20 +122,22 @@
       }
 
       async function handleDelete(id, e) {
+        // Need to stop propagation rather than just preventDefault() because we don't
+        // want the handler at the item level to interpret this click as a checkmark toggle.
         e.stopPropagation();
         await deleteTodo({id});
       }
 
       async function handleFocus(e) {
-        const selection = window.getSelection();
+        const selection = getSelection();
         const range = document.createRange();
-        range.selectNodeContents(e.srcElement);
+        range.selectNodeContents(e.target);
         selection.removeAllRanges();
         selection.addRange(range);
       }
 
       async function handleBlur(id, e) {
-        const text = e.srcElement.textContent;
+        const text = e.target.textContent;
         await updateTodo({id, text});
       }
 
@@ -227,7 +229,7 @@
 
       var channel = pusher.subscribe('u-2');
       channel.bind('poke', function (data) {
-        window.rep.sync();
+        rep.sync();
       });
     </script>
   </body>

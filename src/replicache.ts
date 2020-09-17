@@ -209,7 +209,7 @@ export default class Replicache implements ReadTransaction {
   }
 
   /**
-   * Gets many values from the database. This returns a `ScanResult` which
+   * Gets many values from the database. This returns a `Result` which
    * implements `AsyncIterable`. It also has methods to iterate over the `keys`
    * and `entries`.
    * */
@@ -230,6 +230,19 @@ export default class Replicache implements ReadTransaction {
       },
       true,
     );
+  }
+
+  /**
+   * Convenience form of scan() which returns all the results as an array.
+   */
+  async scanAll(options: ScanOptions = {}): Promise<[string, JSONValue][]> {
+    const tx = new ReadTransactionImpl(this.isWasm, this._invoke);
+    try {
+      await tx.open({});
+      return await tx.scanAll(options);
+    } finally {
+      tx.close();
+    }
   }
 
   private async _sync(): Promise<void> {

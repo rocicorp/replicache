@@ -104,13 +104,11 @@
                 complete: false,
             });
             document.querySelector('.todo-list .textwrap span').focus();
-            rep.sync();
         };
 
         async function handleDelete(id, e) {
             e.stopPropagation();
             await deleteTodo({ id });
-            rep.sync();
         };
 
         async function handleFocus(e) {
@@ -124,8 +122,6 @@
         async function handleBlur(id, e) {
             const text = e.srcElement.textContent;
             await updateTodo({ id, text });
-            // Todo: pull these all into Replicache SDK and debounce.
-            rep.sync();
         };
 
         async function handleCheck(id, e) {
@@ -144,7 +140,6 @@
 
         async function handleDragEnd(id, order) {
             await updateTodo({ id, order });
-            rep.sync();
         }
 
         let todos = [];

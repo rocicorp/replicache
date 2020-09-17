@@ -1,4 +1,4 @@
-import Replicache, {REPMHTTPInvoker, WriteTransaction} from 'replicache';
+import Replicache, {WriteTransaction} from 'replicache';
 
 import {
   dataLayerAuth,
@@ -8,14 +8,11 @@ import {
 } from './settings';
 import type {EventIdentity, Event, EventUpdate} from './types';
 
-const repmInvoke = new REPMHTTPInvoker('http://localhost:7002').invoke;
-
 export const rep = new Replicache({
   diffServerURL,
   dataLayerAuth,
   diffServerAuth,
   batchURL,
-  repmInvoke,
 });
 
 function eventKey(event: EventIdentity) {

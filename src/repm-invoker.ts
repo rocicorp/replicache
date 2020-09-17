@@ -33,38 +33,6 @@ export interface REPMInvoke {
   (dbName: string, rpc: string, args?: JSONValue | ToJSON): Promise<JSONValue>;
 }
 
-export class REPMHTTPInvoker {
-  private readonly _url: string;
-
-  readonly isWasm = false;
-
-  constructor(url: string) {
-    this._url = url;
-  }
-
-  invoke: REPMInvoke = async (
-    dbName: string,
-    rpc: string,
-    args: JSONValue | ToJSON = {},
-  ): Promise<JSONValue> => {
-    const resp = await fetch(`${this._url}/?dbname=${dbName}&rpc=${rpc}`, {
-      method: 'POST',
-      body: JSON.stringify(args),
-    });
-    if (resp.status === 200) {
-      if (resp.headers.get('content-length') === '0') {
-        return '';
-      }
-      return await resp.json();
-    }
-    throw new Error(
-      `Test server failed: ${resp.status} ${
-        resp.statusText
-      }: ${await resp.text()}`,
-    );
-  };
-}
-
 export class REPMWasmInvoker {
   private readonly _inited: Promise<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   private _dispatch?: (dbName: string, rpc: string, args: string) => any; // eslint-disable-line @typescript-eslint/no-explicit-any

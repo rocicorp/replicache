@@ -18,14 +18,6 @@ REPC_VERSION='v0.6.0'
     exit
   fi
 
-  # Repm is an implementation detail of bindings, we do not maintain
-  # backward compatibility. We need to download the correct version
-  # this SDK works with.
-  echo "Fetching test-server..."
-  URL="https://github.com/rocicorp/replicache-client/releases/download/$REPM_VERSION/test-server-amd64-$PLATFORM"
-  curl -L -f $URL > bin/test-server
-  chmod u+x bin/test-server
-
   # Diff server is a public interface. We *do* maintain backward compat.
   # We download the latest release.
   echo "Fetching diff-server..."
@@ -43,6 +35,6 @@ REPC_VERSION='v0.6.0'
   rm repc.zip
   
   cd ../src/
-  rm wasm
+  rm -rf wasm
   ln -s ../bin/repc wasm
 )

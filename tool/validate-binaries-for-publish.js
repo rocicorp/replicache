@@ -24,5 +24,4 @@ function validateFile(name) {
   }
 }
 
-validateFile('test-server');
 validateFile('diff-server');

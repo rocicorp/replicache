@@ -18,20 +18,6 @@ The binaries are downloaded when you do `npm install`. If for some reason you
 need to redownload these you can manually run `tool/get-deps.sh`. Do this again
 whenever you update the SDK.
 
-## Run `test-server`
-
-Currently, the JavaScript SDK relies on a native local server that implements
-the guts of the sync protocol on the client side. This is temporary and will be
-removed.
-
-For now, you must have this server running whenever you are working with the
-SDK:
-
-```
-mkdir ~/.repm
-npx test-server --storage-dir=$HOME/.repm
-```
-
 ## Start your Data Layer
 
 See [Replicache Server
@@ -61,7 +47,7 @@ It is recommended to use ES modules (but we also include CommonJS for backwards
 compat).
 
 ```js
-import Replicache, {REPMHTTPInvoker} from 'replicache';
+import Replicache from 'replicache';
 ```
 
 To use `Replicache` you currently have to tell it how to invoke the
@@ -72,14 +58,11 @@ const diffServerURL = 'https://serve.replicache.dev/pull';
 const diffServerAuth = '<your diff-server account ID>';
 const batchURL = 'https://youservice.com/replicache-batch';
 const dataLayerAuth = '<your data-layer auth token>';
-const repmInvoker = new REPMHTTPInvoker('http://localhost:7002');
-const repmInvoke = repmInvoker.invoke;
 const replicache = new Replicache({
   diffServerURL,
   diffServerAuth,
   batchURL,
   dataLayerAuth,
-  repmInvoke,
 });
 const value = await replicache.query(tx => tx.get('/hello'));
 console.log(value);

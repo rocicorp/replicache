@@ -1,8 +1,8 @@
-import {REPMHTTPInvoker} from './repm-invoker.js';
-import Replicache from './replicache.js';
+import Replicache from './mod.js';
+import {REPMWasmInvoker} from './repm-invoker.js';
 
 (async () => {
-  const invoker = new REPMHTTPInvoker('http://localhost:7002');
+  const invoker = new REPMWasmInvoker();
   await invoker.invoke('test', 'open');
 
   const {transactionId} = await invoker.invoke('test', 'openTransaction', {});

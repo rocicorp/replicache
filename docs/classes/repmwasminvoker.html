@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>ScanId | Replicache</title>
+	<title>REPMWasmInvoker | Replicache</title>
 	<meta name="description" content="">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
@@ -52,10 +52,10 @@
 					<a href="../globals.html">Globals</a>
 				</li>
 				<li>
-					<a href="scanid.html">ScanId</a>
+					<a href="repmwasminvoker.html">REPMWasmInvoker</a>
 				</li>
 			</ul>
-			<h1>Interface ScanId</h1>
+			<h1>Class REPMWasmInvoker</h1>
 		</div>
 	</div>
 </header>
@@ -66,7 +66,7 @@
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
 					<li>
-						<span class="target">ScanId</span>
+						<span class="target">REPMWasmInvoker</span>
 					</li>
 				</ul>
 			</section>
@@ -75,36 +75,95 @@
 				<section class="tsd-panel tsd-index-panel">
 					<div class="tsd-index-content">
 						<section class="tsd-index-section ">
+							<h3>Constructors</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-constructor tsd-parent-kind-class"><a href="repmwasminvoker.html#constructor" class="tsd-kind-icon">constructor</a></li>
+							</ul>
+						</section>
+						<section class="tsd-index-section ">
 							<h3>Properties</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="scanid.html#exclusive" class="tsd-kind-icon">exclusive</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="scanid.html#value" class="tsd-kind-icon">value</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-class"><a href="repmwasminvoker.html#iswasm" class="tsd-kind-icon">is<wbr>Wasm</a></li>
+							</ul>
+						</section>
+						<section class="tsd-index-section ">
+							<h3>Methods</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-method tsd-parent-kind-class"><a href="repmwasminvoker.html#invoke" class="tsd-kind-icon">invoke</a></li>
 							</ul>
 						</section>
 					</div>
 				</section>
 			</section>
 			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Constructors</h2>
+				<section class="tsd-panel tsd-member tsd-kind-constructor tsd-parent-kind-class">
+					<a name="constructor" class="tsd-anchor"></a>
+					<h3>constructor</h3>
+					<ul class="tsd-signatures tsd-kind-constructor tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">new REPMWasm<wbr>Invoker<span class="tsd-signature-symbol">(</span>wasm_module<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">any</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="repmwasminvoker.html" class="tsd-signature-type">REPMWasmInvoker</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/repm-invoker.ts#L66">src/repm-invoker.ts:66</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> wasm_module: <span class="tsd-signature-type">any</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="repmwasminvoker.html" class="tsd-signature-type">REPMWasmInvoker</a></h4>
+						</li>
+					</ul>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
 				<h2>Properties</h2>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="exclusive" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> exclusive</h3>
-					<div class="tsd-signature tsd-kind-icon">exclusive<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class">
+					<a name="iswasm" class="tsd-anchor"></a>
+					<h3>is<wbr>Wasm</h3>
+					<div class="tsd-signature tsd-kind-icon">is<wbr>Wasm<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">true</span><span class="tsd-signature-symbol"> = true</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/scan-id.ts#L3">src/scan-id.ts:3</a></li>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/repm-invoker.ts#L66">src/repm-invoker.ts:66</a></li>
 						</ul>
 					</aside>
 				</section>
-				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="value" class="tsd-anchor"></a>
-					<h3>value</h3>
-					<div class="tsd-signature tsd-kind-icon">value<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
-					<aside class="tsd-sources">
-						<ul>
-							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/scan-id.ts#L2">src/scan-id.ts:2</a></li>
-						</ul>
-					</aside>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Methods</h2>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class">
+					<a name="invoke" class="tsd-anchor"></a>
+					<h3>invoke</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
+						<li class="tsd-signature tsd-kind-icon">invoke<span class="tsd-signature-symbol">(</span>dbName<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, rpc<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, args<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">JSONValue</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">ToJSON</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">JSONValue</span><span class="tsd-signature-symbol">&gt;</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/repm-invoker.ts#L81">src/repm-invoker.ts:81</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>dbName: <span class="tsd-signature-type">string</span></h5>
+								</li>
+								<li>
+									<h5>rpc: <span class="tsd-signature-type">string</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagDefault value">Default value</span> args: <span class="tsd-signature-type">JSONValue</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">ToJSON</span><span class="tsd-signature-symbol"> = {}</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">JSONValue</span><span class="tsd-signature-symbol">&gt;</span></h4>
+						</li>
+					</ul>
 				</section>
 			</section>
 		</div>
@@ -119,46 +178,49 @@
 			<nav class="tsd-navigation secondary menu-sticky">
 				<ul class="before-current">
 					<li class=" tsd-kind-class">
-						<a href="../classes/repmhttpinvoker.html" class="tsd-kind-icon">REPMHTTPInvoker</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="../classes/repmwasminvoker.html" class="tsd-kind-icon">REPMWasm<wbr>Invoker</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="../classes/replicache.html" class="tsd-kind-icon">Replicache</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="../classes/scanresult.html" class="tsd-kind-icon">Scan<wbr>Result</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="../classes/transactionclosederror.html" class="tsd-kind-icon">Transaction<wbr>Closed<wbr>Error</a>
-					</li>
-					<li class=" tsd-kind-interface tsd-has-type-parameter">
-						<a href="repminvoke.html" class="tsd-kind-icon">REPMInvoke</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="scanbound.html" class="tsd-kind-icon">Scan<wbr>Bound</a>
+						<a href="repmhttpinvoker.html" class="tsd-kind-icon">REPMHTTPInvoker</a>
 					</li>
 				</ul>
 				<ul class="current">
-					<li class="current tsd-kind-interface">
-						<a href="scanid.html" class="tsd-kind-icon">Scan<wbr>Id</a>
+					<li class="current tsd-kind-class">
+						<a href="repmwasminvoker.html" class="tsd-kind-icon">REPMWasm<wbr>Invoker</a>
 						<ul>
-							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="scanid.html#exclusive" class="tsd-kind-icon">exclusive</a>
+							<li class=" tsd-kind-constructor tsd-parent-kind-class">
+								<a href="repmwasminvoker.html#constructor" class="tsd-kind-icon">constructor</a>
 							</li>
-							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="scanid.html#value" class="tsd-kind-icon">value</a>
+							<li class=" tsd-kind-property tsd-parent-kind-class">
+								<a href="repmwasminvoker.html#iswasm" class="tsd-kind-icon">is<wbr>Wasm</a>
+							</li>
+							<li class=" tsd-kind-method tsd-parent-kind-class">
+								<a href="repmwasminvoker.html#invoke" class="tsd-kind-icon">invoke</a>
 							</li>
 						</ul>
 					</li>
 				</ul>
 				<ul class="after-current">
+					<li class=" tsd-kind-class">
+						<a href="replicache.html" class="tsd-kind-icon">Replicache</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="scanresult.html" class="tsd-kind-icon">Scan<wbr>Result</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="transactionclosederror.html" class="tsd-kind-icon">Transaction<wbr>Closed<wbr>Error</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-has-type-parameter">
+						<a href="../interfaces/repminvoke.html" class="tsd-kind-icon">REPMInvoke</a>
+					</li>
 					<li class=" tsd-kind-interface">
-						<a href="writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a>
+						<a href="../interfaces/readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="../interfaces/scanbound.html" class="tsd-kind-icon">Scan<wbr>Bound</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="../interfaces/scanid.html" class="tsd-kind-icon">Scan<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="../interfaces/writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="../globals.html#databaseinfo" class="tsd-kind-icon">Database<wbr>Info</a>

@@ -63,72 +63,108 @@
 				<a href="#replicache-js-sdk" id="replicache-js-sdk" style="color: inherit; text-decoration: none;">
 					<h1>Replicache JS SDK</h1>
 				</a>
+				<a href="#offline-first-for-every-application" id="offline-first-for-every-application" style="color: inherit; text-decoration: none;">
+					<h3>Offline-First for Every Application</h3>
+				</a>
 				<p><img src="https://github.com/rocicorp/replicache-sdk-js/workflows/Node.js%20CI/badge.svg" alt="Node.js CI"></p>
-				<a href="#development-instructions" id="development-instructions" style="color: inherit; text-decoration: none;">
-					<h2>Development Instructions</h2>
+				<a href="#👋-quickstart" id="👋-quickstart" style="color: inherit; text-decoration: none;">
+					<h2>👋 Quickstart</h2>
 				</a>
-				<p>Eventually you will be able to <code>npm install</code> but until then...</p>
-				<a href="#get-the-code" id="get-the-code" style="color: inherit; text-decoration: none;">
-					<h3>Get the Code</h3>
+				<p>This tutorial walks through creating a basic offline-first todo app with <a href="https://replicache.dev/">Replicache</a>. If you have any problems or questions, please <a href="https://join.slack.com/t/rocicorp/shared_invite/zt-h8ygwu8j-RVniv5XsBps0Q9oJXdMyoA">join us on Slack</a>. We&#39;d be happy to help.</p>
+				<p>You can also skip to the end and <a href="https://github.com/rocicorp/replicache-sdk-js/tree/master/sample/cal">check out the full working version of this sample</a>.</p>
+				<p><strong>Note:</strong> This document assumes you already know what Replicache is, why you might need it, and broadly how it works. If that&#39;s not true check out the <a href="https://github.com/rocicorp/replicache/blob/master/design.md">design document</a> for a detailed deep-dive.</p>
+				<a href="#🏃♂️-install" id="🏃♂️-install" style="color: inherit; text-decoration: none;">
+					<h2>🏃‍♂️ Install</h2>
 				</a>
-				<p>Either by <code>npm install</code>&#39;ing the git repo, cloning it, or downloading a
-				release.</p>
-				<a href="#build-the-js" id="build-the-js" style="color: inherit; text-decoration: none;">
-					<h3>Build the JS</h3>
+				<pre><code>npm <span class="hljs-keyword">install</span> replicache</code></pre>
+				<a href="#🚴🏿♀️-instantiate" id="🚴🏿♀️-instantiate" style="color: inherit; text-decoration: none;">
+					<h2>🚴🏿‍♀️ Instantiate</h2>
 				</a>
-				<p>Replicache JS SDK is written in TypeScript. Run <code>npm run build</code> to generate the JS source code (JS source is outputted in <code>out/</code>). By default we generate browser compatible JS but you can also build CommonJS modules by running <code>npm run build:cjs</code>. Let us know what your needs are.</p>
-				<a href="#get-binaries" id="get-binaries" style="color: inherit; text-decoration: none;">
-					<h3>Get Binaries</h3>
+				<p>Replicache ships with both ES6 and CommonJS modules. For simplicity, these examples use ES6.</p>
+				<pre><code class="language-html"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">type</span>=<span class="hljs-string">"module"</span>&gt;</span><span class="javascript">
+  <span class="hljs-keyword">import</span> Replicache <span class="hljs-keyword">from</span> <span class="hljs-string">'./node_modules/replicache/out/mod.js'</span>;
+
+  <span class="hljs-keyword">var</span> rep = <span class="hljs-keyword">new</span> Replicache({
+    <span class="hljs-comment">// URL of the diff server to use. The diff server periodically fetches</span>
+    <span class="hljs-comment">// the "client view" from your service and forwards any delta to the</span>
+    <span class="hljs-comment">// client. You can use our hosted diff server (as here) or a local diff</span>
+    <span class="hljs-comment">// server, which is useful during development. See</span>
+    <span class="hljs-comment">// https://github.com/rocicorp/replicache#server-side for more</span>
+    <span class="hljs-comment">// information on setting up your client view.</span>
+    <span class="hljs-attr">diffServerURL</span>: <span class="hljs-string">'https://serve.replicache.dev/pull'</span>,
+
+    <span class="hljs-comment">// Auth token for the diff server, if any.</span>
+    <span class="hljs-attr">diffServerAuth</span>: <span class="hljs-string">'1'</span>,
+
+    <span class="hljs-comment">// URL of your service's Replicache batch endpoint. Replicache</span>
+    <span class="hljs-comment">// will send batches of mutations here for application.</span>
+    <span class="hljs-attr">batchURL</span>: <span class="hljs-string">'https://replicache-sample-todo.now.sh/serve/replicache-batch'</span>,
+
+    <span class="hljs-comment">// Auth token for your client view and batch endpoints, if any.</span>
+    <span class="hljs-attr">dataLayerAuth</span>: <span class="hljs-string">'2'</span>,
+  });
+</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span></code></pre>
+				<a href="#🚗-render-ui" id="🚗-render-ui" style="color: inherit; text-decoration: none;">
+					<h2>🚗 Render UI</h2>
 				</a>
-				<p>Download required helper binaries: <code>npm run build:binaries</code>. Do this again whenever you update the SDK.</p>
-				<a href="#run-test-server" id="run-test-server" style="color: inherit; text-decoration: none;">
-					<h3>Run <code>test-server</code></h3>
+				<p>Use <code>subscribe()</code> to open standing queries. Replicache fires <code>onData</code> whenever the result of the query changes, either because of local changes or sync.</p>
+				<pre><code class="language-js">rep.subscribe(
+  <span class="hljs-keyword">async</span> tx =&gt; {
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> toArray(tx.scan({<span class="hljs-attr">prefix</span>: <span class="hljs-string">'/todo/'</span>}));
+  },
+  {
+    <span class="hljs-attr">onData</span>: <span class="hljs-function"><span class="hljs-params">result</span> =&gt;</span> {
+      <span class="hljs-comment">// Using lit-html, but the principle is the same in any UI framework.</span>
+      <span class="hljs-comment">// See https://github.com/rocicorp/replicache-sdk-js/tree/master/sample/cal</span>
+      <span class="hljs-comment">// for an example using React.</span>
+      <span class="hljs-keyword">const</span> toggle = <span class="hljs-function"><span class="hljs-params">complete</span> =&gt;</span>
+        html`<span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">td</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">input</span> <span class="hljs-attr">type</span>=<span class="hljs-string">"checkbox"</span> <span class="hljs-attr">.checked</span>=</span></span><span class="hljs-subst">${complete}</span><span class="xml"><span class="hljs-tag"> /&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">td</span>&gt;</span>`</span>;
+      <span class="hljs-keyword">const</span> title = <span class="hljs-function"><span class="hljs-params">text</span> =&gt;</span> html`<span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">td</span>&gt;</span></span><span class="hljs-subst">${text}</span><span class="xml"><span class="hljs-tag">&lt;/<span class="hljs-name">td</span>&gt;</span>`</span>;
+      <span class="hljs-keyword">const</span> row = <span class="hljs-function"><span class="hljs-params">todo</span> =&gt;</span>
+        html`<span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">tr</span>&gt;</span>
+          </span><span class="hljs-subst">${toggle(todo.complete)}</span><span class="hljs-subst">${title(todo.text)}</span><span class="xml">
+        <span class="hljs-tag">&lt;/<span class="hljs-name">tr</span>&gt;</span>`</span>;
+      render(
+        html`<span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">table</span>&gt;</span>
+          </span><span class="hljs-subst">${result.map(row)}</span><span class="xml">
+        <span class="hljs-tag">&lt;/<span class="hljs-name">table</span>&gt;</span>`</span>,
+        <span class="hljs-built_in">document</span>.body,
+      );
+    },
+  },
+);</code></pre>
+				<a href="#🏎-mutate-data" id="🏎-mutate-data" style="color: inherit; text-decoration: none;">
+					<h2>🏎 Mutate Data</h2>
 				</a>
-				<p>Currently, the JavaScript SDK relies on a native local server that
-					implements the guts of the sync protocol on the client side. This is
-				temporary and will be removed.</p>
-				<p>For now, you must have this server running whenever you are working
-				with the SDK:</p>
-				<pre><code>mkdir ~/.repm
-npm <span class="hljs-builtin-name">run</span> start:test-server -- <span class="hljs-attribute">--storage-dir</span>=<span class="hljs-variable">$HOME</span>/.repm</code></pre>
-				<a href="#start-your-data-layer" id="start-your-data-layer" style="color: inherit; text-decoration: none;">
-					<h3>Start your Data Layer</h3>
-				</a>
-				<p>See <a href="https://github.com/rocicorp/replicache#server-side">Replicache Server Setup</a> for server-side instructions.</p>
-				<p>For the rest of these instructions we will assume your data layer is
-				running on <code>localhost:3000</code>.</p>
-				<a href="#start-diff-server" id="start-diff-server" style="color: inherit; text-decoration: none;">
-					<h3>Start Diff-Server</h3>
-				</a>
-				<p>In production, your app will talk to the production Replicache diff-server at <a href="https://serve.replicache.dev/">https://serve.replicache.dev/</a>.</p>
-				<p>During development, that sever can&#39;t reach your workstation, so we
-					provide a development instance to work against instead. Leave this
-				running in a tab:</p>
-				<pre><code class="language-bash"><span class="hljs-comment"># The --client-view flag should point to the Client View endpoint</span>
-<span class="hljs-comment"># on your development data layer.</span>
-npm run start:diff-server -- --client-view=<span class="hljs-string">"http://localhost:3000/replicache-client-view"</span></code></pre>
-				<a href="#including-the-js" id="including-the-js" style="color: inherit; text-decoration: none;">
-					<h3>Including the JS</h3>
-				</a>
-				<p>By default we only compile the TS to an ES module.</p>
-				<pre><code class="language-js"><span class="hljs-keyword">import</span> Replicache, {REPMHTTPInvoker} <span class="hljs-keyword">from</span> <span class="hljs-string">'./out/mod.js'</span>;</code></pre>
-				<p>To use <code>Replicache</code> you currently have to tell it how to invoke the <strong>Rep</strong>licache Client API <strong>M</strong>odule (REPM).</p>
-				<pre><code class="language-js"><span class="hljs-keyword">const</span> diffServerURL = <span class="hljs-string">'https://serve.replicache.dev/pull'</span>;
-<span class="hljs-keyword">const</span> diffServerAuth = <span class="hljs-string">'&lt;your diff-server account ID&gt;'</span>;
-<span class="hljs-keyword">const</span> batchURL = <span class="hljs-string">'https://youservice.com/replicache-batch'</span>;
-<span class="hljs-keyword">const</span> dataLayerAuth = <span class="hljs-string">'&lt;your data-layer auth token&gt;'</span>;
-<span class="hljs-keyword">const</span> repmInvoker = <span class="hljs-keyword">new</span> REPMHTTPInvoker(<span class="hljs-string">'http://localhost:7002'</span>);
-<span class="hljs-keyword">const</span> repmInvoke = repmInvoker.invoke;
-<span class="hljs-keyword">const</span> replicache = <span class="hljs-keyword">new</span> Replicache({
-  diffServerURL,
-  diffServerAuth,
-  batchURL,
-  dataLayerAuth,
-  repmInvoke,
+				<p>Register client-side <em>mutators</em> using <code>register()</code>.</p>
+				<p>Mutators run completely locally, without waiting on the server — online, offline, whatever! A record of the mutation is queued and sent to your service&#39;s batch endpoint when possible.</p>
+				<p>Replicache also invokes mutators itself, during sync, to replay unacknowledged changes on top of newly received server state.</p>
+				<pre><code class="language-js"><span class="hljs-keyword">const</span> updateTodo = rep.register(<span class="hljs-string">'updateTodo'</span>, <span class="hljs-keyword">async</span> (tx, {id, complete}) =&gt; {
+  <span class="hljs-keyword">const</span> key = <span class="hljs-string">`/todo/<span class="hljs-subst">${id}</span>`</span>;
+  <span class="hljs-keyword">const</span> todo = <span class="hljs-keyword">await</span> tx.get(key);
+  todo.complete = complete;
+  <span class="hljs-keyword">await</span> tx.put(key, todo);
 });
-<span class="hljs-keyword">await</span> replicache.query(<span class="hljs-keyword">async</span> tx =&gt; {
-  <span class="hljs-built_in">console</span>.log(<span class="hljs-keyword">await</span> tx.get(<span class="hljs-string">'/hello'</span>));
-});</code></pre>
+
+<span class="hljs-keyword">const</span> handleCheckbox = <span class="hljs-keyword">async</span> (id, e) =&gt; {
+  <span class="hljs-keyword">await</span> updateTodo({id, <span class="hljs-attr">complete</span>: e.srcElement.checked});
+};</code></pre>
+				<a href="#🛫-tips" id="🛫-tips" style="color: inherit; text-decoration: none;">
+					<h2>🛫 Tips</h2>
+				</a>
+				<ul>
+					<li>We recommend <a href="https://stackoverflow.com/questions/5327955/how-to-make-google-chrome-javascript-console-persistent">enabling console persistence</a> while developing replicache-enabled apps to make debugging easier.</li>
+				</ul>
+				<a href="#🚀-next-steps" id="🚀-next-steps" style="color: inherit; text-decoration: none;">
+					<h2>🚀 Next Steps</h2>
+				</a>
+				<p>That&#39;s it! You&#39;ve built a fully-functioning offline-first todo app against our sample backend. What will you do next?</p>
+				<ul>
+					<li><a href="https://github.com/rocicorp/replicache-sdk-js/tree/master/sample/lit-todo">Check out the full version of this sample</a></li>
+					<li><a href="https://github.com/rocicorp/replicache#server-side">Learn how to build your own backend integration</a></li>
+					<li><a href="https://github.com/rocicorp/replicache-sdk-js/tree/master/sample/cal">Check out the richer React/Babel/GCal sample</a></li>
+					<li><a href="https://replicache-sdk-js.now.sh/">Browse the full JS documentation</a></li>
+				</ul>
 			</div>
 		</div>
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
@@ -143,6 +179,9 @@ npm run start:diff-server -- --client-view=<span class="hljs-string">"http://loc
 				<ul class="before-current">
 					<li class=" tsd-kind-class">
 						<a href="classes/repmhttpinvoker.html" class="tsd-kind-icon">REPMHTTPInvoker</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/repmwasminvoker.html" class="tsd-kind-icon">REPMWasm<wbr>Invoker</a>
 					</li>
 					<li class=" tsd-kind-class">
 						<a href="classes/replicache.html" class="tsd-kind-icon">Replicache</a>
@@ -170,6 +209,9 @@ npm run start:diff-server -- --client-view=<span class="hljs-string">"http://loc
 					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="globals.html#databaseinfo" class="tsd-kind-icon">Database<wbr>Info</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#invoker" class="tsd-kind-icon">Invoker</a>
 					</li>
 					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
 						<a href="globals.html#mutator" class="tsd-kind-icon">Mutator</a>

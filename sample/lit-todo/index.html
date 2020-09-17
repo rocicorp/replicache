@@ -6,16 +6,36 @@
     <link href='https://fonts.googleapis.com/css?family=Roboto:300,400,500' rel='stylesheet'>
     <link href='https://fonts.googleapis.com/css?family=Material+Icons&display=block' rel='stylesheet'>
     <link href='styles.css' rel='stylesheet'>
+</head>
+
+<body>
+    <mwc-top-app-bar>
+        <div slot='title'>
+            <div>Redo</div>
+            <div class='subtitle'>Absurdly Fast, Local-First,
+                Synchronizing Todo Editor — Built with <a href="https://replicache.dev">Replicache</a>!</div>
+        </div>
+        <mwc-icon slot='actionItems' class='sync-icon'>sync</mwc-icon>
+        <div class='todo-list'></div>
+    </mwc-top-app-bar>
+    <mwc-fab icon='edit'></mwc-fab>
+
 
     <script type='module'>
+        import { handleDragStart, isDragging } from './drag.js';
         import Replicache from './node_modules/replicache/out/mod.js';
         import { html, render } from 'lit-html';
-        import '@material/mwc-top-app-bar/mwc-top-app-bar.js';
-        import '@material/mwc-list/mwc-check-list-item.js';
-        import '@material/mwc-list/mwc-list.js';
-        import '@material/mwc-icon';
+        import { classMap } from 'lit-html/directives/class-map.js';
+        import { live } from 'lit-html/directives/live';
+        import { repeat } from 'lit-html/directives/repeat.js';
+        import '@material/mwc-checkbox/mwc-checkbox.js';
         import '@material/mwc-fab';
+        import '@material/mwc-icon';
+        import '@material/mwc-icon-button';
         import '@material/mwc-textfield';
+        import '@material/mwc-top-app-bar/mwc-top-app-bar.js';
+
+        const key = id => `/todo/${id}`;
 
         var rep = new Replicache({
             // URL of the diff server to use. The diff server periodically fetches
@@ -52,7 +72,25 @@
             }
         };
 
-        const key = id => `/todo/${id}`;
+        rep.subscribe(async tx => {
+            return await allTodos(tx);
+        }, {
+            onData: update,
+        });
+
+        // TODO: Pull a getAll() method into Replicache SDK.
+        async function allTodos(tx) {
+            return (await toArray(tx.scan({ prefix: '/todo/' })))
+                .sort((a, b) => a.order - b.order);
+        }
+
+        async function toArray(iterator) {
+            const arr = []
+            for await (const entry of iterator) {
+                arr.push(entry)
+            }
+            return arr
+        }
 
         const updateTodo = rep.register('updateTodo', async (tx, changes) => {
             const todo = await tx.get(key(changes.id));
@@ -68,24 +106,8 @@
             await tx.put(key(todo.id), todo);
         });
 
-        // TODO: Remove these by auto-syncing after mutate.
-        const handleCheckbox = async (id, e) => {
-            await updateTodo({ id, complete: e.srcElement.selected });
-            rep.sync();
-        };
-
-        const handleDelete = async (id, e) => {
-            cancelEvent(e);
-            await deleteTodo({ id });
-            rep.sync();
-        };
-
-        const cancelEvent = e => {
-            e.stopPropagation();
-        }
-
-        const handleCreate = async () => {
-            const first = (await rep.query(tx => toArray(tx.scan({ prefix: '/todo/', limit: 1 }))))[0];
+        async function handleCreate() {
+            const [first] = todos;
             await createTodo({
                 id: Math.round(Math.random() * Math.pow(2, 30)),
                 listID: 2,
@@ -93,11 +115,17 @@
                 order: first ? (first.order / 2) : 0.5,
                 complete: false,
             });
-            document.querySelector('mwc-check-list-item .text').focus();
+            document.querySelector('.todo-list .textwrap span').focus();
             rep.sync();
         };
 
-        const handleFocus = e => {
+        async function handleDelete(id, e) {
+            e.stopPropagation();
+            await deleteTodo({ id });
+            rep.sync();
+        };
+
+        async function handleFocus(e) {
             const selection = window.getSelection();
             const range = document.createRange();
             range.selectNodeContents(e.srcElement);
@@ -105,56 +133,51 @@
             selection.addRange(range);
         };
 
-        const handleBlur = async (id, e) => {
+        async function handleBlur(id, e) {
             const text = e.srcElement.textContent;
             await updateTodo({ id, text });
+            // Todo: pull these all into Replicache SDK and debounce.
             rep.sync();
         };
 
-        rep.subscribe(async tx => {
-            return await toArray(tx.scan({ prefix: '/todo/' }));
-        }, {
-            onData: result => {
-                // Using lit-html, but the principle is the same in any UI framework.
-                // See https://github.com/rocicorp/replicache-sdk-js/tree/master/sample/cal
-                // for an example using React.
-                const item = todo => html`<mwc-check-list-item left hasMeta
-                    id=t${todo.id}
-                    @request-selected=${(e) => handleCheckbox(todo.id, e)}
-                    .selected=${todo.complete}>
-                    <span class=text contenteditable
-                        @focus=${handleFocus}
-                        @click=${cancelEvent}
-                        @blur=${(e) => handleBlur(todo.id, e)}>${todo.text}</span>
-                    <mwc-icon @click=${(e) => handleDelete(todo.id, e)} slot="meta">delete</mwc-icon>
-                </mwc-check-list-item>`;
-                render(result.map(item), document.querySelector('mwc-list'));
-            },
-        });
+        async function handleCheck(id, e) {
+            updateTodo({ id, complete: !e.currentTarget.checked });
+        };
+
+        async function handleItemClick(id, e) {
+            const checkbox = e.currentTarget.parentElement.querySelector('mwc-checkbox');
+            checkbox.checked = !checkbox.checked;
+            updateTodo({ id, complete: checkbox.checked });
+        };
+
+        async function handleTextClick(e) {
+            e.stopPropagation();
+        }
+
+        async function handleDragEnd(id, order) {
+            await updateTodo({ id, order });
+            rep.sync();
+        }
+
+        let todos = [];
+        function update(newTodos) {
+            todos = newTodos;
+
+            // Using lit-html, but the principle is the same in any UI framework.
+            // See https://github.com/rocicorp/replicache-sdk-js/tree/master/sample/cal
+            // for an example using React.
+            const item = (todo, index) => html`<div class=${classMap({ 'todo-item': true, 'dragging': isDragging(todo.id) })}>
+                <mwc-icon class='handle' @mousedown=${e => handleDragStart(e, todo.id, index, () => todos, update, handleDragEnd)}>drag_handle</mwc-icon>
+                <mwc-checkbox .checked=${live(todo.complete)} @input=${(e) => handleCheck(todo.id, e)}></mwc-checkbox>
+                <div class='textwrap' @click=${e => handleItemClick(todo.id, e)}>
+                    <span @focus=${handleFocus} @click=${handleTextClick} @blur=${e => handleBlur(todo.id, e)} contenteditable='plaintext-only'>${todo.text}</span></div>
+                <mwc-icon-button @click=${(e) => handleDelete(todo.id, e)} icon='delete'></mwc-icon-button>
+            </div>`;
+            render(repeat(newTodos, todo => todo.id, item), document.querySelector('.todo-list'));
+        };
 
         document.querySelector('mwc-fab').addEventListener('click', handleCreate);
-
-        const toArray = async (iterator) => {
-            const arr = []
-            for await (const entry of iterator) {
-                arr.push(entry)
-            }
-            return arr
-        }
     </script>
-</head>
-
-<body>
-    <mwc-top-app-bar>
-        <div slot='title'>Redo: Offline-First Todos with Replicache</div>
-        <mwc-icon slot='actionItems' class='sync-icon'>sync</mwc-icon>
-        <div>
-            <mwc-list multi>
-
-            </mwc-list>
-        </div>
-    </mwc-top-app-bar>
-    <mwc-fab icon='edit'></mwc-fab>
 </body>
 
 </html>

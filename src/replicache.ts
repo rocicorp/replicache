@@ -47,9 +47,14 @@ export default class Replicache implements ReadTransaction {
   private _syncPromise: Promise<void> | null = null;
   private readonly _subscriptions = new Set<Subscription<unknown, unknown>>();
   private _syncInterval: number | null;
-  private _pushDelay: number | null;
   // NodeJS has a non standard setTimeout function :'(
   protected _timerId: ReturnType<typeof setTimeout> | 0 = 0;
+
+  /**
+   * The delay between when a change is made to Replicache and when Replicache
+   * attempts to push that change.
+   */
+  public pushDelay: number | null;
 
   onSync: ((syncing: boolean) => void) | null = null;
 
@@ -89,7 +94,7 @@ export default class Replicache implements ReadTransaction {
     this._name = name;
     this._repmInvoker = repmInvoker;
     this._syncInterval = syncInterval;
-    this._pushDelay = pushDelay;
+    this.pushDelay = pushDelay;
     this._open();
   }
 
@@ -147,17 +152,6 @@ export default class Replicache implements ReadTransaction {
     this._clearTimer();
     this._syncInterval = duration;
     this._scheduleSync(this._syncInterval);
-  }
-
-  /**
-   * The delay between when a change is made to Replicache and when Replicache
-   * attempts to push that change.
-   */
-  get pushDelay(): number | null {
-    return this._pushDelay;
-  }
-  set pushDelay(delay: number | null) {
-    this._pushDelay = delay;
   }
 
   private _scheduleSync(interval: number | null): void {
@@ -604,7 +598,7 @@ export default class Replicache implements ReadTransaction {
     }
 
     this._clearTimer();
-    this._scheduleSync(this._pushDelay);
+    this._scheduleSync(this.pushDelay);
 
     return {result, ref};
   }

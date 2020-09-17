@@ -72,7 +72,7 @@ async function handleDragEnd() {
 }
 
 function isDragging(id) {
-  return activeDrag && activeDrag.targetID == id;
+  return activeDrag?.targetID == id;
 }
 
 document.addEventListener('mousemove', handleDragMove);

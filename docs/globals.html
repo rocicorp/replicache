@@ -67,6 +67,7 @@
 							<h3>Classes</h3>
 							<ul class="tsd-index-list">
 								<li class="tsd-kind-class"><a href="classes/repmhttpinvoker.html" class="tsd-kind-icon">REPMHTTPInvoker</a></li>
+								<li class="tsd-kind-class"><a href="classes/repmwasminvoker.html" class="tsd-kind-icon">REPMWasm<wbr>Invoker</a></li>
 								<li class="tsd-kind-class"><a href="classes/replicache.html" class="tsd-kind-icon">Replicache</a></li>
 								<li class="tsd-kind-class"><a href="classes/scanresult.html" class="tsd-kind-icon">Scan<wbr>Result</a></li>
 								<li class="tsd-kind-class"><a href="classes/transactionclosederror.html" class="tsd-kind-icon">Transaction<wbr>Closed<wbr>Error</a></li>
@@ -86,6 +87,7 @@
 							<h3>Type aliases</h3>
 							<ul class="tsd-index-list">
 								<li class="tsd-kind-type-alias"><a href="globals.html#databaseinfo" class="tsd-kind-icon">Database<wbr>Info</a></li>
+								<li class="tsd-kind-type-alias"><a href="globals.html#invoker" class="tsd-kind-icon">Invoker</a></li>
 								<li class="tsd-kind-type-alias tsd-has-type-parameter"><a href="globals.html#mutator" class="tsd-kind-icon">Mutator</a></li>
 							</ul>
 						</section>
@@ -100,7 +102,7 @@
 					<div class="tsd-signature tsd-kind-icon">Database<wbr>Info<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span>name<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> }</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/850f38d/src/database-info.ts#L4">src/database-info.ts:4</a></li>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/database-info.ts#L4">src/database-info.ts:4</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -117,13 +119,34 @@
 						</ul>
 					</div>
 				</section>
+				<section class="tsd-panel tsd-member tsd-kind-type-alias">
+					<a name="invoker" class="tsd-anchor"></a>
+					<h3>Invoker</h3>
+					<div class="tsd-signature tsd-kind-icon">Invoker<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span>invoke<span class="tsd-signature-symbol">: </span><a href="interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a><span class="tsd-signature-symbol">; </span>isWasm<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span><span class="tsd-signature-symbol"> }</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/repm-invoker.ts#L9">src/repm-invoker.ts:9</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-type-declaration">
+						<h4>Type declaration</h4>
+						<ul class="tsd-parameters">
+							<li class="tsd-parameter">
+								<h5>invoke<span class="tsd-signature-symbol">: </span><a href="interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a></h5>
+							</li>
+							<li class="tsd-parameter">
+								<h5><span class="tsd-flag ts-flagOptional">Optional</span> is<wbr>Wasm<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></h5>
+							</li>
+						</ul>
+					</div>
+				</section>
 				<section class="tsd-panel tsd-member tsd-kind-type-alias tsd-has-type-parameter">
 					<a name="mutator" class="tsd-anchor"></a>
 					<h3>Mutator</h3>
 					<div class="tsd-signature tsd-kind-icon">Mutator&lt;Return, Args&gt;<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">(</span>args<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Args</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Return</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/850f38d/src/replicache.ts#L13">src/replicache.ts:13</a></li>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L15">src/replicache.ts:15</a></li>
 						</ul>
 					</aside>
 					<h4 class="tsd-type-parameters-title">Type parameters</h4>
@@ -173,6 +196,9 @@
 						<a href="classes/repmhttpinvoker.html" class="tsd-kind-icon">REPMHTTPInvoker</a>
 					</li>
 					<li class=" tsd-kind-class">
+						<a href="classes/repmwasminvoker.html" class="tsd-kind-icon">REPMWasm<wbr>Invoker</a>
+					</li>
+					<li class=" tsd-kind-class">
 						<a href="classes/replicache.html" class="tsd-kind-icon">Replicache</a>
 					</li>
 					<li class=" tsd-kind-class">
@@ -198,6 +224,9 @@
 					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="globals.html#databaseinfo" class="tsd-kind-icon">Database<wbr>Info</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#invoker" class="tsd-kind-icon">Invoker</a>
 					</li>
 					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
 						<a href="globals.html#mutator" class="tsd-kind-icon">Mutator</a>

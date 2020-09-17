@@ -104,17 +104,20 @@
 					<a name="constructor" class="tsd-anchor"></a>
 					<h3>constructor</h3>
 					<ul class="tsd-signatures tsd-kind-constructor tsd-parent-kind-class">
-						<li class="tsd-signature tsd-kind-icon">new <wbr>Scan<wbr>Result<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">...</span>args<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">[</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">, </span><a href="../interfaces/scanbound.html" class="tsd-signature-type">ScanBound</a><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">Invoke</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">IdCloser</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">IdCloser</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="scanresult.html" class="tsd-signature-type">ScanResult</a></li>
+						<li class="tsd-signature tsd-kind-icon">new <wbr>Scan<wbr>Result<span class="tsd-signature-symbol">(</span>isWasm<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span>, <span class="tsd-signature-symbol">...</span>args<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">[</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">, </span><a href="../interfaces/scanbound.html" class="tsd-signature-type">ScanBound</a><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">Invoke</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">IdCloser</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">IdCloser</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="scanresult.html" class="tsd-signature-type">ScanResult</a></li>
 					</ul>
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/850f38d/src/scan-iterator.ts#L153">src/scan-iterator.ts:153</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/scan-iterator.ts#L170">src/scan-iterator.ts:170</a></li>
 								</ul>
 							</aside>
 							<h4 class="tsd-parameters-title">Parameters</h4>
 							<ul class="tsd-parameters">
+								<li>
+									<h5>isWasm: <span class="tsd-signature-type">boolean</span></h5>
+								</li>
 								<li>
 									<h5><span class="tsd-flag ts-flagRest">Rest</span> <span class="tsd-signature-symbol">...</span>args: <span class="tsd-signature-symbol">[</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">, </span><a href="../interfaces/scanbound.html" class="tsd-signature-type">ScanBound</a><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">Invoke</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">IdCloser</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">IdCloser</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">]</span></h5>
 								</li>
@@ -136,7 +139,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/850f38d/src/scan-iterator.ts#L167">src/scan-iterator.ts:167</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/scan-iterator.ts#L186">src/scan-iterator.ts:186</a></li>
 								</ul>
 							</aside>
 							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">AsyncIterableIterator</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">JSONValue</span><span class="tsd-signature-symbol">&gt;</span></h4>
@@ -153,7 +156,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/850f38d/src/scan-iterator.ts#L179">src/scan-iterator.ts:179</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/scan-iterator.ts#L198">src/scan-iterator.ts:198</a></li>
 								</ul>
 							</aside>
 							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">AsyncIterableIterator</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-symbol">[</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">, </span><span class="tsd-signature-type">JSONValue</span><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol">&gt;</span></h4>
@@ -170,7 +173,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/850f38d/src/scan-iterator.ts#L175">src/scan-iterator.ts:175</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/scan-iterator.ts#L194">src/scan-iterator.ts:194</a></li>
 								</ul>
 							</aside>
 							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">AsyncIterableIterator</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">&gt;</span></h4>
@@ -187,7 +190,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/850f38d/src/scan-iterator.ts#L171">src/scan-iterator.ts:171</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/scan-iterator.ts#L190">src/scan-iterator.ts:190</a></li>
 								</ul>
 							</aside>
 							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">AsyncIterableIterator</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">JSONValue</span><span class="tsd-signature-symbol">&gt;</span></h4>
@@ -208,6 +211,9 @@
 				<ul class="before-current">
 					<li class=" tsd-kind-class">
 						<a href="repmhttpinvoker.html" class="tsd-kind-icon">REPMHTTPInvoker</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="repmwasminvoker.html" class="tsd-kind-icon">REPMWasm<wbr>Invoker</a>
 					</li>
 					<li class=" tsd-kind-class">
 						<a href="replicache.html" class="tsd-kind-icon">Replicache</a>
@@ -256,6 +262,9 @@
 					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="../globals.html#databaseinfo" class="tsd-kind-icon">Database<wbr>Info</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="../globals.html#invoker" class="tsd-kind-icon">Invoker</a>
 					</li>
 					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
 						<a href="../globals.html#mutator" class="tsd-kind-icon">Mutator</a>

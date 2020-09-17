@@ -20,7 +20,6 @@
     </mwc-top-app-bar>
     <mwc-fab icon='edit'></mwc-fab>
 
-
     <script type='module'>
         import { handleDragStart, isDragging } from './drag.js';
         import Replicache from './node_modules/replicache/out/mod.js';
@@ -35,9 +34,10 @@
         import '@material/mwc-textfield';
         import '@material/mwc-top-app-bar/mwc-top-app-bar.js';
 
+
         const key = id => `/todo/${id}`;
 
-        var rep = new Replicache({
+        var rep = window.rep = new Replicache({
             // URL of the diff server to use. The diff server periodically fetches
             // the 'client view' from your service and returns any delta. You can
             // use our hosted diff server (as here) or a local diff server, which
@@ -160,6 +160,21 @@
         };
 
         document.querySelector('mwc-fab').addEventListener('click', handleCreate);
+    </script>
+
+    <script src="https://js.pusher.com/7.0/pusher.min.js"></script>
+    <script>
+        // Enable pusher logging - don't include this in production
+        Pusher.logToConsole = true;
+
+        var pusher = new Pusher('8084fa6056631d43897d', {
+            cluster: 'us3'
+        });
+
+        var channel = pusher.subscribe('u-2');
+        channel.bind('poke', function (data) {
+            window.rep.sync();
+        });
     </script>
 </body>
 

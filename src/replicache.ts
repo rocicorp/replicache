@@ -83,7 +83,7 @@ export default class Replicache implements ReadTransaction {
     diffServerAuth?: string;
     diffServerURL: string;
     name?: string;
-    repmInvoker: Invoker;
+    repmInvoker?: Invoker;
     syncInterval?: number | null;
     pushDelay?: number | null;
   }) {

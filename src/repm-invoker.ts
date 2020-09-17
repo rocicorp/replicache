@@ -2,8 +2,8 @@ import type {JSONValue, ToJSON} from './json.js';
 import type {ScanItem} from './scan-item.js';
 import type {ScanOptions} from './scan-options.js';
 import type {DatabaseInfo} from './database-info.js';
-
 import init, {dispatch} from './wasm/release/replicache_client.js';
+import type {InitInput, InitOutput} from './wasm/release/replicache_client.js';
 
 // TODO(repc-switchover): isWasm can go away, but so can this whole
 // type and all the machinery connected to it. Look at the commit
@@ -33,22 +33,15 @@ export interface REPMInvoke {
   (dbName: string, rpc: string, args?: JSONValue | ToJSON): Promise<JSONValue>;
 }
 
+let wasmModuleOutput: Promise<InitOutput> | undefined;
+
 export class REPMWasmInvoker {
-  private readonly _inited: Promise<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-  private _dispatch?: (dbName: string, rpc: string, args: string) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
   public readonly isWasm = true;
-  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
-  constructor(wasm_module?: any) {
-    this._inited = (async () => {
-      // TODO: Have to import dynamically to hide this from Jest.
-      // Jest cannot parse the es6 behind this import, I don't know why.
-      // TODO: We need to have some way to switch between debug and release.
-      // const {default: init, dispatch} = await import(
-      //   './wasm/debug/replicache_client.js'
-      // );
-      this._dispatch = dispatch;
-      return init(wasm_module);
-    })();
+
+  constructor(wasmModuleOrPath?: InitInput) {
+    if (!wasmModuleOutput) {
+      wasmModuleOutput = init(wasmModuleOrPath);
+    }
   }
 
   invoke: REPMInvoke = async (
@@ -57,8 +50,8 @@ export class REPMWasmInvoker {
     args: JSONValue | ToJSON = {},
   ): Promise<JSONValue> => {
     console.debug('>', dbName, rpc, args);
-    await this._inited;
-    const json = await this._dispatch!(dbName, rpc, JSON.stringify(args)); // eslint-disable-line @typescript-eslint/no-non-null-assertion
+    await wasmModuleOutput;
+    const json = await dispatch(dbName, rpc, JSON.stringify(args));
     const ret = json == '' ? null : JSON.parse(json);
     console.debug('<', dbName, rpc, ret);
     return ret;

@@ -9,7 +9,7 @@ use async_fn::AsyncFn2;
 use async_std::stream::StreamExt;
 use async_std::sync::{Receiver, RecvError, RwLock};
 use futures::stream::futures_unordered::FuturesUnordered;
-use log::warn;
+use log::{error, warn};
 use nanoserde::{DeJson, SerJson};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -84,7 +84,7 @@ async fn connection_future<'a, 'b>(
 
 pub async fn process(store: dag::Store, rx: Receiver<Request>, client_id: String) {
     if let Err(err) = do_init(&store).await {
-        warn!("Could not initialize db: {:?}", err);
+        error!("Could not initialize db: {:?}", err);
         return;
     }
 
@@ -107,6 +107,8 @@ pub async fn process(store: dag::Store, rx: Receiver<Request>, client_id: String
         }
         match value {
             UnorderedResult::Request(value) => match value {
+                // TODO turn this into an info if it is expected and not a problem or
+                // turn it into an error otherwise.
                 Err(why) => warn!("Connection loop recv failed: {}", why),
                 Ok(req) => {
                     futures.push(connection_future(

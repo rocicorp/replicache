@@ -4,7 +4,7 @@ use crate::kv::idbstore::IdbStore;
 use crate::kv::{Store, StoreError};
 use crate::util::uuid::uuid;
 use async_std::sync::{channel, Mutex, Receiver, Sender};
-use log::warn;
+use log::error;
 use std::collections::HashMap;
 
 #[cfg(target_arch = "wasm32")]
@@ -47,7 +47,7 @@ async fn dispatch_loop(rx: Receiver<Request>) {
         let req = match rx.recv().await {
             Ok(req) => req,
             Err(why) => {
-                warn!("Dispatch loop recv failed: {}", why);
+                error!("Dispatch loop recv failed: {}", why);
                 continue;
             }
         };

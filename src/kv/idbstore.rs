@@ -4,7 +4,7 @@ use async_std::task;
 use async_trait::async_trait;
 use futures::channel::oneshot;
 use futures::future::join_all;
-use log::warn;
+use log::error;
 use std::collections::HashMap;
 use str_macro::str;
 use wasm_bindgen::closure::Closure;
@@ -98,14 +98,14 @@ impl IdbStore {
             let result = match request_copy.result() {
                 Ok(r) => r,
                 Err(e) => {
-                    warn!("Error before ugradeneeded: {:?}", e);
+                    error!("Error before ugradeneeded: {:?}", e);
                     return;
                 }
             };
             let db = web_sys::IdbDatabase::unchecked_from_js(result);
 
             if let Err(e) = db.create_object_store(OBJECT_STORE) {
-                warn!("Create object store failed: {:?}", e);
+                error!("Create object store failed: {:?}", e);
             }
         });
         request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
@@ -143,7 +143,7 @@ impl IdbStore {
         let (sender, receiver) = oneshot::channel::<()>();
         let callback = Closure::once(move || {
             if sender.send(()).is_err() {
-                warn!("oneshot send failed");
+                error!("oneshot send failed");
             }
         });
         (callback, receiver)
@@ -204,7 +204,7 @@ async fn has_impl(tx: &IdbTransaction, key: &str) -> Result<bool> {
         Some(v) if v >= 1.0 => true,
         Some(_) => false,
         _ => {
-            warn!("IdbStore.count returned non-float {:?}", result);
+            error!("IdbStore.count returned non-float {:?}", result);
             false
         }
     })

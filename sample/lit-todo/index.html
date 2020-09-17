@@ -153,7 +153,7 @@
                 <mwc-icon class='handle' @mousedown=${e => handleDragStart(e, todo.id, index, () => todos, update, handleDragEnd)}>drag_handle</mwc-icon>
                 <mwc-checkbox .checked=${live(todo.complete)} @input=${(e) => handleCheck(todo.id, e)}></mwc-checkbox>
                 <div class='textwrap' @click=${e => handleItemClick(todo.id, e)}>
-                    <span @focus=${handleFocus} @click=${handleTextClick} @blur=${e => handleBlur(todo.id, e)} contenteditable='plaintext-only'>${todo.text}</span></div>
+                    <span @focus=${handleFocus} @click=${handleTextClick} @blur=${e => handleBlur(todo.id, e)} contenteditable>${todo.text}</span></div>
                 <mwc-icon-button @click=${(e) => handleDelete(todo.id, e)} icon='delete'></mwc-icon-button>
             </div>`;
             render(repeat(newTodos, todo => todo.id, item), document.querySelector('.todo-list'));

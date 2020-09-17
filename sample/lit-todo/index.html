@@ -73,24 +73,12 @@
         };
 
         rep.subscribe(async tx => {
-            return await allTodos(tx);
+            const todos = (await tx.scanAll({ prefix: '/todo/' })).map(([k, v]) => v);
+            todos.sort((a, b) => a.order - b.order);
+            return todos;
         }, {
             onData: update,
         });
-
-        // TODO: Pull a getAll() method into Replicache SDK.
-        async function allTodos(tx) {
-            return (await toArray(tx.scan({ prefix: '/todo/' })))
-                .sort((a, b) => a.order - b.order);
-        }
-
-        async function toArray(iterator) {
-            const arr = []
-            for await (const entry of iterator) {
-                arr.push(entry)
-            }
-            return arr
-        }
 
         const updateTodo = rep.register('updateTodo', async (tx, changes) => {
             const todo = await tx.get(key(changes.id));

@@ -33,6 +33,11 @@ export interface ReadTransaction {
    * will throw a {@link TransactionClosedError}.
    */
   scan(options?: ScanOptions): ScanResult;
+
+  /**
+   * Convenience for scan() that reads all results into an array.
+   */
+  scanAll(options?: ScanOptions): Promise<[String, JSONValue][]>;
 }
 
 export function throwIfClosed(tx: {closed: boolean}): void {
@@ -82,6 +87,15 @@ export class ReadTransactionImpl implements ReadTransaction {
       () => this,
       false,
     );
+  }
+
+  async scanAll(options: ScanOptions = {}): Promise<[string, JSONValue][]> {
+    const it = this.scan(options).entries();
+    const result = [];
+    for await (const pair of it) {
+      result.push(pair);
+    }
+    return result;
   }
 
   get id(): number {

@@ -37,7 +37,7 @@ export interface ReadTransaction {
   /**
    * Convenience for scan() that reads all results into an array.
    */
-  scanAll(options?: ScanOptions): Promise<[String, JSONValue][]>;
+  scanAll(options?: ScanOptions): Promise<[string, JSONValue][]>;
 }
 
 export function throwIfClosed(tx: {closed: boolean}): void {

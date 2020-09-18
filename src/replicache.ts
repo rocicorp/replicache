@@ -54,7 +54,7 @@ export default class Replicache implements ReadTransaction {
    * The delay between when a change is made to Replicache and when Replicache
    * attempts to push that change.
    */
-  public pushDelay: number | null;
+  public pushDelay: number;
 
   onSync: ((syncing: boolean) => void) | null = null;
 
@@ -76,7 +76,7 @@ export default class Replicache implements ReadTransaction {
     name = 'default',
     repmInvoker = new REPMWasmInvoker(),
     syncInterval = 60_000,
-    pushDelay = 1_000,
+    pushDelay = 300,
   }: {
     batchURL?: string;
     dataLayerAuth?: string;
@@ -85,7 +85,7 @@ export default class Replicache implements ReadTransaction {
     name?: string;
     repmInvoker?: Invoker;
     syncInterval?: number | null;
-    pushDelay?: number | null;
+    pushDelay?: number;
   }) {
     this._batchURL = batchURL;
     this._dataLayerAuth = dataLayerAuth;
@@ -277,7 +277,7 @@ export default class Replicache implements ReadTransaction {
       // hacky string search. (a) and (c) are not distinguishable currently
       // because repc doesn't provide sufficient information, so we treat all
       // errors that aren't (b) as (a).
-      if (e.toString().indexOf('JSLogInfo') == -1) {
+      if (e.toString().includes('JSLogInfo')) {
         online = false;
       }
       console.info(`Error: ${e}`);

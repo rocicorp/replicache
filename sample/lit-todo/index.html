@@ -27,6 +27,7 @@
     </mwc-top-app-bar>
     <mwc-fab icon="edit"></mwc-fab>
 
+    <script src="https://js.pusher.com/7.0/pusher.min.js"></script>
     <script type="module">
       import {handleDragStart, isDragging} from './drag.js';
       import Replicache from './node_modules/replicache/out/mod.js';
@@ -43,7 +44,7 @@
 
       const key = id => `/todo/${id}`;
 
-      var rep = (window.rep = new Replicache({
+      let rep = new Replicache({
         // URL of the diff server to use. The diff server periodically fetches
         // the 'client view' from your service and returns any delta. You can
         // use our hosted diff server (as here) or a local diff server, which
@@ -64,7 +65,7 @@
         // Auth token for your client view and batch endpoints, if any.
         dataLayerAuth: '2',
         pushDelay: 300,
-      }));
+      });
 
       rep.onSync = syncing => {
         const icon = document.querySelector('.sync-icon');
@@ -216,21 +217,15 @@
       }
 
       document.querySelector('mwc-fab').addEventListener('click', handleCreate);
-    </script>
 
-    <script src="https://js.pusher.com/7.0/pusher.min.js"></script>
-    <script>
-      // Enable pusher logging - don't include this in production
       Pusher.logToConsole = true;
-
-      var pusher = new Pusher('8084fa6056631d43897d', {
+      new Pusher('8084fa6056631d43897d', {
         cluster: 'us3',
-      });
-
-      var channel = pusher.subscribe('u-2');
-      channel.bind('poke', function (data) {
-        rep.sync();
-      });
+      })
+        .subscribe('u-2')
+        .bind('poke', function (data) {
+          rep.sync();
+        });
     </script>
   </body>
 </html>

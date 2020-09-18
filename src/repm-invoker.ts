@@ -1,6 +1,5 @@
 import type {JSONValue, ToJSON} from './json.js';
 import type {ScanOptions} from './scan-options.js';
-import type {DatabaseInfo} from './database-info.js';
 import init, {dispatch} from './wasm/release/replicache_client.js';
 import type {InitInput, InitOutput} from './wasm/release/replicache_client.js';
 
@@ -198,8 +197,6 @@ export type InvokeMap = {
 
 type OpenResponse = '';
 type CloseResponse = '';
-type ListRespones = {databases: DatabaseInfo[]};
-type DropResponse = '';
 
 type GetRootResponse = {
   root: string;
@@ -208,7 +205,5 @@ type GetRootResponse = {
 export type InvokeMapNoArgs = {
   open: OpenResponse;
   close: CloseResponse;
-  list: ListRespones;
-  drop: DropResponse;
   getRoot: GetRootResponse;
 };

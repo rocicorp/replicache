@@ -9,6 +9,7 @@ use replicache_client::fetch;
 #[allow(unused_imports)]
 use replicache_client::sync;
 use replicache_client::util::nanoserde::any::Any;
+use replicache_client::util::rlog;
 use replicache_client::wasm;
 use str_macro::str;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
@@ -371,6 +372,13 @@ async fn test_get_root() {
         "{\"root\":\"ug6tod81n4l0fm8ob1iud4hetomibm02\"}"
     );
     assert_eq!(dispatch(db, "close", "").await.unwrap(), "");
+}
+
+#[wasm_bindgen_test]
+fn test_browser_timer() {
+    let timer = rlog::Timer::new().unwrap();
+    // Sleep is a PITA so we'll leave it at "it doesn't error".
+    timer.elapsed_ms().unwrap();
 }
 
 // We can't run a web server in wasm-in-the-browser so this is the next

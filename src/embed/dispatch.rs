@@ -2,9 +2,10 @@ use crate::dag;
 use crate::embed::connection;
 use crate::kv::idbstore::IdbStore;
 use crate::kv::{Store, StoreError};
+use crate::util::rlog;
 use crate::util::uuid::uuid;
 use async_std::sync::{channel, Mutex, Receiver, Sender};
-use log::error;
+use log::{debug, error};
 use std::collections::HashMap;
 
 #[cfg(target_arch = "wasm32")]
@@ -75,18 +76,29 @@ async fn dispatch_loop(rx: Receiver<Request>) {
 }
 
 pub async fn dispatch(db_name: String, rpc: String, data: String) -> Response {
+    // TODO add a request id so we can link requests and responses.
+    debug!("> {} db={} data={}", &rpc, &db_name, &data);
+    let timer = rlog::Timer::new().map_err(|e| format!("{:?}", e))?;
+
     let (tx, rx) = channel::<Response>(1);
     let request = Request {
-        db_name,
-        rpc,
+        db_name: db_name.clone(),
+        rpc: rpc.clone(),
         data,
         response: tx,
     };
     SENDER.lock().await.send(request).await;
-    match rx.recv().await {
+    let receive_result = rx.recv().await;
+    let result = match receive_result {
         Err(e) => Err(e.to_string()),
         Ok(v) => v,
-    }
+    };
+    let elapsed_ms = timer.elapsed_ms().map_err(|e| format!("{:?}", e))?;
+    debug!(
+        "< {} db={} elapsed={}ms result={:?}",
+        &rpc, &db_name, elapsed_ms, result
+    );
+    result
 }
 
 async fn do_open(conns: &mut ConnMap, req: &Request) -> Response {

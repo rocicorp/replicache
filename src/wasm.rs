@@ -32,7 +32,7 @@ static INIT: Once = Once::new();
 
 pub fn init_console_log() {
     INIT.call_once(|| {
-        if let Err(e) = console_log::init_with_level(log::Level::Info) {
+        if let Err(e) = console_log::init_with_level(log::Level::Debug) {
             web_sys::console::error_1(&format!("Error registering console_log: {}", e).into());
         }
     });

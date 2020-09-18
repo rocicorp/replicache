@@ -4,7 +4,7 @@
   "version": "0.2.0",
   "repository": "github:rocicorp/replicache-sdk-js",
   "scripts": {
-    "test": "web-test-runner src/replicache.test.ts --playwright --browsers chromium",
+    "test": "web-test-runner src/replicache.test.ts --playwright --browsers chromium firefox webkit",
     "test:watch": "web-test-runner src/replicache.test.ts --playwright --browsers chromium firefox webkit --watch",
     "format": "prettier --write '{src,sample}/**/*.{js,jsx,json,ts,tsx,html,css,md}' '*.{js,jsx,json,ts,tsx,html,css,md}'",
     "check-format": "prettier --check '{src,sample}/**/*.{js,jsx,json,ts,tsx,html,css,md}' '*.{js,jsx,json,ts,tsx,html,css,md}'",
@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@esm-bundle/chai": "^4.1.5",
+    "@types/fetch-mock": "^7.3.3",
     "@types/mocha": "^8.0.3",
     "@types/sinon": "^9.0.5",
     "@typescript-eslint/eslint-plugin": "^3.0.2",
@@ -30,6 +31,7 @@
     "@web/test-runner": "^0.7.23",
     "@web/test-runner-playwright": "^0.5.6",
     "eslint": "^7.1.0",
+    "fetch-mock": "^9.10.7",
     "prettier": "^2.0.0",
     "sinon": "^9.0.3",
     "typedoc": "^0.17.0-3",

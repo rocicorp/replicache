@@ -32,7 +32,7 @@ pub use write::Write;
 #[derive(Debug, PartialEq)]
 pub enum Error {
     Storage(kv::StoreError),
-    CorruptStore,
+    CorruptStore(String),
 }
 
 impl From<kv::StoreError> for Error {

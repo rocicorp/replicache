@@ -3,27 +3,31 @@ use super::errors::TimerError;
 
 pub struct Timer {
     start_ms: u64,
+    performance: web_sys::Performance,
 }
 
 impl Timer {
     pub fn new() -> Result<Timer, TimerError> {
         // We could use console::time_with_label here if we wanted.
-        let start_ms = now_ms()?;
-        Ok(Timer { start_ms })
+        let performance = get_performance()?;
+        let start_ms = performance.now() as u64;
+        Ok(Timer {
+            start_ms,
+            performance,
+        })
     }
 
-    pub fn elapsed_ms(self) -> Result<u64, TimerError> {
-        let end_ms = now_ms()?;
-        Ok(end_ms - self.start_ms)
+    pub fn elapsed_ms(self) -> u64 {
+        let end_ms = self.performance.now() as u64;
+        end_ms - self.start_ms
     }
 }
 
-fn now_ms() -> Result<u64, TimerError> {
+fn get_performance() -> Result<web_sys::Performance, TimerError> {
     use TimerError::*;
-    let ms = web_sys::window()
+    let performance = web_sys::window()
         .ok_or(NoWindow)?
         .performance()
-        .ok_or(NoPerformanceTimer)?
-        .now() as u64;
-    Ok(ms)
+        .ok_or(NoPerformanceTimer)?;
+    Ok(performance)
 }

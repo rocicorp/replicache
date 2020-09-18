@@ -375,6 +375,7 @@ mod tests {
     use super::*;
     use crate::dag::Chunk;
     use crate::kv::memstore::MemStore;
+    use crate::util::rlog::log;
 
     #[async_std::test]
     async fn test_base_snapshot() {
@@ -385,7 +386,7 @@ mod tests {
         let genesis_hash = chain[0].chunk().hash();
         assert_eq!(
             genesis_hash,
-            Commit::base_snapshot(genesis_hash, &store.read().await.unwrap().read())
+            Commit::base_snapshot(genesis_hash, &store.read(log()).await.unwrap().read())
                 .await
                 .unwrap()
                 .chunk()
@@ -399,7 +400,7 @@ mod tests {
             genesis_hash,
             Commit::base_snapshot(
                 chain[chain.len() - 1].chunk().hash(),
-                &store.read().await.unwrap().read()
+                &store.read(log()).await.unwrap().read()
             )
             .await
             .unwrap()
@@ -409,7 +410,7 @@ mod tests {
 
         add_snapshot(&mut chain, &store, None).await;
         let base_hash = store
-            .read()
+            .read(log())
             .await
             .unwrap()
             .read()
@@ -421,7 +422,7 @@ mod tests {
             base_hash,
             Commit::base_snapshot(
                 chain[chain.len() - 1].chunk().hash(),
-                &store.read().await.unwrap().read()
+                &store.read(log()).await.unwrap().read()
             )
             .await
             .unwrap()
@@ -435,7 +436,7 @@ mod tests {
             base_hash,
             Commit::base_snapshot(
                 chain[chain.len() - 1].chunk().hash(),
-                &store.read().await.unwrap().read()
+                &store.read(log()).await.unwrap().read()
             )
             .await
             .unwrap()
@@ -453,7 +454,7 @@ mod tests {
         let genesis_hash = chain[0].chunk().hash();
         assert_eq!(
             0,
-            Commit::pending(genesis_hash, &store.read().await.unwrap().read())
+            Commit::pending(genesis_hash, &store.read(log()).await.unwrap().read())
                 .await
                 .unwrap()
                 .len()
@@ -462,7 +463,7 @@ mod tests {
         add_local(&mut chain, &store).await;
         add_local(&mut chain, &store).await;
         let head_hash = chain[2].chunk().hash();
-        let commits = Commit::pending(head_hash, &store.read().await.unwrap().read())
+        let commits = Commit::pending(head_hash, &store.read(log()).await.unwrap().read())
             .await
             .unwrap();
         assert_eq!(2, commits.len());

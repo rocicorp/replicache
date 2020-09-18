@@ -378,7 +378,7 @@ async fn test_get_root() {
 fn test_browser_timer() {
     let timer = rlog::Timer::new().unwrap();
     // Sleep is a PITA so we'll leave it at "it doesn't error".
-    timer.elapsed_ms().unwrap();
+    timer.elapsed_ms();
 }
 
 // We can't run a web server in wasm-in-the-browser so this is the next

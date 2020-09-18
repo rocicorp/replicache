@@ -3,6 +3,7 @@ pub mod idbstore {
     use rand::Rng;
     use replicache_client::kv::idbstore::IdbStore;
     use replicache_client::kv::{trait_tests, Store};
+    use replicache_client::util::rlog::log;
     use replicache_client::wasm;
     use std::boxed::Box;
     use wasm_bindgen_test::wasm_bindgen_test_configure;
@@ -36,14 +37,14 @@ pub mod idbstore {
         let store = new_store().await;
 
         // Start a write transaction, and put a value on it.
-        let wt = store.write().await.unwrap();
+        let wt = store.write(log()).await.unwrap();
         assert_eq!(false, wt.has("bar").await.unwrap());
         wt.put("bar", b"baz").await.unwrap();
         assert_eq!(Some(b"baz".to_vec()), wt.get("bar").await.unwrap());
         wt.commit().await.unwrap();
 
         // Verify that the write was effective.
-        let rt = store.read().await.unwrap();
+        let rt = store.read(log()).await.unwrap();
         assert_eq!(true, rt.has("bar").await.unwrap());
         assert_eq!(Some(b"baz".to_vec()), rt.get("bar").await.unwrap());
     }
@@ -53,20 +54,20 @@ pub mod idbstore {
         let store = new_store().await;
 
         // Start a write transaction, and put a value on it.
-        let wt = store.write().await.unwrap();
+        let wt = store.write(log()).await.unwrap();
         assert_eq!(false, wt.has("bar").await.unwrap());
         wt.put("bar", b"baz").await.unwrap();
         wt.commit().await.unwrap();
 
         // Delete.
-        let wt = store.write().await.unwrap();
+        let wt = store.write(log()).await.unwrap();
         assert_eq!(true, wt.has("bar").await.unwrap());
         wt.del("bar").await.unwrap();
         assert_eq!(false, wt.has("bar").await.unwrap());
         wt.commit().await.unwrap();
 
         // Verify that the delete was effective.
-        let rt = store.read().await.unwrap();
+        let rt = store.read(log()).await.unwrap();
         assert_eq!(false, rt.has("bar").await.unwrap());
         assert_eq!(None, rt.get("bar").await.unwrap());
     }
@@ -75,7 +76,7 @@ pub mod idbstore {
     async fn read_only_commit() {
         let store = new_store().await;
 
-        let wt = store.write().await.unwrap();
+        let wt = store.write(log()).await.unwrap();
         assert_eq!(false, wt.has("bar").await.unwrap());
         wt.commit().await.unwrap();
     }
@@ -84,7 +85,7 @@ pub mod idbstore {
     async fn read_only_rollback() {
         let store = new_store().await;
 
-        let wt = store.write().await.unwrap();
+        let wt = store.write(log()).await.unwrap();
         assert_eq!(false, wt.has("bar").await.unwrap());
         wt.rollback().await.unwrap();
     }
@@ -94,11 +95,11 @@ pub mod idbstore {
         let store = new_store().await;
 
         // Start a write transaction and put a value, then abort.
-        let wt = store.write().await.unwrap();
+        let wt = store.write(log()).await.unwrap();
         wt.put("bar", b"baz").await.unwrap();
         wt.rollback().await.unwrap();
 
-        let rt = store.read().await.unwrap();
+        let rt = store.read(log()).await.unwrap();
         assert_eq!(None, rt.get("bar").await.unwrap());
     }
 
@@ -109,12 +110,12 @@ pub mod idbstore {
             let store = wasm::new_idbstore(name.clone()).await.unwrap();
 
             // Write a value.
-            let wt = store.write().await.unwrap();
+            let wt = store.write(log()).await.unwrap();
             wt.put("foo", b"bar").await.unwrap();
             wt.commit().await.unwrap();
 
             // Verify it's there.
-            let rt = store.read().await.unwrap();
+            let rt = store.read(log()).await.unwrap();
             assert_eq!(rt.get("foo").await.unwrap(), Some(b"bar".to_vec()));
 
             // Must drop reference to store before drop_store() works.
@@ -122,11 +123,11 @@ pub mod idbstore {
         }
 
         // Drop db
-        IdbStore::drop_store(&name).await.unwrap();
+        IdbStore::drop_store(&name, log()).await.unwrap();
 
         // Reopen store, verify data is gone
         let store = wasm::new_idbstore(name.clone()).await.unwrap();
-        let rt = store.read().await.unwrap();
+        let rt = store.read(log()).await.unwrap();
         assert_eq!(rt.has("foo").await.unwrap(), false);
     }
 

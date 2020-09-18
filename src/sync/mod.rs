@@ -14,6 +14,7 @@ use crate::embed::types::*;
 use crate::fetch;
 use crate::fetch::errors::FetchError;
 use crate::util::nanoserde::any;
+use crate::util::rlog;
 use async_trait::async_trait;
 use nanoserde::{DeJson, DeJsonErr, SerJson};
 use std::default::Default;
@@ -36,6 +37,7 @@ pub struct ReplayMutation {
 
 pub async fn begin_sync(
     store: &dag::Store,
+    logger: rlog::Logger,
     pusher: &dyn push::Pusher,
     puller: &dyn Puller,
     begin_sync_req: &BeginSyncRequest,
@@ -43,12 +45,12 @@ pub async fn begin_sync(
 ) -> Result<BeginSyncResponse, BeginSyncError> {
     use BeginSyncError::*;
 
-    // TODO
+    // TODO generate a sync id and add it to logging context (logger.add_context()).
     let sync_id = str!("TODO_sync_id");
 
     // Push: find pending commits between the base snapshot and the main head
     // and push them to the data layer.
-    let dag_read = store.read().await.map_err(ReadError)?;
+    let dag_read = store.read(logger.clone()).await.map_err(ReadError)?;
     let main_head_hash = dag_read
         .read()
         .get_head(DEFAULT_HEAD_NAME)
@@ -77,6 +79,8 @@ pub async fn begin_sync(
             client_id: client_id.clone(),
             mutations: push_mutations,
         };
+        logger.debug(str!("Starting push..."));
+        let push_timer = rlog::Timer::new().map_err(InternalTimerError)?;
         let _ = pusher
             .push(
                 &push_req,
@@ -87,6 +91,7 @@ pub async fn begin_sync(
             .await;
         // Note: no map_err(). A failed push does not fail sync.
         // TODO surface this failure in SyncInfo.
+        logger.debug(format!("...Push complete in {}ms", push_timer.elapsed_ms()));
     }
 
     // Pull.
@@ -101,6 +106,8 @@ pub async fn begin_sync(
         checksum: base_checksum.clone(),
         version: 1,
     };
+    logger.debug(str!("Starting pull..."));
+    let pull_timer = rlog::Timer::new().map_err(InternalTimerError)?;
     let pull_resp = puller
         .pull(
             &pull_req,
@@ -110,6 +117,7 @@ pub async fn begin_sync(
         )
         .await
         .map_err(PullFailed)?;
+    logger.debug(format!("...Pull complete in {}ms", pull_timer.elapsed_ms()));
 
     let expected_checksum = Checksum::from_str(&pull_resp.checksum).map_err(InvalidChecksum)?;
     if pull_resp.state_id.is_empty() {
@@ -125,7 +133,7 @@ pub async fn begin_sync(
 
     // It is possible that another sync completed while we were pulling. Ensure
     // that is not the case by re-checking the base snapshot.
-    let dag_write = store.write().await.map_err(LockError)?;
+    let dag_write = store.write(logger.clone()).await.map_err(LockError)?;
     let dag_read = dag_write.read();
     let main_head_post_pull = dag_read
         .get_head(DEFAULT_HEAD_NAME)
@@ -182,6 +190,7 @@ pub enum BeginSyncError {
     InternalGetPendingCommitsError(db::PendingError),
     InternalNoMainHeadError,
     InternalNonLocalPendingCommit,
+    InternalTimerError(rlog::TimerError),
     InvalidChecksum(checksum::ParseError),
     LockError(dag::Error),
     MainHeadDisappeared,
@@ -199,12 +208,15 @@ pub enum BeginSyncError {
 
 pub async fn maybe_end_sync(
     store: &dag::Store,
+    logger: rlog::Logger,
     maybe_end_sync_req: &MaybeEndSyncRequest,
 ) -> Result<MaybeEndSyncResponse, MaybeEndSyncError> {
     use MaybeEndSyncError::*;
 
+    // TODO put sync_id in the logging context (logger.add_context()).
+
     // Ensure sync head is what the caller thinks it is.
-    let mut dag_write = store.write().await.map_err(WriteError)?;
+    let mut dag_write = store.write(logger.clone()).await.map_err(WriteError)?;
     let dag_read = dag_write.read();
     let sync_head_hash = dag_read
         .get_head(SYNC_HEAD_NAME)
@@ -428,6 +440,7 @@ mod tests {
     use super::*;
     use crate::db::test_helpers::*;
     use crate::kv::memstore::MemStore;
+    use crate::util::rlog::log;
     use async_std::net::TcpListener;
     use std::clone::Clone;
     use str_macro::str;
@@ -716,7 +729,7 @@ mod tests {
         for c in cases.iter() {
             // Reset state of the store.
             chain.truncate(2);
-            let mut w = store.write().await.unwrap();
+            let mut w = store.write(log()).await.unwrap();
             w.set_head(
                 DEFAULT_HEAD_NAME,
                 Some(chain[chain.len() - 1].chunk().hash()),
@@ -767,6 +780,7 @@ mod tests {
             };
             let result = begin_sync(
                 &store,
+                log(),
                 &fake_pusher,
                 &fake_puller,
                 &begin_sync_req,
@@ -781,7 +795,7 @@ mod tests {
                 }
                 Some(e) => assert!(format!("{:?}", result.unwrap_err()).contains(e)),
             };
-            let owned_read = store.read().await.unwrap();
+            let owned_read = store.read(log()).await.unwrap();
             let read = owned_read.read();
             match &c.exp_new_sync_head {
                 None => {
@@ -976,7 +990,7 @@ mod tests {
             if c.intervening_sync {
                 add_snapshot(&mut chain, &store, None).await;
             }
-            let mut dag_write = store.write().await.unwrap();
+            let mut dag_write = store.write(log()).await.unwrap();
             dag_write
                 .set_head(
                     db::DEFAULT_HEAD_NAME,
@@ -1014,7 +1028,7 @@ mod tests {
                     mutator_name,
                     mutator_args,
                     Some(original.chunk().hash().to_string()),
-                    store.write().await.unwrap(),
+                    store.write(log()).await.unwrap(),
                 )
                 .await
                 .unwrap();
@@ -1026,7 +1040,7 @@ mod tests {
                 sync_id: str!("TODO"),
                 sync_head: sync_head.clone(),
             };
-            let result = maybe_end_sync(&store, &req).await;
+            let result = maybe_end_sync(&store, log(), &req).await;
 
             match c.exp_err {
                 Some(e) => assert!(format!("{:?}", result.unwrap_err()).contains(e)),
@@ -1068,7 +1082,7 @@ mod tests {
 
                     // Check if we set the main head like we should have.
                     if c.exp_replay_ids.len() == 0 {
-                        let owned_read = store.read().await.unwrap();
+                        let owned_read = store.read(log()).await.unwrap();
                         let read = owned_read.read();
                         assert_eq!(
                             Some(sync_head),

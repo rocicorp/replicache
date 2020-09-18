@@ -2,7 +2,6 @@ use super::chunk::Chunk;
 use super::key::Key;
 use super::{Error, Result};
 use crate::kv;
-use log::error;
 
 pub struct OwnedRead<'a> {
     kvr: Box<dyn kv::Read + 'a>,
@@ -49,8 +48,10 @@ impl<'a> Read<'_> {
             match String::from_utf8(bytes) {
                 Ok(s) => return Ok(Some(s)),
                 Err(e) => {
-                    error!("Could not decode head: {}: {}", name, e);
-                    return Err(Error::CorruptStore);
+                    return Err(Error::CorruptStore(format!(
+                        "Could not decode head: {}: {}",
+                        name, e
+                    )));
                 }
             }
         }
@@ -63,19 +64,20 @@ mod tests {
     use super::*;
     use crate::kv::memstore::MemStore;
     use crate::kv::Store;
+    use crate::util::rlog::log;
 
     #[async_std::test]
     async fn test_has_chunk() {
         async fn test(hash: &str, expect_has: bool) {
             let k = "present";
             let kv = MemStore::new();
-            let kvw = kv.write().await.unwrap();
+            let kvw = kv.write(log()).await.unwrap();
             kvw.put(&Key::ChunkData(k).to_string(), &vec![0u8, 1])
                 .await
                 .unwrap();
             kvw.commit().await.unwrap();
 
-            let kvr = kv.read().await.unwrap();
+            let kvr = kv.read(log()).await.unwrap();
             let r = Read { kvr: kvr.as_ref() };
             assert_eq!(expect_has, r.has_chunk(&hash).await.unwrap());
         }
@@ -88,7 +90,7 @@ mod tests {
     async fn test_get_chunk() {
         async fn test(data: Vec<u8>, refs: &[&str], get_same_chunk: bool) {
             let kv = MemStore::new();
-            let kvw = kv.write().await.unwrap();
+            let kvw = kv.write(log()).await.unwrap();
             let chunk = Chunk::new((data, 0), refs);
             kvw.put(&Key::ChunkData(&chunk.hash()).to_string(), chunk.data())
                 .await
@@ -100,7 +102,7 @@ mod tests {
             }
             kvw.commit().await.unwrap();
 
-            let kvr = kv.read().await.unwrap();
+            let kvr = kv.read(log()).await.unwrap();
             let r = Read { kvr: kvr.as_ref() };
 
             let mut expected = Option::<Chunk>::None;

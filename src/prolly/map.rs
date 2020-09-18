@@ -175,6 +175,7 @@ mod tests {
     use super::*;
     use crate::dag::Store;
     use crate::kv::memstore::MemStore;
+    use crate::util::rlog::log;
 
     fn make_map(mut base: Option<Vec<&str>>, pending: Vec<&str>, deleted: Vec<&str>) -> Map {
         let entries = base.as_mut().map(|entries| {
@@ -430,7 +431,7 @@ mod tests {
 
             let kv = MemStore::new();
             let store = Store::new(Box::new(kv));
-            let mut write = store.write().await.unwrap();
+            let mut write = store.write(log()).await.unwrap();
             let hash = map.flush(&mut write).await.unwrap();
 
             // Original map should still have same data.
@@ -438,7 +439,7 @@ mod tests {
 
             // The hash should yield a new map with same data
             write.commit().await.unwrap();
-            let read = store.read().await.unwrap();
+            let read = store.read(log()).await.unwrap();
             let map2 = Map::load(&hash, &read.read()).await.unwrap();
             test(&map2, &expected);
         }

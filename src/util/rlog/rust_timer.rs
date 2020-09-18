@@ -12,8 +12,8 @@ impl Timer {
         })
     }
 
-    pub fn elapsed_ms(self) -> Result<u64, TimerError> {
-        Ok(self.start.elapsed().as_millis() as u64)
+    pub fn elapsed_ms(self) -> u64 {
+        self.start.elapsed().as_millis() as u64
     }
 }
 
@@ -26,6 +26,6 @@ mod tests {
         let timer = Timer::new().unwrap();
         let ten_ms = std::time::Duration::from_millis(10);
         std::thread::sleep(ten_ms);
-        assert!(timer.elapsed_ms().unwrap() > 0);
+        assert!(timer.elapsed_ms() > 0);
     }
 }

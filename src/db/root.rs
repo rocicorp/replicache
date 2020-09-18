@@ -1,9 +1,14 @@
 use crate::dag;
+use crate::util::rlog;
 
-pub async fn get_root(store: &dag::Store, head_name: &str) -> Result<String, GetRootError> {
+pub async fn get_root(
+    store: &dag::Store,
+    head_name: &str,
+    logger: rlog::Logger,
+) -> Result<String, GetRootError> {
     use GetRootError::*;
 
-    let read = store.read().await.map_err(ReadError)?;
+    let read = store.read(logger).await.map_err(ReadError)?;
     let head = read
         .read()
         .get_head(head_name)
@@ -27,6 +32,7 @@ mod tests {
     use crate::dag;
     use crate::db;
     use crate::kv::memstore::MemStore;
+    use crate::util::rlog::log;
     use str_macro::str;
 
     #[async_std::test]
@@ -35,11 +41,11 @@ mod tests {
             let kvs = MemStore::new();
             let ds = dag::Store::new(Box::from(kvs));
             if let Some(v) = head_val {
-                let mut dw = ds.write().await.unwrap();
+                let mut dw = ds.write(log()).await.unwrap();
                 dw.set_head(db::DEFAULT_HEAD_NAME, Some(&v)).await.unwrap();
                 dw.commit().await.unwrap();
             }
-            let actual = super::get_root(&ds, db::DEFAULT_HEAD_NAME).await;
+            let actual = super::get_root(&ds, db::DEFAULT_HEAD_NAME, log()).await;
             assert_eq!(expected, actual);
         }
 

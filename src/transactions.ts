@@ -48,12 +48,10 @@ export function throwIfClosed(tx: {closed: boolean}): void {
 
 export class ReadTransactionImpl implements ReadTransaction {
   private _transactionId = -1;
-  protected readonly _isWasm: boolean;
   protected readonly _invoke: Invoke;
   protected _closed = false;
 
-  constructor(isWasm: boolean, invoke: Invoke) {
-    this._isWasm = isWasm;
+  constructor(invoke: Invoke) {
     this._invoke = invoke;
   }
 
@@ -66,7 +64,7 @@ export class ReadTransactionImpl implements ReadTransaction {
     if (!result.has) {
       return undefined;
     }
-    return this._isWasm ? JSON.parse(result.value as string) : result.value;
+    return JSON.parse(result.value);
   }
 
   async has(key: string): Promise<boolean> {
@@ -79,14 +77,7 @@ export class ReadTransactionImpl implements ReadTransaction {
   }
 
   scan({prefix = '', start}: ScanOptions = {}): ScanResult {
-    return new ScanResult(
-      this._isWasm,
-      prefix,
-      start,
-      this._invoke,
-      () => this,
-      false,
-    );
+    return new ScanResult(prefix, start, this._invoke, () => this, false);
   }
 
   async scanAll(options: ScanOptions = {}): Promise<[string, JSONValue][]> {
@@ -148,7 +139,7 @@ export class WriteTransactionImpl extends ReadTransactionImpl
     await this._invoke('put', {
       transactionId: this.id,
       key,
-      value: this._isWasm ? JSON.stringify(value) : value,
+      value: JSON.stringify(value),
     });
   }
 

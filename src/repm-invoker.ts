@@ -1,5 +1,4 @@
 import type {JSONValue, ToJSON} from './json.js';
-import type {ScanItem} from './scan-item.js';
 import type {ScanOptions} from './scan-options.js';
 import type {DatabaseInfo} from './database-info.js';
 import init, {dispatch} from './wasm/release/replicache_client.js';
@@ -10,7 +9,6 @@ import type {InitInput, InitOutput} from './wasm/release/replicache_client.js';
 // that introduced this to unwind it.
 export type Invoker = {
   readonly invoke: REPMInvoke;
-  readonly isWasm: boolean;
 };
 
 export interface Invoke {
@@ -36,8 +34,6 @@ export interface REPMInvoke {
 let wasmModuleOutput: Promise<InitOutput> | undefined;
 
 export class REPMWasmInvoker {
-  public readonly isWasm = true;
-
   constructor(wasmModuleOrPath?: InitInput) {
     if (!wasmModuleOutput) {
       wasmModuleOutput = init(wasmModuleOrPath);
@@ -63,7 +59,7 @@ type GetRequest = TransactionRequest & {
 };
 type GetResponse = {
   has?: boolean;
-  value: JSONValue;
+  value: string;
 };
 
 type HasRequest = TransactionRequest & {
@@ -77,19 +73,22 @@ type TransactionRequest = {
   transactionId: number;
 };
 
+interface ScanItemResponse {
+  readonly key: string;
+  readonly value: string;
+}
+
 export type ScanRequest = TransactionRequest &
   ScanOptions & {
     opts?: ScanOptions;
   };
-export type ScanResponse =
-  | ScanItem[]
-  | {
-      items: ScanItem[];
-    };
+export type ScanResponse = {
+  items: ScanItemResponse[];
+};
 
 type PutRequest = TransactionRequest & {
   key: string;
-  value: JSONValue | ToJSON;
+  value: string;
 };
 type PutResponse = unknown;
 

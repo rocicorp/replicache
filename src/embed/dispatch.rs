@@ -171,11 +171,11 @@ async fn do_debug(conns: &ConnMap, req: &Request) -> Response {
 
 #[derive(Debug)]
 enum InitClientIdError {
-    GetErr(StoreError),
-    OpenErr(StoreError),
-    InvalidUtf8(std::string::FromUtf8Error),
-    PutClientIdErr(StoreError),
     CommitErr(StoreError),
+    GetErr(StoreError),
+    InvalidUtf8(std::string::FromUtf8Error),
+    OpenErr(StoreError),
+    PutClientIdErr(StoreError),
 }
 
 async fn init_client_id(s: &dyn Store) -> Result<String, InitClientIdError> {
@@ -194,4 +194,21 @@ async fn init_client_id(s: &dyn Store) -> Result<String, InitClientIdError> {
         .map_err(PutClientIdErr)?;
     wt.commit().await.map_err(CommitErr)?;
     Ok(uuid)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::kv::memstore::MemStore;
+
+    #[async_std::test]
+    async fn test_init_client_id() {
+        let ms = Box::new(MemStore::new());
+        let cid1 = init_client_id(ms.as_ref()).await.unwrap();
+        let cid2 = init_client_id(ms.as_ref()).await.unwrap();
+        assert_eq!(cid1, cid2);
+        let ms = Box::new(MemStore::new());
+        let cid3 = init_client_id(ms.as_ref()).await.unwrap();
+        assert_ne!(cid1, cid3);
+    }
 }

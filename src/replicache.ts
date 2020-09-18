@@ -129,10 +129,6 @@ export default class Replicache implements ReadTransaction {
     await repmInvoker.invoke(name, 'drop');
   }
 
-  get isWasm(): boolean {
-    return this._repmInvoker.isWasm || false;
-  }
-
   get online(): boolean {
     return this._online;
   }
@@ -224,7 +220,6 @@ export default class Replicache implements ReadTransaction {
   scan({prefix = '', start}: ScanOptions = {}): ScanResult {
     let tx: ReadTransactionImpl;
     return new ScanResult(
-      this.isWasm,
       prefix,
       start,
       this._invoke,
@@ -232,7 +227,7 @@ export default class Replicache implements ReadTransaction {
         if (tx) {
           return tx;
         }
-        tx = new ReadTransactionImpl(this.isWasm, this._invoke);
+        tx = new ReadTransactionImpl(this._invoke);
         await tx.open({});
         return tx;
       },
@@ -244,7 +239,7 @@ export default class Replicache implements ReadTransaction {
    * Convenience form of scan() which returns all the results as an array.
    */
   async scanAll(options: ScanOptions = {}): Promise<[string, JSONValue][]> {
-    const tx = new ReadTransactionImpl(this.isWasm, this._invoke);
+    const tx = new ReadTransactionImpl(this._invoke);
     try {
       await tx.open({});
       return await tx.scanAll(options);
@@ -506,7 +501,7 @@ export default class Replicache implements ReadTransaction {
    * and `scan`.
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
-    const tx = new ReadTransactionImpl(this.isWasm, this._invoke);
+    const tx = new ReadTransactionImpl(this._invoke);
     await tx.open({});
     try {
       return await body(tx);
@@ -575,7 +570,7 @@ export default class Replicache implements ReadTransaction {
     }
 
     let result: R;
-    const tx = new WriteTransactionImpl(this.isWasm, this._invoke);
+    const tx = new WriteTransactionImpl(this._invoke);
     await tx.open(actualInvokeArgs);
     try {
       result = await mutatorImpl(tx, args);

@@ -131,20 +131,6 @@ async function expectAsyncFuncToThrow(f: () => unknown, c: unknown) {
   (await expectPromiseToReject(f())).to.be.instanceof(c);
 }
 
-test.skip('list and drop', async () => {
-  rep = await replicacheForTesting('def');
-  rep2 = await replicacheForTesting('abc');
-
-  const dbs = await ReplicacheTest.list({repmInvoker: wasmInvoker});
-  expect(dbs).to.eql([{name: 'abc'}, {name: 'def'}]);
-
-  {
-    await ReplicacheTest.drop('abc', {repmInvoker: wasmInvoker});
-    const dbs = await ReplicacheTest.list({repmInvoker: wasmInvoker});
-    expect(dbs).to.eql([{name: 'def'}]);
-  }
-});
-
 test('get, has, scan on empty db', async () => {
   rep = await replicacheForTesting('test2');
   async function t(tx: ReadTransaction) {

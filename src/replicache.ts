@@ -1,6 +1,5 @@
 import type {JSONValue, ToJSON} from './json.js';
 import type {ScanOptions} from './scan-options.js';
-import type {DatabaseInfo} from './database-info.js';
 import {
   Invoker,
   Invoke,
@@ -98,18 +97,6 @@ export default class Replicache implements ReadTransaction {
     this._open();
   }
 
-  /**
-   * Lists information about available local databases.
-   */
-  static async list({
-    repmInvoker,
-  }: {
-    repmInvoker: Invoker;
-  }): Promise<DatabaseInfo[]> {
-    const res = await repmInvoker.invoke('', 'list');
-    return res.databases;
-  }
-
   private async _open(): Promise<void> {
     this._opened = this._repmInvoker.invoke(this._name, 'open');
     this._root = this._getRoot();
@@ -117,16 +104,6 @@ export default class Replicache implements ReadTransaction {
     if (this._syncInterval !== null) {
       await this.sync();
     }
-  }
-
-  /**
-   * Completely delete a local database. Remote replicas in the group aren't affected.
-   */
-  static async drop(
-    name: string,
-    {repmInvoker}: {repmInvoker: Invoker},
-  ): Promise<void> {
-    await repmInvoker.invoke(name, 'drop');
   }
 
   get online(): boolean {

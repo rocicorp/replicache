@@ -1,4 +1,3 @@
-import Replicache from './mod.js';
 import {REPMWasmInvoker} from './repm-invoker.js';
 
 (async () => {
@@ -35,21 +34,5 @@ import {REPMWasmInvoker} from './repm-invoker.js';
 
   await invoker.invoke('test', 'close');
 
-  const repmInvoker = invoker;
-  document.body.textContent = JSON.stringify(
-    await Replicache.list({repmInvoker}),
-    null,
-    2,
-  );
-
-  document.body.textContent += ';\n';
-
-  await Replicache.drop('test', {repmInvoker});
-
-  document.body.textContent += ';\n';
-  document.body.textContent += JSON.stringify(
-    await Replicache.list({repmInvoker}),
-    null,
-    2,
-  );
+  indexedDB.deleteDatabase('test');
 })();

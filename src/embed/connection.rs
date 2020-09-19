@@ -6,7 +6,7 @@ use crate::fetch;
 use crate::sync;
 use crate::util::nanoserde::any;
 use crate::util::rlog;
-use async_fn::AsyncFn2;
+use async_fn::{AsyncFn2, AsyncFn3};
 use async_std::stream::StreamExt;
 use async_std::sync::{Receiver, RecvError, RwLock};
 use futures::stream::futures_unordered::FuturesUnordered;
@@ -140,7 +140,12 @@ async fn execute_in_txn<T, S, F>(func: F, txns: &TxnMap<'_>, req: Request)
 where
     T: DeJson + TransactionRequest,
     S: SerJson,
-    F: for<'r, 's> AsyncFn2<&'r RwLock<Transaction<'s>>, T, Output = Result<S, String>>,
+    F: for<'r, 's> AsyncFn3<
+        &'r RwLock<Transaction<'s>>,
+        T,
+        rlog::Logger,
+        Output = Result<S, String>,
+    >,
 {
     let request: T = match deserialize(&req.data) {
         Ok(v) => v,
@@ -148,6 +153,9 @@ where
     };
 
     let txn_id = request.transaction_id();
+    let mut logger = rlog::Logger::new_from_context(req.logger_context.clone());
+    let txn_id_string = txn_id.to_string();
+    logger.add_context("txid", &txn_id_string);
     let txns = txns.read().await;
     let txn = match txns.get(&txn_id) {
         Some(v) => v,
@@ -161,7 +169,7 @@ where
 
     req.response
         .send(
-            func.call(txn, request)
+            func.call(txn, request, logger)
                 .await
                 .map(|v| SerJson::serialize_json(&v)),
         )
@@ -411,13 +419,21 @@ async fn do_get_root<'a, 'b>(
     })
 }
 
-async fn do_has(txn: &RwLock<Transaction<'_>>, req: HasRequest) -> Result<HasResponse, String> {
+async fn do_has(
+    txn: &RwLock<Transaction<'_>>,
+    req: HasRequest,
+    _: rlog::Logger,
+) -> Result<HasResponse, String> {
     Ok(HasResponse {
         has: txn.read().await.as_read().has(req.key.as_bytes()),
     })
 }
 
-async fn do_get(txn: &RwLock<Transaction<'_>>, req: GetRequest) -> Result<GetResponse, String> {
+async fn do_get(
+    txn: &RwLock<Transaction<'_>>,
+    req: GetRequest,
+    logger: rlog::Logger,
+) -> Result<GetResponse, String> {
     #[cfg(not(default))] // Not enabled in production.
     if req.key.starts_with("sleep") {
         use async_std::task::sleep;
@@ -427,7 +443,7 @@ async fn do_get(txn: &RwLock<Transaction<'_>>, req: GetRequest) -> Result<GetRes
             Ok(ms) => {
                 sleep(Duration::from_millis(ms)).await;
             }
-            Err(_) => panic!("No sleep"), // Ok to panic, this block not enabled in prod.
+            Err(_) => logger.error(str!("No sleep time")),
         }
     }
 
@@ -447,7 +463,11 @@ async fn do_get(txn: &RwLock<Transaction<'_>>, req: GetRequest) -> Result<GetRes
     })
 }
 
-async fn do_scan(txn: &RwLock<Transaction<'_>>, req: ScanRequest) -> Result<ScanResponse, String> {
+async fn do_scan(
+    txn: &RwLock<Transaction<'_>>,
+    req: ScanRequest,
+    _: rlog::Logger,
+) -> Result<ScanResponse, String> {
     use std::convert::TryFrom;
     let mut res = Vec::<ScanItem>::new();
     for pe in txn.read().await.as_read().scan((&req.opts).into()) {
@@ -456,7 +476,11 @@ async fn do_scan(txn: &RwLock<Transaction<'_>>, req: ScanRequest) -> Result<Scan
     Ok(ScanResponse { items: res })
 }
 
-async fn do_put(txn: &RwLock<Transaction<'_>>, req: PutRequest) -> Result<PutResponse, String> {
+async fn do_put(
+    txn: &RwLock<Transaction<'_>>,
+    req: PutRequest,
+    _: rlog::Logger,
+) -> Result<PutResponse, String> {
     let mut guard = txn.write().await;
     let write = match &mut *guard {
         Transaction::Write(w) => Ok(w),
@@ -466,7 +490,11 @@ async fn do_put(txn: &RwLock<Transaction<'_>>, req: PutRequest) -> Result<PutRes
     Ok(PutResponse {})
 }
 
-async fn do_del(txn: &RwLock<Transaction<'_>>, req: DelRequest) -> Result<DelResponse, String> {
+async fn do_del(
+    txn: &RwLock<Transaction<'_>>,
+    req: DelRequest,
+    _: rlog::Logger,
+) -> Result<DelResponse, String> {
     let mut guard = txn.write().await;
     let write = match &mut *guard {
         Transaction::Write(w) => Ok(w),

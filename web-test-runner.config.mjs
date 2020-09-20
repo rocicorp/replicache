@@ -6,7 +6,7 @@ export default {
   testFramework: {
     config: {
       ui: 'tdd',
-      timeout: 30000,
+      timeout: 60_000,
     },
   },
 };

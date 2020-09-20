@@ -16,6 +16,10 @@ import type {BeginSyncResponse} from './repm-invoker.js';
 import {assert, expect} from '@esm-bundle/chai';
 import * as sinon from 'sinon';
 import type {SinonSpy, SinonStub} from 'sinon';
+
+// fetch-mock has invalid d.ts file so we removed that on npm install.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error
 import fetchMock from 'fetch-mock/esm/client.js';
 
 const {fail} = assert;

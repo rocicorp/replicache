@@ -14,7 +14,7 @@
     "build:watch": "tsc --watch",
     "build:cjs": "tsc --outDir out.cjs --module CommonJS && rm -rf out.cjs/wasm && mkdir out.cjs/wasm && cp -R src/wasm/* out.cjs/wasm",
     "start:diff-server": "bin/diff-server --db=/tmp/diffs serve",
-    "postinstall": "tool/get-deps.sh",
+    "postinstall": "rm node_modules/fetch-mock/esm/client.d.ts && tool/get-deps.sh",
     "prepublishOnly": "tool/validate-binaries-for-publish.js && npm run lint && npm run test && rm -rf out && npm run build && rm -rf out.cjs && npm run build:cjs"
   },
   "bin": {
@@ -22,7 +22,6 @@
   },
   "devDependencies": {
     "@esm-bundle/chai": "^4.1.5",
-    "@types/fetch-mock": "^7.3.3",
     "@types/mocha": "^8.0.3",
     "@types/sinon": "^9.0.5",
     "@typescript-eslint/eslint-plugin": "^3.0.2",

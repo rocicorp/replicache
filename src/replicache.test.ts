@@ -17,6 +17,11 @@ import {assert, expect} from '@esm-bundle/chai';
 import * as sinon from 'sinon';
 import type {SinonSpy, SinonStub} from 'sinon';
 
+// fetch-mock has invalid d.ts file so we removed that on npm install.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error
+import fetchMock from 'fetch-mock/esm/client.js';
+
 const {fail} = assert;
 
 let rep: ReplicacheTest | null = null;
@@ -27,7 +32,7 @@ const wasmInvoker = new REPMWasmInvoker();
 async function replicacheForTesting(
   name: string,
   {
-    diffServerURL = 'https://serve.replicache.dev/pull',
+    diffServerURL = '',
     dataLayerAuth = '',
     diffServerAuth = '',
     batchURL = '',
@@ -50,19 +55,6 @@ async function replicacheForTesting(
 }
 
 const dbsToDrop = new Set<string>();
-
-async function clear(name: string): Promise<void> {
-  async function clearData(tx: WriteTransaction) {
-    for await (const key of tx.scan().keys()) {
-      await tx.del(key);
-    }
-  }
-
-  const r = await replicacheForTesting(name);
-  const clear = r.register('clearData', clearData);
-  await clear(0);
-  await r.close();
-}
 
 async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
   for (const [key, value] of Object.entries(data)) {
@@ -92,6 +84,7 @@ async function asyncIterableToArray<T>(it: AsyncIterable<T>) {
 }
 
 teardown(async () => {
+  fetchMock.restore();
   sinon.restore();
 
   if (rep !== null && !rep.closed) {
@@ -104,7 +97,7 @@ teardown(async () => {
   }
 
   for (const name of dbsToDrop) {
-    await clear(name);
+    indexedDB.deleteDatabase(name);
   }
   dbsToDrop.clear();
 });
@@ -380,8 +373,8 @@ test('name', async () => {
   await repA.close();
   await repB.close();
 
-  await clear('a');
-  await clear('b');
+  indexedDB.deleteDatabase('a');
+  indexedDB.deleteDatabase('b');
 });
 
 test('register with error', async () => {
@@ -468,10 +461,92 @@ test.skip('conflicting commits', async () => {
 });
 
 test('sync', async () => {
+  const diffServerURL = 'https://diff.com/pull';
+  const batchURL = 'https://batch.com';
+
+  let pullCounter = 0;
+  fetchMock.post(
+    diffServerURL,
+    () =>
+      [
+        {
+          stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
+          lastMutationID: 2,
+          patch: [
+            {op: 'remove', path: '/'},
+            {
+              op: 'add',
+              path: '/~1list~11',
+              valueString: '{"id":1,"ownerUserID":1}',
+            },
+          ],
+          checksum: 'e45e820e',
+          clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+        },
+        {
+          stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
+          lastMutationID: 2,
+          patch: [],
+          checksum: 'e45e820e',
+          clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+        },
+        {
+          stateID: 'g42viqe19kjv8iaahbj8ccs2aiub0po8',
+          lastMutationID: 3,
+          patch: [
+            {
+              op: 'add',
+              path: '/~1todo~114323534',
+              valueString:
+                '{"complete":false,"id":14323534,"listId":1,"order":10000,"text":"Test"}',
+            },
+          ],
+          checksum: 'bb35ac40',
+          clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+        },
+        {
+          stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
+          lastMutationID: 2,
+          patch: [],
+          checksum: 'e45e820e',
+          clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+        },
+        {
+          stateID: '4aqjcn91pronkc3s1uhpg8gichc1m6hv',
+          lastMutationID: 6,
+          patch: [{op: 'remove', path: '/~1todo~114323534'}],
+          checksum: 'e45e820e',
+          clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+        },
+      ][pullCounter++],
+  );
+
+  let batchCounter = 0;
+  fetchMock.post(
+    batchURL,
+    () =>
+      [
+        {
+          mutationInfos: [
+            {id: 1, error: 'deleteTodo: todo not found'},
+            {id: 2, error: 'deleteTodo: todo not found'},
+          ],
+        },
+        {mutationInfos: []},
+        {
+          mutationInfos: [
+            {id: 3, error: 'mutation has already been processed'},
+          ],
+        },
+        {mutationInfos: []},
+      ][batchCounter++],
+  );
+
   rep = await replicacheForTesting('sync', {
-    batchURL: 'https://replicache-sample-todo.now.sh/serve/replicache-batch',
+    batchURL,
     dataLayerAuth: '1',
     diffServerAuth: '1',
+    diffServerURL,
   });
 
   let createCount = 0;

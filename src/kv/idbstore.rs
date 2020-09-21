@@ -1,5 +1,5 @@
 use crate::kv::{Read, Result, Store, StoreError, Write};
-use crate::util::rlog;
+use crate::util::rlog::LogContext;
 use async_std::sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use async_std::task;
 use async_trait::async_trait;
@@ -83,7 +83,7 @@ const OBJECT_STORE: &str = "chunks";
 
 impl IdbStore {
     pub async fn new(name: &str) -> Result<Option<IdbStore>> {
-        let logger = rlog::Logger::new();
+        let lc = LogContext::new();
         let window = match web_sys::window() {
             Some(w) => w,
             None => return Ok(None),
@@ -93,21 +93,21 @@ impl IdbStore {
             None => return Ok(None),
         };
         let request = factory.open(name)?;
-        let (callback, receiver) = IdbStore::oneshot_callback(logger.clone());
+        let (callback, receiver) = IdbStore::oneshot_callback(lc.clone());
         let request_copy = request.clone();
-        let closure_logger = logger.clone();
+        let closure_lc = lc.clone();
         let onupgradeneeded = Closure::once(move |_event: web_sys::IdbVersionChangeEvent| {
             let result = match request_copy.result() {
                 Ok(r) => r,
                 Err(e) => {
-                    closure_logger.error(format!("Error before ugradeneeded: {:?}", e));
+                    error!(closure_lc, "Error before ugradeneeded: {:?}", e);
                     return;
                 }
             };
             let db = web_sys::IdbDatabase::unchecked_from_js(result);
 
             if let Err(e) = db.create_object_store(OBJECT_STORE) {
-                closure_logger.error(format!("Create object store failed: {:?}", e));
+                error!(closure_lc, "Create object store failed: {:?}", e);
             }
         });
         request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
@@ -119,14 +119,14 @@ impl IdbStore {
         }))
     }
 
-    pub async fn drop_store(name: &str, logger: rlog::Logger) -> Result<()> {
+    pub async fn drop_store(name: &str, lc: LogContext) -> Result<()> {
         let window =
             web_sys::window().ok_or_else(|| StoreError::Str(str!("could not get window")))?;
         let factory = window
             .indexed_db()?
             .ok_or_else(|| StoreError::Str(str!("could not get indexeddb")))?;
         let request = factory.delete_database(name)?;
-        let (callback, receiver) = IdbStore::oneshot_callback(logger);
+        let (callback, receiver) = IdbStore::oneshot_callback(lc);
         request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
         request.set_onerror(Some(callback.as_ref().unchecked_ref()));
         receiver.await?;
@@ -141,11 +141,11 @@ impl IdbStore {
     ///
     /// Intended for use with Idb request callbacks, and may be registered for
     /// multiple callbacks. Await on the Receiver returns when any is invoked.
-    fn oneshot_callback(logger: rlog::Logger) -> (Closure<dyn FnMut()>, oneshot::Receiver<()>) {
+    fn oneshot_callback(lc: LogContext) -> (Closure<dyn FnMut()>, oneshot::Receiver<()>) {
         let (sender, receiver) = oneshot::channel::<()>();
         let callback = Closure::once(move || {
             if sender.send(()).is_err() {
-                logger.error(str!("oneshot send failed"));
+                error!(lc, "oneshot send failed");
             }
         });
         (callback, receiver)
@@ -154,17 +154,17 @@ impl IdbStore {
 
 #[async_trait(?Send)]
 impl Store for IdbStore {
-    async fn read<'a>(&'a self, logger: rlog::Logger) -> Result<Box<dyn Read + 'a>> {
+    async fn read<'a>(&'a self, lc: LogContext) -> Result<Box<dyn Read + 'a>> {
         let db_guard = self.db.read().await;
         let tx = db_guard.transaction_with_str(OBJECT_STORE)?;
-        Ok(Box::new(ReadTransaction::new(db_guard, tx, logger)?))
+        Ok(Box::new(ReadTransaction::new(db_guard, tx, lc)?))
     }
 
-    async fn write<'a>(&'a self, logger: rlog::Logger) -> Result<Box<dyn Write + 'a>> {
+    async fn write<'a>(&'a self, lc: LogContext) -> Result<Box<dyn Write + 'a>> {
         let db_guard = self.db.write().await;
         let tx = db_guard
             .transaction_with_str_and_mode(OBJECT_STORE, web_sys::IdbTransactionMode::Readwrite)?;
-        Ok(Box::new(WriteTransaction::new(db_guard, tx, logger)?))
+        Ok(Box::new(WriteTransaction::new(db_guard, tx, lc)?))
     }
 
     async fn close(&self) {
@@ -176,37 +176,33 @@ impl Store for IdbStore {
 struct ReadTransaction<'a> {
     _db: RwLockReadGuard<'a, IdbDatabase>, // Not referenced, holding lock.
     tx: IdbTransaction,
-    logger: rlog::Logger,
+    lc: LogContext,
 }
 
 impl ReadTransaction<'_> {
     fn new(
         db: RwLockReadGuard<'_, IdbDatabase>,
         tx: IdbTransaction,
-        logger: rlog::Logger,
+        lc: LogContext,
     ) -> Result<ReadTransaction> {
-        Ok(ReadTransaction {
-            _db: db,
-            tx,
-            logger,
-        })
+        Ok(ReadTransaction { _db: db, tx, lc })
     }
 }
 
 #[async_trait(?Send)]
 impl Read for ReadTransaction<'_> {
     async fn has(&self, key: &str) -> Result<bool> {
-        has_impl(&self.tx, key, self.logger.clone()).await
+        has_impl(&self.tx, key, self.lc.clone()).await
     }
 
     async fn get(&self, key: &str) -> Result<Option<Vec<u8>>> {
-        get_impl(&self.tx, key, self.logger.clone()).await
+        get_impl(&self.tx, key, self.lc.clone()).await
     }
 }
 
-async fn has_impl(tx: &IdbTransaction, key: &str, logger: rlog::Logger) -> Result<bool> {
+async fn has_impl(tx: &IdbTransaction, key: &str, lc: LogContext) -> Result<bool> {
     let request = tx.object_store(OBJECT_STORE)?.count_with_key(&key.into())?;
-    let (callback, receiver) = IdbStore::oneshot_callback(logger.clone());
+    let (callback, receiver) = IdbStore::oneshot_callback(lc.clone());
     request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
     request.set_onerror(Some(callback.as_ref().unchecked_ref()));
     receiver.await?;
@@ -215,15 +211,15 @@ async fn has_impl(tx: &IdbTransaction, key: &str, logger: rlog::Logger) -> Resul
         Some(v) if v >= 1.0 => true,
         Some(_) => false,
         _ => {
-            logger.error(format!("IdbStore.count returned non-float {:?}", result));
+            error!(lc, "IdbStore.count returned non-float {:?}", result);
             false
         }
     })
 }
 
-async fn get_impl(tx: &IdbTransaction, key: &str, logger: rlog::Logger) -> Result<Option<Vec<u8>>> {
+async fn get_impl(tx: &IdbTransaction, key: &str, lc: LogContext) -> Result<Option<Vec<u8>>> {
     let request = tx.object_store(OBJECT_STORE)?.get(&key.into())?;
-    let (callback, receiver) = IdbStore::oneshot_callback(logger);
+    let (callback, receiver) = IdbStore::oneshot_callback(lc);
     request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
     request.set_onerror(Some(callback.as_ref().unchecked_ref()));
     receiver.await?;
@@ -247,7 +243,7 @@ struct WriteTransaction<'a> {
     pending: Mutex<HashMap<String, Option<Vec<u8>>>>,
     pair: Arc<(Mutex<WriteState>, Condvar)>,
     callbacks: Vec<Closure<dyn FnMut()>>,
-    logger: rlog::Logger,
+    lc: LogContext,
 }
 
 impl std::ops::Drop for WriteTransaction<'_> {
@@ -262,7 +258,7 @@ impl WriteTransaction<'_> {
     fn new(
         db: RwLockWriteGuard<'_, IdbDatabase>,
         tx: IdbTransaction,
-        logger: rlog::Logger,
+        lc: LogContext,
     ) -> Result<WriteTransaction> {
         let mut wt = WriteTransaction {
             _db: db,
@@ -270,7 +266,7 @@ impl WriteTransaction<'_> {
             pair: Arc::new((Mutex::new(WriteState::Open), Condvar::new())),
             pending: Mutex::new(HashMap::new()),
             callbacks: Vec::with_capacity(3),
-            logger,
+            lc,
         };
 
         let tx = &wt.tx;
@@ -308,7 +304,7 @@ impl Read for WriteTransaction<'_> {
         match self.pending.lock().await.get(key) {
             Some(Some(_)) => Ok(true),
             Some(None) => Ok(false),
-            None => has_impl(&self.tx, key, self.logger.clone()).await,
+            None => has_impl(&self.tx, key, self.lc.clone()).await,
         }
     }
 
@@ -316,7 +312,7 @@ impl Read for WriteTransaction<'_> {
         match self.pending.lock().await.get(key) {
             Some(Some(v)) => Ok(Some(v.to_vec())),
             Some(None) => Ok(None),
-            None => get_impl(&self.tx, key, self.logger.clone()).await,
+            None => get_impl(&self.tx, key, self.lc.clone()).await,
         }
     }
 }
@@ -360,7 +356,7 @@ impl Write for WriteTransaction<'_> {
                 Some(v) => store.put_with_key(&js_sys::Uint8Array::from(&v[..]), &key.into())?,
                 None => store.delete(&key.into())?,
             };
-            let (callback, receiver) = IdbStore::oneshot_callback(self.logger.clone());
+            let (callback, receiver) = IdbStore::oneshot_callback(self.lc.clone());
             request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
             callbacks.push(callback);
             requests.push(receiver);

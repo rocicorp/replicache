@@ -2,7 +2,7 @@ use super::read::OwnedRead;
 use super::write::Write;
 use super::Result;
 use crate::kv;
-use crate::util::rlog;
+use crate::util::rlog::LogContext;
 
 pub struct Store {
     kv: Box<dyn kv::Store>,
@@ -13,12 +13,12 @@ impl Store {
         Store { kv }
     }
 
-    pub async fn read(&self, logger: rlog::Logger) -> Result<OwnedRead<'_>> {
-        Ok(OwnedRead::new(self.kv.read(logger).await?))
+    pub async fn read(&self, lc: LogContext) -> Result<OwnedRead<'_>> {
+        Ok(OwnedRead::new(self.kv.read(lc).await?))
     }
 
-    pub async fn write(&self, logger: rlog::Logger) -> Result<Write<'_>> {
-        Ok(Write::new(self.kv.write(logger).await?))
+    pub async fn write(&self, lc: LogContext) -> Result<Write<'_>> {
+        Ok(Write::new(self.kv.write(lc).await?))
     }
 
     pub async fn close(&self) {

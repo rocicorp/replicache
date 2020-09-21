@@ -53,13 +53,13 @@ mod tests {
     use super::*;
     use crate::kv::memstore::MemStore;
     use crate::kv::Store;
-    use crate::util::rlog::log;
+    use crate::util::rlog::LogContext;
 
     #[async_std::test]
     async fn put_chunk() {
         async fn test(data: &[u8], refs: &[&str]) {
             let kv = MemStore::new();
-            let kvw = kv.write(log()).await.unwrap();
+            let kvw = kv.write(LogContext::new()).await.unwrap();
             let mut w = Write { kvw };
 
             let c = Chunk::new((data.to_vec(), 0), refs);
@@ -91,7 +91,7 @@ mod tests {
     async fn set_head() {
         async fn test(name: &str, hash: Option<&str>) {
             let kv = MemStore::new();
-            let kvw = kv.write(log()).await.unwrap();
+            let kvw = kv.write(LogContext::new()).await.unwrap();
             let mut w = Write { kvw };
             w.set_head(name, hash).await.unwrap();
             match hash {
@@ -118,7 +118,7 @@ mod tests {
             let key: String;
             let kv = MemStore::new();
             {
-                let kvw = kv.write(log()).await.unwrap();
+                let kvw = kv.write(LogContext::new()).await.unwrap();
                 let mut w = Write { kvw };
                 let c = Chunk::new((vec![0, 1], 0), &vec![]);
                 w.put_chunk(&c).await.unwrap();
@@ -136,7 +136,7 @@ mod tests {
             }
 
             // The data should now be visible if it was committed.
-            let kvr = kv.read(log()).await.unwrap();
+            let kvr = kv.read(LogContext::new()).await.unwrap();
             assert_eq!(commit, kvr.has(&key).await.unwrap());
         }
 
@@ -150,7 +150,7 @@ mod tests {
             let kv = MemStore::new();
             let c = Chunk::new((data.to_vec(), 0), refs);
             {
-                let kvw = kv.write(log()).await.unwrap();
+                let kvw = kv.write(LogContext::new()).await.unwrap();
                 let mut w = Write { kvw };
                 w.put_chunk(&c).await.unwrap();
                 w.set_head(name, Some(c.hash())).await.unwrap();
@@ -165,7 +165,7 @@ mod tests {
             }
 
             // Read the changes outside the tx.
-            let r = read::OwnedRead::new(kv.read(log()).await.unwrap());
+            let r = read::OwnedRead::new(kv.read(LogContext::new()).await.unwrap());
             let c2 = r.read().get_chunk(c.hash()).await.unwrap().unwrap();
             let h = r.read().get_head(name).await.unwrap().unwrap();
             assert_eq!(c, c2);

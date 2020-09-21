@@ -1,3 +1,6 @@
+#[macro_use]
+pub mod util;
+
 #[cfg(not(target_arch = "wasm32"))]
 mod ffi;
 
@@ -18,7 +21,6 @@ pub mod embed;
 pub mod fetch;
 mod hash;
 pub mod sync;
-pub mod util;
 
 #[cfg(not(default))]
 pub mod kv;

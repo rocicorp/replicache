@@ -4,7 +4,7 @@ use super::*;
 use crate::dag;
 use crate::db;
 use crate::util::nanoserde::any::Any;
-use crate::util::rlog::log;
+use crate::util::rlog::LogContext;
 use str_macro::str;
 
 pub type Chain = Vec<Commit>;
@@ -12,7 +12,7 @@ pub type Chain = Vec<Commit>;
 pub async fn add_genesis<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut Chain {
     assert_eq!(0, chain.len());
     init_db(
-        store.write(log()).await.unwrap(),
+        store.write(LogContext::new()).await.unwrap(),
         db::DEFAULT_HEAD_NAME,
         "local_create_date",
     )
@@ -20,7 +20,7 @@ pub async fn add_genesis<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mu
     .unwrap();
     let (_, commit, _) = read_commit(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
-        &store.read(log()).await.unwrap().read(),
+        &store.read(LogContext::new()).await.unwrap().read(),
     )
     .await
     .unwrap();
@@ -36,7 +36,7 @@ pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut 
         format!("mutator_name_{}", i),
         Any::Array(vec![Any::U64(i)]),
         None,
-        store.write(log()).await.unwrap(),
+        store.write(LogContext::new()).await.unwrap(),
     )
     .await
     .unwrap();
@@ -46,7 +46,7 @@ pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut 
         .unwrap();
     let (_, commit, _) = read_commit(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
-        &store.read(log()).await.unwrap().read(),
+        &store.read(LogContext::new()).await.unwrap().read(),
     )
     .await
     .unwrap();
@@ -69,7 +69,7 @@ pub async fn add_snapshot<'a>(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
         chain[chain.len() - 1].next_mutation_id(),
         ssid,
-        store.write(log()).await.unwrap(),
+        store.write(LogContext::new()).await.unwrap(),
     )
     .await
     .unwrap();
@@ -85,7 +85,7 @@ pub async fn add_snapshot<'a>(
         .unwrap();
     let (_, commit, _) = read_commit(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
-        &store.read(log()).await.unwrap().read(),
+        &store.read(LogContext::new()).await.unwrap().read(),
     )
     .await
     .unwrap();

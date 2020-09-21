@@ -3,6 +3,7 @@ use crate::embed::connection;
 use crate::kv::idbstore::IdbStore;
 use crate::kv::{Store, StoreError};
 use crate::util::rlog;
+use crate::util::rlog::LogContext;
 use crate::util::uuid::uuid;
 use async_std::sync::{channel, Mutex, Receiver, Sender};
 use std::collections::HashMap;
@@ -19,7 +20,7 @@ lazy_static! {
 }
 
 pub struct Request {
-    pub logger_context: String,
+    pub lc: String,
     db_name: String,
     pub rpc: String,
     pub data: String,
@@ -53,8 +54,7 @@ async fn dispatch_loop(rx: Receiver<Request>) {
         let req = match rx.recv().await {
             Ok(req) => req,
             Err(why) => {
-                let logger = rlog::Logger::new();
-                logger.error(format!("Dispatch loop recv failed: {}", why));
+                error!("", "Dispatch loop recv failed: {}", why);
                 continue;
             }
         };
@@ -82,17 +82,17 @@ async fn dispatch_loop(rx: Receiver<Request>) {
 }
 
 pub async fn dispatch(db_name: String, rpc: String, data: String) -> Response {
-    let mut logger = rlog::Logger::new();
+    let mut lc = LogContext::new();
     let rpc_id = RPC_COUNTER.fetch_add(1, Ordering::Relaxed).to_string();
-    logger.add_context("rpc_id", rpc_id.as_str());
-    logger.add_context("rpc", &rpc);
-    logger.add_context("db", &db_name);
-    logger.debug(format!("-> data={}", &data));
+    lc.add_context("rpc_id", rpc_id.as_str());
+    lc.add_context("rpc", &rpc);
+    lc.add_context("db", &db_name);
+    debug!(lc, "-> data={}", &data);
     let timer = rlog::Timer::new().map_err(|e| format!("{:?}", e))?;
 
     let (tx, rx) = channel::<Response>(1);
     let request = Request {
-        logger_context: logger.context(),
+        lc: lc.context().to_string(),
         db_name: db_name.clone(),
         rpc: rpc.clone(),
         data,
@@ -104,11 +104,12 @@ pub async fn dispatch(db_name: String, rpc: String, data: String) -> Response {
         Err(e) => Err(e.to_string()),
         Ok(v) => v,
     };
-    logger.debug(format!(
+    debug!(
+        lc,
         "<- elapsed={}ms result={:?}",
         timer.elapsed_ms(),
         result
-    ));
+    );
     result
 }
 
@@ -132,19 +133,14 @@ async fn do_open(conns: &mut ConnMap, req: &Request) -> Response {
         },
     };
 
-    let logger = rlog::Logger::new_from_context(req.logger_context.clone());
-    let client_id = init_client_id(kv.as_ref(), logger)
+    let lc = LogContext::new_from_context(req.lc.clone());
+    let client_id = init_client_id(kv.as_ref(), lc)
         .await
         .map_err(|e| format!("{:?}", e))?;
 
-    let logger = rlog::Logger::new_from_context(req.logger_context.clone());
+    let lc = LogContext::new_from_context(req.lc.clone());
     let (tx, rx) = channel::<Request>(1);
-    spawn_local(connection::process(
-        dag::Store::new(kv),
-        rx,
-        client_id,
-        logger,
-    ));
+    spawn_local(connection::process(dag::Store::new(kv), rx, client_id, lc));
     conns.insert(req.db_name.clone(), tx);
     Ok("".into())
 }
@@ -156,7 +152,7 @@ async fn do_close(conns: &mut ConnMap, req: &Request) -> Response {
     };
     let (tx2, rx2) = channel::<Response>(1);
     tx.send(Request {
-        logger_context: req.logger_context.clone(),
+        lc: req.lc.clone(),
         db_name: req.db_name.clone(),
         rpc: "close".into(),
         data: "".into(),
@@ -173,12 +169,9 @@ async fn do_drop(_: &mut ConnMap, req: &Request) -> Response {
         #[cfg(not(target_arch = "wasm32"))]
         "mem" => Ok("".into()),
         _ => {
-            IdbStore::drop_store(
-                &req.db_name,
-                rlog::Logger::new_from_context(req.logger_context.clone()),
-            )
-            .await
-            .map_err(|e| e.to_string())?;
+            IdbStore::drop_store(&req.db_name, LogContext::new_from_context(req.lc.clone()))
+                .await
+                .map_err(|e| e.to_string())?;
             Ok("".into())
         }
     }
@@ -200,7 +193,7 @@ enum InitClientIdError {
     PutClientIdErr(StoreError),
 }
 
-async fn init_client_id(s: &dyn Store, logger: rlog::Logger) -> Result<String, InitClientIdError> {
+async fn init_client_id(s: &dyn Store, lc: LogContext) -> Result<String, InitClientIdError> {
     use InitClientIdError::*;
 
     const CID_KEY: &str = "sys/cid";
@@ -209,7 +202,7 @@ async fn init_client_id(s: &dyn Store, logger: rlog::Logger) -> Result<String, I
         let s = String::from_utf8(cid).map_err(InvalidUtf8)?;
         return Ok(s);
     }
-    let wt = s.write(logger).await.map_err(OpenErr)?;
+    let wt = s.write(lc).await.map_err(OpenErr)?;
     let uuid = uuid();
     wt.put(CID_KEY, &uuid.as_bytes())
         .await
@@ -222,16 +215,22 @@ async fn init_client_id(s: &dyn Store, logger: rlog::Logger) -> Result<String, I
 mod tests {
     use super::*;
     use crate::kv::memstore::MemStore;
-    use crate::util::rlog::log;
+    use crate::util::rlog::LogContext;
 
     #[async_std::test]
     async fn test_init_client_id() {
         let ms = Box::new(MemStore::new());
-        let cid1 = init_client_id(ms.as_ref(), log()).await.unwrap();
-        let cid2 = init_client_id(ms.as_ref(), log()).await.unwrap();
+        let cid1 = init_client_id(ms.as_ref(), LogContext::new())
+            .await
+            .unwrap();
+        let cid2 = init_client_id(ms.as_ref(), LogContext::new())
+            .await
+            .unwrap();
         assert_eq!(cid1, cid2);
         let ms = Box::new(MemStore::new());
-        let cid3 = init_client_id(ms.as_ref(), log()).await.unwrap();
+        let cid3 = init_client_id(ms.as_ref(), LogContext::new())
+            .await
+            .unwrap();
         assert_ne!(cid1, cid3);
     }
 }

@@ -6,6 +6,7 @@ use crate::fetch;
 use crate::sync;
 use crate::util::nanoserde::any;
 use crate::util::rlog;
+use crate::util::rlog::LogContext;
 use async_fn::{AsyncFn2, AsyncFn3};
 use async_std::stream::StreamExt;
 use async_std::sync::{Receiver, RecvError, RwLock};
@@ -14,7 +15,6 @@ use log::warn;
 use nanoserde::{DeJson, SerJson};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
-use str_macro::str;
 
 lazy_static! {
     static ref TRANSACTION_COUNTER: AtomicU32 = AtomicU32::new(1);
@@ -84,14 +84,9 @@ async fn connection_future<'a, 'b>(
     UnorderedResult::None()
 }
 
-pub async fn process(
-    store: dag::Store,
-    rx: Receiver<Request>,
-    client_id: String,
-    logger: rlog::Logger,
-) {
-    if let Err(err) = do_init(&store, logger.clone()).await {
-        logger.error(format!("Could not initialize db: {:?}", err));
+pub async fn process(store: dag::Store, rx: Receiver<Request>, client_id: String, lc: LogContext) {
+    if let Err(err) = do_init(&store, lc.clone()).await {
+        error!(lc, "Could not initialize db: {:?}", err);
         return;
     }
 
@@ -101,21 +96,21 @@ pub async fn process(
 
     futures.push(connection_future(
         &rx,
-        Context::new(&store, &txns, client_id.clone(), rlog::Logger::new()),
+        Context::new(&store, &txns, client_id.clone(), LogContext::new()),
         None,
     ));
     while let Some(value) = futures.next().await {
         if recv {
             futures.push(connection_future(
                 &rx,
-                Context::new(&store, &txns, client_id.clone(), rlog::Logger::new()),
+                Context::new(&store, &txns, client_id.clone(), LogContext::new()),
                 None,
             ));
         }
         match value {
             UnorderedResult::Request(value) => match value {
-                // TODO turn this into logger.info() it is expected and not a problem or
-                // turn it into an logger.error() otherwise.
+                // TODO turn this into lc.info() it is expected and not a problem or
+                // turn it into an lc.error() otherwise.
                 Err(why) => warn!("Connection loop recv failed: {}", why),
                 Ok(req) => {
                     futures.push(connection_future(
@@ -124,7 +119,7 @@ pub async fn process(
                             &store,
                             &txns,
                             client_id.clone(),
-                            rlog::Logger::new_from_context(req.logger_context.clone()),
+                            LogContext::new_from_context(req.lc.clone()),
                         ),
                         Some(req),
                     ));
@@ -140,12 +135,7 @@ async fn execute_in_txn<T, S, F>(func: F, txns: &TxnMap<'_>, req: Request)
 where
     T: DeJson + TransactionRequest,
     S: SerJson,
-    F: for<'r, 's> AsyncFn3<
-        &'r RwLock<Transaction<'s>>,
-        T,
-        rlog::Logger,
-        Output = Result<S, String>,
-    >,
+    F: for<'r, 's> AsyncFn3<&'r RwLock<Transaction<'s>>, T, LogContext, Output = Result<S, String>>,
 {
     let request: T = match deserialize(&req.data) {
         Ok(v) => v,
@@ -153,9 +143,9 @@ where
     };
 
     let txn_id = request.transaction_id();
-    let mut logger = rlog::Logger::new_from_context(req.logger_context.clone());
+    let mut lc = LogContext::new_from_context(req.lc.clone());
     let txn_id_string = txn_id.to_string();
-    logger.add_context("txid", &txn_id_string);
+    lc.add_context("txid", &txn_id_string);
     let txns = txns.read().await;
     let txn = match txns.get(&txn_id) {
         Some(v) => v,
@@ -169,7 +159,7 @@ where
 
     req.response
         .send(
-            func.call(txn, request, logger)
+            func.call(txn, request, lc)
                 .await
                 .map(|v| SerJson::serialize_json(&v)),
         )
@@ -180,7 +170,7 @@ struct Context<'a, 'b> {
     store: &'a dag::Store,
     txns: &'b TxnMap<'a>,
     client_id: String,
-    logger: rlog::Logger,
+    lc: LogContext,
 }
 
 impl<'a, 'b> Context<'a, 'b> {
@@ -188,13 +178,13 @@ impl<'a, 'b> Context<'a, 'b> {
         store: &'a dag::Store,
         txns: &'b TxnMap<'a>,
         client_id: String,
-        logger: rlog::Logger,
+        lc: LogContext,
     ) -> Context<'a, 'b> {
         Context {
             store,
             txns,
             client_id,
-            logger,
+            lc,
         }
     }
 }
@@ -227,9 +217,9 @@ pub enum DoInitError {
     InitDBError(db::InitDBError),
 }
 
-async fn do_init(store: &dag::Store, logger: rlog::Logger) -> Result<(), DoInitError> {
+async fn do_init(store: &dag::Store, lc: LogContext) -> Result<(), DoInitError> {
     use DoInitError::*;
-    let dw = store.write(logger).await.map_err(WriteError)?;
+    let dw = store.write(lc).await.map_err(WriteError)?;
     if dw
         .read()
         .get_head(db::DEFAULT_HEAD_NAME)
@@ -260,16 +250,17 @@ async fn do_open_transaction<'a, 'b>(
             let mutator_args = mutator_args.ok_or(ArgsRequired)?;
 
             let lock_timer = rlog::Timer::new().map_err(InternalTimerError)?;
-            ctx.logger.debug(str!("Waiting for write lock..."));
+            debug!(ctx.lc, "Waiting for write lock...");
             let dag_write = ctx
                 .store
-                .write(ctx.logger.clone())
+                .write(ctx.lc.clone())
                 .await
                 .map_err(DagWriteError)?;
-            ctx.logger.debug(format!(
+            debug!(
+                ctx.lc,
                 "...Write lock acquired in {}ms",
                 lock_timer.elapsed_ms()
-            ));
+            );
 
             let (whence, original_hash) = match rebase_opts {
                 None => (db::Whence::Head(db::DEFAULT_HEAD_NAME.to_string()), None),
@@ -286,11 +277,7 @@ async fn do_open_transaction<'a, 'b>(
             Transaction::Write(write)
         }
         None => {
-            let dag_read = ctx
-                .store
-                .read(ctx.logger.clone())
-                .await
-                .map_err(DagReadError)?;
+            let dag_read = ctx.store.read(ctx.lc.clone()).await.map_err(DagReadError)?;
             let read = db::OwnedRead::from_whence(
                 db::Whence::Head(db::DEFAULT_HEAD_NAME.to_string()),
                 dag_read,
@@ -413,7 +400,7 @@ async fn do_get_root<'a, 'b>(
         None => db::DEFAULT_HEAD_NAME.to_string(),
     };
     Ok(GetRootResponse {
-        root: db::get_root(ctx.store, head_name.as_str(), ctx.logger.clone())
+        root: db::get_root(ctx.store, head_name.as_str(), ctx.lc.clone())
             .await
             .map_err(GetRootError::DBError)?,
     })
@@ -422,7 +409,7 @@ async fn do_get_root<'a, 'b>(
 async fn do_has(
     txn: &RwLock<Transaction<'_>>,
     req: HasRequest,
-    _: rlog::Logger,
+    _: LogContext,
 ) -> Result<HasResponse, String> {
     Ok(HasResponse {
         has: txn.read().await.as_read().has(req.key.as_bytes()),
@@ -432,7 +419,7 @@ async fn do_has(
 async fn do_get(
     txn: &RwLock<Transaction<'_>>,
     req: GetRequest,
-    logger: rlog::Logger,
+    _: LogContext,
 ) -> Result<GetResponse, String> {
     #[cfg(not(default))] // Not enabled in production.
     if req.key.starts_with("sleep") {
@@ -443,7 +430,7 @@ async fn do_get(
             Ok(ms) => {
                 sleep(Duration::from_millis(ms)).await;
             }
-            Err(_) => logger.error(str!("No sleep time")),
+            Err(_) => error!("", "No sleep time"),
         }
     }
 
@@ -466,7 +453,7 @@ async fn do_get(
 async fn do_scan(
     txn: &RwLock<Transaction<'_>>,
     req: ScanRequest,
-    _: rlog::Logger,
+    _: LogContext,
 ) -> Result<ScanResponse, String> {
     use std::convert::TryFrom;
     let mut res = Vec::<ScanItem>::new();
@@ -479,7 +466,7 @@ async fn do_scan(
 async fn do_put(
     txn: &RwLock<Transaction<'_>>,
     req: PutRequest,
-    _: rlog::Logger,
+    _: LogContext,
 ) -> Result<PutResponse, String> {
     let mut guard = txn.write().await;
     let write = match &mut *guard {
@@ -493,7 +480,7 @@ async fn do_put(
 async fn do_del(
     txn: &RwLock<Transaction<'_>>,
     req: DelRequest,
-    _: rlog::Logger,
+    _: LogContext,
 ) -> Result<DelResponse, String> {
     let mut guard = txn.write().await;
     let write = match &mut *guard {
@@ -515,7 +502,7 @@ async fn do_begin_sync<'a, 'b>(
     let puller = sync::FetchPuller::new(&fetch_client);
     let begin_sync_response = sync::begin_sync(
         ctx.store,
-        ctx.logger.clone(),
+        ctx.lc.clone(),
         &pusher,
         &puller,
         &req,
@@ -529,7 +516,7 @@ async fn do_maybe_end_sync<'a, 'b>(
     ctx: Context<'a, 'b>,
     req: MaybeEndSyncRequest,
 ) -> Result<MaybeEndSyncResponse, sync::MaybeEndSyncError> {
-    let maybe_end_sync_response = sync::maybe_end_sync(ctx.store, ctx.logger.clone(), &req).await?;
+    let maybe_end_sync_response = sync::maybe_end_sync(ctx.store, ctx.lc.clone(), &req).await?;
     Ok(maybe_end_sync_response)
 }
 
@@ -599,7 +586,7 @@ mod tests {
     use crate::kv::memstore::MemStore;
     use crate::sync::test_helpers::*;
     use crate::util::nanoserde::any::Any;
-    use crate::util::rlog::log;
+    use crate::util::rlog::LogContext;
     use str_macro::str;
 
     #[async_std::test]
@@ -611,7 +598,8 @@ mod tests {
             let mut main_chain: Chain = vec![];
             add_genesis(&mut main_chain, &store).await;
             add_local(&mut main_chain, &store).await;
-            let sync_chain = add_sync_snapshot(&mut main_chain, &store, log(), false).await;
+            let sync_chain =
+                add_sync_snapshot(&mut main_chain, &store, LogContext::new(), false).await;
             let original = &main_chain[1];
             let meta = original.meta();
             let (original_hash, original_name, original_args) = match meta.typed() {
@@ -628,7 +616,7 @@ mod tests {
 
             // Error: rebase commit's basis must be sync head.
             let result = do_open_transaction(
-                Context::new(&store, &txns, str!("client_id"), log()),
+                Context::new(&store, &txns, str!("client_id"), LogContext::new()),
                 OpenTransactionRequest {
                     name: Some(original_name.clone()),
                     args: Some(original_args.clone()),
@@ -643,7 +631,7 @@ mod tests {
 
             // Error: rebase commit's name should not change.
             let result = do_open_transaction(
-                Context::new(&store, &txns, str!("client_id"), log()),
+                Context::new(&store, &txns, str!("client_id"), LogContext::new()),
                 OpenTransactionRequest {
                     name: Some(str!("different!")),
                     args: Some(original_args.clone()),
@@ -673,7 +661,7 @@ mod tests {
                 _ => panic!("not local"),
             };
             let result = do_open_transaction(
-                Context::new(&store, &txns, str!("client_id"), log()),
+                Context::new(&store, &txns, str!("client_id"), LogContext::new()),
                 OpenTransactionRequest {
                     name: Some(new_local_name),
                     args: Some(new_local_args),
@@ -691,7 +679,7 @@ mod tests {
 
             // Correct rebase_opt (test this last because it affects the chain).
             let otr = do_open_transaction(
-                Context::new(&store, &txns, str!("client_id"), log()),
+                Context::new(&store, &txns, str!("client_id"), LogContext::new()),
                 OpenTransactionRequest {
                     name: Some(original_name.clone()),
                     args: Some(original_args.clone()),
@@ -704,14 +692,14 @@ mod tests {
             .await
             .unwrap();
             let ctr = do_commit(
-                Context::new(&store, &txns, str!("client_id"), log()),
+                Context::new(&store, &txns, str!("client_id"), LogContext::new()),
                 CommitTransactionRequest {
                     transaction_id: otr.transaction_id,
                 },
             )
             .await
             .unwrap();
-            let w = store.write(log()).await.unwrap();
+            let w = store.write(LogContext::new()).await.unwrap();
             let sync_head_hash = w
                 .read()
                 .get_head(sync::SYNC_HEAD_NAME)

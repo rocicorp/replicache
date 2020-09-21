@@ -229,13 +229,13 @@ mod tests {
     use crate::dag;
     use crate::db;
     use crate::kv::memstore::MemStore;
-    use crate::util::rlog::log;
+    use crate::util::rlog::LogContext;
 
     #[async_std::test]
     async fn basics() {
         let ds = dag::Store::new(Box::new(MemStore::new()));
         init_db(
-            ds.write(log()).await.unwrap(),
+            ds.write(LogContext::new()).await.unwrap(),
             db::DEFAULT_HEAD_NAME,
             "local_create_date",
         )
@@ -246,7 +246,7 @@ mod tests {
             str!("mutator_name"),
             Any::Array(vec![]),
             None,
-            ds.write(log()).await.unwrap(),
+            ds.write(LogContext::new()).await.unwrap(),
         )
         .await
         .unwrap();
@@ -260,7 +260,7 @@ mod tests {
             str!("mutator_name"),
             Any::Null,
             None,
-            ds.write(log()).await.unwrap(),
+            ds.write(LogContext::new()).await.unwrap(),
         )
         .await
         .unwrap();
@@ -273,7 +273,7 @@ mod tests {
     async fn test_put_del_reset_update_hash() {
         let ds = dag::Store::new(Box::new(MemStore::new()));
         init_db(
-            ds.write(log()).await.unwrap(),
+            ds.write(LogContext::new()).await.unwrap(),
             db::DEFAULT_HEAD_NAME,
             "local_create_date",
         )
@@ -284,7 +284,7 @@ mod tests {
             str!("mutator_name"),
             Any::Array(vec![]),
             None,
-            ds.write(log()).await.unwrap(),
+            ds.write(LogContext::new()).await.unwrap(),
         )
         .await
         .unwrap();

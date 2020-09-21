@@ -14,7 +14,7 @@ use str_macro::str;
 pub async fn add_sync_snapshot<'a>(
     chain: &'a mut Chain,
     store: &dag::Store,
-    logger: rlog::Logger,
+    lc: rlog::LogContext,
     add_replayed: bool,
 ) -> Chain {
     assert!(chain.len() >= 2); // Have to have at least a genesis and a local commit on main chain.
@@ -40,14 +40,14 @@ pub async fn add_sync_snapshot<'a>(
         Whence::Hash(base_snapshot.chunk().hash().to_string()),
         base_snapshot.mutation_id(),
         ssid,
-        store.write(logger.clone()).await.unwrap(),
+        store.write(lc.clone()).await.unwrap(),
     )
     .await
     .unwrap();
     w.commit(SYNC_HEAD_NAME, "local_create_date").await.unwrap();
     let (sync_snapshot_hash, commit, _) = db::read_commit(
         Whence::Head(str!(SYNC_HEAD_NAME)),
-        &store.read(logger.clone()).await.unwrap().read(),
+        &store.read(lc.clone()).await.unwrap().read(),
     )
     .await
     .unwrap();
@@ -67,14 +67,14 @@ pub async fn add_sync_snapshot<'a>(
         str!(lm.mutator_name()),
         Any::deserialize_json(std::str::from_utf8(lm.mutator_args_json()).unwrap()).unwrap(),
         Some(str!(rebased_original.chunk().hash())),
-        store.write(logger.clone()).await.unwrap(),
+        store.write(lc.clone()).await.unwrap(),
     )
     .await
     .unwrap();
     w.commit(SYNC_HEAD_NAME, "local_create_date").await.unwrap();
     let (_, commit, _) = db::read_commit(
         Whence::Head(str!(SYNC_HEAD_NAME)),
-        &store.read(logger.clone()).await.unwrap().read(),
+        &store.read(lc.clone()).await.unwrap().read(),
     )
     .await
     .unwrap();

@@ -64,7 +64,7 @@ mod tests {
     use crate::db;
     use crate::db::test_helpers::*;
     use crate::kv::memstore::MemStore;
-    use crate::util::rlog::log;
+    use crate::util::rlog::LogContext;
     use std::collections::HashMap;
 
     macro_rules! map(
@@ -177,7 +177,7 @@ mod tests {
         for c in cases.iter() {
             let mut chain: Chain = vec![];
             add_genesis(&mut chain, &store).await;
-            let dag_write = store.write(log()).await.unwrap();
+            let dag_write = store.write(LogContext::new()).await.unwrap();
             let mut db_write = db::Write::new_snapshot(
                 db::Whence::Hash(chain[0].chunk().hash().to_string()),
                 1,

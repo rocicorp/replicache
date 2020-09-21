@@ -1,5 +1,5 @@
 use crate::kv::{Read, Result, Store, Write};
-use crate::util::rlog;
+use crate::util::rlog::LogContext;
 use async_std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -28,12 +28,12 @@ impl Default for MemStore {
 
 #[async_trait(?Send)]
 impl Store for MemStore {
-    async fn read<'a>(&'a self, _: rlog::Logger) -> Result<Box<dyn Read + 'a>> {
+    async fn read<'a>(&'a self, _: LogContext) -> Result<Box<dyn Read + 'a>> {
         let guard = self.map.read().await;
         Ok(Box::new(ReadTransaction::new(guard)))
     }
 
-    async fn write<'a>(&'a self, _: rlog::Logger) -> Result<Box<dyn Write + 'a>> {
+    async fn write<'a>(&'a self, _: LogContext) -> Result<Box<dyn Write + 'a>> {
         let guard = self.map.write().await;
         Ok(Box::new(WriteTransaction::new(guard)))
     }

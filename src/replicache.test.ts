@@ -419,7 +419,7 @@ test('subscribe with error', async () => {
 });
 
 test('overlapping writes', async () => {
-  async function dbwait(tx: ReadTransaction, dur: number) {
+  async function dbWait(tx: ReadTransaction, dur: number) {
     // Try to take setTimeout away from me???
     const t0 = Date.now();
     while (Date.now() - t0 > dur) {
@@ -427,23 +427,26 @@ test('overlapping writes', async () => {
     }
   }
 
-  async function timerwait(dur: number) {
-    await new Promise(res => setTimeout(res, dur));
+  function timerWait(dur: number) {
+    return new Promise(res => setTimeout(res, dur));
   }
 
   // writes wait on writes
   rep = await replicacheForTesting('conflict');
   const mut = rep.register(
     'wait-then-return',
-    async (tx, {duration, ret}: any) => {
-      await dbwait(tx, duration);
+    async <T extends JSONValue>(
+      tx: ReadTransaction,
+      {duration, ret}: {duration: number; ret: T},
+    ) => {
+      await dbWait(tx, duration);
       return ret;
     },
   );
 
   let resA = mut({duration: 500, ret: 'a'});
   // create a gap to make sure resA starts first (our rwlock isn't fair).
-  await timerwait(100);
+  await timerWait(100);
   let resB = mut({duration: 0, ret: 'b'});
   // race them, a should complete first, indicating that b waited
   expect(await Promise.race([resA, resB])).to.equal('a');
@@ -452,7 +455,7 @@ test('overlapping writes', async () => {
 
   // reads wait on writes
   resA = mut({duration: 500, ret: 'a'});
-  await timerwait(100);
+  await timerWait(100);
   resB = rep.query(() => 'b');
   expect(await Promise.race([resA, resB])).to.equal('a');
 });

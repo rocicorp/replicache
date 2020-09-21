@@ -104,6 +104,7 @@ impl IdbStore {
                     return;
                 }
             };
+
             let db = web_sys::IdbDatabase::unchecked_from_js(result);
 
             if let Err(e) = db.create_object_store(OBJECT_STORE) {
@@ -114,8 +115,17 @@ impl IdbStore {
         request.set_onerror(Some(callback.as_ref().unchecked_ref()));
         request.set_onupgradeneeded(Some(onupgradeneeded.as_ref().unchecked_ref()));
         receiver.await?;
+
+        let db: IdbDatabase = request.result()?.into();
+        let db_copy = db.clone();
+        let onversionchange = Closure::once(move |_event: web_sys::IdbVersionChangeEvent| {
+            db_copy.close();
+        });
+        db.set_onversionchange(Some(onversionchange.as_ref().unchecked_ref()));
+        onversionchange.forget();
+
         Ok(Some(IdbStore {
-            db: RwLock::new(request.result()?.into()),
+            db: RwLock::new(db),
         }))
     }
 

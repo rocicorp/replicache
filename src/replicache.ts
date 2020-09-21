@@ -252,7 +252,7 @@ export default class Replicache implements ReadTransaction {
       if (e.toString().includes('JSLogInfo')) {
         online = false;
       }
-      console.info(`Error: ${e}`);
+      console.info(`Sync returned: ${e}`);
     }
     this._online = online;
   }

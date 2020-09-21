@@ -28,7 +28,6 @@ sha2 = "0.8.1"
 str-macro = "0.1.4"
 wasm-bindgen = { version = "0.2" }
 wasm-bindgen-futures = "0.4.13"
-wee_alloc = "0.4.5"
 
 [target.'cfg(not(target_env = "wasm"))'.dependencies]
 rand = "0.7.3"

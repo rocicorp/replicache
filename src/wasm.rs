@@ -6,10 +6,6 @@ use crate::embed;
 use crate::kv::idbstore::IdbStore;
 use crate::kv::Store;
 
-// Use `wee_alloc` as the global allocator.
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
 #[cfg(not(default))]
 pub async fn new_idbstore(name: String) -> Option<Box<dyn Store>> {
     init_panic_hook();

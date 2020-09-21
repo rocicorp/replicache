@@ -13,6 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v1
+
+      - run: npm ci
+
       # Run benchmar and stores the output to a file
       - name: Run benchmark
         run: node perf/test.js | tee output.txt

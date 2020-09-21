@@ -1306,6 +1306,7 @@ dependencies = [
  "nanoserde",
  "rand",
  "regex",
+ "serde_json",
  "sha2 0.8.2",
  "str-macro",
  "tide",

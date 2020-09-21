@@ -11,6 +11,7 @@ use replicache_client::sync;
 use replicache_client::util::nanoserde::any::Any;
 use replicache_client::util::rlog;
 use replicache_client::wasm;
+use serde_json::json;
 use str_macro::str;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 use wasm_bindgen_test::*;
@@ -102,6 +103,35 @@ async fn get(db_name: &str, txn_id: u32, key: &str) -> Option<String> {
         true => Some(response.value.unwrap()),
         false => None,
     }
+}
+
+async fn scan(
+    db_name: &str,
+    txn_id: u32,
+    prefix: &str,
+    start_key: &str,
+    start_index: u32,
+) -> String {
+    dispatch(
+        db_name,
+        "scan",
+        &json!({
+            "transactionId": txn_id,
+            "opts": {
+                "prefix": prefix,
+                "start": {
+                    "id": {
+                        "value": start_key,
+                        "exclusive": false,
+                    },
+                    "index": start_index,
+                }
+            }
+        })
+        .to_string(),
+    )
+    .await
+    .unwrap()
 }
 
 async fn del(db_name: &str, txn_id: u32, key: &str) -> bool {
@@ -352,6 +382,41 @@ async fn test_get_put_del() {
     abort(db, txn_id).await;
 
     assert_eq!(dispatch(db, "close", "").await.unwrap(), "");
+}
+
+#[wasm_bindgen_test]
+async fn test_scan() {
+    let db = &random_db();
+
+    dispatch(db, "open", "").await.unwrap();
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+        .await
+        .transaction_id;
+
+    put(db, txn_id, "foo", "bar").await;
+    put(db, txn_id, "foopa", "baz").await;
+    put(db, txn_id, "hot", "dog").await;
+    put(db, txn_id, "hoota", "daz").await;
+
+    assert_eq!(
+        scan(db, txn_id, "", "", 0).await,
+        r#"{"items":[{"key":"foo","value":"bar"},{"key":"foopa","value":"baz"},{"key":"hoota","value":"daz"},{"key":"hot","value":"dog"}]}"#
+    );
+    assert_eq!(
+        scan(db, txn_id, "f", "", 0).await,
+        r#"{"items":[{"key":"foo","value":"bar"},{"key":"foopa","value":"baz"}]}"#
+    );
+    assert_eq!(
+        scan(db, txn_id, "", "foopa", 0).await,
+        r#"{"items":[{"key":"foopa","value":"baz"},{"key":"hoota","value":"daz"},{"key":"hot","value":"dog"}]}"#
+    );
+    assert_eq!(
+        scan(db, txn_id, "", "foopa", 3).await,
+        r#"{"items":[{"key":"hot","value":"dog"}]}"#
+    );
+
+    abort(db, txn_id).await;
+    dispatch(db, "close", "").await.unwrap();
 }
 
 #[wasm_bindgen_test]

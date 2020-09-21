@@ -94,10 +94,19 @@ impl IdbStore {
         };
         let request = factory.open(name)?;
         let (callback, receiver) = IdbStore::oneshot_callback(logger.clone());
+        let request_copy = request.clone();
         let closure_logger = logger.clone();
-        let onupgradeneeded = Closure::once(move |event: web_sys::IdbVersionChangeEvent| {
-            let target = event.target().unwrap();
-            let db = web_sys::IdbDatabase::unchecked_from_js_ref(target.as_ref());
+        let onupgradeneeded = Closure::once(move |_event: web_sys::IdbVersionChangeEvent| {
+            let result = match request_copy.result() {
+                Ok(r) => r,
+                Err(e) => {
+                    closure_logger.error(format!("Error before ugradeneeded: {:?}", e));
+                    return;
+                }
+            };
+
+            let db = web_sys::IdbDatabase::unchecked_from_js(result);
+
             if let Err(e) = db.create_object_store(OBJECT_STORE) {
                 closure_logger.error(format!("Create object store failed: {:?}", e));
             }
@@ -107,13 +116,11 @@ impl IdbStore {
         request.set_onupgradeneeded(Some(onupgradeneeded.as_ref().unchecked_ref()));
         receiver.await?;
 
-        let onversionchange = Closure::once(move |event: web_sys::IdbVersionChangeEvent| {
-            let target = event.target().unwrap();
-            let db = web_sys::IdbDatabase::unchecked_from_js_ref(target.as_ref());
-            db.close();
-        });
-
         let db: IdbDatabase = request.result()?.into();
+        let db_copy = db.clone();
+        let onversionchange = Closure::once(move |_event: web_sys::IdbVersionChangeEvent| {
+            db_copy.close();
+        });
         db.set_onversionchange(Some(onversionchange.as_ref().unchecked_ref()));
 
         Ok(Some(IdbStore {

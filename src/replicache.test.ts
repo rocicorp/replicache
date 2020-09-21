@@ -62,17 +62,6 @@ async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
   }
 }
 
-function resolver(): {resolve: () => void; promise: Promise<void>} {
-  let res: () => void;
-  const promise = new Promise<void>(r => {
-    res = r;
-  });
-  return {
-    resolve: () => res(),
-    promise,
-  };
-}
-
 const emptyHash = '';
 
 async function asyncIterableToArray<T>(it: AsyncIterable<T>) {
@@ -429,35 +418,46 @@ test('subscribe with error', async () => {
   cancel();
 });
 
-test.skip('conflicting commits', async () => {
-  // This test does not use pure functions in the mutations. This is of course
-  // not a good practice but it makes testing easier.
-  const ar = resolver();
-  const br = resolver();
+test('overlapping writes', async () => {
+  async function dbWait(tx: ReadTransaction, dur: number) {
+    // Try to take setTimeout away from me???
+    const t0 = Date.now();
+    while (Date.now() - t0 > dur) {
+      await tx.get('foo');
+    }
+  }
 
+  function timerWait(dur: number) {
+    return new Promise(res => setTimeout(res, dur));
+  }
+
+  // writes wait on writes
   rep = await replicacheForTesting('conflict');
-  const mutA = rep.register('mutA', async (tx, v) => {
-    await tx.put('k', v);
-    await ar.promise;
-  });
-  const mutB = rep.register('mutB', async (tx, v) => {
-    await tx.put('k', v);
-    await br.promise;
-  });
+  const mut = rep.register(
+    'wait-then-return',
+    async <T extends JSONValue>(
+      tx: ReadTransaction,
+      {duration, ret}: {duration: number; ret: T},
+    ) => {
+      await dbWait(tx, duration);
+      return ret;
+    },
+  );
 
-  // Start A and B at the same commit.
-  const resAFuture = mutA('a');
-  const resBFuture = mutB('b');
+  let resA = mut({duration: 500, ret: 'a'});
+  // create a gap to make sure resA starts first (our rwlock isn't fair).
+  await timerWait(100);
+  let resB = mut({duration: 0, ret: 'b'});
+  // race them, a should complete first, indicating that b waited
+  expect(await Promise.race([resA, resB])).to.equal('a');
+  // wait for the other to finish so that we're starting from null state for next one.
+  await Promise.all([resA, resB]);
 
-  // Finish A.
-  ar.resolve();
-  await resAFuture;
-  expect(await rep.get('k')).to.equal('a');
-
-  // Finish B. B will conflict and retry!
-  br.resolve();
-  await resBFuture;
-  expect(await rep.get('k')).to.equal('b');
+  // reads wait on writes
+  resA = mut({duration: 500, ret: 'a'});
+  await timerWait(100);
+  resB = rep.query(() => 'b');
+  expect(await Promise.race([resA, resB])).to.equal('a');
 });
 
 test('sync', async () => {

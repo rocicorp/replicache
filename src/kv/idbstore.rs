@@ -122,6 +122,7 @@ impl IdbStore {
             db_copy.close();
         });
         db.set_onversionchange(Some(onversionchange.as_ref().unchecked_ref()));
+        onversionchange.forget();
 
         Ok(Some(IdbStore {
             db: RwLock::new(db),

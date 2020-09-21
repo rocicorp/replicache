@@ -357,6 +357,11 @@ async fn test_get_put_del() {
 #[wasm_bindgen_test]
 async fn test_get_root() {
     let db = &random_db();
+    assert_eq!(
+        format!(r#""{}" not open"#, db),
+        dispatch(db, "getRoot", "{}").await.unwrap_err()
+    );
+
     assert_eq!(dispatch(db, "open", "").await.unwrap(), "");
     assert_eq!(
         dispatch(db, "getRoot", "{}").await.unwrap(),

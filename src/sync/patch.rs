@@ -1,7 +1,6 @@
 use crate::db;
 use nanoserde::DeJson;
 use std::default::Default;
-use str_macro::str;
 
 const OP_ADD: &str = "add";
 const OP_REMOVE: &str = "remove";
@@ -19,12 +18,10 @@ pub struct Operation {
 pub fn apply(db_write: &mut db::Write, patch: &[Operation]) -> Result<(), PatchError> {
     use PatchError::*;
     for op in patch.iter() {
-        if op.path[..1] != str!("/") {
+        let mut chars = op.path.chars();
+        if chars.next() != Some('/') {
             return Err(InvalidPath(op.path.clone()));
         }
-        // Strip first character from path and
-        let mut chars = op.path.chars();
-        chars.next();
         let key = json_pointer_unescape(chars.as_str()).as_bytes().to_vec();
 
         match op.op.as_str() {
@@ -66,6 +63,7 @@ mod tests {
     use crate::kv::memstore::MemStore;
     use crate::util::rlog::LogContext;
     use std::collections::HashMap;
+    use str_macro::str;
 
     macro_rules! map(
         { $($key:expr => $value:expr),+ } => {

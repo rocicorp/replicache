@@ -329,7 +329,11 @@ async fn validate_rebase<'a>(
                 )));
             }
         }
-        _ => return Err(InternalProgrammerError("Commit is not a local commit".to_string())),
+        _ => {
+            return Err(InternalProgrammerError(
+                "Commit is not a local commit".to_string(),
+            ))
+        }
     };
 
     // Ensure rebase and original commit mutation ids names match.
@@ -494,8 +498,8 @@ async fn do_del(
 
 async fn do_begin_sync<'a, 'b>(
     ctx: Context<'a, 'b>,
-    req: BeginSyncRequest,
-) -> Result<BeginSyncResponse, sync::BeginSyncError> {
+    req: sync::BeginSyncRequest,
+) -> Result<sync::BeginSyncResponse, sync::BeginSyncError> {
     // TODO move client, puller, pusher up to process() or into a lazy static so we can share.
     let fetch_client = fetch::client::Client::new();
     let pusher = sync::push::FetchPusher::new(&fetch_client);
@@ -514,8 +518,8 @@ async fn do_begin_sync<'a, 'b>(
 
 async fn do_maybe_end_sync<'a, 'b>(
     ctx: Context<'a, 'b>,
-    req: MaybeEndSyncRequest,
-) -> Result<MaybeEndSyncResponse, sync::MaybeEndSyncError> {
+    req: sync::MaybeEndSyncRequest,
+) -> Result<sync::MaybeEndSyncResponse, sync::MaybeEndSyncError> {
     let maybe_end_sync_response = sync::maybe_end_sync(ctx.store, ctx.lc.clone(), &req).await?;
     Ok(maybe_end_sync_response)
 }

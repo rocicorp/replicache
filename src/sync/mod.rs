@@ -4,13 +4,13 @@ mod patch;
 pub mod push;
 #[cfg(test)]
 pub mod test_helpers;
+mod types;
 
 use crate::checksum;
 use crate::checksum::Checksum;
 use crate::dag;
 use crate::db;
 use crate::db::{Commit, MetaTyped, Whence, DEFAULT_HEAD_NAME};
-use crate::embed::types::*;
 use crate::fetch;
 use crate::fetch::errors::FetchError;
 use crate::util::nanoserde::any;
@@ -22,19 +22,9 @@ use std::default::Default;
 use std::fmt::Debug;
 use std::str::FromStr;
 use str_macro::str;
+pub use types::*;
 
 pub const SYNC_HEAD_NAME: &str = "sync";
-
-// ReplayMutation is returned in the MaybeEndPushResponse, not be confused with
-// sync::push::Mutation, which is used in batch push.
-#[derive(Debug, DeJson, SerJson)]
-pub struct ReplayMutation {
-    id: u64,
-    name: String,
-    args: any::Any,
-    #[nserde(skip_serializing_if = "Option::is_none")]
-    original: String,
-}
 
 pub async fn begin_sync(
     store: &dag::Store,
@@ -217,7 +207,10 @@ pub async fn maybe_end_sync(
     // TODO put sync_id in the logging context (lc.add_context()).
 
     // Ensure sync head is what the caller thinks it is.
-    let mut dag_write = store.write(lc.clone()).await.map_err(OpenWriteTxWriteError)?;
+    let mut dag_write = store
+        .write(lc.clone())
+        .await
+        .map_err(OpenWriteTxWriteError)?;
     let dag_read = dag_write.read();
     let sync_head_hash = dag_read
         .get_head(SYNC_HEAD_NAME)
@@ -272,7 +265,11 @@ pub async fn maybe_end_sync(
                     )
                     .map_err(InternalArgsJsonError)?,
                 ),
-                _ => return Err(InternalProgrammerError("pending mutation is not local".to_string())),
+                _ => {
+                    return Err(InternalProgrammerError(
+                        "pending mutation is not local".to_string(),
+                    ))
+                }
             };
             replay_mutations.push(ReplayMutation {
                 id: c.mutation_id(),
@@ -326,12 +323,6 @@ pub enum MaybeEndSyncError {
     WriteDefaultHeadError(dag::Error),
     WriteSyncHeadError(dag::Error),
     WrongSyncHeadJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
-}
-
-#[derive(Debug, Default, DeJson, SerJson)]
-pub struct SyncInfo {
-    #[nserde(rename = "syncID")]
-    pub sync_id: String,
 }
 
 #[derive(Debug, Default, PartialEq, SerJson)]

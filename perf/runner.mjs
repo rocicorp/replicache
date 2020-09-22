@@ -29,7 +29,7 @@ async function main() {
   await page.goto(`http://localhost:${port}/perf/`);
   logLine('Running benchmarks please wait...');
 
-  await page.waitForFunction('nextTest');
+  await page.waitForFunction('typeof nextTest ===  "function"');
   for (;;) {
     const testResult = await page.evaluate('nextTest()');
     if (testResult === null) {

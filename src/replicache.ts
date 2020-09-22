@@ -27,6 +27,9 @@ export const httpStatusUnauthorized = 401;
 
 type MaybePromise<T> = T | Promise<T>;
 
+/** The key name to use in localStorage when synchronizing changes. */
+const storageKeyName = (name: string) => `/replicache/root/${name}`;
+
 export default class Replicache implements ReadTransaction {
   private readonly _batchURL: string;
   private _dataLayerAuth: string;
@@ -99,11 +102,12 @@ export default class Replicache implements ReadTransaction {
 
   private async _open(): Promise<void> {
     this._opened = this._repmInvoker.invoke(this._name, 'open');
-    this._root = this._getRoot();
+    this._setRoot(this._getRoot());
     await this._root;
     if (this._syncInterval !== null) {
       await this.sync();
     }
+    window.addEventListener('storage', this._onStorage);
   }
 
   get online(): boolean {
@@ -145,6 +149,7 @@ export default class Replicache implements ReadTransaction {
     const p = this._invoke('close');
 
     this._clearTimer();
+    window.removeEventListener('storage', this._onStorage);
 
     // Clear subscriptions
     for (const subscription of this._subscriptions) {
@@ -163,10 +168,29 @@ export default class Replicache implements ReadTransaction {
     return res.root;
   }
 
+  private _setRoot(root: Promise<string | undefined>) {
+    this._root = root;
+    this._setStorage(root);
+  }
+
+  private async _setStorage(root: Promise<string | undefined>) {
+    // Also set an item in localStorage so that we can synchronize multiple
+    // windows/tabs.
+    localStorage[storageKeyName(this._name)] = await root;
+  }
+
+  // Callback for when window.onstorage fires which happens when a different tab
+  // changes the db.
+  private _onStorage = (e: StorageEvent): void => {
+    if (e.key === storageKeyName(this._name)) {
+      this._checkChange(e.newValue as string);
+    }
+  };
+
   private async _checkChange(root: string | undefined): Promise<void> {
     const currentRoot = await this._root; // instantaneous except maybe first time
     if (root !== undefined && root !== currentRoot) {
-      this._root = Promise.resolve(root);
+      this._setRoot(Promise.resolve(root));
       await this._fireOnChange();
     }
   }

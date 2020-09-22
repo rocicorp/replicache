@@ -13,12 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v1
+      - uses: microsoft/playwright-github-action@v1
 
       - run: npm ci
 
       # Run benchmar and stores the output to a file
       - name: Run benchmark
-        run: node perf/test.js | tee output.txt
+        run: node perf/runner.mjs | tee output.txt
       # Download previous benchmark result from cache (if exists)
       - name: Download previous benchmark data
         uses: actions/cache@v1

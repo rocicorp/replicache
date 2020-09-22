@@ -1,4 +1,4 @@
-use super::commit_generated::commit;
+use super::commit_generated::commit as commit_fb;
 use crate::checksum::Checksum;
 use crate::dag;
 use flatbuffers::FlatBufferBuilder;
@@ -29,19 +29,19 @@ impl Commit {
         value_hash: &str,
     ) -> Commit {
         let mut builder = FlatBufferBuilder::default();
-        let local_meta_args = &commit::LocalMetaArgs {
+        let local_meta_args = &commit_fb::LocalMetaArgs {
             mutation_id,
             mutator_name: builder.create_string(mutator_name).into(),
             mutator_args_json: builder.create_vector(mutator_args_json).into(),
             original_hash: original_hash.map(|h| builder.create_string(h)),
         };
-        let local_meta = commit::LocalMeta::create(&mut builder, local_meta_args);
+        let local_meta = commit_fb::LocalMeta::create(&mut builder, local_meta_args);
         Commit::new_impl(
             builder,
             local_create_date,
             basis_hash,
             checksum,
-            commit::MetaTyped::LocalMeta,
+            commit_fb::MetaTyped::LocalMeta,
             local_meta.as_union_value(),
             value_hash,
         )
@@ -56,17 +56,17 @@ impl Commit {
         value_hash: &str,
     ) -> Commit {
         let mut builder = FlatBufferBuilder::default();
-        let snapshot_meta_args = &commit::SnapshotMetaArgs {
+        let snapshot_meta_args = &commit_fb::SnapshotMetaArgs {
             last_mutation_id,
             server_state_id: builder.create_string(server_state_id).into(),
         };
-        let snapshot_meta = commit::SnapshotMeta::create(&mut builder, snapshot_meta_args);
+        let snapshot_meta = commit_fb::SnapshotMeta::create(&mut builder, snapshot_meta_args);
         Commit::new_impl(
             builder,
             local_create_date,
             basis_hash,
             checksum,
-            commit::MetaTyped::SnapshotMeta,
+            commit_fb::MetaTyped::SnapshotMeta,
             snapshot_meta.as_union_value(),
             value_hash,
         )
@@ -103,13 +103,10 @@ impl Commit {
     }
 
     pub fn mutation_id(&self) -> u64 {
-        let meta = self.commit().meta().unwrap();
-        match meta.typed_type() {
-            commit::MetaTyped::LocalMeta => meta.typed_as_local_meta().unwrap().mutation_id(),
-            commit::MetaTyped::SnapshotMeta => {
-                meta.typed_as_snapshot_meta().unwrap().last_mutation_id()
-            }
-            commit::MetaTyped::NONE => unreachable!(),
+        let meta = self.meta();
+        match meta.typed() {
+            MetaTyped::Local(lm) => lm.mutation_id(),
+            MetaTyped::Snapshot(sm) => sm.last_mutation_id(),
         }
     }
 
@@ -119,7 +116,7 @@ impl Commit {
 
     fn validate(buffer: &[u8]) -> Result<(), LoadError> {
         use LoadError::*;
-        let root = commit::get_root_as_commit(buffer);
+        let root = commit_fb::get_root_as_commit(buffer);
         root.value_hash().ok_or(MissingValueHash)?;
 
         let meta = root.meta().ok_or(MissingMeta)?;
@@ -129,17 +126,17 @@ impl Commit {
         Checksum::from_str(meta.checksum().unwrap()).map_err(|_| InvalidChecksum)?;
 
         match meta.typed_type() {
-            commit::MetaTyped::LocalMeta => {
+            commit_fb::MetaTyped::LocalMeta => {
                 Commit::validate_local_meta(meta.typed_as_local_meta().ok_or(MissingTyped)?)
             }
-            commit::MetaTyped::SnapshotMeta => {
+            commit_fb::MetaTyped::SnapshotMeta => {
                 Commit::validate_snapshot_meta(meta.typed_as_snapshot_meta().ok_or(MissingTyped)?)
             }
             _ => Err(UnknownMetaType),
         }
     }
 
-    fn validate_local_meta(local_meta: commit::LocalMeta) -> Result<(), LoadError> {
+    fn validate_local_meta(local_meta: commit_fb::LocalMeta) -> Result<(), LoadError> {
         use LoadError::*;
         local_meta.mutator_name().ok_or(MissingMutatorName)?;
         local_meta
@@ -149,7 +146,7 @@ impl Commit {
         Ok(())
     }
 
-    fn validate_snapshot_meta(snapshot_meta: commit::SnapshotMeta) -> Result<(), LoadError> {
+    fn validate_snapshot_meta(snapshot_meta: commit_fb::SnapshotMeta) -> Result<(), LoadError> {
         use LoadError::*;
         // zero is allowed for last_mutation_id (for the first snapshot)
         snapshot_meta
@@ -158,8 +155,8 @@ impl Commit {
         Ok(())
     }
 
-    fn commit(&self) -> commit::Commit {
-        commit::get_root_as_commit(&self.chunk.data())
+    fn commit(&self) -> commit_fb::Commit {
+        commit_fb::get_root_as_commit(&self.chunk.data())
     }
 
     fn new_impl(
@@ -167,23 +164,23 @@ impl Commit {
         local_create_date: &str,
         basis_hash: Option<&str>,
         checksum: Checksum,
-        union_type: commit::MetaTyped,
+        union_type: commit_fb::MetaTyped,
         union_value: flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
         value_hash: &str,
     ) -> Commit {
-        let meta_args = &commit::MetaArgs {
+        let meta_args = &commit_fb::MetaArgs {
             local_create_date: builder.create_string(local_create_date).into(),
             basis_hash: basis_hash.map(|s| builder.create_string(s)),
             checksum: builder.create_string(&checksum.to_string()).into(),
             typed_type: union_type,
             typed: union_value.into(),
         };
-        let meta = commit::Meta::create(&mut builder, meta_args);
-        let commit_args = &commit::CommitArgs {
+        let meta = commit_fb::Meta::create(&mut builder, meta_args);
+        let commit_args = &commit_fb::CommitArgs {
             meta: meta.into(),
             value_hash: builder.create_string(value_hash).into(),
         };
-        let commit = commit::Commit::create(&mut builder, commit_args);
+        let commit = commit_fb::Commit::create(&mut builder, commit_args);
         builder.finish(commit, None);
 
         let chunk = dag::Chunk::new(builder.collapse(), &[value_hash]);
@@ -265,7 +262,7 @@ pub enum PendingError {
 }
 
 pub struct Meta<'a> {
-    fb: commit::Meta<'a>,
+    fb: commit_fb::Meta<'a>,
 }
 
 #[allow(dead_code)]
@@ -283,13 +280,13 @@ impl<'a> Meta<'a> {
 
     pub fn typed(&self) -> MetaTyped {
         match self.fb.typed_type() {
-            commit::MetaTyped::LocalMeta => MetaTyped::Local(LocalMeta {
+            commit_fb::MetaTyped::LocalMeta => MetaTyped::Local(LocalMeta {
                 fb: self.fb.typed_as_local_meta().unwrap(),
             }),
-            commit::MetaTyped::SnapshotMeta => MetaTyped::Snapshot(SnapshotMeta {
+            commit_fb::MetaTyped::SnapshotMeta => MetaTyped::Snapshot(SnapshotMeta {
                 fb: self.fb.typed_as_snapshot_meta().unwrap(),
             }),
-            commit::MetaTyped::NONE => panic!("notreached"),
+            commit_fb::MetaTyped::NONE => panic!("notreached"),
         }
     }
 
@@ -311,7 +308,7 @@ pub enum MetaTyped<'a> {
 }
 
 pub struct LocalMeta<'a> {
-    fb: commit::LocalMeta<'a>,
+    fb: commit_fb::LocalMeta<'a>,
 }
 
 #[allow(dead_code)]
@@ -336,7 +333,7 @@ impl<'a> LocalMeta<'a> {
 }
 
 pub struct SnapshotMeta<'a> {
-    fb: commit::SnapshotMeta<'a>,
+    fb: commit_fb::SnapshotMeta<'a>,
 }
 
 #[allow(dead_code)]
@@ -722,7 +719,7 @@ mod tests {
                 dyn FnOnce(
                     &mut FlatBufferBuilder,
                 ) -> (
-                    commit::MetaTyped,
+                    commit_fb::MetaTyped,
                     flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
                 ),
             >,
@@ -734,19 +731,19 @@ mod tests {
     ) -> Chunk {
         let mut builder = FlatBufferBuilder::default();
         let typed_meta = typed_meta.map(|c| c(&mut builder));
-        let args = &commit::MetaArgs {
-            typed_type: typed_meta.map_or(commit::MetaTyped::NONE, |t| t.0),
+        let args = &commit_fb::MetaArgs {
+            typed_type: typed_meta.map_or(commit_fb::MetaTyped::NONE, |t| t.0),
             typed: typed_meta.map(|t| t.1),
             local_create_date: local_create_date.map(|s| builder.create_string(s)),
             basis_hash: basis_hash.map(|s| builder.create_string(s)),
             checksum: checksum.map(|s| builder.create_string(s)),
         };
-        let meta = commit::Meta::create(&mut builder, args);
-        let args = &commit::CommitArgs {
+        let meta = commit_fb::Meta::create(&mut builder, args);
+        let args = &commit_fb::CommitArgs {
             meta: meta.into(),
             value_hash: value_hash.map(|s| builder.create_string(s)),
         };
-        let commit = commit::Commit::create(&mut builder, args);
+        let commit = commit_fb::Commit::create(&mut builder, args);
         builder.finish(commit, None);
         Chunk::new(
             builder.collapse(),
@@ -761,17 +758,17 @@ mod tests {
         mutator_args_json: Option<&[u8]>,
         original_hash: Option<&str>,
     ) -> (
-        commit::MetaTyped,
+        commit_fb::MetaTyped,
         flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
     ) {
-        let args = &commit::LocalMetaArgs {
+        let args = &commit_fb::LocalMetaArgs {
             mutation_id,
             mutator_name: mutator_name.map(|s| builder.create_string(s)),
             mutator_args_json: mutator_args_json.map(|b| builder.create_vector(b)),
             original_hash: original_hash.map(|s| builder.create_string(s)),
         };
-        let local_meta = commit::LocalMeta::create(builder, args);
-        (commit::MetaTyped::LocalMeta, local_meta.as_union_value())
+        let local_meta = commit_fb::LocalMeta::create(builder, args);
+        (commit_fb::MetaTyped::LocalMeta, local_meta.as_union_value())
     }
 
     fn make_snapshot_meta(
@@ -779,16 +776,16 @@ mod tests {
         last_mutation_id: u64,
         server_state_id: Option<&str>,
     ) -> (
-        commit::MetaTyped,
+        commit_fb::MetaTyped,
         flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
     ) {
-        let args = &commit::SnapshotMetaArgs {
+        let args = &commit_fb::SnapshotMetaArgs {
             last_mutation_id,
             server_state_id: server_state_id.map(|s| builder.create_string(s)),
         };
-        let snapshot_meta = commit::SnapshotMeta::create(builder, args);
+        let snapshot_meta = commit_fb::SnapshotMeta::create(builder, args);
         (
-            commit::MetaTyped::SnapshotMeta,
+            commit_fb::MetaTyped::SnapshotMeta,
             snapshot_meta.as_union_value(),
         )
     }

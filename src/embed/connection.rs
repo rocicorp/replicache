@@ -509,7 +509,7 @@ async fn do_begin_sync<'a, 'b>(
         ctx.lc.clone(),
         &pusher,
         &puller,
-        &req,
+        req,
         ctx.client_id,
     )
     .await?;
@@ -520,7 +520,7 @@ async fn do_maybe_end_sync<'a, 'b>(
     ctx: Context<'a, 'b>,
     req: sync::MaybeEndSyncRequest,
 ) -> Result<sync::MaybeEndSyncResponse, sync::MaybeEndSyncError> {
-    let maybe_end_sync_response = sync::maybe_end_sync(ctx.store, ctx.lc.clone(), &req).await?;
+    let maybe_end_sync_response = sync::maybe_end_sync(ctx.store, ctx.lc.clone(), req).await?;
     Ok(maybe_end_sync_response)
 }
 

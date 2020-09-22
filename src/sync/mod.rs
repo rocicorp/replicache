@@ -31,7 +31,7 @@ pub async fn begin_sync(
     lc: LogContext,
     pusher: &dyn push::Pusher,
     puller: &dyn Puller,
-    begin_sync_req: &BeginSyncRequest,
+    begin_sync_req: BeginSyncRequest,
     client_id: String,
 ) -> Result<BeginSyncResponse, BeginSyncError> {
     use BeginSyncError::*;
@@ -91,7 +91,7 @@ pub async fn begin_sync(
         Commit::snapshot_meta_parts(&base_snapshot).map_err(InternalProgrammerError)?;
 
     let pull_req = PullRequest {
-        client_view_auth: begin_sync_req.data_layer_auth.clone(),
+        client_view_auth: begin_sync_req.data_layer_auth,
         client_id,
         base_state_id: base_state_id.clone(),
         checksum: base_checksum.clone(),
@@ -200,7 +200,7 @@ pub enum BeginSyncError {
 pub async fn maybe_end_sync(
     store: &dag::Store,
     lc: LogContext,
-    maybe_end_sync_req: &MaybeEndSyncRequest,
+    maybe_end_sync_req: MaybeEndSyncRequest,
 ) -> Result<MaybeEndSyncResponse, MaybeEndSyncError> {
     use MaybeEndSyncError::*;
 
@@ -779,7 +779,7 @@ mod tests {
                 LogContext::new(),
                 &fake_pusher,
                 &fake_puller,
-                &begin_sync_req,
+                begin_sync_req,
                 str!("test_client_id"),
             )
             .await;
@@ -1036,7 +1036,7 @@ mod tests {
                 sync_id: str!("TODO"),
                 sync_head: sync_head.clone(),
             };
-            let result = maybe_end_sync(&store, LogContext::new(), &req).await;
+            let result = maybe_end_sync(&store, LogContext::new(), req).await;
 
             match c.exp_err {
                 Some(e) => assert!(format!("{:?}", result.unwrap_err()).contains(e)),

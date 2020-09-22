@@ -1,15 +1,11 @@
 use crate::fetch::errors::FetchError;
 use crate::fetch::errors::FetchError::*;
 use crate::fetch::timeout::with_timeout;
+use crate::util::to_debug;
 use http::Request;
 use std::time::Duration;
 
 mod tokio_compat;
-
-// s makes map_err calls nicer by mapping a error to its debug-printed string.
-fn s<D: std::fmt::Debug>(err: D) -> String {
-    format!("{:?}", err)
-}
 
 pub struct Client {
     hyper_client: hyper::Client<tokio_compat::AsyncStdTcpConnector>,
@@ -64,27 +60,31 @@ impl Client {
             .method(parts.method.as_str())
             .uri(&parts.uri.to_string());
         for (k, v) in parts.headers.iter() {
-            builder = builder.header(k, v.to_str().map_err(|e| InvalidRequestHeader(s(e)))?);
+            builder = builder.header(
+                k,
+                v.to_str().map_err(|e| InvalidRequestHeader(to_debug(e)))?,
+            );
         }
         let hyper_req = builder
             .body(hyper::Body::from(req_body))
-            .map_err(|e| InvalidRequestBody(s(e)))?;
+            .map_err(|e| InvalidRequestBody(to_debug(e)))?;
 
         let mut hyper_resp = self
             .hyper_client
             .request(hyper_req)
             .await
-            .map_err(|e| RequestFailed(s(e)))?;
+            .map_err(|e| RequestFailed(to_debug(e)))?;
         let http_resp_builder = http::response::Builder::new();
         let http_resp_bytes = hyper::body::to_bytes(hyper_resp.body_mut())
             .await
-            .map_err(|e| ErrorReadingResponseBody(s(e)))?;
-        let http_resp_string = String::from_utf8(http_resp_bytes.to_vec()) // Copies :(
-            .map_err(|e| ErrorReadingResponseBodyAsString(s(e)))?;
+            .map_err(|e| ErrorReadingResponseBody(to_debug(e)))?;
+        let http_resp_string =
+            String::from_utf8(http_resp_bytes.to_vec()) // Copies :(
+                .map_err(|e| ErrorReadingResponseBodyAsString(to_debug(e)))?;
         let http_resp = http_resp_builder
             .status(hyper_resp.status())
             .body(http_resp_string)
-            .map_err(|e| FailedToWrapHttpResponse(s(e)))?;
+            .map_err(|e| FailedToWrapHttpResponse(to_debug(e)))?;
         Ok(http_resp)
     }
 }
@@ -171,7 +171,7 @@ mod tests {
         let mut client = Client::new();
         client.timeout = Duration::from_millis(5);
         match client.request(req).await {
-            Err(e) => assert!(format!("{:?}", e).contains("RequestTimeout")),
+            Err(e) => assert!(to_debug(e).contains("RequestTimeout")),
             _ => panic!("should have timed out"),
         };
         handle.cancel().await;
@@ -203,7 +203,7 @@ mod tests {
                 .request(Request::get(host).body("".to_owned()).unwrap())
                 .await
                 .unwrap_err();
-            assert!(s(err).contains("failed to lookup address"));
+            assert!(to_debug(err).contains("failed to lookup address"));
         }
     }
 }

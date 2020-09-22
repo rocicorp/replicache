@@ -4,6 +4,7 @@ use crate::kv::idbstore::IdbStore;
 use crate::kv::{Store, StoreError};
 use crate::util::rlog;
 use crate::util::rlog::LogContext;
+use crate::util::to_debug;
 use crate::util::uuid::uuid;
 use async_std::sync::{channel, Mutex, Receiver, Sender};
 use std::collections::HashMap;
@@ -88,7 +89,7 @@ pub async fn dispatch(db_name: String, rpc: String, data: String) -> Response {
     lc.add_context("rpc", &rpc);
     lc.add_context("db", &db_name);
     debug!(lc, "-> data={}", &data);
-    let timer = rlog::Timer::new().map_err(|e| format!("{:?}", e))?;
+    let timer = rlog::Timer::new().map_err(to_debug)?;
 
     let (tx, rx) = channel::<Response>(1);
     let request = Request {
@@ -134,9 +135,7 @@ async fn do_open(conns: &mut ConnMap, req: &Request) -> Response {
     };
 
     let lc = LogContext::new_from_context(req.lc.clone());
-    let client_id = init_client_id(kv.as_ref(), lc)
-        .await
-        .map_err(|e| format!("{:?}", e))?;
+    let client_id = init_client_id(kv.as_ref(), lc).await.map_err(to_debug)?;
 
     let lc = LogContext::new_from_context(req.lc.clone());
     let (tx, rx) = channel::<Request>(1);
@@ -179,7 +178,7 @@ async fn do_drop(_: &mut ConnMap, req: &Request) -> Response {
 
 async fn do_debug(conns: &ConnMap, req: &Request) -> Response {
     match req.data.as_str() {
-        "open_dbs" => Ok(format!("{:?}", conns.keys())),
+        "open_dbs" => Ok(to_debug(conns.keys())),
         _ => Err("Debug command not defined".into()),
     }
 }

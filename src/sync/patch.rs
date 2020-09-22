@@ -62,6 +62,7 @@ mod tests {
     use crate::db::test_helpers::*;
     use crate::kv::memstore::MemStore;
     use crate::util::rlog::LogContext;
+    use crate::util::to_debug;
     use std::collections::HashMap;
     use str_macro::str;
 
@@ -192,7 +193,7 @@ mod tests {
                 .collect();
             let result = apply(&mut db_write, &ops);
             match c.exp_err {
-                Some(err_str) => assert!(format!("{:?}", result.unwrap_err()).contains(err_str)),
+                Some(err_str) => assert!(to_debug(result.unwrap_err()).contains(err_str)),
                 None => {
                     match c.exp_map.as_ref() {
                         None => panic!("expected a map"),

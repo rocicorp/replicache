@@ -437,6 +437,7 @@ mod tests {
     use crate::db::test_helpers::*;
     use crate::kv::memstore::MemStore;
     use crate::util::rlog::LogContext;
+    use crate::util::to_debug;
     use async_std::net::TcpListener;
     use std::clone::Clone;
     use str_macro::str;
@@ -789,7 +790,7 @@ mod tests {
                     assert!(result.is_ok(), format!("{}: {:?}", c.name, result));
                     got_resp = Some(result.unwrap());
                 }
-                Some(e) => assert!(format!("{:?}", result.unwrap_err()).contains(e)),
+                Some(e) => assert!(to_debug(result.unwrap_err()).contains(e)),
             };
             let owned_read = store.read(LogContext::new()).await.unwrap();
             let read = owned_read.read();
@@ -1039,7 +1040,7 @@ mod tests {
             let result = maybe_end_sync(&store, LogContext::new(), req).await;
 
             match c.exp_err {
-                Some(e) => assert!(format!("{:?}", result.unwrap_err()).contains(e)),
+                Some(e) => assert!(to_debug(result.unwrap_err()).contains(e)),
                 None => {
                     assert!(result.is_ok(), format!("{}: {:?}", c.name, result));
                     let resp = result.unwrap();
@@ -1191,7 +1192,7 @@ mod tests {
                     assert_eq!(c.exp_resp.as_ref().unwrap(), &got_pull_resp);
                 }
                 Some(err_str) => {
-                    let got_err_str = format!("{:?}", result.expect_err(c.name));
+                    let got_err_str = to_debug(result.expect_err(c.name));
                     assert!(
                         got_err_str.contains(err_str),
                         format!(

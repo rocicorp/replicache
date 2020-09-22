@@ -1,6 +1,7 @@
 use crate::fetch::errors::FetchError;
 use crate::fetch::errors::FetchError::*;
 use crate::fetch::timeout::with_timeout;
+use crate::util::to_debug;
 use std::convert::TryFrom;
 use std::time::Duration;
 use wasm_bindgen::JsCast;
@@ -8,16 +9,11 @@ use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, RequestMode};
 
-// s makes map_err calls nicer by mapping a error to its debug-printed string.
-fn s<D: std::fmt::Debug>(err: D) -> String {
-    format!("{:?}", err)
-}
-
 // js makes request() map_err calls nicer by converting opaque JsValue errors
 // into js_sys::Error's and debug-printing their content.
 fn js(err: JsValue) -> String {
     match js_sys::Error::try_from(err) {
-        Ok(e) => s(e),
+        Ok(e) => to_debug(e),
         Err(_) => "unknown JS error: could not conver to js_sys::Error".to_string(),
     }
 }
@@ -79,9 +75,9 @@ impl Client {
         for (k, v) in http_req.headers().iter() {
             h.set(
                 k.as_ref(),
-                v.to_str().map_err(|e| InvalidRequestHeader(s(e)))?,
+                v.to_str().map_err(|e| InvalidRequestHeader(to_debug(e)))?,
             )
-            .map_err(|e| UnableToSetRequestHeader(s(e)))?;
+            .map_err(|e| UnableToSetRequestHeader(to_debug(e)))?;
         }
 
         let window = web_sys::window().ok_or_else(|| NoWindow)?;
@@ -107,7 +103,7 @@ impl Client {
         let http_resp = builder
             .status(web_sys_resp.status())
             .body(resp_body)
-            .map_err(|e| FailedToWrapHttpResponse(s(e)))?;
+            .map_err(|e| FailedToWrapHttpResponse(to_debug(e)))?;
         Ok(http_resp)
     }
 }

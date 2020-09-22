@@ -123,6 +123,7 @@ pub enum PushError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::util::to_debug;
     use async_std::net::TcpListener;
     use str_macro::str;
     use tide::{Body, Response};
@@ -222,7 +223,7 @@ mod tests {
                     assert_eq!(c.exp_resp.as_ref().unwrap(), &got_push_resp);
                 }
                 Some(err_str) => {
-                    let got_err_str = format!("{:?}", result.expect_err(c.name));
+                    let got_err_str = to_debug(result.expect_err(c.name));
                     assert!(
                         got_err_str.contains(err_str),
                         format!(

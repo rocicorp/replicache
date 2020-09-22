@@ -7,6 +7,7 @@ use crate::sync;
 use crate::util::nanoserde::any;
 use crate::util::rlog;
 use crate::util::rlog::LogContext;
+use crate::util::to_debug;
 use async_fn::{AsyncFn2, AsyncFn3};
 use async_std::stream::StreamExt;
 use async_std::sync::{Receiver, RecvError, RwLock};
@@ -205,7 +206,7 @@ where
         .call(ctx, request)
         .await
         .map(|v| SerJson::serialize_json(&v))
-        .map_err(|e| format!("{:?}", e));
+        .map_err(to_debug);
 
     req.response.send(result).await
 }
@@ -445,7 +446,7 @@ async fn do_get(
         .get(req.key.as_bytes())
         .map(|buf| String::from_utf8(buf.to_vec()));
     if let Some(Err(e)) = got {
-        return Err(format!("{:?}", e));
+        return Err(to_debug(e));
     }
     let got = got.map(|r| r.unwrap());
     Ok(GetResponse {
@@ -462,7 +463,7 @@ async fn do_scan(
     use std::convert::TryFrom;
     let mut res = Vec::<ScanItem>::new();
     for pe in txn.read().await.as_read().scan((&req.opts).into()) {
-        res.push(ScanItem::try_from(pe).map_err(|e| format!("{:?}", e))?);
+        res.push(ScanItem::try_from(pe).map_err(to_debug)?);
     }
     Ok(ScanResponse { items: res })
 }
@@ -631,7 +632,7 @@ mod tests {
                 },
             )
             .await;
-            assert!(format!("{:?}", result.unwrap_err()).contains("WrongSyncHeadJSLogInfo"));
+            assert!(to_debug(result.unwrap_err()).contains("WrongSyncHeadJSLogInfo"));
 
             // Error: rebase commit's name should not change.
             let result = do_open_transaction(
@@ -646,7 +647,7 @@ mod tests {
                 },
             )
             .await;
-            assert!(format!("{:?}", result.unwrap_err()).contains("InconsistentMutator"));
+            assert!(to_debug(result.unwrap_err()).contains("InconsistentMutator"));
 
             // TODO test error: rebase commit's args should not change.
             // https://github.com/rocicorp/repc/issues/151
@@ -678,8 +679,8 @@ mod tests {
             .await;
             let err = result.unwrap_err();
             print!("{:?}", err);
-            //assert!(format!("{:?}", result.unwrap_err()).contains("InconsistentMutationId"));
-            assert!(format!("{:?}", err).contains("InconsistentMutationId"));
+            //assert!(to_debug(result.unwrap_err()).contains("InconsistentMutationId"));
+            assert!(to_debug(err).contains("InconsistentMutationId"));
 
             // Correct rebase_opt (test this last because it affects the chain).
             let otr = do_open_transaction(

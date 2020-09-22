@@ -1,5 +1,6 @@
 use crate::kv::{Read, Result, Store, StoreError, Write};
 use crate::util::rlog::LogContext;
+use crate::util::to_debug;
 use async_std::sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use async_std::task;
 use async_trait::async_trait;
@@ -20,7 +21,7 @@ impl From<String> for StoreError {
 impl From<JsValue> for StoreError {
     fn from(err: JsValue) -> StoreError {
         // TODO(nate): Pick out a useful subset of this value.
-        StoreError::Str(format!("{:?}", err))
+        StoreError::Str(to_debug(err))
     }
 }
 
@@ -378,7 +379,7 @@ impl Write for WriteTransaction<'_> {
             .wait_until(lock.lock().await, |state| *state != WriteState::Open)
             .await;
         if let Some(e) = self.tx.error() {
-            return Err(format!("{:?}", e).into());
+            return Err(to_debug(e).into());
         }
         if *state != WriteState::Committed {
             return Err(StoreError::Str("Transaction aborted".into()));
@@ -404,7 +405,7 @@ impl Write for WriteTransaction<'_> {
             .wait_until(lock.lock().await, |state| *state != WriteState::Open)
             .await;
         if let Some(e) = self.tx.error() {
-            return Err(format!("{:?}", e).into());
+            return Err(to_debug(e).into());
         }
         if *state != WriteState::Aborted {
             return Err(StoreError::Str("Transaction abort failed".into()));

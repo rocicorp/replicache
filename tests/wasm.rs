@@ -10,6 +10,7 @@ use replicache_client::fetch;
 use replicache_client::sync;
 use replicache_client::util::nanoserde::any::Any;
 use replicache_client::util::rlog;
+use replicache_client::util::to_debug;
 use replicache_client::wasm;
 use serde_json::json;
 use str_macro::str;
@@ -493,5 +494,5 @@ async fn test_browser_fetch_timeout() {
     let mut client = fetch::client::Client::new();
     client.timeout = std::time::Duration::from_millis(1);
     let err = client.request(req).await.unwrap_err();
-    assert!(format!("{:?}", err).contains("Timeout"));
+    assert!(to_debug(err).contains("Timeout"));
 }

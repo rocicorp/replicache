@@ -27,6 +27,7 @@ async function main() {
   const context = await browser.newContext();
   const page = await context.newPage();
   await page.goto(`http://localhost:${port}/perf/`, {waitUntil: 'load'});
+  console.log(await page.innerHTML('html'));
   logLine('Running benchmarks please wait...');
 
   for (;;) {
@@ -53,6 +54,7 @@ function logLine(s) {
   process.stdout.write(s + '\n');
 }
 
+// TODO(arv): Use BenchmarkJS instead of our custom runner?
 function formatAsBenchmarkJS({name, value, median}) {
   // Example:
   //   fib(20) x 11,465 ops/sec ±1.12% (91 runs sampled)

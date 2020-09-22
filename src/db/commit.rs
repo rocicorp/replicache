@@ -242,9 +242,9 @@ impl Commit {
     }
 
     // Parts are (last_mutation_id, server_state_id).
-    pub fn snapshot_meta_parts(c: &Commit) -> Result<(u64, String), ProgrammerError> {
+    pub fn snapshot_meta_parts(c: &Commit) -> Result<(u64, String), InternalProgrammerError> {
         match c.meta().typed() {
-            MetaTyped::Local(_) => Err(ProgrammerError::WrongType(str!("Snapshot meta expected"))),
+            MetaTyped::Local(_) => Err(InternalProgrammerError::WrongType(str!("Snapshot meta expected"))),
             MetaTyped::Snapshot(sm) => {
                 Ok((sm.last_mutation_id(), sm.server_state_id().to_string()))
             }
@@ -372,7 +372,7 @@ pub enum FromHashError {
 }
 
 #[derive(Debug)]
-pub enum ProgrammerError {
+pub enum InternalProgrammerError {
     WrongType(String),
 }
 

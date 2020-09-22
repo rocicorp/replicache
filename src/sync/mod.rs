@@ -98,7 +98,7 @@ pub async fn begin_sync(
     // Pull.
     let base_checksum = base_snapshot.meta().checksum().to_string();
     let (base_last_mutation_id, base_state_id) =
-        Commit::snapshot_meta_parts(&base_snapshot).map_err(ProgrammerError)?;
+        Commit::snapshot_meta_parts(&base_snapshot).map_err(InternalProgrammerError)?;
 
     let pull_req = PullRequest {
         client_view_auth: begin_sync_req.data_layer_auth.clone(),
@@ -191,6 +191,7 @@ pub enum BeginSyncError {
     InternalGetPendingCommitsError(db::PendingError),
     InternalNoMainHeadError,
     InternalNonLocalPendingCommit,
+    InternalProgrammerError(db::InternalProgrammerError),
     InternalTimerError(rlog::TimerError),
     InvalidChecksum(checksum::ParseError),
     LockError(dag::Error),
@@ -199,7 +200,6 @@ pub enum BeginSyncError {
     NoBaseSnapshot(db::BaseSnapshotError),
     OverlappingSyncsJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
     PatchFailed(patch::PatchError),
-    ProgrammerError(db::ProgrammerError),
     PullFailed(PullError),
     ReadCommitError(db::ReadCommitError),
     ReadError(dag::Error),
@@ -272,7 +272,7 @@ pub async fn maybe_end_sync(
                     )
                     .map_err(InternalArgsJsonError)?,
                 ),
-                _ => return Err(ProgrammerError("pending mutation is not local".to_string())),
+                _ => return Err(InternalProgrammerError("pending mutation is not local".to_string())),
             };
             replay_mutations.push(ReplayMutation {
                 id: c.mutation_id(),
@@ -319,7 +319,7 @@ pub enum MaybeEndSyncError {
     NoBaseSnapshot(db::BaseSnapshotError),
     OverlappingSyncsJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
     PendingError(db::PendingError),
-    ProgrammerError(String),
+    InternalProgrammerError(String),
     ReadError(dag::Error),
     SyncSnapshotWithNoBasis,
     WriteError(dag::Error),

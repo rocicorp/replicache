@@ -329,7 +329,7 @@ async fn validate_rebase<'a>(
                 )));
             }
         }
-        _ => return Err(ProgrammerError("Commit is not a local commit".to_string())),
+        _ => return Err(InternalProgrammerError("Commit is not a local commit".to_string())),
     };
 
     // Ensure rebase and original commit mutation ids names match.
@@ -537,10 +537,10 @@ enum OpenTransactionError {
     GetHeadError(dag::Error),
     InconsistentMutationId(String),
     InconsistentMutator(String),
+    InternalProgrammerError(String),
     InternalTimerError(rlog::TimerError),
     NoSuchBasis(db::ReadCommitError),
     NoSuchOriginal(db::ReadCommitError),
-    ProgrammerError(String),
     WrongSyncHeadJSLogInfo(String), // "JSLogInfo" is a signal to bindings to not log this alarmingly.
 }
 

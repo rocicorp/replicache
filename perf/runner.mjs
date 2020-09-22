@@ -32,16 +32,16 @@ async function main() {
   for (;;) {
     // @ts-ignore
     // eslint-disable-next-line no-undef
-    const data = await page.evaluate(() => nextTest());
-    if (data === null) {
+    const testResult = await page.evaluate(() => nextTest());
+    if (testResult === null) {
       break;
     }
-    logLine(data.join(' | '));
+    logLine(formatAsBenchmarkJS(testResult));
   }
 
   logLine('Done!');
-  await browser.close();
 
+  await browser.close();
   await server.stop();
 }
 
@@ -51,4 +51,11 @@ main();
 function logLine(s) {
   // eslint-disable-next-line no-undef
   process.stdout.write(s + '\n');
+}
+
+function formatAsBenchmarkJS({name, value, median}) {
+  // Example:
+  //   fib(20) x 11,465 ops/sec ±1.12% (91 runs sampled)
+  //   createObjectBuffer with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)
+  return `${name} x ${value} ±0.0% (0 runs sampled)`;
 }

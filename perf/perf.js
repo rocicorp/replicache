@@ -1,7 +1,15 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+// @ts-check
+
+/* global Promise indexedDB console window */
+
 import Replicache from '../out/mod.js';
 
 const value = 'x'.repeat(1024);
 
+/**
+ * @param {string} name
+ */
 function deleteDatabase(name) {
   return new Promise((resolve, reject) => {
     const req = indexedDB.deleteDatabase(name);
@@ -21,8 +29,11 @@ async function makeRep() {
   });
 }
 
+/**
+ * @param {Replicache} rep
+ */
 async function populate(rep, {numKeys}) {
-  const set = rep.register('populate', async (tx, args) => {
+  const set = rep.register('populate', async tx => {
     for (let i = 0; i < numKeys; i++) {
       await tx.put(`key${i}`, value);
     }
@@ -82,23 +93,10 @@ async function benchmark(fn) {
   }
 
   times.sort();
-  const median = times[Math.floor(n / 2)];
-  const out = [name, `Median: ${median}`];
-  if (size) {
-    out.push('Throughput: ' + humanSize((size / median) * 1000) + '/s');
-  }
-  log(...out);
-}
 
-async function main() {
-  await benchmark(bench =>
-    benchmarkPopulate(bench, {numKeys: 1000, clean: true}),
-  );
-  await benchmark(bench =>
-    benchmarkPopulate(bench, {numKeys: 1000, clean: false}),
-  );
-  await benchmark(bench => benchmarkScan(bench, {numKeys: 1000}));
-  await benchmark(bench => benchmarkScan(bench, {numKeys: 5000}));
+  const median = times[Math.floor(n / 2)];
+  const value = humanSize((size / median) * 1000) + '/s';
+  return {name, value, median};
 }
 
 const benchmarks = [
@@ -116,20 +114,13 @@ function humanSize(bytes) {
   return (bytes / 1024 ** e).toFixed(2) + ' ' + ' KMGTP'[e] + 'B';
 }
 
-const logData = [];
-
-function log(...args) {
-  logData.push(args);
-}
-
 let current = 0;
 async function nextTest() {
   if (current < benchmarks.length) {
-    logData.length = 0;
-    await benchmark(benchmarks[current++]);
-    return logData;
+    return await benchmark(benchmarks[current++]);
   }
   return null;
 }
 
+// @ts-ignore
 window.nextTest = nextTest;

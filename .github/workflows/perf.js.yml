@@ -3,6 +3,8 @@ name: Perf test Minimal setup
 on:
   push:
     branches: [master]
+  pull_request:
+    branches: [master]
 
 jobs:
   benchmark:

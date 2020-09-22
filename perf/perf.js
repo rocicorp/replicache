@@ -66,6 +66,7 @@ async function benchmarkScan(bench, opts) {
     let count = 0;
     for await (const value of tx.scan()) {
       // use the value to be confident we're not optimizing away.
+      // @ts-ignore
       count += value.length;
     }
     console.log(count);

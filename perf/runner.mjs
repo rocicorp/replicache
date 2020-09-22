@@ -26,7 +26,7 @@ async function main() {
   const browser = await playwright[browserType].launch();
   const context = await browser.newContext();
   const page = await context.newPage();
-  await page.goto(`http://localhost:${port}/perf/`);
+  await page.goto(`http://localhost:${port}/perf/`, {waitUntil: 'load'});
   logLine('Running benchmarks please wait...');
 
   for (;;) {

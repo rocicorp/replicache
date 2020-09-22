@@ -222,7 +222,7 @@ pub async fn maybe_end_sync(
     let sync_head_hash = dag_read
         .get_head(SYNC_HEAD_NAME)
         .await
-        .map_err(ReadError)?
+        .map_err(GetSyncHeadError)?
         .ok_or(MissingSyncHead)?;
     if sync_head_hash != maybe_end_sync_req.sync_head {
         return Err(WrongSyncHeadJSLogInfo);
@@ -235,7 +235,7 @@ pub async fn maybe_end_sync(
     let main_head_hash = dag_read
         .get_head(db::DEFAULT_HEAD_NAME)
         .await
-        .map_err(ReadError)?
+        .map_err(GetMainHeadError)?
         .ok_or(MissingMainHead)?;
     let main_snapshot = Commit::base_snapshot(&main_head_hash, &dag_read)
         .await
@@ -308,6 +308,8 @@ pub async fn maybe_end_sync(
 #[derive(Debug)]
 pub enum MaybeEndSyncError {
     CommitError(dag::Error),
+    GetMainHeadError(dag::Error),
+    GetSyncHeadError(dag::Error),
     InternalArgsJsonError(DeJsonErr),
     InternalArgsUtf8Error(std::str::Utf8Error),
     InvalidArgs(std::str::Utf8Error),

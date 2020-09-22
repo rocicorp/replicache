@@ -26,10 +26,10 @@ async function main() {
   const browser = await playwright[browserType].launch();
   const context = await browser.newContext();
   const page = await context.newPage();
-  await page.goto(`http://localhost:${port}/perf/`);
+  await page.goto(`http://127.0.0.1:${port}/perf/index.html`);
+  await page.waitForFunction('typeof nextTest ===  "function"');
   logLine('Running benchmarks please wait...');
 
-  await page.waitForFunction('typeof nextTest ===  "function"');
   for (;;) {
     const testResult = await page.evaluate('nextTest()');
     if (testResult === null) {

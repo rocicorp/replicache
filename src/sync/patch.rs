@@ -36,7 +36,7 @@ pub fn apply(db_write: &mut db::Write, patch: &[Operation]) -> Result<(), PatchE
             OP_REMOVE => {
                 if key.is_empty() {
                     // Top-level remove (path == "/").
-                    db_write.reset_map();
+                    db_write.clear();
                 } else {
                     db_write.del(key);
                 }

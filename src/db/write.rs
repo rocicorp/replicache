@@ -139,7 +139,7 @@ impl<'a> Write<'a> {
         self.map.del(key)
     }
 
-    pub fn reset_map(&mut self) {
+    pub fn clear(&mut self) {
         self.checksum = Checksum::new();
         self.map = prolly::Map::new();
     }
@@ -305,10 +305,10 @@ mod tests {
         w.del(vec![0]);
         assert_eq!(exp_checksum, w.checksum);
 
-        // Ensure reset_map works and replaces the checksum.
+        // Ensure clear works and replaces the checksum.
         w.put(vec![0], vec![1]);
         assert_ne!("00000000", w.checksum());
-        w.reset_map();
+        w.clear();
         assert_eq!("00000000", w.checksum());
         assert!(!w.as_read().has(vec![0].as_ref()));
     }

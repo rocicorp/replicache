@@ -28,7 +28,7 @@ export const httpStatusUnauthorized = 401;
 type MaybePromise<T> = T | Promise<T>;
 
 /** The key name to use in localStorage when synchronizing changes. */
-const storageKeyName = (name: string) => `/replicache/${name}`;
+const storageKeyName = (name: string) => `/replicache/root/${name}`;
 
 export default class Replicache implements ReadTransaction {
   private readonly _batchURL: string;

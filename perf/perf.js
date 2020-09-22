@@ -1,0 +1,135 @@
+import Replicache from '../out/mod.js';
+
+const value = 'x'.repeat(1024);
+
+function deleteDatabase(name) {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(name);
+    req.onsuccess = resolve;
+    req.onerror = reject;
+  });
+}
+
+let counter = 0;
+async function makeRep() {
+  const name = `bench${counter++}`;
+  await deleteDatabase(name);
+  return new Replicache({
+    diffServerURL: '',
+    name,
+    syncInterval: null,
+  });
+}
+
+async function populate(rep, {numKeys}) {
+  const set = rep.register('populate', async (tx, args) => {
+    for (let i = 0; i < numKeys; i++) {
+      await tx.put(`key${i}`, value);
+    }
+  });
+  await set({});
+}
+
+async function benchmarkPopulate(bench, opts) {
+  const rep = await makeRep();
+  const valSize = value.length;
+  if (!opts.clean) {
+    await populate(rep, opts);
+  }
+  bench.reset();
+  bench.setName(
+    `populate ${valSize}x${opts.numKeys} (${opts.clean ? 'clean' : 'dirty'})`,
+  );
+  bench.setSize(opts.numKeys * valSize);
+  await populate(rep, opts);
+}
+
+async function benchmarkScan(bench, opts) {
+  const rep = await makeRep();
+  const valSize = value.length;
+  bench.setName(`scan ${valSize}x${opts.numKeys}`);
+  bench.setSize(opts.numKeys * valSize);
+  await populate(rep, opts);
+  bench.reset();
+  await rep.query(async tx => {
+    let count = 0;
+    for await (const value of tx.scan()) {
+      // use the value to be confident we're not optimizing away.
+      count += value.length;
+    }
+    console.log(count);
+  });
+}
+
+async function benchmark(fn) {
+  const n = 3;
+  const times = [];
+  let sum = 0;
+  let name = String(fn);
+  let size = 0;
+  for (let i = 0; i < n; i++) {
+    let t0 = Date.now();
+    await fn({
+      reset: () => {
+        t0 = Date.now();
+      },
+      setName: n => (name = n),
+      setSize: s => (size = s),
+    });
+    const dur = Date.now() - t0;
+    times.push(dur);
+    sum += dur;
+  }
+
+  times.sort();
+  const median = times[Math.floor(n / 2)];
+  const out = [name, `Median: ${median}`];
+  if (size) {
+    out.push('Throughput: ' + humanSize((size / median) * 1000) + '/s');
+  }
+  log(...out);
+}
+
+async function main() {
+  await benchmark(bench =>
+    benchmarkPopulate(bench, {numKeys: 1000, clean: true}),
+  );
+  await benchmark(bench =>
+    benchmarkPopulate(bench, {numKeys: 1000, clean: false}),
+  );
+  await benchmark(bench => benchmarkScan(bench, {numKeys: 1000}));
+  await benchmark(bench => benchmarkScan(bench, {numKeys: 5000}));
+}
+
+const benchmarks = [
+  bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true}),
+  bench => benchmarkPopulate(bench, {numKeys: 1000, clean: false}),
+  bench => benchmarkScan(bench, {numKeys: 1000}),
+  bench => benchmarkScan(bench, {numKeys: 5000}),
+];
+
+function humanSize(bytes) {
+  if (bytes === 0) {
+    return '0.00 B';
+  }
+  const e = Math.floor(Math.log(bytes) / Math.log(1024));
+  return (bytes / 1024 ** e).toFixed(2) + ' ' + ' KMGTP'[e] + 'B';
+}
+
+const logData = [];
+
+function log(...args) {
+  logData.push(args);
+}
+
+let current = 0;
+async function nextTest() {
+  if (current < benchmarks.length) {
+    logData.length = 0;
+    await benchmark(benchmarks[current++]);
+    return logData;
+  }
+  return null;
+}
+
+window.nextTest = nextTest;

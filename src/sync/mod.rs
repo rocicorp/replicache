@@ -217,7 +217,7 @@ pub async fn maybe_end_sync(
     // TODO put sync_id in the logging context (lc.add_context()).
 
     // Ensure sync head is what the caller thinks it is.
-    let mut dag_write = store.write(lc.clone()).await.map_err(WriteError)?;
+    let mut dag_write = store.write(lc.clone()).await.map_err(OpenWriteTxWriteError)?;
     let dag_read = dag_write.read();
     let sync_head_hash = dag_read
         .get_head(SYNC_HEAD_NAME)
@@ -253,7 +253,7 @@ pub async fn maybe_end_sync(
         .map_err(PendingError)?;
     let sync_head = Commit::from_hash(&sync_head_hash, &dag_read)
         .await
-        .map_err(LoadCommitError)?;
+        .map_err(LoadSyncHeadError)?;
     pending.retain(|c| c.mutation_id() > sync_head.mutation_id());
     // pending() gave us the pending mutations in sync-head-first order whereas
     // caller wants them in the order to replay (lower mutation ids first).
@@ -293,11 +293,11 @@ pub async fn maybe_end_sync(
     dag_write
         .set_head(db::DEFAULT_HEAD_NAME, Some(&sync_head_hash))
         .await
-        .map_err(WriteError)?;
+        .map_err(WriteDefaultHeadError)?;
     dag_write
         .set_head(SYNC_HEAD_NAME, None)
         .await
-        .map_err(WriteError)?;
+        .map_err(WriteSyncHeadError)?;
     dag_write.commit().await.map_err(CommitError)?;
     Ok(MaybeEndSyncResponse {
         sync_head: sync_head_hash.to_string(),
@@ -312,17 +312,19 @@ pub enum MaybeEndSyncError {
     GetSyncHeadError(dag::Error),
     InternalArgsJsonError(DeJsonErr),
     InternalArgsUtf8Error(std::str::Utf8Error),
+    InternalProgrammerError(String),
     InvalidArgs(std::str::Utf8Error),
-    LoadCommitError(db::FromHashError),
+    LoadSyncHeadError(db::FromHashError),
     MissingMainHead,
     MissingSyncHead,
     NoBaseSnapshot(db::BaseSnapshotError),
+    OpenWriteTxWriteError(dag::Error),
     OverlappingSyncsJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
     PendingError(db::PendingError),
-    InternalProgrammerError(String),
     ReadError(dag::Error),
     SyncSnapshotWithNoBasis,
-    WriteError(dag::Error),
+    WriteDefaultHeadError(dag::Error),
+    WriteSyncHeadError(dag::Error),
     WrongSyncHeadJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
 }
 

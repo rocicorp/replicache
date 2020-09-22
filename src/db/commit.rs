@@ -210,13 +210,20 @@ impl Commit {
         Ok(commit)
     }
 
-    // Vector returned in chain-head-first order.
-    pub async fn pending(
-        hash: &str,
+    // Returns the set of local commits from the given from_commit_hash back to but not
+    // including its base snapshot. If from_commit_hash is a snapshot, the returned vector
+    // will be empty. When, as typical, from_commit_hash is the head of the default chain
+    // then the returned commits are the set of pending commits, ie the set of local commits
+    // that have not yet been pushed to the data layer.
+    //
+    // The vector of commits is returned in reverse chain order, that is, starting
+    // with the commit with hash from_commit_hash and walking backwards.
+    pub async fn local_mutations(
+        from_commit_hash: &str,
         dag_read: &dag::Read<'_>,
     ) -> Result<Vec<Commit>, PendingError> {
         use PendingError::*;
-        let mut commit = Commit::from_hash(hash, dag_read)
+        let mut commit = Commit::from_hash(from_commit_hash, dag_read)
             .await
             .map_err(NoSuchCommit)?;
         let mut commits = Vec::new();
@@ -449,7 +456,7 @@ mod tests {
     }
 
     #[async_std::test]
-    async fn test_pending() {
+    async fn test_local_mutations() {
         let store = dag::Store::new(Box::new(MemStore::new()));
         let mut chain: Chain = vec![];
 
@@ -457,7 +464,7 @@ mod tests {
         let genesis_hash = chain[0].chunk().hash();
         assert_eq!(
             0,
-            Commit::pending(
+            Commit::local_mutations(
                 genesis_hash,
                 &store.read(LogContext::new()).await.unwrap().read()
             )
@@ -469,7 +476,7 @@ mod tests {
         add_local(&mut chain, &store).await;
         add_local(&mut chain, &store).await;
         let head_hash = chain[2].chunk().hash();
-        let commits = Commit::pending(
+        let commits = Commit::local_mutations(
             head_hash,
             &store.read(LogContext::new()).await.unwrap().read(),
         )

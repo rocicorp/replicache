@@ -61,7 +61,7 @@ pub async fn begin_sync(
     let base_snapshot = Commit::base_snapshot(&main_head_hash, &dag_read.read())
         .await
         .map_err(NoBaseSnapshot)?;
-    let mut pending = Commit::pending(&main_head_hash, &dag_read.read())
+    let mut pending = Commit::local_mutations(&main_head_hash, &dag_read.read())
         .await
         .map_err(InternalGetPendingCommitsError)?;
     // Commit::pending gave us commits in head-first order; the bindings
@@ -248,7 +248,7 @@ pub async fn maybe_end_sync(
 
     // Collect pending commits from the main chain and determine which
     // of them if any need to be replayed.
-    let mut pending = Commit::pending(&main_head_hash, &dag_read)
+    let mut pending = Commit::local_mutations(&main_head_hash, &dag_read)
         .await
         .map_err(PendingError)?;
     let sync_head = Commit::from_hash(&sync_head_hash, &dag_read)

@@ -3,8 +3,6 @@ name: Perf test Minimal setup
 on:
   push:
     branches: [master]
-  pull_request:
-    branches: [master]
 
 jobs:
   benchmark:
@@ -13,6 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v1
+        with:
+          node-version: 14.x
       - uses: microsoft/playwright-github-action@v1
 
       - run: npm ci
@@ -38,4 +38,8 @@ jobs:
           external-data-json-path: ./cache/benchmark-data.json
           # Workflow will fail when an alert happens
           fail-on-alert: true
+          github-token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '130%'
+          comment-on-alert: true
       # Upload the updated cache file for the next job by actions/cache

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-check
 
-/* global Promise indexedDB console window */
+/* eslint-env browser, es2020 */
 
 import Replicache from '../out/mod.js';
 
@@ -92,6 +92,8 @@ async function benchmark(fn) {
     times.push(dur);
     sum += dur;
   }
+
+  console.log(sum);
 
   times.sort();
 

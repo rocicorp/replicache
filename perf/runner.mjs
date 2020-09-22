@@ -1,5 +1,6 @@
 // @ts-check
-/* eslint-disable @typescript-eslint/ban-ts-comment */
+
+/* eslint-env node, es2020 */
 
 import playwright from 'playwright';
 
@@ -12,7 +13,6 @@ async function main() {
   const port = await getPort();
   const server = await startDevServer({
     config: {
-      // eslint-disable-next-line no-undef
       rootDir: process.cwd(),
       port,
       watch: false,
@@ -26,14 +26,12 @@ async function main() {
   const browser = await playwright[browserType].launch();
   const context = await browser.newContext();
   const page = await context.newPage();
-  await page.goto(`http://localhost:${port}/perf/`, {waitUntil: 'load'});
-  console.log(await page.innerHTML('html'));
+  await page.goto(`http://localhost:${port}/perf/`);
   logLine('Running benchmarks please wait...');
 
+  await page.waitForFunction('nextTest');
   for (;;) {
-    // @ts-ignore
-    // eslint-disable-next-line no-undef
-    const testResult = await page.evaluate(() => nextTest());
+    const testResult = await page.evaluate('nextTest()');
     if (testResult === null) {
       break;
     }

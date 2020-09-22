@@ -52,7 +52,7 @@ impl fmt::Display for Checksum {
 
 impl fmt::Debug for Checksum {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:08x}", self.v)
+        fmt::Display::fmt(self, f)
     }
 }
 

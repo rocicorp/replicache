@@ -18,6 +18,7 @@ jobs:
       - uses: microsoft/playwright-github-action@v1
 
       - run: npm ci
+      - run: npm run build --if-present
 
       # Run benchmar and stores the output to a file
       - name: Run benchmark

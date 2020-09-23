@@ -2,7 +2,6 @@ use super::*;
 use crate::dag;
 use crate::db;
 use crate::db::test_helpers::*;
-use crate::util::nanoserde::any::Any;
 use crate::util::rlog;
 use str_macro::str;
 
@@ -65,7 +64,7 @@ pub async fn add_sync_snapshot<'a>(
     let w = db::Write::new_local(
         Whence::Hash(sync_snapshot_hash),
         str!(lm.mutator_name()),
-        Any::deserialize_json(std::str::from_utf8(lm.mutator_args_json()).unwrap()).unwrap(),
+        serde_json::from_slice(lm.mutator_args_json()).unwrap(),
         Some(str!(rebased_original.chunk().hash())),
         store.write(lc.clone()).await.unwrap(),
     )

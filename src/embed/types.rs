@@ -1,96 +1,96 @@
-#![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
+#![allow(clippy::redundant_pattern_matching)] // For derive(Deserialize).
 
 use crate::db;
 use crate::prolly;
-use crate::util::nanoserde::any;
-use nanoserde::{DeJson, SerJson};
+use serde::{Deserialize, Serialize};
 
-#[derive(DeJson, SerJson)]
+#[derive(Deserialize, Serialize)]
 pub struct OpenTransactionRequest {
-    pub name: Option<String>,   // not present in read transactions
-    pub args: Option<any::Any>, // not present in read transactions
-    #[nserde(rename = "rebaseOpts")]
-    #[nserde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,            // not present in read transactions
+    pub args: Option<serde_json::Value>, // not present in read transactions
+    #[serde(rename = "rebaseOpts")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rebase_opts: Option<RebaseOpts>,
 }
 
-#[derive(Clone, DeJson, SerJson)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct RebaseOpts {
     pub basis: String,
-    #[nserde(rename = "original")]
+    #[serde(rename = "original")]
     pub original_hash: String,
 }
 
-#[derive(Debug, DeJson, SerJson)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct OpenTransactionResponse {
-    #[nserde(rename = "transactionId")]
+    #[serde(rename = "transactionId")]
     pub transaction_id: u32,
 }
 
-#[derive(DeJson)]
+#[derive(Deserialize)]
 pub struct CommitTransactionRequest {
-    #[nserde(rename = "transactionId")]
+    #[serde(rename = "transactionId")]
     pub transaction_id: u32,
 }
 
-#[derive(DeJson, SerJson)]
+#[derive(Deserialize, Serialize)]
 pub struct CommitTransactionResponse {
     // Note: the field is named "ref" in go but "ref" is a reserved word in rust.
-    #[nserde(rename = "ref")]
+    #[serde(rename = "ref")]
     pub hash: String,
     // TODO I think retry_commit was required to accommodate noms' optimistic locking
     // and we can do away with it in repc once compatability is no longer an issue.
-    #[nserde(rename = "retryCommit")]
+    #[serde(rename = "retryCommit")]
     pub retry_commit: bool,
 }
 
-#[derive(DeJson)]
+#[derive(Deserialize)]
 pub struct CloseTransactionRequest {
-    #[nserde(rename = "transactionId")]
+    #[serde(rename = "transactionId")]
     pub transaction_id: u32,
 }
 
-#[derive(SerJson)]
+#[derive(Serialize)]
 pub struct CloseTransactionResponse {}
 
-#[derive(Debug, DeJson, SerJson)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GetRootRequest {
-    #[nserde(rename = "headName")]
-    #[nserde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "headName")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub head_name: Option<String>,
 }
 
-#[derive(DeJson, SerJson)]
+#[derive(Deserialize, Serialize)]
 pub struct GetRootResponse {
     pub root: String,
 }
 
-#[derive(DeJson)]
+#[derive(Deserialize)]
 pub struct HasRequest {
-    #[nserde(rename = "transactionId")]
+    #[serde(rename = "transactionId")]
     pub transaction_id: u32,
     pub key: String,
 }
 
-#[derive(DeJson, SerJson)]
+#[derive(Deserialize, Serialize)]
 pub struct HasResponse {
     pub has: bool,
 }
 
-#[derive(DeJson)]
+#[derive(Deserialize)]
 pub struct GetRequest {
-    #[nserde(rename = "transactionId")]
+    #[serde(rename = "transactionId")]
     pub transaction_id: u32,
     pub key: String,
 }
 
-#[derive(DeJson, SerJson)]
+#[derive(Deserialize, Serialize)]
 pub struct GetResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
     pub has: bool, // Second to avoid trailing comma if value == None.
 }
 
-#[derive(DeJson)]
+#[derive(Deserialize)]
 pub struct ScanKey {
     value: String,
     exclusive: bool,
@@ -105,9 +105,9 @@ impl<'a> From<&'a ScanKey> for db::ScanKey<'a> {
     }
 }
 
-#[derive(DeJson)]
+#[derive(Deserialize)]
 pub struct ScanBound {
-    #[nserde(rename = "id")]
+    #[serde(rename = "id")]
     key: Option<ScanKey>,
     index: Option<u64>,
 }
@@ -121,7 +121,7 @@ impl<'a> From<&'a ScanBound> for db::ScanBound<'a> {
     }
 }
 
-#[derive(DeJson)]
+#[derive(Deserialize)]
 pub struct ScanOptions {
     prefix: Option<String>,
     start: Option<ScanBound>,
@@ -138,14 +138,14 @@ impl<'a> From<&'a ScanOptions> for db::ScanOptions<'a> {
     }
 }
 
-#[derive(DeJson)]
+#[derive(Deserialize)]
 pub struct ScanRequest {
-    #[nserde(rename = "transactionId")]
+    #[serde(rename = "transactionId")]
     pub transaction_id: u32,
     pub opts: ScanOptions,
 }
 
-#[derive(SerJson)]
+#[derive(Serialize)]
 pub struct ScanItem {
     key: String,
     value: String,
@@ -167,31 +167,31 @@ impl<'a> std::convert::TryFrom<prolly::Entry<'a>> for ScanItem {
     type Error = FromProllyEntryError;
 }
 
-#[derive(SerJson)]
+#[derive(Serialize)]
 pub struct ScanResponse {
     pub items: Vec<ScanItem>,
 }
 
-#[derive(DeJson)]
+#[derive(Deserialize)]
 pub struct PutRequest {
-    #[nserde(rename = "transactionId")]
+    #[serde(rename = "transactionId")]
     pub transaction_id: u32,
     pub key: String,
     pub value: String,
 }
 
-#[derive(DeJson, SerJson)]
+#[derive(Deserialize, Serialize)]
 pub struct PutResponse {}
 
-#[derive(DeJson)]
+#[derive(Deserialize)]
 pub struct DelRequest {
-    #[nserde(rename = "transactionId")]
+    #[serde(rename = "transactionId")]
     pub transaction_id: u32,
     pub key: String,
 }
 
-#[derive(DeJson, SerJson)]
+#[derive(Deserialize, Serialize)]
 pub struct DelResponse {
-    #[nserde(rename = "ok")]
+    #[serde(rename = "ok")]
     pub had: bool,
 }

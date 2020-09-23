@@ -4,7 +4,6 @@ use crate::dag;
 use crate::db;
 use crate::fetch;
 use crate::sync;
-use crate::util::nanoserde::any;
 use crate::util::rlog;
 use crate::util::rlog::LogContext;
 use crate::util::to_debug;
@@ -13,7 +12,6 @@ use async_std::stream::StreamExt;
 use async_std::sync::{Receiver, RecvError, RwLock};
 use futures::stream::futures_unordered::FuturesUnordered;
 use log::warn;
-use nanoserde::{DeJson, SerJson};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -37,8 +35,8 @@ impl<'a> Transaction<'a> {
 
 type TxnMap<'a> = RwLock<HashMap<u32, RwLock<Transaction<'a>>>>;
 
-fn deserialize<T: DeJson>(data: &str) -> Result<T, String> {
-    match DeJson::deserialize_json(data) {
+fn deserialize<'a, T: serde::Deserialize<'a>>(data: &'a str) -> Result<T, String> {
+    match serde_json::from_str(data) {
         Ok(v) => Ok(v),
         Err(e) => Err(format!("InvalidJson({})", e)),
     }
@@ -134,8 +132,8 @@ pub async fn process(store: dag::Store, rx: Receiver<Request>, client_id: String
 
 async fn execute_in_txn<T, S, F>(func: F, txns: &TxnMap<'_>, req: Request)
 where
-    T: DeJson + TransactionRequest,
-    S: SerJson,
+    T: serde::de::DeserializeOwned + TransactionRequest,
+    S: serde::Serialize,
     F: for<'r, 's> AsyncFn3<&'r RwLock<Transaction<'s>>, T, LogContext, Output = Result<S, String>>,
 {
     let request: T = match deserialize(&req.data) {
@@ -158,13 +156,17 @@ where
         }
     };
 
-    req.response
-        .send(
-            func.call(txn, request, lc)
-                .await
-                .map(|v| SerJson::serialize_json(&v)),
-        )
-        .await;
+    let result = func
+        .call(txn, request, lc)
+        .await
+        .map(|v| serde_json::to_string(&v));
+    // When https://doc.rust-lang.org/std/result/enum.Result.html lands we can remove this.
+    let result = match result {
+        Ok(Ok(v)) => Ok(v),
+        Ok(Err(v)) => Err(to_debug(v)),
+        Err(v) => Err(v),
+    };
+    req.response.send(result).await
 }
 
 struct Context<'a, 'b> {
@@ -192,8 +194,8 @@ impl<'a, 'b> Context<'a, 'b> {
 
 async fn execute<'a, 'b, T, S, F, E>(ctx: Context<'a, 'b>, func: F, req: Request)
 where
-    T: DeJson,
-    S: SerJson,
+    T: serde::de::DeserializeOwned,
+    S: serde::Serialize,
     E: std::fmt::Debug,
     F: AsyncFn2<Context<'a, 'b>, T, Output = Result<S, E>>,
 {
@@ -205,8 +207,13 @@ where
     let result = func
         .call(ctx, request)
         .await
-        .map(|v| SerJson::serialize_json(&v))
-        .map_err(to_debug);
+        .map(|v| serde_json::to_string(&v));
+    // When https://doc.rust-lang.org/std/result/enum.Result.html lands we can remove this.
+    let result = match result {
+        Ok(Ok(v)) => Ok(v),
+        Ok(Err(v)) => Err(to_debug(v)),
+        Err(v) => Err(to_debug(v)),
+    };
 
     req.response.send(result).await
 }
@@ -300,7 +307,7 @@ async fn validate_rebase<'a>(
     opts: &'a RebaseOpts,
     dag_read: dag::Read<'_>,
     mutator_name: &'a str,
-    _args: &'a any::Any,
+    _args: &'a serde_json::Value,
 ) -> Result<(), OpenTransactionError> {
     use OpenTransactionError::*;
 
@@ -590,7 +597,6 @@ mod tests {
     use crate::db::test_helpers::*;
     use crate::kv::memstore::MemStore;
     use crate::sync::test_helpers::*;
-    use crate::util::nanoserde::any::Any;
     use crate::util::rlog::LogContext;
     use str_macro::str;
 
@@ -607,15 +613,15 @@ mod tests {
                 add_sync_snapshot(&mut main_chain, &store, LogContext::new(), false).await;
             let original = &main_chain[1];
             let meta = original.meta();
-            let (original_hash, original_name, original_args) = match meta.typed() {
-                db::MetaTyped::Local(lm) => (
-                    str!(original.chunk().hash()),
-                    str!(lm.mutator_name()),
-                    Any::deserialize_json(std::str::from_utf8(lm.mutator_args_json()).unwrap())
-                        .unwrap(),
-                ),
-                _ => panic!("not local"),
-            };
+            let (original_hash, original_name, original_args): (String, String, serde_json::Value) =
+                match meta.typed() {
+                    db::MetaTyped::Local(lm) => (
+                        str!(original.chunk().hash()),
+                        str!(lm.mutator_name()),
+                        serde_json::from_slice(lm.mutator_args_json()).unwrap(),
+                    ),
+                    _ => panic!("not local"),
+                };
             drop(meta);
             drop(original);
 
@@ -660,8 +666,7 @@ mod tests {
                 db::MetaTyped::Local(lm) => (
                     str!(new_local.chunk().hash()),
                     str!(lm.mutator_name()),
-                    Any::deserialize_json(std::str::from_utf8(lm.mutator_args_json()).unwrap())
-                        .unwrap(),
+                    serde_json::from_slice(lm.mutator_args_json()).unwrap(),
                 ),
                 _ => panic!("not local"),
             };

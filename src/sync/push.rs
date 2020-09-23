@@ -1,32 +1,28 @@
-#![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
-
 use crate::db;
 use crate::fetch;
 use crate::fetch::errors::FetchError;
-use crate::util::nanoserde::any;
 use async_trait::async_trait;
-use nanoserde::{DeJson, DeJsonErr, SerJson};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, DeJson, PartialEq, SerJson)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct BatchPushRequest {
-    #[nserde(rename = "clientID")]
+    #[serde(rename = "clientID")]
     pub client_id: String,
     pub mutations: Vec<Mutation>,
 }
 
-#[derive(Debug, DeJson, PartialEq, SerJson)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Mutation {
     pub id: u64,
     pub name: String,
-    pub args: any::Any,
+    pub args: serde_json::Value,
 }
 
 impl std::convert::From<db::LocalMeta<'_>> for Mutation {
     fn from(lm: db::LocalMeta<'_>) -> Self {
-        // TODO OMG phritz wrote not one but two unwrap()s!
+        // TODO clean unwraps:
         // See https://github.com/rocicorp/repc/issues/139
-        let args = any::Any::deserialize_json(std::str::from_utf8(lm.mutator_args_json()).unwrap())
-            .unwrap();
+        let args = serde_json::from_slice(lm.mutator_args_json()).unwrap();
         Mutation {
             id: lm.mutation_id(),
             name: lm.mutator_name().to_string(),
@@ -35,7 +31,7 @@ impl std::convert::From<db::LocalMeta<'_>> for Mutation {
     }
 }
 
-#[derive(Clone, Debug, DeJson, PartialEq, SerJson)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct BatchPushResponse {
     // TODO: MutationInfos []MutationInfo `json:"mutationInfos,omitempty"`
 }
@@ -86,7 +82,7 @@ impl Pusher for FetchPusher<'_> {
             return Err(PushError::FetchNotOk(http_resp.status()));
         }
         let push_resp: BatchPushResponse =
-            DeJson::deserialize_json(http_resp.body()).map_err(InvalidResponse)?;
+            serde_json::from_str(&http_resp.body()).map_err(InvalidResponse)?;
         Ok(push_resp)
     }
 }
@@ -98,7 +94,7 @@ fn new_push_http_request(
     sync_id: &str,
 ) -> Result<http::Request<String>, PushError> {
     use PushError::*;
-    let body = SerJson::serialize_json(push_req);
+    let body = serde_json::to_string(push_req).map_err(SerializePushError)?;
     let builder = http::request::Builder::new();
     let http_req = builder
         .method("POST")
@@ -116,7 +112,8 @@ pub enum PushError {
     FetchFailed(FetchError),
     FetchNotOk(http::StatusCode),
     InvalidRequest(http::Error),
-    InvalidResponse(DeJsonErr),
+    InvalidResponse(serde_json::error::Error),
+    SerializePushError(serde_json::error::Error),
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -136,16 +133,16 @@ mod tests {
                 mutations: vec![Mutation {
                     id: 1,
                     name: "mutator_name".to_string(),
-                    args: any::Any::Bool(true),
+                    args: serde_json::Value::Bool(true),
                 },
                 Mutation {
                     id: 2,
                     name: "some_other_mutator_name".to_string(),
-                    args: any::Any::Null,
+                    args: serde_json::Value::Null,
                 }],
             };
             // EXP_BODY must be 'static to be used in HTTP handler closure.
-            static ref EXP_BODY: String = SerJson::serialize_json(&*PUSH_REQ);
+            static ref EXP_BODY: String = serde_json::to_string(&*PUSH_REQ).unwrap();
         }
         let batch_push_auth = "batch-push-auth";
         let sync_id = "TODO";
@@ -177,7 +174,7 @@ mod tests {
                 name: "invalid response",
                 resp_status: 200,
                 resp_body: r#"not json"#,
-                exp_err: Some("Json Deserialize error"),
+                exp_err: Some("\"expected ident\", line: 1, column: 2"),
                 exp_resp: None,
             },
         ];

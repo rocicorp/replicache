@@ -1,4 +1,3 @@
-pub mod nanoserde;
 #[macro_use]
 pub mod rlog;
 mod to_debug;

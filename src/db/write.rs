@@ -2,8 +2,6 @@ use super::{commit, read_commit, ReadCommitError, Whence};
 use crate::checksum::Checksum;
 use crate::dag;
 use crate::prolly;
-use crate::util::nanoserde::any::Any;
-use nanoserde::SerJson;
 use std::str::FromStr;
 use str_macro::str;
 
@@ -15,7 +13,7 @@ enum Meta {
 
 struct LocalMeta {
     mutator_name: String,
-    mutator_args: Any,
+    mutator_args: serde_json::Value,
     mutation_id: u64,
     original_hash: Option<String>,
 }
@@ -66,7 +64,7 @@ impl<'a> Write<'a> {
     pub async fn new_local(
         whence: Whence,
         mutator_name: String,
-        mutator_args: Any,
+        mutator_args: serde_json::Value,
         original_hash: Option<String>,
         dag_write: dag::Write<'a>,
     ) -> Result<Write<'a>, ReadCommitError> {
@@ -177,7 +175,7 @@ impl<'a> Write<'a> {
                     self.checksum,
                     mutation_id,
                     &mutator_name,
-                    mutator_args.serialize_json().as_bytes(),
+                    &serde_json::to_vec(&mutator_args).map_err(SerializeArgsError)?,
                     original_hash.as_deref(),
                     &value_hash,
                 )
@@ -221,6 +219,7 @@ pub enum CommitError {
     DagSetHeadError(dag::Error),
     DagCommitError(dag::Error),
     FlushError(prolly::FlushError),
+    SerializeArgsError(serde_json::error::Error),
 }
 
 #[cfg(test)]
@@ -244,7 +243,7 @@ mod tests {
         let mut w = Write::new_local(
             Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
             str!("mutator_name"),
-            Any::Array(vec![]),
+            serde_json::Value::Array(vec![]),
             None,
             ds.write(LogContext::new()).await.unwrap(),
         )
@@ -258,7 +257,7 @@ mod tests {
         let w = Write::new_local(
             Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
             str!("mutator_name"),
-            Any::Null,
+            serde_json::Value::Null,
             None,
             ds.write(LogContext::new()).await.unwrap(),
         )
@@ -282,7 +281,7 @@ mod tests {
         let mut w = Write::new_local(
             Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
             str!("mutator_name"),
-            Any::Array(vec![]),
+            serde_json::Value::Array(vec![]),
             None,
             ds.write(LogContext::new()).await.unwrap(),
         )

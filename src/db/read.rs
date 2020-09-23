@@ -92,7 +92,6 @@ mod tests {
     use crate::db;
     use crate::db::write::init_db;
     use crate::kv::memstore::MemStore;
-    use crate::util::nanoserde::any::Any;
     use crate::util::rlog::LogContext;
     use str_macro::str;
 
@@ -109,7 +108,7 @@ mod tests {
         let mut w = write::Write::new_local(
             Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
             str!("mutator_name"),
-            Any::Array(vec![]),
+            serde_json::Value::Array(vec![]),
             None,
             ds.write(LogContext::new()).await.unwrap(),
         )

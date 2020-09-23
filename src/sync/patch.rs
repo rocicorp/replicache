@@ -1,17 +1,17 @@
 use crate::db;
-use nanoserde::DeJson;
+use serde::Deserialize;
 use std::default::Default;
 
 const OP_ADD: &str = "add";
 const OP_REMOVE: &str = "remove";
 const OP_REPLACE: &str = "replace";
 
-#[derive(Clone, Debug, Default, DeJson, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 pub struct Operation {
     pub op: String,
     pub path: String,
-    #[nserde(rename = "valueString")]
-    #[nserde(default)]
+    #[serde(rename = "valueString")]
+    #[serde(default)]
     pub value_string: String,
 }
 
@@ -189,7 +189,7 @@ mod tests {
             let ops: Vec<Operation> = c
                 .patch
                 .iter()
-                .map(|o| DeJson::deserialize_json(o).unwrap())
+                .map(|o| serde_json::from_str(&o).unwrap())
                 .collect();
             let result = apply(&mut db_write, &ops);
             match c.exp_err {

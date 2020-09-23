@@ -3,8 +3,8 @@ use super::write::*;
 use super::*;
 use crate::dag;
 use crate::db;
-use crate::util::nanoserde::any::Any;
 use crate::util::rlog::LogContext;
+use serde_json::json;
 use str_macro::str;
 
 pub type Chain = Vec<Commit>;
@@ -34,7 +34,7 @@ pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut 
     let mut w = Write::new_local(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
         format!("mutator_name_{}", i),
-        Any::Array(vec![Any::U64(i)]),
+        json!([i]),
         None,
         store.write(LogContext::new()).await.unwrap(),
     )

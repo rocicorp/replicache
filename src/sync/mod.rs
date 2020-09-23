@@ -1,4 +1,4 @@
-#![allow(clippy::redundant_pattern_matching)] // For derive(DeJson).
+#![allow(clippy::redundant_pattern_matching)] // For derive(Deserialize).
 
 mod patch;
 pub mod push;
@@ -13,11 +13,10 @@ use crate::db;
 use crate::db::{Commit, MetaTyped, Whence, DEFAULT_HEAD_NAME};
 use crate::fetch;
 use crate::fetch::errors::FetchError;
-use crate::util::nanoserde::any;
 use crate::util::rlog;
 use crate::util::rlog::LogContext;
 use async_trait::async_trait;
-use nanoserde::{DeJson, DeJsonErr, SerJson};
+use serde::{Deserialize, Serialize};
 use std::default::Default;
 use std::fmt::Debug;
 use std::str::FromStr;
@@ -259,11 +258,8 @@ pub async fn maybe_end_sync(
             let (name, args) = match c.meta().typed() {
                 MetaTyped::Local(lm) => (
                     lm.mutator_name().to_string(),
-                    any::Any::deserialize_json(
-                        std::str::from_utf8(lm.mutator_args_json())
-                            .map_err(InternalArgsUtf8Error)?,
-                    )
-                    .map_err(InternalArgsJsonError)?,
+                    serde_json::from_slice(lm.mutator_args_json())
+                        .map_err(InternalArgsJsonError)?,
                 ),
                 _ => {
                     return Err(InternalProgrammerError(
@@ -307,7 +303,7 @@ pub enum MaybeEndSyncError {
     CommitError(dag::Error),
     GetMainHeadError(dag::Error),
     GetSyncHeadError(dag::Error),
-    InternalArgsJsonError(DeJsonErr),
+    InternalArgsJsonError(serde_json::error::Error),
     InternalArgsUtf8Error(std::str::Utf8Error),
     InternalProgrammerError(String),
     InvalidArgs(std::str::Utf8Error),
@@ -325,29 +321,29 @@ pub enum MaybeEndSyncError {
     WrongSyncHeadJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
 }
 
-#[derive(Debug, Default, PartialEq, SerJson)]
+#[derive(Debug, Default, PartialEq, Serialize)]
 pub struct PullRequest {
-    #[nserde(rename = "clientViewAuth")]
+    #[serde(rename = "clientViewAuth")]
     pub client_view_auth: String,
-    #[nserde(rename = "clientID")]
+    #[serde(rename = "clientID")]
     pub client_id: String,
-    #[nserde(rename = "baseStateID")]
+    #[serde(rename = "baseStateID")]
     pub base_state_id: String,
-    #[nserde(rename = "checksum")]
+    #[serde(rename = "checksum")]
     pub checksum: String,
     pub version: u32,
 }
 
-#[derive(Clone, Debug, Default, DeJson, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 pub struct PullResponse {
-    #[nserde(rename = "stateID")]
+    #[serde(rename = "stateID")]
     #[allow(dead_code)]
     state_id: String,
-    #[nserde(rename = "lastMutationID")]
+    #[serde(rename = "lastMutationID")]
     #[allow(dead_code)]
     last_mutation_id: u64,
     patch: Vec<patch::Operation>,
-    #[nserde(rename = "checksum")]
+    #[serde(rename = "checksum")]
     #[allow(dead_code)]
     checksum: String,
     // TODO ClientViewInfo ClientViewInfo `json:"clientViewInfo"`
@@ -395,7 +391,7 @@ impl Puller for FetchPuller<'_> {
             return Err(PullError::FetchNotOk(http_resp.status()));
         }
         let pull_resp: PullResponse =
-            DeJson::deserialize_json(http_resp.body()).map_err(InvalidResponse)?;
+            serde_json::from_str(&http_resp.body()).map_err(InvalidResponse)?;
         Ok(pull_resp)
     }
 }
@@ -408,7 +404,7 @@ pub fn new_pull_http_request(
     sync_id: &str,
 ) -> Result<http::Request<String>, PullError> {
     use PullError::*;
-    let body = SerJson::serialize_json(pull_req);
+    let body = serde_json::to_string(pull_req).map_err(SerializeRequestError)?;
     let builder = http::request::Builder::new();
     let http_req = builder
         .method("POST")
@@ -426,7 +422,8 @@ pub enum PullError {
     FetchFailed(FetchError),
     FetchNotOk(http::StatusCode),
     InvalidRequest(http::Error),
-    InvalidResponse(DeJsonErr),
+    InvalidResponse(serde_json::error::Error),
+    SerializeRequestError(serde_json::error::Error),
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -439,6 +436,7 @@ mod tests {
     use crate::util::rlog::LogContext;
     use crate::util::to_debug;
     use async_std::net::TcpListener;
+    use serde_json::json;
     use std::clone::Clone;
     use str_macro::str;
     use tide::{Body, Response};
@@ -542,12 +540,12 @@ mod tests {
                         push::Mutation {
                             id: 2,
                             name: "mutator_name_2".to_string(),
-                            args: any::Any::Array(vec![any::Any::U64(2)]),
+                            args: json!([2]),
                         },
                         push::Mutation {
                             id: 3,
                             name: "mutator_name_3".to_string(),
-                            args: any::Any::Array(vec![any::Any::U64(3)]),
+                            args: json!([3]),
                         },
                     ],
                 }),
@@ -579,12 +577,12 @@ mod tests {
                         push::Mutation {
                             id: 2,
                             name: "mutator_name_2".to_string(),
-                            args: any::Any::Array(vec![any::Any::U64(2)]),
+                            args: json!([2]),
                         },
                         push::Mutation {
                             id: 3,
                             name: "mutator_name_3".to_string(),
-                            args: any::Any::Array(vec![any::Any::U64(3)]),
+                            args: json!([3]),
                         },
                     ],
                 }),
@@ -845,7 +843,7 @@ mod tests {
         // but pull takes &self so we can't move out of result if we did.
         // Cloning and returning result would work except for that our error
         // enums contain values that are not cloneable, eg http::Status and
-        // DeJSONErr. (Or, I guess we could make pull take &mut self as another
+        // DeserializeErr. (Or, I guess we could make pull take &mut self as another
         // solution, so long as all contained errors are Send. I think.)
         resp: Option<push::BatchPushResponse>,
         err: Option<String>,
@@ -895,7 +893,7 @@ mod tests {
         // but pull takes &self so we can't move out of result if we did.
         // Cloning and returning result would work except for that our error
         // enums contain values that are not cloneable, eg http::Status and
-        // DeJSONErr. (Or, I guess we could make pull take &mut self as another
+        // DeserializeErr. (Or, I guess we could make pull take &mut self as another
         // solution, so long as all contained errors are Send. I think.)
         resp: Option<PullResponse>,
         err: Option<String>,
@@ -932,8 +930,6 @@ mod tests {
 
     #[async_std::test]
     async fn test_maybe_end_sync() {
-        use crate::util::nanoserde::any;
-
         struct Case<'a> {
             pub name: &'a str,
             pub num_pending: usize,
@@ -1013,10 +1009,7 @@ mod tests {
                 let (mutator_name, mutator_args) = match original.meta().typed() {
                     db::MetaTyped::Local(lm) => (
                         lm.mutator_name().to_string(),
-                        any::Any::deserialize_json(
-                            std::str::from_utf8(lm.mutator_args_json()).unwrap(),
-                        )
-                        .unwrap(),
+                        serde_json::from_slice(lm.mutator_args_json()).unwrap(),
                     ),
                     _ => panic!("impossible"),
                 };
@@ -1067,10 +1060,8 @@ mod tests {
                                     resp.replay_mutations[i].name
                                 );
                                 let got_args = &resp.replay_mutations[i].args;
-                                let exp_args = any::Any::deserialize_json(
-                                    std::str::from_utf8(lm.mutator_args_json()).unwrap(),
-                                )
-                                .unwrap();
+                                let exp_args: serde_json::Value =
+                                    serde_json::from_slice(lm.mutator_args_json()).unwrap();
                                 assert_eq!(&exp_args, got_args);
                             }
                             _ => panic!("inconceivable"),
@@ -1105,7 +1096,7 @@ mod tests {
                 version: 1,
             };
             // EXP_BODY must be 'static to be used in HTTP handler closure.
-            static ref EXP_BODY: String = SerJson::serialize_json(&*PULL_REQ);
+            static ref EXP_BODY: String = serde_json::to_string(&*PULL_REQ).unwrap();
         }
         let diff_server_auth = "diff-server-auth";
         let sync_id = "TODO";
@@ -1146,7 +1137,7 @@ mod tests {
                 name: "invalid response",
                 resp_status: 200,
                 resp_body: r#"not json"#,
-                exp_err: Some("Json Deserialize error"),
+                exp_err: Some("\"expected ident\", line: 1, column: 2"),
                 exp_resp: None,
             },
         ];

@@ -1,14 +1,12 @@
 #![recursion_limit = "256"]
 
 use futures::join;
-use nanoserde::{DeJson, SerJson};
 use rand::Rng;
 use replicache_client::embed::types::*;
 #[allow(unused_imports)]
 use replicache_client::fetch;
 #[allow(unused_imports)]
 use replicache_client::sync;
-use replicache_client::util::nanoserde::any::Any;
 use replicache_client::util::rlog;
 use replicache_client::util::to_debug;
 use replicache_client::wasm;
@@ -37,10 +35,10 @@ async fn dispatch(db: &str, rpc: &str, data: &str) -> Result<String, String> {
 async fn open_transaction(
     db_name: &str,
     fn_name: Option<String>,
-    args: Option<Any>,
+    args: Option<serde_json::Value>,
     rebase_opts: Option<RebaseOpts>,
 ) -> OpenTransactionResponse {
-    let resp: OpenTransactionResponse = DeJson::deserialize_json(
+    let resp: OpenTransactionResponse = serde_json::from_str(
         &open_transaction_result(db_name, fn_name, args, rebase_opts)
             .await
             .unwrap(),
@@ -52,14 +50,15 @@ async fn open_transaction(
 async fn open_transaction_result(
     db_name: &str,
     fn_name: Option<String>,
-    args: Option<Any>,
+    args: Option<serde_json::Value>,
     rebase_opts: Option<RebaseOpts>,
 ) -> Result<String, String> {
-    let req = SerJson::serialize_json(&OpenTransactionRequest {
+    let req = serde_json::to_string(&OpenTransactionRequest {
         name: fn_name,
         args,
         rebase_opts: rebase_opts,
-    });
+    })
+    .unwrap();
     dispatch(db_name, "openTransaction", &req).await
 }
 
@@ -87,7 +86,7 @@ async fn has(db_name: &str, txn_id: u32, key: &str) -> bool {
     )
     .await
     .unwrap();
-    let response: HasResponse = DeJson::deserialize_json(&result).unwrap();
+    let response: HasResponse = serde_json::from_str(&result).unwrap();
     response.has
 }
 
@@ -99,7 +98,7 @@ async fn get(db_name: &str, txn_id: u32, key: &str) -> Option<String> {
     )
     .await
     .unwrap();
-    let response: GetResponse = DeJson::deserialize_json(&result).unwrap();
+    let response: GetResponse = serde_json::from_str(&result).unwrap();
     match response.has {
         true => Some(response.value.unwrap()),
         false => None,
@@ -143,7 +142,7 @@ async fn del(db_name: &str, txn_id: u32, key: &str) -> bool {
     )
     .await
     .unwrap();
-    let response: DelResponse = DeJson::deserialize_json(&result).unwrap();
+    let response: DelResponse = serde_json::from_str(&result).unwrap();
     response.had
 }
 
@@ -195,14 +194,9 @@ async fn test_drop() {
     assert_eq!(dispatch("db", "open", "").await.unwrap(), "");
     assert_eq!(dispatch("", "debug", "open_dbs").await.unwrap(), "[\"db\"]");
 
-    let txn_id = open_transaction(
-        "db",
-        "foo".to_string().into(),
-        Some(Any::Array(vec![])),
-        None,
-    )
-    .await
-    .transaction_id;
+    let txn_id = open_transaction("db", "foo".to_string().into(), Some(json!([])), None)
+        .await
+        .transaction_id;
     put("db", txn_id, "value", "1").await;
     commit("db", txn_id).await.unwrap();
 
@@ -229,7 +223,7 @@ async fn test_dispatch_concurrency() {
         .expect("performance should be available");
 
     assert_eq!(dispatch(db, "open", "").await.unwrap(), "");
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
     let now_ms = performance.now();
@@ -253,7 +247,7 @@ async fn test_write_concurrency() {
     let db = &random_db();
 
     dispatch(db, "open", "").await.unwrap();
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
     put(db, txn_id, "value", "1").await;
@@ -262,10 +256,9 @@ async fn test_write_concurrency() {
     // TODO(nate): Strengthen test to prove these open waits overlap.
     join!(
         async {
-            let txn_id =
-                open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
-                    .await
-                    .transaction_id;
+            let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+                .await
+                .transaction_id;
             let value = get(db, txn_id, "value")
                 .await
                 .unwrap()
@@ -275,10 +268,9 @@ async fn test_write_concurrency() {
             commit(db, txn_id).await.unwrap();
         },
         async {
-            let txn_id =
-                open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
-                    .await
-                    .transaction_id;
+            let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+                .await
+                .transaction_id;
             let value = get(db, txn_id, "value")
                 .await
                 .unwrap()
@@ -288,7 +280,7 @@ async fn test_write_concurrency() {
             commit(db, txn_id).await.unwrap();
         }
     );
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
     assert_eq!(
@@ -317,15 +309,13 @@ async fn test_get_put_del() {
     // Check request parsing, both missing and unexpected fields.
     assert_eq!(
         dispatch(db, "put", "{}").await.unwrap_err(),
-        "InvalidJson(Json Deserialize error: Key not found transaction_id, line:1 col:3)"
+        "InvalidJson(missing field `transactionId` at line 1 column 2)"
     );
 
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
 
-    // With serde we can use #[serde(deny_unknown_fields)] to parse strictly,
-    // but that's not available with nanoserde.
     assert_eq!(
         dispatch(
             db,
@@ -347,7 +337,7 @@ async fn test_get_put_del() {
     commit(db, txn_id).await.unwrap();
 
     // Open new transaction, and verify write is persistent.
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
     assert_eq!(get(db, txn_id, "Hello").await.unwrap(), "世界");
@@ -360,7 +350,7 @@ async fn test_get_put_del() {
     assert_eq!(get(db, txn_id, "你好").await, Some("world".into()));
 
     commit(db, txn_id).await.unwrap();
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
     assert_eq!(has(db, txn_id, "你好").await, true);
@@ -368,7 +358,7 @@ async fn test_get_put_del() {
     abort(db, txn_id).await;
 
     // Delete a key
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
     assert_eq!(del(db, txn_id, "Hello").await, true);
@@ -376,7 +366,7 @@ async fn test_get_put_del() {
     assert_eq!(del(db, txn_id, "Hello").await, false);
     commit(db, txn_id).await.unwrap();
 
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
     assert_eq!(has(db, txn_id, "Hello").await, false);
@@ -390,7 +380,7 @@ async fn test_scan() {
     let db = &random_db();
 
     dispatch(db, "open", "").await.unwrap();
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
 
@@ -433,7 +423,7 @@ async fn test_get_root() {
         dispatch(db, "getRoot", "{}").await.unwrap(),
         "{\"root\":\"b3l9pgiide3am771eu08kfgg5sprjs2e\"}"
     );
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(Any::Array(vec![])), None)
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
     put(db, txn_id, "foo", "bar").await;

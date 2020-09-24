@@ -114,12 +114,7 @@ pub async fn process(store: dag::Store, rx: Receiver<Request>, client_id: String
                 Ok(req) => {
                     futures.push(connection_future(
                         &rx,
-                        Context::new(
-                            &store,
-                            &txns,
-                            client_id.clone(),
-                            LogContext::new_from_context(req.lc.clone()),
-                        ),
+                        Context::new(&store, &txns, client_id.clone(), req.lc.clone()),
                         Some(req),
                     ));
                 }
@@ -142,9 +137,8 @@ where
     };
 
     let txn_id = request.transaction_id();
-    let mut lc = LogContext::new_from_context(req.lc.clone());
     let txn_id_string = txn_id.to_string();
-    lc.add_context("txid", &txn_id_string);
+    req.lc.add_context("txid", &txn_id_string);
     let txns = txns.read().await;
     let txn = match txns.get(&txn_id) {
         Some(v) => v,
@@ -157,7 +151,7 @@ where
     };
 
     let result = func
-        .call(txn, request, lc)
+        .call(txn, request, req.lc.clone())
         .await
         .map(|v| serde_json::to_string(&v));
     // When https://doc.rust-lang.org/std/result/enum.Result.html lands we can remove this.

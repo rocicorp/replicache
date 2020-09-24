@@ -21,7 +21,7 @@ lazy_static! {
 }
 
 pub struct Request {
-    pub lc: String,
+    pub lc: LogContext,
     db_name: String,
     pub rpc: String,
     pub data: String,
@@ -83,7 +83,7 @@ async fn dispatch_loop(rx: Receiver<Request>) {
 }
 
 pub async fn dispatch(db_name: String, rpc: String, data: String) -> Response {
-    let mut lc = LogContext::new();
+    let lc = LogContext::new();
     let rpc_id = RPC_COUNTER.fetch_add(1, Ordering::Relaxed).to_string();
     lc.add_context("rpc_id", rpc_id.as_str());
     lc.add_context("rpc", &rpc);
@@ -93,7 +93,7 @@ pub async fn dispatch(db_name: String, rpc: String, data: String) -> Response {
 
     let (tx, rx) = channel::<Response>(1);
     let request = Request {
-        lc: lc.context().to_string(),
+        lc: lc.clone(),
         db_name: db_name.clone(),
         rpc: rpc.clone(),
         data,
@@ -134,12 +134,17 @@ async fn do_open(conns: &mut ConnMap, req: &Request) -> Response {
         },
     };
 
-    let lc = LogContext::new_from_context(req.lc.clone());
-    let client_id = init_client_id(kv.as_ref(), lc).await.map_err(to_debug)?;
+    let client_id = init_client_id(kv.as_ref(), req.lc.clone())
+        .await
+        .map_err(to_debug)?;
 
-    let lc = LogContext::new_from_context(req.lc.clone());
     let (tx, rx) = channel::<Request>(1);
-    spawn_local(connection::process(dag::Store::new(kv), rx, client_id, lc));
+    spawn_local(connection::process(
+        dag::Store::new(kv),
+        rx,
+        client_id,
+        req.lc.clone(),
+    ));
     conns.insert(req.db_name.clone(), tx);
     Ok("".into())
 }
@@ -168,7 +173,7 @@ async fn do_drop(_: &mut ConnMap, req: &Request) -> Response {
         #[cfg(not(target_arch = "wasm32"))]
         "mem" => Ok("".into()),
         _ => {
-            IdbStore::drop_store(&req.db_name, LogContext::new_from_context(req.lc.clone()))
+            IdbStore::drop_store(&req.db_name, req.lc.clone())
                 .await
                 .map_err(|e| e.to_string())?;
             Ok("".into())

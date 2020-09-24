@@ -83,7 +83,7 @@
   }
 
   async function benchmark(fn) {
-    const n = 3;
+    const n = 1;
     const times = [];
     let sum = 0;
     let name = String(fn);
@@ -113,6 +113,7 @@
 
   async function main() {
     log(`Running benchmarks please wait...`);
+    /*
     await benchmark(bench =>
       benchmarkPopulate(bench, {numKeys: 1000, clean: true}),
     );
@@ -120,6 +121,7 @@
       benchmarkPopulate(bench, {numKeys: 1000, clean: false}),
     );
     await benchmark(bench => benchmarkScan(bench, {numKeys: 1000}));
+    */
     await benchmark(bench => benchmarkScan(bench, {numKeys: 5000}));
     log('Done!');
   }

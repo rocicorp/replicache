@@ -1,7 +1,7 @@
 import type {JSONValue, ToJSON} from './json.js';
 import type {ScanOptions} from './scan-options.js';
-import init, {dispatch} from './wasm/release/replicache_client.js';
-import type {InitInput, InitOutput} from './wasm/release/replicache_client.js';
+import init, {dispatch} from './wasm/debug/replicache_client.js';
+import type {InitInput, InitOutput} from './wasm/debug/replicache_client.js';
 
 // TODO(repc-switchover): isWasm can go away, but so can this whole
 // type and all the machinery connected to it. Look at the commit

@@ -80,7 +80,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [profile.release]
 codegen-units = 1
 lto = true
-opt-level = "z"  # Optimize for size.
+# Optimize for speeeeed.
+# See https://github.com/rocicorp/repc/pull/198 for details as of time written.
+opt-level = 3
 panic = "abort"
 
 [package.metadata.wasm-pack.profile.release]

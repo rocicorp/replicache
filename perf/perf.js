@@ -102,7 +102,7 @@ async function benchmark(fn) {
   times.sort();
 
   const median = times[Math.floor(n / 2)];
-  const value = humanSize((size / median) * 1000) + '/s';
+  const value = toMB((size / median) * 1000) + '/s';
   return {name, value, median};
 }
 
@@ -113,12 +113,8 @@ const benchmarks = [
   bench => benchmarkScan(bench, {numKeys: 5000}),
 ];
 
-function humanSize(bytes) {
-  if (bytes === 0) {
-    return '0.00 B';
-  }
-  const e = Math.floor(Math.log(bytes) / Math.log(1024));
-  return (bytes / 1024 ** e).toFixed(2) + ' ' + ' KMGTP'[e] + 'B';
+function toMB(bytes) {
+  return (bytes / 2 ** 20).toFixed(2) + ' MB';
 }
 
 let current = 0;

@@ -5,6 +5,14 @@
 
 import Replicache from '../out/mod.js';
 
+const valSize = 1024;
+
+function randomString(len) {
+  var arr = new Uint8Array(len);
+  crypto.getRandomValues(arr);
+  return new TextDecoder('ascii').decode(arr);
+}
+
 const value = 'x'.repeat(1024);
 
 /**
@@ -35,7 +43,7 @@ async function makeRep() {
 async function populate(rep, {numKeys}) {
   const set = rep.register('populate', async tx => {
     for (let i = 0; i < numKeys; i++) {
-      await tx.put(`key${i}`, value);
+      await tx.put(`key${i}`, randomString(valSize));
     }
   });
   await set({});
@@ -43,7 +51,6 @@ async function populate(rep, {numKeys}) {
 
 async function benchmarkPopulate(bench, opts) {
   const rep = await makeRep();
-  const valSize = value.length;
   if (!opts.clean) {
     await populate(rep, opts);
   }
@@ -57,7 +64,6 @@ async function benchmarkPopulate(bench, opts) {
 
 async function benchmarkScan(bench, opts) {
   const rep = await makeRep();
-  const valSize = value.length;
   bench.setName(`scan ${valSize}x${opts.numKeys}`);
   bench.setSize(opts.numKeys * valSize);
   await populate(rep, opts);

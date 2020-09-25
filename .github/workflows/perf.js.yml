@@ -1,0 +1,49 @@
+name: Perf Test
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  benchmark:
+    name: Performance regression check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 14.x
+      - uses: microsoft/playwright-github-action@v1
+
+      - run: npm ci
+      - run: npm run build --if-present
+      - run: git restore --quiet bin/diff-server
+
+      # Run benchmark and stores the output to a file
+      - name: Run benchmark
+        run: node perf/runner.mjs | tee output.txt
+
+      # Download previous benchmark result from cache (if exists)
+      - name: Download previous benchmark data
+        uses: actions/cache@v1
+        with:
+          path: ./cache
+          key: ${{ runner.os }}-benchmark
+
+      # Run `github-action-benchmark` action
+      - name: Store benchmark result
+        uses: rhysd/github-action-benchmark@v1
+        with:
+          # What benchmark tool the output.txt came from
+          tool: 'benchmarkjs'
+          # Where the output from the benchmark tool is stored
+          output-file-path: output.txt
+          # Where the previous data file is stored
+          # external-data-json-path: ./cache/benchmark-data.json
+          # Workflow will fail when an alert happens
+          fail-on-alert: true
+          github-token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
+          gh-pages-branch: perf-data
+          auto-push: true
+          alert-threshold: '130%'
+          comment-on-alert: true

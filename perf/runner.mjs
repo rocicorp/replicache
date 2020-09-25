@@ -8,7 +8,6 @@ import {startDevServer} from '@web/dev-server';
 import getPort from 'get-port';
 
 async function main() {
-  // eslint-disable-next-line no-undef
   const verbose = process.argv.includes('--verbose');
   const port = await getPort();
   const server = await startDevServer({
@@ -48,11 +47,11 @@ main();
 
 /** @param {string} s */
 function logLine(s) {
-  // eslint-disable-next-line no-undef
   process.stdout.write(s + '\n');
 }
 
 // TODO(arv): Use BenchmarkJS instead of our custom runner?
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function formatAsBenchmarkJS({name, value, median}) {
   // Example:
   //   fib(20) x 11,465 ops/sec ±1.12% (91 runs sampled)

@@ -1,0 +1,1 @@
+window.BENCHMARK_DATA = {};

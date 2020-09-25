@@ -78,12 +78,12 @@ async function benchmarkScan(bench, opts) {
 }
 
 async function benchmark(fn) {
-  const n = 3;
+  const runs = 5;
   const times = [];
   let sum = 0;
   let name = String(fn);
   let size = 0;
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < runs; i++) {
     let t0 = Date.now();
     await fn({
       reset: () => {
@@ -101,7 +101,7 @@ async function benchmark(fn) {
 
   times.sort();
 
-  const median = times[Math.floor(n / 2)];
+  const median = times[Math.floor(runs / 2)];
   const value = toMB((size / median) * 1000) + '/s';
   return {name, value, median};
 }

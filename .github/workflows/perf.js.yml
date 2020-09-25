@@ -19,15 +19,17 @@ jobs:
       - run: npm run build --if-present
       - run: git restore --quiet bin/diff-server
 
-      # Run benchmar and stores the output to a file
+      # Run benchmark and stores the output to a file
       - name: Run benchmark
         run: node perf/runner.mjs | tee output.txt
+
       # Download previous benchmark result from cache (if exists)
       - name: Download previous benchmark data
         uses: actions/cache@v1
         with:
           path: ./cache
           key: ${{ runner.os }}-benchmark
+
       # Run `github-action-benchmark` action
       - name: Store benchmark result
         uses: rhysd/github-action-benchmark@v1
@@ -45,4 +47,3 @@ jobs:
           auto-push: true
           alert-threshold: '130%'
           comment-on-alert: true
-      # Upload the updated cache file for the next job by actions/cache

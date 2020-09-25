@@ -13,8 +13,6 @@ function randomString(len) {
   return new TextDecoder('ascii').decode(arr);
 }
 
-const value = 'x'.repeat(1024);
-
 /**
  * @param {string} name
  */

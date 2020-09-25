@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1601067097742,
+  "lastUpdate": 1601068683693,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -45,6 +45,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 38.75,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f6cdb06550c6a6af7e45d5171faa4a2e9bb2bb68",
+          "message": "Benchmark test Again (#113)\n\n* Add performance CI\r\n\r\nhttps://medium.com/@thomaspoignant/ci-build-performance-testing-with-github-action-e6b227097c83\r\nhttps://github.com/marketplace/actions/continuous-benchmark\r\n\r\nWe have a custom runner that uses Playwright. This used `sample/perf` as a\r\nbase for the new perfomance test. It outputs format that looks similar\r\nenough to BenchmarkJS to allow the Github Action to extract the data.\r\n\r\nThe data is `git push`ed to the `dev-data` branch. We display the data\r\nusing https://raw.githack.com/\r\n\r\nFixes https://github.com/rocicorp/repc/issues/178",
+          "timestamp": "2020-09-25T14:16:15-07:00",
+          "tree_id": "e3cc0a4e94d542c64f97f5771b3b1d9b80bc0f4e",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/f6cdb06550c6a6af7e45d5171faa4a2e9bb2bb68"
+        },
+        "date": 1601068683104,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean)",
+            "value": 1.16,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty)",
+            "value": 892.86,
+            "range": "±0.0%",
+            "unit": "KB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 13.75,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 13.6,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

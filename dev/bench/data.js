@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1601080740022,
+  "lastUpdate": 1601080780826,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -49,6 +49,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 10.41,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "distinct": true,
+          "id": "deb10341f5dfed5d4cf014da732d3199c079be74",
+          "message": "sync package-lock with package json",
+          "timestamp": "2020-09-25T14:36:47-10:00",
+          "tree_id": "317f7b7b5bfe46ec297dbb8037d88c5fd8f310b9",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/deb10341f5dfed5d4cf014da732d3199c079be74"
+        },
+        "date": 1601080780426,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean)",
+            "value": 1.19,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty)",
+            "value": 0.68,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 11.1,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 9.88,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

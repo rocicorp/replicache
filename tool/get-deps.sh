@@ -17,13 +17,6 @@ REPC_VERSION='v0.7.0'
     exit
   fi
 
-  # Diff server is a public interface. We *do* maintain backward compat.
-  # We download the latest release.
-  echo "Fetching diff-server..."
-  URL="https://github.com/rocicorp/diff-server/releases/latest/download/diffs-$PLATFORM"
-  curl -L -f $URL > bin/diff-server
-  chmod u+x bin/diff-server
-
   echo "Fetching repc..."
   URL="https://github.com/rocicorp/repc/releases/download/$REPC_VERSION/repc.zip"
   curl -L -f $URL > bin/repc.zip

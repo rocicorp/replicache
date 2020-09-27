@@ -209,7 +209,7 @@ We believe the Replicache model for dealing with conflicts — to have defensive
 
 It is possible for users of the Diff Server to encrypt data such that the operators of Diff Server cannot read it. Since the Client View is a key/value store, users could encrypt the values using a key that Diff Server doesn't have, but which clients and the Data Layer do.
 
-If done in a simple way, this could reduce the granularity (increase the size) of the diffs that Diff Server could produce, but there is nothing stopping users from being arbitrarily fancy with the granularity at which they encrypt data. In practive, we think a good starting point for users interested in this option is to encrypt at the value level and accept the smallish resulting increase in diff sizes.
+If done in a simple way, this could reduce the granularity (increase the size) of the diffs that Diff Server could produce, but there is nothing stopping users from being arbitrarily fancy with the granularity at which they encrypt data. In practice, we think a good starting point for users interested in this option is to encrypt at the value level and accept the smallish resulting increase in diff sizes.
 
 # Constraints
 

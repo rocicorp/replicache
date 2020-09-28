@@ -20,6 +20,7 @@ REPC_VERSION='v0.7.0'
   echo "Fetching repc..."
   URL="https://github.com/rocicorp/repc/releases/download/$REPC_VERSION/repc.zip"
   curl -L -f $URL > bin/repc.zip
+  mkdir -p bin
   cd bin
   rm -rf repc
   unzip repc.zip

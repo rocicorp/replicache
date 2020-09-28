@@ -82,7 +82,8 @@ async fn dispatch_loop(rx: Receiver<Request>) {
     }
 }
 
-pub async fn dispatch(db_name: String, rpc: String, data: String) -> Response {
+pub async fn dispatch(db_name: String, rpc: String, data: wasm_bindgen::JsValue) -> Response {
+    let data = data.as_string().unwrap();
     let lc = LogContext::new();
     let rpc_id = RPC_COUNTER.fetch_add(1, Ordering::Relaxed).to_string();
     lc.add_context("rpc_id", rpc_id.as_str());

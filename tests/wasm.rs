@@ -26,7 +26,13 @@ fn random_db() -> String {
 }
 
 async fn dispatch(db: &str, rpc: &str, data: &str) -> Result<String, String> {
-    match wasm::dispatch(db.to_string(), rpc.to_string(), data.to_string()).await {
+    match wasm::dispatch(
+        db.to_string(),
+        rpc.to_string(),
+        wasm_bindgen::JsValue::from_str(data),
+    )
+    .await
+    {
         Ok(v) => Ok(v),
         Err(v) => Err(v.as_string().unwrap()),
     }

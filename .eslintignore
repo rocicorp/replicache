@@ -2,6 +2,5 @@ node_modules
 coverage
 out
 out.cjs
-jest.*.js
 tool
 bin

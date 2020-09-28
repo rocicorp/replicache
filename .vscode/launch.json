@@ -12,23 +12,6 @@
       "url": "http://localhost:3000",
       "webRoot": "${workspaceFolder}/sample/redo",
       "skipFiles": ["${workspaceFolder}/sample/redo/node_modules/**/*.js"]
-    },
-    {
-      "name": "Debug Jest Tests",
-      "type": "node",
-      "request": "launch",
-      "runtimeArgs": [
-        "--inspect-brk",
-        "${workspaceRoot}/node_modules/.bin/jest",
-        "--runInBand"
-      ],
-      "console": "integratedTerminal",
-      "internalConsoleOptions": "neverOpen",
-      "port": 9229,
-      "skipFiles": [
-        "${workspaceFolder}/node_modules/**/*.js",
-        "<node_internals>/**/*.js"
-      ]
     }
   ]
 }

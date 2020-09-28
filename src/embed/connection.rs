@@ -131,7 +131,7 @@ where
     S: serde::Serialize,
     F: for<'r, 's> AsyncFn3<&'r RwLock<Transaction<'s>>, T, LogContext, Output = Result<S, String>>,
 {
-    let request: T = match deserialize(&req.data) {
+    let request: T = match deserialize(&req.data.as_string().unwrap()) {
         Ok(v) => v,
         Err(e) => return req.response.send(Err(e)).await,
     };
@@ -193,7 +193,7 @@ where
     E: std::fmt::Debug,
     F: AsyncFn2<Context<'a, 'b>, T, Output = Result<S, E>>,
 {
-    let request: T = match deserialize(&req.data) {
+    let request: T = match deserialize(&req.data.as_string().unwrap()) {
         Ok(v) => v,
         Err(e) => return req.response.send(Err(e)).await,
     };

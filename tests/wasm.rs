@@ -196,31 +196,6 @@ async fn test_open_close() {
 }
 
 #[wasm_bindgen_test]
-async fn test_drop() {
-    assert_eq!(dispatch("db", "open", "").await.unwrap(), "");
-    assert_eq!(dispatch("", "debug", "open_dbs").await.unwrap(), "[\"db\"]");
-
-    let txn_id = open_transaction("db", "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
-    put("db", txn_id, "value", "1").await;
-    commit("db", txn_id).await.unwrap();
-
-    assert_eq!(dispatch("db", "close", "").await.unwrap(), "");
-
-    // drop db
-    assert_eq!(dispatch("db", "drop", "").await.unwrap(), "");
-
-    // re-open, should be empty
-    assert_eq!(dispatch("db", "open", "").await.unwrap(), "");
-    let txn_id = open_transaction("db", None, None, None)
-        .await
-        .transaction_id;
-    assert_eq!(has("db", txn_id, "foo").await, false);
-    assert_eq!(dispatch("db", "close", "").await.unwrap(), "");
-}
-
-#[wasm_bindgen_test]
 async fn test_dispatch_concurrency() {
     let db = &random_db();
     let window = web_sys::window().expect("should have a window in this context");

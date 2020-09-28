@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1601162009484,
+  "lastUpdate": 1601321943795,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -205,6 +205,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 10.95,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5a298beba4505f8fb5464b0e0c835648f690c941",
+          "message": "Remove some remnants from jest (#122)",
+          "timestamp": "2020-09-28T09:36:30-10:00",
+          "tree_id": "3cbc08b76cfcb24b4f9f604cf7dd3f0c77f3080d",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/5a298beba4505f8fb5464b0e0c835648f690c941"
+        },
+        "date": 1601321943039,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean)",
+            "value": 0.67,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty)",
+            "value": 0.72,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 11.77,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 10.92,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

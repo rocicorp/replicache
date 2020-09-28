@@ -14,7 +14,7 @@
     "build:watch": "tsc --watch",
     "build:cjs": "tsc --outDir out.cjs --module CommonJS && rm -rf out.cjs/wasm && mkdir out.cjs/wasm && cp -R src/wasm/* out.cjs/wasm",
     "postinstall": "rm -f node_modules/fetch-mock/esm/client.d.ts && tool/get-deps.sh",
-    "prepublishOnly": "tool/validate-binaries-for-publish.js && npm run lint && npm run test && rm -rf out && npm run build && rm -rf out.cjs && npm run build:cjs",
+    "prepublishOnly": "npm run lint && npm run test && rm -rf out && npm run build && rm -rf out.cjs && npm run build:cjs",
     "perf": "node perf/runner.mjs"
   },
   "devDependencies": {

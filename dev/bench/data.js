@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1601321943795,
+  "lastUpdate": 1601329092932,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -257,6 +257,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 10.92,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "409d4ee69228078c463a9ed5edac1dee69211c28",
+          "message": "Remove diff-server from the JS SDK (#120)\n\nOne can always get it from\r\nhttps://github.com/rocicorp/diff-server/releases/latest/download/\r\n\r\nFixes #76",
+          "timestamp": "2020-09-28T11:35:48-10:00",
+          "tree_id": "de95123eddebb8ab67ca044b7efdfca12915f638",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/409d4ee69228078c463a9ed5edac1dee69211c28"
+        },
+        "date": 1601329090858,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean)",
+            "value": 1.08,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty)",
+            "value": 0.76,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 11.36,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 10.76,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

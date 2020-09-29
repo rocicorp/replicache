@@ -36,24 +36,24 @@ impl<'a> Transaction<'a> {
 type TxnMap<'a> = RwLock<HashMap<u32, RwLock<Transaction<'a>>>>;
 
 #[derive(Debug)]
-enum FromJsonError {
+enum FromJsError {
     DeserializeError(serde_wasm_bindgen::Error),
 }
 
-fn from_json<T: serde::de::DeserializeOwned>(data: JsValue) -> Result<T, String> {
-    use FromJsonError::*;
+fn from_js<T: serde::de::DeserializeOwned>(data: JsValue) -> Result<T, String> {
+    use FromJsError::*;
     serde_wasm_bindgen::from_value(data)
         .map_err(DeserializeError)
         .map_err(to_debug)
 }
 
 #[derive(Debug)]
-enum ToJsonError {
+enum ToJsError {
     SerializeError(serde_wasm_bindgen::Error),
 }
 
-fn to_json<T: serde::Serialize, E: std::fmt::Debug>(res: Result<T, E>) -> Result<JsValue, JsValue> {
-    use ToJsonError::*;
+fn to_js<T: serde::Serialize, E: std::fmt::Debug>(res: Result<T, E>) -> Result<JsValue, JsValue> {
+    use ToJsError::*;
     match res {
         Ok(v) => Ok(serde_wasm_bindgen::to_value(&v)
             .map_err(SerializeError)
@@ -181,17 +181,17 @@ async fn execute<'a, 'b>(
 
     // transaction-less
     match rpc.as_str() {
-        "getRoot" => return to_json(do_get_root(ctx, from_json(data)?).await),
-        "openTransaction" => return to_json(do_open_transaction(ctx, from_json(data)?).await),
-        "commitTransaction" => return to_json(do_commit(ctx, from_json(data)?).await),
-        "closeTransaction" => return to_json(do_close(ctx, from_json(data)?).await),
-        "beginSync" => return to_json(do_begin_sync(ctx, from_json(data)?).await),
-        "maybeEndSync" => return to_json(do_maybe_end_sync(ctx, from_json(data)?).await),
+        "getRoot" => return to_js(do_get_root(ctx, from_js(data)?).await),
+        "openTransaction" => return to_js(do_open_transaction(ctx, from_js(data)?).await),
+        "commitTransaction" => return to_js(do_commit(ctx, from_js(data)?).await),
+        "closeTransaction" => return to_js(do_close(ctx, from_js(data)?).await),
+        "beginSync" => return to_js(do_begin_sync(ctx, from_js(data)?).await),
+        "maybeEndSync" => return to_js(do_maybe_end_sync(ctx, from_js(data)?).await),
         _ => (),
     };
 
     // require read txn
-    let txn_req: TransactionRequest = from_json(data.clone())?;
+    let txn_req: TransactionRequest = from_js(data.clone())?;
     let txn_id = txn_req
         .transaction_id
         .ok_or(TransactionRequired)
@@ -205,9 +205,9 @@ async fn execute<'a, 'b>(
         .map_err(to_debug)?;
 
     match rpc.as_str() {
-        "has" => return to_json(do_has(txn.read().await.as_read(), from_json(data)?).await),
-        "get" => return to_json(do_get(txn.read().await.as_read(), from_json(data)?).await),
-        "scan" => return to_json(do_scan(txn.read().await.as_read(), from_json(data)?).await),
+        "has" => return to_js(do_has(txn.read().await.as_read(), from_js(data)?).await),
+        "get" => return to_js(do_get(txn.read().await.as_read(), from_js(data)?).await),
+        "scan" => return to_js(do_scan(txn.read().await.as_read(), from_js(data)?).await),
         _ => (),
     }
 
@@ -219,8 +219,8 @@ async fn execute<'a, 'b>(
     }?;
 
     match rpc.as_str() {
-        "put" => return to_json(do_put(write, from_json(data)?).await),
-        "del" => return to_json(do_del(write, from_json(data)?).await),
+        "put" => return to_js(do_put(write, from_js(data)?).await),
+        "del" => return to_js(do_del(write, from_js(data)?).await),
         _ => (),
     }
 

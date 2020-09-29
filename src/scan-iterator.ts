@@ -136,22 +136,25 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
       start,
       limit: scanPageSize,
     };
+    const responseItems: ScanItem[] = [];
+    const receiver = (k: string, v: Uint8Array) => {
+      const text = new TextDecoder().decode(v);
+      responseItems.push({
+        key: k,
+        value: JSON.parse(text),
+      });
+    };
     const args = {
       transactionId: this._transaction.id,
       opts,
+      receiver,
     };
-    const response = await this._invoke('scan', args);
-    const responseItems = response.items;
+    await this._invoke('scan', args);
     if (responseItems.length !== scanPageSize) {
       this._moreItemsToLoad = false;
     }
 
-    const scanItems: ScanItem[] = responseItems.map(({key, value}) => ({
-      key,
-      value: JSON.parse(value),
-    }));
-
-    this._scanItems.push(...scanItems);
+    this._scanItems.push(...responseItems);
   }
 }
 

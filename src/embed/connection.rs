@@ -157,6 +157,7 @@ impl<'a, 'b> Context<'a, 'b> {
 }
 
 #[derive(Debug)]
+#[allow(clippy::enum_variant_names)]
 enum ExecuteError {
     TransactionNotFound(u32),
     TransactionRequired,
@@ -415,13 +416,13 @@ async fn do_get_root<'a, 'b>(
     })
 }
 
-async fn do_has<'a>(txn: db::Read<'a>, req: HasRequest) -> Result<HasResponse, ()> {
+async fn do_has(txn: db::Read<'_>, req: HasRequest) -> Result<HasResponse, ()> {
     Ok(HasResponse {
         has: txn.has(req.key.as_bytes()),
     })
 }
 
-async fn do_get<'a>(read: db::Read<'a>, req: GetRequest) -> Result<GetResponse, String> {
+async fn do_get(read: db::Read<'_>, req: GetRequest) -> Result<GetResponse, String> {
     #[cfg(not(default))] // Not enabled in production.
     if req.key.starts_with("sleep") {
         use async_std::task::sleep;
@@ -448,7 +449,7 @@ async fn do_get<'a>(read: db::Read<'a>, req: GetRequest) -> Result<GetResponse, 
     })
 }
 
-async fn do_scan<'a>(read: db::Read<'a>, req: ScanRequest) -> Result<ScanResponse, String> {
+async fn do_scan(read: db::Read<'_>, req: ScanRequest) -> Result<ScanResponse, String> {
     use std::convert::TryFrom;
     let mut res = Vec::<ScanItem>::new();
     for pe in read.scan((&req.opts).into()) {
@@ -457,12 +458,12 @@ async fn do_scan<'a>(read: db::Read<'a>, req: ScanRequest) -> Result<ScanRespons
     Ok(ScanResponse { items: res })
 }
 
-async fn do_put<'a>(write: &mut db::Write<'a>, req: PutRequest) -> Result<PutResponse, ()> {
+async fn do_put(write: &mut db::Write<'_>, req: PutRequest) -> Result<PutResponse, ()> {
     write.put(req.key.as_bytes().to_vec(), req.value.into_bytes());
     Ok(PutResponse {})
 }
 
-async fn do_del<'a>(write: &mut db::Write<'a>, req: DelRequest) -> Result<DelResponse, ()> {
+async fn do_del(write: &mut db::Write<'_>, req: DelRequest) -> Result<DelResponse, ()> {
     let had = write.as_read().has(req.key.as_bytes());
     write.del(req.key.as_bytes().to_vec());
     Ok(DelResponse { had })

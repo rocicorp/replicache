@@ -7,13 +7,13 @@ use crate::sync;
 use crate::util::rlog;
 use crate::util::rlog::LogContext;
 use crate::util::to_debug;
-use async_fn::{AsyncFn2, AsyncFn3};
 use async_std::stream::StreamExt;
 use async_std::sync::{Receiver, RecvError, RwLock};
 use futures::stream::futures_unordered::FuturesUnordered;
 use log::warn;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
+use wasm_bindgen::JsValue;
 
 lazy_static! {
     static ref TRANSACTION_COUNTER: AtomicU32 = AtomicU32::new(1);
@@ -35,10 +35,31 @@ impl<'a> Transaction<'a> {
 
 type TxnMap<'a> = RwLock<HashMap<u32, RwLock<Transaction<'a>>>>;
 
-fn deserialize<'a, T: serde::Deserialize<'a>>(data: &'a str) -> Result<T, String> {
-    match serde_json::from_str(data) {
-        Ok(v) => Ok(v),
-        Err(e) => Err(format!("InvalidJson({})", e)),
+#[derive(Debug)]
+enum FromJsonError {
+    JsValueNotString,
+    JsonParseError(serde_json::Error),
+}
+
+fn from_json<T: serde::de::DeserializeOwned>(data: &JsValue) -> Result<T, String> {
+    use FromJsonError::*;
+    serde_json::from_str(&data.as_string().ok_or(JsValueNotString).map_err(to_debug)?)
+        .map_err(JsonParseError)
+        .map_err(to_debug)
+}
+
+#[derive(Debug)]
+enum ToJsonError {
+    JsonSerializeError(serde_json::Error),
+}
+
+fn to_json<T: serde::Serialize, E: std::fmt::Debug>(res: Result<T, E>) -> Result<String, String> {
+    use ToJsonError::*;
+    match res {
+        Ok(v) => Ok(serde_json::to_string(&v)
+            .map_err(JsonSerializeError)
+            .map_err(to_debug)?),
+        Err(v) => Err(to_debug(v)),
     }
 }
 
@@ -57,29 +78,16 @@ async fn connection_future<'a, 'b>(
         None => return UnorderedResult::Request(rx.recv().await),
         Some(v) => v,
     };
-    match req.rpc.as_str() {
-        "getRoot" => execute(ctx, do_get_root, req).await,
-        "has" => execute_in_txn(do_has, ctx.txns, req).await,
-        "get" => execute_in_txn(do_get, ctx.txns, req).await,
-        "scan" => execute_in_txn(do_scan, ctx.txns, req).await,
-        "put" => execute_in_txn(do_put, ctx.txns, req).await,
-        "del" => execute_in_txn(do_del, ctx.txns, req).await,
-        "openTransaction" => execute(ctx, do_open_transaction, req).await,
-        "commitTransaction" => execute(ctx, do_commit, req).await,
-        "closeTransaction" => execute(ctx, do_close_transaction, req).await,
-        "beginSync" => execute(ctx, do_begin_sync, req).await,
-        "maybeEndSync" => execute(ctx, do_maybe_end_sync, req).await,
-        "close" => {
-            ctx.store.close().await;
-            req.response.send(Ok("".into())).await;
-            return UnorderedResult::Stop();
-        }
-        _ => {
-            req.response
-                .send(Err(format!("Unsupported rpc name {}", req.rpc)))
-                .await
-        }
-    };
+
+    if req.rpc == "close" {
+        ctx.store.close().await;
+        req.response.send(Ok("".into())).await;
+        return UnorderedResult::Stop();
+    }
+
+    let res = execute(ctx, &req).await;
+    req.response.send(res).await;
+
     UnorderedResult::None()
 }
 
@@ -125,44 +133,6 @@ pub async fn process(store: dag::Store, rx: Receiver<Request>, client_id: String
     }
 }
 
-async fn execute_in_txn<T, S, F>(func: F, txns: &TxnMap<'_>, req: Request)
-where
-    T: serde::de::DeserializeOwned + TransactionRequest,
-    S: serde::Serialize,
-    F: for<'r, 's> AsyncFn3<&'r RwLock<Transaction<'s>>, T, LogContext, Output = Result<S, String>>,
-{
-    let request: T = match deserialize(&req.data.as_string().unwrap()) {
-        Ok(v) => v,
-        Err(e) => return req.response.send(Err(e)).await,
-    };
-
-    let txn_id = request.transaction_id();
-    let txn_id_string = txn_id.to_string();
-    req.lc.add_context("txid", &txn_id_string);
-    let txns = txns.read().await;
-    let txn = match txns.get(&txn_id) {
-        Some(v) => v,
-        None => {
-            return req
-                .response
-                .send(Err(format!("No transaction {}", txn_id)))
-                .await
-        }
-    };
-
-    let result = func
-        .call(txn, request, req.lc.clone())
-        .await
-        .map(|v| serde_json::to_string(&v));
-    // When https://doc.rust-lang.org/std/result/enum.Result.html lands we can remove this.
-    let result = match result {
-        Ok(Ok(v)) => Ok(v),
-        Ok(Err(v)) => Err(to_debug(v)),
-        Err(v) => Err(v),
-    };
-    req.response.send(result).await
-}
-
 struct Context<'a, 'b> {
     store: &'a dag::Store,
     txns: &'b TxnMap<'a>,
@@ -186,30 +156,62 @@ impl<'a, 'b> Context<'a, 'b> {
     }
 }
 
-async fn execute<'a, 'b, T, S, F, E>(ctx: Context<'a, 'b>, func: F, req: Request)
-where
-    T: serde::de::DeserializeOwned,
-    S: serde::Serialize,
-    E: std::fmt::Debug,
-    F: AsyncFn2<Context<'a, 'b>, T, Output = Result<S, E>>,
-{
-    let request: T = match deserialize(&req.data.as_string().unwrap()) {
-        Ok(v) => v,
-        Err(e) => return req.response.send(Err(e)).await,
+#[derive(Debug)]
+enum ExecuteError {
+    TransactionNotFound(u32),
+    TransactionRequired,
+    TransactionIsReadOnly(u32),
+}
+
+async fn execute<'a, 'b>(ctx: Context<'a, 'b>, req: &Request) -> Result<String, String> {
+    use ExecuteError::*;
+
+    // transaction-less
+    match req.rpc.as_str() {
+        "getRoot" => return to_json(do_get_root(ctx, from_json(&req.data)?).await),
+        "openTransaction" => return to_json(do_open_transaction(ctx, from_json(&req.data)?).await),
+        "commitTransaction" => return to_json(do_commit(ctx, from_json(&req.data)?).await),
+        "closeTransaction" => return to_json(do_close(ctx, from_json(&req.data)?).await),
+        "beginSync" => return to_json(do_begin_sync(ctx, from_json(&req.data)?).await),
+        "maybeEndSync" => return to_json(do_maybe_end_sync(ctx, from_json(&req.data)?).await),
+        _ => (),
     };
 
-    let result = func
-        .call(ctx, request)
-        .await
-        .map(|v| serde_json::to_string(&v));
-    // When https://doc.rust-lang.org/std/result/enum.Result.html lands we can remove this.
-    let result = match result {
-        Ok(Ok(v)) => Ok(v),
-        Ok(Err(v)) => Err(to_debug(v)),
-        Err(v) => Err(to_debug(v)),
-    };
+    // require read txn
+    let txn_req: TransactionRequest = from_json(&req.data)?;
+    let txn_id = txn_req
+        .transaction_id
+        .ok_or(TransactionRequired)
+        .map_err(to_debug)?;
+    let txn_id_string = txn_id.to_string();
+    req.lc.add_context("txid", &txn_id_string);
+    let txns = ctx.txns.read().await;
+    let txn = txns
+        .get(&txn_id)
+        .ok_or_else(|| TransactionNotFound(txn_id))
+        .map_err(to_debug)?;
 
-    req.response.send(result).await
+    match req.rpc.as_str() {
+        "has" => return to_json(do_has(txn.read().await.as_read(), from_json(&req.data)?).await),
+        "get" => return to_json(do_get(txn.read().await.as_read(), from_json(&req.data)?).await),
+        "scan" => return to_json(do_scan(txn.read().await.as_read(), from_json(&req.data)?).await),
+        _ => (),
+    }
+
+    // require write txn
+    let mut guard = txn.write().await;
+    let write = match &mut *guard {
+        Transaction::Write(w) => Ok(w),
+        Transaction::Read(_) => Err(to_debug(TransactionIsReadOnly(txn_id))),
+    }?;
+
+    match req.rpc.as_str() {
+        "put" => return to_json(do_put(write, from_json(&req.data)?).await),
+        "del" => return to_json(do_del(write, from_json(&req.data)?).await),
+        _ => (),
+    }
+
+    Err(format!("Unsupported rpc name {}", req.rpc))
 }
 
 #[derive(Debug)]
@@ -383,7 +385,7 @@ async fn do_commit<'a, 'b>(
     })
 }
 
-async fn do_close_transaction<'a, 'b>(
+async fn do_close<'a, 'b>(
     ctx: Context<'a, 'b>,
     request: CloseTransactionRequest,
 ) -> Result<CloseTransactionResponse, CloseTransactionError> {
@@ -401,6 +403,7 @@ async fn do_get_root<'a, 'b>(
     ctx: Context<'a, 'b>,
     req: GetRootRequest,
 ) -> Result<GetRootResponse, GetRootError> {
+    use GetRootError::*;
     let head_name = match req.head_name {
         Some(name) => name,
         None => db::DEFAULT_HEAD_NAME.to_string(),
@@ -408,25 +411,17 @@ async fn do_get_root<'a, 'b>(
     Ok(GetRootResponse {
         root: db::get_root(ctx.store, head_name.as_str(), ctx.lc.clone())
             .await
-            .map_err(GetRootError::DBError)?,
+            .map_err(DBError)?,
     })
 }
 
-async fn do_has(
-    txn: &RwLock<Transaction<'_>>,
-    req: HasRequest,
-    _: LogContext,
-) -> Result<HasResponse, String> {
+async fn do_has<'a>(txn: db::Read<'a>, req: HasRequest) -> Result<HasResponse, ()> {
     Ok(HasResponse {
-        has: txn.read().await.as_read().has(req.key.as_bytes()),
+        has: txn.has(req.key.as_bytes()),
     })
 }
 
-async fn do_get(
-    txn: &RwLock<Transaction<'_>>,
-    req: GetRequest,
-    _: LogContext,
-) -> Result<GetResponse, String> {
+async fn do_get<'a>(read: db::Read<'a>, req: GetRequest) -> Result<GetResponse, String> {
     #[cfg(not(default))] // Not enabled in production.
     if req.key.starts_with("sleep") {
         use async_std::task::sleep;
@@ -440,10 +435,7 @@ async fn do_get(
         }
     }
 
-    let got = txn
-        .read()
-        .await
-        .as_read()
+    let got = read
         .get(req.key.as_bytes())
         .map(|buf| String::from_utf8(buf.to_vec()));
     if let Some(Err(e)) = got {
@@ -456,43 +448,21 @@ async fn do_get(
     })
 }
 
-async fn do_scan(
-    txn: &RwLock<Transaction<'_>>,
-    req: ScanRequest,
-    _: LogContext,
-) -> Result<ScanResponse, String> {
+async fn do_scan<'a>(read: db::Read<'a>, req: ScanRequest) -> Result<ScanResponse, String> {
     use std::convert::TryFrom;
     let mut res = Vec::<ScanItem>::new();
-    for pe in txn.read().await.as_read().scan((&req.opts).into()) {
+    for pe in read.scan((&req.opts).into()) {
         res.push(ScanItem::try_from(pe).map_err(to_debug)?);
     }
     Ok(ScanResponse { items: res })
 }
 
-async fn do_put(
-    txn: &RwLock<Transaction<'_>>,
-    req: PutRequest,
-    _: LogContext,
-) -> Result<PutResponse, String> {
-    let mut guard = txn.write().await;
-    let write = match &mut *guard {
-        Transaction::Write(w) => Ok(w),
-        Transaction::Read(_) => Err("Specified transaction is read-only".to_string()),
-    }?;
+async fn do_put<'a>(write: &mut db::Write<'a>, req: PutRequest) -> Result<PutResponse, ()> {
     write.put(req.key.as_bytes().to_vec(), req.value.into_bytes());
     Ok(PutResponse {})
 }
 
-async fn do_del(
-    txn: &RwLock<Transaction<'_>>,
-    req: DelRequest,
-    _: LogContext,
-) -> Result<DelResponse, String> {
-    let mut guard = txn.write().await;
-    let write = match &mut *guard {
-        Transaction::Write(w) => Ok(w),
-        Transaction::Read(_) => Err("Specified transaction is read-only".to_string()),
-    }?;
+async fn do_del<'a>(write: &mut db::Write<'a>, req: DelRequest) -> Result<DelResponse, ()> {
     let had = write.as_read().has(req.key.as_bytes());
     write.del(req.key.as_bytes().to_vec());
     Ok(DelResponse { had })
@@ -561,26 +531,6 @@ enum CommitTransactionError {
 enum CloseTransactionError {
     UnknownTransaction,
 }
-
-trait TransactionRequest {
-    fn transaction_id(&self) -> u32;
-}
-
-macro_rules! impl_transaction_request {
-    ($type_name:ident) => {
-        impl TransactionRequest for $type_name {
-            fn transaction_id(&self) -> u32 {
-                self.transaction_id
-            }
-        }
-    };
-}
-
-impl_transaction_request!(HasRequest);
-impl_transaction_request!(GetRequest);
-impl_transaction_request!(ScanRequest);
-impl_transaction_request!(PutRequest);
-impl_transaction_request!(DelRequest);
 
 // Note: dispatch is mostly tested in tests/wasm.rs.
 // TODO those tests should move here and *also* be run from there so we have

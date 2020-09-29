@@ -290,7 +290,7 @@ async fn test_get_put_del() {
     // Check request parsing, both missing and unexpected fields.
     assert_eq!(
         dispatch(db, "put", "{}").await.unwrap_err(),
-        "InvalidJson(missing field `transactionId` at line 1 column 2)"
+        "TransactionRequired"
     );
 
     let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)

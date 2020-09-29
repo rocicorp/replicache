@@ -52,6 +52,13 @@ pub struct CloseTransactionRequest {
 #[derive(Serialize)]
 pub struct CloseTransactionResponse {}
 
+#[derive(Deserialize, Serialize)]
+pub struct TransactionRequest {
+    #[serde(rename = "transactionId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_id: Option<u32>,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GetRootRequest {
     #[serde(rename = "headName")]
@@ -66,8 +73,6 @@ pub struct GetRootResponse {
 
 #[derive(Deserialize)]
 pub struct HasRequest {
-    #[serde(rename = "transactionId")]
-    pub transaction_id: u32,
     pub key: String,
 }
 
@@ -78,8 +83,6 @@ pub struct HasResponse {
 
 #[derive(Deserialize)]
 pub struct GetRequest {
-    #[serde(rename = "transactionId")]
-    pub transaction_id: u32,
     pub key: String,
 }
 
@@ -140,8 +143,6 @@ impl<'a> From<&'a ScanOptions> for db::ScanOptions<'a> {
 
 #[derive(Deserialize)]
 pub struct ScanRequest {
-    #[serde(rename = "transactionId")]
-    pub transaction_id: u32,
     pub opts: ScanOptions,
 }
 
@@ -174,8 +175,6 @@ pub struct ScanResponse {
 
 #[derive(Deserialize)]
 pub struct PutRequest {
-    #[serde(rename = "transactionId")]
-    pub transaction_id: u32,
     pub key: String,
     pub value: String,
 }
@@ -185,8 +184,6 @@ pub struct PutResponse {}
 
 #[derive(Deserialize)]
 pub struct DelRequest {
-    #[serde(rename = "transactionId")]
-    pub transaction_id: u32,
     pub key: String,
 }
 

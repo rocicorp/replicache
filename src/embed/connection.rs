@@ -10,10 +10,11 @@ use crate::util::to_debug;
 use async_std::stream::StreamExt;
 use async_std::sync::{Receiver, RecvError, RwLock};
 use futures::stream::futures_unordered::FuturesUnordered;
+use js_sys::{Function, Reflect, Uint8Array};
 use log::warn;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
-use wasm_bindgen::JsValue;
+use wasm_bindgen::{JsCast, JsValue};
 
 lazy_static! {
     static ref TRANSACTION_COUNTER: AtomicU32 = AtomicU32::new(1);
@@ -207,7 +208,9 @@ async fn execute<'a, 'b>(
     match rpc.as_str() {
         "has" => return to_js(do_has(txn.read().await.as_read(), from_js(data)?).await),
         "get" => return to_js(do_get(txn.read().await.as_read(), from_js(data)?).await),
-        "scan" => return to_js(do_scan(txn.read().await.as_read(), from_js(data)?).await),
+        "scan" => {
+            return to_js(do_scan(txn.read().await.as_read(), from_js(data.clone())?, data).await)
+        }
         _ => (),
     }
 
@@ -461,13 +464,24 @@ async fn do_get(read: db::Read<'_>, req: GetRequest) -> Result<GetResponse, Stri
     })
 }
 
-async fn do_scan(read: db::Read<'_>, req: ScanRequest) -> Result<ScanResponse, String> {
-    use std::convert::TryFrom;
-    let mut res = Vec::<ScanItem>::new();
+async fn do_scan(
+    read: db::Read<'_>,
+    req: ScanRequest,
+    req_raw: JsValue,
+) -> Result<ScanResponse, ScanError> {
+    use ScanError::*;
+    let receiver: Function = Reflect::get(&req_raw, &JsValue::from_str("receiver"))
+        .map_err(|_| MissingReceiver)?
+        .dyn_into()
+        .map_err(|_| InvalidReceiver)?;
+
     for pe in read.scan((&req.opts).into()) {
-        res.push(ScanItem::try_from(pe).map_err(to_debug)?);
+        let key = JsValue::from_str(std::str::from_utf8(pe.key).unwrap());
+        let val = unsafe { Uint8Array::view(pe.val) };
+        // TODO: receiver can return to us whether to keep going!
+        receiver.call2(&JsValue::null(), &key, &val).unwrap();
     }
-    Ok(ScanResponse { items: res })
+    Ok(ScanResponse {})
 }
 
 async fn do_put(write: &mut db::Write<'_>, req: PutRequest) -> Result<PutResponse, ()> {

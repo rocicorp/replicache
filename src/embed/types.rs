@@ -1,7 +1,6 @@
 #![allow(clippy::redundant_pattern_matching)] // For derive(Deserialize).
 
 use crate::db;
-use crate::prolly;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -150,33 +149,17 @@ pub struct ScanRequest {
     #[serde(rename = "transactionId")]
     pub transaction_id: u32,
     pub opts: ScanOptions,
+    // also sent but not handled by serde_wasm_bindgen:
+    // receiver: js_sys::Function
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-pub struct ScanItem {
-    pub key: String,
-    pub value: String,
-}
-
-#[derive(Debug)]
-pub enum FromProllyEntryError {
-    BadUTF8(std::string::FromUtf8Error),
-}
-
-impl<'a> std::convert::TryFrom<prolly::Entry<'a>> for ScanItem {
-    fn try_from(entry: prolly::Entry) -> Result<Self, Self::Error> {
-        use FromProllyEntryError::*;
-        Ok(Self {
-            key: String::from_utf8(entry.key.to_vec()).map_err(BadUTF8)?,
-            value: String::from_utf8(entry.val.to_vec()).map_err(BadUTF8)?,
-        })
-    }
-    type Error = FromProllyEntryError;
-}
+pub struct ScanResponse {}
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-pub struct ScanResponse {
-    pub items: Vec<ScanItem>,
+pub enum ScanError {
+    MissingReceiver,
+    InvalidReceiver,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

@@ -16,12 +16,9 @@ pub async fn new_idbstore(name: String) -> Option<Box<dyn Store>> {
 }
 
 #[wasm_bindgen]
-pub async fn dispatch(db_name: String, rpc: String, args: JsValue) -> Result<String, JsValue> {
+pub async fn dispatch(db_name: String, rpc: String, args: JsValue) -> Result<JsValue, JsValue> {
     init_panic_hook();
-    match embed::dispatch(db_name, rpc, args).await {
-        Err(v) => Err(JsValue::from_str(&v[..])),
-        Ok(v) => Ok(v),
-    }
+    embed::dispatch(db_name, rpc, args).await
 }
 
 static INIT: Once = Once::new();

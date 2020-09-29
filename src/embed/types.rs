@@ -4,16 +4,16 @@ use crate::db;
 use crate::prolly;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct OpenTransactionRequest {
-    pub name: Option<String>,            // not present in read transactions
-    pub args: Option<serde_json::Value>, // not present in read transactions
+    pub name: Option<String>, // not present in read transactions
+    pub args: Option<String>, // not present in read transactions
     #[serde(rename = "rebaseOpts")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rebase_opts: Option<RebaseOpts>,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RebaseOpts {
     pub basis: String,
     #[serde(rename = "original")]
@@ -26,13 +26,13 @@ pub struct OpenTransactionResponse {
     pub transaction_id: u32,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CommitTransactionRequest {
     #[serde(rename = "transactionId")]
     pub transaction_id: u32,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CommitTransactionResponse {
     // Note: the field is named "ref" in go but "ref" is a reserved word in rust.
     #[serde(rename = "ref")]
@@ -43,16 +43,16 @@ pub struct CommitTransactionResponse {
     pub retry_commit: bool,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CloseTransactionRequest {
     #[serde(rename = "transactionId")]
     pub transaction_id: u32,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CloseTransactionResponse {}
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TransactionRequest {
     #[serde(rename = "transactionId")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -66,37 +66,41 @@ pub struct GetRootRequest {
     pub head_name: Option<String>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct GetRootResponse {
     pub root: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct HasRequest {
+    #[serde(rename = "transactionId")]
+    pub transaction_id: u32,
     pub key: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct HasResponse {
     pub has: bool,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GetRequest {
+    #[serde(rename = "transactionId")]
+    pub transaction_id: u32,
     pub key: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GetResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
     pub has: bool, // Second to avoid trailing comma if value == None.
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ScanKey {
-    value: String,
-    exclusive: bool,
+    pub value: String,
+    pub exclusive: bool,
 }
 
 impl<'a> From<&'a ScanKey> for db::ScanKey<'a> {
@@ -108,11 +112,11 @@ impl<'a> From<&'a ScanKey> for db::ScanKey<'a> {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ScanBound {
     #[serde(rename = "id")]
-    key: Option<ScanKey>,
-    index: Option<u64>,
+    pub key: Option<ScanKey>,
+    pub index: Option<u64>,
 }
 
 impl<'a> From<&'a ScanBound> for db::ScanBound<'a> {
@@ -124,11 +128,11 @@ impl<'a> From<&'a ScanBound> for db::ScanBound<'a> {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ScanOptions {
-    prefix: Option<String>,
-    start: Option<ScanBound>,
-    limit: Option<u64>,
+    pub prefix: Option<String>,
+    pub start: Option<ScanBound>,
+    pub limit: Option<u64>,
 }
 
 impl<'a> From<&'a ScanOptions> for db::ScanOptions<'a> {
@@ -141,15 +145,17 @@ impl<'a> From<&'a ScanOptions> for db::ScanOptions<'a> {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ScanRequest {
+    #[serde(rename = "transactionId")]
+    pub transaction_id: u32,
     pub opts: ScanOptions,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct ScanItem {
-    key: String,
-    value: String,
+    pub key: String,
+    pub value: String,
 }
 
 #[derive(Debug)]
@@ -168,26 +174,30 @@ impl<'a> std::convert::TryFrom<prolly::Entry<'a>> for ScanItem {
     type Error = FromProllyEntryError;
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct ScanResponse {
     pub items: Vec<ScanItem>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PutRequest {
+    #[serde(rename = "transactionId")]
+    pub transaction_id: u32,
     pub key: String,
     pub value: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PutResponse {}
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct DelRequest {
+    #[serde(rename = "transactionId")]
+    pub transaction_id: u32,
     pub key: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct DelResponse {
     #[serde(rename = "ok")]
     pub had: bool,

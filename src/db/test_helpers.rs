@@ -34,7 +34,7 @@ pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut 
     let mut w = Write::new_local(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
         format!("mutator_name_{}", i),
-        json!([i]),
+        json!([i]).to_string(),
         None,
         store.write(LogContext::new()).await.unwrap(),
     )

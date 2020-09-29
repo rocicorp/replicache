@@ -258,8 +258,8 @@ pub async fn maybe_end_sync(
             let (name, args) = match c.meta().typed() {
                 MetaTyped::Local(lm) => (
                     lm.mutator_name().to_string(),
-                    serde_json::from_slice(lm.mutator_args_json())
-                        .map_err(InternalArgsJsonError)?,
+                    String::from_utf8(lm.mutator_args_json().to_vec())
+                        .map_err(InternalArgsUtf8Error)?,
                 ),
                 _ => {
                     return Err(InternalProgrammerError(
@@ -303,8 +303,7 @@ pub enum MaybeEndSyncError {
     CommitError(dag::Error),
     GetMainHeadError(dag::Error),
     GetSyncHeadError(dag::Error),
-    InternalArgsJsonError(serde_json::error::Error),
-    InternalArgsUtf8Error(std::str::Utf8Error),
+    InternalArgsUtf8Error(std::string::FromUtf8Error),
     InternalProgrammerError(String),
     InvalidArgs(std::str::Utf8Error),
     LoadSyncHeadError(db::FromHashError),
@@ -1009,7 +1008,7 @@ mod tests {
                 let (mutator_name, mutator_args) = match original.meta().typed() {
                     db::MetaTyped::Local(lm) => (
                         lm.mutator_name().to_string(),
-                        serde_json::from_slice(lm.mutator_args_json()).unwrap(),
+                        String::from_utf8(lm.mutator_args_json().to_vec()).unwrap(),
                     ),
                     _ => panic!("impossible"),
                 };
@@ -1060,8 +1059,8 @@ mod tests {
                                     resp.replay_mutations[i].name
                                 );
                                 let got_args = &resp.replay_mutations[i].args;
-                                let exp_args: serde_json::Value =
-                                    serde_json::from_slice(lm.mutator_args_json()).unwrap();
+                                let exp_args =
+                                    String::from_utf8(lm.mutator_args_json().to_vec()).unwrap();
                                 assert_eq!(&exp_args, got_args);
                             }
                             _ => panic!("inconceivable"),

@@ -26,7 +26,7 @@ pub struct Request {
 
 unsafe impl Send for Request {}
 
-type Response = Result<String, String>;
+type Response = Result<JsValue, JsValue>;
 
 lazy_static! {
     static ref SENDER: Mutex<Sender::<Request>> = {
@@ -64,7 +64,10 @@ async fn dispatch_loop(rx: Receiver<Request>) {
             Some(tx) => tx.send(req).await,
             None => {
                 req.response
-                    .send(Err(format!("\"{}\" not open", req.db_name)))
+                    .send(Err(JsValue::from_str(&format!(
+                        "\"{}\" not open",
+                        req.db_name
+                    ))))
                     .await;
             }
         };
@@ -91,7 +94,7 @@ pub async fn dispatch(db_name: String, rpc: String, data: JsValue) -> Response {
     SENDER.lock().await.send(request).await;
     let receive_result = rx.recv().await;
     let result = match receive_result {
-        Err(e) => Err(e.to_string()),
+        Err(e) => Err(JsValue::from_str(&e.to_string())),
         Ok(v) => v,
     };
     debug!(
@@ -112,9 +115,19 @@ async fn do_open(conns: &mut ConnMap, req: &Request) -> Response {
     }
 
     let kv: Box<dyn Store> = match IdbStore::new(&req.db_name[..]).await {
-        Err(e) => return Err(format!("Failed to open \"{}\": {}", req.db_name, e)),
+        Err(e) => {
+            return Err(JsValue::from_str(&format!(
+                "Failed to open \"{}\": {}",
+                req.db_name, e
+            )))
+        }
         Ok(v) => match v {
-            None => return Err(format!("Didn't open \"{}\"", req.db_name)),
+            None => {
+                return Err(JsValue::from_str(&format!(
+                    "Didn't open \"{}\"",
+                    req.db_name
+                )))
+            }
             Some(v) => Box::new(v),
         },
     };
@@ -155,7 +168,7 @@ async fn do_close(conns: &mut ConnMap, req: &Request) -> Response {
 
 async fn do_debug(conns: &ConnMap, req: &Request) -> Response {
     match req.data.as_string().as_deref() {
-        Some("open_dbs") => Ok(to_debug(conns.keys())),
+        Some("open_dbs") => Ok(JsValue::from_str(&to_debug(conns.keys()))),
         _ => Err("Debug command not defined".into()),
     }
 }

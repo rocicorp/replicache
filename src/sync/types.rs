@@ -58,6 +58,6 @@ pub struct MaybeEndSyncResponse {
 pub struct ReplayMutation {
     pub id: u64,
     pub name: String,
-    pub args: serde_json::Value,
+    pub args: String,
     pub original: String,
 }

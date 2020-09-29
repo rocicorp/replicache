@@ -108,7 +108,7 @@ mod tests {
         let mut w = write::Write::new_local(
             Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
             str!("mutator_name"),
-            serde_json::Value::Array(vec![]),
+            serde_json::Value::Array(vec![]).to_string(),
             None,
             ds.write(LogContext::new()).await.unwrap(),
         )

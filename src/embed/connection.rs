@@ -37,29 +37,28 @@ type TxnMap<'a> = RwLock<HashMap<u32, RwLock<Transaction<'a>>>>;
 
 #[derive(Debug)]
 enum FromJsonError {
-    JsValueNotString,
-    JsonParseError(serde_json::Error),
+    DeserializeError(serde_wasm_bindgen::Error),
 }
 
-fn from_json<T: serde::de::DeserializeOwned>(data: &JsValue) -> Result<T, String> {
+fn from_json<T: serde::de::DeserializeOwned>(data: JsValue) -> Result<T, String> {
     use FromJsonError::*;
-    serde_json::from_str(&data.as_string().ok_or(JsValueNotString).map_err(to_debug)?)
-        .map_err(JsonParseError)
+    serde_wasm_bindgen::from_value(data)
+        .map_err(DeserializeError)
         .map_err(to_debug)
 }
 
 #[derive(Debug)]
 enum ToJsonError {
-    JsonSerializeError(serde_json::Error),
+    SerializeError(serde_wasm_bindgen::Error),
 }
 
-fn to_json<T: serde::Serialize, E: std::fmt::Debug>(res: Result<T, E>) -> Result<String, String> {
+fn to_json<T: serde::Serialize, E: std::fmt::Debug>(res: Result<T, E>) -> Result<JsValue, JsValue> {
     use ToJsonError::*;
     match res {
-        Ok(v) => Ok(serde_json::to_string(&v)
-            .map_err(JsonSerializeError)
+        Ok(v) => Ok(serde_wasm_bindgen::to_value(&v)
+            .map_err(SerializeError)
             .map_err(to_debug)?),
-        Err(v) => Err(to_debug(v)),
+        Err(v) => Err(JsValue::from_str(&to_debug(v))),
     }
 }
 
@@ -85,8 +84,15 @@ async fn connection_future<'a, 'b>(
         return UnorderedResult::Stop();
     }
 
-    let res = execute(ctx, &req).await;
-    req.response.send(res).await;
+    let Request {
+        rpc,
+        data,
+        lc,
+        response,
+        ..
+    } = req;
+    let res = execute(ctx, rpc, data, lc).await;
+    response.send(res).await;
 
     UnorderedResult::None()
 }
@@ -162,40 +168,46 @@ enum ExecuteError {
     TransactionNotFound(u32),
     TransactionRequired,
     TransactionIsReadOnly(u32),
+    UnknownRPC(String),
 }
 
-async fn execute<'a, 'b>(ctx: Context<'a, 'b>, req: &Request) -> Result<String, String> {
+async fn execute<'a, 'b>(
+    ctx: Context<'a, 'b>,
+    rpc: String,
+    data: JsValue,
+    lc: LogContext,
+) -> Result<JsValue, JsValue> {
     use ExecuteError::*;
 
     // transaction-less
-    match req.rpc.as_str() {
-        "getRoot" => return to_json(do_get_root(ctx, from_json(&req.data)?).await),
-        "openTransaction" => return to_json(do_open_transaction(ctx, from_json(&req.data)?).await),
-        "commitTransaction" => return to_json(do_commit(ctx, from_json(&req.data)?).await),
-        "closeTransaction" => return to_json(do_close(ctx, from_json(&req.data)?).await),
-        "beginSync" => return to_json(do_begin_sync(ctx, from_json(&req.data)?).await),
-        "maybeEndSync" => return to_json(do_maybe_end_sync(ctx, from_json(&req.data)?).await),
+    match rpc.as_str() {
+        "getRoot" => return to_json(do_get_root(ctx, from_json(data)?).await),
+        "openTransaction" => return to_json(do_open_transaction(ctx, from_json(data)?).await),
+        "commitTransaction" => return to_json(do_commit(ctx, from_json(data)?).await),
+        "closeTransaction" => return to_json(do_close(ctx, from_json(data)?).await),
+        "beginSync" => return to_json(do_begin_sync(ctx, from_json(data)?).await),
+        "maybeEndSync" => return to_json(do_maybe_end_sync(ctx, from_json(data)?).await),
         _ => (),
     };
 
     // require read txn
-    let txn_req: TransactionRequest = from_json(&req.data)?;
+    let txn_req: TransactionRequest = from_json(data.clone())?;
     let txn_id = txn_req
         .transaction_id
         .ok_or(TransactionRequired)
         .map_err(to_debug)?;
     let txn_id_string = txn_id.to_string();
-    req.lc.add_context("txid", &txn_id_string);
+    lc.add_context("txid", &txn_id_string);
     let txns = ctx.txns.read().await;
     let txn = txns
         .get(&txn_id)
         .ok_or_else(|| TransactionNotFound(txn_id))
         .map_err(to_debug)?;
 
-    match req.rpc.as_str() {
-        "has" => return to_json(do_has(txn.read().await.as_read(), from_json(&req.data)?).await),
-        "get" => return to_json(do_get(txn.read().await.as_read(), from_json(&req.data)?).await),
-        "scan" => return to_json(do_scan(txn.read().await.as_read(), from_json(&req.data)?).await),
+    match rpc.as_str() {
+        "has" => return to_json(do_has(txn.read().await.as_read(), from_json(data)?).await),
+        "get" => return to_json(do_get(txn.read().await.as_read(), from_json(data)?).await),
+        "scan" => return to_json(do_scan(txn.read().await.as_read(), from_json(data)?).await),
         _ => (),
     }
 
@@ -206,13 +218,13 @@ async fn execute<'a, 'b>(ctx: Context<'a, 'b>, req: &Request) -> Result<String, 
         Transaction::Read(_) => Err(to_debug(TransactionIsReadOnly(txn_id))),
     }?;
 
-    match req.rpc.as_str() {
-        "put" => return to_json(do_put(write, from_json(&req.data)?).await),
-        "del" => return to_json(do_del(write, from_json(&req.data)?).await),
+    match rpc.as_str() {
+        "put" => return to_json(do_put(write, from_json(data)?).await),
+        "del" => return to_json(do_del(write, from_json(data)?).await),
         _ => (),
     }
 
-    Err(format!("Unsupported rpc name {}", req.rpc))
+    Err(JsValue::from_str(&to_debug(UnknownRPC(rpc))))
 }
 
 #[derive(Debug)]
@@ -304,7 +316,7 @@ async fn validate_rebase<'a>(
     opts: &'a RebaseOpts,
     dag_read: dag::Read<'_>,
     mutator_name: &'a str,
-    _args: &'a serde_json::Value,
+    _args: &'a str,
 ) -> Result<(), OpenTransactionError> {
     use OpenTransactionError::*;
 
@@ -558,12 +570,12 @@ mod tests {
                 add_sync_snapshot(&mut main_chain, &store, LogContext::new(), false).await;
             let original = &main_chain[1];
             let meta = original.meta();
-            let (original_hash, original_name, original_args): (String, String, serde_json::Value) =
+            let (original_hash, original_name, original_args): (String, String, String) =
                 match meta.typed() {
                     db::MetaTyped::Local(lm) => (
                         str!(original.chunk().hash()),
                         str!(lm.mutator_name()),
-                        serde_json::from_slice(lm.mutator_args_json()).unwrap(),
+                        String::from_utf8(lm.mutator_args_json().to_vec()).unwrap(),
                     ),
                     _ => panic!("not local"),
                 };
@@ -611,7 +623,7 @@ mod tests {
                 db::MetaTyped::Local(lm) => (
                     str!(new_local.chunk().hash()),
                     str!(lm.mutator_name()),
-                    serde_json::from_slice(lm.mutator_args_json()).unwrap(),
+                    String::from_utf8(lm.mutator_args_json().to_vec()).unwrap(),
                 ),
                 _ => panic!("not local"),
             };

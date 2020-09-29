@@ -10,6 +10,8 @@ use replicache_client::sync;
 use replicache_client::util::rlog;
 use replicache_client::util::to_debug;
 use replicache_client::wasm;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use serde_json::json;
 use str_macro::str;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
@@ -25,17 +27,16 @@ fn random_db() -> String {
         .collect()
 }
 
-async fn dispatch(db: &str, rpc: &str, data: &str) -> Result<String, String> {
-    match wasm::dispatch(
-        db.to_string(),
-        rpc.to_string(),
-        wasm_bindgen::JsValue::from_str(data),
-    )
-    .await
-    {
-        Ok(v) => Ok(v),
-        Err(v) => Err(v.as_string().unwrap()),
-    }
+// TODO: Can we deserialize back to the original enum?
+async fn dispatch<Request, Response>(db: &str, rpc: &str, req: Request) -> Result<Response, String>
+where
+    Request: Serialize,
+    Response: DeserializeOwned,
+{
+    let req = serde_wasm_bindgen::to_value(&req).unwrap();
+    let resp = wasm::dispatch(db.to_string(), rpc.to_string(), req).await;
+    resp.map(|v| serde_wasm_bindgen::from_value(v).unwrap())
+        .map_err(|e| serde_wasm_bindgen::from_value(e).unwrap())
 }
 
 async fn open_transaction(
@@ -44,71 +45,59 @@ async fn open_transaction(
     args: Option<serde_json::Value>,
     rebase_opts: Option<RebaseOpts>,
 ) -> OpenTransactionResponse {
-    let resp: OpenTransactionResponse = serde_json::from_str(
-        &open_transaction_result(db_name, fn_name, args, rebase_opts)
-            .await
-            .unwrap(),
-    )
-    .unwrap();
-    resp
-}
-
-async fn open_transaction_result(
-    db_name: &str,
-    fn_name: Option<String>,
-    args: Option<serde_json::Value>,
-    rebase_opts: Option<RebaseOpts>,
-) -> Result<String, String> {
-    let req = serde_json::to_string(&OpenTransactionRequest {
-        name: fn_name,
-        args,
-        rebase_opts: rebase_opts,
-    })
-    .unwrap();
-    dispatch(db_name, "openTransaction", &req).await
-}
-
-async fn put(db_name: &str, txn_id: u32, key: &str, value: &str) {
-    assert_eq!(
-        dispatch(
-            db_name,
-            "put",
-            &format!(
-                "{{\"transactionId\": {}, \"key\": \"{}\", \"value\": \"{}\"}}",
-                txn_id, key, value
-            )
-        )
-        .await
-        .unwrap(),
-        "{}"
-    );
-}
-
-async fn has(db_name: &str, txn_id: u32, key: &str) -> bool {
-    let result = dispatch(
+    dispatch(
         db_name,
-        "get",
-        &format!("{{\"transactionId\": {}, \"key\": \"{}\"}}", txn_id, key),
+        "openTransaction",
+        &OpenTransactionRequest {
+            name: fn_name,
+            args: Some(serde_json::to_string(&args).unwrap()),
+            rebase_opts: rebase_opts,
+        },
+    )
+    .await
+    .unwrap()
+}
+
+async fn put(db_name: &str, transaction_id: u32, key: &str, value: &str) {
+    let _: PutResponse = dispatch(
+        db_name,
+        "put",
+        &PutRequest {
+            transaction_id,
+            key: key.to_string(),
+            value: value.to_string(),
+        },
     )
     .await
     .unwrap();
-    let response: HasResponse = serde_json::from_str(&result).unwrap();
+}
+
+async fn has(db_name: &str, txn_id: u32, key: &str) -> bool {
+    let response: HasResponse = dispatch(
+        db_name,
+        "has",
+        &HasRequest {
+            transaction_id: txn_id,
+            key: key.to_string(),
+        },
+    )
+    .await
+    .unwrap();
     response.has
 }
 
 async fn get(db_name: &str, txn_id: u32, key: &str) -> Option<String> {
-    let result = dispatch(
+    let response: GetResponse = dispatch(
         db_name,
         "get",
-        &format!("{{\"transactionId\": {}, \"key\": \"{}\"}}", txn_id, key),
+        &GetRequest {
+            transaction_id: txn_id,
+            key: key.to_string(),
+        },
     )
     .await
     .unwrap();
-    let response: GetResponse = serde_json::from_str(&result).unwrap();
-    match response.has {
-        true => Some(response.value.unwrap()),
-        false => None,
-    }
+    response.value
 }
 
 async fn scan(
@@ -116,56 +105,59 @@ async fn scan(
     txn_id: u32,
     prefix: &str,
     start_key: &str,
-    start_index: u32,
-) -> String {
+    start_index: u64,
+) -> ScanResponse {
     dispatch(
         db_name,
         "scan",
-        &json!({
-            "transactionId": txn_id,
-            "opts": {
-                "prefix": prefix,
-                "start": {
-                    "id": {
-                        "value": start_key,
-                        "exclusive": false,
-                    },
-                    "index": start_index,
-                }
-            }
-        })
-        .to_string(),
+        &ScanRequest {
+            transaction_id: txn_id,
+            opts: ScanOptions {
+                prefix: Some(prefix.to_string()),
+                start: Some(ScanBound {
+                    key: Some(ScanKey {
+                        value: start_key.to_string(),
+                        exclusive: false,
+                    }),
+                    index: Some(start_index),
+                }),
+                limit: None,
+            },
+        },
     )
     .await
     .unwrap()
 }
 
 async fn del(db_name: &str, txn_id: u32, key: &str) -> bool {
-    let result = dispatch(
+    let response: DelResponse = dispatch(
         db_name,
         "del",
-        &format!("{{\"transactionId\": {}, \"key\": \"{}\"}}", txn_id, key),
+        &DelRequest {
+            transaction_id: txn_id,
+            key: key.to_string(),
+        },
     )
     .await
     .unwrap();
-    let response: DelResponse = serde_json::from_str(&result).unwrap();
     response.had
 }
 
-async fn commit(db_name: &str, txn_id: u32) -> Result<String, String> {
+async fn commit(db_name: &str, transaction_id: u32) -> CommitTransactionResponse {
     dispatch(
         db_name,
         "commitTransaction",
-        &format!("{{\"transactionId\": {}}}", txn_id),
+        &CommitTransactionRequest { transaction_id },
     )
     .await
+    .unwrap()
 }
 
-async fn abort(db_name: &str, txn_id: u32) {
-    dispatch(
+async fn abort(db_name: &str, transaction_id: u32) {
+    let _: CloseTransactionResponse = dispatch(
         db_name,
         "closeTransaction",
-        &format!("{{\"transactionId\": {}}}", txn_id),
+        &CloseTransactionRequest { transaction_id },
     )
     .await
     .unwrap();
@@ -173,26 +165,45 @@ async fn abort(db_name: &str, txn_id: u32) {
 
 #[wasm_bindgen_test]
 async fn test_open_close() {
-    assert_eq!(dispatch("", "debug", "open_dbs").await.unwrap(), "[]");
     assert_eq!(
-        dispatch("", "open", "").await.unwrap_err(),
+        dispatch::<_, String>("", "debug", "open_dbs")
+            .await
+            .unwrap(),
+        "[]",
+    );
+    assert_eq!(
+        dispatch::<_, String>("", "open", "").await.unwrap_err(),
         "db_name must be non-empty"
     );
-    assert_eq!(dispatch("db", "open", "").await.unwrap(), "");
-    assert_eq!(dispatch("", "debug", "open_dbs").await.unwrap(), "[\"db\"]");
-    assert_eq!(dispatch("db2", "open", "").await.unwrap(), "");
+    assert_eq!(dispatch::<_, String>("db", "open", "").await.unwrap(), "");
     assert_eq!(
-        dispatch("", "debug", "open_dbs").await.unwrap(),
-        "[\"db\", \"db2\"]"
+        dispatch::<_, String>("", "debug", "open_dbs")
+            .await
+            .unwrap(),
+        "[\"db\"]"
     );
-    assert_eq!(dispatch("db", "close", "").await.unwrap(), "");
-    assert_eq!(dispatch("db", "close", "").await.unwrap(), "");
+    assert_eq!(dispatch::<_, String>("db2", "open", "").await.unwrap(), "");
     assert_eq!(
-        dispatch("", "debug", "open_dbs").await.unwrap(),
+        dispatch::<_, String>("", "debug", "open_dbs")
+            .await
+            .unwrap(),
+        "[\"db\", \"db2\"]",
+    );
+    assert_eq!(dispatch::<_, String>("db", "close", "").await.unwrap(), "");
+    assert_eq!(dispatch::<_, String>("db", "close", "").await.unwrap(), "");
+    assert_eq!(
+        dispatch::<_, String>("", "debug", "open_dbs")
+            .await
+            .unwrap(),
         "[\"db2\"]"
     );
-    assert_eq!(dispatch("db2", "close", "").await.unwrap(), "");
-    assert_eq!(dispatch("", "debug", "open_dbs").await.unwrap(), "[]");
+    assert_eq!(dispatch::<_, String>("db2", "close", "").await.unwrap(), "");
+    assert_eq!(
+        dispatch::<_, String>("", "debug", "open_dbs")
+            .await
+            .unwrap(),
+        "[]",
+    );
 }
 
 #[wasm_bindgen_test]
@@ -203,7 +214,7 @@ async fn test_dispatch_concurrency() {
         .performance()
         .expect("performance should be available");
 
-    assert_eq!(dispatch(db, "open", "").await.unwrap(), "");
+    assert_eq!(dispatch::<_, String>(db, "open", "").await.unwrap(), "");
     let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
@@ -218,7 +229,7 @@ async fn test_dispatch_concurrency() {
     );
     let elapsed_ms = performance.now() - now_ms;
     abort(db, txn_id).await;
-    assert_eq!(dispatch(db, "close", "").await.unwrap(), "");
+    assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
     assert_eq!(elapsed_ms >= 100., true);
     assert_eq!(elapsed_ms < 200., true);
 }
@@ -227,12 +238,12 @@ async fn test_dispatch_concurrency() {
 async fn test_write_concurrency() {
     let db = &random_db();
 
-    dispatch(db, "open", "").await.unwrap();
+    dispatch::<_, String>(db, "open", "").await.unwrap();
     let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
     put(db, txn_id, "value", "1").await;
-    commit(db, txn_id).await.unwrap();
+    commit(db, txn_id).await;
 
     // TODO(nate): Strengthen test to prove these open waits overlap.
     join!(
@@ -246,7 +257,7 @@ async fn test_write_concurrency() {
                 .parse::<u32>()
                 .unwrap();
             put(db, txn_id, "value", &(value + 2).to_string()).await;
-            commit(db, txn_id).await.unwrap();
+            commit(db, txn_id).await;
         },
         async {
             let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
@@ -258,7 +269,7 @@ async fn test_write_concurrency() {
                 .parse::<u32>()
                 .unwrap();
             put(db, txn_id, "value", &(value + 3).to_string()).await;
-            commit(db, txn_id).await.unwrap();
+            commit(db, txn_id).await;
         }
     );
     let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
@@ -274,7 +285,7 @@ async fn test_write_concurrency() {
     );
     abort(db, txn_id).await;
 
-    assert_eq!(dispatch(db, "close", "").await.unwrap(), "");
+    assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
 }
 
 #[wasm_bindgen_test]
@@ -282,40 +293,32 @@ async fn test_get_put_del() {
     let db = &random_db();
 
     assert_eq!(
-        dispatch(db, "put", "{\"k\", \"v\"}").await.unwrap_err(),
+        dispatch::<_, PutResponse>(
+            db,
+            "put",
+            PutRequest {
+                transaction_id: 42,
+                key: str!("unused"),
+                value: str!("unused"),
+            }
+        )
+        .await
+        .unwrap_err(),
         format!("\"{}\" not open", db)
     );
-    assert_eq!(dispatch(db, "open", "").await.unwrap(), "");
-
-    // Check request parsing, both missing and unexpected fields.
-    assert_eq!(
-        dispatch(db, "put", "{}").await.unwrap_err(),
-        "TransactionRequired"
-    );
+    assert_eq!(dispatch::<_, String>(db, "open", "").await.unwrap(), "");
 
     let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
 
-    assert_eq!(
-        dispatch(
-            db,
-            "get",
-            &format!(
-                "{{\"transactionId\": {}, \"key\": \"Hello\", \"value\": \"世界\"}}",
-                txn_id,
-            )
-        )
-        .await
-        .unwrap(),
-        "{\"has\":false}", // unwrap_err() == "Failed to parse request"
-    );
+    assert_eq!(get(db, txn_id, "Hello").await, None);
 
     // Simple put then get test.
     // TODO(nate): Resolve how to pass non-UTF-8 sequences through the API.
     put(db, txn_id, "Hello", "世界").await;
     assert_eq!(get(db, txn_id, "Hello").await.unwrap(), "世界");
-    commit(db, txn_id).await.unwrap();
+    commit(db, txn_id).await;
 
     // Open new transaction, and verify write is persistent.
     let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
@@ -330,7 +333,7 @@ async fn test_get_put_del() {
     assert_eq!(has(db, txn_id, "你好").await, true);
     assert_eq!(get(db, txn_id, "你好").await, Some("world".into()));
 
-    commit(db, txn_id).await.unwrap();
+    commit(db, txn_id).await;
     let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
@@ -345,7 +348,7 @@ async fn test_get_put_del() {
     assert_eq!(del(db, txn_id, "Hello").await, true);
     assert_eq!(has(db, txn_id, "Hello").await, false);
     assert_eq!(del(db, txn_id, "Hello").await, false);
-    commit(db, txn_id).await.unwrap();
+    commit(db, txn_id).await;
 
     let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
@@ -353,14 +356,14 @@ async fn test_get_put_del() {
     assert_eq!(has(db, txn_id, "Hello").await, false);
     abort(db, txn_id).await;
 
-    assert_eq!(dispatch(db, "close", "").await.unwrap(), "");
+    assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
 }
 
 #[wasm_bindgen_test]
 async fn test_scan() {
     let db = &random_db();
 
-    dispatch(db, "open", "").await.unwrap();
+    dispatch::<_, String>(db, "open", "").await.unwrap();
     let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
@@ -372,23 +375,73 @@ async fn test_scan() {
 
     assert_eq!(
         scan(db, txn_id, "", "", 0).await,
-        r#"{"items":[{"key":"foo","value":"bar"},{"key":"foopa","value":"baz"},{"key":"hoota","value":"daz"},{"key":"hot","value":"dog"}]}"#
+        ScanResponse {
+            items: vec![
+                ScanItem {
+                    key: str!("foo"),
+                    value: str!("bar"),
+                },
+                ScanItem {
+                    key: str!("foopa"),
+                    value: str!("baz"),
+                },
+                ScanItem {
+                    key: str!("hoota"),
+                    value: str!("daz"),
+                },
+                ScanItem {
+                    key: str!("hot"),
+                    value: str!("dog"),
+                }
+            ]
+        }
     );
     assert_eq!(
         scan(db, txn_id, "f", "", 0).await,
-        r#"{"items":[{"key":"foo","value":"bar"},{"key":"foopa","value":"baz"}]}"#
+        ScanResponse {
+            items: vec![
+                ScanItem {
+                    key: str!("foo"),
+                    value: str!("bar"),
+                },
+                ScanItem {
+                    key: str!("foopa"),
+                    value: str!("baz"),
+                },
+            ]
+        }
     );
     assert_eq!(
         scan(db, txn_id, "", "foopa", 0).await,
-        r#"{"items":[{"key":"foopa","value":"baz"},{"key":"hoota","value":"daz"},{"key":"hot","value":"dog"}]}"#
+        ScanResponse {
+            items: vec![
+                ScanItem {
+                    key: str!("foopa"),
+                    value: str!("baz"),
+                },
+                ScanItem {
+                    key: str!("hoota"),
+                    value: str!("daz"),
+                },
+                ScanItem {
+                    key: str!("hot"),
+                    value: str!("dog"),
+                }
+            ]
+        }
     );
     assert_eq!(
         scan(db, txn_id, "", "foopa", 3).await,
-        r#"{"items":[{"key":"hot","value":"dog"}]}"#
+        ScanResponse {
+            items: vec![ScanItem {
+                key: str!("hot"),
+                value: str!("dog"),
+            }]
+        }
     );
 
     abort(db, txn_id).await;
-    dispatch(db, "close", "").await.unwrap();
+    dispatch::<_, String>(db, "close", "").await.unwrap();
 }
 
 #[wasm_bindgen_test]
@@ -396,13 +449,19 @@ async fn test_get_root() {
     let db = &random_db();
     assert_eq!(
         format!(r#""{}" not open"#, db),
-        dispatch(db, "getRoot", "{}").await.unwrap_err()
+        dispatch::<_, GetRootResponse>(db, "getRoot", &GetRootRequest { head_name: None })
+            .await
+            .unwrap_err()
     );
 
-    assert_eq!(dispatch(db, "open", "").await.unwrap(), "");
+    assert_eq!(dispatch::<_, String>(db, "open", "").await.unwrap(), "");
     assert_eq!(
-        dispatch(db, "getRoot", "{}").await.unwrap(),
-        "{\"root\":\"b3l9pgiide3am771eu08kfgg5sprjs2e\"}"
+        dispatch::<_, GetRootResponse>(db, "getRoot", &GetRootRequest { head_name: None })
+            .await
+            .unwrap(),
+        GetRootResponse {
+            root: str!("b3l9pgiide3am771eu08kfgg5sprjs2e"),
+        }
     );
     let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
@@ -410,10 +469,14 @@ async fn test_get_root() {
     put(db, txn_id, "foo", "bar").await;
     let _ = commit(db, txn_id).await;
     assert_eq!(
-        dispatch(db, "getRoot", "{}").await.unwrap(),
-        "{\"root\":\"ug6tod81n4l0fm8ob1iud4hetomibm02\"}"
+        dispatch::<_, GetRootResponse>(db, "getRoot", GetRootRequest { head_name: None })
+            .await
+            .unwrap(),
+        GetRootResponse {
+            root: str!("ug6tod81n4l0fm8ob1iud4hetomibm02"),
+        }
     );
-    assert_eq!(dispatch(db, "close", "").await.unwrap(), "");
+    assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
 }
 
 #[wasm_bindgen_test]

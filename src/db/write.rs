@@ -13,7 +13,7 @@ enum Meta {
 
 struct LocalMeta {
     mutator_name: String,
-    mutator_args: serde_json::Value,
+    mutator_args: String,
     mutation_id: u64,
     original_hash: Option<String>,
 }
@@ -64,7 +64,7 @@ impl<'a> Write<'a> {
     pub async fn new_local(
         whence: Whence,
         mutator_name: String,
-        mutator_args: serde_json::Value,
+        mutator_args: String,
         original_hash: Option<String>,
         dag_write: dag::Write<'a>,
     ) -> Result<Write<'a>, ReadCommitError> {
@@ -175,7 +175,7 @@ impl<'a> Write<'a> {
                     self.checksum,
                     mutation_id,
                     &mutator_name,
-                    &serde_json::to_vec(&mutator_args).map_err(SerializeArgsError)?,
+                    mutator_args.as_bytes(),
                     original_hash.as_deref(),
                     &value_hash,
                 )
@@ -243,7 +243,7 @@ mod tests {
         let mut w = Write::new_local(
             Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
             str!("mutator_name"),
-            serde_json::Value::Array(vec![]),
+            serde_json::Value::Array(vec![]).to_string(),
             None,
             ds.write(LogContext::new()).await.unwrap(),
         )
@@ -257,7 +257,7 @@ mod tests {
         let w = Write::new_local(
             Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
             str!("mutator_name"),
-            serde_json::Value::Null,
+            serde_json::Value::Null.to_string(),
             None,
             ds.write(LogContext::new()).await.unwrap(),
         )
@@ -281,7 +281,7 @@ mod tests {
         let mut w = Write::new_local(
             Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
             str!("mutator_name"),
-            serde_json::Value::Array(vec![]),
+            serde_json::Value::Array(vec![]).to_string(),
             None,
             ds.write(LogContext::new()).await.unwrap(),
         )

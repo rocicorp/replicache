@@ -46,8 +46,7 @@ export class REPMWasmInvoker {
   ): Promise<JSONValue> => {
     console.debug('>', dbName, rpc, args);
     await wasmModuleOutput;
-    const json = await dispatch(dbName, rpc, JSON.stringify(args));
-    const ret = json == '' ? null : JSON.parse(json);
+    const ret = await dispatch(dbName, rpc, args);
     console.debug('<', dbName, rpc, ret);
     return ret;
   };
@@ -103,7 +102,7 @@ type RebaseOpts =
 
 export type OpenTransactionRequest = {
   name?: string;
-  args?: JSONValue | ToJSON;
+  args?: string;
   rebaseOpts?: RebaseOpts;
 };
 type OpenTransactionResponse = {
@@ -169,7 +168,7 @@ type MaybeEndSyncRequest = {
 type Mutation = {
   id: number;
   name: string;
-  args: JSONValue;
+  args: string;
 };
 
 type ReplayMutation = Mutation & {

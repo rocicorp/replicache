@@ -363,11 +363,12 @@ export default class Replicache implements ReadTransaction {
     // Replay.
     for (const mutation of replayMutations) {
       const {original} = mutation;
+      console.log('parsing', mutation.args);
       syncHead = await this._replay(
         syncHead,
         original,
         mutation.name,
-        mutation.args,
+        JSON.parse(mutation.args),
       );
     }
 
@@ -565,7 +566,10 @@ export default class Replicache implements ReadTransaction {
       shouldCheckChange,
     }: {invokeArgs?: OpenTransactionRequest; shouldCheckChange: boolean},
   ): Promise<{result: R; ref: string}> {
-    let actualInvokeArgs: OpenTransactionRequest = {args, name};
+    let actualInvokeArgs: OpenTransactionRequest = {
+      args: JSON.stringify(args),
+      name,
+    };
     if (invokeArgs !== undefined) {
       actualInvokeArgs = {...actualInvokeArgs, ...invokeArgs};
     }

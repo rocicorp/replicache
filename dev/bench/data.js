@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1601504134674,
+  "lastUpdate": 1601504347377,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -465,6 +465,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 19.07,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "83053ec8a966609d8c04abba71048b9ada28d37d",
+          "message": "Add script for Now to use",
+          "timestamp": "2020-09-30T12:16:49-10:00",
+          "tree_id": "14090c85fef200e7e8849b5f76ce439f1fa2665d",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/83053ec8a966609d8c04abba71048b9ada28d37d"
+        },
+        "date": 1601504346916,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean)",
+            "value": 1.53,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty)",
+            "value": 1.55,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 19.93,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 20.87,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

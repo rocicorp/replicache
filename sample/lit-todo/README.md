@@ -10,4 +10,10 @@ rollup -c --watch &
 python -m SimpleHTTPServer
 ```
 
+## Build for Release
+
+```
+npm run build
+```
+
 Then navigate to: http://localhost:8000/

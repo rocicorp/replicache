@@ -173,7 +173,10 @@ window.addEventListener('load', () => {
   document.body.style.visibility = 'visible';
 });
 
-document.querySelector('mwc-fab').addEventListener('click', handleCreate);
+document.querySelector('mwc-fab').addEventListener('click', e => {
+  e.preventDefault();
+  handleCreate();
+});
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');

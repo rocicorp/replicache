@@ -12,7 +12,7 @@
     "replicache": "../../"
   },
   "scripts": {
-    "build": "rollup -c"
+    "build": "cd ../../ && npm install && npm run build && cd - && rollup -c"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^9.0.0",

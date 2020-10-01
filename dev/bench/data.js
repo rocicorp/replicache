@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1601524754041,
+  "lastUpdate": 1601529864792,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -829,6 +829,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 21.05,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "238f29b32edeb09a5b642f2fc8f543442b206f18",
+          "message": "Remove auto-select code which doesn't work well on mobile.\n\nAlso disable zoom.",
+          "timestamp": "2020-09-30T19:22:01-10:00",
+          "tree_id": "a88875d3c5ecae89dc988604a5293be841f65ca2",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/238f29b32edeb09a5b642f2fc8f543442b206f18"
+        },
+        "date": 1601529864398,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean)",
+            "value": 1.36,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty)",
+            "value": 1.33,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 18.43,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 17.89,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

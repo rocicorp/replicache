@@ -161,13 +161,13 @@ function update(newTodos) {
         @focus=${handleFocus}
         @click=${handleTextClick}
         @blur=${e => handleBlur(todo.id, e)}
-        @keydown=${e => handleKeydown(e, index == todos.length - 1)}
         contenteditable
         >${todo.text}</span
       >
     </div>
     <mwc-icon-button
       @click=${e => handleDelete(todo.id, e)}
+      @keydown=${e => handleKeydown(e, index == todos.length - 1)}
       icon="delete"
     ></mwc-icon-button>
   </div>`;
@@ -177,17 +177,16 @@ function update(newTodos) {
   );
 }
 
+// FOUC
 window.addEventListener('load', () => {
-  // FOUC
   document.body.style.visibility = 'visible';
 });
 document.querySelector('mwc-fab').addEventListener('click', handleCreate);
 
+// Push
 Pusher.logToConsole = true;
 new Pusher('8084fa6056631d43897d', {
   cluster: 'us3',
 })
   .subscribe('u-2')
-  .bind('poke', function (data) {
-    rep.sync();
-  });
+  .bind('poke', () => rep.sync());

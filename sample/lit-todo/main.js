@@ -181,7 +181,14 @@ function update(newTodos) {
 window.addEventListener('load', () => {
   document.body.style.visibility = 'visible';
 });
+
 document.querySelector('mwc-fab').addEventListener('click', handleCreate);
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+
+window.addEventListener('online', e => rep.sync());
 
 // Push
 Pusher.logToConsole = true;

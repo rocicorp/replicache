@@ -99,14 +99,6 @@ async function handleDelete(id, e) {
   await deleteTodo({id});
 }
 
-async function handleFocus(e) {
-  const selection = getSelection();
-  const range = document.createRange();
-  range.selectNodeContents(e.target);
-  selection.removeAllRanges();
-  selection.addRange(range);
-}
-
 async function handleBlur(id, e) {
   const text = e.target.textContent;
   await updateTodo({id, text});
@@ -158,7 +150,6 @@ function update(newTodos) {
     ></mwc-checkbox>
     <div class="textwrap" @click=${e => handleItemClick(todo.id, e)}>
       <span
-        @focus=${handleFocus}
         @click=${handleTextClick}
         @blur=${e => handleBlur(todo.id, e)}
         contenteditable

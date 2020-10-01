@@ -43,10 +43,11 @@ pub struct SyncInfo {
     #[serde(rename = "batchPushInfo")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_push_info: Option<BatchPushInfo>,
-    // TODO
     // ClientViewInfo will be set if the request to the diffserver completed with status 200
     // and the diffserver attempted to request the client view from the data layer.
-    // ClientViewInfo servetypes.ClientViewInfo `json:"clientViewInfo"`
+    #[serde(rename = "clientViewInfo")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_view_info: Option<ClientViewInfo>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -56,6 +57,14 @@ pub struct BatchPushInfo {
     #[serde(rename = "errorMessage")]
     pub error_message: String,
     // TODO BatchPushResponse BatchPushResponse `json:"batchPushResponse"`
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub struct ClientViewInfo {
+    #[serde(rename = "httpStatusCode")]
+    pub http_status_code: u16,
+    #[serde(rename = "errorMessage")]
+    pub error_message: String,
 }
 
 #[derive(Deserialize, Serialize)]

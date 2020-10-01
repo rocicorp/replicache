@@ -38,10 +38,8 @@ pub async fn begin_sync(
 
     // TODO generate a sync id and add it to logging context (lc.add_context()).
     let sync_id = str!("TODO_sync_id");
-    let mut sync_info = SyncInfo {
-        sync_id: sync_id.to_string(),
-        batch_push_info: None,
-    };
+    let mut begin_sync_resp = BeginSyncResponse::default();
+    begin_sync_resp.sync_info.sync_id = sync_id.clone();
 
     // Push: find pending commits between the base snapshot and the main head
     // and push them to the data layer.
@@ -71,7 +69,7 @@ pub async fn begin_sync(
             }
         }
         // Contract is that BatchPushInfo is present if we attempted to push.
-        sync_info.batch_push_info = Some(BatchPushInfo {
+        begin_sync_resp.sync_info.batch_push_info = Some(BatchPushInfo {
             http_status_code: 0,
             error_message: str!(""),
         });
@@ -91,7 +89,7 @@ pub async fn begin_sync(
             .await;
         // Note: no map_err(). A failed push does not fail sync, but we
         // do report it in BatchPushInfo.
-        sync_info.batch_push_info = match push_resp {
+        begin_sync_resp.sync_info.batch_push_info = match push_resp {
             Ok(_) => Some(BatchPushInfo {
                 http_status_code: 200,
                 error_message: str!(""),
@@ -105,7 +103,6 @@ pub async fn begin_sync(
                 error_message: format!("{:?}", e),
             }),
         };
-
         debug!(lc, "...Push complete in {}ms", push_timer.elapsed_ms());
     }
 
@@ -134,11 +131,13 @@ pub async fn begin_sync(
         .map_err(PullFailed)?;
     debug!(lc, "...Pull complete in {}ms", pull_timer.elapsed_ms());
 
+    begin_sync_resp.sync_info.client_view_info = Some(pull_resp.client_view_info.clone());
+
     let expected_checksum = Checksum::from_str(&pull_resp.checksum).map_err(InvalidChecksum)?;
     if pull_resp.state_id.is_empty() {
         return Err(MissingStateID);
     } else if pull_resp.state_id == base_state_id {
-        return Ok(Default::default());
+        return Ok(begin_sync_resp);
     }
     // Note: if last mutation ids are equal we don't reject it: the server could
     // have new state that didn't originate from the client.
@@ -181,19 +180,14 @@ pub async fn begin_sync(
             db_write.checksum()
         )));
     }
-    // TODO ClientViewInfo
 
     let commit_hash = db_write
         .commit(SYNC_HEAD_NAME, "TODO_local_create_date")
         .await
         .map_err(CommitError)?;
+    begin_sync_resp.sync_head = commit_hash;
 
-    let resp = BeginSyncResponse {
-        sync_head: commit_hash,
-        sync_info,
-    };
-
-    Ok(resp)
+    Ok(begin_sync_resp)
 }
 
 #[derive(Debug)]
@@ -368,7 +362,8 @@ pub struct PullResponse {
     #[serde(rename = "checksum")]
     #[allow(dead_code)]
     checksum: String,
-    // TODO ClientViewInfo ClientViewInfo `json:"clientViewInfo"`
+    #[serde(rename = "clientViewInfo")]
+    client_view_info: ClientViewInfo,
 }
 
 // We define this trait so we can provide a fake implementation for testing.
@@ -489,6 +484,10 @@ mod tests {
         let diff_server_url = str!("diff_server_url");
         let diff_server_auth = str!("diff_server_auth");
 
+        let good_client_view_info = ClientViewInfo {
+            http_status_code: 200,
+            error_message: str!(""),
+        };
         let good_pull_resp = PullResponse {
             state_id: str!("new_state_id"),
             last_mutation_id: 10,
@@ -505,6 +504,7 @@ mod tests {
                 },
             ],
             checksum: str!("f9ef007b"),
+            client_view_info: good_client_view_info.clone(),
         };
 
         struct ExpCommit {
@@ -646,6 +646,7 @@ mod tests {
                     last_mutation_id: base_last_mutation_id,
                     patch: vec![],
                     checksum: base_checksum.clone(),
+                    client_view_info: good_client_view_info.clone(),
                 }),
                 exp_err: None,
                 exp_new_sync_head: None,
@@ -738,7 +739,7 @@ mod tests {
                     checksum: base_checksum.clone(),
                     version: 1,
                 },
-                pull_result: Err(str!("FetchNotOk")),
+                pull_result: Err(str!("FetchNotOk(500)")),
                 exp_err: Some("FetchNotOk(500)"),
                 exp_new_sync_head: None,
             },
@@ -850,12 +851,23 @@ mod tests {
                     assert_eq!(&sync_head_hash, &got_resp.as_ref().unwrap().sync_head);
                 }
             };
+
+            // Check that SyncInfo is filled like we would expect.
             if c.exp_err.is_none() {
-                let got_push_info = got_resp.unwrap().sync_info.batch_push_info;
+                let resp = got_resp.unwrap();
+                let got_push_info = resp.sync_info.batch_push_info;
                 match &c.push_result {
                     Some(Ok(_)) => assert_eq!(200, got_push_info.unwrap().http_status_code),
                     Some(Err(_)) => assert_eq!(500, got_push_info.unwrap().http_status_code),
                     _ => (),
+                };
+
+                let got_client_view_info = resp.sync_info.client_view_info.as_ref().unwrap();
+                if !&c.pull_result.is_err() {
+                    assert_eq!(
+                        &c.pull_result.as_ref().unwrap().client_view_info,
+                        got_client_view_info
+                    );
                 }
             }
         }
@@ -945,7 +957,7 @@ mod tests {
 
             match &self.err {
                 Some(s) => match s.as_str() {
-                    "FetchNotOk" => Err(PullError::FetchNotOk(
+                    "FetchNotOk(500)" => Err(PullError::FetchNotOk(
                         http::StatusCode::INTERNAL_SERVER_ERROR,
                     )),
                     _ => panic!("not implemented"),
@@ -1143,7 +1155,7 @@ mod tests {
             Case {
                 name: "200",
                 resp_status: 200,
-                resp_body: r#"{"stateID": "1", "lastMutationID": 2, "checksum": "12345678", "patch": [{"op":"remove","path":"/"}]}"#,
+                resp_body: r#"{"stateID": "1", "lastMutationID": 2, "checksum": "12345678", "patch": [{"op":"remove","path":"/"}], "clientViewInfo": { "httpStatusCode": 200, "errorMessage": "" }}"#,
                 exp_err: None,
                 exp_resp: Some(PullResponse {
                     state_id: str!("1"),
@@ -1154,6 +1166,10 @@ mod tests {
                         value_string: str!(""),
                     }],
                     checksum: str!("12345678"),
+                    client_view_info: ClientViewInfo {
+                        http_status_code: 200,
+                        error_message: str!(""),
+                    },
                 }),
             },
             Case {

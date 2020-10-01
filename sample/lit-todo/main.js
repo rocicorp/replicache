@@ -32,7 +32,7 @@ let rep = new Replicache({
 
   // Auth token for your client view and batch endpoints, if any.
   dataLayerAuth: '2',
-  pushDelay: 300,
+  pushDelay: 500,
 
   repmInvoker: new REPMWasmInvoker(
     './output/wasm/release/replicache_client_bg.wasm',

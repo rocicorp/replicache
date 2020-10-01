@@ -16,6 +16,7 @@ use crate::fetch::errors::FetchError;
 use crate::util::rlog;
 use crate::util::rlog::LogContext;
 use async_trait::async_trait;
+use push::PushError;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
 use std::fmt::Debug;
@@ -37,6 +38,10 @@ pub async fn begin_sync(
 
     // TODO generate a sync id and add it to logging context (lc.add_context()).
     let sync_id = str!("TODO_sync_id");
+    let mut sync_info = SyncInfo {
+        sync_id: sync_id.to_string(),
+        batch_push_info: None,
+    };
 
     // Push: find pending commits between the base snapshot and the main head
     // and push them to the data layer.
@@ -65,13 +70,18 @@ pub async fn begin_sync(
                 _ => return Err(InternalNonLocalPendingCommit),
             }
         }
+        // Contract is that BatchPushInfo is present if we attempted to push.
+        sync_info.batch_push_info = Some(BatchPushInfo {
+            http_status_code: 0,
+            error_message: str!(""),
+        });
         let push_req = push::BatchPushRequest {
             client_id: client_id.clone(),
             mutations: push_mutations,
         };
         debug!(lc, "Starting push...");
         let push_timer = rlog::Timer::new().map_err(InternalTimerError)?;
-        let _ = pusher
+        let push_resp = pusher
             .push(
                 &push_req,
                 &begin_sync_req.batch_push_url,
@@ -79,8 +89,23 @@ pub async fn begin_sync(
                 &sync_id,
             )
             .await;
-        // Note: no map_err(). A failed push does not fail sync.
-        // TODO surface this failure in SyncInfo.
+        // Note: no map_err(). A failed push does not fail sync, but we
+        // do report it in BatchPushInfo.
+        sync_info.batch_push_info = match push_resp {
+            Ok(_) => Some(BatchPushInfo {
+                http_status_code: 200,
+                error_message: str!(""),
+            }),
+            Err(PushError::FetchNotOk(status_code)) => Some(BatchPushInfo {
+                http_status_code: u16::from(status_code),
+                error_message: format!("{:?}", PullError::FetchNotOk(status_code)),
+            }),
+            Err(e) => Some(BatchPushInfo {
+                http_status_code: 0, // TOOD we could return this properly in the PushError.
+                error_message: format!("{:?}", e),
+            }),
+        };
+
         debug!(lc, "...Push complete in {}ms", push_timer.elapsed_ms());
     }
 
@@ -165,9 +190,7 @@ pub async fn begin_sync(
 
     let resp = BeginSyncResponse {
         sync_head: commit_hash,
-        sync_info: SyncInfo {
-            sync_id: sync_id.to_string(),
-        },
+        sync_info,
     };
 
     Ok(resp)
@@ -585,7 +608,7 @@ mod tests {
                         },
                     ],
                 }),
-                push_result: Some(Err(str!("FetchNotOk"))),
+                push_result: Some(Err(str!("FetchNotOk(500)"))),
                 exp_pull_req: PullRequest {
                     client_view_auth: data_layer_auth.clone(),
                     client_id: client_id.clone(),
@@ -805,7 +828,7 @@ mod tests {
                     // In a nop sync we except BeginSync to succeed but sync_head will
                     // be empty.
                     if c.exp_err.is_none() {
-                        assert!(got_resp.unwrap().sync_head.is_empty());
+                        assert!(&got_resp.as_ref().unwrap().sync_head.is_empty());
                     }
                 }
                 Some(exp_sync_head) => {
@@ -824,9 +847,17 @@ mod tests {
                         c.name
                     );
 
-                    assert_eq!(sync_head_hash, got_resp.unwrap().sync_head);
+                    assert_eq!(&sync_head_hash, &got_resp.as_ref().unwrap().sync_head);
                 }
             };
+            if c.exp_err.is_none() {
+                let got_push_info = got_resp.unwrap().sync_info.batch_push_info;
+                match &c.push_result {
+                    Some(Ok(_)) => assert_eq!(200, got_push_info.unwrap().http_status_code),
+                    Some(Err(_)) => assert_eq!(500, got_push_info.unwrap().http_status_code),
+                    _ => (),
+                }
+            }
         }
     }
 
@@ -868,7 +899,7 @@ mod tests {
 
             match &self.err {
                 Some(s) => match s.as_str() {
-                    "FetchNotOk" => Err(push::PushError::FetchNotOk(
+                    "FetchNotOk(500)" => Err(push::PushError::FetchNotOk(
                         http::StatusCode::INTERNAL_SERVER_ERROR,
                     )),
                     _ => panic!("not implemented"),

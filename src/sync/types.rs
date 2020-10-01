@@ -23,13 +23,39 @@ pub struct BeginSyncResponse {
     pub sync_head: String,
     #[serde(rename = "syncInfo")]
     pub sync_info: SyncInfo,
-    // TODO Fill in the rest of SyncInfo
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct SyncInfo {
     #[serde(rename = "syncID")]
     pub sync_id: String,
+
+    // BatchPushInfo will be set if we attempted to push, ie if there were >0 pending commits.
+    // Its http_status_code will be 0 if the request was not sent, eg we couldn't create
+    // the request for some reason. It will be the status code returned by the server if
+    // the server returned 200 and the result parsed properly or if the server returned
+    // something other than 200.
+    //
+    // TODO the status code will be 0 if the server returned 200 but the result
+    // could not be parsed -- this is a bug we could fix by always returning the
+    // status code in the PushError. (The error_message will contain the error
+    // in this case however.)
+    #[serde(rename = "batchPushInfo")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub batch_push_info: Option<BatchPushInfo>,
+    // TODO
+    // ClientViewInfo will be set if the request to the diffserver completed with status 200
+    // and the diffserver attempted to request the client view from the data layer.
+    // ClientViewInfo servetypes.ClientViewInfo `json:"clientViewInfo"`
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct BatchPushInfo {
+    #[serde(rename = "httpStatusCode")]
+    pub http_status_code: u16,
+    #[serde(rename = "errorMessage")]
+    pub error_message: String,
+    // TODO BatchPushResponse BatchPushResponse `json:"batchPushResponse"`
 }
 
 #[derive(Deserialize, Serialize)]

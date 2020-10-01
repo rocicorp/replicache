@@ -9,10 +9,10 @@
     "@material/mwc-textfield": "^0.18.0",
     "@material/mwc-top-app-bar": "^0.18.0",
     "lit-html": "^1.3.0",
-    "replicache": "../../"
+    "replicache": "^0.4.0"
   },
   "scripts": {
-    "build": "cd ../../ && npm install && npm run build && cd - && rollup -c"
+    "build": "rollup -c"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^9.0.0",

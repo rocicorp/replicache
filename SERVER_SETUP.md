@@ -1,10 +1,8 @@
-# Replicache Quick Start
+# Replicache Server Setup
 
-This document walks you through a simple [Replicache](https://replicache.dev) integration. Specifically, we're going to be building an offline-first Todo app. You can use this as a basis for adding Replicache to your own service.
+This document walks you through adding [Replicache](https://replicache.dev) support to an existing web service.
 
-Though simple, this sample app includes the main challenges common to SaaS applications that want to add offline-first: it's a multitenant web service, where users are authenticated and can share data with each other. It's already written in a classic JSON/REST architecture that we don't want to change, and it has its own backend storage that needs to remain authoratative. 
-
-This walkthrough will show how Replicache makes it easy to add offline-first to these types of apps. It should take a few hours to work through, and another half day to a day or so to start to apply to your own system.
+To build a fully-functioning Replicache-powered application, you need both a client and a server. Currently we only support Web/JS clients. To learn how to build a client, see [https://github.com/rocicorp/replicache-sdk-js](Replicache JavaScript SDK).
 
 Questions? Comments? We'd love to help you evaluate Replicache — [Join us on Slack](https://join.slack.com/t/rocicorp/shared_invite/zt-ekh3oxbq-FzzB7qP9lwqdTvBjxXU2oA). 
 You can also refer to our fully-functional [TODO sample application](https://github.com/rocicorp/replicache-sample-todo). For information about contributing, see our [contributing guide](contributing.md).
@@ -16,16 +14,6 @@ You can also refer to our fully-functional [TODO sample application](https://git
 ![Picture of Replicache Architecture](diagram.png)
 
 Replicache is a per-user cache that sits between your backend and client. To integrate Replicache, you will make changes to both your backend and your client.
-
-# Client Side
-
-On the client side, you'll link the Replicache Client SDK into your application and use it as your local storage layer.
-
-Currently we only support web/js clients. See the [Replicache JS SDK](https://github.com/rocicorp/replicache-sdk-js) repo for the client-side setup instructions.
-
-# Server Side
-
-On the server-side you will add two custom endpoints that Replicache will call to synchronize with your service.
 
 ### Step 1: Downstream Sync
 
@@ -362,6 +350,8 @@ fg
 
 ### Step 6: 🎉🎉
 
-That's it! You're done with the backend integration. If you haven't yet, you'll need to do the [client integration](#client-side) next.
+Woo! You're done with the backend integration. What's next??
 
-Happy hacking!
+- [Build the Client UI](https://github.com/rocicorp/replicache-sdk-js)
+- [Check out the full version of this sample](https://github.com/rocicorp/replicache-sample-todo)
+- [Check out the richer React/Babel/GCal sample](https://github.com/rocicorp/replicache-sdk-js/tree/master/sample/cal)

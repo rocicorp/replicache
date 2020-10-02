@@ -21,23 +21,6 @@ Implement a *Client View* endpoint on your service that returns the data that sh
 
 Replicache will frequently query this endpoint and calculate a diff to send to each client.
 
-The format of the Client View is JSON that matches the following [JSON Schema](https://json-schema.org/):
-
-```jsonschema
-{
-  "type": "object",
-  "properties": {
-    // The last Replicache Mutation ID that your service has processed. See Step 4 and 5 for more information.
-    "lastMutationID": {"type": "integer", "minimum": 0},
-
-    // An arbitrary map of key/value pairs. Any JSON type is legal for each value.
-    // This is the data that will be available on the client side.
-    "clientView": {"type": "object"}
-  },
-  "required": ["lastMutationID", "clientView"]
-}
-```
-
 For example, [sample TODO app](https://github.com/rocicorp/replicache-sample-todo) returns a Client View like this:
 
 ```jsonc

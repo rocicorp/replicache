@@ -91,15 +91,14 @@
 							<ul class="tsd-index-list">
 								<li class="tsd-kind-property tsd-parent-kind-class"><a href="replicache.html#getdatalayerauth" class="tsd-kind-icon">get<wbr>Data<wbr>Layer<wbr>Auth</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-class"><a href="replicache.html#onsync" class="tsd-kind-icon">on<wbr>Sync</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-class"><a href="replicache.html#pushdelay" class="tsd-kind-icon">push<wbr>Delay</a></li>
 							</ul>
 						</section>
 						<section class="tsd-index-section ">
 							<h3>Accessors</h3>
 							<ul class="tsd-index-list">
 								<li class="tsd-kind-get-signature tsd-parent-kind-class"><a href="replicache.html#closed" class="tsd-kind-icon">closed</a></li>
-								<li class="tsd-kind-get-signature tsd-parent-kind-class"><a href="replicache.html#iswasm" class="tsd-kind-icon">is<wbr>Wasm</a></li>
 								<li class="tsd-kind-get-signature tsd-parent-kind-class"><a href="replicache.html#online" class="tsd-kind-icon">online</a></li>
-								<li class="tsd-kind-accessor tsd-parent-kind-class"><a href="replicache.html#pushdelay" class="tsd-kind-icon">push<wbr>Delay</a></li>
 								<li class="tsd-kind-accessor tsd-parent-kind-class"><a href="replicache.html#syncinterval" class="tsd-kind-icon">sync<wbr>Interval</a></li>
 							</ul>
 						</section>
@@ -115,8 +114,6 @@
 								<li class="tsd-kind-method tsd-parent-kind-class"><a href="replicache.html#scanall" class="tsd-kind-icon">scan<wbr>All</a></li>
 								<li class="tsd-kind-method tsd-parent-kind-class tsd-has-type-parameter"><a href="replicache.html#subscribe" class="tsd-kind-icon">subscribe</a></li>
 								<li class="tsd-kind-method tsd-parent-kind-class"><a href="replicache.html#sync" class="tsd-kind-icon">sync</a></li>
-								<li class="tsd-kind-method tsd-parent-kind-class tsd-is-static"><a href="replicache.html#drop" class="tsd-kind-icon">drop</a></li>
-								<li class="tsd-kind-method tsd-parent-kind-class tsd-is-static"><a href="replicache.html#list" class="tsd-kind-icon">list</a></li>
 							</ul>
 						</section>
 					</div>
@@ -128,19 +125,19 @@
 					<a name="constructor" class="tsd-anchor"></a>
 					<h3>constructor</h3>
 					<ul class="tsd-signatures tsd-kind-constructor tsd-parent-kind-class">
-						<li class="tsd-signature tsd-kind-icon">new <wbr>Replicache<span class="tsd-signature-symbol">(</span>__namedParameters<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">{ </span>batchURL<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>dataLayerAuth<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>diffServerAuth<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>diffServerURL<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>name<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>pushDelay<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span>repmInvoker<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">{ </span>invoke<span class="tsd-signature-symbol">: </span><a href="../interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a><span class="tsd-signature-symbol">; </span>isWasm<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol">; </span>syncInterval<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="replicache.html" class="tsd-signature-type">Replicache</a></li>
+						<li class="tsd-signature tsd-kind-icon">new <wbr>Replicache<span class="tsd-signature-symbol">(</span>__namedParameters<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">{ </span>batchURL<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>dataLayerAuth<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>diffServerAuth<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>diffServerURL<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>name<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>pushDelay<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span>repmInvoker<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">{ </span>invoke<span class="tsd-signature-symbol">: </span><a href="../interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol">; </span>syncInterval<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span>wasmModule<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Request</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">URL</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Response</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">ArrayBufferView</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">ArrayBuffer</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Module</span><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="replicache.html" class="tsd-signature-type">Replicache</a></li>
 					</ul>
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L65">src/replicache.ts:65</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L85">src/replicache.ts:85</a></li>
 								</ul>
 							</aside>
 							<h4 class="tsd-parameters-title">Parameters</h4>
 							<ul class="tsd-parameters">
 								<li>
-									<h5>__namedParameters: <span class="tsd-signature-symbol">{ </span>batchURL<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>dataLayerAuth<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>diffServerAuth<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>diffServerURL<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>name<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>pushDelay<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span>repmInvoker<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">{ </span>invoke<span class="tsd-signature-symbol">: </span><a href="../interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a><span class="tsd-signature-symbol">; </span>isWasm<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol">; </span>syncInterval<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> }</span></h5>
+									<h5>__namedParameters: <span class="tsd-signature-symbol">{ </span>batchURL<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>dataLayerAuth<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>diffServerAuth<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>diffServerURL<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>name<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>pushDelay<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span>repmInvoker<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">{ </span>invoke<span class="tsd-signature-symbol">: </span><a href="../interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol">; </span>syncInterval<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span>wasmModule<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Request</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">URL</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Response</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">ArrayBufferView</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">ArrayBuffer</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Module</span><span class="tsd-signature-symbol"> }</span></h5>
 									<ul class="tsd-parameters">
 										<li class="tsd-parameter">
 											<h5>batchURL<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></h5>
@@ -158,21 +155,16 @@
 											<h5>name<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></h5>
 										</li>
 										<li class="tsd-parameter">
-											<h5>push<wbr>Delay<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></h5>
+											<h5>push<wbr>Delay<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span></h5>
 										</li>
 										<li class="tsd-parameter">
-											<h5>repm<wbr>Invoker<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">{ </span>invoke<span class="tsd-signature-symbol">: </span><a href="../interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a><span class="tsd-signature-symbol">; </span>isWasm<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span><span class="tsd-signature-symbol"> }</span></h5>
-											<ul class="tsd-parameters">
-												<li class="tsd-parameter">
-													<h5>invoke<span class="tsd-signature-symbol">: </span><a href="../interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a></h5>
-												</li>
-												<li class="tsd-parameter">
-													<h5><span class="tsd-flag ts-flagOptional">Optional</span> is<wbr>Wasm<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></h5>
-												</li>
-											</ul>
+											<h5>repm<wbr>Invoker<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">{ </span>invoke<span class="tsd-signature-symbol">: </span><a href="../interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a><span class="tsd-signature-symbol"> }</span></h5>
 										</li>
 										<li class="tsd-parameter">
 											<h5>sync<wbr>Interval<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></h5>
+										</li>
+										<li class="tsd-parameter">
+											<h5>wasm<wbr>Module<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Request</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">URL</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Response</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">ArrayBufferView</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">ArrayBuffer</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Module</span></h5>
 										</li>
 									</ul>
 								</li>
@@ -190,7 +182,7 @@
 					<div class="tsd-signature tsd-kind-icon">get<wbr>Data<wbr>Layer<wbr>Auth<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">MaybePromise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> = null</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L62">src/replicache.ts:62</a></li>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L82">src/replicache.ts:82</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -207,9 +199,25 @@
 					<div class="tsd-signature tsd-kind-icon">on<wbr>Sync<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span>syncing<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> = null</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L55">src/replicache.ts:55</a></li>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L75">src/replicache.ts:75</a></li>
 						</ul>
 					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-class">
+					<a name="pushdelay" class="tsd-anchor"></a>
+					<h3>push<wbr>Delay</h3>
+					<div class="tsd-signature tsd-kind-icon">push<wbr>Delay<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L73">src/replicache.ts:73</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>The delay between when a change is made to Replicache and when Replicache
+							attempts to push that change.</p>
+						</div>
+					</div>
 				</section>
 			</section>
 			<section class="tsd-panel-group tsd-member-group ">
@@ -224,24 +232,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L136">src/replicache.ts:136</a></li>
-								</ul>
-							</aside>
-							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4>
-						</li>
-					</ul>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-get-signature tsd-parent-kind-class">
-					<a name="iswasm" class="tsd-anchor"></a>
-					<h3>is<wbr>Wasm</h3>
-					<ul class="tsd-signatures tsd-kind-get-signature tsd-parent-kind-class">
-						<li class="tsd-signature tsd-kind-icon"><span class="tsd-signature-symbol">get</span> isWasm<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span></li>
-					</ul>
-					<ul class="tsd-descriptions">
-						<li class="tsd-description">
-							<aside class="tsd-sources">
-								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L128">src/replicache.ts:128</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L123">src/replicache.ts:123</a></li>
 								</ul>
 							</aside>
 							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4>
@@ -258,54 +249,10 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L132">src/replicache.ts:132</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L119">src/replicache.ts:119</a></li>
 								</ul>
 							</aside>
 							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4>
-						</li>
-					</ul>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-accessor tsd-parent-kind-class">
-					<a name="pushdelay" class="tsd-anchor"></a>
-					<h3>push<wbr>Delay</h3>
-					<ul class="tsd-signatures tsd-kind-accessor tsd-parent-kind-class">
-						<li class="tsd-signature tsd-kind-icon"><span class="tsd-signature-symbol">get</span> pushDelay<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">null</span></li>
-						<li class="tsd-signature tsd-kind-icon"><span class="tsd-signature-symbol">set</span> pushDelay<span class="tsd-signature-symbol">(</span>delay<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
-					</ul>
-					<ul class="tsd-descriptions">
-						<li class="tsd-description">
-							<aside class="tsd-sources">
-								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L157">src/replicache.ts:157</a></li>
-								</ul>
-							</aside>
-							<div class="tsd-comment tsd-typography">
-								<div class="lead">
-									<p>The delay between when a change is made to Replicache and when Replicache
-									attempts to push that change.</p>
-								</div>
-							</div>
-							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">null</span></h4>
-						</li>
-						<li class="tsd-description">
-							<aside class="tsd-sources">
-								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L160">src/replicache.ts:160</a></li>
-								</ul>
-							</aside>
-							<div class="tsd-comment tsd-typography">
-								<div class="lead">
-									<p>The delay between when a change is made to Replicache and when Replicache
-									attempts to push that change.</p>
-								</div>
-							</div>
-							<h4 class="tsd-parameters-title">Parameters</h4>
-							<ul class="tsd-parameters">
-								<li>
-									<h5>delay: <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">null</span></h5>
-								</li>
-							</ul>
-							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
 						</li>
 					</ul>
 				</section>
@@ -320,7 +267,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L144">src/replicache.ts:144</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L131">src/replicache.ts:131</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -334,7 +281,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L147">src/replicache.ts:147</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L134">src/replicache.ts:134</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -366,7 +313,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L177">src/replicache.ts:177</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L153">src/replicache.ts:153</a></li>
 								</ul>
 							</aside>
 							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4>
@@ -384,7 +331,7 @@
 							<aside class="tsd-sources">
 								<p>Implementation of <a href="../interfaces/readtransaction.html">ReadTransaction</a>.<a href="../interfaces/readtransaction.html#get">get</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L217">src/replicache.ts:217</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L213">src/replicache.ts:213</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -413,7 +360,7 @@
 							<aside class="tsd-sources">
 								<p>Implementation of <a href="../interfaces/readtransaction.html">ReadTransaction</a>.<a href="../interfaces/readtransaction.html#has">has</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L222">src/replicache.ts:222</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L218">src/replicache.ts:218</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -441,7 +388,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L515">src/replicache.ts:515</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L509">src/replicache.ts:509</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -495,7 +442,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L557">src/replicache.ts:557</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L551">src/replicache.ts:551</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -563,7 +510,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L231">src/replicache.ts:231</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L227">src/replicache.ts:227</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -602,7 +549,7 @@
 							<aside class="tsd-sources">
 								<p>Implementation of <a href="../interfaces/readtransaction.html">ReadTransaction</a>.<a href="../interfaces/readtransaction.html#scanall">scanAll</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L253">src/replicache.ts:253</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L248">src/replicache.ts:248</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -630,7 +577,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L479">src/replicache.ts:479</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L473">src/replicache.ts:473</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -736,7 +683,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L416">src/replicache.ts:416</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b41a200/src/replicache.ts#L410">src/replicache.ts:410</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -752,75 +699,6 @@
 						</li>
 					</ul>
 				</section>
-				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class tsd-is-static">
-					<a name="drop" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagStatic">Static</span> drop</h3>
-					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class tsd-is-static">
-						<li class="tsd-signature tsd-kind-icon">drop<span class="tsd-signature-symbol">(</span>name<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, __namedParameters<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">{ </span>repmInvoke<span class="tsd-signature-symbol">: </span><a href="../interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></li>
-					</ul>
-					<ul class="tsd-descriptions">
-						<li class="tsd-description">
-							<aside class="tsd-sources">
-								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L121">src/replicache.ts:121</a></li>
-								</ul>
-							</aside>
-							<div class="tsd-comment tsd-typography">
-								<div class="lead">
-									<p>Completely delete a local database. Remote replicas in the group aren&#39;t affected.</p>
-								</div>
-							</div>
-							<h4 class="tsd-parameters-title">Parameters</h4>
-							<ul class="tsd-parameters">
-								<li>
-									<h5>name: <span class="tsd-signature-type">string</span></h5>
-								</li>
-								<li>
-									<h5>__namedParameters: <span class="tsd-signature-symbol">{ </span>repmInvoke<span class="tsd-signature-symbol">: </span><a href="../interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a><span class="tsd-signature-symbol"> }</span></h5>
-									<ul class="tsd-parameters">
-										<li class="tsd-parameter">
-											<h5>repm<wbr>Invoke<span class="tsd-signature-symbol">: </span><a href="../interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a></h5>
-										</li>
-									</ul>
-								</li>
-							</ul>
-							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4>
-						</li>
-					</ul>
-				</section>
-				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-class tsd-is-static">
-					<a name="list" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagStatic">Static</span> list</h3>
-					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class tsd-is-static">
-						<li class="tsd-signature tsd-kind-icon">list<span class="tsd-signature-symbol">(</span>__namedParameters<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">{ </span>repmInvoke<span class="tsd-signature-symbol">: </span><a href="../interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../globals.html#databaseinfo" class="tsd-signature-type">DatabaseInfo</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></li>
-					</ul>
-					<ul class="tsd-descriptions">
-						<li class="tsd-description">
-							<aside class="tsd-sources">
-								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/37fdfa6/src/replicache.ts#L100">src/replicache.ts:100</a></li>
-								</ul>
-							</aside>
-							<div class="tsd-comment tsd-typography">
-								<div class="lead">
-									<p>Lists information about available local databases.</p>
-								</div>
-							</div>
-							<h4 class="tsd-parameters-title">Parameters</h4>
-							<ul class="tsd-parameters">
-								<li>
-									<h5>__namedParameters: <span class="tsd-signature-symbol">{ </span>repmInvoke<span class="tsd-signature-symbol">: </span><a href="../interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a><span class="tsd-signature-symbol"> }</span></h5>
-									<ul class="tsd-parameters">
-										<li class="tsd-parameter">
-											<h5>repm<wbr>Invoke<span class="tsd-signature-symbol">: </span><a href="../interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a></h5>
-										</li>
-									</ul>
-								</li>
-							</ul>
-							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../globals.html#databaseinfo" class="tsd-signature-type">DatabaseInfo</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></h4>
-						</li>
-					</ul>
-				</section>
 			</section>
 		</div>
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
@@ -833,12 +711,6 @@
 			</nav>
 			<nav class="tsd-navigation secondary menu-sticky">
 				<ul class="before-current">
-					<li class=" tsd-kind-class">
-						<a href="repmhttpinvoker.html" class="tsd-kind-icon">REPMHTTPInvoker</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="repmwasminvoker.html" class="tsd-kind-icon">REPMWasm<wbr>Invoker</a>
-					</li>
 				</ul>
 				<ul class="current">
 					<li class="current tsd-kind-class">
@@ -853,17 +725,14 @@
 							<li class=" tsd-kind-property tsd-parent-kind-class">
 								<a href="replicache.html#onsync" class="tsd-kind-icon">on<wbr>Sync</a>
 							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-class">
+								<a href="replicache.html#pushdelay" class="tsd-kind-icon">push<wbr>Delay</a>
+							</li>
 							<li class=" tsd-kind-get-signature tsd-parent-kind-class">
 								<a href="replicache.html#closed" class="tsd-kind-icon">closed</a>
 							</li>
 							<li class=" tsd-kind-get-signature tsd-parent-kind-class">
-								<a href="replicache.html#iswasm" class="tsd-kind-icon">is<wbr>Wasm</a>
-							</li>
-							<li class=" tsd-kind-get-signature tsd-parent-kind-class">
 								<a href="replicache.html#online" class="tsd-kind-icon">online</a>
-							</li>
-							<li class=" tsd-kind-accessor tsd-parent-kind-class">
-								<a href="replicache.html#pushdelay" class="tsd-kind-icon">push<wbr>Delay</a>
 							</li>
 							<li class=" tsd-kind-accessor tsd-parent-kind-class">
 								<a href="replicache.html#syncinterval" class="tsd-kind-icon">sync<wbr>Interval</a>
@@ -895,12 +764,6 @@
 							<li class=" tsd-kind-method tsd-parent-kind-class">
 								<a href="replicache.html#sync" class="tsd-kind-icon">sync</a>
 							</li>
-							<li class=" tsd-kind-method tsd-parent-kind-class tsd-is-static">
-								<a href="replicache.html#drop" class="tsd-kind-icon">drop</a>
-							</li>
-							<li class=" tsd-kind-method tsd-parent-kind-class tsd-is-static">
-								<a href="replicache.html#list" class="tsd-kind-icon">list</a>
-							</li>
 						</ul>
 					</li>
 				</ul>
@@ -925,9 +788,6 @@
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="../interfaces/writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a>
-					</li>
-					<li class=" tsd-kind-type-alias">
-						<a href="../globals.html#databaseinfo" class="tsd-kind-icon">Database<wbr>Info</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="../globals.html#invoker" class="tsd-kind-icon">Invoker</a>

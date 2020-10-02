@@ -1,9 +1,5 @@
 import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
-import Replicache, {
-  REPMWasmInvoker,
-  ScanBound,
-  TransactionClosedError,
-} from './mod.js';
+import Replicache, {ScanBound, TransactionClosedError} from './mod.js';
 import {
   restoreScanPageSizeForTesting,
   setScanPageSizeForTesting,
@@ -20,13 +16,12 @@ import type {SinonSpy} from 'sinon';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 import fetchMock from 'fetch-mock/esm/client.js';
+import type {Invoke} from './repm-invoker.js';
 
 const {fail} = assert;
 
 let rep: ReplicacheTest | null = null;
 let rep2: ReplicacheTest | null = null;
-
-const wasmInvoker = new REPMWasmInvoker();
 
 async function replicacheForTesting(
   name: string,
@@ -49,7 +44,6 @@ async function replicacheForTesting(
     diffServerAuth,
     diffServerURL,
     name,
-    repmInvoker: wasmInvoker,
   });
 }
 
@@ -69,6 +63,14 @@ async function asyncIterableToArray<T>(it: AsyncIterable<T>) {
     arr.push(v);
   }
   return arr;
+}
+
+function spyInvoke(
+  rep: Replicache,
+): SinonSpy<Parameters<Invoke>, ReturnType<Invoke>> {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  return sinon.spy(rep, '_invoke');
 }
 
 teardown(async () => {
@@ -634,20 +636,17 @@ test('sync', async () => {
 });
 
 test('sync2', async () => {
-  sinon.spy(wasmInvoker, 'invoke');
+  rep = await replicacheForTesting('sync2');
 
-  rep = await replicacheForTesting('sync2', {
-    batchURL: 'https://replicache-sample-todo.now.sh/serve/replicache-batch',
-    dataLayerAuth: '1',
-    diffServerAuth: '1',
-  });
+  const spy = spyInvoke(rep);
 
   const s1 = rep.sync();
   const s2 = rep.sync();
   await s1;
   await s2;
-  const calls = (wasmInvoker.invoke as SinonSpy).args;
-  const syncCalls = calls.filter(([, rpc]) => rpc === 'beginSync').length;
+
+  const calls = spy.args;
+  const syncCalls = calls.filter(([rpc]) => rpc === 'beginSync').length;
   expect(syncCalls).to.equal(2);
 });
 
@@ -706,7 +705,6 @@ test('closed tx', async () => {
 test('syncInterval in constructor', async () => {
   const rep = new Replicache({
     syncInterval: 12.34,
-    repmInvoker: wasmInvoker,
     diffServerURL: 'xxx',
   });
   expect(rep.syncInterval).to.equal(12.34);
@@ -714,8 +712,6 @@ test('syncInterval in constructor', async () => {
 });
 
 test('closeTransaction after rep.scan', async () => {
-  sinon.spy(wasmInvoker, 'invoke');
-
   rep = await replicacheForTesting('test5');
   const add = rep.register('add-data', addData);
   await add({
@@ -723,12 +719,12 @@ test('closeTransaction after rep.scan', async () => {
     'a/1': 1,
   });
 
-  const invokeSpy = wasmInvoker.invoke as SinonSpy;
-  invokeSpy.resetHistory();
+  const spy = spyInvoke(rep);
+  spy.resetHistory();
 
   function expectCalls(log: JSONValue[]) {
     expect(log).to.eql(log);
-    const rpcs = invokeSpy.args.map(([, rpc]) => rpc);
+    const rpcs = spy.args.map(([rpc]) => rpc);
     expect(rpcs).to.eql(['openTransaction', 'scan', 'closeTransaction']);
   }
 
@@ -741,7 +737,7 @@ test('closeTransaction after rep.scan', async () => {
 
   // One more time with return in loop...
   log.length = 0;
-  invokeSpy.resetHistory();
+  spy.resetHistory();
   await (async () => {
     if (!rep) {
       fail();
@@ -756,7 +752,7 @@ test('closeTransaction after rep.scan', async () => {
 
   // ... and with a break.
   log.length = 0;
-  invokeSpy.resetHistory();
+  spy.resetHistory();
   {
     const it = rep.scan();
     for await (const v of it) {
@@ -768,7 +764,7 @@ test('closeTransaction after rep.scan', async () => {
 
   // ... and with a throw.
   log.length = 0;
-  invokeSpy.resetHistory();
+  spy.resetHistory();
   (
     await expectPromiseToReject(
       (async () => {
@@ -788,7 +784,7 @@ test('closeTransaction after rep.scan', async () => {
 
   // ... and with a throw.
   log.length = 0;
-  invokeSpy.resetHistory();
+  spy.resetHistory();
   (
     await expectPromiseToReject(
       (async () => {

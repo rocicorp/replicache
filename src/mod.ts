@@ -1,6 +1,5 @@
 export {default} from './replicache.js';
 export {TransactionClosedError} from './transaction-closed-error.js';
-export {REPMWasmInvoker} from './repm-invoker.js';
 
 export type {Mutator} from './replicache.js';
 export type {ScanId} from './scan-id.js';

@@ -1,6 +1,6 @@
 # Getting binary dependencies
 
-`npm install` automatically downloads the correct version of the wasm bundle.
+`npm install` automatically downloads the correct version of the wasm bundle and `diff-server`.
 
 # Building against a dev version of repc
 

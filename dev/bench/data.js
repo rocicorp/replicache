@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1601668255321,
+  "lastUpdate": 1601670375149,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -1297,6 +1297,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 21.7,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "35acae4e1158dc4f8f69bdd223904b3a4b72a0d8",
+          "message": "Doc sprucing",
+          "timestamp": "2020-10-02T10:23:22-10:00",
+          "tree_id": "352b366e6dbac7acfbe4ee67b61574347f407621",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/35acae4e1158dc4f8f69bdd223904b3a4b72a0d8"
+        },
+        "date": 1601670372792,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean)",
+            "value": 1.53,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty)",
+            "value": 1.11,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 17.13,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 17.95,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

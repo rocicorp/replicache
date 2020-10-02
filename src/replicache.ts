@@ -293,7 +293,6 @@ export default class Replicache implements ReadTransaction {
 
     let reauth = false;
 
-    // TODO:(repc-switchover): checkStatus only used by replicache-client.
     function checkStatus(
       data: {httpStatusCode?: number; errorMessage?: string},
       serverName: string,
@@ -309,10 +308,10 @@ export default class Replicache implements ReadTransaction {
       }
     }
 
-    const {batchPushInfo} = {...syncInfo};
+    const {batchPushInfo, clientViewInfo} = syncInfo;
     if (batchPushInfo) {
       checkStatus(batchPushInfo, 'batch');
-      const mutationInfos = batchPushInfo.batchPushResponse.mutationInfos;
+      const mutationInfos = batchPushInfo.batchPushResponse?.mutationInfos;
       if (mutationInfos != null) {
         for (const mutationInfo of mutationInfos) {
           console.error(
@@ -322,9 +321,8 @@ export default class Replicache implements ReadTransaction {
       }
     }
 
-    const {clientViewInfo} = {...syncInfo};
     if (clientViewInfo) {
-      checkStatus(syncInfo.clientViewInfo, 'client view');
+      checkStatus(clientViewInfo, 'client view');
     }
 
     if (reauth && this.getDataLayerAuth) {

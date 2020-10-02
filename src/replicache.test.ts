@@ -11,11 +11,10 @@ import {
 
 import type {ReadTransaction, WriteTransaction} from './mod.js';
 import type {JSONValue} from './json.js';
-import type {BeginSyncResponse} from './repm-invoker.js';
 
 import {assert, expect} from '@esm-bundle/chai';
 import * as sinon from 'sinon';
-import type {SinonSpy, SinonStub} from 'sinon';
+import type {SinonSpy} from 'sinon';
 
 // fetch-mock has invalid d.ts file so we removed that on npm install.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -653,24 +652,24 @@ test('sync2', async () => {
 });
 
 test('reauth', async () => {
-  const orgInvoke = wasmInvoker.invoke;
-  sinon.stub(wasmInvoker, 'invoke').callsFake(async (dbName, rpc, args) => {
-    if (rpc === 'beginSync') {
-      return {
-        syncHead: '62f6ki43l12mujhubcfhjuugiause17b',
-        syncInfo: {
-          syncID: 'XY6WhbbdeUdytMJNtsBejG-5ed87fed-1',
-          clientViewInfo: {
-            httpStatusCode: httpStatusUnauthorized,
-            errorMessage: 'xxx',
-          },
-        },
-      } as BeginSyncResponse;
-    }
-    return orgInvoke(dbName, rpc, args);
-  });
+  const diffServerURL = 'https://diff.com/pull';
 
-  rep = await replicacheForTesting('reauth');
+  fetchMock.post(diffServerURL, () => ({
+    stateID: 'fq40kklle30lr20vpjiv0ios8hgipnut',
+    lastMutationID: 0,
+    patch: [{op: 'remove', path: '/'}],
+    checksum: '00000000',
+    clientViewInfo: {
+      httpStatusCode: httpStatusUnauthorized,
+      errorMessage: 'xxx',
+    },
+  }));
+
+  rep = await replicacheForTesting('reauth', {
+    diffServerURL,
+    diffServerAuth: '1',
+    dataLayerAuth: 'wrong',
+  });
 
   const getDataLayerAuthFake = sinon.fake.returns(null);
   rep.getDataLayerAuth = getDataLayerAuthFake;
@@ -678,7 +677,6 @@ test('reauth', async () => {
   await rep.beginSync();
 
   expect(getDataLayerAuthFake.callCount).to.equal(1);
-  (wasmInvoker.invoke as SinonStub).restore();
 });
 
 test('closed tx', async () => {

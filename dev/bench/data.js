@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1601540910709,
+  "lastUpdate": 1601665775512,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -1141,6 +1141,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 17.69,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "456293ffff7bc7c3028441b7228e8ac9c8829724",
+          "message": "Handle 401 statusCode from data layer\n\nThis is basically just making the test excercise the Rust code.\n\nFixes #106",
+          "timestamp": "2020-10-02T09:07:26-10:00",
+          "tree_id": "08945e669c13f0298d38fcd1723b31ac6ac33f62",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/456293ffff7bc7c3028441b7228e8ac9c8829724"
+        },
+        "date": 1601665775129,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean)",
+            "value": 1.37,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty)",
+            "value": 1.29,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 20.35,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 19.61,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

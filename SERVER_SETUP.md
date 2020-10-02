@@ -2,8 +2,6 @@
 
 This document walks you through adding [Replicache](https://replicache.dev) support to an existing web service.
 
-To build a fully-functioning Replicache-powered application, you need both a client and a server. Currently we only support Web/JS clients. To learn how to build a client, see [https://github.com/rocicorp/replicache-sdk-js](Replicache JavaScript SDK).
-
 Questions? Comments? We'd love to help you evaluate Replicache — [Join us on Slack](https://join.slack.com/t/rocicorp/shared_invite/zt-ekh3oxbq-FzzB7qP9lwqdTvBjxXU2oA). 
 You can also refer to our fully-functional [TODO sample application](https://github.com/rocicorp/replicache-sample-todo). For information about contributing, see our [contributing guide](contributing.md).
 
@@ -14,6 +12,8 @@ You can also refer to our fully-functional [TODO sample application](https://git
 ![Picture of Replicache Architecture](diagram.png)
 
 Replicache is a per-user cache that sits between your backend and client. To integrate Replicache, you will make changes to both your backend and your client.
+
+This document is about the server-side setup. To learn how to build a Replicache client, see [Replicache JavaScript SDK](https://github.com/rocicorp/replicache-sdk-js).
 
 ### Step 1: Downstream Sync
 

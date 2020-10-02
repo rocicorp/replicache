@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1601665775512,
+  "lastUpdate": 1601668157113,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -1193,6 +1193,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 19.61,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "c29b8f4284660af5016811a256bd0e0123a62861",
+          "message": "Revert \"Remove diff-server from the JS SDK (#120)\"\n\nThis reverts commit 409d4ee69228078c463a9ed5edac1dee69211c28.",
+          "timestamp": "2020-10-02T09:46:47-10:00",
+          "tree_id": "5fb90bb94e771176f8158df654770ba05fbdda22",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/c29b8f4284660af5016811a256bd0e0123a62861"
+        },
+        "date": 1601668154909,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean)",
+            "value": 1.67,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty)",
+            "value": 1.26,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 19.53,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 20.18,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

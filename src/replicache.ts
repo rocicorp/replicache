@@ -367,7 +367,6 @@ export default class Replicache implements ReadTransaction {
     // Replay.
     for (const mutation of replayMutations) {
       const {original} = mutation;
-      console.log('parsing', mutation.args);
       syncHead = await this._replay(
         syncHead,
         original,

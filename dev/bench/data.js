@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1601676855265,
+  "lastUpdate": 1601688480241,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -1401,6 +1401,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 20.52,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "17654cfbd82d18f6c695cf511d42bbfe45487678",
+          "message": "Deprecate repmInvoker (#130)\n\nIn favor of wasmModule parameter. This has the same type as the param to\r\nREPMWasmInvoker, which allows a path, a fetch promise etc.",
+          "timestamp": "2020-10-02T15:25:29-10:00",
+          "tree_id": "1da6fe5e8be435ccaade3674517047999f3985d6",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/17654cfbd82d18f6c695cf511d42bbfe45487678"
+        },
+        "date": 1601688477935,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean)",
+            "value": 1.44,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty)",
+            "value": 1.2,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 18.43,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 19.45,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

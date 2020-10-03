@@ -190,9 +190,7 @@ document.querySelector('mwc-fab').addEventListener('click', e => {
   handleCreate();
 });
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-}
+navigator.serviceWorker?.register('sw.js');
 
 window.addEventListener('online', e => rep.sync());
 

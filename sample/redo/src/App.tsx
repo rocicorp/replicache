@@ -8,14 +8,12 @@ import Replicache, {
   Mutator,
 } from 'replicache';
 // This depends on Webpack hacks... it actually returns a path to the static resource for the wasm file.
-import wasmPath from 'replicache/out/wasm/debug/replicache_client_bg';
+import wasmModule from 'replicache/out/wasm/debug/replicache_client_bg';
 import {diffServerURL, diffServerAuth, batchURL} from './settings';
 import {LoginScreen, logout} from './login';
 import type {LoginResult} from './login';
 import {List} from './List';
 import {newOrderBetween} from './order';
-
-const repmInvoker = new REPMWasmInvoker(wasmPath);
 
 export interface MutationFunctions {
   createTodo: Mutator<void, Todo>;
@@ -45,7 +43,7 @@ function App() {
       dataLayerAuth: loginResult.userId,
       diffServerAuth,
       batchURL,
-      repmInvoker,
+      wasmModule,
     });
     r.syncInterval = 60 * 1000;
     setRep(r);

@@ -70,7 +70,9 @@
 				<a href="#👋-quickstart" id="👋-quickstart" style="color: inherit; text-decoration: none;">
 					<h2>👋 Quickstart</h2>
 				</a>
-				<p>This tutorial walks through creating a basic offline-first todo app with <a href="https://replicache.dev/">Replicache</a>. If you have any problems or questions, please <a href="https://join.slack.com/t/rocicorp/shared_invite/zt-h8ygwu8j-RVniv5XsBps0Q9oJXdMyoA">join us on Slack</a>. We&#39;d be happy to help.</p>
+				<p>This tutorial walks through creating the UI for a basic <a href="https://replicache.dev/">Replicache</a>-powered todo list.</p>
+				<p>It relies on the <a href="https://github.com/rocicorp/replicache-sample-todo">replicache-sample-todo</a> backend. To learn how to setup you own Replicache backend, see <a href="https://github.com/rocicorp/replicache#server-side">Server Side Setup</a>.</p>
+				<p>If you have any problems or questions, please <a href="https://join.slack.com/t/rocicorp/shared_invite/zt-h8ygwu8j-RVniv5XsBps0Q9oJXdMyoA">join us on Slack</a>. We&#39;d be happy to help.</p>
 				<p>You can also skip to the end and <a href="https://github.com/rocicorp/replicache-sdk-js/tree/master/sample/cal">check out the full working version of this sample</a>.</p>
 				<p><strong>Note:</strong> This document assumes you already know what Replicache is, why you might need it, and broadly how it works. If that&#39;s not true check out the <a href="https://github.com/rocicorp/replicache/blob/master/design.md">design document</a> for a detailed deep-dive.</p>
 				<a href="#🏃♂️-install" id="🏃♂️-install" style="color: inherit; text-decoration: none;">
@@ -154,6 +156,7 @@
 				</a>
 				<ul>
 					<li>We recommend <a href="https://stackoverflow.com/questions/5327955/how-to-make-google-chrome-javascript-console-persistent">enabling console persistence</a> while developing replicache-enabled apps to make debugging easier.</li>
+					<li>Remember that data changes can happen &quot;underneath&quot; you and cause <code>subscribe()</code> to re-fire at any time. These changes can come from the server or from a different tab. If your UI is not reactive (driven solely by the data model) you need to take extra steps to ensure the UI is in sync with the data.</li>
 				</ul>
 				<a href="#🚀-next-steps" id="🚀-next-steps" style="color: inherit; text-decoration: none;">
 					<h2>🚀 Next Steps</h2>
@@ -161,7 +164,7 @@
 				<p>That&#39;s it! You&#39;ve built a fully-functioning offline-first todo app against our sample backend. What will you do next?</p>
 				<ul>
 					<li><a href="https://github.com/rocicorp/replicache-sdk-js/tree/master/sample/lit-todo">Check out the full version of this sample</a></li>
-					<li><a href="https://github.com/rocicorp/replicache#server-side">Learn how to build your own backend integration</a></li>
+					<li><a href="https://github.com/rocicorp/replicache#server-side">Learn how to add Replicache support to your own backend service</a></li>
 					<li><a href="https://github.com/rocicorp/replicache-sdk-js/tree/master/sample/cal">Check out the richer React/Babel/GCal sample</a></li>
 					<li><a href="https://replicache-sdk-js.now.sh/">Browse the full JS documentation</a></li>
 				</ul>
@@ -177,12 +180,6 @@
 			</nav>
 			<nav class="tsd-navigation secondary menu-sticky">
 				<ul class="before-current">
-					<li class=" tsd-kind-class">
-						<a href="classes/repmhttpinvoker.html" class="tsd-kind-icon">REPMHTTPInvoker</a>
-					</li>
-					<li class=" tsd-kind-class">
-						<a href="classes/repmwasminvoker.html" class="tsd-kind-icon">REPMWasm<wbr>Invoker</a>
-					</li>
 					<li class=" tsd-kind-class">
 						<a href="classes/replicache.html" class="tsd-kind-icon">Replicache</a>
 					</li>
@@ -206,9 +203,6 @@
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a>
-					</li>
-					<li class=" tsd-kind-type-alias">
-						<a href="globals.html#databaseinfo" class="tsd-kind-icon">Database<wbr>Info</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="globals.html#invoker" class="tsd-kind-icon">Invoker</a>

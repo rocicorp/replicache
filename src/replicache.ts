@@ -9,6 +9,7 @@ import {
 import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
 import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
+import type {InitInput} from './wasm/release/replicache_client.js';
 
 export type Mutator<Return extends JSONValue | void, Args extends JSONValue> = (
   args: Args,
@@ -29,6 +30,19 @@ type MaybePromise<T> = T | Promise<T>;
 
 /** The key name to use in localStorage when synchronizing changes. */
 const storageKeyName = (name: string) => `/replicache/root/${name}`;
+
+interface ReplicacheOptions {
+  batchURL?: string;
+  dataLayerAuth?: string;
+  diffServerAuth?: string;
+  diffServerURL: string;
+  name?: string;
+  /** @deprecated Use wasmModule instead */
+  repmInvoker?: Invoker;
+  syncInterval?: number | null;
+  pushDelay?: number;
+  wasmModule?: InitInput | undefined;
+}
 
 export default class Replicache implements ReadTransaction {
   private readonly _batchURL: string;
@@ -76,25 +90,17 @@ export default class Replicache implements ReadTransaction {
     diffServerAuth = '',
     diffServerURL,
     name = 'default',
-    repmInvoker = new REPMWasmInvoker(),
+    repmInvoker,
     syncInterval = 60_000,
     pushDelay = 300,
-  }: {
-    batchURL?: string;
-    dataLayerAuth?: string;
-    diffServerAuth?: string;
-    diffServerURL: string;
-    name?: string;
-    repmInvoker?: Invoker;
-    syncInterval?: number | null;
-    pushDelay?: number;
-  }) {
+    wasmModule,
+  }: ReplicacheOptions) {
     this._batchURL = batchURL;
     this._dataLayerAuth = dataLayerAuth;
     this._diffServerAuth = diffServerAuth;
     this._diffServerURL = diffServerURL;
     this._name = name;
-    this._repmInvoker = repmInvoker;
+    this._repmInvoker = repmInvoker ?? new REPMWasmInvoker(wasmModule);
     this._syncInterval = syncInterval;
     this.pushDelay = pushDelay;
     this._open();
@@ -609,14 +615,12 @@ export class ReplicacheTest extends Replicache {
     diffServerAuth,
     diffServerURL,
     name = '',
-    repmInvoker,
   }: {
     diffServerURL: string;
     batchURL?: string;
     dataLayerAuth?: string;
     diffServerAuth?: string;
     name?: string;
-    repmInvoker: Invoker;
   }): Promise<ReplicacheTest> {
     const rep = new ReplicacheTest({
       batchURL,
@@ -624,7 +628,6 @@ export class ReplicacheTest extends Replicache {
       diffServerAuth,
       diffServerURL,
       name,
-      repmInvoker,
       syncInterval: null,
     });
     await rep._opened;

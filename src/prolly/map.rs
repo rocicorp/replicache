@@ -437,6 +437,8 @@ mod tests {
             // Original map should still have same data.
             test(&map, &expected);
 
+            write.set_head("iter_flush", Some(&hash)).await.unwrap();
+
             // The hash should yield a new map with same data
             write.commit().await.unwrap();
             let read = store.read(LogContext::new()).await.unwrap();

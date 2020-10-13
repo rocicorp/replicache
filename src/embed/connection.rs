@@ -20,6 +20,7 @@ lazy_static! {
     static ref TRANSACTION_COUNTER: AtomicU32 = AtomicU32::new(1);
 }
 
+#[allow(clippy::large_enum_variant)]
 enum Transaction<'a> {
     Read(db::OwnedRead<'a>),
     Write(db::Write<'a>),

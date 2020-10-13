@@ -1022,9 +1022,6 @@ mod tests {
             for _ in 0..c.num_pending {
                 add_local(&mut chain, &store).await;
             }
-            if c.intervening_sync {
-                add_snapshot(&mut chain, &store, None).await;
-            }
             let mut dag_write = store.write(LogContext::new()).await.unwrap();
             dag_write
                 .set_head(
@@ -1044,6 +1041,10 @@ mod tests {
             .await
             .unwrap();
             let mut basis_hash = w.commit(SYNC_HEAD_NAME, "TODO local date").await.unwrap();
+
+            if c.intervening_sync {
+                add_snapshot(&mut chain, &store, None).await;
+            }
 
             for i in 0..c.num_pending - c.num_needing_replay {
                 let chain_index = i + 1; // chain[0] is genesis

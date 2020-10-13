@@ -7,6 +7,7 @@ use std::str;
 pub enum Key<'a> {
     ChunkData(&'a str),
     ChunkMeta(&'a str),
+    ChunkRefCount(&'a str),
     Head(&'a str),
 }
 
@@ -30,6 +31,7 @@ impl<'a> Key<'_> {
                 match suffix {
                     "d" => Ok(Key::ChunkData(content)),
                     "m" => Ok(Key::ChunkMeta(content)),
+                    "r" => Ok(Key::ChunkRefCount(content)),
                     _ => Err(()),
                 }
             }
@@ -44,6 +46,7 @@ impl<'a> fmt::Display for Key<'a> {
         match self {
             Key::ChunkData(hash) => write!(f, "c/{}/d", hash),
             Key::ChunkMeta(hash) => write!(f, "c/{}/m", hash),
+            Key::ChunkRefCount(hash) => write!(f, "c/{}/r", hash),
             Key::Head(name) => write!(f, "h/{}", name),
         }
     }
@@ -64,6 +67,9 @@ mod tests {
         test(&Key::ChunkMeta(""), "c//m");
         test(&Key::ChunkMeta("a"), "c/a/m");
         test(&Key::ChunkMeta("ab"), "c/ab/m");
+        test(&Key::ChunkRefCount(""), "c//r");
+        test(&Key::ChunkRefCount("a"), "c/a/r");
+        test(&Key::ChunkRefCount("ab"), "c/ab/r");
         test(&Key::Head(""), "h/");
         test(&Key::Head("a"), "h/a");
         test(&Key::Head("ab"), "h/ab");
@@ -87,6 +93,9 @@ mod tests {
         test(Ok(Key::ChunkMeta("")), "c//m");
         test(Ok(Key::ChunkMeta("a")), "c/a/m");
         test(Ok(Key::ChunkMeta("ab")), "c/ab/m");
+        test(Ok(Key::ChunkRefCount("")), "c//r");
+        test(Ok(Key::ChunkRefCount("a")), "c/a/r");
+        test(Ok(Key::ChunkRefCount("ab")), "c/ab/r");
         test(Ok(Key::Head("")), "h/");
         test(Ok(Key::Head("a")), "h/a");
         test(Ok(Key::Head("ab")), "h/ab");
@@ -99,6 +108,8 @@ mod tests {
             Key::ChunkData("a".into()),
             Key::ChunkMeta("".into()),
             Key::ChunkMeta("a".into()),
+            Key::ChunkRefCount("".into()),
+            Key::ChunkRefCount("a".into()),
             Key::Head("".into()),
             Key::Head("a".into()),
         ];

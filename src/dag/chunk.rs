@@ -68,9 +68,7 @@ impl Chunk {
 
 impl PartialEq for Chunk {
     fn eq(&self, other: &Self) -> bool {
-        // TODO(arv): Compare data too?
-        // self.data().eq(other.data()) &&
-        self.refs().eq(other.refs())
+        self.hash == other.hash && self.refs().eq(other.refs())
     }
 }
 
@@ -107,6 +105,31 @@ mod tests {
             "g19moobgrm32dn083bokhksuobulq28c".into(),
             vec![0, 1],
             &vec!["r1", "r2"],
+        );
+    }
+    #[test]
+    fn partial_eq() {
+        assert_eq!(Chunk::new((vec![], 0), &[]), Chunk::new((vec![], 0), &[]));
+        assert_ne!(Chunk::new((vec![1], 0), &[]), Chunk::new((vec![], 0), &[]));
+        assert_ne!(Chunk::new((vec![0], 0), &[]), Chunk::new((vec![1], 0), &[]));
+
+        assert_eq!(Chunk::new((vec![1], 0), &[]), Chunk::new((vec![1], 0), &[]));
+        assert_eq!(
+            Chunk::new((vec![], 0), &["a"]),
+            Chunk::new((vec![], 0), &["a"])
+        );
+        assert_eq!(
+            Chunk::new((vec![1], 0), &["a"]),
+            Chunk::new((vec![0, 1], 1), &["a"])
+        );
+
+        assert_ne!(
+            Chunk::new((vec![], 0), &["a"]),
+            Chunk::new((vec![], 0), &["b"])
+        );
+        assert_ne!(
+            Chunk::new((vec![], 0), &["a"]),
+            Chunk::new((vec![], 0), &["a", "b"])
         );
     }
 }

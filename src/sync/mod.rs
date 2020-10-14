@@ -223,7 +223,7 @@ pub async fn maybe_end_sync(
     // TODO put sync_id in the logging context (lc.add_context()).
 
     // Ensure sync head is what the caller thinks it is.
-    let mut dag_write = store
+    let dag_write = store
         .write(lc.clone())
         .await
         .map_err(OpenWriteTxWriteError)?;
@@ -747,7 +747,7 @@ mod tests {
         for c in cases.iter() {
             // Reset state of the store.
             chain.truncate(2);
-            let mut w = store.write(LogContext::new()).await.unwrap();
+            let w = store.write(LogContext::new()).await.unwrap();
             w.set_head(
                 DEFAULT_HEAD_NAME,
                 Some(chain[chain.len() - 1].chunk().hash()),
@@ -1022,7 +1022,7 @@ mod tests {
             for _ in 0..c.num_pending {
                 add_local(&mut chain, &store).await;
             }
-            let mut dag_write = store.write(LogContext::new()).await.unwrap();
+            let dag_write = store.write(LogContext::new()).await.unwrap();
             dag_write
                 .set_head(
                     db::DEFAULT_HEAD_NAME,

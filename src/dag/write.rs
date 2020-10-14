@@ -5,6 +5,7 @@ use crate::kv;
 use async_recursion::async_recursion;
 use async_std::sync::RwLock;
 use futures::future::try_join_all;
+use futures::future::TryFutureExt;
 use futures::try_join;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
@@ -63,30 +64,33 @@ impl<'a> Write<'_> {
         Ok(())
     }
 
-    pub async fn set_head(&mut self, name: &str, hash: Option<&str>) -> Result<()> {
+    pub async fn set_head(&self, name: &str, hash: Option<&str>) -> Result<()> {
         let old_hash = self.read().get_head(name).await?;
-
-        // TODO: These can be done in parallel.
-
         let head_key = Key::Head(name).to_string();
-        match hash {
-            None => self.kvw.del(&head_key).await?,
-            Some(h) => self.kvw.put(&head_key, h.as_bytes()).await?,
-        }
 
-        let mut map = self.changed_heads.write().await;
-        match map.entry(name.to_string()) {
-            Entry::Occupied(mut entry) => {
-                // Keep old if occupied.
-                entry.get_mut().new = hash.map(str::to_string);
+        try_join!(
+            match hash {
+                None => self.kvw.del(&head_key),
+                Some(h) => self.kvw.put(&head_key, h.as_bytes()),
             }
-            Entry::Vacant(entry) => {
-                entry.insert(HeadChange {
-                    new: hash.map(str::to_string),
-                    old: old_hash,
-                });
+            .map_err(Error::Storage),
+            async {
+                let mut map = self.changed_heads.write().await;
+                match map.entry(name.to_string()) {
+                    Entry::Occupied(mut entry) => {
+                        // Keep old if occupied.
+                        entry.get_mut().new = hash.map(str::to_string);
+                    }
+                    Entry::Vacant(entry) => {
+                        entry.insert(HeadChange {
+                            new: hash.map(str::to_string),
+                            old: old_hash,
+                        });
+                    }
+                }
+                Ok(())
             }
-        }
+        )?;
 
         Ok(())
     }
@@ -269,7 +273,7 @@ mod tests {
         let kv = MemStore::new();
         async fn test(kv: &MemStore, name: &str, hash: Option<&str>) {
             let kvw = kv.write(LogContext::new()).await.unwrap();
-            let mut w = Write::new(kvw);
+            let w = Write::new(kvw);
             w.set_head(name, hash).await.unwrap();
             match hash {
                 Some(h) => assert_eq!(

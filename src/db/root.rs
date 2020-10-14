@@ -41,7 +41,7 @@ mod tests {
             let kvs = MemStore::new();
             let ds = dag::Store::new(Box::from(kvs));
             if let Some(v) = head_val {
-                let mut dw = ds.write(LogContext::new()).await.unwrap();
+                let dw = ds.write(LogContext::new()).await.unwrap();
                 dw.set_head(db::DEFAULT_HEAD_NAME, Some(&v)).await.unwrap();
                 dw.commit().await.unwrap();
             }

@@ -38,16 +38,11 @@ impl Chunk {
         &(self.data.0[self.data.1..])
     }
 
-    // TODO: It would be nice to flatten the option down into an empty
-    // iterator for caller convenience, but could not find a zero-alloc
-    // way to do that.
-    pub fn refs(&self) -> Option<impl Iterator<Item = &str>> {
-        if let Some(buf) = self.meta() {
-            if let Some(refs) = meta::get_root_as_meta(buf).refs() {
-                return Some(refs.iter());
-            }
-        }
-        None
+    pub fn refs(&self) -> impl Iterator<Item = &str> {
+        self.meta()
+            .into_iter()
+            .flat_map(|buf| meta::get_root_as_meta(buf).refs())
+            .flatten()
     }
 
     pub fn meta(&self) -> Option<&[u8]> {
@@ -73,13 +68,9 @@ impl Chunk {
 
 impl PartialEq for Chunk {
     fn eq(&self, other: &Self) -> bool {
-        match self.refs() {
-            None => other.refs().is_none(),
-            Some(s) => match other.refs() {
-                None => false,
-                Some(o) => s.eq(o),
-            },
-        }
+        // TODO(arv): Compare data too?
+        // self.data().eq(other.data()) &&
+        self.refs().eq(other.refs())
     }
 }
 
@@ -96,9 +87,9 @@ mod tests {
             assert_eq!(&hash, c.hash());
             assert_eq!(data, c.data());
             if refs.is_empty() {
-                assert!(c.refs().is_none());
+                assert!(c.refs().next().is_none());
             } else {
-                assert_eq!(refs, c.refs().unwrap().collect::<Vec<&str>>().as_slice());
+                assert_eq!(refs, c.refs().collect::<Vec<&str>>().as_slice());
             }
 
             let buf = c.meta();

@@ -44,22 +44,25 @@ impl<'a> Write<'_> {
     }
 
     pub async fn put_chunk(&mut self, c: &Chunk) -> Result<()> {
-        // TODO: These can be done in parallel.
-
-        self.kvw
-            .put(&Key::ChunkData(c.hash()).to_string(), c.data())
-            .await?;
-
-        if let Some(meta) = c.meta() {
-            self.kvw
-                .put(&Key::ChunkMeta(c.hash()).to_string(), meta)
-                .await?;
-        }
-
-        self.mutated_chunks
-            .write()
-            .await
-            .insert(c.hash().to_string());
+        let data_key = Key::ChunkData(c.hash()).to_string();
+        try_join!(
+            self.kvw.put(&data_key, c.data()).map_err(Error::Storage),
+            async {
+                if let Some(meta) = c.meta() {
+                    self.kvw
+                        .put(&Key::ChunkMeta(c.hash()).to_string(), meta)
+                        .await?;
+                }
+                Ok(())
+            },
+            async {
+                self.mutated_chunks
+                    .write()
+                    .await
+                    .insert(c.hash().to_string());
+                Ok(())
+            }
+        )?;
 
         Ok(())
     }

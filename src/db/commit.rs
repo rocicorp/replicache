@@ -66,7 +66,7 @@ impl Commit {
             commit_fb::MetaTyped::LocalMeta,
             local_meta.as_union_value(),
             Ref::Strong(value_hash),
-            original_hash.map(Ref::Strong),
+            original_hash.map(Ref::Weak),
         )
     }
 
@@ -537,9 +537,9 @@ mod tests {
                     checksum_str,
                     "value".into(),
                     &(if basis_hash.is_none() {
-                        vec!["value", "original"]
+                        vec!["value"]
                     } else {
-                        vec!["value", basis_hash.unwrap(), "original"]
+                        vec!["value", basis_hash.unwrap()]
                     }),
                 ),
                 Ok(Commit::new_local(

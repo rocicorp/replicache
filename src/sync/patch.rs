@@ -18,6 +18,17 @@ pub struct Operation {
 pub fn apply(db_write: &mut db::Write, patch: &[Operation]) -> Result<(), PatchError> {
     use PatchError::*;
     for op in patch.iter() {
+        // Special case `{"op": "replace", "path": "", "valueString": "{}"}`
+        // which means replace the root with a new map, in other words, clear
+        // the map.
+        if op.path.is_empty() {
+            if op.op == OP_REPLACE && op.value_string == "{}" {
+                db_write.clear();
+                continue;
+            }
+            return Err(InvalidPath(op.path.clone()));
+        }
+
         let mut chars = op.path.chars();
         if chars.next() != Some('/') {
             return Err(InvalidPath(op.path.clone()));
@@ -31,12 +42,7 @@ pub fn apply(db_write: &mut db::Write, patch: &[Operation]) -> Result<(), PatchE
             }
             // Should we error if we try to remove a key that doesn't exist?
             OP_REMOVE => {
-                if key.is_empty() {
-                    // Top-level remove (path == "/").
-                    db_write.clear();
-                } else {
-                    db_write.del(key);
-                }
+                db_write.del(key);
             }
             _ => return Err(InvalidOp(op.op.to_string())),
         };
@@ -114,8 +120,36 @@ mod tests {
                 exp_checksum: None,
             },
             Case {
+                name: "insert empty key",
+                patch: vec![r#"{"op":"add","path":"/","valueString":"\"empty\""}"#],
+                exp_err: None,
+                exp_map: Some(map!("key" => "value", "" => "\"empty\"")),
+                exp_checksum: None,
+            },
+            Case {
+                name: "insert/replace empty key",
+                patch: vec![
+                    r#"{"op":"add","path":"/","valueString":"\"empty\""}"#,
+                    r#"{"op":"replace","path":"/","valueString":"\"changed\""}"#,
+                ],
+                exp_err: None,
+                exp_map: Some(map!("key" => "value", "" => "\"changed\"")),
+                exp_checksum: None,
+            },
+            Case {
+                name: "insert/remove empty key",
+                patch: vec![
+                    r#"{"op":"add","path":"/","valueString":"\"empty\""}"#,
+                    r#"{"op":"remove","path":"/"}"#,
+                ],
+                exp_err: None,
+                exp_map: Some(map!("key" => "value")),
+                exp_checksum: None,
+            },
+            // Remove once all the other layers no longer depend on this.
+            Case {
                 name: "top-level remove",
-                patch: vec![r#"{"op":"remove","path":"/"}"#],
+                patch: vec![r#"{"op":"replace","path":"","valueString":"{}"}"#],
                 exp_err: None,
                 exp_map: Some(HashMap::new()),
                 exp_checksum: Some("00000000"),
@@ -164,7 +198,7 @@ mod tests {
             Case {
                 name: "known checksum",
                 patch: vec![
-                    r#"{"op":"remove","path":"/"}"#,
+                    r#"{"op":"replace","path":"","valueString":"{}"}"#,
                     r#"{"op":"add","path":"/new","valueString":"\"value\""}"#,
                 ],
                 exp_err: None,

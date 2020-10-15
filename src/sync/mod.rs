@@ -116,7 +116,7 @@ pub async fn begin_sync(
         client_id,
         base_state_id: base_state_id.clone(),
         checksum: base_checksum.clone(),
-        version: 1,
+        version: 2,
     };
     debug!(lc, "Starting pull...");
     let pull_timer = rlog::Timer::new().map_err(InternalTimerError)?;
@@ -493,9 +493,9 @@ mod tests {
             last_mutation_id: 10,
             patch: vec![
                 Operation {
-                    op: str!("remove"),
-                    path: str!("/"),
-                    value_string: str!(""),
+                    op: str!("replace"),
+                    path: str!(""),
+                    value_string: str!("{}"),
                 },
                 Operation {
                     op: str!("add"),
@@ -540,7 +540,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
-                    version: 1,
+                    version: 2,
                 },
                 pull_result: Ok(good_pull_resp.clone()),
                 exp_err: None,
@@ -577,7 +577,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
-                    version: 1,
+                    version: 2,
                 },
                 pull_result: Ok(good_pull_resp.clone()),
                 exp_err: None,
@@ -614,7 +614,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
-                    version: 1,
+                    version: 2,
                 },
                 pull_result: Ok(good_pull_resp.clone()),
                 exp_err: None,
@@ -639,7 +639,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
-                    version: 1,
+                    version: 2,
                 },
                 pull_result: Ok(PullResponse {
                     state_id: base_server_state_id.clone(),
@@ -661,7 +661,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
-                    version: 1,
+                    version: 2,
                 },
                 pull_result: Ok(PullResponse {
                     last_mutation_id: 0,
@@ -680,7 +680,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
-                    version: 1,
+                    version: 2,
                 },
                 pull_result: Ok(PullResponse {
                     state_id: str!(""),
@@ -699,7 +699,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
-                    version: 1,
+                    version: 2,
                 },
                 pull_result: Ok(PullResponse {
                     checksum: str!(""),
@@ -718,7 +718,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
-                    version: 1,
+                    version: 2,
                 },
                 pull_result: Ok(PullResponse {
                     checksum: str!(12345678),
@@ -737,7 +737,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
-                    version: 1,
+                    version: 2,
                 },
                 pull_result: Err(str!("FetchNotOk(500)")),
                 exp_err: Some("FetchNotOk(500)"),
@@ -1136,7 +1136,7 @@ mod tests {
                 client_id: str!("client_id"),
                 base_state_id: str!("base-state-id"),
                 checksum: str!("00000000"),
-                version: 1,
+                version: 2,
             };
             // EXP_BODY must be 'static to be used in HTTP handler closure.
             static ref EXP_BODY: String = serde_json::to_string(&*PULL_REQ).unwrap();
@@ -1156,15 +1156,15 @@ mod tests {
             Case {
                 name: "200",
                 resp_status: 200,
-                resp_body: r#"{"stateID": "1", "lastMutationID": 2, "checksum": "12345678", "patch": [{"op":"remove","path":"/"}], "clientViewInfo": { "httpStatusCode": 200, "errorMessage": "" }}"#,
+                resp_body: r#"{"stateID": "1", "lastMutationID": 2, "checksum": "12345678", "patch": [{"op":"replace","path":"","valueString":"{}"}], "clientViewInfo": { "httpStatusCode": 200, "errorMessage": "" }}"#,
                 exp_err: None,
                 exp_resp: Some(PullResponse {
                     state_id: str!("1"),
                     last_mutation_id: 2,
                     patch: vec![Operation {
-                        op: str!("remove"),
-                        path: str!("/"),
-                        value_string: str!(""),
+                        op: str!("replace"),
+                        path: str!(""),
+                        value_string: str!("{}"),
                     }],
                     checksum: str!("12345678"),
                     client_view_info: ClientViewInfo {

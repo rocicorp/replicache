@@ -469,7 +469,7 @@ pub struct IndexMeta {
     pub value_hash: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct IndexDefinition {
     // TODO: Omit name, indexes should be unique by features
     pub name: String,

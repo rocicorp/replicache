@@ -200,11 +200,15 @@ impl<'a> Write<'a> {
     ) -> Result<(), CreateIndexError> {
         use CreateIndexError::*;
 
+        let definition = commit::IndexDefinition {
+            name: name.to_string(),
+            key_prefix: key_prefix.to_vec(),
+            json_pointer: json_pointer.to_string(),
+        };
+
         // Check to see if the index already exists.
         if let Some(index) = self.indexes.get(name) {
-            if index.meta.definition.key_prefix == key_prefix
-                && index.meta.definition.json_pointer == json_pointer
-            {
+            if index.meta.definition == definition {
                 return Ok(());
             }
             return Err(IndexExistsWithDifferentDefinition);
@@ -234,11 +238,7 @@ impl<'a> Write<'a> {
             name.to_string(),
             index::Index::new(
                 commit::IndexMeta {
-                    definition: commit::IndexDefinition {
-                        name: name.to_string(),
-                        key_prefix: key_prefix.to_vec(),
-                        json_pointer: json_pointer.to_string(),
-                    },
+                    definition,
                     value_hash: str!(""),
                 },
                 Some(index_map),

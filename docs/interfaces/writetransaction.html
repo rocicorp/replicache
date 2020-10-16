@@ -90,6 +90,7 @@
 						<section class="tsd-index-section ">
 							<h3>Methods</h3>
 							<ul class="tsd-index-list">
+								<li class="tsd-kind-method tsd-parent-kind-interface"><a href="writetransaction.html#createindex" class="tsd-kind-icon">create<wbr>Index</a></li>
 								<li class="tsd-kind-method tsd-parent-kind-interface"><a href="writetransaction.html#del" class="tsd-kind-icon">del</a></li>
 								<li class="tsd-kind-method tsd-parent-kind-interface tsd-is-inherited"><a href="writetransaction.html#get" class="tsd-kind-icon">get</a></li>
 								<li class="tsd-kind-method tsd-parent-kind-interface tsd-is-inherited"><a href="writetransaction.html#has" class="tsd-kind-icon">has</a></li>
@@ -104,6 +105,34 @@
 			<section class="tsd-panel-group tsd-member-group ">
 				<h2>Methods</h2>
 				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface">
+					<a name="createindex" class="tsd-anchor"></a>
+					<h3>create<wbr>Index</h3>
+					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface">
+						<li class="tsd-signature tsd-kind-icon">create<wbr>Index<span class="tsd-signature-symbol">(</span>options<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">CreateIndexOptions</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/5a0a2f7/src/transactions.ts#L144">src/transactions.ts:144</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Creates a persistent secondary index in Replicache which can be used with scan.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>options: <span class="tsd-signature-type">CreateIndexOptions</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-method tsd-parent-kind-interface">
 					<a name="del" class="tsd-anchor"></a>
 					<h3>del</h3>
 					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface">
@@ -113,7 +142,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/96c90f0/src/transactions.ts#L132">src/transactions.ts:132</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/5a0a2f7/src/transactions.ts#L139">src/transactions.ts:139</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -143,7 +172,7 @@
 							<aside class="tsd-sources">
 								<p>Inherited from <a href="readtransaction.html">ReadTransaction</a>.<a href="readtransaction.html#get">get</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/96c90f0/src/transactions.ts#L20">src/transactions.ts:20</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/5a0a2f7/src/transactions.ts#L20">src/transactions.ts:20</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -173,7 +202,7 @@
 							<aside class="tsd-sources">
 								<p>Inherited from <a href="readtransaction.html">ReadTransaction</a>.<a href="readtransaction.html#has">has</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/96c90f0/src/transactions.ts#L25">src/transactions.ts:25</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/5a0a2f7/src/transactions.ts#L25">src/transactions.ts:25</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -201,7 +230,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/96c90f0/src/transactions.ts#L126">src/transactions.ts:126</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/5a0a2f7/src/transactions.ts#L133">src/transactions.ts:133</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -234,7 +263,7 @@
 							<aside class="tsd-sources">
 								<p>Inherited from <a href="readtransaction.html">ReadTransaction</a>.<a href="readtransaction.html#scan">scan</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/96c90f0/src/transactions.ts#L35">src/transactions.ts:35</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/5a0a2f7/src/transactions.ts#L35">src/transactions.ts:35</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -267,7 +296,7 @@
 							<aside class="tsd-sources">
 								<p>Inherited from <a href="readtransaction.html">ReadTransaction</a>.<a href="readtransaction.html#scanall">scanAll</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/96c90f0/src/transactions.ts#L40">src/transactions.ts:40</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/5a0a2f7/src/transactions.ts#L40">src/transactions.ts:40</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -326,6 +355,9 @@
 					<li class="current tsd-kind-interface">
 						<a href="writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a>
 						<ul>
+							<li class=" tsd-kind-method tsd-parent-kind-interface">
+								<a href="writetransaction.html#createindex" class="tsd-kind-icon">create<wbr>Index</a>
+							</li>
 							<li class=" tsd-kind-method tsd-parent-kind-interface">
 								<a href="writetransaction.html#del" class="tsd-kind-icon">del</a>
 							</li>

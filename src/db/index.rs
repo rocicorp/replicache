@@ -5,17 +5,6 @@ use async_std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-// TODO:
-// - measure perf
-// - share w/ cron
-// ===
-// - index definition does not need name
-// - add unit test for scan
-// - enable wasm dispatch test for scan (currently commented out; see also TODOs in test_index)
-// - load primary map lazily too
-// - evaluate json pointer more efficiently
-// - take a pass through to see what can be parallelized
-
 pub struct Index {
     pub meta: commit::IndexMeta,
     map: RwLock<Option<prolly::Map>>,

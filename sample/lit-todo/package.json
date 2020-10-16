@@ -9,7 +9,7 @@
     "@material/mwc-textfield": "^0.18.0",
     "@material/mwc-top-app-bar": "^0.18.0",
     "lit-html": "^1.3.0",
-    "replicache": "^0.10.0"
+    "replicache": "^0.6.0"
   },
   "scripts": {
     "build": "rollup -c && cp -R node_modules/replicache/out/wasm output/"

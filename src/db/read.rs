@@ -1,7 +1,10 @@
 use super::commit::{Commit, FromHashError};
+use super::index;
 use crate::checksum;
 use crate::dag;
 use crate::prolly;
+use std::collections::hash_map::HashMap;
+use std::iter::FromIterator;
 
 pub enum Whence {
     Head(String),
@@ -12,6 +15,7 @@ pub enum Whence {
 pub struct OwnedRead<'a> {
     dag_read: dag::OwnedRead<'a>,
     map: prolly::Map,
+    indexes: HashMap<String, index::Index>,
 }
 
 #[derive(Debug)]
@@ -28,12 +32,17 @@ impl<'a> OwnedRead<'a> {
         whence: Whence,
         dag_read: dag::OwnedRead<'a>,
     ) -> Result<OwnedRead<'a>, ReadCommitError> {
-        let (_, _, map) = read_commit(whence, &dag_read.read()).await?;
-        Ok(OwnedRead { dag_read, map })
+        let (_, basis, map) = read_commit(whence, &dag_read.read()).await?;
+        let indexes = read_indexes(&basis);
+        Ok(OwnedRead {
+            dag_read,
+            map,
+            indexes,
+        })
     }
 
     pub fn as_read(&'a self) -> Read<'a> {
-        Read::new(self.dag_read.read(), &self.map)
+        Read::new(self.dag_read.read(), &self.map, &self.indexes)
     }
 }
 
@@ -59,16 +68,33 @@ pub async fn read_commit(
     Ok((hash, commit, map))
 }
 
+pub fn read_indexes(commit: &Commit) -> HashMap<String, index::Index> {
+    HashMap::from_iter(commit.indexes().iter().map(|meta| {
+        (
+            meta.definition.name.clone(),
+            index::Index::new(meta.clone(), None),
+        )
+    }))
+}
+
 pub struct Read<'a> {
     #[allow(dead_code)]
     dag_read: dag::Read<'a>,
-
     map: &'a prolly::Map,
+    indexes: &'a HashMap<String, index::Index>,
 }
 
 impl<'a> Read<'a> {
-    pub fn new(dag_read: dag::Read<'a>, map: &'a prolly::Map) -> Read<'a> {
-        Read { dag_read, map }
+    pub fn new(
+        dag_read: dag::Read<'a>,
+        map: &'a prolly::Map,
+        indexes: &'a HashMap<String, index::Index>,
+    ) -> Read<'a> {
+        Read {
+            dag_read,
+            map,
+            indexes,
+        }
     }
 
     pub fn has(&self, key: &[u8]) -> bool {
@@ -79,9 +105,50 @@ impl<'a> Read<'a> {
         self.map.get(key)
     }
 
-    pub fn scan(&'a self, opts: super::ScanOptions<'a>) -> impl Iterator<Item = prolly::Entry<'a>> {
-        super::scan::scan(&self.map, opts)
+    pub async fn scan(
+        &'a self,
+        opts: super::ScanOptions<'a>,
+        callback: impl Fn(prolly::Entry<'_>),
+    ) -> Result<(), ScanError> {
+        use ScanError::*;
+        fn send<'a>(
+            map: &'a prolly::Map,
+            opts: super::ScanOptions<'a>,
+            callback: impl Fn(prolly::Entry<'_>),
+        ) {
+            let use_index = opts.index_name.is_some();
+            for mut thing in super::scan::scan(map, opts) {
+                // TODO: It would be nice to return either the primary or secondary key,
+                // but decoding it is kind of a bitch. Cannot return composite key because it
+                // isn't a valid string!
+                if use_index {
+                    thing = prolly::Entry {
+                        key: &[],
+                        val: thing.val,
+                    }
+                }
+                callback(thing);
+            }
+        }
+        match opts.index_name {
+            Some(name) => {
+                let idx = self
+                    .indexes
+                    .get(name)
+                    .ok_or_else(|| UnknownIndexName(name.to_string()))?;
+                let guard = idx.get_map(&self.dag_read).await.map_err(GetMapError)?;
+                send(guard.get_map(), opts, callback);
+            }
+            None => send(&self.map, opts, callback),
+        };
+        Ok(())
     }
+}
+
+#[derive(Debug)]
+pub enum ScanError {
+    UnknownIndexName(String),
+    GetMapError(index::GetMapError),
 }
 
 #[cfg(test)]
@@ -114,7 +181,9 @@ mod tests {
         )
         .await
         .unwrap();
-        w.put("foo".as_bytes().to_vec(), "bar".as_bytes().to_vec());
+        w.put("foo".as_bytes().to_vec(), "bar".as_bytes().to_vec())
+            .await
+            .unwrap();
         w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
             .await
             .unwrap();

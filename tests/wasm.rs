@@ -123,6 +123,7 @@ async fn scan(
                     index: Some(start_index),
                 }),
                 limit: None,
+                index_name: None,
             },
         },
     )
@@ -360,6 +361,87 @@ async fn test_get_put_del() {
     assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
 }
 
+#[wasm_bindgen_test]
+async fn test_index() {
+    let db = &random_db();
+    assert_eq!(dispatch::<_, String>(db, "open", "").await.unwrap(), "");
+
+    let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+        .await
+        .transaction_id;
+    dispatch::<_, CreateIndexResponse>(
+        db,
+        "createIndex",
+        CreateIndexRequest {
+            transaction_id,
+            name: str!("idx1"),
+            key_prefix: str!("b"),
+            json_pointer: str!("/s"),
+        },
+    )
+    .await
+    .unwrap();
+    commit(db, transaction_id).await;
+
+    // Ensure we can't create an index of the same name with different definition.
+    let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+        .await
+        .transaction_id;
+    let response = dispatch::<_, CreateIndexResponse>(
+        db,
+        "createIndex",
+        CreateIndexRequest {
+            transaction_id,
+            name: str!("idx1"),
+            key_prefix: str!("DIFFERENT"),
+            json_pointer: str!("/ALSO-DIFFERENT"),
+        },
+    )
+    .await
+    .unwrap_err();
+    assert_eq!("DBError(IndexExistsWithDifferentDefinition)", response);
+    abort(db, transaction_id).await;
+
+    // TODO ensure the index can be used.
+
+    // Check that drop works.
+    let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+        .await
+        .transaction_id;
+    dispatch::<_, DropIndexResponse>(
+        db,
+        "dropIndex",
+        DropIndexRequest {
+            transaction_id,
+            name: str!("idx1"),
+        },
+    )
+    .await
+    .unwrap();
+    commit(db, transaction_id).await;
+
+    // TODO ensure that index can NOT be used.
+
+    // Check that dropping a non-existent index errors.
+    let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+        .await
+        .transaction_id;
+    let result = dispatch::<_, DropIndexResponse>(
+        db,
+        "dropIndex",
+        DropIndexRequest {
+            transaction_id,
+            name: str!("idx1"),
+        },
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(str!("DBError(NoSuchIndexError(\"idx1\"))"), result);
+    abort(db, transaction_id).await;
+
+    assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+}
+
 /*
 TODO: Figure out how to re-enable this test. We still have coverage at JS SDK level luckily.
 #[wasm_bindgen_test]
@@ -464,7 +546,7 @@ async fn test_get_root() {
             .await
             .unwrap(),
         GetRootResponse {
-            root: str!("b3l9pgiide3am771eu08kfgg5sprjs2e"),
+            root: str!("20cpm833c2tlc3je6uhn7vs8s3h8cg5d"),
         }
     );
     let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
@@ -477,7 +559,7 @@ async fn test_get_root() {
             .await
             .unwrap(),
         GetRootResponse {
-            root: str!("ug6tod81n4l0fm8ob1iud4hetomibm02"),
+            root: str!("5taaq6eg55rmpvbqv6fog2mpmbodjui0"),
         }
     );
     assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");

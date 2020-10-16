@@ -225,6 +225,8 @@ async fn execute<'a, 'b>(
     match rpc.as_str() {
         "put" => return to_js(do_put(write, from_js(data)?).await),
         "del" => return to_js(do_del(write, from_js(data)?).await),
+        "createIndex" => return to_js(do_create_index(write, from_js(data)?).await),
+        "dropIndex" => return to_js(do_drop_index(write, from_js(data)?).await),
         _ => (),
     }
 
@@ -470,30 +472,55 @@ async fn do_scan(
     req: ScanRequest,
     req_raw: JsValue,
 ) -> Result<ScanResponse, ScanError> {
-    use ScanError::*;
     let receiver: Function = Reflect::get(&req_raw, &JsValue::from_str("receiver"))
-        .map_err(|_| MissingReceiver)?
+        .map_err(|_| ScanError::MissingReceiver)?
         .dyn_into()
-        .map_err(|_| InvalidReceiver)?;
+        .map_err(|_| ScanError::InvalidReceiver)?;
 
-    for pe in read.scan((&req.opts).into()) {
+    use crate::prolly;
+    read.scan((&req.opts).into(), |pe: prolly::Entry<'_>| {
         let key = JsValue::from_str(std::str::from_utf8(pe.key).unwrap());
         let val = unsafe { Uint8Array::view(pe.val) };
         // TODO: receiver can return to us whether to keep going!
         receiver.call2(&JsValue::null(), &key, &val).unwrap();
-    }
+    })
+    .await
+    .map_err(ScanError::ScanError)?;
     Ok(ScanResponse {})
 }
 
-async fn do_put(write: &mut db::Write<'_>, req: PutRequest) -> Result<PutResponse, ()> {
-    write.put(req.key.as_bytes().to_vec(), req.value.into_bytes());
+async fn do_put(write: &mut db::Write<'_>, req: PutRequest) -> Result<PutResponse, db::PutError> {
+    write
+        .put(req.key.as_bytes().to_vec(), req.value.into_bytes())
+        .await?;
     Ok(PutResponse {})
 }
 
-async fn do_del(write: &mut db::Write<'_>, req: DelRequest) -> Result<DelResponse, ()> {
+async fn do_del(write: &mut db::Write<'_>, req: DelRequest) -> Result<DelResponse, db::DelError> {
     let had = write.as_read().has(req.key.as_bytes());
-    write.del(req.key.as_bytes().to_vec());
+    write.del(req.key.as_bytes().to_vec()).await?;
     Ok(DelResponse { had })
+}
+
+async fn do_create_index(
+    write: &mut db::Write<'_>,
+    req: CreateIndexRequest,
+) -> Result<CreateIndexResponse, CreateIndexError> {
+    use CreateIndexError::*;
+    write
+        .create_index(&req.name, req.key_prefix.as_bytes(), &req.json_pointer)
+        .await
+        .map_err(DBError)?;
+    Ok(CreateIndexResponse {})
+}
+
+async fn do_drop_index(
+    write: &mut db::Write<'_>,
+    req: DropIndexRequest,
+) -> Result<DropIndexResponse, DropIndexError> {
+    use DropIndexError::*;
+    write.drop_index(&req.name).await.map_err(DBError)?;
+    Ok(DropIndexResponse {})
 }
 
 async fn do_begin_sync<'a, 'b>(

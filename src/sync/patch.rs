@@ -15,7 +15,7 @@ pub struct Operation {
     pub value_string: String,
 }
 
-pub fn apply(db_write: &mut db::Write, patch: &[Operation]) -> Result<(), PatchError> {
+pub async fn apply(db_write: &mut db::Write<'_>, patch: &[Operation]) -> Result<(), PatchError> {
     use PatchError::*;
     for op in patch.iter() {
         // Special case `{"op": "replace", "path": "", "valueString": "{}"}`
@@ -38,11 +38,11 @@ pub fn apply(db_write: &mut db::Write, patch: &[Operation]) -> Result<(), PatchE
         match op.op.as_str() {
             OP_ADD | OP_REPLACE => {
                 let value = op.value_string.as_bytes().to_vec();
-                db_write.put(key, value);
+                db_write.put(key, value).await.map_err(PutError)?;
             }
             // Should we error if we try to remove a key that doesn't exist?
             OP_REMOVE => {
-                db_write.del(key);
+                db_write.del(key).await.map_err(DelError)?;
             }
             _ => return Err(InvalidOp(op.op.to_string())),
         };
@@ -58,6 +58,8 @@ fn json_pointer_unescape(s: &str) -> String {
 pub enum PatchError {
     InvalidOp(String),
     InvalidPath(String),
+    PutError(db::PutError),
+    DelError(db::DelError),
 }
 
 #[cfg(test)]
@@ -219,13 +221,16 @@ mod tests {
             )
             .await
             .unwrap();
-            db_write.put("key".as_bytes().to_vec(), "value".as_bytes().to_vec());
+            db_write
+                .put("key".as_bytes().to_vec(), "value".as_bytes().to_vec())
+                .await
+                .unwrap();
             let ops: Vec<Operation> = c
                 .patch
                 .iter()
                 .map(|o| serde_json::from_str(&o).unwrap())
                 .collect();
-            let result = apply(&mut db_write, &ops);
+            let result = apply(&mut db_write, &ops).await;
             match c.exp_err {
                 Some(err_str) => assert!(to_debug(result.unwrap_err()).contains(err_str)),
                 None => {
@@ -234,8 +239,8 @@ mod tests {
                         Some(map) => {
                             for (k, v) in map {
                                 assert_eq!(
-                                    v.as_bytes(),
-                                    db_write.as_read().get(k.as_bytes()).unwrap(),
+                                    Some(v.as_bytes()),
+                                    db_write.as_read().get(k.as_bytes()),
                                     "{}",
                                     c.name
                                 );

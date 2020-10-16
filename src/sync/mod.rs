@@ -172,7 +172,9 @@ pub async fn begin_sync(
     .await
     .map_err(ReadCommitError)?;
 
-    patch::apply(&mut db_write, &pull_resp.patch).map_err(PatchFailed)?;
+    patch::apply(&mut db_write, &pull_resp.patch)
+        .await
+        .map_err(PatchFailed)?;
     if db_write.checksum() != expected_checksum.to_string().as_str() {
         return Err(WrongChecksum(format!(
             "expected {}, got {}",

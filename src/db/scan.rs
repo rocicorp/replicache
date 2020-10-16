@@ -18,6 +18,7 @@ pub struct ScanOptions<'a> {
     pub prefix: Option<&'a [u8]>,
     pub start: Option<ScanBound<'a>>,
     pub limit: Option<u64>,
+    pub index_name: Option<&'a str>,
 }
 
 pub fn scan<'a>(
@@ -95,6 +96,7 @@ mod tests {
                 prefix: None,
                 start: None,
                 limit: None,
+                index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
@@ -105,6 +107,7 @@ mod tests {
                 prefix: Some(b""),
                 start: None,
                 limit: None,
+                index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
@@ -113,6 +116,7 @@ mod tests {
                 prefix: Some(b"ba"),
                 start: None,
                 limit: None,
+                index_name: None,
             },
             vec!["bar", "baz"],
         );
@@ -121,6 +125,7 @@ mod tests {
                 prefix: Some(b"bar"),
                 start: None,
                 limit: None,
+                index_name: None,
             },
             vec!["bar"],
         );
@@ -129,6 +134,7 @@ mod tests {
                 prefix: Some(b"bas"),
                 start: None,
                 limit: None,
+                index_name: None,
             },
             vec![],
         );
@@ -143,6 +149,7 @@ mod tests {
                 }
                 .into(),
                 limit: None,
+                index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
@@ -157,6 +164,7 @@ mod tests {
                 }
                 .into(),
                 limit: None,
+                index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
@@ -169,6 +177,7 @@ mod tests {
                 }
                 .into(),
                 limit: None,
+                index_name: None,
             },
             vec!["baz", "foo"],
         );
@@ -181,6 +190,7 @@ mod tests {
                 }
                 .into(),
                 limit: None,
+                index_name: None,
             },
             vec!["foo"],
         );
@@ -193,6 +203,7 @@ mod tests {
                 }
                 .into(),
                 limit: None,
+                index_name: None,
             },
             vec![],
         );
@@ -205,6 +216,7 @@ mod tests {
                 }
                 .into(),
                 limit: None,
+                index_name: None,
             },
             vec![],
         );
@@ -223,6 +235,7 @@ mod tests {
                 }
                 .into(),
                 limit: None,
+                index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
@@ -239,6 +252,7 @@ mod tests {
                 }
                 .into(),
                 limit: None,
+                index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
@@ -255,6 +269,7 @@ mod tests {
                 }
                 .into(),
                 limit: None,
+                index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
@@ -271,6 +286,7 @@ mod tests {
                 }
                 .into(),
                 limit: None,
+                index_name: None,
             },
             vec!["baz", "foo"],
         );
@@ -287,6 +303,7 @@ mod tests {
                 }
                 .into(),
                 limit: None,
+                index_name: None,
             },
             vec!["baz", "foo"],
         );
@@ -303,6 +320,7 @@ mod tests {
                 }
                 .into(),
                 limit: None,
+                index_name: None,
             },
             vec!["foo"],
         );
@@ -319,6 +337,7 @@ mod tests {
                 }
                 .into(),
                 limit: None,
+                index_name: None,
             },
             vec![],
         );
@@ -337,6 +356,7 @@ mod tests {
                 }
                 .into(),
                 limit: None,
+                index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
@@ -353,6 +373,7 @@ mod tests {
                 }
                 .into(),
                 limit: None,
+                index_name: None,
             },
             vec!["baz", "foo"],
         );
@@ -363,6 +384,7 @@ mod tests {
                 prefix: None,
                 start: None,
                 limit: 0.into(),
+                index_name: None,
             },
             vec![],
         );
@@ -371,6 +393,7 @@ mod tests {
                 prefix: None,
                 start: None,
                 limit: 1.into(),
+                index_name: None,
             },
             vec!["bar"],
         );
@@ -379,6 +402,7 @@ mod tests {
                 prefix: None,
                 start: None,
                 limit: 2.into(),
+                index_name: None,
             },
             vec!["bar", "baz"],
         );
@@ -387,6 +411,7 @@ mod tests {
                 prefix: None,
                 start: None,
                 limit: 3.into(),
+                index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
@@ -395,6 +420,7 @@ mod tests {
                 prefix: None,
                 start: None,
                 limit: 7.into(),
+                index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
@@ -405,6 +431,7 @@ mod tests {
                 prefix: Some(b"f"),
                 start: None,
                 limit: 0.into(),
+                index_name: None,
             },
             vec![],
         );
@@ -413,6 +440,7 @@ mod tests {
                 prefix: Some(b"f"),
                 start: None,
                 limit: 7.into(),
+                index_name: None,
             },
             vec!["foo"],
         );
@@ -429,6 +457,7 @@ mod tests {
                 }
                 .into(),
                 limit: 2.into(),
+                index_name: None,
             },
             vec!["bar", "baz"],
         );
@@ -445,6 +474,7 @@ mod tests {
                 }
                 .into(),
                 limit: 1.into(),
+                index_name: None,
             },
             vec!["bar"],
         );
@@ -461,6 +491,7 @@ mod tests {
                 }
                 .into(),
                 limit: 1.into(),
+                index_name: None,
             },
             vec!["baz"],
         );
@@ -477,6 +508,7 @@ mod tests {
                 }
                 .into(),
                 limit: 1.into(),
+                index_name: None,
             },
             vec!["baz"],
         );
@@ -493,6 +525,7 @@ mod tests {
                 }
                 .into(),
                 limit: 1.into(),
+                index_name: None,
             },
             vec![],
         );

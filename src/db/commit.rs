@@ -2,6 +2,7 @@ use super::commit_generated::commit as commit_fb;
 use crate::checksum::Checksum;
 use crate::dag;
 use flatbuffers::FlatBufferBuilder;
+use std::collections::hash_set::HashSet;
 use std::str::FromStr;
 use str_macro::str;
 
@@ -49,6 +50,7 @@ impl Commit {
         mutator_args_json: &[u8],
         original_hash: Option<&str>,
         value_hash: &str,
+        indexes: &[IndexMeta],
     ) -> Commit {
         let mut builder = FlatBufferBuilder::default();
         let local_meta_args = &commit_fb::LocalMetaArgs {
@@ -67,6 +69,7 @@ impl Commit {
             local_meta.as_union_value(),
             Ref::Strong(value_hash),
             original_hash.map(Ref::Weak),
+            indexes,
         )
     }
 
@@ -77,6 +80,7 @@ impl Commit {
         last_mutation_id: u64,
         server_state_id: &str,
         value_hash: &str,
+        indexes: &[IndexMeta],
     ) -> Commit {
         let mut builder = FlatBufferBuilder::default();
         let snapshot_meta_args = &commit_fb::SnapshotMetaArgs {
@@ -93,6 +97,7 @@ impl Commit {
             snapshot_meta.as_union_value(),
             Ref::Strong(value_hash),
             None,
+            indexes,
         )
     }
 
@@ -138,6 +143,29 @@ impl Commit {
         self.mutation_id() + 1
     }
 
+    pub fn indexes(&self) -> Vec<IndexMeta> {
+        // TODO: Would be nice to return an iterator instead of allocating the temp vector here.
+        let mut result = Vec::new();
+        for idx in self.commit().indexes().iter().flat_map(|v| v.iter()) {
+            let definition = IndexDefinition {
+                name: idx.definition().unwrap().name().unwrap().to_string(),
+                key_prefix: idx.definition().unwrap().key_prefix().unwrap().to_vec(),
+                json_pointer: idx
+                    .definition()
+                    .unwrap()
+                    .json_pointer()
+                    .unwrap()
+                    .to_string(),
+            };
+            let index = IndexMeta {
+                definition,
+                value_hash: idx.value_hash().unwrap().to_string(),
+            };
+            result.push(index);
+        }
+        result
+    }
+
     fn validate(buffer: &[u8]) -> Result<(), LoadError> {
         use LoadError::*;
         let root = commit_fb::get_root_as_commit(buffer);
@@ -157,7 +185,25 @@ impl Commit {
                 Commit::validate_snapshot_meta(meta.typed_as_snapshot_meta().ok_or(MissingTyped)?)
             }
             _ => Err(UnknownMetaType),
+        }?;
+
+        // Indexes is optional
+        if let Some(indexes) = root.indexes() {
+            let mut seen = HashSet::new();
+            for (i, index) in indexes.iter().enumerate() {
+                // validate index
+                Commit::validate_index(index).map_err(|e| InvalidIndex((i, e)))?;
+
+                // check for dupes
+                let name = index.definition().unwrap().name().unwrap();
+                if seen.contains(name) {
+                    return Err(DuplicateIndexName(name.to_string()));
+                }
+                seen.insert(name);
+            }
         }
+
+        Ok(())
     }
 
     fn validate_local_meta(local_meta: commit_fb::LocalMeta) -> Result<(), LoadError> {
@@ -179,6 +225,24 @@ impl Commit {
         Ok(())
     }
 
+    fn validate_index_definition(
+        index_definition: commit_fb::IndexDefinition,
+    ) -> Result<(), ValidateIndexDefinitionError> {
+        use ValidateIndexDefinitionError::*;
+        index_definition.name().ok_or(MissingName)?;
+        index_definition.key_prefix().ok_or(MissingKeyPrefix)?;
+        index_definition.json_pointer().ok_or(MissingIndexPath)?;
+        Ok(())
+    }
+
+    fn validate_index(index: commit_fb::Index) -> Result<(), ValidateIndexError> {
+        use ValidateIndexError::*;
+        index.definition().ok_or(MissingDefinition)?;
+        Commit::validate_index_definition(index.definition().unwrap()).map_err(InvalidDefintion)?;
+        index.value_hash().ok_or(MissingValueHash)?;
+        Ok(())
+    }
+
     fn commit(&self) -> commit_fb::Commit {
         commit_fb::get_root_as_commit(&self.chunk.data())
     }
@@ -192,6 +256,7 @@ impl Commit {
         union_value: flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
         value_hash: Ref,
         original_hash: Option<Ref>,
+        indexes: &[IndexMeta],
     ) -> Commit {
         let meta_args = &commit_fb::MetaArgs {
             local_create_date: builder.create_string(local_create_date).into(),
@@ -201,9 +266,25 @@ impl Commit {
             typed: union_value.into(),
         };
         let meta = commit_fb::Meta::create(&mut builder, meta_args);
+        let mut fb_indexes = Vec::new();
+        for index in indexes {
+            let args = &commit_fb::IndexDefinitionArgs {
+                name: builder.create_string(&index.definition.name).into(),
+                key_prefix: builder.create_vector(&index.definition.key_prefix).into(),
+                json_pointer: builder.create_string(&index.definition.json_pointer).into(),
+            };
+            let def = commit_fb::IndexDefinition::create(&mut builder, args);
+            let args = &commit_fb::IndexArgs {
+                definition: def.into(),
+                value_hash: builder.create_string(&index.value_hash).into(),
+            };
+            fb_indexes.push(commit_fb::Index::create(&mut builder, args));
+        }
+
         let commit_args = &commit_fb::CommitArgs {
             meta: meta.into(),
             value_hash: builder.create_string(value_hash.hash()).into(),
+            indexes: builder.create_vector(&fb_indexes).into(),
         };
         let commit = commit_fb::Commit::create(&mut builder, commit_args);
         builder.finish(commit, None);
@@ -211,6 +292,7 @@ impl Commit {
         let refs = std::iter::once(value_hash)
             .chain(basis_hash)
             .chain(original_hash)
+            .chain(indexes.iter().map(|idx| Ref::Strong(&idx.value_hash)))
             .filter_map(Ref::strong_or_none)
             .collect::<Vec<&str>>();
 
@@ -380,6 +462,22 @@ impl<'a> SnapshotMeta<'a> {
     }
 }
 
+// TODO: Rename IndexMeta
+#[derive(Clone)]
+pub struct IndexMeta {
+    pub definition: IndexDefinition,
+    pub value_hash: String,
+}
+
+#[derive(Clone)]
+pub struct IndexDefinition {
+    // TODO: Omit name, indexes should be unique by features
+    pub name: String,
+    pub key_prefix: Vec<u8>,
+    // TODO: Rename json_pointer
+    pub json_pointer: String,
+}
+
 #[derive(Debug, PartialEq)]
 pub enum LoadError {
     InvalidChecksum,
@@ -392,6 +490,22 @@ pub enum LoadError {
     MissingMeta,
     MissingValueHash,
     UnknownMetaType,
+    InvalidIndex((usize, ValidateIndexError)),
+    DuplicateIndexName(String),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ValidateIndexDefinitionError {
+    MissingName,
+    MissingKeyPrefix,
+    MissingIndexPath,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ValidateIndexError {
+    MissingDefinition,
+    InvalidDefintion(ValidateIndexDefinitionError),
+    MissingValueHash,
 }
 
 #[derive(Debug)]
@@ -541,6 +655,7 @@ mod tests {
                     } else {
                         vec!["value", basis_hash.unwrap()]
                     }),
+                    vec![].into(),
                 ),
                 Ok(Commit::new_local(
                     "",
@@ -551,6 +666,7 @@ mod tests {
                     &[],
                     "original".into(),
                     "value",
+                    &vec![],
                 )),
             );
         }
@@ -564,6 +680,7 @@ mod tests {
                 checksum_str,
                 "".into(),
                 &["", ""],
+                None,
             ),
             Err(LoadError::MissingMutatorName),
         );
@@ -577,6 +694,7 @@ mod tests {
                 checksum_str,
                 "".into(),
                 &["", ""],
+                None,
             ),
             Err(LoadError::MissingMutatorArgsJSON),
         );
@@ -595,6 +713,7 @@ mod tests {
                     } else {
                         vec!["", basis_hash.unwrap()]
                     }),
+                    None,
                 ),
                 Ok(Commit::new_local(
                     "",
@@ -605,6 +724,7 @@ mod tests {
                     &[],
                     None,
                     "",
+                    &vec![],
                 )),
             );
         }
@@ -618,6 +738,7 @@ mod tests {
                 checksum_str,
                 "".into(),
                 &["", ""],
+                None,
             ),
             Err(LoadError::MissingLocalCreateDate),
         );
@@ -631,6 +752,7 @@ mod tests {
                 None,
                 "".into(),
                 &["", ""],
+                None,
             ),
             Err(LoadError::MissingChecksum),
         );
@@ -644,6 +766,7 @@ mod tests {
                 "BOOM".into(),
                 "".into(),
                 &["", ""],
+                None,
             ),
             Err(LoadError::InvalidChecksum),
         );
@@ -657,6 +780,7 @@ mod tests {
                 "".into(),
                 None,
                 &["", ""],
+                None,
             ),
             Err(LoadError::MissingValueHash),
         );
@@ -671,8 +795,17 @@ mod tests {
                     checksum_str,
                     "".into(),
                     &[""],
+                    None,
                 ),
-                Ok(Commit::new_snapshot("", *basis_hash, checksum, 0, "", "")),
+                Ok(Commit::new_snapshot(
+                    "",
+                    *basis_hash,
+                    checksum,
+                    0,
+                    "",
+                    "",
+                    &vec![],
+                )),
             );
         }
         test(
@@ -685,9 +818,12 @@ mod tests {
                 checksum_str,
                 "".into(),
                 &["", ""],
+                None,
             ),
             Err(LoadError::MissingServerStateID),
         );
+
+        // invalid index definitions
     }
 
     #[test]
@@ -707,6 +843,7 @@ mod tests {
             "11111111".into(),
             "value_hash".into(),
             &["value_hash", "basis_hash"],
+            None,
         ))
         .unwrap();
 
@@ -734,6 +871,7 @@ mod tests {
             "22222222".into(),
             "value_hash 2".into(),
             &["value_hash 2", "basis_hash 2"],
+            None,
         ))
         .unwrap();
 
@@ -749,6 +887,17 @@ mod tests {
         assert_eq!(snapshot.meta().checksum(), "22222222");
         assert_eq!(snapshot.value_hash(), "value_hash 2");
         assert_eq!(snapshot.next_mutation_id(), 3);
+    }
+
+    struct MakeIndexDefinition {
+        name: Option<String>,
+        key_prefix: Option<Vec<u8>>,
+        json_pointer: Option<String>,
+    }
+
+    struct MakeIndex {
+        definition: Option<MakeIndexDefinition>,
+        value_hash: Option<String>,
     }
 
     fn make_commit(
@@ -767,6 +916,7 @@ mod tests {
         checksum: Option<&str>,
         value_hash: Option<&str>,
         refs: &[&str],
+        indexes: Option<Vec<MakeIndex>>,
     ) -> Chunk {
         let mut builder = FlatBufferBuilder::default();
         let typed_meta = typed_meta.map(|c| c(&mut builder));
@@ -778,9 +928,41 @@ mod tests {
             checksum: checksum.map(|s| builder.create_string(s)),
         };
         let meta = commit_fb::Meta::create(&mut builder, args);
+
+        fn make_index<'bldr: 'mut_bldr, 'mut_bldr>(
+            builder: &'mut_bldr mut FlatBufferBuilder<'bldr>,
+            make_index: &MakeIndex,
+        ) -> flatbuffers::WIPOffset<commit_fb::Index<'bldr>> {
+            let definition = make_index.definition.as_ref().map(|mid| {
+                let args = commit_fb::IndexDefinitionArgs {
+                    name: mid.name.as_ref().map(|s| builder.create_string(s)),
+                    key_prefix: mid.key_prefix.as_ref().map(|s| builder.create_vector(s)),
+                    json_pointer: mid.json_pointer.as_ref().map(|s| builder.create_string(&s)),
+                };
+                commit_fb::IndexDefinition::create(builder, &args)
+            });
+            let args = commit_fb::IndexArgs {
+                definition,
+                value_hash: make_index
+                    .value_hash
+                    .as_ref()
+                    .map(|s| builder.create_string(s)),
+            };
+            commit_fb::Index::create(builder, &args)
+        }
+
+        let mut fb_indexes = Vec::new();
+        if let Some(v) = indexes {
+            for mi in &v {
+                let idx = make_index(&mut builder, mi);
+                fb_indexes.push(idx);
+            }
+        };
+
         let args = &commit_fb::CommitArgs {
             meta: meta.into(),
             value_hash: value_hash.map(|s| builder.create_string(s)),
+            indexes: builder.create_vector(&fb_indexes).into(),
         };
         let commit = commit_fb::Commit::create(&mut builder, args);
         builder.finish(commit, None);

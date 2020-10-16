@@ -1,5 +1,7 @@
 mod commit;
+#[allow(warnings)]
 mod commit_generated;
+mod index;
 mod read;
 mod root;
 mod scan;
@@ -14,6 +16,8 @@ pub use commit::{
     BaseSnapshotError, Commit, FromHashError, InternalProgrammerError, LocalMeta, MetaTyped,
     PendingError, DEFAULT_HEAD_NAME,
 };
-pub use read::{read_commit, OwnedRead, Read, ReadCommitError, Whence};
+pub use read::{read_commit, OwnedRead, Read, ReadCommitError, ScanError, Whence};
 pub use scan::{ScanBound, ScanKey, ScanOptions};
-pub use write::{init_db, CommitError, InitDBError, Write};
+pub use write::{
+    init_db, CommitError, CreateIndexError, DelError, DropIndexError, InitDBError, PutError, Write,
+};

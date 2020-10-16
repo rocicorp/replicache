@@ -132,6 +132,8 @@ pub struct ScanOptions {
     pub prefix: Option<String>,
     pub start: Option<ScanBound>,
     pub limit: Option<u64>,
+    #[serde(rename = "indexName")]
+    pub index_name: Option<String>,
 }
 
 impl<'a> From<&'a ScanOptions> for db::ScanOptions<'a> {
@@ -140,6 +142,7 @@ impl<'a> From<&'a ScanOptions> for db::ScanOptions<'a> {
             prefix: source.prefix.as_ref().map(|s| s.as_bytes()),
             start: source.start.as_ref().map(|s| s.into()),
             limit: source.limit,
+            index_name: source.index_name.as_deref(),
         }
     }
 }
@@ -156,10 +159,11 @@ pub struct ScanRequest {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct ScanResponse {}
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug)]
 pub enum ScanError {
     MissingReceiver,
     InvalidReceiver,
+    ScanError(db::ScanError),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -184,4 +188,38 @@ pub struct DelRequest {
 pub struct DelResponse {
     #[serde(rename = "ok")]
     pub had: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CreateIndexRequest {
+    #[serde(rename = "transactionId")]
+    pub transaction_id: u32,
+    pub name: String,
+    #[serde(rename = "keyPrefix")]
+    pub key_prefix: String,
+    #[serde(rename = "jsonPointer")]
+    pub json_pointer: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CreateIndexResponse {}
+
+#[derive(Debug)]
+pub enum CreateIndexError {
+    DBError(db::CreateIndexError),
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DropIndexRequest {
+    #[serde(rename = "transactionId")]
+    pub transaction_id: u32,
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct DropIndexResponse {}
+
+#[derive(Debug)]
+pub enum DropIndexError {
+    DBError(db::DropIndexError),
 }

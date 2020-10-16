@@ -1,7 +1,8 @@
-use super::leaf_generated::leaf;
+use super::leaf_generated::leaf::{self, LeafEntry};
 use super::Entry;
 use crate::dag::Chunk;
 use flatbuffers::FlatBufferBuilder;
+use std::cmp::Ordering;
 
 // Leaf is a leaf level node in the map tree structure.
 // It wraps a chunk containing a flatbuffer and exposes handy
@@ -79,6 +80,49 @@ impl Leaf {
         let root = s.map(|leaf| leaf::get_root_as_leaf(leaf.chunk.data()));
         LeafIter {
             fb_iter: root.and_then(|r| r.entries()).map(|e| e.iter()),
+        }
+    }
+
+    pub fn get_entry_by_index(&self, idx: usize) -> LeafEntry {
+        let root = leaf::get_root_as_leaf(self.chunk.data());
+        root.entries().unwrap().get(idx)
+    }
+
+    // binary_search is not implemented in such a way that it can be reused for
+    // flatbuffers::Vector (AFAICT). Copy the code and modify it to work on
+    // flatbuffers::Vector.
+    // TODO(arv): License
+    pub fn binary_search(&self, key: &[u8]) -> Result<usize, usize> {
+        let root = leaf::get_root_as_leaf(self.chunk.data());
+        let v = match root.entries() {
+            None => return Err(0),
+            Some(v) => v,
+        };
+
+        let mut size = v.len();
+        if size == 0 {
+            return Err(0);
+        }
+        let mut base = 0usize;
+        while size > 1 {
+            let half = size / 2;
+            let mid = base + half;
+            // mid is always in [0, size), that means mid is >= 0 and < size.
+            // mid >= 0: by definition
+            // mid < size: mid = size / 2 + size / 4 + size / 8 ...
+            let entry = v.get(mid);
+            // No way that key can be None.
+            let cmp = entry.key().unwrap().cmp(key);
+            base = if cmp == Ordering::Greater { base } else { mid };
+            size -= half;
+        }
+        // base is always in [0, size) because base <= mid.
+        let entry = v.get(base);
+        let cmp = entry.key().unwrap().cmp(key);
+        if cmp == Ordering::Equal {
+            Ok(base)
+        } else {
+            Err(base + (cmp == Ordering::Less) as usize)
         }
     }
 }

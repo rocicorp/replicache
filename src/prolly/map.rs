@@ -65,13 +65,31 @@ impl Map {
         })
     }
 
-    // TODO: improve has and get to not scan entire base, but use binary search.
     pub fn has(&self, key: &[u8]) -> bool {
-        self.iter().any(|e| e.key == key)
+        if let Some(p) = self.pending.get(key) {
+            // if None the key was deleted.
+            return p.is_some();
+        }
+
+        match &self.base {
+            None => false,
+            Some(leaf) => leaf.binary_search(key).is_ok(),
+        }
     }
 
     pub fn get(&self, key: &[u8]) -> Option<&[u8]> {
-        self.iter().find(|e| e.key == key).map(|e| e.val)
+        if let Some(p) = self.pending.get(key) {
+            // if None the key was deleted.
+            return p.as_ref().map(|v| &v[..]);
+        }
+
+        match &self.base {
+            None => None,
+            Some(leaf) => match leaf.binary_search(key) {
+                Ok(idx) => leaf.get_entry_by_index(idx).val(),
+                Err(_) => None,
+            },
+        }
     }
 
     pub fn put(&mut self, key: Vec<u8>, val: Vec<u8>) {

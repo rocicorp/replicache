@@ -33,6 +33,7 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
   private readonly _prefix: string;
   private readonly _kind: ScanIterableKind;
   private readonly _start?: ScanBound;
+  private readonly _indexName?: string;
   private _loadPromise?: Promise<void> = undefined;
   private readonly _getTransaction: () => Promise<IdCloser> | IdCloser;
   private readonly _shouldCloseTransaction: boolean;
@@ -43,6 +44,7 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
     kind: ScanIterableKind,
     prefix: string,
     start: ScanBound | undefined,
+    indexName: string | undefined,
     invoke: Invoke,
     getTransaction: () => Promise<IdCloser> | IdCloser,
     shouldCloseTranscation: boolean,
@@ -50,6 +52,7 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
     this._kind = kind;
     this._prefix = prefix;
     this._start = start;
+    this._indexName = indexName;
     this._invoke = invoke;
     this._getTransaction = getTransaction;
     this._shouldCloseTransaction = shouldCloseTranscation;
@@ -135,6 +138,7 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
       prefix: this._prefix,
       start,
       limit: scanPageSize,
+      indexName: this._indexName,
     };
     const responseItems: ScanItem[] = [];
     const receiver = (k: string, v: Uint8Array) => {
@@ -162,6 +166,7 @@ export class ScanResult implements AsyncIterable<JSONValue> {
   private readonly _args: [
     string,
     ScanBound | undefined,
+    string | undefined,
     Invoke,
     () => Promise<IdCloser> | IdCloser,
     boolean,
@@ -171,6 +176,7 @@ export class ScanResult implements AsyncIterable<JSONValue> {
     ...args: [
       string,
       ScanBound | undefined,
+      string | undefined,
       Invoke,
       () => Promise<IdCloser> | IdCloser,
       boolean,

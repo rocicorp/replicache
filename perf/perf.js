@@ -52,12 +52,24 @@ async function benchmarkPopulate(bench, opts) {
   if (!opts.clean) {
     await populate(rep, opts);
   }
+  for (let i = 0; i < opts.indexes || 0; i++) {
+    const createIndex = rep.register('createIndex', async tx => {
+      await tx.createIndex({
+        name: `idx${i}`,
+        jsonPointer: '',
+      });
+    });
+    await createIndex(null);
+  }
   bench.reset();
   bench.setName(
-    `populate ${valSize}x${opts.numKeys} (${opts.clean ? 'clean' : 'dirty'})`,
+    `populate ${valSize}x${opts.numKeys} (${
+      opts.clean ? 'clean' : 'dirty'
+    }, ${`indexes: ${opts.indexes || 0}`})`,
   );
   bench.setSize(opts.numKeys * valSize);
   await populate(rep, opts);
+  bench.stop();
 }
 
 async function benchmarkScan(bench, opts) {
@@ -75,6 +87,7 @@ async function benchmarkScan(bench, opts) {
     }
     console.log(count);
   });
+  bench.stop();
 }
 
 async function benchmark(fn) {
@@ -85,14 +98,21 @@ async function benchmark(fn) {
   let size = 0;
   for (let i = 0; i < runs; i++) {
     let t0 = Date.now();
+    let t1 = 0;
     await fn({
       reset: () => {
         t0 = Date.now();
       },
       setName: n => (name = n),
       setSize: s => (size = s),
+      stop: () => {
+        t1 = Date.now();
+      },
     });
-    const dur = Date.now() - t0;
+    if (t1 == 0) {
+      t1 = Date.now();
+    }
+    const dur = t1 - t0;
     times.push(dur);
     sum += dur;
   }
@@ -109,6 +129,10 @@ async function benchmark(fn) {
 const benchmarks = [
   bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true}),
   bench => benchmarkPopulate(bench, {numKeys: 1000, clean: false}),
+  // TODO(arv): Re-enable. These cause a quotaexceeded error in playwright that I can't figure out.
+  // Does not seem to happen in desktop Chrome.
+  // bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true, indexes: 1}),
+  // bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true, indexes: 2}),
   bench => benchmarkScan(bench, {numKeys: 1000}),
   bench => benchmarkScan(bench, {numKeys: 5000}),
 ];

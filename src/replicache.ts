@@ -224,11 +224,12 @@ export default class Replicache implements ReadTransaction {
    * implements `AsyncIterable`. It also has methods to iterate over the `keys`
    * and `entries`.
    * */
-  scan({prefix = '', start}: ScanOptions = {}): ScanResult {
+  scan({prefix = '', start, indexName}: ScanOptions = {}): ScanResult {
     let tx: ReadTransactionImpl;
     return new ScanResult(
       prefix,
       start,
+      indexName,
       this._invoke,
       async () => {
         if (tx) {

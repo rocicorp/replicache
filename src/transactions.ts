@@ -76,8 +76,15 @@ export class ReadTransactionImpl implements ReadTransaction {
     return result['has'];
   }
 
-  scan({prefix = '', start}: ScanOptions = {}): ScanResult {
-    return new ScanResult(prefix, start, this._invoke, () => this, false);
+  scan({prefix = '', start, indexName}: ScanOptions = {}): ScanResult {
+    return new ScanResult(
+      prefix,
+      start,
+      indexName,
+      this._invoke,
+      () => this,
+      false,
+    );
   }
 
   async scanAll(options: ScanOptions = {}): Promise<[string, JSONValue][]> {
@@ -130,7 +137,18 @@ export interface WriteTransaction extends ReadTransaction {
    * key to remove.
    */
   del(key: string): Promise<boolean>;
+
+  /**
+   * Creates a persistent secondary index in Replicache which can be used with scan.
+   */
+  createIndex(options: CreateIndexOptions): Promise<void>;
 }
+
+export type CreateIndexOptions = {
+  name: string;
+  keyPrefix?: string;
+  jsonPointer: string;
+};
 
 export class WriteTransactionImpl extends ReadTransactionImpl
   implements WriteTransaction {
@@ -150,6 +168,16 @@ export class WriteTransactionImpl extends ReadTransactionImpl
       key,
     });
     return result.ok;
+  }
+
+  async createIndex(options: CreateIndexOptions): Promise<void> {
+    throwIfClosed(this);
+    await this._invoke('createIndex', {
+      transactionId: this.id,
+      name: options.name,
+      keyPrefix: options.keyPrefix || '',
+      jsonPointer: options.jsonPointer,
+    });
   }
 
   async commit(): Promise<CommitTransactionResponse> {

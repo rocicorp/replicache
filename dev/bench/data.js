@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1602887693010,
+  "lastUpdate": 1602887879829,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -1817,6 +1817,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 17.44,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "98eb3ce3ab2dc2df034c0f564ec22680f676992e",
+          "message": "Whoops confused repc version and replicache-sdk-js version.",
+          "timestamp": "2020-10-16T12:35:20-10:00",
+          "tree_id": "89fe51d8d640574efb85d8dc19dd5f85e316391d",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/98eb3ce3ab2dc2df034c0f564ec22680f676992e"
+        },
+        "date": 1602887879350,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 1.48,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 1.18,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 19.93,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 20.35,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

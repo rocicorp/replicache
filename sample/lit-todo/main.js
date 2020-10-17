@@ -53,14 +53,20 @@ rep.onSync = syncing => {
 
 rep.subscribe(
   async tx => {
-    const todos = (await tx.scanAll({prefix: '/todo/'})).map(([k, v]) => v);
-    todos.sort((a, b) => a.order - b.order);
-    return todos;
+    return (await tx.scanAll({indexName: 'byOrder'})).map(([_, v]) => v);
   },
   {
     onData: update,
   },
 );
+
+const initIndexes = rep.register('initIndexes', async tx => {
+  await tx.createIndex({
+    name: 'byOrder',
+    keyPrefix: '/todo/',
+    jsonPointer: '/order',
+  });
+});
 
 const updateTodo = rep.register('updateTodo', async (tx, changes) => {
   const todo = await tx.get(key(changes.id));
@@ -74,6 +80,10 @@ const deleteTodo = rep.register('deleteTodo', async (tx, {id}) => {
 
 const createTodo = rep.register('createTodo', async (tx, todo) => {
   await tx.put(key(todo.id), todo);
+});
+
+initIndexes([]).then(() => {
+  console.log('indexes created!');
 });
 
 async function handleCreate() {

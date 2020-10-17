@@ -6,6 +6,9 @@ import type {InitInput, InitOutput} from './wasm/release/replicache_client.js';
 // TODO(repc-switchover): isWasm can go away, but so can this whole
 // type and all the machinery connected to it. Look at the commit
 // that introduced this to unwind it.
+/**
+ * @deprecated - use the wasmModule parameter to {@link Replicache.constructor} instead.
+ */
 export type Invoker = {
   readonly invoke: REPMInvoke;
 };
@@ -32,6 +35,9 @@ export interface REPMInvoke {
 
 let wasmModuleOutput: Promise<InitOutput> | undefined;
 
+/**
+ * @deprecated - use the wasmModule parameter to {@link Replicache.constructor} instead.
+ */
 export class REPMWasmInvoker {
   constructor(wasmModuleOrPath?: InitInput) {
     if (!wasmModuleOutput) {

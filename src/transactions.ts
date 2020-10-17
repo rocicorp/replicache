@@ -32,7 +32,7 @@ export interface ReadTransaction {
    * It the `ScanResult` is used after the `ReadTransaction` has been closed it
    * will throw a {@link TransactionClosedError}.
    */
-  scan(options?: ScanOptions): ScanResult;
+  scan({prefix, start, limit, indexName}?: ScanOptions): ScanResult;
 
   /**
    * Convenience for scan() that reads all results into an array.
@@ -141,14 +141,18 @@ export interface WriteTransaction extends ReadTransaction {
   /**
    * Creates a persistent secondary index in Replicache which can be used with scan.
    */
-  createIndex(options: CreateIndexOptions): Promise<void>;
+  createIndex({
+    name,
+    keyPrefix,
+    jsonPointer,
+  }: CreateIndexOptions): Promise<void>;
 }
 
-export type CreateIndexOptions = {
+interface CreateIndexOptions {
   name: string;
   keyPrefix?: string;
   jsonPointer: string;
-};
+}
 
 export class WriteTransactionImpl extends ReadTransactionImpl
   implements WriteTransaction {

@@ -7,9 +7,5 @@ export type {Mutator} from './replicache.js';
 export type {ScanId} from './scan-id.js';
 export type {ScanBound} from './scan-bound.js';
 export type {REPMInvoke, Invoker} from './repm-invoker.js';
-export type {
-  ReadTransaction,
-  WriteTransaction,
-  CreateIndexOptions,
-} from './transactions.js';
+export type {ReadTransaction, WriteTransaction} from './transactions.js';
 export type {ScanResult} from './scan-iterator.js';

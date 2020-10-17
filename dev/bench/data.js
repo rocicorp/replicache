@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1602888975528,
+  "lastUpdate": 1602952198229,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -1921,6 +1921,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 20.52,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "ad9a8ef51e5cd96a2e0eb0a4d93912592fd67527",
+          "message": "Some documentation updates:\n\n- Use interface instead of type for all option types and exclude\n  from export. This causes the __named_parameters syntax at usage\n  site and excludes the separate (useless) struct from the docs\n  which is nice.\n- Improve deprecatedness of REPMWasmInvoker and friends.",
+          "timestamp": "2020-10-17T06:27:25-10:00",
+          "tree_id": "6d7a08e6f364a0c4b1074df63e9b4fa83df9f314",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/ad9a8ef51e5cd96a2e0eb0a4d93912592fd67527"
+        },
+        "date": 1602952197815,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 1.77,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 1.35,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 19.53,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 19.61,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

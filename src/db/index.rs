@@ -5,6 +5,7 @@ use async_std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[derive(Debug)]
 pub struct Index {
     pub meta: commit::IndexMeta,
     map: RwLock<Option<prolly::Map>>,

@@ -83,6 +83,11 @@ impl Leaf {
         }
     }
 
+    pub fn len(&self) -> usize {
+        let root = leaf::get_root_as_leaf(self.chunk.data());
+        root.entries().map(|v| v.len()).unwrap_or(0)
+    }
+
     pub fn get_entry_by_index(&self, idx: usize) -> LeafEntry {
         let root = leaf::get_root_as_leaf(self.chunk.data());
         root.entries().unwrap().get(idx)

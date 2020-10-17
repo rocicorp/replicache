@@ -6,9 +6,9 @@ use super::Entry;
 use crate::dag;
 use crate::dag::Read;
 use crate::dag::Write;
-use std::collections::btree_map::Iter as BTreeMapIter;
 use std::collections::BTreeMap;
 use std::iter::{Iterator, Peekable};
+use std::{collections::btree_map::Iter as BTreeMapIter, fmt::Debug};
 
 type Hash = String;
 
@@ -179,6 +179,17 @@ impl<'a, LeafIter: Iterator<Item = Entry<'a>>> Iterator for Iter<'a, LeafIter> {
                 Some(DeletableEntry { key: _, val: None }) => (),
             }
         }
+    }
+}
+
+impl Debug for Map {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Map(baselen: {}, {} pending changes)",
+            self.base.as_ref().map(|m| m.len()).unwrap_or(0),
+            self.pending.len()
+        )
     }
 }
 

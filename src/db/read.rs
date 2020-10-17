@@ -6,6 +6,7 @@ use crate::prolly;
 use std::collections::hash_map::HashMap;
 use std::iter::FromIterator;
 
+#[derive(Debug)]
 pub enum Whence {
     Head(String),
     #[allow(dead_code)]

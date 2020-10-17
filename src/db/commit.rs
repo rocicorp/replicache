@@ -462,14 +462,13 @@ impl<'a> SnapshotMeta<'a> {
     }
 }
 
-// TODO: Rename IndexMeta
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct IndexMeta {
     pub definition: IndexDefinition,
     pub value_hash: String,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct IndexDefinition {
     // TODO: Omit name, indexes should be unique by features
     pub name: String,

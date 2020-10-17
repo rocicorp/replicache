@@ -10,7 +10,7 @@ use crate::checksum;
 use crate::checksum::Checksum;
 use crate::dag;
 use crate::db;
-use crate::db::{Commit, MetaTyped, Whence, DEFAULT_HEAD_NAME};
+use crate::db::{read_indexes, Commit, MetaTyped, Whence, DEFAULT_HEAD_NAME};
 use crate::fetch;
 use crate::fetch::errors::FetchError;
 use crate::util::rlog;
@@ -163,11 +163,15 @@ pub async fn begin_sync(
         return Err(OverlappingSyncsJSLogInfo);
     }
 
+    let main_head_commit_pre_push = Commit::from_hash(&main_head_hash, &dag_read)
+        .await
+        .map_err(CoundNotReloadHeadHash)?;
     let mut db_write = db::Write::new_snapshot(
         Whence::Hash(base_snapshot.chunk().hash().to_string()),
         pull_resp.last_mutation_id,
         pull_resp.state_id.clone(),
         dag_write,
+        read_indexes(&main_head_commit_pre_push),
     )
     .await
     .map_err(ReadCommitError)?;
@@ -195,6 +199,7 @@ pub async fn begin_sync(
 #[derive(Debug)]
 pub enum BeginSyncError {
     CommitError(db::CommitError),
+    CoundNotReloadHeadHash(db::FromHashError),
     GetHeadError(dag::Error),
     InternalGetPendingCommitsError(db::PendingError),
     InternalNoMainHeadError,
@@ -1039,6 +1044,7 @@ mod tests {
                 0,
                 str!("sync_ssid"),
                 dag_write,
+                read_indexes(&chain[0]),
             )
             .await
             .unwrap();

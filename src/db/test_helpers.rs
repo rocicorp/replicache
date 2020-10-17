@@ -5,6 +5,7 @@ use crate::dag;
 use crate::db;
 use crate::util::rlog::LogContext;
 use serde_json::json;
+use std::collections::hash_map::HashMap;
 use str_macro::str;
 
 pub type Chain = Vec<Commit>;
@@ -67,11 +68,16 @@ pub async fn add_snapshot<'a>(
 ) -> &'a mut Chain {
     assert!(chain.len() > 0);
     let ssid = format!("server_state_id_{}", chain.len());
+    let indexes = chain
+        .last()
+        .map(|c| read_indexes(c))
+        .unwrap_or(HashMap::new());
     let mut w = Write::new_snapshot(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
         chain[chain.len() - 1].next_mutation_id(),
         ssid,
         store.write(LogContext::new()).await.unwrap(),
+        indexes,
     )
     .await
     .unwrap();

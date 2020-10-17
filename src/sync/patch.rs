@@ -218,6 +218,7 @@ mod tests {
                 1,
                 str!("ssid"),
                 dag_write,
+                db::read_indexes(&chain[0]),
             )
             .await
             .unwrap();

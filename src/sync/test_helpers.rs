@@ -3,6 +3,7 @@ use crate::dag;
 use crate::db;
 use crate::db::test_helpers::*;
 use crate::util::rlog;
+use std::collections::hash_map::HashMap;
 use str_macro::str;
 
 // See db::test_helpers for add_local, add_snapshot, etc. We can't put add_local_rebase
@@ -35,11 +36,16 @@ pub async fn add_sync_snapshot<'a>(
 
     // Add sync snapshot.
     let ssid = format!("sync_server_state_id_{}", chain.len());
+    let indexes = chain
+        .last()
+        .map(|c| read_indexes(c))
+        .unwrap_or(HashMap::new());
     let w = db::Write::new_snapshot(
         Whence::Hash(base_snapshot.chunk().hash().to_string()),
         base_snapshot.mutation_id(),
         ssid,
         store.write(lc.clone()).await.unwrap(),
+        indexes,
     )
     .await
     .unwrap();

@@ -96,10 +96,10 @@ impl<'a> Write<'a> {
         last_mutation_id: u64,
         server_state_id: String,
         dag_write: dag::Write<'a>,
+        indexes: HashMap<String, index::Index>,
     ) -> Result<Write<'a>, ReadCommitError> {
         use ReadCommitError::*;
         let (basis_hash, commit, map) = read::read_commit(whence, &dag_write.read()).await?;
-        let indexes = read::read_indexes(&commit);
         let checksum = Checksum::from_str(commit.meta().checksum()).map_err(InvalidChecksum)?;
         Ok(Write {
             basis_hash: basis_hash.into(),

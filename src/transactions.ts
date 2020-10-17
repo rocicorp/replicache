@@ -140,12 +140,22 @@ export interface WriteTransaction extends ReadTransaction {
 
   /**
    * Creates a persistent secondary index in Replicache which can be used with scan.
+   *
+   * If the named index already exists with the same definition this returns success
+   * immediately. If the named index already exists, but with a different definition
+   * an error is returned.
    */
   createIndex({
     name,
     keyPrefix,
     jsonPointer,
   }: CreateIndexOptions): Promise<void>;
+
+  /**
+   * Drops an index previously created with {@link createIndex}.
+   * @param name
+   */
+  dropIndex(name: string): Promise<void>;
 }
 
 interface CreateIndexOptions {
@@ -181,6 +191,14 @@ export class WriteTransactionImpl extends ReadTransactionImpl
       name: options.name,
       keyPrefix: options.keyPrefix || '',
       jsonPointer: options.jsonPointer,
+    });
+  }
+
+  async dropIndex(name: string): Promise<void> {
+    throwIfClosed(this);
+    await this._invoke('dropIndex', {
+      transactionId: this.id,
+      name: name,
     });
   }
 

@@ -1,8 +1,8 @@
 import type {ScanBound} from './scan-bound.js';
 
-export type ScanOptions = {
+export interface ScanOptions {
   prefix?: string;
   start?: ScanBound;
   limit?: number;
   indexName?: string;
-};
+}

@@ -127,33 +127,49 @@ impl<'a> Write<'a> {
 
     pub async fn put(&mut self, key: Vec<u8>, val: Vec<u8>) -> Result<(), PutError> {
         use PutError::*;
-        // argh copy to appease rust.
-        let old_val = self.map.get(&key).map(|v| v.to_vec());
+        let old_val = self.map.get(&key);
         if let Some(old_val) = old_val {
             self.checksum.remove(&key, &old_val);
-            self.update_indexes(index::IndexOperation::Remove, &key, &old_val)
-                .await
-                .map_err(RemoveOldIndexEntriesError)?;
+            Self::update_indexes(
+                &self.indexes,
+                &self.dag_write,
+                index::IndexOperation::Remove,
+                &key,
+                &old_val,
+            )
+            .await
+            .map_err(RemoveOldIndexEntriesError)?;
         }
         self.checksum.add(&key, &val);
-        self.update_indexes(index::IndexOperation::Add, &key, &val)
-            .await
-            .map_err(AddNewIndexEntriesError)?;
+        Self::update_indexes(
+            &self.indexes,
+            &self.dag_write,
+            index::IndexOperation::Add,
+            &key,
+            &val,
+        )
+        .await
+        .map_err(AddNewIndexEntriesError)?;
         self.map.put(key, val);
         Ok(())
     }
 
     pub async fn del(&mut self, key: Vec<u8>) -> Result<(), DelError> {
         use DelError::*;
-        // boooo copy (needed to appease borrowck)
-        let old_val = self.map.get(&key).map(|v| v.to_vec());
+        let old_val = self.map.get(&key);
         match old_val {
             None => {}
             Some(old_val) => {
                 self.checksum.remove(&key, &old_val);
-                self.update_indexes(index::IndexOperation::Remove, &key, &old_val)
-                    .await
-                    .map_err(UpdateIndexesError)?;
+                Self::update_indexes(
+                    &self.indexes,
+                    &self.dag_write,
+                    index::IndexOperation::Remove,
+                    &key,
+                    &old_val,
+                )
+                .await
+                .map_err(UpdateIndexesError)?;
             }
         };
         self.map.del(key);
@@ -161,16 +177,17 @@ impl<'a> Write<'a> {
     }
 
     async fn update_indexes(
-        &mut self,
+        indexes: &HashMap<String, index::Index>,
+        dag_write: &dag::Write<'a>,
         op: index::IndexOperation,
         key: &[u8],
         val: &[u8],
     ) -> Result<(), UpdateIndexesError> {
         use UpdateIndexesError::*;
-        for idx in self.indexes.values() {
+        for idx in indexes.values() {
             if key.starts_with(&idx.meta.definition.key_prefix) {
                 let mut guard = idx
-                    .get_map_mut(&self.dag_write.read())
+                    .get_map_mut(&dag_write.read())
                     .await
                     .map_err(GetMapError)?;
                 // TODO: use outer guard to avoid unwrap. But it doesn't work.

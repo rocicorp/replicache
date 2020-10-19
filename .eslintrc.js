@@ -13,5 +13,6 @@ module.exports = {
         leadingUnderscore: 'forbid',
       },
     ],
+    'object-shorthand': 'error',
   },
 };

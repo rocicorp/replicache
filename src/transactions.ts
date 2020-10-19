@@ -198,7 +198,7 @@ export class WriteTransactionImpl extends ReadTransactionImpl
     throwIfClosed(this);
     await this._invoke('dropIndex', {
       transactionId: this.id,
-      name: name,
+      name,
     });
   }
 

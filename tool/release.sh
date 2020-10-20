@@ -20,8 +20,6 @@ fi
 (
     cd $ROOT
 
-    perl -pi -e"s/version = \".*?REPLACE\"/version = \"$VERSION\"/" Cargo.toml
-
     # Grumble. Having multiple crate types disables lto, which makes the bundles
     # significantly (~23% at time of writing) bigger. This is due to a bug
     # in Cargo: https://github.com/rust-lang/rust/issues/51009.

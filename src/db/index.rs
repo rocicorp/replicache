@@ -59,7 +59,7 @@ pub struct MapReadGuard<'a> {
 }
 
 impl<'a> MapReadGuard<'a> {
-    // TODO: Seems like this could just be DeRef
+    // Seems like this could just be DeRef.
     #[allow(dead_code)]
     pub fn get_map(&'a self) -> &'a prolly::Map {
         self.guard.as_ref().unwrap()
@@ -88,10 +88,9 @@ pub enum IndexFlushError {
     MapFlushError(prolly::FlushError),
 }
 
+// We only index strings for now.
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub enum IndexValue<'a> {
-    Bool(bool),
-    F64(f64),
     Str(&'a str),
 }
 
@@ -162,9 +161,7 @@ fn get_index_entries(
 
     let target = target.unwrap();
     Ok(vec![match target {
-        // TODO: Support returning more than one value
-        Value::Bool(v) => entry(IndexValue::Bool(*v), key)?,
-        Value::Number(v) => entry(IndexValue::F64(v.as_f64().ok_or(ConvertNumberError)?), key)?,
+        // TODO: Support array of strings here.
         Value::String(v) => entry(IndexValue::Str(&v), key)?,
         _ => return Err(UnsupportedTargetType),
     }])
@@ -184,50 +181,6 @@ mod tests {
         pub fn key<'a>(secondary: IndexValue<'a>, primary: &'a [u8]) -> IndexKey<'a> {
             IndexKey { secondary, primary }
         }
-
-        // bool secondary key
-        test(
-            key(IndexValue::Bool(false), &[]),
-            key(IndexValue::Bool(true), &[]),
-        );
-        test(
-            key(IndexValue::Bool(false), &[]),
-            key(IndexValue::Bool(false), &[0x00]),
-        );
-        test(
-            key(IndexValue::Bool(false), &[0x00]),
-            key(IndexValue::Bool(false), &[0x01]),
-        );
-        test(
-            key(IndexValue::Bool(false), &[0x00, 0x01]),
-            key(IndexValue::Bool(false), &[0x01]),
-        );
-        test(
-            key(IndexValue::Bool(false), &[0x00]),
-            key(IndexValue::Bool(false), &[0x00, 0x00]),
-        );
-
-        // f64 secondary value
-        test(
-            key(IndexValue::F64(0.0), &[]),
-            key(IndexValue::F64(0.0), &[0x00]),
-        );
-        test(
-            key(IndexValue::F64(0.0), &[0x01]),
-            key(IndexValue::F64(0.1), &[0x00]),
-        );
-        test(
-            key(IndexValue::F64(0.5), &[0x00]),
-            key(IndexValue::F64(1.0), &[0x00]),
-        );
-        test(
-            key(IndexValue::F64(-0.1), &[0x01]),
-            key(IndexValue::F64(0.0), &[0x00]),
-        );
-        test(
-            key(IndexValue::F64(-88.8), &[0x00]),
-            key(IndexValue::F64(42.0), &[0x00]),
-        );
 
         // String secondary value
         test(
@@ -311,35 +264,27 @@ mod tests {
             "/unsupported",
             Err(UnsupportedTargetType),
         );
+        test(
+            "k",
+            &serde_json::to_vec(&json!({ "unsupported": true })).unwrap(),
+            "/unsupported",
+            Err(UnsupportedTargetType),
+        );
+        test(
+            "k",
+            &serde_json::to_vec(&json!({ "unsupported": 42 })).unwrap(),
+            "/unsupported",
+            Err(UnsupportedTargetType),
+        );
+
+        test(
+            "k",
+            &serde_json::to_vec(&json!({ "unsupported": 88.8 })).unwrap(),
+            "/unsupported",
+            Err(UnsupportedTargetType),
+        );
 
         // success
-        test(
-            "foo",
-            &serde_json::to_vec(&json!({"foo":true})).unwrap(),
-            "/foo",
-            Ok(vec![IndexKey {
-                secondary: IndexValue::Bool(true),
-                primary: "foo".as_bytes(),
-            }]),
-        );
-        test(
-            "foo",
-            &serde_json::to_vec(&json!({"foo":42})).unwrap(),
-            "/foo",
-            Ok(vec![IndexKey {
-                secondary: IndexValue::F64(42.0),
-                primary: "foo".as_bytes(),
-            }]),
-        );
-        test(
-            "foo",
-            &serde_json::to_vec(&json!({"foo":88.8})).unwrap(),
-            "/foo",
-            Ok(vec![IndexKey {
-                secondary: IndexValue::F64(88.8),
-                primary: "foo".as_bytes(),
-            }]),
-        );
         test(
             "foo",
             &serde_json::to_vec(&json!({"foo":"bar"})).unwrap(),

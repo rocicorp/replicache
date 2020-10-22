@@ -470,10 +470,10 @@ pub struct IndexMeta {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct IndexDefinition {
-    // TODO: Omit name, indexes should be unique by features
     pub name: String,
+    // key_prefix describes a subset of the primary key to index
     pub key_prefix: Vec<u8>,
-    // TODO: Rename json_pointer
+    // json_pointer describes the (sub-)value to index (secondary index)
     pub json_pointer: String,
 }
 

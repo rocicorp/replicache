@@ -4,17 +4,6 @@ import type {Invoke} from './repm-invoker.js';
 import type {JSONValue} from './json.js';
 import {throwIfClosed} from './transactions.js';
 
-const defaultScanSize = 500;
-export let scanPageSize = defaultScanSize;
-
-export function setScanPageSizeForTesting(n: number): void {
-  scanPageSize = n;
-}
-
-export function restoreScanPageSizeForTesting(): void {
-  scanPageSize = defaultScanSize;
-}
-
 interface IdCloser {
   close(): void;
   closed: boolean;
@@ -29,12 +18,12 @@ type ScanIterableKind = 'key' | 'value' | 'entry';
 class ScanIterator<V> implements AsyncIterableIterator<V> {
   private readonly _scanItems: ScanItem[] = [];
   private _current = 0;
-  private _moreItemsToLoad = true;
   private readonly _prefix: string;
   private readonly _kind: ScanIterableKind;
   private readonly _start?: ScanBound;
+  private readonly _limit?: number;
   private readonly _indexName?: string;
-  private _loadPromise?: Promise<void> = undefined;
+  private _loadPromise?: Promise<unknown> = undefined;
   private readonly _getTransaction: () => Promise<IdCloser> | IdCloser;
   private readonly _shouldCloseTransaction: boolean;
   private _transaction?: IdCloser = undefined;
@@ -44,6 +33,7 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
     kind: ScanIterableKind,
     prefix: string,
     start: ScanBound | undefined,
+    limit: number | undefined,
     indexName: string | undefined,
     invoke: Invoke,
     getTransaction: () => Promise<IdCloser> | IdCloser,
@@ -52,6 +42,7 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
     this._kind = kind;
     this._prefix = prefix;
     this._start = start;
+    this._limit = limit;
     this._indexName = indexName;
     this._invoke = invoke;
     this._getTransaction = getTransaction;
@@ -72,22 +63,15 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
   async next(): Promise<IteratorResult<V>> {
     throwIfClosed(await this._ensureTransaction());
 
-    // Preload if we have less than half a page left.
-    if (this._current + scanPageSize / 2 >= this._scanItems.length) {
-      if (this._moreItemsToLoad) {
-        // no await
-        this._loadPromise = this._load();
-      }
+    await this._load();
+
+    if (
+      this._current >= this._scanItems.length ||
+      (this._limit !== undefined && this._current >= this._limit)
+    ) {
+      return this.return();
     }
-    if (this._current >= this._scanItems.length) {
-      if (!this._moreItemsToLoad) {
-        return this.return();
-      }
-      this._loadPromise = this._load();
-      await this._loadPromise;
-      this._loadPromise = undefined;
-      return this.next();
-    }
+
     const value = this._scanItems[this._current++];
 
     switch (this._kind) {
@@ -112,23 +96,12 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
 
   private async _load(): Promise<void> {
     if (this._loadPromise) {
-      return this._loadPromise;
+      await this._loadPromise;
+      return;
     }
 
-    if (!this._moreItemsToLoad) {
-      throw new Error('No more items to load');
-    }
-
-    let start = this._start;
-    if (this._scanItems.length > 0) {
-      // We loaded some items already, so continue where we left off.
-      start = {
-        id: {
-          value: this._scanItems[this._scanItems.length - 1].key,
-          exclusive: true,
-        },
-      };
-    }
+    const start = this._start;
+    const limit = this._limit;
 
     if (!this._transaction) {
       this._transaction = await this._getTransaction();
@@ -137,12 +110,13 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
     const opts = {
       prefix: this._prefix,
       start,
-      limit: scanPageSize,
+      limit,
       indexName: this._indexName,
     };
     const responseItems: ScanItem[] = [];
+    const decoder = new TextDecoder();
     const receiver = (k: string, v: Uint8Array) => {
-      const text = new TextDecoder().decode(v);
+      const text = decoder.decode(v);
       responseItems.push({
         key: k,
         value: JSON.parse(text),
@@ -153,10 +127,8 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
       opts,
       receiver,
     };
-    await this._invoke('scan', args);
-    if (responseItems.length !== scanPageSize) {
-      this._moreItemsToLoad = false;
-    }
+    this._loadPromise = this._invoke('scan', args);
+    await this._loadPromise;
 
     this._scanItems.push(...responseItems);
   }
@@ -165,6 +137,7 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
 type Args = [
   prefix: string,
   start: ScanBound | undefined,
+  limit: number | undefined,
   indexName: string | undefined,
   invoke: Invoke,
   getTransaction: () => Promise<IdCloser> | IdCloser,

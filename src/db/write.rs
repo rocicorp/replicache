@@ -200,9 +200,19 @@ impl<'a> Write<'a> {
         Ok(())
     }
 
-    pub fn clear(&mut self) {
+    pub async fn clear(&mut self) -> Result<(), ClearError> {
+        use ClearError::*;
         self.checksum = Checksum::new();
         self.map = prolly::Map::new();
+        for (_, idx) in self.indexes.iter() {
+            let mut guard = idx
+                .get_map_mut(&self.dag_write.read())
+                .await
+                .map_err(GetMapError)?
+                .guard;
+            *guard = Some(prolly::Map::new());
+        }
+        Ok(())
     }
 
     pub fn checksum(&self) -> String {
@@ -390,6 +400,11 @@ pub enum UpdateIndexesError {
     IndexValueError(index::IndexValueError),
 }
 
+#[derive(Debug)]
+pub enum ClearError {
+    GetMapError(index::GetMapError),
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::index;
@@ -442,7 +457,7 @@ mod tests {
     }
 
     #[async_std::test]
-    async fn test_put_del_reset_update_hash() {
+    async fn test_put_del_replace_update_checksum() {
         let ds = dag::Store::new(Box::new(MemStore::new()));
         init_db(
             ds.write(LogContext::new()).await.unwrap(),
@@ -477,12 +492,91 @@ mod tests {
         w.del(vec![0]).await.unwrap();
         assert_eq!(exp_checksum, w.checksum);
 
-        // Ensure clear works and replaces the checksum.
-        w.put(vec![0], vec![1]).await.unwrap();
+        // clear()'s reset of checksum tested in test_clear
+    }
+
+    #[async_std::test]
+    async fn test_clear() {
+        let ds = dag::Store::new(Box::new(MemStore::new()));
+        init_db(
+            ds.write(LogContext::new()).await.unwrap(),
+            db::DEFAULT_HEAD_NAME,
+            "local_create_date",
+        )
+        .await
+        .unwrap();
+        let mut w = Write::new_local(
+            Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+            str!("mutator_name"),
+            serde_json::Value::Array(vec![]).to_string(),
+            None,
+            ds.write(LogContext::new()).await.unwrap(),
+        )
+        .await
+        .unwrap();
+        w.create_index("idx", b"", "").await.unwrap();
+        w.put(b"foo".to_vec(), b"\"bar\"".to_vec()).await.unwrap();
+        w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
+            .await
+            .unwrap();
+
+        w = Write::new_local(
+            Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+            str!("mutator_name"),
+            serde_json::Value::Array(vec![]).to_string(),
+            None,
+            ds.write(LogContext::new()).await.unwrap(),
+        )
+        .await
+        .unwrap();
+        w.put(b"hot".to_vec(), b"\"dog\"".to_vec()).await.unwrap();
         assert_ne!("00000000", w.checksum());
-        w.clear();
+        assert_eq!(w.map.iter().count(), 2);
+        assert_eq!(
+            (&w.indexes["idx"])
+                .get_map(&w.dag_write.read())
+                .await
+                .unwrap()
+                .get_map()
+                .iter()
+                .count(),
+            2
+        );
+        w.clear().await.unwrap();
         assert_eq!("00000000", w.checksum());
-        assert!(!w.as_read().has(vec![0].as_ref()));
+        assert_eq!(w.map.iter().count(), 0);
+        assert_eq!(
+            (&w.indexes["idx"])
+                .get_map(&w.dag_write.read())
+                .await
+                .unwrap()
+                .get_map()
+                .iter()
+                .count(),
+            0
+        );
+        w.commit(db::DEFAULT_HEAD_NAME, "").await.unwrap();
+
+        let owned_read = ds.read(LogContext::new()).await.unwrap();
+        let (_, c, m) = read::read_commit(
+            Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+            &owned_read.read(),
+        )
+        .await
+        .unwrap();
+        let indexes = read::read_indexes(&c);
+        assert_eq!("00000000", c.meta().checksum());
+        assert_eq!(0, m.iter().count());
+        assert_eq!(
+            (&indexes["idx"])
+                .get_map(&owned_read.read())
+                .await
+                .unwrap()
+                .get_map()
+                .iter()
+                .count(),
+            0
+        );
     }
 
     #[async_std::test]

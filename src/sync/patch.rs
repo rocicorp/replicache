@@ -23,7 +23,7 @@ pub async fn apply(db_write: &mut db::Write<'_>, patch: &[Operation]) -> Result<
         // the map.
         if op.path.is_empty() {
             if op.op == OP_REPLACE && op.value_string == "{}" {
-                db_write.clear();
+                db_write.clear().await.map_err(ClearError)?;
                 continue;
             }
             return Err(InvalidPath(op.path.clone()));
@@ -56,10 +56,11 @@ fn json_pointer_unescape(s: &str) -> String {
 
 #[derive(Debug)]
 pub enum PatchError {
+    ClearError(db::ClearError),
+    DelError(db::DelError),
     InvalidOp(String),
     InvalidPath(String),
     PutError(db::PutError),
-    DelError(db::DelError),
 }
 
 #[cfg(test)]

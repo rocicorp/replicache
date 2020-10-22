@@ -1,6 +1,8 @@
-import type {ScanId} from './scan-id.js';
+import type {ScanKey} from './scan-key.js';
 
 export interface ScanBound {
-  readonly id?: ScanId;
+  readonly key?: ScanKey;
+  /** @deprecated Use key instead */
+  readonly id?: ScanKey;
   readonly index?: number;
 }

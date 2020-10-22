@@ -76,10 +76,11 @@ export class ReadTransactionImpl implements ReadTransaction {
     return result['has'];
   }
 
-  scan({prefix = '', start, indexName}: ScanOptions = {}): ScanResult {
+  scan({prefix = '', start, limit, indexName}: ScanOptions = {}): ScanResult {
     return new ScanResult(
       prefix,
       start,
+      limit,
       indexName,
       this._invoke,
       () => this,

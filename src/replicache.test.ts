@@ -1,9 +1,5 @@
 import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
 import Replicache, {ScanBound, TransactionClosedError} from './mod.js';
-import {
-  restoreScanPageSizeForTesting,
-  setScanPageSizeForTesting,
-} from './scan-iterator.js';
 
 import type {ReadTransaction, WriteTransaction} from './mod.js';
 import type {JSONValue} from './json.js';
@@ -92,14 +88,6 @@ teardown(async () => {
   dbsToDrop.clear();
 });
 
-suiteSetup(() => {
-  setScanPageSizeForTesting(4);
-});
-
-suiteTeardown(() => {
-  restoreScanPageSizeForTesting();
-});
-
 async function expectPromiseToReject(p: unknown): Promise<Chai.Assertion> {
   let e;
   try {
@@ -175,7 +163,7 @@ test('scan', async () => {
   });
 
   async function testScanResult<K, V>(
-    options: {prefix?: string; start?: ScanBound} | undefined,
+    options: {prefix?: string; start?: ScanBound; limit?: number} | undefined,
     entries: [K, V][],
   ) {
     if (!rep) {
@@ -266,6 +254,39 @@ test('scan', async () => {
       ['b/2', 7],
       ['c/0', 8],
     ],
+  );
+
+  await testScanResult(
+    {
+      limit: 3,
+    },
+    [
+      ['a/0', 0],
+      ['a/1', 1],
+      ['a/2', 2],
+    ],
+  );
+
+  await testScanResult(
+    {
+      limit: 10,
+      prefix: 'a/',
+    },
+    [
+      ['a/0', 0],
+      ['a/1', 1],
+      ['a/2', 2],
+      ['a/3', 3],
+      ['a/4', 4],
+    ],
+  );
+
+  await testScanResult(
+    {
+      limit: 1,
+      prefix: 'b/',
+    },
+    [['b/0', 5]],
   );
 });
 

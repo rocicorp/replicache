@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1603404327257,
+  "lastUpdate": 1603407707955,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -2337,6 +2337,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 20.18,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9995cb6ad3a70fc79135fe3d1c77fbd36440200a",
+          "message": "Add receiver to ScanRequest (#156)",
+          "timestamp": "2020-10-22T12:59:46-10:00",
+          "tree_id": "49b534aed89061ae2f525e1fb560124957670596",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/9995cb6ad3a70fc79135fe3d1c77fbd36440200a"
+        },
+        "date": 1603407706474,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 1.5,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 1.38,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 20.78,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 20.09,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

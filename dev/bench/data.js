@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1603133055837,
+  "lastUpdate": 1603402394443,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -2233,6 +2233,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 20.6,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "07d7d0ccc1a579862389e3ac6beca48fa6791b00",
+          "message": "Update to TypeScript 4.0 (#152)\n\nMain reason was to get access to named tuples... things got hard to\r\nfollow.",
+          "timestamp": "2020-10-22T11:31:08-10:00",
+          "tree_id": "3a644c74af737788f21432f47ba8de0ef6d087b2",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/07d7d0ccc1a579862389e3ac6beca48fa6791b00"
+        },
+        "date": 1603402394000,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 1.51,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 1.37,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 18.43,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 18.43,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

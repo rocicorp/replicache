@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1603407707955,
+  "lastUpdate": 1603409451492,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -2389,6 +2389,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 20.09,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e075b3d9bb2339c85316c4c40239d80d9bcb77b4",
+          "message": "Rename ScanId -> ScanKey and id to key (#157)\n\nDeprecate the old ones but allow them to be used.\r\n\r\nFor the RPC we send both id and key.\r\n\r\nTowards #154",
+          "timestamp": "2020-10-22T13:27:42-10:00",
+          "tree_id": "cb18d48c3889de844def99eb60171a964dabc3da",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/e075b3d9bb2339c85316c4c40239d80d9bcb77b4"
+        },
+        "date": 1603409451066,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 1.41,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 1.42,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 21.7,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 21.7,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

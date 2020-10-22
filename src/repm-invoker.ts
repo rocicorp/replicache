@@ -85,6 +85,7 @@ interface ScanItemResponse {
 export type ScanRequest = TransactionRequest &
   ScanOptions & {
     opts?: ScanOptions;
+    receiver: (k: string, v: Uint8Array) => void;
   };
 export type ScanResponse = {
   items: ScanItemResponse[];

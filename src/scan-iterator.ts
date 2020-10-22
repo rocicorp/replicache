@@ -162,26 +162,19 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
   }
 }
 
-export class ScanResult implements AsyncIterable<JSONValue> {
-  private readonly _args: [
-    string,
-    ScanBound | undefined,
-    string | undefined,
-    Invoke,
-    () => Promise<IdCloser> | IdCloser,
-    boolean,
-  ];
+type Args = [
+  prefix: string,
+  start: ScanBound | undefined,
+  indexName: string | undefined,
+  invoke: Invoke,
+  getTransaction: () => Promise<IdCloser> | IdCloser,
+  shouldCloseTranscation: boolean,
+];
 
-  constructor(
-    ...args: [
-      string,
-      ScanBound | undefined,
-      string | undefined,
-      Invoke,
-      () => Promise<IdCloser> | IdCloser,
-      boolean,
-    ]
-  ) {
+export class ScanResult implements AsyncIterable<JSONValue> {
+  private readonly _args: Args;
+
+  constructor(...args: Args) {
     this._args = args;
   }
 

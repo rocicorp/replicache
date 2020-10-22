@@ -164,7 +164,8 @@ interface CreateIndexOptions {
   jsonPointer: string;
 }
 
-export class WriteTransactionImpl extends ReadTransactionImpl
+export class WriteTransactionImpl
+  extends ReadTransactionImpl
   implements WriteTransaction {
   async put(key: string, value: JSONValue | ToJSON): Promise<void> {
     throwIfClosed(this);

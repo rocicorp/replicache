@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1603402394443,
+  "lastUpdate": 1603404327257,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -2285,6 +2285,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 18.43,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fe0ddecc705dd5a7eef23c43a7248a8007f83bb4",
+          "message": "Remove load batching of scan (#153)\n\nWe pass the initial limit to scan.\r\n\r\nSimplify the code to load all the items and remove loading on demand.\r\n\r\nFixes https://github.com/rocicorp/repc/issues/231",
+          "timestamp": "2020-10-22T12:03:28-10:00",
+          "tree_id": "b3dedbc53333c2bf59ceded6e030d4dfa899455f",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/fe0ddecc705dd5a7eef23c43a7248a8007f83bb4"
+        },
+        "date": 1603404326838,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 1.5,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 1.43,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 19.53,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 20.18,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

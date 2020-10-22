@@ -79,6 +79,7 @@
 							<ul class="tsd-index-list">
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="scanbound.html#id" class="tsd-kind-icon">id</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="scanbound.html#index" class="tsd-kind-icon">index</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="scanbound.html#key" class="tsd-kind-icon">key</a></li>
 							</ul>
 						</section>
 					</div>
@@ -89,12 +90,19 @@
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="id" class="tsd-anchor"></a>
 					<h3><span class="tsd-flag ts-flagOptional">Optional</span> id</h3>
-					<div class="tsd-signature tsd-kind-icon">id<span class="tsd-signature-symbol">:</span> <a href="scanid.html" class="tsd-signature-type">ScanId</a></div>
+					<div class="tsd-signature tsd-kind-icon">id<span class="tsd-signature-symbol">:</span> <a href="scankey.html" class="tsd-signature-type">ScanKey</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/56b6980/src/scan-bound.ts#L4">src/scan-bound.ts:4</a></li>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/319bcca/src/scan-bound.ts#L6">src/scan-bound.ts:6</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<dl class="tsd-comment-tags">
+							<dt>deprecated</dt>
+							<dd><p>Use key instead</p>
+							</dd>
+						</dl>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="index" class="tsd-anchor"></a>
@@ -102,7 +110,17 @@
 					<div class="tsd-signature tsd-kind-icon">index<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/56b6980/src/scan-bound.ts#L5">src/scan-bound.ts:5</a></li>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/319bcca/src/scan-bound.ts#L7">src/scan-bound.ts:7</a></li>
+						</ul>
+					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="key" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> key</h3>
+					<div class="tsd-signature tsd-kind-icon">key<span class="tsd-signature-symbol">:</span> <a href="scankey.html" class="tsd-signature-type">ScanKey</a></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/319bcca/src/scan-bound.ts#L4">src/scan-bound.ts:4</a></li>
 						</ul>
 					</aside>
 				</section>
@@ -147,12 +165,15 @@
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
 								<a href="scanbound.html#index" class="tsd-kind-icon">index</a>
 							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="scanbound.html#key" class="tsd-kind-icon">key</a>
+							</li>
 						</ul>
 					</li>
 				</ul>
 				<ul class="after-current">
 					<li class=" tsd-kind-interface">
-						<a href="scanid.html" class="tsd-kind-icon">Scan<wbr>Id</a>
+						<a href="scankey.html" class="tsd-kind-icon">Scan<wbr>Key</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a>

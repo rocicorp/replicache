@@ -22,13 +22,10 @@ fn random_string(len: usize) -> String {
 
 #[wasm_bench]
 async fn performance_now(b: &mut Bench) {
-    let window = web_sys::window().expect("should have a window in this context");
-    let performance = window
-        .performance()
-        .expect("performance should be available");
+    let p = performance();
 
     let n = b.iterations();
     for _ in 0..n {
-        || -> u64 { (performance.now() * 1e6) as u64 }();
+        || -> u64 { (p.now() * 1e6) as u64 }();
     }
 }

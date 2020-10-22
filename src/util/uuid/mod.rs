@@ -1,3 +1,5 @@
+#[cfg(target_arch = "wasm32")]
+use super::wasm::global_property;
 use std::char;
 use wasm_bindgen::prelude::*;
 
@@ -10,12 +12,11 @@ pub fn uuid() -> String {
 
 #[cfg(target_arch = "wasm32")]
 fn make_random_numbers(numbers: &mut [u8]) {
-    web_sys::window()
-        .expect("window is not available")
-        .crypto()
-        .expect("window.crypto is not available")
+    // TODO(arv): Return result instead of crashing.
+    global_property::<web_sys::Crypto>("crypto")
+        .expect("crypto is not available")
         .get_random_values_with_u8_array(numbers)
-        .expect("window.crypto.getRandomValues not available");
+        .expect("crypto.getRandomValues not available");
 }
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -1928,9 +1928,11 @@ name = "wasm-bench"
 version = "0.1.0"
 dependencies = [
  "async-fn",
+ "js-sys",
  "log",
  "thousands",
  "wasm-bench-macro",
+ "wasm-bindgen",
  "web-sys",
 ]
 

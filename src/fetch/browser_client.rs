@@ -2,6 +2,7 @@ use crate::fetch::errors::FetchError;
 use crate::fetch::errors::FetchError::*;
 use crate::fetch::timeout::with_timeout;
 use crate::util::to_debug;
+use js_sys::{Function, Promise, Reflect};
 use std::convert::TryFrom;
 use std::time::Duration;
 use wasm_bindgen::JsCast;
@@ -80,14 +81,11 @@ impl Client {
             .map_err(|e| UnableToSetRequestHeader(to_debug(e)))?;
         }
 
-        let window = web_sys::window().ok_or_else(|| NoWindow)?;
-        let http_req_promise = window.fetch_with_request(&web_sys_req);
+        let http_req_promise = fetch_with_request(&web_sys_req)?;
         let http_req_future = JsFuture::from(http_req_promise);
         let js_web_sys_resp = http_req_future.await.map_err(|e| RequestFailed(js(e)))?;
-        if !js_web_sys_resp.is_instance_of::<web_sys::Response>() {
-            return Err(InvalidResponseFromJS);
-        }
-        let web_sys_resp: web_sys::Response = js_web_sys_resp.dyn_into().unwrap();
+        let web_sys_resp: web_sys::Response =
+            js_web_sys_resp.dyn_into().map_err(InvalidResponseFromJs)?;
         let body_js_value = JsFuture::from(
             web_sys_resp
                 .text()
@@ -106,4 +104,21 @@ impl Client {
             .map_err(|e| FailedToWrapHttpResponse(to_debug(e)))?;
         Ok(http_resp)
     }
+}
+
+/// Like window().fetch_with_request but works in workers and main thread.
+fn fetch_with_request(req: &web_sys::Request) -> Result<Promise, FetchError> {
+    use FetchError::*;
+
+    let global = js_sys::global();
+    let key = JsValue::from_str("fetch");
+    let js_fetch: Function = Reflect::get(&global, &key)
+        .map_err(NoFetch)?
+        .dyn_into()
+        .map_err(NoFetch)?;
+    js_fetch
+        .call1(&JsValue::undefined(), req)
+        .map_err(FetchFailed)?
+        .dyn_into()
+        .map_err(FetchFailed)
 }

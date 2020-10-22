@@ -1,4 +1,5 @@
 extern crate web_sys;
+use super::super::wasm::global_property;
 use super::errors::TimerError;
 
 pub struct Timer {
@@ -25,9 +26,5 @@ impl Timer {
 
 fn get_performance() -> Result<web_sys::Performance, TimerError> {
     use TimerError::*;
-    let performance = web_sys::window()
-        .ok_or(NoWindow)?
-        .performance()
-        .ok_or(NoPerformanceTimer)?;
-    Ok(performance)
+    global_property("performance").map_err(|_| NoPerformanceTimer)
 }

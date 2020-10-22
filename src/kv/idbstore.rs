@@ -1,16 +1,16 @@
 use crate::kv::{Read, Result, Store, StoreError, Write};
 use crate::util::rlog::LogContext;
 use crate::util::to_debug;
+use crate::util::wasm::global_property;
 use async_std::sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use async_std::task;
 use async_trait::async_trait;
 use futures::channel::oneshot;
 use futures::future::join_all;
 use std::collections::HashMap;
-use str_macro::str;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{IdbDatabase, IdbTransaction};
+use web_sys::{IdbDatabase, IdbFactory, IdbTransaction};
 
 impl From<String> for StoreError {
     fn from(err: String) -> StoreError {
@@ -85,14 +85,7 @@ const OBJECT_STORE: &str = "chunks";
 impl IdbStore {
     pub async fn new(name: &str) -> Result<Option<IdbStore>> {
         let lc = LogContext::new();
-        let window = match web_sys::window() {
-            Some(w) => w,
-            None => return Ok(None),
-        };
-        let factory = match window.indexed_db()? {
-            Some(f) => f,
-            None => return Ok(None),
-        };
+        let factory: IdbFactory = global_property("indexedDB")?;
         let request = factory.open(name)?;
         let (callback, receiver) = IdbStore::oneshot_callback(lc.clone());
         let request_copy = request.clone();
@@ -131,11 +124,7 @@ impl IdbStore {
     }
 
     pub async fn drop_store(name: &str, lc: LogContext) -> Result<()> {
-        let window =
-            web_sys::window().ok_or_else(|| StoreError::Str(str!("could not get window")))?;
-        let factory = window
-            .indexed_db()?
-            .ok_or_else(|| StoreError::Str(str!("could not get indexeddb")))?;
+        let factory: IdbFactory = global_property("indexedDB")?;
         let request = factory.delete_database(name)?;
         let (callback, receiver) = IdbStore::oneshot_callback(lc);
         request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));

@@ -2,7 +2,6 @@
 
 use futures::join;
 use rand::Rng;
-use replicache_client::embed::types::*;
 #[allow(unused_imports)]
 use replicache_client::fetch;
 #[allow(unused_imports)]
@@ -10,6 +9,7 @@ use replicache_client::sync;
 use replicache_client::util::rlog;
 use replicache_client::util::to_debug;
 use replicache_client::wasm;
+use replicache_client::{embed::types::*, util::wasm::global_property};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::json;
@@ -211,9 +211,7 @@ async fn test_open_close() {
 #[wasm_bindgen_test]
 async fn test_dispatch_concurrency() {
     let db = &random_db();
-    let window = web_sys::window().expect("should have a window in this context");
-    let performance = window
-        .performance()
+    let performance = global_property::<web_sys::Performance>("performance")
         .expect("performance should be available");
 
     assert_eq!(dispatch::<_, String>(db, "open", "").await.unwrap(), "");

@@ -1,15 +1,24 @@
 use async_fn::AsyncFn1;
+use js_sys::Reflect;
 use log::error;
 use std::cmp;
 use thousands::Separable;
 pub use wasm_bench_macro::wasm_bench;
+use wasm_bindgen::JsValue;
+use web_sys::Performance;
+
+pub fn performance() -> Performance {
+    use wasm_bindgen::JsCast;
+    let global = js_sys::global();
+    let key = JsValue::from_str("performance");
+    Reflect::get(&global, &key)
+        .expect("could not get performance")
+        .dyn_into()
+        .expect("invalid performance")
+}
 
 fn now_nanos() -> u64 {
-    let window = web_sys::window().expect("should have a window in this context");
-    let performance = window
-        .performance()
-        .expect("performance should be available");
-    return (performance.now() * 1e6) as u64;
+    return (performance().now() * 1e6) as u64;
 }
 
 pub struct Bench {

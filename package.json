@@ -36,10 +36,10 @@
     "fetch-mock": "^9.10.7",
     "get-port": "^5.1.1",
     "playwright": "^1.4.1",
-    "prettier": "^2.0.0",
+    "prettier": "^2.1.2",
     "sinon": "^9.0.3",
     "typedoc": "^0.17.0-3",
-    "typescript": "^3.9.3"
+    "typescript": "^4.0.3"
   },
   "module": "out/mod.js",
   "main": "out.cjs/mod.js",

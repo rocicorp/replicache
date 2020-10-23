@@ -50,11 +50,8 @@ export class REPMWasmInvoker {
     rpc: string,
     args: JSONValue | ToJSON = {},
   ): Promise<JSONValue> => {
-    console.debug('>', dbName, rpc, args);
     await wasmModuleOutput;
-    const ret = await dispatch(dbName, rpc, args);
-    console.debug('<', dbName, rpc, ret);
-    return ret;
+    return await dispatch(dbName, rpc, args);
   };
 }
 

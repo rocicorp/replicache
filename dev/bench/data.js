@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1603409451492,
+  "lastUpdate": 1603413090231,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -2441,6 +2441,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 21.7,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2989c85ebb66bfed3fa955f9cef53a7edff7a00d",
+          "message": "Remove console.debug (#158)\n\nFor awesome performance gain!",
+          "timestamp": "2020-10-22T14:29:58-10:00",
+          "tree_id": "55e2ff96c2fcc936a7926225d95fc9e40fa0e017",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/2989c85ebb66bfed3fa955f9cef53a7edff7a00d"
+        },
+        "date": 1603413089505,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.06,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.96,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 26.39,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 28.72,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

@@ -48,5 +48,5 @@ jobs:
           alert-threshold: '130%'
           comment-on-alert: true
 
-      - name: Deploy perf data
-        run: curl -X POST ${{ secrets.VERCEL_DEPLOY_PERF_DATA_URL }}
+#       - name: Deploy perf data
+#         run: curl -X POST ${{ secrets.VERCEL_DEPLOY_PERF_DATA_URL }}

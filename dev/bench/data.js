@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1603466758107,
+  "lastUpdate": 1603467427566,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -2701,6 +2701,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 23.94,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "5769be0628867a099fb4729186a84508db95af75",
+          "message": "Bump version to 0.9.0.\n\nHad to skip past 0.7.0 and 0.8.0 because there are previous\n(accidental) unpublished versions on npm and you can't overwrite.",
+          "timestamp": "2020-10-23T05:34:46-10:00",
+          "tree_id": "e3a6f6bbf1ccfdea5c7256055ec5594577d404ec",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/5769be0628867a099fb4729186a84508db95af75"
+        },
+        "date": 1603467426666,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.5,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.3,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 21.7,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 22.19,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

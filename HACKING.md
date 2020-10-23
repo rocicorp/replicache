@@ -31,4 +31,4 @@ npm publish
 
 We continuously track performance across a variety of benchmarks. Results here:
 
-https://raw.githack.com/rocicorp/replicache-sdk-js/perf-data/dev/bench/index.html
+https://replicache-sdk-js-perf.vercel.app/

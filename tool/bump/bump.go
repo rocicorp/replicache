@@ -43,9 +43,14 @@ func main() {
 			return
 		}
 	} else if *library == "replicache-sdk-js" {
-		oldVersion, err = updatePackageJSON(*rootDir, v.String())
+		oldVersion, err = updatePackageJSON(path.Join(*rootDir, "package.json"), v.String())
 		if err != nil {
 			fmt.Println(errors.Wrap(err, "Could not update package.json"))
+			return
+		}
+		oldVersion, err = updatePackageJSON(path.Join(*rootDir, "package-lock.json"), v.String())
+		if err != nil {
+			fmt.Println(errors.Wrap(err, "Could not update package-lock.json"))
 			return
 		}
 	}
@@ -184,28 +189,27 @@ func updateCargoLock(rootDir, newVersion string) error {
 	return nil
 }
 
-func updatePackageJSON(rootDir, newVersion string) (*semver.Version, error) {
-	f := path.Join(rootDir, "package.json")
-	stuff, err := ioutil.ReadFile(f)
+func updatePackageJSON(path, newVersion string) (*semver.Version, error) {
+	stuff, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "Could not read package.json")
+		return nil, errors.Wrapf(err, "Could not read %s", path)
 	}
 
 	re := regexp.MustCompile(`"version": "(.+?)"`)
 	match := re.FindSubmatch(stuff)
 	if len(match) < 2 {
-		return nil, errors.New("Could not find existing version in package.json")
+		return nil, fmt.Errorf("Could not find existing version in %s", path)
 	}
 
 	oldVersion := match[1]
 	stuff, err = replaceFirst(stuff, re, fmt.Sprintf(`"version": "%s"`, newVersion))
 	if err != nil {
-		return nil, errors.Wrap(err, "Could not update package.json")
+		return nil, errors.Wrapf(err, "Could not update %s", path)
 	}
 
-	err = ioutil.WriteFile(f, stuff, 0644)
+	err = ioutil.WriteFile(path, stuff, 0644)
 	if err != nil {
-		return nil, errors.Wrap(err, "Could not write new package.json")
+		return nil, errors.Wrapf(err, "Could not write new %s", path)
 	}
 
 	sv, err := semver.Parse(string(oldVersion))

@@ -24,7 +24,7 @@ function deleteDatabase(name) {
   return new Promise((resolve, reject) => {
     const req = indexedDB.deleteDatabase(name);
     req.onsuccess = resolve;
-    req.onerror = reject;
+    req.onerror = req.onblocked = req.onupgradeneeded = reject;
   });
 }
 
@@ -75,6 +75,7 @@ async function benchmarkPopulate(bench, opts) {
   bench.setSize(opts.numKeys * valSize);
   await populate(rep, opts, randomStrings);
   bench.stop();
+  await rep.close();
 }
 
 async function benchmarkScan(bench, opts) {
@@ -93,6 +94,7 @@ async function benchmarkScan(bench, opts) {
     console.log(count);
   });
   bench.stop();
+  await rep.close();
 }
 
 async function benchmark(fn) {
@@ -134,10 +136,8 @@ async function benchmark(fn) {
 const benchmarks = [
   bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true}),
   bench => benchmarkPopulate(bench, {numKeys: 1000, clean: false}),
-  // TODO(arv): Re-enable. These cause a quotaexceeded error in playwright that I can't figure out.
-  // Does not seem to happen in desktop Chrome.
-  // bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true, indexes: 1}),
-  // bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true, indexes: 2}),
+  bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true, indexes: 1}),
+  bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true, indexes: 2}),
   bench => benchmarkScan(bench, {numKeys: 1000}),
   bench => benchmarkScan(bench, {numKeys: 5000}),
 ];

@@ -3,9 +3,11 @@
 /* eslint-env node, es2020 */
 
 import playwright from 'playwright';
-
 import {startDevServer} from '@web/dev-server';
 import getPort from 'get-port';
+import * as os from 'os';
+import * as path from 'path';
+import {promises as fs} from 'fs';
 
 async function main() {
   const verbose = process.argv.includes('--verbose');
@@ -22,8 +24,13 @@ async function main() {
   });
 
   const browserType = 'chromium';
-  const browser = await playwright[browserType].launch();
-  const context = await browser.newContext();
+  const userDataDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'replicache-playwright-'),
+  );
+  const context = await playwright[browserType].launchPersistentContext(
+    userDataDir,
+  );
+
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${port}/perf/index.html`);
   await page.waitForFunction('typeof nextTest ===  "function"');
@@ -39,11 +46,18 @@ async function main() {
 
   logLine('Done!');
 
-  await browser.close();
   await server.stop();
+
+  await fs.rmdir(userDataDir, {recursive: true});
+
+  // context.close does not terminate! Give it a second.
+  Promise.race([context.close(), wait(1000)]);
 }
 
-main();
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
 
 /** @param {string} s */
 function logLine(s) {
@@ -57,4 +71,8 @@ function formatAsBenchmarkJS({name, value, median}) {
   //   fib(20) x 11,465 ops/sec ±1.12% (91 runs sampled)
   //   createObjectBuffer with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)
   return `${name} x ${value} ±0.0% (0 runs sampled)`;
+}
+
+function wait(n) {
+  return new Promise(resolve => setTimeout(resolve, n));
 }

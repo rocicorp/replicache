@@ -5,6 +5,8 @@
 
 import Replicache from '../out/mod.js';
 
+console.assert = console.debug = console.error = console.info = console.log = console.warn = () => {};
+
 const valSize = 1024;
 
 function randomString(len) {

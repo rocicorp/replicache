@@ -13,6 +13,10 @@ function randomString(len) {
   return new TextDecoder('ascii').decode(arr);
 }
 
+function makeRandomStrings(length) {
+  return Array.from({length}, () => randomString(valSize));
+}
+
 /**
  * @param {string} name
  */
@@ -38,10 +42,10 @@ async function makeRep() {
 /**
  * @param {Replicache} rep
  */
-async function populate(rep, {numKeys}) {
+async function populate(rep, {numKeys}, randomStrings) {
   const set = rep.register('populate', async tx => {
     for (let i = 0; i < numKeys; i++) {
-      await tx.put(`key${i}`, randomString(valSize));
+      await tx.put(`key${i}`, randomStrings[i]);
     }
   });
   await set({});
@@ -50,7 +54,7 @@ async function populate(rep, {numKeys}) {
 async function benchmarkPopulate(bench, opts) {
   const rep = await makeRep();
   if (!opts.clean) {
-    await populate(rep, opts);
+    await populate(rep, opts, makeRandomStrings(opts.numKeys));
   }
   for (let i = 0; i < opts.indexes || 0; i++) {
     const createIndex = rep.register('createIndex', async tx => {
@@ -61,6 +65,7 @@ async function benchmarkPopulate(bench, opts) {
     });
     await createIndex(null);
   }
+  const randomStrings = makeRandomStrings(opts.numKeys);
   bench.reset();
   bench.setName(
     `populate ${valSize}x${opts.numKeys} (${
@@ -68,7 +73,7 @@ async function benchmarkPopulate(bench, opts) {
     }, ${`indexes: ${opts.indexes || 0}`})`,
   );
   bench.setSize(opts.numKeys * valSize);
-  await populate(rep, opts);
+  await populate(rep, opts, randomStrings);
   bench.stop();
 }
 
@@ -76,7 +81,7 @@ async function benchmarkScan(bench, opts) {
   const rep = await makeRep();
   bench.setName(`scan ${valSize}x${opts.numKeys}`);
   bench.setSize(opts.numKeys * valSize);
-  await populate(rep, opts);
+  await populate(rep, opts, makeRandomStrings(opts.numKeys));
   bench.reset();
   await rep.query(async tx => {
     let count = 0;

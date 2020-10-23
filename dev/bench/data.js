@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1603467427566,
+  "lastUpdate": 1603486720282,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -2753,6 +2753,72 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 22.19,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "24a5e3d3645ff2fce0e6660e61d9c2d8206a2026",
+          "message": "Enable scan performance tests (#161)\n\nPlaywright chromium uses incognito mode by default. Also, headless\r\nchromium gets even less storage quota (running with headless: false\r\npassed).\r\n\r\nWe can launch Playwright chromium with a profile directory and we gets\r\nlots of storage and everyone is happy!\r\n\r\nTowards #137",
+          "timestamp": "2020-10-23T10:56:26-10:00",
+          "tree_id": "29533f4d384f55a4177e6ef33da4dcff56d2f558",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/24a5e3d3645ff2fce0e6660e61d9c2d8206a2026"
+        },
+        "date": 1603486718075,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.48,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.28,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.6,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.96,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 19.53,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 20.52,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

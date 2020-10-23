@@ -17,96 +17,162 @@ import (
 var (
 	app     = kingpin.New("bump", "Bump changes the version of a Replicache library and updates all required files.")
 	rootDir = app.Flag("root", "Path to the root of the library repository").Required().ExistingDir()
-	library = app.Arg("library", "The library to bump").Required().Enum("repc", "replicache-sdk-js")
+	library = app.Arg("library", "The library to bump").Required().Enum("diff-server", "repc", "replicache-sdk-js")
 	version = app.Arg("version", "Version to update to.").Required().String()
 )
 
 func main() {
+	err := impl()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+	}
+}
+
+func impl() error {
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	v, err := semver.Make(*version)
 	if err != nil {
-		fmt.Println(errors.Wrap(err, "Invalid version"))
-		return
+		return errors.Wrap(err, "Invalid version")
 	}
 
-	var oldVersion *semver.Version
-	if *library == "repc" {
-		oldVersion, err = updateCargoToml(*rootDir, v.String())
-		if err != nil {
-			fmt.Println(errors.Wrap(err, "Could not update Cargo.toml"))
-			return
-		}
-		err = updateCargoLock(*rootDir, v.String())
-		if err != nil {
-			fmt.Println(errors.Wrap(err, "Could not update Cargo.lock"))
-			return
-		}
-	} else if *library == "replicache-sdk-js" {
-		oldVersion, err = updatePackageJSON(path.Join(*rootDir, "package.json"), v.String())
-		if err != nil {
-			fmt.Println(errors.Wrap(err, "Could not update package.json"))
-			return
-		}
-		oldVersion, err = updatePackageJSON(path.Join(*rootDir, "package-lock.json"), v.String())
-		if err != nil {
-			fmt.Println(errors.Wrap(err, "Could not update package-lock.json"))
-			return
-		}
+	oldVersion, err := updateVersionFile(*rootDir, v)
+	if err != nil {
+		return errors.Wrap(err, "Could not update VERSION")
 	}
 
 	fmt.Printf("Old version: %s\n", oldVersion)
 	fmt.Printf("New version: %s\n", v)
 
-	err = updateLicense(*rootDir, *library, *oldVersion, v)
+	if v.EQ(oldVersion) {
+		fmt.Println("New and old versions are identical. Nothing to do.")
+		return nil
+	} else if v.LT(oldVersion) {
+		fmt.Println("WARNING: new version is smaller than old version. Carefully check changed files to be sure this is what you want.")
+	}
+
+	err = updateLicense(*rootDir, *library, oldVersion, v)
 	if err != nil {
-		fmt.Println(errors.Wrap(err, "Could not update license"))
-		return
+		return errors.Wrap(err, "Could not update license")
+	}
+
+	if *library == "repc" {
+		err = updateCargoToml(*rootDir, v.String())
+		if err != nil {
+			return err
+		}
+		err = updateCargoLock(*rootDir, v.String())
+		if err != nil {
+			return err
+		}
+	} else if *library == "replicache-sdk-js" {
+		err = updatePackageJSON(path.Join(*rootDir, "package.json"), v.String())
+		if err != nil {
+			return err
+		}
+		err = updatePackageJSON(path.Join(*rootDir, "package-lock.json"), v.String())
+		if err != nil {
+			return err
+		}
+	} else if *library == "diff-server" {
+		err = updateVersionGo(*rootDir, v.String())
+		if err != nil {
+			return err
+		}
 	}
 
 	err = commitGit(*rootDir, v)
 	if err != nil {
-		fmt.Println(errors.Wrap(err, "Could not commit release"))
-		return
+		return errors.Wrap(err, "Could not commit release")
 	}
 
 	fmt.Println("Success! Committed version change. Don't forget to tag the release once it is has been merged.")
+	return nil
+}
+
+func updateVersionFile(rootDir string, newVersion semver.Version) (semver.Version, error) {
+	f := path.Join(rootDir, "VERSION")
+	stuff, err := ioutil.ReadFile(f)
+	if err != nil {
+		return semver.Version{}, errors.Wrap(err, "Could not read VERSION")
+	}
+	oldVersion, err := semver.Parse(string(stuff))
+	if err != nil {
+		return semver.Version{}, errors.Wrapf(err, "Could not parse old version: %s", string(stuff))
+	}
+
+	err = ioutil.WriteFile(f, []byte(newVersion.String()), 0644)
+	if err != nil {
+		return semver.Version{}, errors.Wrap(err, "Could not write BSL.txt")
+	}
+
+	return oldVersion, nil
 }
 
 func updateLicense(rootDir, library string, oldVersion, newVersion semver.Version) error {
-	if newVersion.LT(oldVersion) {
-		fmt.Println("WARNING: new version is smaller than old version. Carefully check changed files to be sure this is what you want.")
-	}
-
-	f := path.Join(rootDir, "licenses", "BSL.txt")
-	stuff, err := ioutil.ReadFile(f)
-	if err != nil {
-		return errors.Wrap(err, "Could not read BSL.txt")
-	}
-	re := regexp.MustCompile(fmt.Sprintf("Licensed Work:        %s (.*)\n", library))
-	stuff, err = replaceFirst(stuff, re,
-		fmt.Sprintf("Licensed Work:        %s %s\n", library, newVersion))
+	p := path.Join(rootDir, "licenses", "BSL.txt")
+	err := updateFile(p,
+		fmt.Sprintf("Licensed Work:        %s (.*)\n", library),
+		newVersion.String())
 	if err != nil {
 		return err
 	}
-
 	if newVersion.Major != oldVersion.Major || newVersion.Minor != oldVersion.Minor {
 		fmt.Println("Major or minor component changed. Updating Change Date.")
-		re = regexp.MustCompile("Change Date:          (.*)\n")
 		now := time.Now()
-		stuff, err = replaceFirst(stuff, re,
-			fmt.Sprintf("Change Date:          %d-%02d-%02d\n",
-				now.Year()+2, now.Month(), now.Day()))
+		err = updateFile(p, "Change Date:          (.*)\n",
+			fmt.Sprintf("%d-%02d-%02d", now.Year()+2, now.Month(), now.Day()))
 		if err != nil {
 			return err
 		}
 	} else {
 		fmt.Println("Patch release. Not updating Change Date.")
 	}
+	return nil
+}
 
-	err = ioutil.WriteFile(f, stuff, 0644)
+func updateCargoToml(rootDir, newVersion string) error {
+	return updateFile(path.Join(rootDir, "Cargo.toml"), `version = "(.+?)"`,
+		newVersion)
+}
+
+func updateCargoLock(rootDir, newVersion string) error {
+	return updateFile(path.Join(rootDir, "Cargo.lock"),
+		"\\[\\[package\\]\\]\nname = \"replicache-client\"\nversion = \"(.+?)\"",
+		newVersion)
+}
+
+func updatePackageJSON(p, newVersion string) error {
+	return updateFile(p, `"version": "(.+?)"`, newVersion)
+}
+
+func updateVersionGo(rootDir, newVersion string) error {
+	return updateFile(path.Join(rootDir, "util", "version", "version.go"),
+		`const v = "(.+?)"`, newVersion)
+}
+
+func updateFile(path, pattern, newVersion string) error {
+	re, err := regexp.Compile(pattern)
 	if err != nil {
-		return errors.Wrap(err, "Could not write BSL.txt")
+		return errors.Wrapf(err, "Could not compile regexp: %s", pattern)
+	}
+	old, err := ioutil.ReadFile(path)
+	if err != nil {
+		return errors.Wrapf(err, "Could not read %s", path)
+	}
+
+	match := re.FindSubmatchIndex(old)
+	if match == nil {
+		return fmt.Errorf("Could not find pattern %s in %s", pattern, path)
+	}
+
+	new := old[:match[2]]
+	new = append(new, []byte(newVersion)...)
+	new = append(new, old[match[3]:]...)
+
+	err = ioutil.WriteFile(path, new, 0644)
+	if err != nil {
+		return errors.Wrapf(err, "Could not write new %s", path)
 	}
 
 	return nil
@@ -135,102 +201,4 @@ func ex(args ...string) error {
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	return cmd.Run()
-}
-
-func updateCargoToml(rootDir, newVersion string) (*semver.Version, error) {
-	f := path.Join(rootDir, "Cargo.toml")
-	stuff, err := ioutil.ReadFile(f)
-	if err != nil {
-		return nil, errors.Wrap(err, "Could not read Cargo.toml")
-	}
-
-	re := regexp.MustCompile(`version = "(.+?)"`)
-	match := re.FindSubmatch(stuff)
-	if len(match) < 2 {
-		return nil, errors.New("Could not find existing version in Cargo.toml")
-	}
-
-	oldVersion := match[1]
-	stuff, err = replaceFirst(stuff, re, fmt.Sprintf(`version = "%s"`, newVersion))
-	if err != nil {
-		return nil, errors.Wrap(err, "Could not find existing version in Cargo.toml")
-	}
-
-	err = ioutil.WriteFile(f, stuff, 0644)
-	if err != nil {
-		return nil, errors.Wrap(err, "Could not write new Cargo.toml")
-	}
-
-	sv, err := semver.Parse(string(oldVersion))
-	if err != nil {
-		return nil, errors.Wrap(err, "Existing version value not valid semver")
-	}
-
-	return &sv, nil
-}
-
-func updateCargoLock(rootDir, newVersion string) error {
-	f := path.Join(rootDir, "Cargo.lock")
-	stuff, err := ioutil.ReadFile(f)
-	if err != nil {
-		return errors.Wrap(err, "Could not read Cargo.lock")
-	}
-
-	re := regexp.MustCompile("\\[\\[package\\]\\]\nname = \"replicache-client\"\nversion = \"(.+?)\"")
-	stuff, err = replaceFirst(stuff, re, fmt.Sprintf("[[package]]\nname = \"replicache-client\"\nversion = \"%s\"", newVersion))
-	if err != nil {
-		return errors.Wrap(err, "Could not update Cargo.lock")
-	}
-
-	err = ioutil.WriteFile(f, stuff, 0644)
-	if err != nil {
-		return errors.Wrap(err, "Could not write new Cargo.lock")
-	}
-	return nil
-}
-
-func updatePackageJSON(path, newVersion string) (*semver.Version, error) {
-	stuff, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Could not read %s", path)
-	}
-
-	re := regexp.MustCompile(`"version": "(.+?)"`)
-	match := re.FindSubmatch(stuff)
-	if len(match) < 2 {
-		return nil, fmt.Errorf("Could not find existing version in %s", path)
-	}
-
-	oldVersion := match[1]
-	stuff, err = replaceFirst(stuff, re, fmt.Sprintf(`"version": "%s"`, newVersion))
-	if err != nil {
-		return nil, errors.Wrapf(err, "Could not update %s", path)
-	}
-
-	err = ioutil.WriteFile(path, stuff, 0644)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Could not write new %s", path)
-	}
-
-	sv, err := semver.Parse(string(oldVersion))
-	if err != nil {
-		return nil, errors.Wrap(err, "Existing version value not valid semver")
-	}
-
-	return &sv, nil
-}
-
-func replaceFirst(subject []byte, pattern *regexp.Regexp, replacement string) ([]byte, error) {
-	count := 0
-	r := pattern.ReplaceAllFunc(subject, func(match []byte) []byte {
-		if count > 0 {
-			return match
-		}
-		count++
-		return []byte(replacement)
-	})
-	if count == 0 {
-		return nil, fmt.Errorf("Could not find pattern: %s", pattern)
-	}
-	return r, nil
 }

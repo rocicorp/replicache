@@ -1,4 +1,4 @@
-module replicache.dev/repc/bump
+module github.com/rocicorp/repc/tool/bump
 
 go 1.14
 

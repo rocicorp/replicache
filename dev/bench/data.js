@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1603413090231,
+  "lastUpdate": 1603419342535,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -2493,6 +2493,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 28.72,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7160965a92820871b13aa44c2d00b6353ced9151",
+          "message": "Move the computation of the random strings outside the perf loop (#160)\n\ncrypto.getRandomValues is not super fast.",
+          "timestamp": "2020-10-22T16:13:29-10:00",
+          "tree_id": "1c2c962bbcb93a48b106b5d52cc4d8825720e75a",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/7160965a92820871b13aa44c2d00b6353ced9151"
+        },
+        "date": 1603419341847,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.09,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.65,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 23.25,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 24.05,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1603752159819,
+  "lastUpdate": 1603752703608,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -3149,6 +3149,72 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 21.14,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "f07de8b60de29132f439c9ee44198ea3c8ae9029",
+          "message": "Bump version to 1.0.0.",
+          "timestamp": "2020-10-26T12:50:00-10:00",
+          "tree_id": "eb2305bb95af73a004435a2461a31fa8d02cce74",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/f07de8b60de29132f439c9ee44198ea3c8ae9029"
+        },
+        "date": 1603752700091,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.31,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.63,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.87,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.17,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 22.19,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 23.48,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

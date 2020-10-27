@@ -147,13 +147,27 @@ impl<'a> From<&'a ScanOptions> for db::ScanOptions<'a> {
     }
 }
 
+// How to use ScanRequest:
+// - opts.prefix: key prefix to scan, "" matches all of them
+// - opts.limit: only return at most this many matches
+// - opts.start can be used on its own or for pagination:
+//    - opts.start.index: return matches starting from this offset *of the prefix*
+//    - opts.start.key.value: start returning matches from this value, inclusive unless:
+//    - opts.start.key.exclusive: start returning matches *after* the value opts.start.key.value
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ScanRequest {
     #[serde(rename = "transactionId")]
     pub transaction_id: u32,
     pub opts: ScanOptions,
-    // also sent but not handled by serde_wasm_bindgen:
-    // receiver: js_sys::Function
+
+    // receiver is the callback that receives scan results, one at
+    // a time. It is an Option so that serde knows a default value
+    // to use for it (None).
+    //
+    // TODO say more about what it should/not do, how it can stop
+    //      the scan, etc.
+    #[serde(skip)]
+    pub receiver: Option<js_sys::Function>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

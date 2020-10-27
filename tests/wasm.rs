@@ -4,7 +4,6 @@ use futures::join;
 use rand::Rng;
 #[allow(unused_imports)]
 use replicache_client::fetch;
-#[allow(unused_imports)]
 use replicache_client::sync;
 use replicache_client::util::rlog;
 use replicache_client::util::to_debug;
@@ -13,7 +12,11 @@ use replicache_client::{embed::types::*, util::wasm::global_property};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::json;
+use std::cell::RefCell;
+use std::rc::Rc;
 use str_macro::str;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
 use wasm_bindgen_test::wasm_bindgen_test_configure;
 use wasm_bindgen_test::*;
 
@@ -33,7 +36,26 @@ where
     Request: Serialize,
     Response: DeserializeOwned,
 {
+    dispatch_with_scan_receiver(db, rpc, req, None).await
+}
+
+async fn dispatch_with_scan_receiver<Request, Response>(
+    db: &str,
+    rpc: &str,
+    req: Request,
+    scan_receiver: Option<js_sys::Function>,
+) -> Result<Response, String>
+where
+    Request: Serialize,
+    Response: DeserializeOwned,
+{
     let req = serde_wasm_bindgen::to_value(&req).unwrap();
+    // Ick, the receiver is part of the original ScanRequest, but it's lost when
+    // the request because a Request: Serialize, so we have to pass it in separately.
+    if scan_receiver.is_some() {
+        let receiver_jsvalue: JsValue = scan_receiver.into();
+        js_sys::Reflect::set(&req, &JsValue::from_str("receiver"), &receiver_jsvalue).unwrap();
+    }
     let resp = wasm::dispatch(db.to_string(), rpc.to_string(), req).await;
     resp.map(|v| serde_wasm_bindgen::from_value(v).unwrap())
         .map_err(|e| serde_wasm_bindgen::from_value(e).unwrap())
@@ -107,11 +129,12 @@ async fn scan(
     prefix: &str,
     start_key: &str,
     start_index: u64,
+    receiver: js_sys::Function,
 ) -> ScanResponse {
-    dispatch(
+    dispatch_with_scan_receiver(
         db_name,
         "scan",
-        &ScanRequest {
+        ScanRequest {
             transaction_id: txn_id,
             opts: ScanOptions {
                 prefix: Some(prefix.to_string()),
@@ -125,7 +148,9 @@ async fn scan(
                 limit: None,
                 index_name: None,
             },
+            receiver: None,
         },
+        Some(receiver),
     )
     .await
     .unwrap()
@@ -440,93 +465,117 @@ async fn test_index() {
     assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
 }
 
-/*
-TODO: Figure out how to re-enable this test. We still have coverage at JS SDK level luckily.
+// Note: db::scan() is unit tested alongside its implementation in db. These
+// dispatch tests here should probably not be exhaustive.
 #[wasm_bindgen_test]
 async fn test_scan() {
-    let db = &random_db();
+    async fn test(
+        entries: Vec<(&str, &str)>,
+        scan_in_write_txn: bool,
+        prefix: &str,
+        start_key: &str,
+        start_index: u64,
+        expected: Vec<(&str, &str)>,
+    ) {
+        let expected: Vec<(String, String)> =
+            expected.iter().map(|v| (str!(v.0), str!(v.1))).collect();
 
-    dispatch::<_, String>(db, "open", "").await.unwrap();
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
+        let db = &random_db();
+        dispatch::<_, String>(db, "open", "").await.unwrap();
+        let mut txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
 
-    put(db, txn_id, "foo", "bar").await;
-    put(db, txn_id, "foopa", "baz").await;
-    put(db, txn_id, "hot", "dog").await;
-    put(db, txn_id, "hoota", "daz").await;
+        for entry in entries {
+            put(db, txn_id, entry.0, entry.1).await;
+        }
 
-    assert_eq!(
-        scan(db, txn_id, "", "", 0).await,
-        ScanResponse {
-            items: vec![
-                ScanItem {
-                    key: str!("foo"),
-                    value: str!("bar"),
-                },
-                ScanItem {
-                    key: str!("foopa"),
-                    value: str!("baz"),
-                },
-                ScanItem {
-                    key: str!("hoota"),
-                    value: str!("daz"),
-                },
-                ScanItem {
-                    key: str!("hot"),
-                    value: str!("dog"),
-                }
-            ]
+        if !scan_in_write_txn {
+            commit(db, txn_id).await;
+            txn_id = open_transaction(db, None, None, None).await.transaction_id;
         }
-    );
-    assert_eq!(
-        scan(db, txn_id, "f", "", 0).await,
-        ScanResponse {
-            items: vec![
-                ScanItem {
-                    key: str!("foo"),
-                    value: str!("bar"),
-                },
-                ScanItem {
-                    key: str!("foopa"),
-                    value: str!("baz"),
-                },
-            ]
-        }
-    );
-    assert_eq!(
-        scan(db, txn_id, "", "foopa", 0).await,
-        ScanResponse {
-            items: vec![
-                ScanItem {
-                    key: str!("foopa"),
-                    value: str!("baz"),
-                },
-                ScanItem {
-                    key: str!("hoota"),
-                    value: str!("daz"),
-                },
-                ScanItem {
-                    key: str!("hot"),
-                    value: str!("dog"),
-                }
-            ]
-        }
-    );
-    assert_eq!(
-        scan(db, txn_id, "", "foopa", 3).await,
-        ScanResponse {
-            items: vec![ScanItem {
-                key: str!("hot"),
-                value: str!("dog"),
-            }]
-        }
-    );
 
-    abort(db, txn_id).await;
-    dispatch::<_, String>(db, "close", "").await.unwrap();
+        let (receive, _cb, got) = new_test_scan_receiver();
+        scan(db, txn_id, prefix, start_key, start_index, receive).await;
+        assert_eq!(&expected, &*got.borrow());
+
+        abort(db, txn_id).await;
+        dispatch::<_, String>(db, "close", "").await.unwrap();
+    }
+
+    // db is empty
+    test(vec![], false, "", "", 0, vec![]).await;
+
+    // one entry
+    test(vec![("foo", "bar")], false, "", "", 0, vec![("foo", "bar")]).await;
+    test(vec![("foo", "bar")], true, "", "", 0, vec![("foo", "bar")]).await;
+    test(vec![("foo", "bar")], true, "f", "", 0, vec![("foo", "bar")]).await;
+    test(
+        vec![("foo", "bar")],
+        true,
+        "foo",
+        "",
+        0,
+        vec![("foo", "bar")],
+    )
+    .await;
+    test(vec![("foo", "bar")], true, "nomatch", "", 0, vec![]).await;
+
+    // several entries
+    let entries = vec![("c", "cv"), ("aa", "aav"), ("a", "av"), ("b", "bv")];
+    let expected = vec![("a", "av"), ("aa", "aav"), ("b", "bv"), ("c", "cv")];
+    test(entries.clone(), false, "", "", 0, expected.clone()).await;
+    test(entries.clone(), true, "", "", 0, expected.clone()).await;
+    // start_key
+    test(entries.clone(), false, "", "b", 0, expected[2..].to_vec()).await;
+    // start_index
+    test(entries.clone(), false, "", "", 2, expected[2..].to_vec()).await;
+    test(entries.clone(), false, "", "", 100, vec![]).await;
+    // start_key && start_index
+    // Note: start_index is wrt the prefix, not the start key.
+    test(entries.clone(), false, "", "aa", 2, expected[2..].to_vec()).await;
 }
-*/
+
+// new_test_scan_receiver is a helper for scan tests. Scan requires a js_sys::Function to send
+// results to and this function provides it and a collection of scan results sent by scan.
+// Returns:
+//  - a js_sys::Function that can be passed to scan() to receive scanned items: (key, value) tuples
+//  - a wasm_bindgen Closure that must be dropped after scan() returns to avoid leaks
+//  - a shared pointer to the vector where the scanned (key, value) tuples are stored
+fn new_test_scan_receiver() -> (
+    js_sys::Function,
+    Closure<dyn FnMut(JsValue, JsValue) -> Result<JsValue, JsValue>>,
+    Rc<RefCell<Vec<(String, String)>>>,
+) {
+    // got_scan_items holds (key, value) tuples received from scan. It is wrapped in an Rc because
+    // Closure otherwise requires a 'static lifetime. It is wrapped in a RefCell to allow the closure to
+    // mutate the contents: borrow checker can't prove closure's access is safe, but we know it is,
+    // so this moves the check to runtime.
+    let got_scan_items: Rc<RefCell<Vec<(String, String)>>> = Rc::new(RefCell::new(Vec::new()));
+
+    // receiver is passed to dispatch and receives scan items one at a time from scan(). It stores
+    // them in got_scan_items for later inspection.
+    //
+    // Note: it is a mystery to me how do_scan passes &JsValues to receiver.call2() but the
+    // closure below that receives them takes JsValues. It works fine. (Note we can't take
+    // &JsValues here because &JsValue does not implement FromWasmAbi.)
+    let closure_got_scan_items = got_scan_items.clone();
+    let receiver = move |k: JsValue, v: JsValue| -> Result<JsValue, JsValue> {
+        let key = k.as_string().unwrap();
+        let v: js_sys::Uint8Array = v.into();
+        let val = String::from_utf8(v.to_vec()).unwrap();
+        closure_got_scan_items.borrow_mut().push((key, val));
+
+        Ok(JsValue::from_str("ignored"))
+    };
+    let receiver_closure = Closure::wrap(
+        Box::new(receiver) as Box<dyn FnMut(JsValue, JsValue) -> Result<JsValue, JsValue>>
+    );
+    let receiver_js_fn_ref: &js_sys::Function = receiver_closure.as_ref().unchecked_ref();
+    let receiver_js_fn: js_sys::Function = receiver_js_fn_ref.to_owned();
+
+    (receiver_js_fn, receiver_closure, got_scan_items)
+}
 
 #[wasm_bindgen_test]
 async fn test_get_root() {

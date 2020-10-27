@@ -221,20 +221,20 @@ impl<'a> Write<'a> {
 
     pub async fn create_index(
         &mut self,
-        name: &str,
+        name: String,
         key_prefix: &[u8],
         json_pointer: &str,
     ) -> Result<(), CreateIndexError> {
         use CreateIndexError::*;
 
         let definition = commit::IndexDefinition {
-            name: name.to_string(),
+            name: name.clone(),
             key_prefix: key_prefix.to_vec(),
             json_pointer: json_pointer.to_string(),
         };
 
         // Check to see if the index already exists.
-        if let Some(index) = self.indexes.get(name) {
+        if let Some(index) = self.indexes.get(&name) {
             if index.meta.definition == definition {
                 return Ok(());
             }
@@ -258,11 +258,11 @@ impl<'a> Write<'a> {
                 entry.val,
                 json_pointer,
             )
-            .map_err(|e| IndexError((name.to_string(), entry.key.to_vec(), e)))?;
+            .map_err(|e| IndexError((name.clone(), entry.key.to_vec(), e)))?;
         }
 
         self.indexes.insert(
-            name.to_string(),
+            name,
             index::Index::new(
                 commit::IndexMeta {
                     definition,
@@ -435,9 +435,7 @@ mod tests {
         )
         .await
         .unwrap();
-        w.put("foo".as_bytes().to_vec(), "bar".as_bytes().to_vec())
-            .await
-            .unwrap();
+        w.put(b"foo".to_vec(), b"bar".to_vec()).await.unwrap();
         w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
             .await
             .unwrap();
@@ -452,8 +450,8 @@ mod tests {
         .await
         .unwrap();
         let r = w.as_read();
-        let val = r.get("foo".as_bytes());
-        assert_eq!(Some("bar".as_bytes()), val);
+        let val = r.get(b"foo");
+        assert_eq!(Some(&(b"bar"[..])), val);
     }
 
     #[async_std::test]
@@ -514,7 +512,7 @@ mod tests {
         )
         .await
         .unwrap();
-        w.create_index("idx", b"", "").await.unwrap();
+        w.create_index(str!("idx"), b"", "").await.unwrap();
         w.put(b"foo".to_vec(), b"\"bar\"".to_vec()).await.unwrap();
         w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
             .await
@@ -626,7 +624,7 @@ mod tests {
             }
 
             let index_name = "i1";
-            w.create_index(index_name, "".as_bytes(), "/s")
+            w.create_index(index_name.to_string(), b"", "/s")
                 .await
                 .unwrap();
             w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")

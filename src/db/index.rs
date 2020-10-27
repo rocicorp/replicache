@@ -243,7 +243,7 @@ mod tests {
             )),
         );
         // no matching target
-        test("k", "{}".as_bytes(), "/foo", Ok(vec![]));
+        test("k", b"{}", "/foo", Ok(vec![]));
 
         // unsupported target types
         test(
@@ -291,7 +291,7 @@ mod tests {
             "/foo",
             Ok(vec![IndexKey {
                 secondary: IndexValue::Str("bar"),
-                primary: "foo".as_bytes(),
+                primary: b"foo",
             }]),
         );
         test(
@@ -300,7 +300,7 @@ mod tests {
             "/foo/bar/1",
             Ok(vec![IndexKey {
                 secondary: IndexValue::Str("dog"),
-                primary: "foo".as_bytes(),
+                primary: b"foo",
             }]),
         );
         test(
@@ -309,7 +309,7 @@ mod tests {
             "/foo",
             Ok(vec![IndexKey {
                 secondary: IndexValue::Str("bar"),
-                primary: "".as_bytes(),
+                primary: b"",
             }]),
         );
         test(
@@ -318,7 +318,7 @@ mod tests {
             "/foo",
             Ok(vec![IndexKey {
                 secondary: IndexValue::Str("bar"),
-                primary: "/! ".as_bytes(),
+                primary: b"/! ",
             }]),
         );
     }
@@ -336,18 +336,18 @@ mod tests {
             index.put(
                 bytekey::serialize(&IndexKey {
                     secondary: IndexValue::Str("s1"),
-                    primary: "1".as_bytes(),
+                    primary: b"1",
                 })
                 .unwrap(),
-                "v1".as_bytes().to_vec(),
+                b"v1".to_vec(),
             );
             index.put(
                 bytekey::serialize(&IndexKey {
                     secondary: IndexValue::Str("s2"),
-                    primary: "2".as_bytes(),
+                    primary: b"2",
                 })
                 .unwrap(),
-                "v2".as_bytes().to_vec(),
+                b"v2".to_vec(),
             );
 
             let res = super::index_value(&mut index, op, key.as_bytes(), value, json_pointer);

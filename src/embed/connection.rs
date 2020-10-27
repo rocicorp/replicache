@@ -508,7 +508,7 @@ async fn do_create_index(
 ) -> Result<CreateIndexResponse, CreateIndexError> {
     use CreateIndexError::*;
     write
-        .create_index(&req.name, req.key_prefix.as_bytes(), &req.json_pointer)
+        .create_index(req.name, req.key_prefix.as_bytes(), &req.json_pointer)
         .await
         .map_err(DBError)?;
     Ok(CreateIndexResponse {})

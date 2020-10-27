@@ -2,7 +2,7 @@ import type {ScanItem} from './scan-item.js';
 import type {ScanBound} from './scan-bound.js';
 import type {Invoke} from './repm-invoker.js';
 import type {JSONValue} from './json.js';
-import {throwIfClosed} from './transactions.js';
+import {throwIfClosed} from './transaction-closed-error.js';
 
 interface IdCloser {
   close(): void;

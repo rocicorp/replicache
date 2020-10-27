@@ -237,6 +237,17 @@ test('scan', async () => {
 
   await testScanResult(
     {
+      start: {key: {value: 'b/1'}},
+    },
+    [
+      ['b/1', 6],
+      ['b/2', 7],
+      ['c/0', 8],
+    ],
+  );
+
+  await testScanResult(
+    {
       start: {key: {value: 'b/1', exclusive: true}},
     },
     [
@@ -250,6 +261,17 @@ test('scan', async () => {
     await testScanResult(
       {
         start: {id: {value: 'b/1', exclusive: false}},
+      },
+      [
+        ['b/1', 6],
+        ['b/2', 7],
+        ['c/0', 8],
+      ],
+    );
+
+    await testScanResult(
+      {
+        start: {key: {value: 'b/1'}},
       },
       [
         ['b/1', 6],

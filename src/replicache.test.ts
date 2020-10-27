@@ -844,15 +844,17 @@ test('index', async () => {
     'a/2': {a: '2'},
     'a/3': {a: '3'},
     'a/4': {a: '4'},
-    'b/0': {b: '5'},
-    'b/1': {b: '6'},
-    'b/2': {b: '7'},
-    'c/0': {c: '8'},
+    'b/0': {bc: '5'},
+    'b/1': {bc: '6'},
+    'b/2': {bc: '7'},
+    'c/0': {bc: '8'},
+    'd/0': {d: {e: {f: '9'}}},
   });
   await rep.register('create-index', tx =>
     tx.createIndex({name: 'aIndex', jsonPointer: '/a'}),
   )(null);
 
+  // TODO(arv): Also check the keys in all the calls to scanAll.
   expect(await rep.scanAll({indexName: 'aIndex'})).to.have.lengthOf(5);
 
   await rep.register('drop-index', tx => tx.dropIndex('aIndex'))(null);
@@ -862,4 +864,24 @@ test('index', async () => {
   expect(await rep.scanAll({indexName: 'aIndex'})).to.have.lengthOf(5);
   await rep.dropIndex('aIndex');
   await expectPromiseToReject(rep.scanAll({indexName: 'aIndex'}));
+
+  await rep.createIndex({name: 'bc', keyPrefix: 'c/', jsonPointer: '/bc'});
+  expect(await rep.scanAll({indexName: 'bc'})).to.have.lengthOf(1);
+
+  await add({
+    'c/1': {bc: '88'},
+  });
+  expect(await rep.scanAll({indexName: 'bc'})).to.have.lengthOf(2);
+  await rep.dropIndex('bc');
+
+  await rep.createIndex({name: 'dIndex', jsonPointer: '/d/e/f'});
+  expect(await rep.scanAll({indexName: 'dIndex'})).to.have.lengthOf(1);
+  await rep.dropIndex('dIndex');
+
+  await add({
+    'e/0': {'': 'empty'},
+  });
+  await rep.createIndex({name: 'emptyKeyIndex', jsonPointer: '/'});
+  expect(await rep.scanAll({indexName: 'emptyKeyIndex'})).to.have.lengthOf(1);
+  await rep.dropIndex('emptyKeyIndex');
 });

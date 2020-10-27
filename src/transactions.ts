@@ -6,7 +6,7 @@ import type {
 } from './repm-invoker.js';
 import type {ScanOptions} from './scan-options.js';
 import {ScanResult} from './scan-iterator.js';
-import {TransactionClosedError} from './transaction-closed-error.js';
+import {throwIfClosed} from './transaction-closed-error.js';
 
 /**
  * ReadTransactions are used with `Replicache.query` and allows read operations
@@ -38,12 +38,6 @@ export interface ReadTransaction {
    * Convenience for scan() that reads all results into an array.
    */
   scanAll(options?: ScanOptions): Promise<[string, JSONValue][]>;
-}
-
-export function throwIfClosed(tx: {closed: boolean}): void {
-  if (tx.closed) {
-    throw new TransactionClosedError();
-  }
 }
 
 export class ReadTransactionImpl implements ReadTransaction {

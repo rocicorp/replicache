@@ -113,7 +113,6 @@ impl<'a> From<&'a ScanKey> for db::ScanKey<'a> {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ScanBound {
-    #[serde(rename = "id")]
     pub key: Option<ScanKey>,
     pub index: Option<u64>,
 }

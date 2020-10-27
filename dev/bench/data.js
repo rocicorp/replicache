@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1603768858149,
+  "lastUpdate": 1603830577452,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -3281,6 +3281,72 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 21.61,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d3ba553331c284ec3cd672c6944657ca73e3f73f",
+          "message": "Make ScanKey exclusive optional (#167)\n\nand default to false.\r\n\r\nFixes #155",
+          "timestamp": "2020-10-27T10:27:43-10:00",
+          "tree_id": "5bfc533bdc27b43b7aeefa6a100e1a87f9479f8f",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/d3ba553331c284ec3cd672c6944657ca73e3f73f"
+        },
+        "date": 1603830577065,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.44,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 3.99,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.54,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.84,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 18.43,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "0 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 20.69,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "0 samples"

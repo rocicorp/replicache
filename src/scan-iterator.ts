@@ -43,7 +43,13 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
     this._prefix = prefix;
 
     if (start) {
-      const key = start.key ?? start.id;
+      let key = start.key ?? start.id;
+      if (key) {
+        key = {
+          exclusive: !!key.exclusive,
+          value: key.value,
+        };
+      }
       start = {
         id: key,
         index: start.index,

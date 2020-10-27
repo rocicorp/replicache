@@ -43,7 +43,7 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
     this._prefix = prefix;
 
     if (start) {
-      let key = start.key ?? start.id;
+      let {key} = start;
       if (key) {
         key = {
           exclusive: !!key.exclusive,
@@ -51,7 +51,6 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
         };
       }
       start = {
-        id: key,
         index: start.index,
         key,
       };
@@ -120,18 +119,9 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
       this._transaction = await this._getTransaction();
     }
 
-    let start = this._start;
-    if (start) {
-      const key = start.key ?? start.id;
-      start = {
-        key,
-        id: key,
-        index: start.index,
-      };
-    }
     const opts = {
       prefix: this._prefix,
-      start,
+      start: this._start,
       limit: this._limit,
       indexName: this._indexName,
     };

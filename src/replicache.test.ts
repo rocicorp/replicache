@@ -833,3 +833,33 @@ test('closeTransaction after rep.scan', async () => {
   ).to.equal('hi!');
   expectCalls([0]);
 });
+
+test('index', async () => {
+  rep = await replicacheForTesting('test-index');
+
+  const add = rep.register('add-data', addData);
+  await add({
+    'a/0': {a: '0'},
+    'a/1': {a: '1'},
+    'a/2': {a: '2'},
+    'a/3': {a: '3'},
+    'a/4': {a: '4'},
+    'b/0': {b: '5'},
+    'b/1': {b: '6'},
+    'b/2': {b: '7'},
+    'c/0': {c: '8'},
+  });
+  await rep.register('create-index', tx =>
+    tx.createIndex({name: 'aIndex', jsonPointer: '/a'}),
+  )(null);
+
+  expect(await rep.scanAll({indexName: 'aIndex'})).to.have.lengthOf(5);
+
+  await rep.register('drop-index', tx => tx.dropIndex('aIndex'))(null);
+  await expectPromiseToReject(rep.scanAll({indexName: 'aIndex'}));
+
+  await rep.createIndex({name: 'aIndex', jsonPointer: '/a'});
+  expect(await rep.scanAll({indexName: 'aIndex'})).to.have.lengthOf(5);
+  await rep.dropIndex('aIndex');
+  await expectPromiseToReject(rep.scanAll({indexName: 'aIndex'}));
+});

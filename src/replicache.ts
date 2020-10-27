@@ -257,6 +257,24 @@ export default class Replicache implements ReadTransaction {
     }
   }
 
+  async createIndex(def: {
+    name: string;
+    keyPrefix?: string;
+    jsonPointer: string;
+  }): Promise<void> {
+    const name = `.rep_internal_create_index_${def.name}`;
+    const mut = this.register(name, tx => tx.createIndex(def));
+    await mut(null);
+    this._mutatorRegistry.delete(name);
+  }
+
+  async dropIndex(name: string): Promise<void> {
+    const internalName = `.rep_internal_drop_index_${name}`;
+    const mut = this.register(internalName, tx => tx.dropIndex(name));
+    await mut(null);
+    this._mutatorRegistry.delete(internalName);
+  }
+
   private async _sync(): Promise<void> {
     let online = true;
 

@@ -256,41 +256,6 @@ test('scan', async () => {
     ],
   );
 
-  {
-    // Testing with deprecated id property key
-    await testScanResult(
-      {
-        start: {id: {value: 'b/1', exclusive: false}},
-      },
-      [
-        ['b/1', 6],
-        ['b/2', 7],
-        ['c/0', 8],
-      ],
-    );
-
-    await testScanResult(
-      {
-        start: {key: {value: 'b/1'}},
-      },
-      [
-        ['b/1', 6],
-        ['b/2', 7],
-        ['c/0', 8],
-      ],
-    );
-
-    await testScanResult(
-      {
-        start: {id: {value: 'b/1', exclusive: true}},
-      },
-      [
-        ['b/2', 7],
-        ['c/0', 8],
-      ],
-    );
-  }
-
   await testScanResult(
     {
       start: {index: 6},

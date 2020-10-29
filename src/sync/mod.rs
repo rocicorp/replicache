@@ -187,10 +187,7 @@ pub async fn begin_sync(
         )));
     }
 
-    let commit_hash = db_write
-        .commit(SYNC_HEAD_NAME, "TODO_local_create_date")
-        .await
-        .map_err(CommitError)?;
+    let commit_hash = db_write.commit(SYNC_HEAD_NAME).await.map_err(CommitError)?;
     begin_sync_resp.sync_head = commit_hash;
 
     Ok(begin_sync_resp)
@@ -1048,7 +1045,7 @@ mod tests {
             )
             .await
             .unwrap();
-            let mut basis_hash = w.commit(SYNC_HEAD_NAME, "TODO local date").await.unwrap();
+            let mut basis_hash = w.commit(SYNC_HEAD_NAME).await.unwrap();
 
             if c.intervening_sync {
                 add_snapshot(&mut chain, &store, None).await;
@@ -1073,7 +1070,7 @@ mod tests {
                 )
                 .await
                 .unwrap();
-                basis_hash = w.commit(SYNC_HEAD_NAME, "local_create_date").await.unwrap();
+                basis_hash = w.commit(SYNC_HEAD_NAME).await.unwrap();
             }
             let sync_head = basis_hash;
 

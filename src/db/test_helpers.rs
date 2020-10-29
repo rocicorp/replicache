@@ -15,7 +15,6 @@ pub async fn add_genesis<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mu
     init_db(
         store.write(LogContext::new()).await.unwrap(),
         db::DEFAULT_HEAD_NAME,
-        "local_create_date",
     )
     .await
     .unwrap();
@@ -44,9 +43,7 @@ pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut 
     w.put(vec![4, 2], format!("{}", chain.len()).into_bytes())
         .await
         .unwrap();
-    w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
-        .await
-        .unwrap();
+    w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
     let (_, commit, _) = read_commit(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
         &store.read(LogContext::new()).await.unwrap().read(),
@@ -90,9 +87,7 @@ pub async fn add_snapshot<'a>(
             i += 2;
         }
     }
-    w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
-        .await
-        .unwrap();
+    w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
     let (_, commit, _) = read_commit(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
         &store.read(LogContext::new()).await.unwrap().read(),

@@ -169,7 +169,6 @@ mod tests {
         init_db(
             ds.write(LogContext::new()).await.unwrap(),
             db::DEFAULT_HEAD_NAME,
-            "local_create_date",
         )
         .await
         .unwrap();
@@ -185,9 +184,7 @@ mod tests {
         w.put("foo".as_bytes().to_vec(), "bar".as_bytes().to_vec())
             .await
             .unwrap();
-        w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
-            .await
-            .unwrap();
+        w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
 
         let dr = ds.read(LogContext::new()).await.unwrap();
         let r = OwnedRead::from_whence(Whence::Head(str!(db::DEFAULT_HEAD_NAME)), dr)

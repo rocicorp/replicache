@@ -40,11 +40,7 @@ pub enum InitDBError {
 
 // Return value is the hash of the commit.
 #[allow(dead_code)]
-pub async fn init_db(
-    dag_write: dag::Write<'_>,
-    head_name: &str,
-    local_create_date: &str,
-) -> Result<String, InitDBError> {
+pub async fn init_db(dag_write: dag::Write<'_>, head_name: &str) -> Result<String, InitDBError> {
     use InitDBError::*;
     let w = Write {
         dag_write,
@@ -57,9 +53,7 @@ pub async fn init_db(
         }),
         indexes: HashMap::new(),
     };
-    Ok(w.commit(head_name, local_create_date)
-        .await
-        .map_err(CommitError)?)
+    Ok(w.commit(head_name).await.map_err(CommitError)?)
 }
 
 #[allow(dead_code)]
@@ -285,11 +279,7 @@ impl<'a> Write<'a> {
 
     // Return value is the hash of the new commit.
     #[allow(clippy::too_many_arguments)]
-    pub async fn commit(
-        mut self,
-        head_name: &str,
-        local_create_date: &str,
-    ) -> Result<String, CommitError> {
+    pub async fn commit(mut self, head_name: &str) -> Result<String, CommitError> {
         use CommitError::*;
         let value_hash = self
             .map
@@ -316,7 +306,6 @@ impl<'a> Write<'a> {
                 } = meta;
 
                 commit::Commit::new_local(
-                    local_create_date,
                     self.basis_hash.as_deref(),
                     self.checksum,
                     *mutation_id,
@@ -334,7 +323,6 @@ impl<'a> Write<'a> {
                 } = meta;
 
                 commit::Commit::new_snapshot(
-                    local_create_date,
                     self.basis_hash.as_deref(),
                     self.checksum,
                     *last_mutation_id,
@@ -422,7 +410,6 @@ mod tests {
         init_db(
             ds.write(LogContext::new()).await.unwrap(),
             db::DEFAULT_HEAD_NAME,
-            "local_create_date",
         )
         .await
         .unwrap();
@@ -436,9 +423,7 @@ mod tests {
         .await
         .unwrap();
         w.put(b"foo".to_vec(), b"bar".to_vec()).await.unwrap();
-        w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
-            .await
-            .unwrap();
+        w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
 
         let w = Write::new_local(
             Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
@@ -460,7 +445,6 @@ mod tests {
         init_db(
             ds.write(LogContext::new()).await.unwrap(),
             db::DEFAULT_HEAD_NAME,
-            "local_create_date",
         )
         .await
         .unwrap();
@@ -499,7 +483,6 @@ mod tests {
         init_db(
             ds.write(LogContext::new()).await.unwrap(),
             db::DEFAULT_HEAD_NAME,
-            "local_create_date",
         )
         .await
         .unwrap();
@@ -514,9 +497,7 @@ mod tests {
         .unwrap();
         w.create_index(str!("idx"), b"", "").await.unwrap();
         w.put(b"foo".to_vec(), b"\"bar\"".to_vec()).await.unwrap();
-        w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
-            .await
-            .unwrap();
+        w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
 
         w = Write::new_local(
             Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
@@ -553,7 +534,7 @@ mod tests {
                 .count(),
             0
         );
-        w.commit(db::DEFAULT_HEAD_NAME, "").await.unwrap();
+        w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
 
         let owned_read = ds.read(LogContext::new()).await.unwrap();
         let (_, c, m) = read::read_commit(
@@ -584,7 +565,6 @@ mod tests {
             init_db(
                 ds.write(LogContext::new()).await.unwrap(),
                 db::DEFAULT_HEAD_NAME,
-                "local_create_date",
             )
             .await
             .unwrap();
@@ -609,9 +589,7 @@ mod tests {
                 .unwrap();
             }
             if separate_commits {
-                w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
-                    .await
-                    .unwrap();
+                w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
                 w = Write::new_local(
                     Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
                     str!("mutator_name"),
@@ -627,9 +605,7 @@ mod tests {
             w.create_index(index_name.to_string(), b"", "/s")
                 .await
                 .unwrap();
-            w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
-                .await
-                .unwrap();
+            w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
 
             let owned_read = ds.read(LogContext::new()).await.unwrap();
             let (_, c, _) = read::read_commit(
@@ -673,9 +649,7 @@ mod tests {
             .await
             .unwrap();
             w.drop_index(index_name).await.unwrap();
-            w.commit(db::DEFAULT_HEAD_NAME, "local_create_date")
-                .await
-                .unwrap();
+            w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
             let owned_read = ds.read(LogContext::new()).await.unwrap();
             let (_, c, _) = read::read_commit(
                 Whence::Head(str!(db::DEFAULT_HEAD_NAME)),

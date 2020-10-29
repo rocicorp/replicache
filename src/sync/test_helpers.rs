@@ -49,7 +49,7 @@ pub async fn add_sync_snapshot<'a>(
     )
     .await
     .unwrap();
-    w.commit(SYNC_HEAD_NAME, "local_create_date").await.unwrap();
+    w.commit(SYNC_HEAD_NAME).await.unwrap();
     let (sync_snapshot_hash, commit, _) = db::read_commit(
         Whence::Head(str!(SYNC_HEAD_NAME)),
         &store.read(lc.clone()).await.unwrap().read(),
@@ -76,7 +76,7 @@ pub async fn add_sync_snapshot<'a>(
     )
     .await
     .unwrap();
-    w.commit(SYNC_HEAD_NAME, "local_create_date").await.unwrap();
+    w.commit(SYNC_HEAD_NAME).await.unwrap();
     let (_, commit, _) = db::read_commit(
         Whence::Head(str!(SYNC_HEAD_NAME)),
         &store.read(lc.clone()).await.unwrap().read(),

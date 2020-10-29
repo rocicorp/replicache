@@ -24,7 +24,7 @@ union MetaTyped {
 
 // Commit metadata.
 table Meta {
-    local_create_date: string;
+    local_create_date: string; // Deprecated.
     basis_hash: string;
     checksum: string;
     typed: MetaTyped;

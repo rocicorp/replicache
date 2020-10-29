@@ -593,7 +593,7 @@ async fn test_get_root() {
             .await
             .unwrap(),
         GetRootResponse {
-            root: str!("20cpm833c2tlc3je6uhn7vs8s3h8cg5d"),
+            root: str!("h74aum0pgl4c5h5mnrsmisld16t4m2jc"),
         }
     );
     let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
@@ -606,7 +606,7 @@ async fn test_get_root() {
             .await
             .unwrap(),
         GetRootResponse {
-            root: str!("5taaq6eg55rmpvbqv6fog2mpmbodjui0"),
+            root: str!("47mlcldf338lnq54hqj9gl4boohtefob"),
         }
     );
     assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");

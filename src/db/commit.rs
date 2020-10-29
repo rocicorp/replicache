@@ -42,7 +42,6 @@ pub struct Commit {
 impl Commit {
     #![allow(clippy::too_many_arguments)]
     pub fn new_local(
-        local_create_date: &str,
         basis_hash: Option<&str>,
         checksum: Checksum,
         mutation_id: u64,
@@ -62,7 +61,6 @@ impl Commit {
         let local_meta = commit_fb::LocalMeta::create(&mut builder, local_meta_args);
         Commit::new_impl(
             builder,
-            local_create_date,
             basis_hash.map(Ref::Strong),
             checksum,
             commit_fb::MetaTyped::LocalMeta,
@@ -74,7 +72,6 @@ impl Commit {
     }
 
     pub fn new_snapshot(
-        local_create_date: &str,
         basis_hash: Option<&str>,
         checksum: Checksum,
         last_mutation_id: u64,
@@ -90,7 +87,6 @@ impl Commit {
         let snapshot_meta = commit_fb::SnapshotMeta::create(&mut builder, snapshot_meta_args);
         Commit::new_impl(
             builder,
-            local_create_date,
             basis_hash.map(Ref::Weak),
             checksum,
             commit_fb::MetaTyped::SnapshotMeta,
@@ -172,7 +168,7 @@ impl Commit {
         root.value_hash().ok_or(MissingValueHash)?;
 
         let meta = root.meta().ok_or(MissingMeta)?;
-        meta.local_create_date().ok_or(MissingLocalCreateDate)?;
+
         // basis_hash is optional -- the first commit lacks a basis
         meta.checksum().ok_or(MissingChecksum)?;
         Checksum::from_str(meta.checksum().unwrap()).map_err(|_| InvalidChecksum)?;
@@ -249,7 +245,6 @@ impl Commit {
 
     fn new_impl(
         mut builder: FlatBufferBuilder,
-        local_create_date: &str,
         basis_hash: Option<Ref>,
         checksum: Checksum,
         union_type: commit_fb::MetaTyped,
@@ -259,11 +254,11 @@ impl Commit {
         indexes: &[IndexMeta],
     ) -> Commit {
         let meta_args = &commit_fb::MetaArgs {
-            local_create_date: builder.create_string(local_create_date).into(),
             basis_hash: basis_hash.map(|r| builder.create_string(r.hash())),
             checksum: builder.create_string(&checksum.to_string()).into(),
             typed_type: union_type,
             typed: union_value.into(),
+            ..commit_fb::MetaArgs::default()
         };
         let meta = commit_fb::Meta::create(&mut builder, meta_args);
         let mut fb_indexes = Vec::new();
@@ -382,10 +377,6 @@ pub struct Meta<'a> {
 
 #[allow(dead_code)]
 impl<'a> Meta<'a> {
-    pub fn local_create_date(&self) -> &str {
-        self.fb.local_create_date().unwrap()
-    }
-
     pub fn basis_hash(&self) -> Option<&str> {
         self.fb.basis_hash()
     }
@@ -483,7 +474,6 @@ pub enum LoadError {
     MissingMutatorName,
     MissingMutatorArgsJSON,
     MissingServerStateID,
-    MissingLocalCreateDate,
     MissingChecksum,
     MissingTyped,
     MissingMeta,
@@ -645,7 +635,6 @@ mod tests {
                     Some(Box::new(|b: &mut FlatBufferBuilder| {
                         make_local_meta(b, 0, "".into(), Some(&[]), "original".into())
                     })),
-                    "".into(),
                     *basis_hash,
                     checksum_str,
                     "value".into(),
@@ -657,7 +646,6 @@ mod tests {
                     vec![].into(),
                 ),
                 Ok(Commit::new_local(
-                    "",
                     *basis_hash,
                     checksum,
                     0,
@@ -675,7 +663,6 @@ mod tests {
                     make_local_meta(b, 0, None, Some(&[]), "".into())
                 })),
                 "".into(),
-                "".into(),
                 checksum_str,
                 "".into(),
                 &["", ""],
@@ -688,7 +675,6 @@ mod tests {
                 Some(Box::new(|b: &mut FlatBufferBuilder| {
                     make_local_meta(b, 0, "".into(), None, "".into())
                 })),
-                "".into(),
                 "".into(),
                 checksum_str,
                 "".into(),
@@ -703,7 +689,6 @@ mod tests {
                     Some(Box::new(|b: &mut FlatBufferBuilder| {
                         make_local_meta(b, 0, "".into(), Some(&[]), None)
                     })),
-                    "".into(),
                     *basis_hash,
                     checksum_str,
                     "".into(),
@@ -715,7 +700,6 @@ mod tests {
                     None,
                 ),
                 Ok(Commit::new_local(
-                    "",
                     *basis_hash,
                     checksum,
                     0,
@@ -732,21 +716,6 @@ mod tests {
                 Some(Box::new(|b: &mut FlatBufferBuilder| {
                     make_local_meta(b, 0, "".into(), Some(&[]), "".into())
                 })),
-                None,
-                "".into(),
-                checksum_str,
-                "".into(),
-                &["", ""],
-                None,
-            ),
-            Err(LoadError::MissingLocalCreateDate),
-        );
-        test(
-            make_commit(
-                Some(Box::new(|b: &mut FlatBufferBuilder| {
-                    make_local_meta(b, 0, "".into(), Some(&[]), "".into())
-                })),
-                "".into(),
                 "".into(),
                 None,
                 "".into(),
@@ -760,7 +729,6 @@ mod tests {
                 Some(Box::new(|b: &mut FlatBufferBuilder| {
                     make_local_meta(b, 0, "".into(), Some(&[]), "".into())
                 })),
-                "".into(),
                 "".into(),
                 "BOOM".into(),
                 "".into(),
@@ -776,7 +744,6 @@ mod tests {
                 })),
                 "".into(),
                 "".into(),
-                "".into(),
                 None,
                 &["", ""],
                 None,
@@ -789,7 +756,6 @@ mod tests {
                     Some(Box::new(|b: &mut FlatBufferBuilder| {
                         make_snapshot_meta(b, 0, "".into())
                     })),
-                    "".into(),
                     *basis_hash,
                     checksum_str,
                     "".into(),
@@ -797,7 +763,6 @@ mod tests {
                     None,
                 ),
                 Ok(Commit::new_snapshot(
-                    "",
                     *basis_hash,
                     checksum,
                     0,
@@ -812,7 +777,6 @@ mod tests {
                 Some(Box::new(|b: &mut FlatBufferBuilder| {
                     make_snapshot_meta(b, 0, None)
                 })),
-                "".into(),
                 "".into(),
                 checksum_str,
                 "".into(),
@@ -837,7 +801,6 @@ mod tests {
                     "original_hash".into(),
                 )
             })),
-            "local_create_date".into(),
             "basis_hash".into(),
             "11111111".into(),
             "value_hash".into(),
@@ -855,7 +818,6 @@ mod tests {
                 assert_eq!(lm.original_hash(), Some("original_hash"));
             }
         }
-        assert_eq!(local.meta().local_create_date(), "local_create_date");
         assert_eq!(local.meta().basis_hash(), Some("basis_hash"));
         assert_eq!(local.meta().checksum(), "11111111");
         assert_eq!(local.value_hash(), "value_hash");
@@ -865,7 +827,6 @@ mod tests {
             Some(Box::new(|b: &mut FlatBufferBuilder| {
                 make_snapshot_meta(b, 2, "server_state_id 2".into())
             })),
-            "local_create_date 2".into(),
             "basis_hash 2".into(),
             "22222222".into(),
             "value_hash 2".into(),
@@ -881,7 +842,6 @@ mod tests {
                 assert_eq!(sm.server_state_id(), "server_state_id 2");
             }
         }
-        assert_eq!(snapshot.meta().local_create_date(), "local_create_date 2");
         assert_eq!(snapshot.meta().basis_hash(), Some("basis_hash 2"));
         assert_eq!(snapshot.meta().checksum(), "22222222");
         assert_eq!(snapshot.value_hash(), "value_hash 2");
@@ -910,7 +870,6 @@ mod tests {
                 ),
             >,
         >,
-        local_create_date: Option<&str>,
         basis_hash: Option<&str>,
         checksum: Option<&str>,
         value_hash: Option<&str>,
@@ -922,9 +881,9 @@ mod tests {
         let args = &commit_fb::MetaArgs {
             typed_type: typed_meta.map_or(commit_fb::MetaTyped::NONE, |t| t.0),
             typed: typed_meta.map(|t| t.1),
-            local_create_date: local_create_date.map(|s| builder.create_string(s)),
             basis_hash: basis_hash.map(|s| builder.create_string(s)),
             checksum: checksum.map(|s| builder.create_string(s)),
+            ..commit_fb::MetaArgs::default()
         };
         let meta = commit_fb::Meta::create(&mut builder, args);
 

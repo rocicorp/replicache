@@ -250,7 +250,7 @@ async fn do_init(store: &dag::Store, lc: LogContext) -> Result<(), DoInitError> 
         .map_err(GetHeadError)?
         .is_none()
     {
-        db::init_db(dw, db::DEFAULT_HEAD_NAME, "local_create_date")
+        db::init_db(dw, db::DEFAULT_HEAD_NAME)
             .await
             .map_err(InitDBError)?;
     }
@@ -394,10 +394,7 @@ async fn do_commit<'a, 'b>(
     } else {
         db::DEFAULT_HEAD_NAME
     };
-    let hash = txn
-        .commit(head_name, "local-create-date")
-        .await
-        .map_err(CommitError)?;
+    let hash = txn.commit(head_name).await.map_err(CommitError)?;
     Ok(CommitTransactionResponse {
         hash,
         retry_commit: false,

@@ -258,7 +258,6 @@ impl Commit {
             checksum: builder.create_string(&checksum.to_string()).into(),
             typed_type: union_type,
             typed: union_value.into(),
-            ..commit_fb::MetaArgs::default()
         };
         let meta = commit_fb::Meta::create(&mut builder, meta_args);
         let mut fb_indexes = Vec::new();
@@ -883,7 +882,6 @@ mod tests {
             typed: typed_meta.map(|t| t.1),
             basis_hash: basis_hash.map(|s| builder.create_string(s)),
             checksum: checksum.map(|s| builder.create_string(s)),
-            ..commit_fb::MetaArgs::default()
         };
         let meta = commit_fb::Meta::create(&mut builder, args);
 

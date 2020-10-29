@@ -168,7 +168,7 @@ impl<'a, 'b> Context<'a, 'b> {
 #[allow(clippy::enum_variant_names)]
 enum ExecuteError {
     TransactionNotFound(u32),
-    TransactionRequired,
+    TransactionIdRequired,
     TransactionIsReadOnly(u32),
     UnknownRPC(String),
 }
@@ -196,7 +196,7 @@ async fn execute<'a, 'b>(
     let txn_req: TransactionRequest = from_js(data.clone())?;
     let txn_id = txn_req
         .transaction_id
-        .ok_or(TransactionRequired)
+        .ok_or(TransactionIdRequired)
         .map_err(to_debug)?;
     let txn_id_string = txn_id.to_string();
     lc.add_context("txid", &txn_id_string);

@@ -83,7 +83,7 @@ pub struct IdbStore {
 const OBJECT_STORE: &str = "chunks";
 
 impl IdbStore {
-    pub async fn new(name: &str) -> Result<Option<IdbStore>> {
+    pub async fn new(name: &str) -> Result<IdbStore> {
         let lc = LogContext::new();
         let factory: IdbFactory = global_property("indexedDB")?;
         let request = factory.open(name)?;
@@ -118,9 +118,9 @@ impl IdbStore {
         db.set_onversionchange(Some(onversionchange.as_ref().unchecked_ref()));
         onversionchange.forget();
 
-        Ok(Some(IdbStore {
+        Ok(IdbStore {
             db: RwLock::new(db),
-        }))
+        })
     }
 
     pub async fn drop_store(name: &str, lc: LogContext) -> Result<()> {

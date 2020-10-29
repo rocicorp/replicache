@@ -22,7 +22,7 @@ async fn eval(code: &str) {
 async fn noop(b: &mut Bench) {
     let dbname = opendb().await;
 
-    let _ = IdbStore::new(&dbname).await.unwrap().unwrap();
+    let _ = IdbStore::new(&dbname).await.unwrap();
     b.reset_timer();
     eval(&format!(
         "
@@ -41,7 +41,7 @@ async fn noop(b: &mut Bench) {
 async fn has(b: &mut Bench) {
     let dbname = opendb().await;
 
-    let store = IdbStore::new(&dbname).await.unwrap().unwrap();
+    let store = IdbStore::new(&dbname).await.unwrap();
     let wt = store.write().await.unwrap();
     for i in 0..b.iterations() {
         if i % 2 == 0 {
@@ -85,7 +85,7 @@ async fn get16384(b: &mut Bench) {
 async fn get(b: &mut Bench, size: u64) {
     let dbname = opendb().await;
 
-    let store = IdbStore::new(&dbname).await.unwrap().unwrap();
+    let store = IdbStore::new(&dbname).await.unwrap();
     let wt = store.write().await.unwrap();
     for i in 0..b.iterations() {
         if i % 2 == 0 {

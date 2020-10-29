@@ -30,10 +30,7 @@ async fn read1x65536(b: &mut Bench) {
 }
 
 async fn read1x(b: &mut Bench, size: u64) {
-    let store = IdbStore::new(&random_string(12)[..])
-        .await
-        .unwrap()
-        .unwrap();
+    let store = IdbStore::new(&random_string(12)[..]).await.unwrap();
 
     let n = b.iterations() as usize;
     let mut keys = Vec::with_capacity(n);
@@ -72,10 +69,7 @@ async fn read64x4096(b: &mut Bench) {
 }
 
 async fn read(b: &mut Bench, concurrency: usize, size: u64) {
-    let store = IdbStore::new(&random_string(12)[..])
-        .await
-        .unwrap()
-        .unwrap();
+    let store = IdbStore::new(&random_string(12)[..]).await.unwrap();
 
     let n = b.iterations() as usize;
     let mut keys = Vec::with_capacity(n);
@@ -141,10 +135,7 @@ async fn write1x65536(b: &mut Bench) {
 }
 
 async fn write(b: &mut Bench, writes: usize, size: u64) {
-    let store = IdbStore::new(&random_string(12)[..])
-        .await
-        .unwrap()
-        .unwrap();
+    let store = IdbStore::new(&random_string(12)[..]).await.unwrap();
     let mut n = (b.iterations() as usize / writes) * writes;
     let mut keys = Vec::with_capacity(n);
     for _ in 0..n {

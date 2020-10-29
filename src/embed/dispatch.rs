@@ -121,15 +121,7 @@ async fn do_open(conns: &mut ConnMap, req: &Request) -> Response {
                 req.db_name, e
             )))
         }
-        Ok(v) => match v {
-            None => {
-                return Err(JsValue::from_str(&format!(
-                    "Didn't open \"{}\"",
-                    req.db_name
-                )))
-            }
-            Some(v) => Box::new(v),
-        },
+        Ok(store) => Box::new(store),
     };
 
     let client_id = init_client_id(kv.as_ref(), req.lc.clone())

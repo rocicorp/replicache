@@ -10,7 +10,7 @@ use crate::kv::Store;
 pub async fn new_idbstore(name: String) -> Option<Box<dyn Store>> {
     init_panic_hook();
     match IdbStore::new(&name).await {
-        Ok(Some(v)) => Some(Box::new(v)),
+        Ok(store) => Some(Box::new(store)),
         _ => None,
     }
 }

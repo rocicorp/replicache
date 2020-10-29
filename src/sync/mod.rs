@@ -99,7 +99,7 @@ pub async fn begin_sync(
                 error_message: format!("{:?}", PullError::FetchNotOk(status_code)),
             }),
             Err(e) => Some(BatchPushInfo {
-                http_status_code: 0, // TOOD we could return this properly in the PushError.
+                http_status_code: 0, // TODO we could return this properly in the PushError.
                 error_message: format!("{:?}", e),
             }),
         };

@@ -475,7 +475,8 @@ async fn do_scan(
         .map_err(|_| ScanError::InvalidReceiver)?;
 
     use crate::prolly;
-    read.scan((&req.opts).into(), |pe: prolly::Entry<'_>| {
+
+    read.scan(req.opts, |pe: prolly::Entry<'_>| {
         let key = JsValue::from_str(std::str::from_utf8(pe.key).unwrap());
         let val = unsafe { Uint8Array::view(pe.val) };
         // TODO: receiver can return to us whether to keep going!

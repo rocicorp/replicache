@@ -238,7 +238,7 @@ impl<'a> Write<'a> {
         let mut index_map = prolly::Map::new();
         for entry in scan::scan(
             &self.map,
-            scan::ScanOptions {
+            scan::ScanOptionsInternal {
                 prefix: key_prefix.into(),
                 limit: None,
                 start: None,
@@ -252,7 +252,14 @@ impl<'a> Write<'a> {
                 entry.val,
                 json_pointer,
             )
-            .map_err(|e| IndexError((name.clone(), entry.key.to_vec(), e)))?;
+            .map_err(|e| {
+                IndexError((
+                    name.clone(),
+                    entry.key.to_vec(),
+                    String::from_utf8(entry.val.to_vec()).unwrap_or_else(|_| str!("<unparsable>")),
+                    e,
+                ))
+            })?;
         }
 
         self.indexes.insert(
@@ -352,7 +359,7 @@ impl<'a> Write<'a> {
 #[derive(Debug)]
 pub enum CreateIndexError {
     FlushError(prolly::FlushError),
-    IndexError((String, Vec<u8>, index::IndexValueError)),
+    IndexError((String, Vec<u8>, String, index::IndexValueError)),
     IndexExistsWithDifferentDefinition,
 }
 
@@ -628,10 +635,10 @@ mod tests {
             for i in 0..3 {
                 assert_eq!(
                     entries.get(i).unwrap().key,
-                    bytekey::serialize(&index::IndexKey {
+                    bytekey::serialize(&index::IndexKeyType::V0(index::IndexKey {
                         secondary: index::IndexValue::Str(format!("s{}", i).as_str()),
                         primary: format!("k{}", i).as_bytes(),
-                    })
+                    }))
                     .unwrap()
                     .as_slice()
                 );

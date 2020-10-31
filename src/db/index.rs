@@ -88,16 +88,46 @@ pub enum IndexFlushError {
     MapFlushError(prolly::FlushError),
 }
 
-// We only index strings for now.
+// IndexValue describes the type of the secondary index value. If we add
+// additional index types this enum enables us to discriminate between them:
+// it ensures all values of a given type sort together.
+//
+// IMPORTANT: We ___MUST NOT___ re-order this enum, insert new values into the
+// middle, or change the definition of a value. If we change the definition then
+// we change the serialization of the enum and thus the serialized IndexKey.
+// We can safely add new values at the end of the enum.
+// https://github.com/danburkert/bytekey#type-evolution
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub enum IndexValue<'a> {
     Str(&'a str),
+    // Don't touch values above this line (see comment above).
 }
 
+// IndexKey is the key used in the index prolly map for indexed values. It
+// is serialized using the bytekey crate which ensures proper sort order
+// for the struct. bytekey serializes strings in their natural UTF8 encoding
+// followed by a 0 byte which ensures that all shorter strings sort before
+// longer strings. (Null bytes are prohibited in indexed string values.)
+//
+// IMPORTANT: Changing this definition potentially changes index keys, making
+// existing index keys unusable. If we want to change the format, might be
+// a better idea to instead add a new IndexKeyType.
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct IndexKey<'a> {
     pub secondary: IndexValue<'a>,
     pub primary: &'a [u8],
+}
+
+// IndexKeyType describes the format of the index key, enabling us to change
+// index key types in the future, per suggestion:
+// https://github.com/danburkert/bytekey/blob/master/README.md#type-evolution
+//
+// We MUST NOT change existing enum values. See comment on IndexValue.
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub enum IndexKeyType<'a> {
+    #[serde(borrow)]
+    V0(IndexKey<'a>),
+    // Don't touch values above this line (see comment).
 }
 
 #[allow(dead_code)]
@@ -109,7 +139,7 @@ pub enum IndexOperation {
 
 #[derive(Debug, PartialEq)]
 pub enum IndexValueError {
-    GetIndexEntriesError(GetIndexEntriesError),
+    GetIndexKeysError(GetIndexKeysError),
 }
 
 // Index or de-index a single primary entry.
@@ -121,7 +151,7 @@ pub fn index_value(
     json_pointer: &str,
 ) -> Result<(), IndexValueError> {
     use IndexValueError::*;
-    for entry in get_index_entries(key, val, json_pointer).map_err(GetIndexEntriesError)? {
+    for entry in get_index_keys(key, val, json_pointer).map_err(GetIndexKeysError)? {
         match &op {
             IndexOperation::Add => index.put(entry, val.to_vec()),
             IndexOperation::Remove => index.del(entry),
@@ -131,30 +161,24 @@ pub fn index_value(
 }
 
 #[derive(Debug, PartialEq)]
-pub enum GetIndexEntriesError {
-    ConvertNumberError,
+pub enum GetIndexKeysError {
     DeserializeError(String),
     SerializeIndexEntryError(String),
+    StringContainsNull(String),
     UnsupportedTargetType,
 }
 
-// Gets the set of secondary index entries for a given primary key/value pair.
-fn get_index_entries(
+// Gets the set of secondary index keys for a given primary key/value pair.
+fn get_index_keys(
     key: &[u8],
     val: &[u8],
     json_pointer: &str,
-) -> Result<Vec<Vec<u8>>, GetIndexEntriesError> {
-    use GetIndexEntriesError::*;
+) -> Result<Vec<Vec<u8>>, GetIndexKeysError> {
+    use GetIndexKeysError::*;
     // TODO: It's crazy to decode the entire value just to evaluate the json pointer.
     // There should be some way to shortcut this. Halp @arv.
     let value: Value = serde_json::from_slice(val).map_err(|e| DeserializeError(e.to_string()))?;
     let target = value.pointer(json_pointer);
-
-    fn entry(secondary: IndexValue, primary: &[u8]) -> Result<Vec<u8>, GetIndexEntriesError> {
-        let key = IndexKey { secondary, primary };
-        Ok(bytekey::serialize(&key).map_err(|e| SerializeIndexEntryError(e.to_string()))?)
-    }
-
     if target.is_none() {
         return Ok(vec![]);
     }
@@ -162,15 +186,39 @@ fn get_index_entries(
     let target = target.unwrap();
     Ok(vec![match target {
         // TODO: Support array of strings here.
-        Value::String(v) => entry(IndexValue::Str(&v), key)?,
+        // TODO: when we support arrays, add test to ensure that strings with null are skipped.
+        Value::String(v) => {
+            if v.contains('\0') {
+                return Err(StringContainsNull(v.clone()));
+            }
+            index_key(IndexValue::Str(&v), key)?
+        }
         _ => return Err(UnsupportedTargetType),
     }])
+}
+
+// Returns the index key (index prolly map key) for an indexed value.
+pub fn index_key(secondary: IndexValue, primary: &[u8]) -> Result<Vec<u8>, GetIndexKeysError> {
+    use GetIndexKeysError::*;
+
+    let k = IndexKeyType::V0(IndexKey { secondary, primary });
+    Ok(bytekey::serialize(&k).map_err(|e| SerializeIndexEntryError(e.to_string()))?)
+}
+
+// Returns bytes that can be used to scan for the given secondary index value. These bytes
+// are different from the full index key bytes in that we do *not* want the trailing null
+// byte that bytekey appends to the secondary index value ("key\0" is not a prefix of "keyfoo").
+pub fn scan_key(secondary: &str) -> Result<Vec<u8>, GetIndexKeysError> {
+    let mut k = index_key(IndexValue::Str(secondary), &[])?;
+    k.truncate(k.len() - 1);
+    Ok(k)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+    use str_macro::str;
 
     #[test]
     fn index_key_sort() {
@@ -215,17 +263,56 @@ mod tests {
         );
     }
 
+    // By design the index key is encoded in a way that doesn't permit collisions, eg
+    // a situation where scan({indexName: "...", ...prefix="foo"}) matches a value
+    // with secondary index "f" and primary index "oo". This test gives us a tiny
+    // extra assurance that this is the case.
     #[test]
-    fn get_index_entries() {
-        use GetIndexEntriesError::*;
+    fn test_index_key_uniqueness() {
+        fn test(left: (&str, &[u8]), right: (&str, &[u8])) {
+            assert_ne!(
+                index_key(IndexValue::Str(left.0), left.1,).unwrap(),
+                index_key(IndexValue::Str(right.0), right.1,).unwrap()
+            );
+        }
+
+        test(("", &[0x61]), ("a", &[]));
+    }
+
+    // We rely on bytekey appending null to the secondary index value.
+    #[test]
+    fn test_index_key_null_pads_strings() {
+        let index_key_bytes = index_key(IndexValue::Str("foo"), &vec![0xAB]).unwrap();
+        let expected_rh = vec![
+            0x66u8, /*f*/
+            0x6F,   /*o*/
+            0x6F,   /*o*/
+            0x00, 0xAB,
+        ];
+        // We don't care what goop bytekey puts at the beginning, so we compare against the end of the vec.
+        assert_eq!(
+            expected_rh[..],
+            index_key_bytes[(index_key_bytes.len() - expected_rh.len())..]
+        );
+
+        let scan_key_bytes = scan_key("foo").unwrap();
+        assert_eq!(
+            expected_rh[..3],
+            scan_key_bytes[(scan_key_bytes.len() - 3)..]
+        );
+    }
+
+    #[test]
+    fn test_get_index_keys() {
+        use GetIndexKeysError::*;
         fn test(
             key: &str,
             input: &[u8],
             json_pointer: &str,
-            expected: Result<Vec<IndexKey>, GetIndexEntriesError>,
+            expected: Result<Vec<IndexKeyType>, GetIndexKeysError>,
         ) {
             assert_eq!(
-                super::get_index_entries(key.as_bytes(), input, json_pointer),
+                super::get_index_keys(key.as_bytes(), input, json_pointer),
                 expected.map(|v| v
                     .iter()
                     .map(|k| bytekey::serialize(k).unwrap())
@@ -242,8 +329,17 @@ mod tests {
                 "EOF while parsing a value at line 1 column 0".to_string(),
             )),
         );
+
         // no matching target
         test("k", b"{}", "/foo", Ok(vec![]));
+
+        // null is disallowed in strings
+        test(
+            "k",
+            &serde_json::to_vec(&json!("no \0 allowed")).unwrap(),
+            "",
+            Err(StringContainsNull(str!("no \0 allowed"))),
+        );
 
         // unsupported target types
         test(
@@ -289,37 +385,37 @@ mod tests {
             "foo",
             &serde_json::to_vec(&json!({"foo":"bar"})).unwrap(),
             "/foo",
-            Ok(vec![IndexKey {
+            Ok(vec![IndexKeyType::V0(IndexKey {
                 secondary: IndexValue::Str("bar"),
                 primary: b"foo",
-            }]),
+            })]),
         );
         test(
             "foo",
             &serde_json::to_vec(&json!({"foo":{"bar":["hot", "dog"]}})).unwrap(),
             "/foo/bar/1",
-            Ok(vec![IndexKey {
+            Ok(vec![IndexKeyType::V0(IndexKey {
                 secondary: IndexValue::Str("dog"),
                 primary: b"foo",
-            }]),
+            })]),
         );
         test(
             "",
             &serde_json::to_vec(&json!({"foo":"bar"})).unwrap(),
             "/foo",
-            Ok(vec![IndexKey {
+            Ok(vec![IndexKeyType::V0(IndexKey {
                 secondary: IndexValue::Str("bar"),
                 primary: b"",
-            }]),
+            })]),
         );
         test(
             "/! ",
             &serde_json::to_vec(&json!({"foo":"bar"})).unwrap(),
             "/foo",
-            Ok(vec![IndexKey {
+            Ok(vec![IndexKeyType::V0(IndexKey {
                 secondary: IndexValue::Str("bar"),
                 primary: b"/! ",
-            }]),
+            })]),
         );
     }
 
@@ -334,18 +430,18 @@ mod tests {
         ) {
             let mut index = prolly::Map::new();
             index.put(
-                bytekey::serialize(&IndexKey {
+                bytekey::serialize(&IndexKeyType::V0(IndexKey {
                     secondary: IndexValue::Str("s1"),
                     primary: b"1",
-                })
+                }))
                 .unwrap(),
                 b"v1".to_vec(),
             );
             index.put(
-                bytekey::serialize(&IndexKey {
+                bytekey::serialize(&IndexKeyType::V0(IndexKey {
                     secondary: IndexValue::Str("s2"),
                     primary: b"2",
-                })
+                }))
                 .unwrap(),
                 b"v2".to_vec(),
             );
@@ -357,10 +453,10 @@ mod tests {
                     let actual_val = index.iter().collect::<Vec<prolly::Entry>>();
                     assert_eq!(expected_val.len(), actual_val.len());
                     for (exp_id, act) in expected_val.iter().zip(actual_val) {
-                        let exp_entry = bytekey::serialize(&IndexKey {
+                        let exp_entry = bytekey::serialize(&IndexKeyType::V0(IndexKey {
                             secondary: IndexValue::Str(format!("s{}", exp_id).as_str()),
                             primary: format!("{}", exp_id).as_bytes(),
-                        })
+                        }))
                         .unwrap();
                         assert_eq!(exp_entry, act.key.to_vec());
                         assert_eq!(index.get(exp_entry.as_ref()).unwrap(), act.val);

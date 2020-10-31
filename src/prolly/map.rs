@@ -118,6 +118,12 @@ impl Map {
     }
 }
 
+impl Default for Map {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // Iter provides iteration over the map with pending changes applied.
 pub struct Iter<'a, LeafIter: Iterator<Item = Entry<'a>>> {
     base: Peekable<LeafIter>,

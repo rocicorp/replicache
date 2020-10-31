@@ -2,6 +2,7 @@
 
 use futures::join;
 use rand::Rng;
+use replicache_client::db::{ScanBound, ScanKey, ScanOptions};
 #[allow(unused_imports)]
 use replicache_client::fetch;
 use replicache_client::sync;
@@ -129,6 +130,7 @@ async fn scan(
     prefix: &str,
     start_key: &str,
     start_index: u64,
+    index_name: Option<&str>,
     receiver: js_sys::Function,
 ) -> ScanResponse {
     dispatch_with_scan_receiver(
@@ -146,7 +148,7 @@ async fn scan(
                     index: Some(start_index),
                 }),
                 limit: None,
-                index_name: None,
+                index_name: index_name.map(|s| s.into()),
             },
             receiver: None,
         },
@@ -385,7 +387,7 @@ async fn test_get_put_del() {
 }
 
 #[wasm_bindgen_test]
-async fn test_index() {
+async fn test_create_drop_index() {
     let db = &random_db();
     assert_eq!(dispatch::<_, String>(db, "open", "").await.unwrap(), "");
 
@@ -425,7 +427,22 @@ async fn test_index() {
     assert_eq!("DBError(IndexExistsWithDifferentDefinition)", response);
     abort(db, transaction_id).await;
 
-    // TODO ensure the index can be used.
+    // Ensure the index can be used: insert a value and ensure it scans.
+    let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+        .await
+        .transaction_id;
+    put(db, transaction_id, "boo", r#"{"s": "foo"}"#).await;
+    commit(db, transaction_id).await;
+    let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+        .await
+        .transaction_id;
+    let expected = vec![(str!(""), str!(r#"{"s": "foo"}"#))];
+    {
+        let (receive, _cb, got) = new_test_scan_receiver();
+        scan(db, transaction_id, "", "", 0, Some("idx1"), receive).await;
+        assert_eq!(&expected, &*got.borrow());
+    }
+    abort(db, transaction_id).await;
 
     // Check that drop works.
     let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
@@ -443,7 +460,34 @@ async fn test_index() {
     .unwrap();
     commit(db, transaction_id).await;
 
-    // TODO ensure that index can NOT be used.
+    // Ensure the index cannot be used.
+    let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+        .await
+        .transaction_id;
+    {
+        let (receive, _cb, _got) = new_test_scan_receiver();
+        let scan_result: Result<ScanResponse, String> = dispatch_with_scan_receiver(
+            db,
+            "scan",
+            ScanRequest {
+                transaction_id,
+                opts: ScanOptions {
+                    prefix: None,
+                    start: None,
+                    limit: None,
+                    index_name: Some(str!("idx1")),
+                },
+                receiver: None,
+            },
+            Some(receive),
+        )
+        .await;
+        assert_eq!(
+            "ScanError(UnknownIndexName(\"idx1\"))",
+            &scan_result.unwrap_err()
+        );
+    }
+    abort(db, transaction_id).await;
 
     // Check that dropping a non-existent index errors.
     let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
@@ -496,7 +540,7 @@ async fn test_scan() {
         }
 
         let (receive, _cb, got) = new_test_scan_receiver();
-        scan(db, txn_id, prefix, start_key, start_index, receive).await;
+        scan(db, txn_id, prefix, start_key, start_index, None, receive).await;
         assert_eq!(&expected, &*got.borrow());
 
         abort(db, txn_id).await;
@@ -507,6 +551,7 @@ async fn test_scan() {
     test(vec![], false, "", "", 0, vec![]).await;
 
     // one entry
+    //  TODO these values are not json
     test(vec![("foo", "bar")], false, "", "", 0, vec![("foo", "bar")]).await;
     test(vec![("foo", "bar")], true, "", "", 0, vec![("foo", "bar")]).await;
     test(vec![("foo", "bar")], true, "f", "", 0, vec![("foo", "bar")]).await;
@@ -534,6 +579,298 @@ async fn test_scan() {
     // start_key && start_index
     // Note: start_index is wrt the prefix, not the start key.
     test(entries.clone(), false, "", "aa", 2, expected[2..].to_vec()).await;
+}
+
+#[wasm_bindgen_test]
+async fn test_scan_with_index() {
+    // Op is a thing we might do in the test after creating the index.
+    enum Op {
+        None,
+        Del(String),
+        Put((String, String)),
+    }
+
+    async fn test<'a>(
+        entries: Vec<(&str, &str)>, // populate the db initially with these (k,v) pairs
+        key_prefix: &str,           // parameter to CreateIndex
+        json_pointer: &str,         // parameter to CreateIndex
+        op: Op, // op if any to perform after index is created, before we scan with it
+        scan_in_write_txn: bool, // run the scan in the tx that creates the index, vs in a separate one
+        prefix: &str,            // scan prefix
+        start_key: &str,         // scan start key
+        start_index: u64,        // scan start index
+        expected: Vec<(&str, &str)>, // expected results of the scan
+    ) {
+        let index_name = str!("idx1");
+        let expected: Vec<(String, String)> =
+            expected.iter().map(|v| (str!(v.0), str!(v.1))).collect();
+
+        let db = &random_db();
+        dispatch::<_, String>(db, "open", "").await.unwrap();
+        let mut txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
+        for entry in entries {
+            put(db, txn_id, entry.0, entry.1).await;
+        }
+
+        dispatch::<_, CreateIndexResponse>(
+            db,
+            "createIndex",
+            CreateIndexRequest {
+                transaction_id: txn_id,
+                name: index_name.clone(),
+                key_prefix: key_prefix.into(),
+                json_pointer: json_pointer.into(),
+            },
+        )
+        .await
+        .unwrap();
+
+        match op {
+            Op::None => {}
+            Op::Del(key) => {
+                del(db, txn_id, &key).await;
+            }
+            Op::Put((key, val)) => put(db, txn_id, &key, &val).await,
+        }
+
+        if !scan_in_write_txn {
+            commit(db, txn_id).await;
+            txn_id = open_transaction(db, None, None, None).await.transaction_id;
+        }
+
+        let (receive, _cb, got) = new_test_scan_receiver();
+        scan(
+            db,
+            txn_id,
+            prefix,
+            start_key,
+            start_index,
+            Some(&index_name),
+            receive,
+        )
+        .await;
+        assert_eq!(&expected, &*got.borrow());
+
+        abort(db, txn_id).await;
+        dispatch::<_, String>(db, "close", "").await.unwrap();
+    }
+
+    // Scan an empty db
+    test(vec![], "", "", Op::None, false, "", "", 0, vec![]).await;
+
+    // Ensure empty key is OK
+    let bools = vec![false, true];
+    for in_txn in bools.iter() {
+        test(
+            vec![("", r#""value""#)],
+            "",
+            "",
+            Op::None,
+            *in_txn,
+            "",
+            "",
+            0,
+            vec![("", r#""value""#)],
+        )
+        .await;
+    }
+
+    // Test the various levers of the scan interface when used with an index...
+    // Scan all indexed values
+    for in_txn in bools.iter() {
+        test(
+            vec![("key", r#""value""#)],
+            "",
+            "",
+            Op::None,
+            *in_txn,
+            "",
+            "",
+            0,
+            vec![("", r#""value""#)],
+        )
+        .await;
+        // indexes is on key prefix that is not present
+        test(
+            vec![("key", r#""value""#)],
+            "nomatch",
+            "",
+            Op::None,
+            *in_txn,
+            "",
+            "",
+            0,
+            vec![],
+        )
+        .await;
+        // index is on a value the entry doesn't have
+        test(
+            vec![("key", r#""value""#)],
+            "",
+            "/nosuch",
+            Op::None,
+            *in_txn,
+            "",
+            "",
+            0,
+            vec![],
+        )
+        .await;
+        // scan prefix matches beginning of indexed value
+        test(
+            vec![("key", r#""value""#)],
+            "",
+            "",
+            Op::None,
+            *in_txn,
+            "v",
+            "",
+            0,
+            vec![("", r#""value""#)],
+        )
+        .await;
+        // scan prefix exactly matches indexed value
+        test(
+            vec![("key", r#""value""#)],
+            "",
+            "",
+            Op::None,
+            *in_txn,
+            "value",
+            "",
+            0,
+            vec![("", r#""value""#)],
+        )
+        .await;
+        // scan prefix does not match indexed value
+        test(
+            vec![("key", r#""value""#)],
+            "",
+            "",
+            Op::None,
+            *in_txn,
+            "nomatch",
+            "",
+            0,
+            vec![],
+        )
+        .await;
+        // scan start key matches beginning of indexed value
+        test(
+            vec![("key", r#""value""#)],
+            "",
+            "",
+            Op::None,
+            *in_txn,
+            "",
+            "v",
+            0,
+            vec![("", r#""value""#)],
+        )
+        .await;
+        // scan start key matches indexed value
+        test(
+            vec![("key", r#""value""#)],
+            "",
+            "",
+            Op::None,
+            *in_txn,
+            "",
+            "value",
+            0,
+            vec![("", r#""value""#)],
+        )
+        .await;
+        // scan start key does not match indexed value
+        test(
+            vec![("key", r#""value""#)],
+            "",
+            "",
+            Op::None,
+            *in_txn,
+            "",
+            "nomatch",
+            0,
+            vec![("", r#""value""#)],
+        )
+        .await;
+        // using start index
+        test(
+            vec![
+                ("key1", r#""value1""#),
+                ("key2", r#""value2""#),
+                ("key3", r#""value3""#),
+            ],
+            "",
+            "",
+            Op::None,
+            *in_txn,
+            "",
+            "",
+            2,
+            vec![("", r#""value3""#)],
+        )
+        .await;
+    }
+
+    // Test that index track puts and dels.
+    for in_txn in bools.iter() {
+        // del a value
+        test(
+            vec![("key", r#""value""#)],
+            "",
+            "",
+            Op::Del(str!("key")),
+            *in_txn,
+            "",
+            "",
+            0,
+            vec![],
+        )
+        .await;
+        // put new value
+        test(
+            vec![],
+            "",
+            "",
+            Op::Put((str!("key"), str!(r#""value""#))),
+            *in_txn,
+            "",
+            "",
+            0,
+            vec![("", r#""value""#)],
+        )
+        .await;
+        // replace a value
+        test(
+            vec![("key", r#"{"s": "value"}"#)],
+            "",
+            "/s",
+            Op::Put((str!("key"), str!(r#"{"s": "NEW"}"#))),
+            *in_txn,
+            "",
+            "",
+            0,
+            vec![("", r#"{"s": "NEW"}"#)],
+        )
+        .await;
+    }
+
+    // Ensure when there are multiple identical values they sort on primary key
+    let entries = vec![
+        ("key1", r#"{"s": "value2"}"#),
+        ("key11", r#"{"s": "value3"}"#),
+        ("key2", r#""nomatch""#),
+        ("key", r#"{"s": "value1"}"#),
+    ];
+    let expected = vec![
+        ("", r#"{"s": "value1"}"#),
+        ("", r#"{"s": "value2"}"#),
+        ("", r#"{"s": "value3"}"#),
+    ];
+    test(entries, "", "/s", Op::None, false, "", "", 0, expected).await;
 }
 
 // new_test_scan_receiver is a helper for scan tests. Scan requires a js_sys::Function to send

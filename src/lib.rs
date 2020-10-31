@@ -16,7 +16,7 @@ extern crate str_macro;
 
 pub mod checksum;
 mod dag;
-mod db;
+pub mod db;
 pub mod embed;
 pub mod fetch;
 mod hash;

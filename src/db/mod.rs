@@ -16,6 +16,7 @@ pub use commit::{
     BaseSnapshotError, Commit, FromHashError, InternalProgrammerError, LocalMeta, MetaTyped,
     PendingError, DEFAULT_HEAD_NAME,
 };
+pub use index::{index_key, GetIndexKeysError, IndexValue};
 pub use read::{read_commit, read_indexes, OwnedRead, Read, ReadCommitError, ScanError, Whence};
 pub use scan::{ScanBound, ScanKey, ScanOptions};
 pub use write::{

@@ -97,67 +97,10 @@ pub struct GetResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ScanKey {
-    pub value: String,
-    pub exclusive: bool,
-}
-
-impl<'a> From<&'a ScanKey> for db::ScanKey<'a> {
-    fn from(source: &'a ScanKey) -> db::ScanKey<'a> {
-        db::ScanKey {
-            value: source.value.as_bytes(),
-            exclusive: source.exclusive,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct ScanBound {
-    pub key: Option<ScanKey>,
-    pub index: Option<u64>,
-}
-
-impl<'a> From<&'a ScanBound> for db::ScanBound<'a> {
-    fn from(source: &'a ScanBound) -> db::ScanBound<'a> {
-        db::ScanBound {
-            key: source.key.as_ref().map(|key| key.into()),
-            index: source.index,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct ScanOptions {
-    pub prefix: Option<String>,
-    pub start: Option<ScanBound>,
-    pub limit: Option<u64>,
-    #[serde(rename = "indexName")]
-    pub index_name: Option<String>,
-}
-
-impl<'a> From<&'a ScanOptions> for db::ScanOptions<'a> {
-    fn from(source: &'a ScanOptions) -> db::ScanOptions<'a> {
-        db::ScanOptions {
-            prefix: source.prefix.as_ref().map(|s| s.as_bytes()),
-            start: source.start.as_ref().map(|s| s.into()),
-            limit: source.limit,
-            index_name: source.index_name.as_deref(),
-        }
-    }
-}
-
-// How to use ScanRequest:
-// - opts.prefix: key prefix to scan, "" matches all of them
-// - opts.limit: only return at most this many matches
-// - opts.start can be used on its own or for pagination:
-//    - opts.start.index: return matches starting from this offset *of the prefix*
-//    - opts.start.key.value: start returning matches from this value, inclusive unless:
-//    - opts.start.key.exclusive: start returning matches *after* the value opts.start.key.value
-#[derive(Debug, Deserialize, Serialize)]
 pub struct ScanRequest {
     #[serde(rename = "transactionId")]
     pub transaction_id: u32,
-    pub opts: ScanOptions,
+    pub opts: db::ScanOptions,
 
     // receiver is the callback that receives scan results, one at
     // a time. It is an Option so that serde knows a default value
@@ -176,6 +119,7 @@ pub struct ScanResponse {}
 pub enum ScanError {
     MissingReceiver,
     InvalidReceiver,
+    ParseScanOptionsError(db::GetIndexKeysError),
     ScanError(db::ScanError),
 }
 

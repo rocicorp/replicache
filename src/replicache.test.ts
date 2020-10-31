@@ -856,6 +856,9 @@ test('index', async () => {
 
   // TODO(arv): Also check the keys in all the calls to scanAll.
   expect(await rep.scanAll({indexName: 'aIndex'})).to.have.lengthOf(5);
+  expect(await rep.scanAll({indexName: 'aIndex', prefix: '2'})).to.have.lengthOf(1);
+  expect(await rep.scanAll({indexName: 'aIndex', start: {key: {value: '2'}}})).to.have.lengthOf(3);
+  expect(await rep.scanAll({indexName: 'aIndex', start: {key: {value: '2', exclusive: true}}})).to.have.lengthOf(2);
 
   await rep.register('drop-index', tx => tx.dropIndex('aIndex'))(null);
   await expectPromiseToReject(rep.scanAll({indexName: 'aIndex'}));

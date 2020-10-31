@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "repository": "github:rocicorp/replicache-sdk-js",
   "scripts": {
-    "test": "web-test-runner src/replicache.test.ts --playwright --browsers chromium firefox",
-    "test:watch": "web-test-runner src/replicache.test.ts --playwright --browsers chromium firefox webkit --watch",
+    "test": "web-test-runner src/replicache.test.ts --playwright --browsers chromium firefox --root-dir=/",
+    "test:watch": "web-test-runner src/replicache.test.ts --playwright --browsers chromium firefox webkit --watch --root-dir=/",
     "format": "prettier --write '{src,sample,perf}/**/*.{js,jsx,json,ts,tsx,html,css,md,mjs}' '*.{js,jsx,json,ts,tsx,html,css,md,mjs}'",
     "check-format": "prettier --check '{src,sample,perf}/**/*.{js,jsx,json,ts,tsx,html,css,md,mjs}' '*.{js,jsx,json,ts,tsx,html,css,md,mjs}'",
     "lint": "eslint --ext .ts src/",

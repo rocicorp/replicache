@@ -635,10 +635,10 @@ mod tests {
             for i in 0..3 {
                 assert_eq!(
                     entries.get(i).unwrap().key,
-                    bytekey::serialize(&index::IndexKeyType::V0(index::IndexKey {
-                        secondary: index::IndexValue::Str(format!("s{}", i).as_str()),
+                    index::encode_index_key(&index::IndexKey {
+                        secondary: format!("s{}", i).as_str(),
                         primary: format!("k{}", i).as_bytes(),
-                    }))
+                    })
                     .unwrap()
                     .as_slice()
                 );

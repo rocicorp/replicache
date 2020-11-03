@@ -66,11 +66,11 @@ function logLine(s) {
 
 // TODO(arv): Use BenchmarkJS instead of our custom runner?
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function formatAsBenchmarkJS({name, value, median}) {
+function formatAsBenchmarkJS({name, value, median, runs}) {
   // Example:
   //   fib(20) x 11,465 ops/sec ±1.12% (91 runs sampled)
   //   createObjectBuffer with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)
-  return `${name} x ${value} ±0.0% (0 runs sampled)`;
+  return `${name} x ${value} ±0.0% (${runs} runs sampled)`;
 }
 
 function wait(n) {

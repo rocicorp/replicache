@@ -5,7 +5,8 @@
 
 import Replicache from '../out/mod.js';
 
-console.assert = console.debug = console.error = console.info = console.log = console.warn = () => {};
+console.assert = console.debug = console.error = console.info = console.log = console.warn = () =>
+  void 0;
 
 const valSize = 1024;
 
@@ -69,12 +70,10 @@ async function benchmarkPopulate(bench, opts) {
   }
   const randomStrings = makeRandomStrings(opts.numKeys);
   bench.reset();
-  bench.setName(
-    `populate ${valSize}x${opts.numKeys} (${
-      opts.clean ? 'clean' : 'dirty'
-    }, ${`indexes: ${opts.indexes || 0}`})`,
-  );
-  bench.setSize(opts.numKeys * valSize);
+  bench.name = `populate ${valSize}x${opts.numKeys} (${
+    opts.clean ? 'clean' : 'dirty'
+  }, ${`indexes: ${opts.indexes || 0}`})`;
+  bench.size = opts.numKeys * valSize;
   await populate(rep, opts, randomStrings);
   bench.stop();
   await rep.close();
@@ -82,8 +81,8 @@ async function benchmarkPopulate(bench, opts) {
 
 async function benchmarkScan(bench, opts) {
   const rep = await makeRep();
-  bench.setName(`scan ${valSize}x${opts.numKeys}`);
-  bench.setSize(opts.numKeys * valSize);
+  bench.name = `scan ${valSize}x${opts.numKeys}`;
+  bench.size = opts.numKeys * valSize;
   await populate(rep, opts, makeRandomStrings(opts.numKeys));
   bench.reset();
   await rep.query(async tx => {
@@ -99,25 +98,54 @@ async function benchmarkScan(bench, opts) {
   await rep.close();
 }
 
+async function benchmarkSingleByteWrite(bench, i) {
+  const rep = await makeRep();
+  const write = rep.register('write', tx => tx.put('k', i % 10));
+  bench.name = 'write single byte';
+  bench.size = 1;
+  bench.formatter = formatTxPerSecond;
+  bench.reset();
+
+  await write(null);
+
+  bench.stop();
+  await rep.close();
+}
+
 async function benchmark(fn) {
-  const runs = 5;
+  // Execute fn at least this many runs.
+  const minRuns = 5;
+  // Execute fn at least for this long.
+  const minTime = 2000;
   const times = [];
   let sum = 0;
   let name = String(fn);
   let size = 0;
-  for (let i = 0; i < runs; i++) {
+  let format = formatToMBPerSecond;
+  let start = Date.now();
+  for (let i = 0; i < minRuns || Date.now() - start < minTime; i++) {
     let t0 = Date.now();
     let t1 = 0;
-    await fn({
-      reset: () => {
-        t0 = Date.now();
+    await fn(
+      {
+        reset() {
+          t0 = Date.now();
+        },
+        stop() {
+          t1 = Date.now();
+        },
+        set name(n) {
+          name = n;
+        },
+        set size(s) {
+          size = s;
+        },
+        set formatter(f) {
+          format = f;
+        },
       },
-      setName: n => (name = n),
-      setSize: s => (size = s),
-      stop: () => {
-        t1 = Date.now();
-      },
-    });
+      i,
+    );
     if (t1 == 0) {
       t1 = Date.now();
     }
@@ -129,10 +157,21 @@ async function benchmark(fn) {
   console.log(sum);
 
   times.sort();
+  const runs = times.length;
 
   const median = times[Math.floor(runs / 2)];
-  const value = toMB((size / median) * 1000) + '/s';
-  return {name, value, median};
+  const value = format(size, median);
+
+  return {name, value, median, runs};
+}
+
+function formatToMBPerSecond(size, timeMS) {
+  const bytes = (size / timeMS) * 1000;
+  return (bytes / 2 ** 20).toFixed(2) + ' MB/s';
+}
+
+function formatTxPerSecond(size, timeMS) {
+  return ((size / timeMS) * 1000).toFixed(2) + ' tx/s';
 }
 
 const benchmarks = [
@@ -142,11 +181,8 @@ const benchmarks = [
   bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true, indexes: 2}),
   bench => benchmarkScan(bench, {numKeys: 1000}),
   bench => benchmarkScan(bench, {numKeys: 5000}),
+  benchmarkSingleByteWrite,
 ];
-
-function toMB(bytes) {
-  return (bytes / 2 ** 20).toFixed(2) + ' MB';
-}
 
 let current = 0;
 async function nextTest() {

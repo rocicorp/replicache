@@ -170,10 +170,7 @@ impl<'a> Read<'a> {
                 let start = opts_internal.start.unwrap();
                 let mut key = start.key.unwrap();
                 key.value = scan_key_value.as_ref().unwrap();
-                opts_internal.start = Some(super::scan::ScanBoundInternal {
-                    key: Some(key),
-                    index: start.index,
-                });
+                opts_internal.start = Some(super::scan::ScanBoundInternal { key: Some(key) });
             }
         }
 

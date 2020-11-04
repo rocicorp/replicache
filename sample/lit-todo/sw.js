@@ -27,14 +27,12 @@ const PRECACHE_URLS = [
   'index.html',
   'styles.css',
   'replicache-logo.png',
+  'material-icons.woff2',
+  'roboto.woff2',
+  'roboto-medium.woff2',
   'output/main.js',
   'output/wasm/release/replicache_client_bg.wasm',
-  'https://fonts.googleapis.com/css?family=Material+Icons&display=block',
-  'https://fonts.googleapis.com/css?family=Roboto:300,400,500',
   'https://js.pusher.com/7.0/pusher.min.js',
-  'https://fonts.gstatic.com/s/materialicons/v67/flUhRq6tzZclQEJ-Vdg-IuiaDsNcIhQ8tQ.woff2',
-  'https://fonts.gstatic.com/s/roboto/v20/KFOlCnqEu92Fr1MmEU9fBBc4AMP6lQ.woff2',
-  'https://fonts.gstatic.com/s/roboto/v20/KFOmCnqEu92Fr1Mu4mxKKTU1Kg.woff2',
 ];
 
 // The install handler takes care of precaching the resources we always need.

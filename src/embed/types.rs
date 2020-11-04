@@ -111,17 +111,15 @@ pub struct ScanRequest {
     #[serde(skip)]
     pub receiver: Option<js_sys::Function>,
 }
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-pub struct ScanResponse {}
-
 #[derive(Debug)]
 pub enum ScanError {
     MissingReceiver,
     InvalidReceiver,
-    ParseScanOptionsError(db::GetIndexKeysError),
     ScanError(db::ScanError),
 }
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+pub struct ScanResponse {}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PutRequest {

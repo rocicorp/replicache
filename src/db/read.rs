@@ -4,6 +4,7 @@ use crate::checksum;
 use crate::dag;
 use crate::prolly;
 use std::collections::hash_map::HashMap;
+use std::convert::TryInto;
 use std::iter::FromIterator;
 
 #[derive(Debug)]
@@ -112,9 +113,9 @@ impl<'a> Read<'a> {
         callback: impl Fn(prolly::Entry<'_>),
     ) -> Result<(), ScanError> {
         use ScanError::*;
-        fn send<'a>(
-            map: &'a prolly::Map,
-            opts: super::scan::ScanOptionsInternal<'a>,
+        fn send(
+            map: &'_ prolly::Map,
+            opts: super::scan::ScanOptionsInternal,
             callback: impl Fn(prolly::Entry<'_>),
         ) {
             let use_index = opts.index_name.is_some();
@@ -132,55 +133,10 @@ impl<'a> Read<'a> {
             }
         }
 
-        // We'll use the opts_internal as-is if it is not an index scan.
-        let mut opts_internal: super::scan::ScanOptionsInternal = (&opts).into();
+        let opts_internal: super::scan::ScanOptionsInternal =
+            opts.try_into().map_err(ScanError::ScanOptionsError)?;
 
-        // If it *is* an index scan then we need to use the scan_key bytes for
-        // prefix and start.key.value instead of the raw string bytes (index keys
-        // are specially encoded). The new scan_key bytes have to live at least as
-        // long as the scan.
-        //
-        // TODO this is really ugly, esp with the unwraps. We should clean it up. Maybe
-        // flattening the ScanOptionsInternal or more advanced rust magic could help.
-        #[allow(unused_assignments)]
-        let mut prefix: Option<Vec<u8>> = None;
-        #[allow(unused_assignments)]
-        let mut scan_key_value: Option<Vec<u8>> = None;
-        if opts.index_name.is_some() {
-            // prefix
-            if opts.prefix.is_some() {
-                prefix = Some(
-                    index::encode_scan_key(opts.prefix.as_ref().unwrap(), false)
-                        .map_err(ScanError::ParseScanOptionsError)?,
-                );
-                opts_internal.prefix = Some(prefix.as_ref().unwrap());
-            }
-
-            // scan.key.value
-            let scan_key_value_string = opts
-                .start
-                .as_ref()
-                .and_then(|sb| sb.key.as_ref().map(|sk| &sk.value));
-            let scan_key_exclusive = opts
-                .start
-                .as_ref()
-                .and_then(|sb| sb.key.as_ref().map(|sk| sk.exclusive))
-                .unwrap_or(false);
-
-            if scan_key_value_string.is_some() {
-                scan_key_value = Some(
-                    index::encode_scan_key(scan_key_value_string.unwrap(), scan_key_exclusive)
-                        .map_err(ScanError::ParseScanOptionsError)?,
-                );
-
-                let start = opts_internal.start.unwrap();
-                let mut key = start.key.unwrap();
-                key.value = scan_key_value.as_ref().unwrap();
-                opts_internal.start = Some(super::scan::ScanBoundInternal { key: Some(key) });
-            }
-        }
-
-        match opts_internal.index_name {
+        match &opts_internal.index_name {
             Some(name) => {
                 let idx = self
                     .indexes
@@ -198,7 +154,7 @@ impl<'a> Read<'a> {
 #[derive(Debug)]
 pub enum ScanError {
     GetMapError(index::GetMapError),
-    ParseScanOptionsError(index::GetIndexKeysError),
+    ScanOptionsError(super::scan::ScanOptionsError),
     UnknownIndexName(String),
 }
 

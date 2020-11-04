@@ -18,7 +18,7 @@ pub use commit::{
 };
 pub use index::{encode_index_key, encode_scan_key, GetIndexKeysError};
 pub use read::{read_commit, read_indexes, OwnedRead, Read, ReadCommitError, ScanError, Whence};
-pub use scan::{ScanBound, ScanKey, ScanOptions};
+pub use scan::ScanOptions;
 pub use write::{
     init_db, ClearError, CommitError, CreateIndexError, DelError, DropIndexError, InitDBError,
     PutError, Write,

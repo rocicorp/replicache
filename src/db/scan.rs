@@ -1,121 +1,101 @@
 use crate::prolly;
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct ScanKey {
-    pub value: String,
-    pub exclusive: bool,
-}
-
-impl<'a> From<&'a ScanKey> for ScanKeyInternal<'a> {
-    fn from(source: &'a ScanKey) -> ScanKeyInternal<'a> {
-        ScanKeyInternal {
-            value: source.value.as_bytes(),
-            exclusive: source.exclusive,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct ScanBound {
-    pub key: Option<ScanKey>,
-}
-
-impl<'a> From<&'a ScanBound> for ScanBoundInternal<'a> {
-    fn from(source: &'a ScanBound) -> ScanBoundInternal<'a> {
-        ScanBoundInternal {
-            key: source.key.as_ref().map(|key| key.into()),
-        }
-    }
-}
+use std::convert::TryFrom;
 
 // How to use ScanOptions:
 // - prefix: key prefix to scan, "" matches all of them
 // - limit: only return at most this many matches
-// - start can be used on its own or for pagination:
-//    - start.key.value: start returning matches from this value, inclusive unless:
-//    - start.key.exclusive: start returning matches *after* the value opts.start.key.value
-// - if passing index_name, the prefix and opts.start.key.value will match against
+// - start_key: start returning matches from this value, inclusive unless:
+// - start_key_exclusive: start returning matches *after* the start_key
+// - if passing index_name, the prefix and start_key will match against
 //   indexed values in the same way as for non-index scans
+//
+// Note that:
+// - start_key can be used for pagination
+// - all combinations of options are allowed, for better or worse
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ScanOptions {
     pub prefix: Option<String>,
-    pub start: Option<ScanBound>,
+    pub start_key: Option<String>,
+    pub start_key_exclusive: Option<bool>,
     pub limit: Option<u64>,
     #[serde(rename = "indexName")]
     pub index_name: Option<String>,
 }
 
-// We have this separate internal verison of ScanOptions because:
-// - ScanOptions works with strings whereas prolly maps work with [u8]s
-// - When scanning with an index we need to transform some of the ScanOptions
-//   fields before using them, namely prefix and start.key.value.
-// - The code was originally written with these parallel structures to avoid
-//   circular dependencies (ScanOptions lived in embed and Internal lived
-//   in db).
-//
-// Not saying these are great reasons for doing what we are doing now, just
-// that's how we got here.
-//
-// TODO We should probably do something to improve this parallel-struct situation.
-//   Right now it is painful on account of lots of nested Option fields, and
-//   not being able to use From/TryFrom because for index scans we have to
-//   allocate a Vec<u8>, which needs to outlive the body of the from/try_from.
-//
-// Note: keys of indexed values are specially encoded so you need to populate
-// prefix and start.key.value with the output of index::scan_key.
+// We have this internal version of ScanOptions because the dispatch interface
+// uses strings but internally we use bytes. Also our scan keys are not
+// necessarily valid utf8 strings.
 #[derive(Debug)]
-pub struct ScanOptionsInternal<'a> {
-    // Note: Currently all scan constraints are allowed, in any combination. This adds
-    // complexity and isn't *that* valuable as a feature, but it was what the Go
-    // implementation did and was ported faithfully. It could probably be removed if it
-    // starts getting in the way and no customers need it.
-    pub prefix: Option<&'a [u8]>,
-    pub start: Option<ScanBoundInternal<'a>>,
+pub struct ScanOptionsInternal {
+    pub prefix: Option<Vec<u8>>,
+    pub start_key: Option<Vec<u8>>,
+    pub start_key_exclusive: Option<bool>,
     pub limit: Option<u64>,
-    pub index_name: Option<&'a str>,
+    pub index_name: Option<String>,
 }
 
-impl<'a> From<&'a ScanOptions> for ScanOptionsInternal<'a> {
-    fn from(source: &'a ScanOptions) -> ScanOptionsInternal<'a> {
-        ScanOptionsInternal {
-            prefix: source.prefix.as_ref().map(|s| s.as_bytes()),
-            start: source.start.as_ref().map(|s| s.into()),
+impl TryFrom<ScanOptions> for ScanOptionsInternal {
+    type Error = ScanOptionsError;
+
+    fn try_from(source: ScanOptions) -> Result<Self, Self::Error> {
+        // If the scan is using an index then we need to generate the scan keys.
+        let prefix = if let Some(p) = source.prefix {
+            if source.index_name.is_some() {
+                super::index::encode_scan_key(&p, false)
+                    .map_err(ScanOptionsError::CreateScanKeyFailure)?
+            } else {
+                p.into_bytes()
+            }
+            .into()
+        } else {
+            None
+        };
+        let start_key = if let Some(sk) = source.start_key {
+            if source.index_name.is_some() {
+                super::index::encode_scan_key(&sk, source.start_key_exclusive.unwrap_or(false))
+                    .map_err(ScanOptionsError::CreateScanKeyFailure)?
+            } else {
+                sk.into_bytes()
+            }
+            .into()
+        } else {
+            None
+        };
+
+        Ok(ScanOptionsInternal {
+            prefix,
+            start_key,
+            start_key_exclusive: source.start_key_exclusive,
             limit: source.limit,
-            index_name: source.index_name.as_deref(),
-        }
+            index_name: source.index_name,
+        })
     }
 }
-#[derive(Debug)]
-pub struct ScanKeyInternal<'a> {
-    pub value: &'a [u8],
-    pub exclusive: bool,
-}
 
 #[derive(Debug)]
-pub struct ScanBoundInternal<'a> {
-    pub key: Option<ScanKeyInternal<'a>>,
+pub enum ScanOptionsError {
+    CreateScanKeyFailure(super::index::GetIndexKeysError),
 }
 
 pub fn scan<'a>(
     map: &'a prolly::Map,
-    opts: ScanOptionsInternal<'a>,
+    opts: ScanOptionsInternal,
 ) -> impl Iterator<Item = prolly::Entry<'a>> {
     let mut it = map.iter().peekable();
-    let mut prefix: &[u8] = &[];
+    let mut prefix: Vec<u8> = Vec::new();
     let mut from_key: &[u8] = &[];
     let mut exclusive = false;
 
     if let Some(p) = opts.prefix {
-        from_key = p;
         prefix = p;
+        from_key = &prefix;
     }
-    if let Some(start) = opts.start {
-        if let Some(key) = start.key {
-            if key.value > from_key {
-                from_key = key.value;
-                exclusive = key.exclusive;
-            }
+
+    if let Some(key) = opts.start_key.as_ref().map(|k| &k[..]) {
+        if key > from_key {
+            from_key = key;
+            exclusive = opts.start_key_exclusive.unwrap_or(false);
         }
     }
 
@@ -135,23 +115,24 @@ pub fn scan<'a>(
         it.next();
     }
 
-    it.take_while(move |item: &prolly::Entry<'_>| item.key.starts_with(prefix))
+    it.take_while(move |item: &prolly::Entry<'_>| item.key.starts_with(&prefix))
         .take(opts.limit.unwrap_or(std::u64::MAX) as usize)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::convert::TryInto;
 
     #[test]
     fn iter_from_key() {
-        fn test(opts: ScanOptionsInternal<'_>, expected: Vec<&str>) {
+        fn test(opts: ScanOptions, expected: Vec<&str>) {
             let test_desc = format!("opts: {:?}, expected: {:?}", &opts, &expected);
             let mut map = prolly::Map::new();
             map.put(b"foo".to_vec(), b"foo".to_vec());
             map.put(b"bar".to_vec(), b"bar".to_vec());
             map.put(b"baz".to_vec(), b"baz".to_vec());
-            let actual = scan(&map, opts)
+            let actual = scan(&map, opts.try_into().unwrap())
                 .map(|item| item.key)
                 .collect::<Vec<&[u8]>>();
             let expected = expected
@@ -163,9 +144,10 @@ mod tests {
 
         // Empty
         test(
-            ScanOptionsInternal {
+            ScanOptions {
                 prefix: None,
-                start: None,
+                start_key: None,
+                start_key_exclusive: None,
                 limit: None,
                 index_name: None,
             },
@@ -174,172 +156,111 @@ mod tests {
 
         // Prefix alone
         test(
-            ScanOptionsInternal {
-                prefix: Some(b""),
-                start: None,
+            ScanOptions {
+                prefix: Some("".into()),
+                start_key: None,
+                start_key_exclusive: None,
                 limit: None,
                 index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
         test(
-            ScanOptionsInternal {
-                prefix: Some(b"ba"),
-                start: None,
+            ScanOptions {
+                prefix: Some("ba".into()),
+                start_key: None,
+                start_key_exclusive: None,
                 limit: None,
                 index_name: None,
             },
             vec!["bar", "baz"],
         );
         test(
-            ScanOptionsInternal {
-                prefix: Some(b"bar"),
-                start: None,
+            ScanOptions {
+                prefix: Some("bar".into()),
+                start_key: None,
+                start_key_exclusive: None,
                 limit: None,
                 index_name: None,
             },
             vec!["bar"],
         );
         test(
-            ScanOptionsInternal {
-                prefix: Some(b"bas"),
-                start: None,
+            ScanOptions {
+                prefix: Some("bas".into()),
+                start_key: None,
+                start_key_exclusive: None,
                 limit: None,
                 index_name: None,
             },
             vec![],
         );
-
-        // empty start
-        test(
-            ScanOptionsInternal {
-                prefix: None,
-                start: ScanBoundInternal { key: None }.into(),
-                limit: None,
-                index_name: None,
-            },
-            vec!["bar", "baz", "foo"],
-        );
-
-        // start but key is none
-        test(
-            ScanOptionsInternal {
-                prefix: None,
-                start: ScanBoundInternal { key: None }.into(),
-                limit: None,
-                index_name: None,
-            },
-            vec!["bar", "baz", "foo"],
-        );
-
         // start key alone
         test(
-            ScanOptionsInternal {
+            ScanOptions {
                 prefix: None,
-                start: ScanBoundInternal {
-                    key: ScanKeyInternal {
-                        value: b"",
-                        exclusive: false,
-                    }
-                    .into(),
-                }
-                .into(),
+                start_key: Some("".into()),
+                start_key_exclusive: None,
                 limit: None,
                 index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
         test(
-            ScanOptionsInternal {
+            ScanOptions {
                 prefix: None,
-                start: ScanBoundInternal {
-                    key: ScanKeyInternal {
-                        value: b"a",
-                        exclusive: false,
-                    }
-                    .into(),
-                }
-                .into(),
+                start_key: Some("a".into()),
+                start_key_exclusive: None,
                 limit: None,
                 index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
         test(
-            ScanOptionsInternal {
+            ScanOptions {
                 prefix: None,
-                start: ScanBoundInternal {
-                    key: ScanKeyInternal {
-                        value: b"",
-                        exclusive: false,
-                    }
-                    .into(),
-                }
-                .into(),
+                start_key: Some("b".into()),
+                start_key_exclusive: None,
                 limit: None,
                 index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
         test(
-            ScanOptionsInternal {
+            ScanOptions {
                 prefix: None,
-                start: ScanBoundInternal {
-                    key: ScanKeyInternal {
-                        value: b"bas",
-                        exclusive: false,
-                    }
-                    .into(),
-                }
-                .into(),
+                start_key: Some("bas".into()),
+                start_key_exclusive: None,
                 limit: None,
                 index_name: None,
             },
             vec!["baz", "foo"],
         );
         test(
-            ScanOptionsInternal {
+            ScanOptions {
                 prefix: None,
-                start: ScanBoundInternal {
-                    key: ScanKeyInternal {
-                        value: b"baz",
-                        exclusive: false,
-                    }
-                    .into(),
-                }
-                .into(),
+                start_key: Some("baz".into()),
+                start_key_exclusive: None,
                 limit: None,
                 index_name: None,
             },
             vec!["baz", "foo"],
         );
         test(
-            ScanOptionsInternal {
+            ScanOptions {
                 prefix: None,
-                start: ScanBoundInternal {
-                    key: ScanKeyInternal {
-                        value: b"baza",
-                        exclusive: false,
-                    }
-                    .into(),
-                }
-                .into(),
+                start_key: Some("baza".into()),
+                start_key_exclusive: None,
                 limit: None,
                 index_name: None,
             },
             vec!["foo"],
         );
         test(
-            ScanOptionsInternal {
+            ScanOptions {
                 prefix: None,
-                start: ScanBoundInternal {
-                    key: ScanKeyInternal {
-                        value: b"fop",
-                        exclusive: false,
-                    }
-                    .into(),
-                }
-                .into(),
+                start_key: Some("fop".into()),
+                start_key_exclusive: None,
                 limit: None,
                 index_name: None,
             },
@@ -348,32 +269,20 @@ mod tests {
 
         // exclusive
         test(
-            ScanOptionsInternal {
+            ScanOptions {
                 prefix: None,
-                start: ScanBoundInternal {
-                    key: ScanKeyInternal {
-                        value: b"",
-                        exclusive: true,
-                    }
-                    .into(),
-                }
-                .into(),
+                start_key: Some("".into()),
+                start_key_exclusive: true.into(),
                 limit: None,
                 index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
         test(
-            ScanOptionsInternal {
+            ScanOptions {
                 prefix: None,
-                start: ScanBoundInternal {
-                    key: ScanKeyInternal {
-                        value: b"bar",
-                        exclusive: true,
-                    }
-                    .into(),
-                }
-                .into(),
+                start_key: Some("bar".into()),
+                start_key_exclusive: true.into(),
                 limit: None,
                 index_name: None,
             },
@@ -382,45 +291,50 @@ mod tests {
 
         // limit alone
         test(
-            ScanOptionsInternal {
+            ScanOptions {
                 prefix: None,
-                start: None,
+                start_key: None,
+                start_key_exclusive: None,
                 limit: 0.into(),
                 index_name: None,
             },
             vec![],
         );
         test(
-            ScanOptionsInternal {
+            ScanOptions {
                 prefix: None,
-                start: None,
+                start_key: None,
+                start_key_exclusive: None,
                 limit: 1.into(),
                 index_name: None,
             },
             vec!["bar"],
         );
         test(
-            ScanOptionsInternal {
+            ScanOptions {
                 prefix: None,
-                start: None,
+                start_key: None,
+                start_key_exclusive: None,
                 limit: 2.into(),
                 index_name: None,
             },
             vec!["bar", "baz"],
         );
         test(
-            ScanOptionsInternal {
+            ScanOptions {
                 prefix: None,
-                start: None,
+                start_key: None,
+                start_key_exclusive: None,
                 limit: 3.into(),
                 index_name: None,
             },
             vec!["bar", "baz", "foo"],
         );
         test(
-            ScanOptionsInternal {
+            ScanOptions {
                 prefix: None,
-                start: None,
+                start_key: None,
+                start_key_exclusive: None,
                 limit: 7.into(),
                 index_name: None,
             },
@@ -429,82 +343,60 @@ mod tests {
 
         // combos
         test(
-            ScanOptionsInternal {
-                prefix: Some(b"f"),
-                start: None,
+            ScanOptions {
+                prefix: Some("f".into()),
+                start_key: None,
+                start_key_exclusive: None,
                 limit: 0.into(),
                 index_name: None,
             },
             vec![],
         );
         test(
-            ScanOptionsInternal {
-                prefix: Some(b"f"),
-                start: None,
+            ScanOptions {
+                prefix: Some("f".into()),
+                start_key: None,
+                start_key_exclusive: None,
                 limit: 7.into(),
                 index_name: None,
             },
             vec!["foo"],
         );
         test(
-            ScanOptionsInternal {
-                prefix: Some(b"ba"),
-                start: ScanBoundInternal {
-                    key: ScanKeyInternal {
-                        value: b"a",
-                        exclusive: false,
-                    }
-                    .into(),
-                }
-                .into(),
+            ScanOptions {
+                prefix: Some("ba".into()),
+                start_key: Some("a".into()),
+                start_key_exclusive: None,
                 limit: 2.into(),
                 index_name: None,
             },
             vec!["bar", "baz"],
         );
         test(
-            ScanOptionsInternal {
-                prefix: Some(b"ba"),
-                start: ScanBoundInternal {
-                    key: ScanKeyInternal {
-                        value: b"a",
-                        exclusive: false,
-                    }
-                    .into(),
-                }
-                .into(),
+            ScanOptions {
+                prefix: Some("ba".into()),
+                start_key: Some("a".into()),
+                start_key_exclusive: false.into(),
                 limit: 1.into(),
                 index_name: None,
             },
             vec!["bar"],
         );
         test(
-            ScanOptionsInternal {
-                prefix: Some(b"ba"),
-                start: ScanBoundInternal {
-                    key: ScanKeyInternal {
-                        value: b"a",
-                        exclusive: false,
-                    }
-                    .into(),
-                }
-                .into(),
+            ScanOptions {
+                prefix: Some("ba".into()),
+                start_key: Some("a".into()),
+                start_key_exclusive: false.into(),
                 limit: 1.into(),
                 index_name: None,
             },
             vec!["bar"],
         );
         test(
-            ScanOptionsInternal {
-                prefix: Some(b"ba"),
-                start: ScanBoundInternal {
-                    key: ScanKeyInternal {
-                        value: b"bar",
-                        exclusive: true,
-                    }
-                    .into(),
-                }
-                .into(),
+            ScanOptions {
+                prefix: Some("ba".into()),
+                start_key: Some("bar".into()),
+                start_key_exclusive: true.into(),
                 limit: 1.into(),
                 index_name: None,
             },

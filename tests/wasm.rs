@@ -2,7 +2,7 @@
 
 use futures::join;
 use rand::Rng;
-use replicache_client::db::{ScanBound, ScanKey, ScanOptions};
+use replicache_client::db::ScanOptions;
 #[allow(unused_imports)]
 use replicache_client::fetch;
 use replicache_client::sync;
@@ -140,12 +140,8 @@ async fn scan(
             transaction_id: txn_id,
             opts: ScanOptions {
                 prefix: Some(prefix.to_string()),
-                start: Some(ScanBound {
-                    key: Some(ScanKey {
-                        value: start_key.to_string(),
-                        exclusive,
-                    }),
-                }),
+                start_key: Some(start_key.to_string()),
+                start_key_exclusive: Some(exclusive),
                 limit: None,
                 index_name: index_name.map(|s| s.into()),
             },
@@ -472,7 +468,8 @@ async fn test_create_drop_index() {
                 transaction_id,
                 opts: ScanOptions {
                     prefix: None,
-                    start: None,
+                    start_key: None,
+                    start_key_exclusive: None,
                     limit: None,
                     index_name: Some(str!("idx1")),
                 },

@@ -239,9 +239,10 @@ impl<'a> Write<'a> {
         for entry in scan::scan(
             &self.map,
             scan::ScanOptionsInternal {
-                prefix: key_prefix.into(),
+                prefix: Some(key_prefix.into()),
                 limit: None,
-                start: None,
+                start_key: None,
+                start_key_exclusive: None,
                 index_name: None,
             },
         ) {

@@ -204,8 +204,24 @@ window.addEventListener('online', e => rep.sync());
 
 // Push
 Pusher.logToConsole = true;
-new Pusher('8084fa6056631d43897d', {
-  cluster: 'us3',
-})
-  .subscribe('u-2')
-  .bind('poke', () => rep.sync());
+
+let pusher = null;
+initPusher();
+
+// Reconstruct the web socket connection on every focus event - this is intended
+// to combat the app going dead for 15s-30s in the case where a user switches
+// away from a mobile browser and then swithes back. We were observing the
+// connections getting torn down, but pusher only tries to reconnect every 15s
+// or so.
+window.addEventListener('focus', initPusher);
+
+function initPusher() {
+  if (pusher != null) {
+    pusher.disconnect();
+  }
+  pusher = new Pusher('8084fa6056631d43897d', {
+    cluster: 'us3',
+  })
+    .subscribe('u-2')
+    .bind('poke', () => rep.sync());
+}

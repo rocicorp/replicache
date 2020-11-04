@@ -7,7 +7,6 @@ export type {Mutator} from './replicache.js';
 export type {ScanKey} from './scan-key.js';
 /** @deprecated Use ScanKey instead */
 export type {ScanKey as ScanId} from './scan-key.js';
-export type {ScanBound} from './scan-bound.js';
 export type {REPMInvoke, Invoker} from './repm-invoker.js';
 export type {ReadTransaction, WriteTransaction} from './transactions.js';
 export type {ScanResult} from './scan-iterator.js';

@@ -1,5 +1,5 @@
 import type {JSONValue, ToJSON} from './json.js';
-import type {ScanOptions} from './scan-options.js';
+import type {ScanOptionsRpc} from './scan-options.js';
 import init, {dispatch} from './wasm/release/replicache_client.js';
 import type {InitInput, InitOutput} from './wasm/release/replicache_client.js';
 
@@ -79,11 +79,10 @@ interface ScanItemResponse {
   readonly value: string;
 }
 
-export type ScanRequest = TransactionRequest &
-  ScanOptions & {
-    opts?: ScanOptions;
-    receiver: (k: string, v: Uint8Array) => void;
-  };
+export type ScanRequest = TransactionRequest & {
+  opts?: ScanOptionsRpc;
+  receiver: (k: string, v: Uint8Array) => void;
+};
 export type ScanResponse = {
   items: ScanItemResponse[];
 };

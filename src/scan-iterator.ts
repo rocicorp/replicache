@@ -1,6 +1,5 @@
 import type {ScanItem} from './scan-item.js';
-import type {ScanBound} from './scan-bound.js';
-import type {Invoke} from './repm-invoker.js';
+import type {Invoke, ScanRequest} from './repm-invoker.js';
 import type {JSONValue} from './json.js';
 import {throwIfClosed} from './transaction-closed-error.js';
 
@@ -20,7 +19,8 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
   private _current = 0;
   private readonly _prefix: string;
   private readonly _kind: ScanIterableKind;
-  private readonly _start?: ScanBound;
+  private readonly _startKey?: string;
+  private readonly _startKeyExclusive?: boolean;
   private readonly _limit?: number;
   private readonly _indexName?: string;
   private _loadPromise?: Promise<unknown> = undefined;
@@ -32,7 +32,8 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
   constructor(
     kind: ScanIterableKind,
     prefix: string,
-    start: ScanBound | undefined,
+    startKey: string | undefined,
+    startKeyExclusive: boolean | undefined,
     limit: number | undefined,
     indexName: string | undefined,
     invoke: Invoke,
@@ -41,22 +42,8 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
   ) {
     this._kind = kind;
     this._prefix = prefix;
-
-    if (start) {
-      let {key} = start;
-      if (key) {
-        key = {
-          exclusive: !!key.exclusive,
-          value: key.value,
-        };
-      }
-      start = {
-        index: start.index,
-        key,
-      };
-    }
-    this._start = start;
-
+    this._startKey = startKey;
+    this._startKeyExclusive = startKeyExclusive;
     this._limit = limit;
     this._indexName = indexName;
     this._invoke = invoke;
@@ -119,12 +106,6 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
       this._transaction = await this._getTransaction();
     }
 
-    const opts = {
-      prefix: this._prefix,
-      start: this._start,
-      limit: this._limit,
-      indexName: this._indexName,
-    };
     const responseItems: ScanItem[] = [];
     const decoder = new TextDecoder();
     const receiver = (k: string, v: Uint8Array) => {
@@ -134,9 +115,17 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
         value: JSON.parse(text),
       });
     };
-    const args = {
+    const args: ScanRequest = {
       transactionId: this._transaction.id,
-      opts,
+      opts: {
+        prefix: this._prefix,
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        start_key: this._startKey,
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        start_key_exclusive: this._startKeyExclusive,
+        limit: this._limit,
+        indexName: this._indexName,
+      },
       receiver,
     };
     this._loadPromise = this._invoke('scan', args);
@@ -148,7 +137,8 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
 
 type Args = [
   prefix: string,
-  start: ScanBound | undefined,
+  startKey: string | undefined,
+  startKeyExclusive: boolean | undefined,
   limit: number | undefined,
   indexName: string | undefined,
   invoke: Invoke,

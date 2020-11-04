@@ -1,5 +1,5 @@
 import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
-import Replicache, {ScanBound, TransactionClosedError} from './mod.js';
+import Replicache, {TransactionClosedError} from './mod.js';
 
 import type {ReadTransaction, WriteTransaction} from './mod.js';
 import type {JSONValue} from './json.js';
@@ -13,6 +13,7 @@ import type {SinonSpy} from 'sinon';
 // @ts-expect-error
 import fetchMock from 'fetch-mock/esm/client.js';
 import type {Invoke} from './repm-invoker.js';
+import type {ScanOptions} from './scan-options.js';
 
 const {fail} = assert;
 
@@ -163,7 +164,7 @@ test('scan', async () => {
   });
 
   async function testScanResult<K, V>(
-    options: {prefix?: string; start?: ScanBound; limit?: number} | undefined,
+    options: ScanOptions | undefined,
     entries: [K, V][],
   ) {
     if (!rep) {
@@ -226,7 +227,8 @@ test('scan', async () => {
 
   await testScanResult(
     {
-      start: {key: {value: 'b/1', exclusive: false}},
+      startKey: 'b/1',
+      startKeyExclusive: false,
     },
     [
       ['b/1', 6],
@@ -237,7 +239,7 @@ test('scan', async () => {
 
   await testScanResult(
     {
-      start: {key: {value: 'b/1'}},
+      startKey: 'b/1',
     },
     [
       ['b/1', 6],
@@ -248,20 +250,10 @@ test('scan', async () => {
 
   await testScanResult(
     {
-      start: {key: {value: 'b/1', exclusive: true}},
+      startKey: 'b/1',
+      startKeyExclusive: true,
     },
     [
-      ['b/2', 7],
-      ['c/0', 8],
-    ],
-  );
-
-  await testScanResult(
-    {
-      start: {index: 6},
-    },
-    [
-      ['b/1', 6],
       ['b/2', 7],
       ['c/0', 8],
     ],

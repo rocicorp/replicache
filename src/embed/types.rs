@@ -113,8 +113,9 @@ pub struct ScanRequest {
 }
 #[derive(Debug)]
 pub enum ScanError {
-    MissingReceiver,
     InvalidReceiver,
+    InternalIndexError(db::index::DecodeIndexKeyError),
+    MissingReceiver,
     ScanError(db::ScanError),
 }
 

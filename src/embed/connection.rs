@@ -476,11 +476,37 @@ async fn do_scan(
 
     use crate::prolly;
 
+    let using_index = req.opts.index_name.is_some();
     read.scan(req.opts, |pe: prolly::Entry<'_>| {
-        let key = JsValue::from_str(std::str::from_utf8(pe.key).unwrap());
+        // TODO This is the quick and dirty way to return primary and secondary
+        // index keys to the caller. The right way is probably to introduce
+        // a db::read::ScanResult that has a key, secondary_key, and val, and
+        // return those instead of prolly entries at the db::Read::scan level.
+        // I started to do this but hit lifetime issues and backed out.
+        //
+        // An alternative is to do it one level lower, at the scan::scan() level.
+        // Since scan::scan() doesn't know what kind of map it is scanning we
+        // would need to have a way for it to decode prolly map keys into
+        // indexed keys or regular ones, probably by adding a type byte to regular
+        // map keys (index map keys already have a type byte). This doesn't feel
+        // right tho -- scan::scan() should probably not know about indexes at all.
+        let primary_key: JsValue;
+        let secondary_key: JsValue;
+        if using_index {
+            // TODO the unwrap()s below are really unfortunate
+            let (secondary, primary) = db::index::decode_index_key(pe.key).unwrap();
+            primary_key = JsValue::from_str(std::str::from_utf8(&primary).unwrap());
+            secondary_key = JsValue::from_str(&secondary);
+        } else {
+            primary_key = JsValue::from_str(std::str::from_utf8(pe.key).unwrap());
+            secondary_key = JsValue::null();
+        }
         let val = unsafe { Uint8Array::view(pe.val) };
+
         // TODO: receiver can return to us whether to keep going!
-        receiver.call2(&JsValue::null(), &key, &val).unwrap();
+        receiver
+            .call3(&JsValue::null(), &primary_key, &secondary_key, &val)
+            .unwrap();
     })
     .await
     .map_err(ScanError::ScanError)?;

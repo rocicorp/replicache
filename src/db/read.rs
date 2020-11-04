@@ -113,25 +113,6 @@ impl<'a> Read<'a> {
         callback: impl Fn(prolly::Entry<'_>),
     ) -> Result<(), ScanError> {
         use ScanError::*;
-        fn send(
-            map: &'_ prolly::Map,
-            opts: super::scan::ScanOptionsInternal,
-            callback: impl Fn(prolly::Entry<'_>),
-        ) {
-            let use_index = opts.index_name.is_some();
-            for mut thing in super::scan::scan(map, opts) {
-                // TODO: It would be nice to return either the primary or secondary key,
-                // but decoding it is kind of a bitch. Cannot return composite key because it
-                // isn't a valid string!
-                if use_index {
-                    thing = prolly::Entry {
-                        key: &[],
-                        val: thing.val,
-                    }
-                }
-                callback(thing);
-            }
-        }
 
         let opts_internal: super::scan::ScanOptionsInternal =
             opts.try_into().map_err(ScanError::ScanOptionsError)?;
@@ -143,9 +124,9 @@ impl<'a> Read<'a> {
                     .get(name)
                     .ok_or_else(|| UnknownIndexName(name.to_string()))?;
                 let guard = idx.get_map(&self.dag_read).await.map_err(GetMapError)?;
-                send(guard.get_map(), opts_internal, callback);
+                super::scan::scan(guard.get_map(), opts_internal).for_each(|thing| callback(thing))
             }
-            None => send(&self.map, opts_internal, callback),
+            None => super::scan::scan(&self.map, opts_internal).for_each(|thing| callback(thing)),
         };
         Ok(())
     }

@@ -431,7 +431,7 @@ async fn test_create_drop_index() {
     let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
-    let expected = vec![(str!(""), str!(r#"{"s": "foo"}"#))];
+    let expected = vec![(str!("boo"), Some(str!("foo")), str!(r#"{"s": "foo"}"#))];
     {
         let (receive, _cb, got) = new_test_scan_receiver();
         scan(db, transaction_id, "", "", false, Some("idx1"), receive).await;
@@ -515,10 +515,12 @@ async fn test_scan() {
         prefix: &str,
         start_key: &str,
         exclusive: bool,
-        expected: Vec<(&str, &str)>,
+        expected: Vec<(&str, Option<&str>, &str)>,
     ) {
-        let expected: Vec<(String, String)> =
-            expected.iter().map(|v| (str!(v.0), str!(v.1))).collect();
+        let expected: Vec<(String, Option<String>, String)> = expected
+            .iter()
+            .map(|v| (str!(v.0), v.1.map(|s| str!(s)), str!(v.2)))
+            .collect();
 
         let db = &random_db();
         dispatch::<_, String>(db, "open", "").await.unwrap();
@@ -554,7 +556,7 @@ async fn test_scan() {
         "",
         "",
         false,
-        vec![("foo", "bar")],
+        vec![("foo", None, "bar")],
     )
     .await;
     test(
@@ -563,7 +565,7 @@ async fn test_scan() {
         "",
         "",
         false,
-        vec![("foo", "bar")],
+        vec![("foo", None, "bar")],
     )
     .await;
     test(
@@ -572,7 +574,7 @@ async fn test_scan() {
         "f",
         "",
         false,
-        vec![("foo", "bar")],
+        vec![("foo", None, "bar")],
     )
     .await;
     test(
@@ -581,14 +583,19 @@ async fn test_scan() {
         "foo",
         "",
         false,
-        vec![("foo", "bar")],
+        vec![("foo", None, "bar")],
     )
     .await;
     test(vec![("foo", "bar")], true, "nomatch", "", false, vec![]).await;
 
     // several entries
     let entries = vec![("c", "cv"), ("aa", "aav"), ("a", "av"), ("b", "bv")];
-    let expected = vec![("a", "av"), ("aa", "aav"), ("b", "bv"), ("c", "cv")];
+    let expected = vec![
+        ("a", None, "av"),
+        ("aa", None, "aav"),
+        ("b", None, "bv"),
+        ("c", None, "cv"),
+    ];
     test(entries.clone(), false, "", "", false, expected.clone()).await;
     test(entries.clone(), true, "", "", false, expected.clone()).await;
     // start_key
@@ -650,11 +657,13 @@ async fn test_scan_with_index() {
         prefix: &str,            // scan prefix
         start_key: &str,         // scan start key
         exclusive: bool,         // scan start exclusive
-        expected: Vec<(&str, &str)>, // expected results of the scan
+        expected: Vec<(&str, Option<&str>, &str)>, // expected results of the scan
     ) {
         let index_name = str!("idx1");
-        let expected: Vec<(String, String)> =
-            expected.iter().map(|v| (str!(v.0), str!(v.1))).collect();
+        let expected: Vec<(String, Option<String>, String)> = expected
+            .iter()
+            .map(|v| (str!(v.0), v.1.map(|s| str!(s)), str!(v.2)))
+            .collect();
 
         let db = &random_db();
         dispatch::<_, String>(db, "open", "").await.unwrap();
@@ -723,7 +732,7 @@ async fn test_scan_with_index() {
             "",
             "",
             false,
-            vec![("", r#""value""#)],
+            vec![("", Some("value"), r#""value""#)],
         )
         .await;
     }
@@ -740,7 +749,7 @@ async fn test_scan_with_index() {
             "",
             "",
             false,
-            vec![("", r#""value""#)],
+            vec![("key", Some("value"), r#""value""#)],
         )
         .await;
         // indexes is on key prefix that is not present
@@ -779,7 +788,7 @@ async fn test_scan_with_index() {
             "v",
             "",
             false,
-            vec![("", r#""value""#)],
+            vec![("key", Some("value"), r#""value""#)],
         )
         .await;
         // scan prefix exactly matches indexed value
@@ -792,7 +801,7 @@ async fn test_scan_with_index() {
             "value",
             "",
             false,
-            vec![("", r#""value""#)],
+            vec![("key", Some("value"), r#""value""#)],
         )
         .await;
         // scan prefix does not match indexed value
@@ -818,7 +827,7 @@ async fn test_scan_with_index() {
             "",
             "v",
             false,
-            vec![("", r#""value""#)],
+            vec![("key", Some("value"), r#""value""#)],
         )
         .await;
         // scan start key matches indexed value
@@ -831,12 +840,12 @@ async fn test_scan_with_index() {
             "",
             "value",
             false,
-            vec![("", r#""value""#)],
+            vec![("key", Some("value"), r#""value""#)],
         )
         .await;
         // scan start key does not match indexed value
         test(
-            vec![("key", r#""value""#)],
+            vec![("key", r#""beforenomatch""#)],
             "",
             "",
             Op::None,
@@ -844,7 +853,7 @@ async fn test_scan_with_index() {
             "",
             "nomatch",
             false,
-            vec![("", r#""value""#)],
+            vec![],
         )
         .await;
 
@@ -855,9 +864,9 @@ async fn test_scan_with_index() {
             ("bb", r#"{"s": "bb"}"#),
         ];
         let expected = vec![
-            ("", r#"{"s": "a"}"#),
-            ("", r#"{"s": "aa"}"#),
-            ("", r#"{"s": "bb"}"#),
+            ("a", Some("a"), r#"{"s": "a"}"#),
+            ("aa", Some("aa"), r#"{"s": "aa"}"#),
+            ("bb", Some("bb"), r#"{"s": "bb"}"#),
         ];
         test(
             entries.clone(),
@@ -910,7 +919,7 @@ async fn test_scan_with_index() {
             "",
             "",
             false,
-            vec![("", r#""value""#)],
+            vec![("key", Some("value"), r#""value""#)],
         )
         .await;
         // replace a value
@@ -923,7 +932,7 @@ async fn test_scan_with_index() {
             "",
             "",
             false,
-            vec![("", r#"{"s": "NEW"}"#)],
+            vec![("key", Some("NEW"), r#"{"s": "NEW"}"#)],
         )
         .await;
     }
@@ -936,9 +945,9 @@ async fn test_scan_with_index() {
         ("key", r#"{"s": "value1"}"#),
     ];
     let expected = vec![
-        ("", r#"{"s": "value1"}"#),
-        ("", r#"{"s": "value2"}"#),
-        ("", r#"{"s": "value3"}"#),
+        ("key", Some("value1"), r#"{"s": "value1"}"#),
+        ("key1", Some("value2"), r#"{"s": "value2"}"#),
+        ("key11", Some("value3"), r#"{"s": "value3"}"#),
     ];
     test(entries, "", "/s", Op::None, false, "", "", false, expected).await;
 }
@@ -946,38 +955,48 @@ async fn test_scan_with_index() {
 // new_test_scan_receiver is a helper for scan tests. Scan requires a js_sys::Function to send
 // results to and this function provides it and a collection of scan results sent by scan.
 // Returns:
-//  - a js_sys::Function that can be passed to scan() to receive scanned items: (key, value) tuples
+//  - a js_sys::Function that can be passed to scan() to receive scanned items: (key, primary_key, value) tuples
 //  - a wasm_bindgen Closure that must be dropped after scan() returns to avoid leaks
 //  - a shared pointer to the vector where the scanned (key, value) tuples are stored
 fn new_test_scan_receiver() -> (
     js_sys::Function,
-    Closure<dyn FnMut(JsValue, JsValue) -> Result<JsValue, JsValue>>,
-    Rc<RefCell<Vec<(String, String)>>>,
+    Closure<dyn FnMut(JsValue, JsValue, JsValue) -> Result<JsValue, JsValue>>,
+    Rc<RefCell<Vec<(String, Option<String>, String)>>>,
 ) {
-    // got_scan_items holds (key, value) tuples received from scan. It is wrapped in an Rc because
-    // Closure otherwise requires a 'static lifetime. It is wrapped in a RefCell to allow the closure to
-    // mutate the contents: borrow checker can't prove closure's access is safe, but we know it is,
-    // so this moves the check to runtime.
-    let got_scan_items: Rc<RefCell<Vec<(String, String)>>> = Rc::new(RefCell::new(Vec::new()));
+    // got_scan_items holds (key, Option<secondary_key>, value) tuples received from scan. It is
+    // wrapped in an Rc because Closure otherwise requires a 'static lifetime. It is wrapped
+    // in a RefCell to allow the closure to mutate the contents: borrow checker can't prove
+    // closure's access is safe, but we know it is, so this moves the check to runtime.
+    let got_scan_items: Rc<RefCell<Vec<(String, Option<String>, String)>>> =
+        Rc::new(RefCell::new(Vec::new()));
 
     // receiver is passed to dispatch and receives scan items one at a time from scan(). It stores
     // them in got_scan_items for later inspection.
     //
-    // Note: it is a mystery to me how do_scan passes &JsValues to receiver.call2() but the
+    // Note: it is a mystery to me how do_scan passes &JsValues to receiver.call3() but the
     // closure below that receives them takes JsValues. It works fine. (Note we can't take
     // &JsValues here because &JsValue does not implement FromWasmAbi.)
     let closure_got_scan_items = got_scan_items.clone();
-    let receiver = move |k: JsValue, v: JsValue| -> Result<JsValue, JsValue> {
-        let key = k.as_string().unwrap();
+    let receiver = move |pk: JsValue, sk: JsValue, v: JsValue| -> Result<JsValue, JsValue> {
+        let primary_key = pk.as_string().unwrap();
+        let secondary_key = if sk.is_string() {
+            Some(sk.as_string().unwrap())
+        } else {
+            None
+        };
         let v: js_sys::Uint8Array = v.into();
         let val = String::from_utf8(v.to_vec()).unwrap();
-        closure_got_scan_items.borrow_mut().push((key, val));
+        closure_got_scan_items
+            .borrow_mut()
+            .push((primary_key, secondary_key, val));
 
         Ok(JsValue::from_str("ignored"))
     };
-    let receiver_closure = Closure::wrap(
-        Box::new(receiver) as Box<dyn FnMut(JsValue, JsValue) -> Result<JsValue, JsValue>>
-    );
+    let receiver_closure =
+        Closure::wrap(Box::new(receiver)
+            as Box<
+                dyn FnMut(JsValue, JsValue, JsValue) -> Result<JsValue, JsValue>,
+            >);
     let receiver_js_fn_ref: &js_sys::Function = receiver_closure.as_ref().unchecked_ref();
     let receiver_js_fn: js_sys::Function = receiver_js_fn_ref.to_owned();
 

@@ -32,7 +32,13 @@ export interface ReadTransaction {
    * It the `ScanResult` is used after the `ReadTransaction` has been closed it
    * will throw a {@link TransactionClosedError}.
    */
-  scan({prefix, start, limit, indexName}?: ScanOptions): ScanResult;
+  scan({
+    prefix,
+    startKey,
+    startKeyExclusive,
+    limit,
+    indexName,
+  }?: ScanOptions): ScanResult;
 
   /**
    * Convenience for scan() that reads all results into an array.
@@ -70,10 +76,17 @@ export class ReadTransactionImpl implements ReadTransaction {
     return result['has'];
   }
 
-  scan({prefix = '', start, limit, indexName}: ScanOptions = {}): ScanResult {
+  scan({
+    prefix = '',
+    startKey,
+    startKeyExclusive,
+    limit,
+    indexName,
+  }: ScanOptions = {}): ScanResult {
     return new ScanResult(
       prefix,
-      start,
+      startKey,
+      startKeyExclusive,
       limit,
       indexName,
       this._invoke,

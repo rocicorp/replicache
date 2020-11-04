@@ -194,17 +194,26 @@ pub fn encode_index_key(index_key: &IndexKey) -> Result<Vec<u8>, GetIndexKeysErr
 // Returns bytes that can be used to scan for the given secondary index value. These bytes
 // are different from the full index key bytes in that we do *not* want the null
 // byte separating secondary and primary keys ("key\0" is not a prefix of "keyfoo").
-pub fn encode_scan_key(secondary: &str) -> Result<Vec<u8>, GetIndexKeysError> {
+// Exclusive scans are implemented by appending a 0x01 byte to the end of the scan key,
+// making it start atthe next higher value.
+pub fn encode_scan_key(secondary: &str, exclusive: bool) -> Result<Vec<u8>, GetIndexKeysError> {
     let mut k = encode_index_key(&IndexKey {
         secondary,
         primary: &[],
     })?;
-    k.truncate(k.len() - 1);
+    // Final byte will be the 0x00 separator. If exclusive, change it to 0x01 (the next
+    // value higher than secondary), otherwise strip it off.
+    k.pop();
+    if exclusive {
+        k.push(0x01);
+    }
     Ok(k)
 }
 
 // Decodes an IndexKey encoded by encode_index_key, returning the values as a tuple
 // since IndexKey holds references.
+// TODO use this to set key in scan results
+#[allow(dead_code)]
 pub fn decode_index_key(index_key: &[u8]) -> Result<(String, Vec<u8>), DecodeIndexKeyError> {
     use DecodeIndexKeyError::*;
 
@@ -309,8 +318,14 @@ mod tests {
                 primary: &[],
             })
             .unwrap();
-            let scan_key = encode_scan_key(secondary).unwrap();
+            // With exclusive == false
+            let scan_key = encode_scan_key(secondary, false).unwrap();
             assert!(encoded_index_key.starts_with(&scan_key[..]));
+            assert!(encoded_index_key >= scan_key);
+
+            // With exclusive == true
+            let scan_key = encode_scan_key(secondary, true).unwrap();
+            assert!(encoded_index_key < scan_key);
         }
 
         test("");

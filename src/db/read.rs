@@ -150,7 +150,7 @@ impl<'a> Read<'a> {
             // prefix
             if opts.prefix.is_some() {
                 prefix = Some(
-                    index::encode_scan_key(opts.prefix.as_ref().unwrap())
+                    index::encode_scan_key(opts.prefix.as_ref().unwrap(), false)
                         .map_err(ScanError::ParseScanOptionsError)?,
                 );
                 opts_internal.prefix = Some(prefix.as_ref().unwrap());
@@ -161,9 +161,15 @@ impl<'a> Read<'a> {
                 .start
                 .as_ref()
                 .and_then(|sb| sb.key.as_ref().map(|sk| &sk.value));
+            let scan_key_exclusive = opts
+                .start
+                .as_ref()
+                .and_then(|sb| sb.key.as_ref().map(|sk| sk.exclusive))
+                .unwrap_or(false);
+
             if scan_key_value_string.is_some() {
                 scan_key_value = Some(
-                    index::encode_scan_key(scan_key_value_string.unwrap())
+                    index::encode_scan_key(scan_key_value_string.unwrap(), scan_key_exclusive)
                         .map_err(ScanError::ParseScanOptionsError)?,
                 );
 

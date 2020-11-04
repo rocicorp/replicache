@@ -129,7 +129,7 @@ async fn scan(
     txn_id: u32,
     prefix: &str,
     start_key: &str,
-    _exclusive: bool,
+    exclusive: bool,
     index_name: Option<&str>,
     receiver: js_sys::Function,
 ) -> ScanResponse {
@@ -143,7 +143,7 @@ async fn scan(
                 start: Some(ScanBound {
                     key: Some(ScanKey {
                         value: start_key.to_string(),
-                        exclusive: false,
+                        exclusive,
                     }),
                 }),
                 limit: None,
@@ -604,7 +604,35 @@ async fn test_scan() {
         expected[2..].to_vec(),
     )
     .await;
-    // TODO exclusive
+    // exclusive
+    test(entries.clone(), false, "", "", true, expected[..].to_vec()).await;
+    test(
+        entries.clone(),
+        false,
+        "",
+        "a",
+        true,
+        expected[1..].to_vec(),
+    )
+    .await;
+    test(
+        entries.clone(),
+        false,
+        "",
+        "b",
+        true,
+        expected[3..].to_vec(),
+    )
+    .await;
+    test(
+        entries.clone(),
+        false,
+        "",
+        "bb",
+        true,
+        expected[3..].to_vec(),
+    )
+    .await;
 }
 
 #[wasm_bindgen_test]
@@ -820,6 +848,42 @@ async fn test_scan_with_index() {
             "nomatch",
             false,
             vec![("", r#""value""#)],
+        )
+        .await;
+
+        // test using exclusive
+        let entries = vec![
+            ("a", r#"{"s": "a"}"#),
+            ("aa", r#"{"s": "aa"}"#),
+            ("bb", r#"{"s": "bb"}"#),
+        ];
+        let expected = vec![
+            ("", r#"{"s": "a"}"#),
+            ("", r#"{"s": "aa"}"#),
+            ("", r#"{"s": "bb"}"#),
+        ];
+        test(
+            entries.clone(),
+            "",
+            "/s",
+            Op::None,
+            *in_txn,
+            "",
+            "",
+            true,
+            expected[..].to_vec(),
+        )
+        .await;
+        test(
+            entries.clone(),
+            "",
+            "/s",
+            Op::None,
+            *in_txn,
+            "",
+            "a",
+            true,
+            expected[1..].to_vec(),
         )
         .await;
     }

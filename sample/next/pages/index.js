@@ -1,5 +1,5 @@
-import Head from 'next/head'
-import styles from '../styles/Home.module.css'
+import Head from 'next/head';
+import styles from '../styles/Home.module.css';
 import dynamic from 'next/dynamic';
 const TodoList = dynamic(() => import('./todolist'));
 
@@ -13,7 +13,8 @@ export default function Home() {
 
       <main className={styles.main}>
         <h1 className={styles.title}>
-          <a href="https://replicache.dev">Replicache</a> 💜 <a href="https://nextjs.org">Next.js!</a>
+          <a href="https://replicache.dev">Replicache</a> 💜{' '}
+          <a href="https://nextjs.org">Next.js!</a>
         </h1>
 
         <p className={styles.description}>
@@ -21,8 +22,8 @@ export default function Home() {
           <code className={styles.code}>pages/index.js</code>
         </p>
 
-        <TodoList/>
+        <TodoList />
       </main>
     </div>
-  )
+  );
 }

@@ -20,14 +20,18 @@ function useSubscribe(query, def, deps) {
 
 export default function TodoList() {
   const todos = useSubscribe(
-    async tx => tx.scanAll({prefix: '/todo/'}), [], [])
-      .sort(([k1, v1], [k2, v2]) => v1.order - v2.order);
+    async tx => tx.scanAll({prefix: '/todo/'}),
+    [],
+    [],
+  ).sort(([k1, v1], [k2, v2]) => v1.order - v2.order);
   return (
     <table border="1" width="100%">
-      {todos.map(([id, todo]) => <tr>
-        <td>{todo.complete ? '☑' : '◻️'}</td>
-        <td>{todo.text}</td>
-      </tr>)}
+      {todos.map(([id, todo]) => (
+        <tr>
+          <td>{todo.complete ? '☑' : '◻️'}</td>
+          <td>{todo.text}</td>
+        </tr>
+      ))}
     </table>
-  )
+  );
 }

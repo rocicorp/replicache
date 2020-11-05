@@ -891,3 +891,31 @@ test('index', async () => {
   await testScanResult({indexName: 'emptyKeyIndex'}, [[['', 'e/0'], {'': ''}]]);
   await rep.dropIndex('emptyKeyIndex');
 });
+
+test('index array', async () => {
+  rep = await replicacheForTesting('test-index');
+
+  const add = rep.register('add-data', addData);
+  await add({
+    'a/0': {a: []},
+    'a/1': {a: ['0']},
+    'a/2': {a: ['1', '2']},
+    'a/3': {a: '3'},
+    'a/4': {a: ['4']},
+    'b/0': {bc: '5'},
+    'b/1': {bc: '6'},
+    'b/2': {bc: '7'},
+    'c/0': {bc: '8'},
+  });
+  await rep.register('create-index', tx =>
+    tx.createIndex({name: 'aIndex', jsonPointer: '/a'}),
+  )(null);
+  await rep.createIndex({name: 'aIndex', jsonPointer: '/a'});
+  await testScanResult({indexName: 'aIndex'}, [
+    [['0', 'a/1'], {a: ['0']}],
+    [['1', 'a/2'], {a: ['1', '2']}],
+    [['2', 'a/2'], {a: ['1', '2']}],
+    [['3', 'a/3'], {a: '3'}],
+    [['4', 'a/4'], {a: ['4']}],
+  ]);
+});

@@ -115,7 +115,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/transactions.ts#L155">src/transactions.ts:155</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/622b842/src/transactions.ts#L159">src/transactions.ts:159</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -157,7 +157,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/transactions.ts#L146">src/transactions.ts:146</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/622b842/src/transactions.ts#L150">src/transactions.ts:150</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -186,7 +186,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/transactions.ts#L165">src/transactions.ts:165</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/622b842/src/transactions.ts#L169">src/transactions.ts:169</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -217,7 +217,7 @@
 							<aside class="tsd-sources">
 								<p>Inherited from <a href="readtransaction.html">ReadTransaction</a>.<a href="readtransaction.html#get">get</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/transactions.ts#L20">src/transactions.ts:20</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/622b842/src/transactions.ts#L20">src/transactions.ts:20</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -247,7 +247,7 @@
 							<aside class="tsd-sources">
 								<p>Inherited from <a href="readtransaction.html">ReadTransaction</a>.<a href="readtransaction.html#has">has</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/transactions.ts#L25">src/transactions.ts:25</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/622b842/src/transactions.ts#L25">src/transactions.ts:25</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -275,7 +275,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/transactions.ts#L140">src/transactions.ts:140</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/622b842/src/transactions.ts#L144">src/transactions.ts:144</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -308,7 +308,7 @@
 							<aside class="tsd-sources">
 								<p>Inherited from <a href="readtransaction.html">ReadTransaction</a>.<a href="readtransaction.html#scan">scan</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/transactions.ts#L35">src/transactions.ts:35</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/622b842/src/transactions.ts#L39">src/transactions.ts:39</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -317,7 +317,10 @@
 										implements <code>AsyncIterable</code>. It also has methods to iterate over the <code>keys</code>
 									and <code>entries</code>.</p>
 								</div>
-								<p>It the <code>ScanResult</code> is used after the <code>ReadTransaction</code> has been closed it
+								<p>If <code>options</code> has an <code>indexName</code>, then this does a scan over an index with
+									that name. A scan over an index uses a tuple for the key consisting of
+								<code>[secondary: string, primary: string]</code>.</p>
+								<p>If the <code>ScanResult</code> is used after the <code>ReadTransaction</code> has been closed it
 								will throw a <a href="../classes/transactionclosederror.html">TransactionClosedError</a>.</p>
 							</div>
 							<h4 class="tsd-type-parameters-title">Type parameters</h4>
@@ -350,12 +353,12 @@
 							<aside class="tsd-sources">
 								<p>Inherited from <a href="readtransaction.html">ReadTransaction</a>.<a href="readtransaction.html#scanall">scanAll</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/transactions.ts#L42">src/transactions.ts:42</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/622b842/src/transactions.ts#L46">src/transactions.ts:46</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
 								<div class="lead">
-									<p>Convenience for scan() that reads all entries into an array.</p>
+									<p>Convenience form of <code>scan()</code> which returns all the entries as an array.</p>
 								</div>
 							</div>
 							<h4 class="tsd-type-parameters-title">Type parameters</h4>
@@ -406,9 +409,6 @@
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="scankey.html" class="tsd-kind-icon">Scan<wbr>Key</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="scanoptions.html" class="tsd-kind-icon">Scan<wbr>Options</a>

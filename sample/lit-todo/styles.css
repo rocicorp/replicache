@@ -40,34 +40,34 @@ mwc-fab {
   align-self: center;
 }
 
-/* When the todo item is hovered, it is highlighted and a drag cursor shows up */
+@media (hover) {
+  /* When the todo item is hovered, it is highlighted and a drag cursor shows up */
+  .todo-item:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
 
-.todo-item:hover {
-  background: rgba(0, 0, 0, 0.05);
-}
+  .todo-item:hover .handle {
+    opacity: 0.5;
+  }
 
-.todo-item:hover .handle {
-  opacity: 0.5;
-}
+  /* Except if we're in drag mode, then it looks weird for them to flick on and off during a drag */
+  body.dragging .todo-item:hover {
+    background: transparent;
+  }
 
-/* Except if we're in drag mode, then it looks weird for them to flick on and off during a drag */
+  body.dragging .todo-item:hover .handle {
+    opacity: 0;
+  }
 
-body.dragging .todo-item:hover {
-  background: transparent;
-}
+  /* Except if *we're* the item being dragged, in which case slightly different presentation */
 
-body.dragging .todo-item:hover .handle {
-  opacity: 0;
-}
+  body.dragging .todo-item.dragging {
+    background: rgb(1, 135, 134, 0.3);
+  }
 
-/* Except if *we're* the item being dragged, in which case slightly different presentation */
-
-body.dragging .todo-item.dragging {
-  background: rgb(1, 135, 134, 0.3);
-}
-
-body.dragging .todo-item.dragging .handle {
-  opacity: 0.5;
+  body.dragging .todo-item.dragging .handle {
+    opacity: 0.5;
+  }
 }
 
 .todo-item .textwrap {
@@ -110,9 +110,11 @@ mwc-check-list-item .text {
   border: 2px dashed rgba(0, 0, 0, 0);
 }
 
-mwc-check-list-item .text:hover,
-mwc-check-list-item .text:focus {
-  border-bottom-color: rgb(98, 0, 238);
+@media (hover) {
+  mwc-check-list-item .text:hover,
+  mwc-check-list-item .text:focus {
+    border-bottom-color: rgb(98, 0, 238);
+  }
 }
 
 mwc-check-list-item .text:focus {

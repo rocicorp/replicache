@@ -846,7 +846,7 @@ test('index', async () => {
     tx.createIndex({name: 'aIndex', jsonPointer: '/a'}),
   )(null);
 
- await testScanResult({indexName: 'aIndex'}, [
+  await testScanResult({indexName: 'aIndex'}, [
     [['0', 'a/0'], {a: '0'}],
     [['1', 'a/1'], {a: '1'}],
     [['2', 'a/2'], {a: '2'}],

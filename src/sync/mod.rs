@@ -10,7 +10,7 @@ use crate::checksum;
 use crate::checksum::Checksum;
 use crate::dag;
 use crate::db;
-use crate::db::{read_indexes, Commit, MetaTyped, Whence, DEFAULT_HEAD_NAME};
+use crate::db::{Commit, MetaTyped, Whence, DEFAULT_HEAD_NAME};
 use crate::fetch;
 use crate::fetch::errors::FetchError;
 use crate::util::rlog;
@@ -18,6 +18,7 @@ use crate::util::rlog::LogContext;
 use async_trait::async_trait;
 use push::PushError;
 use serde::{Deserialize, Serialize};
+use std::collections::hash_map::HashMap;
 use std::default::Default;
 use std::fmt::Debug;
 use std::str::FromStr;
@@ -129,7 +130,11 @@ pub async fn begin_sync(
         )
         .await
         .map_err(PullFailed)?;
-    debug!(lc, "...Pull complete in {}ms", pull_timer.elapsed_ms());
+    debug!(
+        lc.clone(),
+        "...Pull complete in {}ms",
+        pull_timer.elapsed_ms()
+    );
 
     begin_sync_resp.sync_info.client_view_info = Some(pull_resp.client_view_info.clone());
 
@@ -156,25 +161,58 @@ pub async fn begin_sync(
     if main_head_post_pull.is_none() {
         return Err(MainHeadDisappeared);
     }
-    let base_snapshot_post_pull = Commit::base_snapshot(&main_head_post_pull.unwrap(), &dag_read)
-        .await
-        .map_err(NoBaseSnapshot)?;
+    let base_snapshot_post_pull =
+        Commit::base_snapshot(main_head_post_pull.as_ref().unwrap(), &dag_read)
+            .await
+            .map_err(NoBaseSnapshot)?;
     if base_snapshot.chunk().hash() != base_snapshot_post_pull.chunk().hash() {
         return Err(OverlappingSyncsJSLogInfo);
     }
 
-    let main_head_commit_pre_push = Commit::from_hash(&main_head_hash, &dag_read)
+    // We are going to need to rebuild the indexes. We want to take the definitions from
+    // the last commit on the chain that will not be rebased. We do this here before creating
+    // the new snapshot while we still have the dag_read borrowed.
+    //
+    // First, local_mutations() gives us the set of pending commits, in chain-head-first order.
+    let mut pending = Commit::local_mutations(main_head_post_pull.as_ref().unwrap(), &dag_read)
         .await
-        .map_err(CoundNotReloadHeadHash)?;
+        .map_err(InternalGetPendingCommitsError)?;
+    // We push the base snapshot onto the end of the list. We now have the full main chain
+    // in chain-head-first order.
+    pending.push(base_snapshot_post_pull);
+    // Now find the first commit that will not be rebased.
+    let index_metas: Vec<db::IndexMeta> = pending
+        .iter()
+        .find(|c| c.mutation_id() <= pull_resp.last_mutation_id)
+        .ok_or(InternalInvalidChainError)?
+        .indexes();
+    drop(dag_read);
+
     let mut db_write = db::Write::new_snapshot(
         Whence::Hash(base_snapshot.chunk().hash().to_string()),
         pull_resp.last_mutation_id,
         pull_resp.state_id.clone(),
         dag_write,
-        read_indexes(&main_head_commit_pre_push),
+        HashMap::new(), // Note: created with no indexes
     )
     .await
     .map_err(ReadCommitError)?;
+
+    // Rebuild the indexes
+    // TODO would be so nice to have a way to re-use old indexes, which are likely
+    //      only a small diff from what we want.
+    for m in index_metas.iter() {
+        let def = &m.definition;
+        db_write
+            .create_index(
+                lc.clone(),
+                def.name.clone(),
+                &def.key_prefix,
+                &def.json_pointer,
+            )
+            .await
+            .map_err(InternalRebuildIndexError)?;
+    }
 
     patch::apply(&mut db_write, &pull_resp.patch)
         .await
@@ -199,9 +237,11 @@ pub enum BeginSyncError {
     CoundNotReloadHeadHash(db::FromHashError),
     GetHeadError(dag::Error),
     InternalGetPendingCommitsError(db::PendingError),
+    InternalInvalidChainError,
     InternalNoMainHeadError,
     InternalNonLocalPendingCommit,
     InternalProgrammerError(db::InternalProgrammerError),
+    InternalRebuildIndexError(db::CreateIndexError),
     InternalTimerError(rlog::TimerError),
     InvalidChecksum(checksum::ParseError),
     LockError(dag::Error),
@@ -454,6 +494,7 @@ mod tests {
     use super::*;
     use crate::db::test_helpers::*;
     use crate::kv::memstore::MemStore;
+    use crate::prolly;
     use crate::util::rlog::LogContext;
     use crate::util::to_debug;
     use async_std::net::TcpListener;
@@ -515,6 +556,9 @@ mod tests {
             state_id: String,
             last_mutation_id: u64,
             checksum: String,
+            // Test helpers add an index to each commit equal to its position
+            // in the chain.
+            indexes: Vec<String>,
         }
 
         struct Case<'a> {
@@ -535,7 +579,7 @@ mod tests {
         }
         let cases: Vec<Case> = vec![
             Case {
-                name: "0 mutations to push, pulls new state -> beginsync succeeds w/synchead set",
+                name: "0 pending, pulls new state -> beginsync succeeds w/synchead set",
                 num_pending_mutations: 0,
                 exp_push_req: None,
                 push_result: None,
@@ -552,10 +596,77 @@ mod tests {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 10,
                     checksum: str!("f9ef007b"),
+                    indexes: vec![1.to_string()],
                 }),
             },
             Case {
-                name: "2 mutations to push, push succeeds, pulls new state -> beginsync succeeds w/synchead set",
+                name: "1 pending, 0 mutations to replay, pulls new state -> beginsync succeeds w/synchead set",
+                num_pending_mutations: 1,
+                exp_push_req: Some(push::BatchPushRequest {
+                    client_id: client_id.clone(),
+                    mutations: vec![
+                        push::Mutation {
+                            id: 2,
+                            name: "mutator_name_2".to_string(),
+                            args: json!([2]),
+                        },
+                    ],
+                }),
+                push_result: Some(Ok(push::BatchPushResponse {})),
+                exp_pull_req: PullRequest {
+                    client_view_auth: data_layer_auth.clone(),
+                    client_id: client_id.clone(),
+                    base_state_id: base_server_state_id.clone(),
+                    checksum: base_checksum.clone(),
+                    version: 2,
+                },
+                pull_result: Ok(PullResponse {
+                    last_mutation_id: 2,
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    state_id: str!("new_state_id"),
+                    last_mutation_id: 2,
+                    checksum: str!("f9ef007b"),
+                    indexes: vec![2.to_string(), 1.to_string()],
+                }),
+            },
+            Case {
+                name: "1 pending, 1 mutations to replay, pulls new state -> beginsync succeeds w/synchead set",
+                num_pending_mutations: 1,
+                exp_push_req: Some(push::BatchPushRequest {
+                    client_id: client_id.clone(),
+                    mutations: vec![
+                        push::Mutation {
+                            id: 2,
+                            name: "mutator_name_2".to_string(),
+                            args: json!([2]),
+                        },
+                    ],
+                }),
+                push_result: Some(Ok(push::BatchPushResponse {})),
+                exp_pull_req: PullRequest {
+                    client_view_auth: data_layer_auth.clone(),
+                    client_id: client_id.clone(),
+                    base_state_id: base_server_state_id.clone(),
+                    checksum: base_checksum.clone(),
+                    version: 2,
+                },
+                pull_result: Ok(PullResponse {
+                    last_mutation_id: 1,
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    state_id: str!("new_state_id"),
+                    last_mutation_id: 1,
+                    checksum: str!("f9ef007b"),
+                    indexes: vec![1.to_string()],
+                }),
+            },
+            Case {
+                name: "2 pending, 0 to replay, push succeeds, pulls new state -> beginsync succeeds w/synchead set",
                 num_pending_mutations: 2,
                 exp_push_req: Some(push::BatchPushRequest {
                     client_id: client_id.clone(),
@@ -589,6 +700,48 @@ mod tests {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 10,
                     checksum: str!("f9ef007b"),
+                    indexes: vec![3.to_string(), 2.to_string(), 1.to_string()],
+                }),
+            },
+            Case {
+                name: "2 pending, 1 to replay, push succeeds, pulls new state -> beginsync succeeds w/synchead set",
+                num_pending_mutations: 2,
+                exp_push_req: Some(push::BatchPushRequest {
+                    client_id: client_id.clone(),
+                    mutations: vec![
+                        // These mutations aren't actually added to the chain until the test
+                        // case runs, but we happen to know how they are created by the db
+                        // test helpers so we use that knowledge here.
+                        push::Mutation {
+                            id: 2,
+                            name: "mutator_name_2".to_string(),
+                            args: json!([2]),
+                        },
+                        push::Mutation {
+                            id: 3,
+                            name: "mutator_name_3".to_string(),
+                            args: json!([3]),
+                        },
+                    ],
+                }),
+                push_result: Some(Ok(push::BatchPushResponse {})),
+                exp_pull_req: PullRequest {
+                    client_view_auth: data_layer_auth.clone(),
+                    client_id: client_id.clone(),
+                    base_state_id: base_server_state_id.clone(),
+                    checksum: base_checksum.clone(),
+                    version: 2,
+                },
+                pull_result: Ok(PullResponse {
+                    last_mutation_id: 2,
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    state_id: str!("new_state_id"),
+                    last_mutation_id: 2,
+                    checksum: str!("f9ef007b"),
+                    indexes: vec![2.to_string(), 1.to_string()],
                 }),
             },
             Case {
@@ -626,6 +779,7 @@ mod tests {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 10,
                     checksum: str!("f9ef007b"),
+                    indexes: vec![3.to_string(), 2.to_string(), 1.to_string()],
                 }),
             },
 
@@ -764,6 +918,40 @@ mod tests {
                 add_local(&mut chain, &store).await;
             }
 
+            // Both add_local() and add_snapshot() helpers create an index named "i"
+            // where the commit is ith in the chain. add_local() also does put("local", "i").
+            // Here we scan to ensure that one of the local indexes has values. We do
+            // this because after calling begin_sync we check that the index no longer
+            // returns values, demonstrating that it was rebuilt.
+            if c.num_pending_mutations > 0 {
+                let dag_read = store.read(LogContext::new()).await.unwrap();
+                let read = db::OwnedRead::from_whence(
+                    db::Whence::Head(DEFAULT_HEAD_NAME.to_string()),
+                    dag_read,
+                )
+                .await
+                .unwrap();
+                use std::cell::RefCell;
+                let got = RefCell::new(false);
+
+                read.as_read()
+                    .scan(
+                        db::ScanOptions {
+                            prefix: Some(str!("")),
+                            start_key: None,
+                            start_key_exclusive: None,
+                            limit: None,
+                            index_name: Some(str!("2")),
+                        },
+                        |_: prolly::Entry<'_>| {
+                            *got.borrow_mut() = true;
+                        },
+                    )
+                    .await
+                    .unwrap();
+                assert!(*got.borrow(), "{}: expected values, got none", c.name);
+            }
+
             // See explanation in FakePusher for why we do this dance with the push_result.
             let (exp_push, push_resp, push_err) = match &c.push_result {
                 Some(Ok(resp)) => (true, Some(resp.clone()), None),
@@ -852,9 +1040,61 @@ mod tests {
                         c.name
                     );
 
+                    // Check we have the expected index definitions.
+                    let indexes: Vec<String> = sync_head
+                        .indexes()
+                        .iter()
+                        .map(|i| i.definition.name.clone())
+                        .collect();
+                    assert_eq!(
+                        exp_sync_head.indexes.len(),
+                        indexes.len(),
+                        "{}: expected indexes {:?}, got {:?}",
+                        c.name,
+                        exp_sync_head.indexes,
+                        indexes
+                    );
+                    exp_sync_head
+                        .indexes
+                        .iter()
+                        .for_each(|i| assert!(indexes.contains(i)));
+
+                    // Check that we *don't* have old indexed values. The add_local()
+                    // helper for local commit i on the chain puts the value local=>"i"
+                    // into the (value) map and adds an index on the prefix "local".
+                    // Here we check that we don't see any of those indexed values.
+                    // The indexes should have been rebuilt with a client view
+                    // returned by the server that does not include local= values.
+                    // The check for len > 1 is because the snapshot's index is not what
+                    // we want; we want the first local commit's index ("2").
+                    if exp_sync_head.indexes.len() > 1 {
+                        let dag_read = store.read(LogContext::new()).await.unwrap();
+                        let read = db::OwnedRead::from_whence(
+                            db::Whence::Head(SYNC_HEAD_NAME.to_string()),
+                            dag_read,
+                        )
+                        .await
+                        .unwrap();
+                        read.as_read()
+                            .scan(
+                                db::ScanOptions {
+                                    prefix: Some(str!("")),
+                                    start_key: None,
+                                    start_key_exclusive: None,
+                                    limit: None,
+                                    index_name: Some(str!("2")),
+                                },
+                                |pe: prolly::Entry<'_>| {
+                                    assert!(false, "{}: expected no values, got {:?}", c.name, pe);
+                                },
+                            )
+                            .await
+                            .unwrap();
+                    }
+
                     assert_eq!(&sync_head_hash, &got_resp.as_ref().unwrap().sync_head);
                 }
-            };
+            }
 
             // Check that SyncInfo is filled like we would expect.
             if c.exp_err.is_none() {
@@ -1041,7 +1281,7 @@ mod tests {
                 0,
                 str!("sync_ssid"),
                 dag_write,
-                read_indexes(&chain[0]),
+                db::read_indexes(&chain[0]),
             )
             .await
             .unwrap();

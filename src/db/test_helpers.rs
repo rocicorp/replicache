@@ -42,11 +42,14 @@ pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut 
     .unwrap();
     w.put(
         LogContext::new(),
-        vec![4, 2],
-        format!("{}", chain.len()).into_bytes(),
+        str!("local").into(),
+        format!("\"{}\"", i).into_bytes(),
     )
     .await
     .unwrap();
+    w.create_index(LogContext::new(), i.to_string(), "local".as_bytes(), "")
+        .await
+        .unwrap();
     w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
     let (_, commit, _) = read_commit(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
@@ -69,16 +72,12 @@ pub async fn add_snapshot<'a>(
 ) -> &'a mut Chain {
     assert!(chain.len() > 0);
     let ssid = format!("server_state_id_{}", chain.len());
-    let indexes = chain
-        .last()
-        .map(|c| read_indexes(c))
-        .unwrap_or(HashMap::new());
     let mut w = Write::new_snapshot(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
         chain[chain.len() - 1].next_mutation_id(),
         ssid,
         store.write(LogContext::new()).await.unwrap(),
-        indexes,
+        HashMap::new(),
     )
     .await
     .unwrap();
@@ -95,6 +94,14 @@ pub async fn add_snapshot<'a>(
             i += 2;
         }
     }
+    w.create_index(
+        LogContext::new(),
+        chain.len().to_string(),
+        "snapshot".as_bytes(),
+        "",
+    )
+    .await
+    .unwrap();
     w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
     let (_, commit, _) = read_commit(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),

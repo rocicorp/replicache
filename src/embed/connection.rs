@@ -641,8 +641,7 @@ mod tests {
             let mut main_chain: Chain = vec![];
             add_genesis(&mut main_chain, &store).await;
             add_local(&mut main_chain, &store).await;
-            let sync_chain =
-                add_sync_snapshot(&mut main_chain, &store, LogContext::new(), false).await;
+            let sync_chain = add_sync_snapshot(&mut main_chain, &store, 0, LogContext::new()).await;
             let original = &main_chain[1];
             let meta = original.meta();
             let (original_hash, original_name, original_args): (String, String, String) =

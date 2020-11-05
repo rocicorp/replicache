@@ -13,8 +13,8 @@ pub mod test_helpers;
 pub use root::{get_root, GetRootError};
 
 pub use commit::{
-    BaseSnapshotError, Commit, FromHashError, InternalProgrammerError, LocalMeta, MetaTyped,
-    PendingError, DEFAULT_HEAD_NAME,
+    BaseSnapshotError, Commit, FromHashError, IndexMeta, InternalProgrammerError, LocalMeta,
+    MetaTyped, PendingError, DEFAULT_HEAD_NAME,
 };
 pub use index::{decode_index_key, encode_index_key, encode_scan_key, GetIndexKeysError};
 pub use read::{read_commit, read_indexes, OwnedRead, Read, ReadCommitError, ScanError, Whence};

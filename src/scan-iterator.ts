@@ -74,15 +74,19 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
       return this.return();
     }
 
-    const value = this._scanItems[this._current++];
-
+    const entry = this._scanItems[this._current++];
+    if (this._kind === 'value') {
+      return {value: entry.value} as IteratorResult<V>;
+    }
+    const key =
+      this._indexName !== undefined
+        ? [entry.secondaryKey, entry.primaryKey]
+        : entry.primaryKey;
     switch (this._kind) {
-      case 'value':
-        return {value: value.value} as IteratorResult<V>;
       case 'key':
-        return {value: value.key} as IteratorResult<V>;
+        return {value: key} as IteratorResult<V>;
       case 'entry':
-        return {value: [value.key, value.value]} as IteratorResult<V>;
+        return {value: [key, entry.value]} as IteratorResult<V>;
     }
   }
 
@@ -108,10 +112,15 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
 
     const responseItems: ScanItem[] = [];
     const decoder = new TextDecoder();
-    const receiver = (k: string, v: Uint8Array) => {
-      const text = decoder.decode(v);
+    const receiver = (
+      primaryKey: string,
+      secondaryKey: string | null,
+      value: Uint8Array,
+    ) => {
+      const text = decoder.decode(value);
       responseItems.push({
-        key: k,
+        primaryKey,
+        secondaryKey,
         value: JSON.parse(text),
       });
     };
@@ -146,7 +155,7 @@ type Args = [
   shouldCloseTranscation: boolean,
 ];
 
-export class ScanResult implements AsyncIterable<JSONValue> {
+export class ScanResult<K> implements AsyncIterable<JSONValue> {
   private readonly _args: Args;
 
   constructor(...args: Args) {
@@ -161,11 +170,11 @@ export class ScanResult implements AsyncIterable<JSONValue> {
     return this._newIterator('value');
   }
 
-  keys(): AsyncIterableIterator<string> {
+  keys(): AsyncIterableIterator<K> {
     return this._newIterator('key');
   }
 
-  entries(): AsyncIterableIterator<[string, JSONValue]> {
+  entries(): AsyncIterableIterator<[K, JSONValue]> {
     return this._newIterator('entry');
   }
 

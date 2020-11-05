@@ -1,5 +1,5 @@
 import type {JSONValue, ToJSON} from './json.js';
-import type {ScanOptions} from './scan-options.js';
+import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
 import {
   Invoker,
   Invoke,
@@ -223,16 +223,14 @@ export default class Replicache implements ReadTransaction {
    * Gets many values from the database. This returns a `Result` which
    * implements `AsyncIterable`. It also has methods to iterate over the `keys`
    * and `entries`.
-   * */
-  scan({
-    prefix = '',
-    startKey,
-    startKeyExclusive,
-    limit,
-    indexName,
-  }: ScanOptions = {}): ScanResult {
+   */
+  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
+    options?: O,
+  ): ScanResult<K> {
+    const {prefix = '', startKey, startKeyExclusive, limit, indexName} =
+      options || {};
     let tx: ReadTransactionImpl;
-    return new ScanResult(
+    return new ScanResult<K>(
       prefix,
       startKey,
       startKeyExclusive,
@@ -252,9 +250,11 @@ export default class Replicache implements ReadTransaction {
   }
 
   /**
-   * Convenience form of scan() which returns all the results as an array.
+   * Convenience form of scan() which returns all the entries as an array.
    */
-  async scanAll(options: ScanOptions = {}): Promise<[string, JSONValue][]> {
+  async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
+    options?: O,
+  ): Promise<[K, JSONValue][]> {
     const tx = new ReadTransactionImpl(this._invoke);
     try {
       await tx.open({});

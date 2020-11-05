@@ -40,9 +40,13 @@ pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut 
     )
     .await
     .unwrap();
-    w.put(vec![4, 2], format!("{}", chain.len()).into_bytes())
-        .await
-        .unwrap();
+    w.put(
+        LogContext::new(),
+        vec![4, 2],
+        format!("{}", chain.len()).into_bytes(),
+    )
+    .await
+    .unwrap();
     w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
     let (_, commit, _) = read_commit(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
@@ -81,9 +85,13 @@ pub async fn add_snapshot<'a>(
     if let Some(m) = map {
         let mut i = 0;
         while i <= m.len() - 2 {
-            w.put(m[i].as_bytes().into(), m[i + 1].as_bytes().into())
-                .await
-                .unwrap();
+            w.put(
+                LogContext::new(),
+                m[i].as_bytes().into(),
+                m[i + 1].as_bytes().into(),
+            )
+            .await
+            .unwrap();
             i += 2;
         }
     }

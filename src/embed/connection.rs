@@ -223,9 +223,9 @@ async fn execute<'a, 'b>(
     }?;
 
     match rpc.as_str() {
-        "put" => return to_js(do_put(write, from_js(data)?).await),
-        "del" => return to_js(do_del(write, from_js(data)?).await),
-        "createIndex" => return to_js(do_create_index(write, from_js(data)?).await),
+        "put" => return to_js(do_put(lc, write, from_js(data)?).await),
+        "del" => return to_js(do_del(lc, write, from_js(data)?).await),
+        "createIndex" => return to_js(do_create_index(lc.clone(), write, from_js(data)?).await),
         "dropIndex" => return to_js(do_drop_index(write, from_js(data)?).await),
         _ => (),
     }
@@ -513,26 +513,35 @@ async fn do_scan(
     Ok(ScanResponse {})
 }
 
-async fn do_put(write: &mut db::Write<'_>, req: PutRequest) -> Result<PutResponse, db::PutError> {
+async fn do_put(
+    lc: rlog::LogContext,
+    write: &mut db::Write<'_>,
+    req: PutRequest,
+) -> Result<PutResponse, db::PutError> {
     write
-        .put(req.key.as_bytes().to_vec(), req.value.into_bytes())
+        .put(lc, req.key.as_bytes().to_vec(), req.value.into_bytes())
         .await?;
     Ok(PutResponse {})
 }
 
-async fn do_del(write: &mut db::Write<'_>, req: DelRequest) -> Result<DelResponse, db::DelError> {
+async fn do_del(
+    lc: rlog::LogContext,
+    write: &mut db::Write<'_>,
+    req: DelRequest,
+) -> Result<DelResponse, db::DelError> {
     let had = write.as_read().has(req.key.as_bytes());
-    write.del(req.key.as_bytes().to_vec()).await?;
+    write.del(lc, req.key.as_bytes().to_vec()).await?;
     Ok(DelResponse { had })
 }
 
 async fn do_create_index(
+    lc: rlog::LogContext,
     write: &mut db::Write<'_>,
     req: CreateIndexRequest,
 ) -> Result<CreateIndexResponse, CreateIndexError> {
     use CreateIndexError::*;
     write
-        .create_index(req.name, req.key_prefix.as_bytes(), &req.json_pointer)
+        .create_index(lc, req.name, req.key_prefix.as_bytes(), &req.json_pointer)
         .await
         .map_err(DBError)?;
     Ok(CreateIndexResponse {})

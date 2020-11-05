@@ -738,8 +738,8 @@ async fn test_scan_with_index() {
     }
 
     // Test the various levers of the scan interface when used with an index...
-    // Scan all indexed values
     for in_txn in bools.iter() {
+        // Scan all indexed values
         test(
             vec![("key", r#""value""#)],
             "",
@@ -750,6 +750,22 @@ async fn test_scan_with_index() {
             "",
             false,
             vec![("key", Some("value"), r#""value""#)],
+        )
+        .await;
+        // Scan an indexed array
+        test(
+            vec![("key", r#"{"s": ["value1", "value2"]}"#)],
+            "",
+            "/s",
+            Op::None,
+            *in_txn,
+            "",
+            "",
+            false,
+            vec![
+                ("key", Some("value1"), r#"{"s": ["value1", "value2"]}"#),
+                ("key", Some("value2"), r#"{"s": ["value1", "value2"]}"#),
+            ],
         )
         .await;
         // indexes is on key prefix that is not present

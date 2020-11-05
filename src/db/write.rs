@@ -2,6 +2,7 @@ use super::{commit, index, read, scan, ReadCommitError, Whence};
 use crate::checksum::Checksum;
 use crate::dag;
 use crate::prolly;
+use crate::util::rlog;
 use std::collections::hash_map::HashMap;
 use std::str::FromStr;
 use str_macro::str;
@@ -119,12 +120,18 @@ impl<'a> Write<'a> {
         }
     }
 
-    pub async fn put(&mut self, key: Vec<u8>, val: Vec<u8>) -> Result<(), PutError> {
+    pub async fn put(
+        &mut self,
+        lc: rlog::LogContext,
+        key: Vec<u8>,
+        val: Vec<u8>,
+    ) -> Result<(), PutError> {
         use PutError::*;
         let old_val = self.map.get(&key);
         if let Some(old_val) = old_val {
             self.checksum.remove(&key, &old_val);
             Self::update_indexes(
+                lc.clone(),
                 &self.indexes,
                 &self.dag_write,
                 index::IndexOperation::Remove,
@@ -136,6 +143,7 @@ impl<'a> Write<'a> {
         }
         self.checksum.add(&key, &val);
         Self::update_indexes(
+            lc,
             &self.indexes,
             &self.dag_write,
             index::IndexOperation::Add,
@@ -148,7 +156,7 @@ impl<'a> Write<'a> {
         Ok(())
     }
 
-    pub async fn del(&mut self, key: Vec<u8>) -> Result<(), DelError> {
+    pub async fn del(&mut self, lc: rlog::LogContext, key: Vec<u8>) -> Result<(), DelError> {
         use DelError::*;
         let old_val = self.map.get(&key);
         match old_val {
@@ -156,6 +164,7 @@ impl<'a> Write<'a> {
             Some(old_val) => {
                 self.checksum.remove(&key, &old_val);
                 Self::update_indexes(
+                    lc,
                     &self.indexes,
                     &self.dag_write,
                     index::IndexOperation::Remove,
@@ -171,6 +180,7 @@ impl<'a> Write<'a> {
     }
 
     async fn update_indexes(
+        lc: rlog::LogContext,
         indexes: &HashMap<String, index::Index>,
         dag_write: &dag::Write<'a>,
         op: index::IndexOperation,
@@ -187,8 +197,18 @@ impl<'a> Write<'a> {
                 // TODO: use outer guard to avoid unwrap. But it doesn't work.
                 // See comment in that struct.
                 let map = guard.guard.as_mut().unwrap();
+                // Right now all the errors that index_value() returns are customers dev
+                // problems: either the value is not json, the pointer is into nowhere, etc.
+                // So we ignore them.
                 index::index_value(map, op, key, val, &idx.meta.definition.json_pointer)
-                    .map_err(IndexValueError)?;
+                    .unwrap_or_else(|e| {
+                        info!(
+                            lc,
+                            "Not indexing value '{:?}': {:?}",
+                            String::from_utf8(val.into()).unwrap_or_else(|_| str!("<unparsable>")),
+                            e
+                        )
+                    });
             }
         }
         Ok(())
@@ -215,6 +235,7 @@ impl<'a> Write<'a> {
 
     pub async fn create_index(
         &mut self,
+        lc: rlog::LogContext,
         name: String,
         key_prefix: &[u8],
         json_pointer: &str,
@@ -246,6 +267,8 @@ impl<'a> Write<'a> {
                 index_name: None,
             },
         ) {
+            // All the index_value errors because of customer-supplied data: malformed
+            // json, json path pointing to nowhere, etc. We ignore them.
             index::index_value(
                 &mut index_map,
                 index::IndexOperation::Add,
@@ -253,14 +276,14 @@ impl<'a> Write<'a> {
                 entry.val,
                 json_pointer,
             )
-            .map_err(|e| {
-                IndexError((
-                    name.clone(),
-                    entry.key.to_vec(),
+            .unwrap_or_else(|e| {
+                info!(
+                    lc,
+                    "Not indexing value '{:?}': {:?}",
                     String::from_utf8(entry.val.to_vec()).unwrap_or_else(|_| str!("<unparsable>")),
-                    e,
-                ))
-            })?;
+                    e
+                );
+            });
         }
 
         self.indexes.insert(
@@ -430,7 +453,9 @@ mod tests {
         )
         .await
         .unwrap();
-        w.put(b"foo".to_vec(), b"bar".to_vec()).await.unwrap();
+        w.put(rlog::LogContext::new(), b"foo".to_vec(), b"bar".to_vec())
+            .await
+            .unwrap();
         w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
 
         let w = Write::new_local(
@@ -449,6 +474,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_put_del_replace_update_checksum() {
+        let lc = rlog::LogContext::new();
         let ds = dag::Store::new(Box::new(MemStore::new()));
         init_db(
             ds.write(LogContext::new()).await.unwrap(),
@@ -470,16 +496,16 @@ mod tests {
         assert_eq!(exp_checksum, w.checksum);
 
         exp_checksum.add(&[0], &[1]);
-        w.put(vec![0], vec![1]).await.unwrap();
+        w.put(lc.clone(), vec![0], vec![1]).await.unwrap();
         assert_eq!(exp_checksum, w.checksum);
 
         // Ensure Write is calling Checksum.replace() if the key already exists.
         exp_checksum.replace(&[0], &[1], &[2]);
-        w.put(vec![0], vec![2]).await.unwrap();
+        w.put(lc.clone(), vec![0], vec![2]).await.unwrap();
         assert_eq!(exp_checksum, w.checksum);
 
         exp_checksum.remove(&[0], &[2]);
-        w.del(vec![0]).await.unwrap();
+        w.del(lc.clone(), vec![0]).await.unwrap();
         assert_eq!(exp_checksum, w.checksum);
 
         // clear()'s reset of checksum tested in test_clear
@@ -487,6 +513,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_clear() {
+        let lc = rlog::LogContext::new();
         let ds = dag::Store::new(Box::new(MemStore::new()));
         init_db(
             ds.write(LogContext::new()).await.unwrap(),
@@ -503,8 +530,12 @@ mod tests {
         )
         .await
         .unwrap();
-        w.create_index(str!("idx"), b"", "").await.unwrap();
-        w.put(b"foo".to_vec(), b"\"bar\"".to_vec()).await.unwrap();
+        w.create_index(rlog::LogContext::new(), str!("idx"), b"", "")
+            .await
+            .unwrap();
+        w.put(lc.clone(), b"foo".to_vec(), b"\"bar\"".to_vec())
+            .await
+            .unwrap();
         w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
 
         w = Write::new_local(
@@ -516,7 +547,9 @@ mod tests {
         )
         .await
         .unwrap();
-        w.put(b"hot".to_vec(), b"\"dog\"".to_vec()).await.unwrap();
+        w.put(lc.clone(), b"hot".to_vec(), b"\"dog\"".to_vec())
+            .await
+            .unwrap();
         assert_ne!("00000000", w.checksum());
         assert_eq!(w.map.iter().count(), 2);
         assert_eq!(
@@ -587,6 +620,7 @@ mod tests {
             .unwrap();
             for i in 0..3 {
                 w.put(
+                    rlog::LogContext::new(),
                     format!("k{}", i).as_bytes().to_vec(),
                     json!({ "s": format!("s{}", i) })
                         .to_string()
@@ -610,7 +644,7 @@ mod tests {
             }
 
             let index_name = "i1";
-            w.create_index(index_name.to_string(), b"", "/s")
+            w.create_index(rlog::LogContext::new(), index_name.to_string(), b"", "/s")
                 .await
                 .unwrap();
             w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();

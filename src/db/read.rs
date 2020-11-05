@@ -168,9 +168,13 @@ mod tests {
         )
         .await
         .unwrap();
-        w.put("foo".as_bytes().to_vec(), "bar".as_bytes().to_vec())
-            .await
-            .unwrap();
+        w.put(
+            LogContext::new(),
+            "foo".as_bytes().to_vec(),
+            "bar".as_bytes().to_vec(),
+        )
+        .await
+        .unwrap();
         w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
 
         let dr = ds.read(LogContext::new()).await.unwrap();

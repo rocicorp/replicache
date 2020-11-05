@@ -129,7 +129,7 @@ pub fn index_value(
 #[derive(Debug, PartialEq)]
 pub enum GetIndexKeysError {
     DeserializeError(String),
-    SerializeIndexEntryError(String),
+    NoValueAtPath(String),
     StringContainsNull(String),
     UnsupportedTargetType,
 }
@@ -146,19 +146,37 @@ fn get_index_keys(
     let value: Value = serde_json::from_slice(val).map_err(|e| DeserializeError(e.to_string()))?;
     let target = value.pointer(json_pointer);
     if target.is_none() {
-        return Ok(vec![]);
+        return Err(NoValueAtPath(json_pointer.to_string()));
+    }
+    let target = target.unwrap();
+
+    let mut values = Vec::new();
+    if target.is_array() {
+        target
+            .as_array()
+            .unwrap()
+            .iter()
+            .for_each(|v| values.push(v));
+    } else {
+        values.push(target);
+    }
+    let mut strings = Vec::new();
+    for value in values.drain(..) {
+        match value {
+            Value::String(v) => strings.push(v),
+            _ => return Err(UnsupportedTargetType),
+        }
     }
 
-    let target = target.unwrap();
-    Ok(vec![match target {
-        // TODO: Support array of strings here.
-        // TODO: when we support arrays, add test to ensure that strings with null are skipped.
-        Value::String(v) => encode_index_key(&IndexKey {
-            secondary: v,
-            primary: key,
-        })?,
-        _ => return Err(UnsupportedTargetType),
-    }])
+    strings
+        .into_iter()
+        .map(|v| {
+            encode_index_key(&IndexKey {
+                secondary: v.as_str(),
+                primary: key,
+            })
+        })
+        .collect()
 }
 
 static KEY_VERSION_0: &[u8] = &[0];
@@ -212,8 +230,6 @@ pub fn encode_scan_key(secondary: &str, exclusive: bool) -> Result<Vec<u8>, GetI
 
 // Decodes an IndexKey encoded by encode_index_key, returning the values as a tuple
 // since IndexKey holds references.
-// TODO use this to set key in scan results
-#[allow(dead_code)]
 pub fn decode_index_key(index_key: &[u8]) -> Result<(String, Vec<u8>), DecodeIndexKeyError> {
     use DecodeIndexKeyError::*;
 
@@ -411,23 +427,9 @@ mod tests {
         );
 
         // no matching target
-        test("k", b"{}", "/foo", Ok(vec![]));
-
-        // null is disallowed in strings
-        test(
-            "k",
-            &serde_json::to_vec(&json!("no \0 allowed")).unwrap(),
-            "",
-            Err(StringContainsNull(str!("no \0 allowed"))),
-        );
+        test("k", b"{}", "/foo", Err(NoValueAtPath(str!("/foo"))));
 
         // unsupported target types
-        test(
-            "k",
-            &serde_json::to_vec(&json!({"unsupported": []})).unwrap(),
-            "/unsupported",
-            Err(UnsupportedTargetType),
-        );
         test(
             "k",
             &serde_json::to_vec(&json!({"unsupported": {}})).unwrap(),
@@ -459,8 +461,42 @@ mod tests {
             "/unsupported",
             Err(UnsupportedTargetType),
         );
+        test(
+            "k",
+            &serde_json::to_vec(&json!("no \0 allowed")).unwrap(),
+            "",
+            Err(StringContainsNull(str!("no \0 allowed"))),
+        );
 
         // success
+        // array of string
+        test(
+            "k",
+            &serde_json::to_vec(&json!({"foo": []})).unwrap(),
+            "/foo",
+            Ok(vec![]),
+        );
+        test(
+            "k",
+            &serde_json::to_vec(&json!({"foo": ["bar", "", "baz"]})).unwrap(),
+            "/foo",
+            Ok(vec![
+                IndexKey {
+                    secondary: "bar",
+                    primary: b"k",
+                },
+                IndexKey {
+                    secondary: "",
+                    primary: b"k",
+                },
+                IndexKey {
+                    secondary: "baz",
+                    primary: b"k",
+                },
+            ]),
+        );
+
+        // string
         test(
             "foo",
             &serde_json::to_vec(&json!({"foo":"bar"})).unwrap(),

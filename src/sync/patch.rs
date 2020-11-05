@@ -1,4 +1,5 @@
 use crate::db;
+use crate::util::rlog;
 use serde::Deserialize;
 use std::default::Default;
 
@@ -38,11 +39,17 @@ pub async fn apply(db_write: &mut db::Write<'_>, patch: &[Operation]) -> Result<
         match op.op.as_str() {
             OP_ADD | OP_REPLACE => {
                 let value = op.value_string.as_bytes().to_vec();
-                db_write.put(key, value).await.map_err(PutError)?;
+                db_write
+                    .put(rlog::LogContext::new(), key, value)
+                    .await
+                    .map_err(PutError)?;
             }
             // Should we error if we try to remove a key that doesn't exist?
             OP_REMOVE => {
-                db_write.del(key).await.map_err(DelError)?;
+                db_write
+                    .del(rlog::LogContext::new(), key)
+                    .await
+                    .map_err(DelError)?;
             }
             _ => return Err(InvalidOp(op.op.to_string())),
         };
@@ -224,7 +231,11 @@ mod tests {
             .await
             .unwrap();
             db_write
-                .put("key".as_bytes().to_vec(), "value".as_bytes().to_vec())
+                .put(
+                    rlog::LogContext::new(),
+                    "key".as_bytes().to_vec(),
+                    "value".as_bytes().to_vec(),
+                )
                 .await
                 .unwrap();
             let ops: Vec<Operation> = c

@@ -72,7 +72,7 @@
 				</a>
 				<p>This tutorial walks through creating the UI for a basic <a href="https://replicache.dev/">Replicache</a>-powered todo list.</p>
 				<p>It relies on the <a href="https://github.com/rocicorp/replicache-sample-todo">replicache-sample-todo</a> backend. To learn how to setup you own Replicache backend, see <a href="https://github.com/rocicorp/replicache#server-side">Server Side Setup</a>.</p>
-				<p>If you have any problems or questions, please <a href="https://join.slack.com/t/rocicorp/shared_invite/zt-h8ygwu8j-RVniv5XsBps0Q9oJXdMyoA">join us on Slack</a>. We&#39;d be happy to help.</p>
+				<p>If you have any problems or questions, please <a href="https://slack.replicache.dev/">join us on Slack</a>. We&#39;d be happy to help.</p>
 				<p>You can also skip to the end and <a href="https://github.com/rocicorp/replicache-sdk-js/tree/master/sample/cal">check out the full working version of this sample</a>.</p>
 				<p><strong>Note:</strong> This document assumes you already know what Replicache is, why you might need it, and broadly how it works. If that&#39;s not true check out the <a href="https://github.com/rocicorp/replicache/blob/master/design.md">design document</a> for a detailed deep-dive.</p>
 				<a href="#🏃♂️-install" id="🏃♂️-install" style="color: inherit; text-decoration: none;">
@@ -84,7 +84,7 @@
 				</a>
 				<p>Replicache ships with both ES6 and CommonJS modules. For simplicity, these examples use ES6.</p>
 				<pre><code class="language-html"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">type</span>=<span class="hljs-string">"module"</span>&gt;</span><span class="javascript">
-  <span class="hljs-keyword">import</span> Replicache <span class="hljs-keyword">from</span> <span class="hljs-string">'./node_modules/replicache/out/mod.js'</span>;
+  <span class="hljs-keyword">import</span> Replicache <span class="hljs-keyword">from</span> <span class="hljs-string">'replicache'</span>;
 
   <span class="hljs-keyword">var</span> rep = <span class="hljs-keyword">new</span> Replicache({
     <span class="hljs-comment">// URL of the diff server to use. The diff server periodically fetches</span>
@@ -186,7 +186,7 @@
 					<li class=" tsd-kind-class">
 						<a href="classes/replicache.html" class="tsd-kind-icon">Replicache</a>
 					</li>
-					<li class=" tsd-kind-class">
+					<li class=" tsd-kind-class tsd-has-type-parameter">
 						<a href="classes/scanresult.html" class="tsd-kind-icon">Scan<wbr>Result</a>
 					</li>
 					<li class=" tsd-kind-class">
@@ -199,16 +199,19 @@
 						<a href="interfaces/readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="interfaces/scanbound.html" class="tsd-kind-icon">Scan<wbr>Bound</a>
+						<a href="interfaces/scankey.html" class="tsd-kind-icon">Scan<wbr>Key</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="interfaces/scankey.html" class="tsd-kind-icon">Scan<wbr>Key</a>
+						<a href="interfaces/scanoptions.html" class="tsd-kind-icon">Scan<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="globals.html#invoker" class="tsd-kind-icon">Invoker</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
+						<a href="globals.html#keytypeforscanoptions" class="tsd-kind-icon">Key<wbr>Type<wbr>For<wbr>Scan<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
 						<a href="globals.html#mutator" class="tsd-kind-icon">Mutator</a>

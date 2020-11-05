@@ -220,9 +220,13 @@ export default class Replicache implements ReadTransaction {
   }
 
   /**
-   * Gets many values from the database. This returns a `Result` which
+   * Gets many values from the database. This returns a `ScanResult` which
    * implements `AsyncIterable`. It also has methods to iterate over the `keys`
    * and `entries`.
+   *
+   * If `options` has an `indexName`, then this does a scan over an index with
+   * that name. A scan over an index uses a tuple for the key consisting of
+   * `[secondary: string, primary: string]`.
    */
   scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
@@ -250,7 +254,7 @@ export default class Replicache implements ReadTransaction {
   }
 
   /**
-   * Convenience form of scan() which returns all the entries as an array.
+   * Convenience form of `scan()` which returns all the entries as an array.
    */
   async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,

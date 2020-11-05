@@ -68,7 +68,7 @@
 							<ul class="tsd-index-list">
 								<li class="tsd-kind-class"><a href="classes/repmwasminvoker.html" class="tsd-kind-icon">REPMWasm<wbr>Invoker</a></li>
 								<li class="tsd-kind-class"><a href="classes/replicache.html" class="tsd-kind-icon">Replicache</a></li>
-								<li class="tsd-kind-class"><a href="classes/scanresult.html" class="tsd-kind-icon">Scan<wbr>Result</a></li>
+								<li class="tsd-kind-class tsd-has-type-parameter"><a href="classes/scanresult.html" class="tsd-kind-icon">Scan<wbr>Result</a></li>
 								<li class="tsd-kind-class"><a href="classes/transactionclosederror.html" class="tsd-kind-icon">Transaction<wbr>Closed<wbr>Error</a></li>
 							</ul>
 						</section>
@@ -77,8 +77,8 @@
 							<ul class="tsd-index-list">
 								<li class="tsd-kind-interface tsd-has-type-parameter"><a href="interfaces/repminvoke.html" class="tsd-kind-icon">REPMInvoke</a></li>
 								<li class="tsd-kind-interface"><a href="interfaces/readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a></li>
-								<li class="tsd-kind-interface"><a href="interfaces/scanbound.html" class="tsd-kind-icon">Scan<wbr>Bound</a></li>
 								<li class="tsd-kind-interface"><a href="interfaces/scankey.html" class="tsd-kind-icon">Scan<wbr>Key</a></li>
+								<li class="tsd-kind-interface"><a href="interfaces/scanoptions.html" class="tsd-kind-icon">Scan<wbr>Options</a></li>
 								<li class="tsd-kind-interface"><a href="interfaces/writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a></li>
 							</ul>
 						</section>
@@ -86,6 +86,7 @@
 							<h3>Type aliases</h3>
 							<ul class="tsd-index-list">
 								<li class="tsd-kind-type-alias"><a href="globals.html#invoker" class="tsd-kind-icon">Invoker</a></li>
+								<li class="tsd-kind-type-alias tsd-has-type-parameter"><a href="globals.html#keytypeforscanoptions" class="tsd-kind-icon">Key<wbr>Type<wbr>For<wbr>Scan<wbr>Options</a></li>
 								<li class="tsd-kind-type-alias tsd-has-type-parameter"><a href="globals.html#mutator" class="tsd-kind-icon">Mutator</a></li>
 							</ul>
 						</section>
@@ -100,7 +101,7 @@
 					<div class="tsd-signature tsd-kind-icon">Invoker<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span>invoke<span class="tsd-signature-symbol">: </span><a href="interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a><span class="tsd-signature-symbol"> }</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/55203ea/src/repm-invoker.ts#L12">src/repm-invoker.ts:12</a></li>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/repm-invoker.ts#L12">src/repm-invoker.ts:12</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -122,12 +123,33 @@
 					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-type-alias tsd-has-type-parameter">
+					<a name="keytypeforscanoptions" class="tsd-anchor"></a>
+					<h3>Key<wbr>Type<wbr>For<wbr>Scan<wbr>Options</h3>
+					<div class="tsd-signature tsd-kind-icon">Key<wbr>Type<wbr>For<wbr>Scan<wbr>Options&lt;O&gt;<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">O</span><span class="tsd-signature-symbol"> extends </span><span class="tsd-signature-symbol">{ </span>indexName<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol"> ? </span><span class="tsd-signature-symbol">[</span><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol"> : </span><span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/scan-options.ts#L24">src/scan-options.ts:24</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>If the options contains an indexName then the key type is a tuple of secondaryKey, primaryKey.</p>
+						</div>
+					</div>
+					<h4 class="tsd-type-parameters-title">Type parameters</h4>
+					<ul class="tsd-type-parameters">
+						<li>
+							<h4>O<span class="tsd-signature-symbol">: </span><a href="interfaces/scanoptions.html" class="tsd-signature-type">ScanOptions</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-type-alias tsd-has-type-parameter">
 					<a name="mutator" class="tsd-anchor"></a>
 					<h3>Mutator</h3>
 					<div class="tsd-signature tsd-kind-icon">Mutator&lt;Return, Args&gt;<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">(</span>args<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Args</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Return</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/55203ea/src/replicache.ts#L14">src/replicache.ts:14</a></li>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/replicache.ts#L14">src/replicache.ts:14</a></li>
 						</ul>
 					</aside>
 					<h4 class="tsd-type-parameters-title">Type parameters</h4>
@@ -179,7 +201,7 @@
 					<li class=" tsd-kind-class">
 						<a href="classes/replicache.html" class="tsd-kind-icon">Replicache</a>
 					</li>
-					<li class=" tsd-kind-class">
+					<li class=" tsd-kind-class tsd-has-type-parameter">
 						<a href="classes/scanresult.html" class="tsd-kind-icon">Scan<wbr>Result</a>
 					</li>
 					<li class=" tsd-kind-class">
@@ -192,16 +214,19 @@
 						<a href="interfaces/readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="interfaces/scanbound.html" class="tsd-kind-icon">Scan<wbr>Bound</a>
+						<a href="interfaces/scankey.html" class="tsd-kind-icon">Scan<wbr>Key</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="interfaces/scankey.html" class="tsd-kind-icon">Scan<wbr>Key</a>
+						<a href="interfaces/scanoptions.html" class="tsd-kind-icon">Scan<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="globals.html#invoker" class="tsd-kind-icon">Invoker</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
+						<a href="globals.html#keytypeforscanoptions" class="tsd-kind-icon">Key<wbr>Type<wbr>For<wbr>Scan<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
 						<a href="globals.html#mutator" class="tsd-kind-icon">Mutator</a>

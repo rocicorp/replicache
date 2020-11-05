@@ -29,7 +29,11 @@ export interface ReadTransaction {
    * implements `AsyncIterable`. It also has methods to iterate over the `keys`
    * and `entries`.
    *
-   * It the `ScanResult` is used after the `ReadTransaction` has been closed it
+   * If `options` has an `indexName`, then this does a scan over an index with
+   * that name. A scan over an index uses a tuple for the key consisting of
+   * `[secondary: string, primary: string]`.
+   *
+   * If the `ScanResult` is used after the `ReadTransaction` has been closed it
    * will throw a {@link TransactionClosedError}.
    */
   scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
@@ -37,7 +41,7 @@ export interface ReadTransaction {
   ): ScanResult<K>;
 
   /**
-   * Convenience for scan() that reads all entries into an array.
+   * Convenience form of `scan()` which returns all the entries as an array.
    */
   scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,

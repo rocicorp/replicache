@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>ScanBound | Replicache</title>
+	<title>ScanOptions | Replicache</title>
 	<meta name="description" content="">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
@@ -52,10 +52,10 @@
 					<a href="../globals.html">Globals</a>
 				</li>
 				<li>
-					<a href="scanbound.html">ScanBound</a>
+					<a href="scanoptions.html">ScanOptions</a>
 				</li>
 			</ul>
-			<h1>Interface ScanBound</h1>
+			<h1>Interface ScanOptions</h1>
 		</div>
 	</div>
 </header>
@@ -66,7 +66,7 @@
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
 					<li>
-						<span class="target">ScanBound</span>
+						<span class="target">ScanOptions</span>
 					</li>
 				</ul>
 			</section>
@@ -77,8 +77,11 @@
 						<section class="tsd-index-section ">
 							<h3>Properties</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="scanbound.html#index" class="tsd-kind-icon">index</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="scanbound.html#key" class="tsd-kind-icon">key</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="scanoptions.html#indexname" class="tsd-kind-icon">index<wbr>Name</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="scanoptions.html#limit" class="tsd-kind-icon">limit</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="scanoptions.html#prefix" class="tsd-kind-icon">prefix</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="scanoptions.html#startkey" class="tsd-kind-icon">start<wbr>Key</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="scanoptions.html#startkeyexclusive" class="tsd-kind-icon">start<wbr>Key<wbr>Exclusive</a></li>
 							</ul>
 						</section>
 					</div>
@@ -87,24 +90,80 @@
 			<section class="tsd-panel-group tsd-member-group ">
 				<h2>Properties</h2>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="index" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> index</h3>
-					<div class="tsd-signature tsd-kind-icon">index<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></div>
+					<a name="indexname" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> index<wbr>Name</h3>
+					<div class="tsd-signature tsd-kind-icon">index<wbr>Name<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/55203ea/src/scan-bound.ts#L5">src/scan-bound.ts:5</a></li>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/scan-options.ts#L18">src/scan-options.ts:18</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Do a <code>scan</code> over a named index.</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="key" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> key</h3>
-					<div class="tsd-signature tsd-kind-icon">key<span class="tsd-signature-symbol">:</span> <a href="scankey.html" class="tsd-signature-type">ScanKey</a></div>
+					<a name="limit" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> limit</h3>
+					<div class="tsd-signature tsd-kind-icon">limit<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/55203ea/src/scan-bound.ts#L4">src/scan-bound.ts:4</a></li>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/scan-options.ts#L15">src/scan-options.ts:15</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Only include up to <code>limit</code> results.</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="prefix" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> prefix</h3>
+					<div class="tsd-signature tsd-kind-icon">prefix<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/scan-options.ts#L3">src/scan-options.ts:3</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Only include keys starting with <code>prefix</code>.</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="startkey" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> start<wbr>Key</h3>
+					<div class="tsd-signature tsd-kind-icon">start<wbr>Key<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/scan-options.ts#L9">src/scan-options.ts:9</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>The first key to include in the result. If <code>startKeyExclusive</code> is <code>true</code>
+							then this key is not included and the result start withthe next larger key.</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="startkeyexclusive" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> start<wbr>Key<wbr>Exclusive</h3>
+					<div class="tsd-signature tsd-kind-icon">start<wbr>Key<wbr>Exclusive<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/63c44cc/src/scan-options.ts#L12">src/scan-options.ts:12</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Whether the <code>startKey</code> is exclusive or inclusive.</p>
+						</div>
+					</div>
 				</section>
 			</section>
 		</div>
@@ -124,7 +183,7 @@
 					<li class=" tsd-kind-class">
 						<a href="../classes/replicache.html" class="tsd-kind-icon">Replicache</a>
 					</li>
-					<li class=" tsd-kind-class">
+					<li class=" tsd-kind-class tsd-has-type-parameter">
 						<a href="../classes/scanresult.html" class="tsd-kind-icon">Scan<wbr>Result</a>
 					</li>
 					<li class=" tsd-kind-class">
@@ -136,29 +195,41 @@
 					<li class=" tsd-kind-interface">
 						<a href="readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a>
 					</li>
+					<li class=" tsd-kind-interface">
+						<a href="scankey.html" class="tsd-kind-icon">Scan<wbr>Key</a>
+					</li>
 				</ul>
 				<ul class="current">
 					<li class="current tsd-kind-interface">
-						<a href="scanbound.html" class="tsd-kind-icon">Scan<wbr>Bound</a>
+						<a href="scanoptions.html" class="tsd-kind-icon">Scan<wbr>Options</a>
 						<ul>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="scanbound.html#index" class="tsd-kind-icon">index</a>
+								<a href="scanoptions.html#indexname" class="tsd-kind-icon">index<wbr>Name</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="scanbound.html#key" class="tsd-kind-icon">key</a>
+								<a href="scanoptions.html#limit" class="tsd-kind-icon">limit</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="scanoptions.html#prefix" class="tsd-kind-icon">prefix</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="scanoptions.html#startkey" class="tsd-kind-icon">start<wbr>Key</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="scanoptions.html#startkeyexclusive" class="tsd-kind-icon">start<wbr>Key<wbr>Exclusive</a>
 							</li>
 						</ul>
 					</li>
 				</ul>
 				<ul class="after-current">
 					<li class=" tsd-kind-interface">
-						<a href="scankey.html" class="tsd-kind-icon">Scan<wbr>Key</a>
-					</li>
-					<li class=" tsd-kind-interface">
 						<a href="writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="../globals.html#invoker" class="tsd-kind-icon">Invoker</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
+						<a href="../globals.html#keytypeforscanoptions" class="tsd-kind-icon">Key<wbr>Type<wbr>For<wbr>Scan<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
 						<a href="../globals.html#mutator" class="tsd-kind-icon">Mutator</a>

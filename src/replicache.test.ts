@@ -148,6 +148,40 @@ test('put, get, has, del inside tx', async () => {
   }
 });
 
+async function testScanResult<K, V>(
+  options: ScanOptions | undefined,
+  entries: [K, V][],
+) {
+  if (!rep) {
+    fail();
+    return;
+  }
+
+  await rep.query(async tx => {
+    expect(await asyncIterableToArray(tx.scan(options).entries())).to.eql(
+      entries,
+    );
+  });
+
+  await rep.query(async tx => {
+    expect(await asyncIterableToArray(tx.scan(options))).to.eql(
+      entries.map(([, v]) => v),
+    );
+  });
+
+  await rep.query(async tx => {
+    expect(await asyncIterableToArray(tx.scan(options).values())).to.eql(
+      entries.map(([, v]) => v),
+    );
+  });
+
+  await rep.query(async tx => {
+    expect(await asyncIterableToArray(tx.scan(options).keys())).to.eql(
+      entries.map(([k]) => k),
+    );
+  });
+}
+
 test('scan', async () => {
   rep = await replicacheForTesting('test4');
   const add = rep.register('add-data', addData);
@@ -162,40 +196,6 @@ test('scan', async () => {
     'b/2': 7,
     'c/0': 8,
   });
-
-  async function testScanResult<K, V>(
-    options: ScanOptions | undefined,
-    entries: [K, V][],
-  ) {
-    if (!rep) {
-      fail();
-      return;
-    }
-
-    await rep.query(async tx => {
-      expect(await asyncIterableToArray(tx.scan(options).entries())).to.eql(
-        entries,
-      );
-    });
-
-    await rep.query(async tx => {
-      expect(await asyncIterableToArray(tx.scan(options))).to.eql(
-        entries.map(([, v]) => v),
-      );
-    });
-
-    await rep.query(async tx => {
-      expect(await asyncIterableToArray(tx.scan(options).values())).to.eql(
-        entries.map(([, v]) => v),
-      );
-    });
-
-    await rep.query(async tx => {
-      expect(await asyncIterableToArray(tx.scan(options).keys())).to.eql(
-        entries.map(([k]) => k),
-      );
-    });
-  }
 
   await testScanResult(undefined, [
     ['a/0', 0],
@@ -846,34 +846,48 @@ test('index', async () => {
     tx.createIndex({name: 'aIndex', jsonPointer: '/a'}),
   )(null);
 
-  // TODO(arv): Also check the keys in all the calls to scanAll.
-  expect(await rep.scanAll({indexName: 'aIndex'})).to.have.lengthOf(5);
-
+ await testScanResult({indexName: 'aIndex'}, [
+    [['0', 'a/0'], {a: '0'}],
+    [['1', 'a/1'], {a: '1'}],
+    [['2', 'a/2'], {a: '2'}],
+    [['3', 'a/3'], {a: '3'}],
+    [['4', 'a/4'], {a: '4'}],
+  ]);
   await rep.register('drop-index', tx => tx.dropIndex('aIndex'))(null);
   await expectPromiseToReject(rep.scanAll({indexName: 'aIndex'}));
 
   await rep.createIndex({name: 'aIndex', jsonPointer: '/a'});
-  expect(await rep.scanAll({indexName: 'aIndex'})).to.have.lengthOf(5);
+  await testScanResult({indexName: 'aIndex'}, [
+    [['0', 'a/0'], {a: '0'}],
+    [['1', 'a/1'], {a: '1'}],
+    [['2', 'a/2'], {a: '2'}],
+    [['3', 'a/3'], {a: '3'}],
+    [['4', 'a/4'], {a: '4'}],
+  ]);
   await rep.dropIndex('aIndex');
   await expectPromiseToReject(rep.scanAll({indexName: 'aIndex'}));
 
   await rep.createIndex({name: 'bc', keyPrefix: 'c/', jsonPointer: '/bc'});
-  expect(await rep.scanAll({indexName: 'bc'})).to.have.lengthOf(1);
-
+  await testScanResult({indexName: 'bc'}, [[['8', 'c/0'], {bc: '8'}]]);
   await add({
     'c/1': {bc: '88'},
   });
-  expect(await rep.scanAll({indexName: 'bc'})).to.have.lengthOf(2);
+  await testScanResult({indexName: 'bc'}, [
+    [['8', 'c/0'], {bc: '8'}],
+    [['88', 'c/1'], {bc: '88'}],
+  ]);
   await rep.dropIndex('bc');
 
   await rep.createIndex({name: 'dIndex', jsonPointer: '/d/e/f'});
-  expect(await rep.scanAll({indexName: 'dIndex'})).to.have.lengthOf(1);
+  await testScanResult({indexName: 'dIndex'}, [
+    [['9', 'd/0'], {d: {e: {f: '9'}}}],
+  ]);
   await rep.dropIndex('dIndex');
 
   await add({
-    'e/0': {'': 'empty'},
+    'e/0': {'': ''},
   });
   await rep.createIndex({name: 'emptyKeyIndex', jsonPointer: '/'});
-  expect(await rep.scanAll({indexName: 'emptyKeyIndex'})).to.have.lengthOf(1);
+  await testScanResult({indexName: 'emptyKeyIndex'}, [[['', 'e/0'], {'': ''}]]);
   await rep.dropIndex('emptyKeyIndex');
 });

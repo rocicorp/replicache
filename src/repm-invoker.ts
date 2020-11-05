@@ -74,18 +74,15 @@ type TransactionRequest = {
   transactionId: number;
 };
 
-interface ScanItemResponse {
-  readonly key: string;
-  readonly value: string;
-}
-
 export type ScanRequest = TransactionRequest & {
   opts?: ScanOptionsRpc;
-  receiver: (k: string, v: Uint8Array) => void;
+  receiver: (
+    primaryKey: string,
+    secondaryKey: string | null,
+    value: Uint8Array,
+  ) => void;
 };
-export type ScanResponse = {
-  items: ScanItemResponse[];
-};
+export type ScanResponse = unknown;
 
 type PutRequest = TransactionRequest & {
   key: string;

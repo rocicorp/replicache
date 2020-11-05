@@ -4,7 +4,7 @@ import type {
   OpenTransactionRequest,
   CommitTransactionResponse,
 } from './repm-invoker.js';
-import type {ScanOptions} from './scan-options.js';
+import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
 import {ScanResult} from './scan-iterator.js';
 import {throwIfClosed} from './transaction-closed-error.js';
 
@@ -32,18 +32,16 @@ export interface ReadTransaction {
    * It the `ScanResult` is used after the `ReadTransaction` has been closed it
    * will throw a {@link TransactionClosedError}.
    */
-  scan({
-    prefix,
-    startKey,
-    startKeyExclusive,
-    limit,
-    indexName,
-  }?: ScanOptions): ScanResult;
+  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
+    options?: O,
+  ): ScanResult<K>;
 
   /**
-   * Convenience for scan() that reads all results into an array.
+   * Convenience for scan() that reads all entries into an array.
    */
-  scanAll(options?: ScanOptions): Promise<[string, JSONValue][]>;
+  scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
+    options?: O,
+  ): Promise<[K, JSONValue][]>;
 }
 
 export class ReadTransactionImpl implements ReadTransaction {
@@ -76,13 +74,11 @@ export class ReadTransactionImpl implements ReadTransaction {
     return result['has'];
   }
 
-  scan({
-    prefix = '',
-    startKey,
-    startKeyExclusive,
-    limit,
-    indexName,
-  }: ScanOptions = {}): ScanResult {
+  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
+    options?: O,
+  ): ScanResult<K> {
+    const {prefix = '', startKey, startKeyExclusive, limit, indexName} =
+      options || {};
     return new ScanResult(
       prefix,
       startKey,
@@ -95,11 +91,14 @@ export class ReadTransactionImpl implements ReadTransaction {
     );
   }
 
-  async scanAll(options: ScanOptions = {}): Promise<[string, JSONValue][]> {
+  async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
+    options?: O,
+  ): Promise<[K, JSONValue][]> {
+    type E = [K, JSONValue];
     const it = this.scan(options).entries();
-    const result = [];
+    const result: E[] = [];
     for await (const pair of it) {
-      result.push(pair);
+      result.push(pair as E);
     }
     return result;
   }

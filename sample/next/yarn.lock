@@ -3433,10 +3433,10 @@ regjsparser@^0.6.4:
   dependencies:
     jsesc "~0.5.0"
 
-replicache@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/replicache/-/replicache-1.0.0.tgz#61f2aeac7130b399c8318c26fe83e9933b86d6e6"
-  integrity sha512-lCLKMYoTaT3ATNQPWGI+jEjcHvFGcPvyI2GOazTdbbmQQn8eanoHlSiUK7yBLeN9g2U4pbhFQmPQl4Y0k+7pPg==
+replicache@^2.0.2:
+  version "2.0.2"
+  resolved "https://registry.yarnpkg.com/replicache/-/replicache-2.0.2.tgz#bec7977968cfc78c2d06a18b30c16932bef84e68"
+  integrity sha512-lsUAQvx/R2H9EWgGl49QIH52tdmQsI/3zJGccO2I5TToAdusICG86dIzXttR1uEHOWgyBWFlbnBCUjlkCDYivw==
 
 resolve-url-loader@3.1.2:
   version "3.1.2"
@@ -4067,7 +4067,7 @@ webpack-sources@^2.1.1:
     source-list-map "^2.0.1"
     source-map "^0.6.1"
 
-webpack@4.44.1, webpack@^5.0.0-beta.30:
+webpack@4.44.1, webpack@^5.0.0:
   version "5.4.0"
   resolved "https://registry.yarnpkg.com/webpack/-/webpack-5.4.0.tgz#4fdc6ec8a0ff9160701fb8f2eb8d06b33ecbae0f"
   integrity sha512-udpYTyqz8toTTdaOsL2QKPLeZLt2IEm9qY7yTXuFEQhKu5bk0yQD9BtAdVQksmz4jFbbWOiWmm3NHarO0zr/ng==

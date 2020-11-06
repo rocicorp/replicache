@@ -2,7 +2,6 @@ import Replicache from 'replicache';
 import {useCallback, useEffect, useState} from 'react';
 
 const rep = new Replicache({
-  wasmModule: 'replicache/wasm/release/replicache_client_bg.wasm',
   diffServerURL: 'https://serve.replicache.dev/pull',
   diffServerAuth: '1',
   batchURL: 'https://replicache-sample-todo.now.sh/serve/replicache-batch',

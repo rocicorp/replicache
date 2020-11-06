@@ -2,7 +2,7 @@
 ORIG=`pwd`
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 ROOT=$DIR/../
-REPC_VERSION='v0.13.0'
+REPC_VERSION='v0.14.0'
 
 (
   cd $ROOT

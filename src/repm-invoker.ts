@@ -41,6 +41,15 @@ let wasmModuleOutput: Promise<InitOutput> | undefined;
 export class REPMWasmInvoker {
   constructor(wasmModuleOrPath?: InitInput) {
     if (!wasmModuleOutput) {
+      // Hack around Webpack invalid support for import.meta.url and wasm
+      // loaders. We use the new URL pattern to tell Webpack to use a runtime
+      // URL and not a compile time file: URL.
+      if (!wasmModuleOrPath) {
+        wasmModuleOrPath = new URL(
+          './wasm/release/replicache_client_bg.wasm',
+          import.meta.url,
+        );
+      }
       wasmModuleOutput = init(wasmModuleOrPath);
     }
   }

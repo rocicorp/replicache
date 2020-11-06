@@ -1,15 +1,19 @@
 import {handleDragStart, isDragging} from './drag.js';
-import Replicache, {REPMWasmInvoker} from 'replicache/out/mod.js';
+import Replicache from 'replicache/out/mod.js';
 import {html, render} from 'lit-html';
 import {classMap} from 'lit-html/directives/class-map.js';
 import {live} from 'lit-html/directives/live';
 import {repeat} from 'lit-html/directives/repeat.js';
+import {generateKeyBetween} from 'fractional-indexing/src/index.js';
 import '@material/mwc-checkbox/mwc-checkbox.js';
 import '@material/mwc-fab';
 import '@material/mwc-icon';
 import '@material/mwc-icon-button';
 import '@material/mwc-textfield';
 import '@material/mwc-top-app-bar/mwc-top-app-bar.js';
+
+/* eslint-env browser */
+/* global Pusher */
 
 const key = id => `/todo/${id}`;
 
@@ -88,16 +92,17 @@ initIndexes([]).then(() => {
 
 async function handleCreate() {
   const last = todos[todos.length - 1];
+  const order = generateKeyBetween(last?.order ?? null, null);
   await createTodo({
     id: Math.round(Math.random() * 2 ** 30),
     listID: 2,
     text: 'Untitled',
-    order: last ? last.order + (1 - last.order) / 2 : 0.5,
+    order,
     complete: false,
   });
   document
     .querySelector('.todo-list .todo-item:last-of-type .textwrap span')
-    .focus();
+    ?.focus();
 }
 
 async function handleDelete(id, e) {

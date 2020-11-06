@@ -1,7 +1,7 @@
 import Head from 'next/head';
 import styles from '../styles/Home.module.css';
 import dynamic from 'next/dynamic';
-const TodoList = dynamic(() => import('./todolist'));
+const TodoList = dynamic(() => import('./todolist.js'));
 
 export default function Home() {
   return (

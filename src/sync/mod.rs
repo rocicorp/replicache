@@ -181,7 +181,7 @@ pub async fn begin_sync(
     // in chain-head-first order.
     pending.push(base_snapshot_post_pull);
     // Now find the first commit that will not be rebased.
-    let index_metas: Vec<db::IndexMeta> = pending
+    let index_metas: Vec<db::IndexRecord> = pending
         .iter()
         .find(|c| c.mutation_id() <= pull_resp.last_mutation_id)
         .ok_or(InternalInvalidChainError)?

@@ -2,6 +2,8 @@
 
 # Simple script to generate Flatbuffer sources from schema files
 # while maintaining rustfmt and Clippy cleanliness.
+# Requires flatc. Easiest way to install on OSX is via homebrew
+# (brew install flatbuffers).
 
 if [ "$1" == "" ]; then
   echo "Usage: flatc.sh foo.fbs"

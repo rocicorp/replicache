@@ -289,7 +289,7 @@ impl<'a> Write<'a> {
         self.indexes.insert(
             name,
             index::Index::new(
-                commit::IndexMeta {
+                commit::IndexRecord {
                     definition,
                     value_hash: str!(""),
                 },

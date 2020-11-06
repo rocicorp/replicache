@@ -582,15 +582,15 @@ pub mod commit {
         }
     }
 
-    pub enum IndexOffset {}
+    pub enum IndexRecordOffset {}
     #[derive(Copy, Clone, Debug, PartialEq)]
 
-    pub struct Index<'a> {
+    pub struct IndexRecord<'a> {
         pub _tab: flatbuffers::Table<'a>,
     }
 
-    impl<'a> flatbuffers::Follow<'a> for Index<'a> {
-        type Inner = Index<'a>;
+    impl<'a> flatbuffers::Follow<'a> for IndexRecord<'a> {
+        type Inner = IndexRecord<'a>;
         #[inline]
         fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
             Self {
@@ -599,17 +599,17 @@ pub mod commit {
         }
     }
 
-    impl<'a> Index<'a> {
+    impl<'a> IndexRecord<'a> {
         #[inline]
         pub fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
-            Index { _tab: table }
+            IndexRecord { _tab: table }
         }
         #[allow(unused_mut)]
         pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr>(
             _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr>,
-            args: &'args IndexArgs<'args>,
-        ) -> flatbuffers::WIPOffset<Index<'bldr>> {
-            let mut builder = IndexBuilder::new(_fbb);
+            args: &'args IndexRecordArgs<'args>,
+        ) -> flatbuffers::WIPOffset<IndexRecord<'bldr>> {
+            let mut builder = IndexRecordBuilder::new(_fbb);
             if let Some(x) = args.value_hash {
                 builder.add_value_hash(x);
             }
@@ -626,58 +626,60 @@ pub mod commit {
         pub fn definition(&self) -> Option<IndexDefinition<'a>> {
             self._tab
                 .get::<flatbuffers::ForwardsUOffset<IndexDefinition<'a>>>(
-                    Index::VT_DEFINITION,
+                    IndexRecord::VT_DEFINITION,
                     None,
                 )
         }
         #[inline]
         pub fn value_hash(&self) -> Option<&'a str> {
             self._tab
-                .get::<flatbuffers::ForwardsUOffset<&str>>(Index::VT_VALUE_HASH, None)
+                .get::<flatbuffers::ForwardsUOffset<&str>>(IndexRecord::VT_VALUE_HASH, None)
         }
     }
 
-    pub struct IndexArgs<'a> {
+    pub struct IndexRecordArgs<'a> {
         pub definition: Option<flatbuffers::WIPOffset<IndexDefinition<'a>>>,
         pub value_hash: Option<flatbuffers::WIPOffset<&'a str>>,
     }
-    impl<'a> Default for IndexArgs<'a> {
+    impl<'a> Default for IndexRecordArgs<'a> {
         #[inline]
         fn default() -> Self {
-            IndexArgs {
+            IndexRecordArgs {
                 definition: None,
                 value_hash: None,
             }
         }
     }
-    pub struct IndexBuilder<'a: 'b, 'b> {
+    pub struct IndexRecordBuilder<'a: 'b, 'b> {
         fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a>,
         start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
     }
-    impl<'a: 'b, 'b> IndexBuilder<'a, 'b> {
+    impl<'a: 'b, 'b> IndexRecordBuilder<'a, 'b> {
         #[inline]
         pub fn add_definition(&mut self, definition: flatbuffers::WIPOffset<IndexDefinition<'b>>) {
             self.fbb_
                 .push_slot_always::<flatbuffers::WIPOffset<IndexDefinition>>(
-                    Index::VT_DEFINITION,
+                    IndexRecord::VT_DEFINITION,
                     definition,
                 );
         }
         #[inline]
         pub fn add_value_hash(&mut self, value_hash: flatbuffers::WIPOffset<&'b str>) {
-            self.fbb_
-                .push_slot_always::<flatbuffers::WIPOffset<_>>(Index::VT_VALUE_HASH, value_hash);
+            self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
+                IndexRecord::VT_VALUE_HASH,
+                value_hash,
+            );
         }
         #[inline]
-        pub fn new(_fbb: &'b mut flatbuffers::FlatBufferBuilder<'a>) -> IndexBuilder<'a, 'b> {
+        pub fn new(_fbb: &'b mut flatbuffers::FlatBufferBuilder<'a>) -> IndexRecordBuilder<'a, 'b> {
             let start = _fbb.start_table();
-            IndexBuilder {
+            IndexRecordBuilder {
                 fbb_: _fbb,
                 start_: start,
             }
         }
         #[inline]
-        pub fn finish(self) -> flatbuffers::WIPOffset<Index<'a>> {
+        pub fn finish(self) -> flatbuffers::WIPOffset<IndexRecord<'a>> {
             let o = self.fbb_.end_table(self.start_);
             flatbuffers::WIPOffset::new(o.value())
         }
@@ -740,9 +742,10 @@ pub mod commit {
         #[inline]
         pub fn indexes(
             &self,
-        ) -> Option<flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<Index<'a>>>> {
+        ) -> Option<flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<IndexRecord<'a>>>>
+        {
             self._tab.get::<flatbuffers::ForwardsUOffset<
-                flatbuffers::Vector<flatbuffers::ForwardsUOffset<Index<'a>>>,
+                flatbuffers::Vector<flatbuffers::ForwardsUOffset<IndexRecord<'a>>>,
             >>(Commit::VT_INDEXES, None)
         }
     }
@@ -752,7 +755,7 @@ pub mod commit {
         pub value_hash: Option<flatbuffers::WIPOffset<&'a str>>,
         pub indexes: Option<
             flatbuffers::WIPOffset<
-                flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<Index<'a>>>,
+                flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<IndexRecord<'a>>>,
             >,
         >,
     }
@@ -785,7 +788,7 @@ pub mod commit {
         pub fn add_indexes(
             &mut self,
             indexes: flatbuffers::WIPOffset<
-                flatbuffers::Vector<'b, flatbuffers::ForwardsUOffset<Index<'b>>>,
+                flatbuffers::Vector<'b, flatbuffers::ForwardsUOffset<IndexRecord<'b>>>,
             >,
         ) {
             self.fbb_

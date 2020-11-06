@@ -49,7 +49,7 @@ impl Commit {
         mutator_args_json: &[u8],
         original_hash: Option<&str>,
         value_hash: &str,
-        indexes: &[IndexMeta],
+        indexes: &[IndexRecord],
     ) -> Commit {
         let mut builder = FlatBufferBuilder::default();
         let local_meta_args = &commit_fb::LocalMetaArgs {
@@ -77,7 +77,7 @@ impl Commit {
         last_mutation_id: u64,
         server_state_id: &str,
         value_hash: &str,
-        indexes: &[IndexMeta],
+        indexes: &[IndexRecord],
     ) -> Commit {
         let mut builder = FlatBufferBuilder::default();
         let snapshot_meta_args = &commit_fb::SnapshotMetaArgs {
@@ -139,7 +139,7 @@ impl Commit {
         self.mutation_id() + 1
     }
 
-    pub fn indexes(&self) -> Vec<IndexMeta> {
+    pub fn indexes(&self) -> Vec<IndexRecord> {
         // TODO: Would be nice to return an iterator instead of allocating the temp vector here.
         let mut result = Vec::new();
         for idx in self.commit().indexes().iter().flat_map(|v| v.iter()) {
@@ -153,7 +153,7 @@ impl Commit {
                     .unwrap()
                     .to_string(),
             };
-            let index = IndexMeta {
+            let index = IndexRecord {
                 definition,
                 value_hash: idx.value_hash().unwrap().to_string(),
             };
@@ -231,7 +231,7 @@ impl Commit {
         Ok(())
     }
 
-    fn validate_index(index: commit_fb::Index) -> Result<(), ValidateIndexError> {
+    fn validate_index(index: commit_fb::IndexRecord) -> Result<(), ValidateIndexError> {
         use ValidateIndexError::*;
         index.definition().ok_or(MissingDefinition)?;
         Commit::validate_index_definition(index.definition().unwrap()).map_err(InvalidDefintion)?;
@@ -251,7 +251,7 @@ impl Commit {
         union_value: flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
         value_hash: Ref,
         original_hash: Option<Ref>,
-        indexes: &[IndexMeta],
+        indexes: &[IndexRecord],
     ) -> Commit {
         let meta_args = &commit_fb::MetaArgs {
             basis_hash: basis_hash.map(|r| builder.create_string(r.hash())),
@@ -268,11 +268,11 @@ impl Commit {
                 json_pointer: builder.create_string(&index.definition.json_pointer).into(),
             };
             let def = commit_fb::IndexDefinition::create(&mut builder, args);
-            let args = &commit_fb::IndexArgs {
+            let args = &commit_fb::IndexRecordArgs {
                 definition: def.into(),
                 value_hash: builder.create_string(&index.value_hash).into(),
             };
-            fb_indexes.push(commit_fb::Index::create(&mut builder, args));
+            fb_indexes.push(commit_fb::IndexRecord::create(&mut builder, args));
         }
 
         let commit_args = &commit_fb::CommitArgs {
@@ -453,7 +453,7 @@ impl<'a> SnapshotMeta<'a> {
 }
 
 #[derive(Clone, Debug)]
-pub struct IndexMeta {
+pub struct IndexRecord {
     pub definition: IndexDefinition,
     pub value_hash: String,
 }
@@ -888,7 +888,7 @@ mod tests {
         fn make_index<'bldr: 'mut_bldr, 'mut_bldr>(
             builder: &'mut_bldr mut FlatBufferBuilder<'bldr>,
             make_index: &MakeIndex,
-        ) -> flatbuffers::WIPOffset<commit_fb::Index<'bldr>> {
+        ) -> flatbuffers::WIPOffset<commit_fb::IndexRecord<'bldr>> {
             let definition = make_index.definition.as_ref().map(|mid| {
                 let args = commit_fb::IndexDefinitionArgs {
                     name: mid.name.as_ref().map(|s| builder.create_string(s)),
@@ -897,14 +897,14 @@ mod tests {
                 };
                 commit_fb::IndexDefinition::create(builder, &args)
             });
-            let args = commit_fb::IndexArgs {
+            let args = commit_fb::IndexRecordArgs {
                 definition,
                 value_hash: make_index
                     .value_hash
                     .as_ref()
                     .map(|s| builder.create_string(s)),
             };
-            commit_fb::Index::create(builder, &args)
+            commit_fb::IndexRecord::create(builder, &args)
         }
 
         let mut fb_indexes = Vec::new();

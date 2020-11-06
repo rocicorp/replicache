@@ -7,12 +7,12 @@ use serde_json::Value;
 
 #[derive(Debug)]
 pub struct Index {
-    pub meta: commit::IndexMeta,
+    pub meta: commit::IndexRecord,
     map: RwLock<Option<prolly::Map>>,
 }
 
 impl Index {
-    pub fn new(meta: commit::IndexMeta, map: Option<prolly::Map>) -> Index {
+    pub fn new(meta: commit::IndexRecord, map: Option<prolly::Map>) -> Index {
         Index {
             meta,
             map: RwLock::new(map),

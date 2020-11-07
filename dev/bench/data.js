@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1604697665102,
+  "lastUpdate": 1604707270490,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -4424,6 +4424,79 @@ window.BENCHMARK_DATA = {
             "range": "±0.0%",
             "unit": "tx/s",
             "extra": "84 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "distinct": true,
+          "id": "a5092a8d6c19057aa94c808ec5061189d3a00469",
+          "message": "Allows Next.js using Webpack 5 to work\n\nThere are a bunch of Webpack/Next.js issues to work around:\n\n- `import.meta.url` generates `file:` URL. Using the `new URL` pattern\n  tells Webpack to do runtime URLs.\n- `experimental.asyncWebAssembly` causes Webpack to parse the wasm file\n  and validate imports which it doesn't do correctly. Instead you need\n  to use `type: \"asset/resource\"`.\n  - But this puts the wasm file in `_next` which cause 404. We need to\n    tell webpack to put the file in `static/` too\n\nTowards #151",
+          "timestamp": "2020-11-06T15:59:13-08:00",
+          "tree_id": "cc64968cd434f33bdca5a16d5d941b24e975049d",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/a5092a8d6c19057aa94c808ec5061189d3a00469"
+        },
+        "date": 1604707268048,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.52,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.52,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.04,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.37,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 19.15,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 21.51,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 34.48,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "65 samples"
           }
         ]
       }

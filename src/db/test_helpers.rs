@@ -28,6 +28,8 @@ pub async fn add_genesis<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mu
     chain
 }
 
+// Local commit has mutator name and args according to its index in the
+// chain.
 pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut Chain {
     assert!(chain.len() > 0);
     let i = chain.len() as u64;
@@ -44,6 +46,26 @@ pub async fn add_local<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut 
         LogContext::new(),
         str!("local").into(),
         format!("\"{}\"", i).into_bytes(),
+    )
+    .await
+    .unwrap();
+    w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
+    let (_, commit, _) = read_commit(
+        Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+        &store.read(LogContext::new()).await.unwrap().read(),
+    )
+    .await
+    .unwrap();
+    chain.push(commit);
+    chain
+}
+
+pub async fn add_index_change<'a>(chain: &'a mut Chain, store: &dag::Store) -> &'a mut Chain {
+    assert!(chain.len() > 0);
+    let i = chain.len() as u64;
+    let mut w = Write::new_index_change(
+        Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+        store.write(LogContext::new()).await.unwrap(),
     )
     .await
     .unwrap();
@@ -94,14 +116,6 @@ pub async fn add_snapshot<'a>(
             i += 2;
         }
     }
-    w.create_index(
-        LogContext::new(),
-        chain.len().to_string(),
-        "snapshot".as_bytes(),
-        "",
-    )
-    .await
-    .unwrap();
     w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
     let (_, commit, _) = read_commit(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),

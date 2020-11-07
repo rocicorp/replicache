@@ -9,8 +9,13 @@ use str_macro::str;
 
 #[allow(dead_code)]
 enum Meta {
+    IndexChange(IndexChangeMeta),
     Local(LocalMeta),
     Snapshot(SnapshotMeta),
+}
+
+struct IndexChangeMeta {
+    last_mutation_id: u64,
 }
 
 struct LocalMeta {
@@ -29,7 +34,7 @@ pub struct Write<'a> {
     dag_write: dag::Write<'a>,
     map: prolly::Map,
     checksum: Checksum,
-    basis_hash: Option<String>,
+    basis: Option<commit::Commit>,
     meta: Meta,
     indexes: HashMap<String, index::Index>,
 }
@@ -47,7 +52,7 @@ pub async fn init_db(dag_write: dag::Write<'_>, head_name: &str) -> Result<Strin
         dag_write,
         map: prolly::Map::new(),
         checksum: Checksum::new(),
-        basis_hash: None,
+        basis: None,
         meta: Meta::Snapshot(SnapshotMeta {
             last_mutation_id: 0,
             server_state_id: str!(""),
@@ -67,12 +72,12 @@ impl<'a> Write<'a> {
         dag_write: dag::Write<'a>,
     ) -> Result<Write<'a>, ReadCommitError> {
         use ReadCommitError::*;
-        let (basis_hash, basis, map) = read::read_commit(whence, &dag_write.read()).await?;
+        let (_, basis, map) = read::read_commit(whence, &dag_write.read()).await?;
         let mutation_id = basis.next_mutation_id();
         let checksum = Checksum::from_str(basis.meta().checksum()).map_err(InvalidChecksum)?;
         let indexes = read::read_indexes(&basis);
         Ok(Write {
-            basis_hash: basis_hash.into(),
+            basis: basis.into(),
             dag_write,
             map,
             checksum,
@@ -94,10 +99,10 @@ impl<'a> Write<'a> {
         indexes: HashMap<String, index::Index>,
     ) -> Result<Write<'a>, ReadCommitError> {
         use ReadCommitError::*;
-        let (basis_hash, commit, map) = read::read_commit(whence, &dag_write.read()).await?;
-        let checksum = Checksum::from_str(commit.meta().checksum()).map_err(InvalidChecksum)?;
+        let (_, basis, map) = read::read_commit(whence, &dag_write.read()).await?;
+        let checksum = Checksum::from_str(basis.meta().checksum()).map_err(InvalidChecksum)?;
         Ok(Write {
-            basis_hash: basis_hash.into(),
+            basis: basis.into(),
             dag_write,
             map,
             checksum,
@@ -105,6 +110,25 @@ impl<'a> Write<'a> {
                 last_mutation_id,
                 server_state_id,
             }),
+            indexes,
+        })
+    }
+
+    pub async fn new_index_change(
+        whence: Whence,
+        dag_write: dag::Write<'a>,
+    ) -> Result<Write<'a>, ReadCommitError> {
+        use ReadCommitError::*;
+        let (_, basis, map) = read::read_commit(whence, &dag_write.read()).await?;
+        let last_mutation_id = basis.mutation_id();
+        let checksum = Checksum::from_str(basis.meta().checksum()).map_err(InvalidChecksum)?;
+        let indexes = read::read_indexes(&basis);
+        Ok(Write {
+            basis: basis.into(),
+            dag_write,
+            map,
+            checksum,
+            meta: Meta::IndexChange(IndexChangeMeta { last_mutation_id }),
             indexes,
         })
     }
@@ -127,6 +151,11 @@ impl<'a> Write<'a> {
         val: Vec<u8>,
     ) -> Result<(), PutError> {
         use PutError::*;
+        match &self.meta {
+            Meta::Local(_) | Meta::Snapshot(_) => {}
+            _ => return Err(NotAllowed),
+        }
+
         let old_val = self.map.get(&key);
         if let Some(old_val) = old_val {
             self.checksum.remove(&key, &old_val);
@@ -158,6 +187,11 @@ impl<'a> Write<'a> {
 
     pub async fn del(&mut self, lc: rlog::LogContext, key: Vec<u8>) -> Result<(), DelError> {
         use DelError::*;
+        match &self.meta {
+            Meta::Local(_) | Meta::Snapshot(_) => {}
+            _ => return Err(NotAllowed),
+        }
+
         let old_val = self.map.get(&key);
         match old_val {
             None => {}
@@ -216,6 +250,11 @@ impl<'a> Write<'a> {
 
     pub async fn clear(&mut self) -> Result<(), ClearError> {
         use ClearError::*;
+        match &self.meta {
+            Meta::Local(_) | Meta::Snapshot(_) => {}
+            _ => return Err(NotAllowed),
+        }
+
         self.checksum = Checksum::new();
         self.map = prolly::Map::new();
         for (_, idx) in self.indexes.iter() {
@@ -241,6 +280,11 @@ impl<'a> Write<'a> {
         json_pointer: &str,
     ) -> Result<(), CreateIndexError> {
         use CreateIndexError::*;
+        match &self.meta {
+            // Snapshots also need to manipulate indexes.
+            Meta::Snapshot(_) | Meta::IndexChange(_) => {}
+            _ => return Err(NotAllowed),
+        }
 
         let definition = commit::IndexDefinition {
             name: name.clone(),
@@ -302,6 +346,12 @@ impl<'a> Write<'a> {
 
     pub async fn drop_index(&mut self, name: &str) -> Result<(), DropIndexError> {
         use DropIndexError::*;
+        match &self.meta {
+            // Snapshots also need to manipulate indexes.
+            Meta::Snapshot(_) | Meta::IndexChange(_) => {}
+            _ => return Err(NotAllowed),
+        }
+
         match self.indexes.remove(name) {
             None => Err(NoSuchIndexError(name.to_string())),
             Some(_) => Ok(()),
@@ -327,6 +377,7 @@ impl<'a> Write<'a> {
             meta.value_hash = value_hash;
             index_metas.push(meta);
         }
+        let basis_hash = self.basis.as_ref().map(|b| b.chunk().hash().to_string());
         let commit = match &self.meta {
             Meta::Local(meta) => {
                 let LocalMeta {
@@ -337,7 +388,7 @@ impl<'a> Write<'a> {
                 } = meta;
 
                 commit::Commit::new_local(
-                    self.basis_hash.as_deref(),
+                    basis_hash.as_deref(),
                     self.checksum,
                     *mutation_id,
                     mutator_name,
@@ -347,6 +398,7 @@ impl<'a> Write<'a> {
                     &index_metas,
                 )
             }
+
             Meta::Snapshot(meta) => {
                 let SnapshotMeta {
                     last_mutation_id,
@@ -354,10 +406,31 @@ impl<'a> Write<'a> {
                 } = meta;
 
                 commit::Commit::new_snapshot(
-                    self.basis_hash.as_deref(),
+                    basis_hash.as_deref(),
                     self.checksum,
                     *last_mutation_id,
                     &server_state_id,
+                    &value_hash,
+                    &index_metas,
+                )
+            }
+
+            Meta::IndexChange(meta) => {
+                let IndexChangeMeta { last_mutation_id } = meta;
+
+                if let Some(basis) = &self.basis {
+                    if &basis.mutation_id() != last_mutation_id {
+                        return Err(IndexChangeMustNotChangeMutationID);
+                    }
+                    if basis.value_hash() != value_hash {
+                        return Err(IndexChangeMustNotChangeValueHash);
+                    }
+                }
+
+                commit::Commit::new_index_change(
+                    basis_hash.as_deref(),
+                    self.checksum,
+                    *last_mutation_id,
                     &value_hash,
                     &index_metas,
                 )
@@ -380,16 +453,18 @@ impl<'a> Write<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum CreateIndexError {
     FlushError(prolly::FlushError),
     IndexError((String, Vec<u8>, String, index::IndexValueError)),
     IndexExistsWithDifferentDefinition,
+    NotAllowed,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum DropIndexError {
     NoSuchIndexError(String),
+    NotAllowed,
 }
 
 #[derive(Debug)]
@@ -398,22 +473,26 @@ pub enum CommitError {
     DagSetHeadError(dag::Error),
     DagCommitError(dag::Error),
     FlushError(prolly::FlushError),
+    IndexChangeMustNotChangeMutationID,
+    IndexChangeMustNotChangeValueHash,
     IndexFlushError(index::IndexFlushError),
     SerializeArgsError(serde_json::error::Error),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum PutError {
-    RemoveOldIndexEntriesError(UpdateIndexesError),
     AddNewIndexEntriesError(UpdateIndexesError),
+    NotAllowed,
+    RemoveOldIndexEntriesError(UpdateIndexesError),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum DelError {
+    NotAllowed,
     UpdateIndexesError(UpdateIndexesError),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum UpdateIndexesError {
     GetMapError(index::GetMapError),
     IndexValueError(index::IndexValueError),
@@ -422,6 +501,7 @@ pub enum UpdateIndexesError {
 #[derive(Debug)]
 pub enum ClearError {
     GetMapError(index::GetMapError),
+    NotAllowed,
 }
 
 #[cfg(test)]
@@ -470,6 +550,112 @@ mod tests {
         let r = w.as_read();
         let val = r.get(b"foo");
         assert_eq!(Some(&(b"bar"[..])), val);
+    }
+
+    #[async_std::test]
+    async fn index_commit_type_constraints() {
+        let ds = dag::Store::new(Box::new(MemStore::new()));
+        init_db(
+            ds.write(LogContext::new()).await.unwrap(),
+            db::DEFAULT_HEAD_NAME,
+        )
+        .await
+        .unwrap();
+
+        // Test that local changes cannot create or drop an index.
+        let mut w = Write::new_local(
+            Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+            str!("mutator_name"),
+            serde_json::Value::Array(vec![]).to_string(),
+            None,
+            ds.write(LogContext::new()).await.unwrap(),
+        )
+        .await
+        .unwrap();
+        let got_err = w
+            .create_index(
+                rlog::LogContext::new(),
+                str!("foo"),
+                &str!("").into_bytes(),
+                "",
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(CreateIndexError::NotAllowed, got_err);
+        let got_err = w.drop_index("foo").await.unwrap_err();
+        assert_eq!(DropIndexError::NotAllowed, got_err);
+        drop(w);
+
+        // Test that snapshot changes CAN create or drop an index. This is needed for sync,
+        // which rebuilds indexes from scratch.
+        let mut w = Write::new_snapshot(
+            Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+            1,
+            str!("ssid"),
+            ds.write(LogContext::new()).await.unwrap(),
+            HashMap::new(),
+        )
+        .await
+        .unwrap();
+        w.create_index(
+            rlog::LogContext::new(),
+            str!("foo"),
+            &str!("").into_bytes(),
+            "",
+        )
+        .await
+        .unwrap();
+        w.drop_index("foo").await.unwrap();
+        drop(w);
+
+        // Test that index changes cannot put or del.
+        let mut w = Write::new_index_change(
+            Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+            ds.write(LogContext::new()).await.unwrap(),
+        )
+        .await
+        .unwrap();
+        let got_err = w
+            .put(rlog::LogContext::new(), vec![], vec![])
+            .await
+            .unwrap_err();
+        assert_eq!(PutError::NotAllowed, got_err);
+        let got_err = w.del(rlog::LogContext::new(), vec![]).await.unwrap_err();
+        assert_eq!(DelError::NotAllowed, got_err);
+        drop(w);
+
+        // Test that index changes cannot change the last mutation id or value hash.
+        let mut w = Write::new_index_change(
+            Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+            ds.write(LogContext::new()).await.unwrap(),
+        )
+        .await
+        .unwrap();
+        match &mut w.meta {
+            Meta::IndexChange(ic) => ic.last_mutation_id = 1000,
+            _ => assert!(false),
+        }
+        let got_err = w.commit("some head").await.unwrap_err();
+        // Compare as a string because we can't make derive PartialEq for CommitError
+        // (it wraps serde errors that are not PartialEq).
+        assert_eq!(
+            "IndexChangeMustNotChangeMutationID",
+            format!("{:?}", got_err)
+        );
+        let mut w = Write::new_index_change(
+            Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+            ds.write(LogContext::new()).await.unwrap(),
+        )
+        .await
+        .unwrap();
+        let m = &mut w.map;
+        m.put(vec![0x01, 0x02], vec![0x03]);
+        drop(m);
+        let got_err = w.commit("some head").await.unwrap_err();
+        assert_eq!(
+            "IndexChangeMustNotChangeValueHash",
+            format!("{:?}", got_err)
+        );
     }
 
     #[async_std::test]
@@ -530,10 +716,17 @@ mod tests {
         )
         .await
         .unwrap();
-        w.create_index(rlog::LogContext::new(), str!("idx"), b"", "")
+        w.put(lc.clone(), b"foo".to_vec(), b"\"bar\"".to_vec())
             .await
             .unwrap();
-        w.put(lc.clone(), b"foo".to_vec(), b"\"bar\"".to_vec())
+        w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
+        let mut w = Write::new_index_change(
+            Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+            ds.write(LogContext::new()).await.unwrap(),
+        )
+        .await
+        .unwrap();
+        w.create_index(rlog::LogContext::new(), str!("idx"), b"", "")
             .await
             .unwrap();
         w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
@@ -601,7 +794,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_create_and_drop_index() {
-        async fn test(separate_commits: bool) {
+        async fn test(write_before_indexing: bool) {
             let ds = dag::Store::new(Box::new(MemStore::new()));
             init_db(
                 ds.write(LogContext::new()).await.unwrap(),
@@ -609,30 +802,9 @@ mod tests {
             )
             .await
             .unwrap();
-            let mut w = Write::new_local(
-                Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
-                str!("mutator_name"),
-                serde_json::Value::Array(vec![]).to_string(),
-                None,
-                ds.write(LogContext::new()).await.unwrap(),
-            )
-            .await
-            .unwrap();
-            for i in 0..3 {
-                w.put(
-                    rlog::LogContext::new(),
-                    format!("k{}", i).as_bytes().to_vec(),
-                    json!({ "s": format!("s{}", i) })
-                        .to_string()
-                        .as_bytes()
-                        .to_vec(),
-                )
-                .await
-                .unwrap();
-            }
-            if separate_commits {
-                w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
-                w = Write::new_local(
+
+            if write_before_indexing {
+                let mut w = Write::new_local(
                     Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
                     str!("mutator_name"),
                     serde_json::Value::Array(vec![]).to_string(),
@@ -641,13 +813,57 @@ mod tests {
                 )
                 .await
                 .unwrap();
+                for i in 0..3 {
+                    w.put(
+                        rlog::LogContext::new(),
+                        format!("k{}", i).as_bytes().to_vec(),
+                        json!({ "s": format!("s{}", i) })
+                            .to_string()
+                            .as_bytes()
+                            .to_vec(),
+                    )
+                    .await
+                    .unwrap();
+                }
+                w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
             }
 
+            let mut w = Write::new_index_change(
+                Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+                ds.write(LogContext::new()).await.unwrap(),
+            )
+            .await
+            .unwrap();
             let index_name = "i1";
             w.create_index(rlog::LogContext::new(), index_name.to_string(), b"", "/s")
                 .await
                 .unwrap();
             w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
+
+            if !write_before_indexing {
+                let mut w = Write::new_local(
+                    Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+                    str!("mutator_name"),
+                    serde_json::Value::Array(vec![]).to_string(),
+                    None,
+                    ds.write(LogContext::new()).await.unwrap(),
+                )
+                .await
+                .unwrap();
+                for i in 0..3 {
+                    w.put(
+                        rlog::LogContext::new(),
+                        format!("k{}", i).as_bytes().to_vec(),
+                        json!({ "s": format!("s{}", i) })
+                            .to_string()
+                            .as_bytes()
+                            .to_vec(),
+                    )
+                    .await
+                    .unwrap();
+                }
+                w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
+            }
 
             let owned_read = ds.read(LogContext::new()).await.unwrap();
             let (_, c, _) = read::read_commit(
@@ -681,11 +897,8 @@ mod tests {
             drop(owned_read);
 
             // Ensure drop works.
-            w = Write::new_local(
+            w = Write::new_index_change(
                 Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
-                str!("some_mutator_name"),
-                serde_json::Value::Array(vec![]).to_string(),
-                None,
                 ds.write(LogContext::new()).await.unwrap(),
             )
             .await
@@ -703,8 +916,7 @@ mod tests {
             assert_eq!(indexes.len(), 0);
         }
 
+        test(true).await;
         test(false).await;
-        test(true).await;
-        test(true).await;
     }
 }

@@ -3,6 +3,17 @@
 use crate::db;
 use serde::{Deserialize, Serialize};
 
+// Note: index transactions are closed or committed using the regular
+// (Commit|Close)Transaction RPC.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct OpenIndexTransactionRequest {}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct OpenIndexTransactionResponse {
+    #[serde(rename = "transactionId")]
+    pub transaction_id: u32,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct OpenTransactionRequest {
     pub name: Option<String>, // not present in read transactions

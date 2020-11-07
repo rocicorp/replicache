@@ -184,6 +184,9 @@ async fn execute<'a, 'b>(
     // transaction-less
     match rpc.as_str() {
         "getRoot" => return to_js(do_get_root(ctx, from_js(data)?).await),
+        "openIndexTransaction" => {
+            return to_js(do_open_index_transaction(ctx, from_js(data)?).await)
+        }
         "openTransaction" => return to_js(do_open_transaction(ctx, from_js(data)?).await),
         "commitTransaction" => return to_js(do_commit(ctx, from_js(data)?).await),
         "closeTransaction" => return to_js(do_close(ctx, from_js(data)?).await),
@@ -314,6 +317,40 @@ async fn do_open_transaction<'a, 'b>(
     let txn_id = TRANSACTION_COUNTER.fetch_add(1, Ordering::SeqCst);
     ctx.txns.write().await.insert(txn_id, RwLock::new(txn));
     Ok(OpenTransactionResponse {
+        transaction_id: txn_id,
+    })
+}
+
+async fn do_open_index_transaction<'a, 'b>(
+    ctx: Context<'a, 'b>,
+    _req: OpenIndexTransactionRequest,
+) -> Result<OpenIndexTransactionResponse, OpenTransactionError> {
+    use OpenTransactionError::*;
+
+    let lock_timer = rlog::Timer::new().map_err(InternalTimerError)?;
+    debug!(ctx.lc, "Waiting for write lock...");
+    let dag_write = ctx
+        .store
+        .write(ctx.lc.clone())
+        .await
+        .map_err(DagWriteError)?;
+    debug!(
+        ctx.lc,
+        "...Write lock acquired in {}ms",
+        lock_timer.elapsed_ms()
+    );
+
+    let write = db::Write::new_index_change(
+        db::Whence::Head(db::DEFAULT_HEAD_NAME.to_string()),
+        dag_write,
+    )
+    .await
+    .map_err(DBWriteError)?;
+    let txn = Transaction::Write(write);
+
+    let txn_id = TRANSACTION_COUNTER.fetch_add(1, Ordering::SeqCst);
+    ctx.txns.write().await.insert(txn_id, RwLock::new(txn));
+    Ok(OpenIndexTransactionResponse {
         transaction_id: txn_id,
     })
 }
@@ -714,8 +751,6 @@ mod tests {
             )
             .await;
             let err = result.unwrap_err();
-            print!("{:?}", err);
-            //assert!(to_debug(result.unwrap_err()).contains("InconsistentMutationId"));
             assert!(to_debug(err).contains("InconsistentMutationId"));
 
             // Correct rebase_opt (test this last because it affects the chain).

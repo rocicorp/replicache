@@ -172,16 +172,10 @@ pub async fn begin_sync(
     // We are going to need to rebuild the indexes. We want to take the definitions from
     // the last commit on the chain that will not be rebased. We do this here before creating
     // the new snapshot while we still have the dag_read borrowed.
-    //
-    // First, local_mutations() gives us the set of pending commits, in chain-head-first order.
-    let mut pending = Commit::local_mutations(main_head_post_pull.as_ref().unwrap(), &dag_read)
+    let chain = Commit::chain(main_head_post_pull.as_ref().unwrap(), &dag_read)
         .await
-        .map_err(InternalGetPendingCommitsError)?;
-    // We push the base snapshot onto the end of the list. We now have the full main chain
-    // in chain-head-first order.
-    pending.push(base_snapshot_post_pull);
-    // Now find the first commit that will not be rebased.
-    let index_metas: Vec<db::IndexRecord> = pending
+        .map_err(InternalGetChainError)?;
+    let index_records: Vec<db::IndexRecord> = chain
         .iter()
         .find(|c| c.mutation_id() <= pull_resp.last_mutation_id)
         .ok_or(InternalInvalidChainError)?
@@ -201,8 +195,9 @@ pub async fn begin_sync(
     // Rebuild the indexes
     // TODO would be so nice to have a way to re-use old indexes, which are likely
     //      only a small diff from what we want.
-    for m in index_metas.iter() {
+    for m in index_records.iter() {
         let def = &m.definition;
+        println!("Got {:?}\n", def);
         db_write
             .create_index(
                 lc.clone(),
@@ -236,7 +231,8 @@ pub enum BeginSyncError {
     CommitError(db::CommitError),
     CoundNotReloadHeadHash(db::FromHashError),
     GetHeadError(dag::Error),
-    InternalGetPendingCommitsError(db::PendingError),
+    InternalGetChainError(db::WalkChainError),
+    InternalGetPendingCommitsError(db::WalkChainError),
     InternalInvalidChainError,
     InternalNoMainHeadError,
     InternalNonLocalPendingCommit,
@@ -373,7 +369,7 @@ pub enum MaybeEndSyncError {
     NoBaseSnapshot(db::BaseSnapshotError),
     OpenWriteTxWriteError(dag::Error),
     OverlappingSyncsJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
-    PendingError(db::PendingError),
+    PendingError(db::WalkChainError),
     ReadError(dag::Error),
     SyncSnapshotWithNoBasis,
     WriteDefaultHeadError(dag::Error),
@@ -513,7 +509,10 @@ mod tests {
         let mut chain: Chain = vec![];
         add_genesis(&mut chain, &store).await;
         add_snapshot(&mut chain, &store, Some(vec![str!("foo"), str!("bar")])).await;
-        let base_snapshot = &chain[chain.len() - 1];
+        // chain[2] is an index change
+        add_index_change(&mut chain, &store).await;
+        let starting_num_commits = chain.len();
+        let base_snapshot = &chain[1];
         let (base_last_mutation_id, base_server_state_id) =
             Commit::snapshot_meta_parts(base_snapshot).unwrap();
         let base_checksum = base_snapshot.meta().checksum().to_string();
@@ -556,8 +555,6 @@ mod tests {
             state_id: String,
             last_mutation_id: u64,
             checksum: String,
-            // Test helpers add an index to each commit equal to its position
-            // in the chain.
             indexes: Vec<String>,
         }
 
@@ -596,7 +593,7 @@ mod tests {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 10,
                     checksum: str!("f9ef007b"),
-                    indexes: vec![1.to_string()],
+                    indexes: vec![2.to_string()],
                 }),
             },
             Case {
@@ -607,8 +604,8 @@ mod tests {
                     mutations: vec![
                         push::Mutation {
                             id: 2,
-                            name: "mutator_name_2".to_string(),
-                            args: json!([2]),
+                            name: "mutator_name_3".to_string(),
+                            args: json!([3]),
                         },
                     ],
                 }),
@@ -629,7 +626,7 @@ mod tests {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 2,
                     checksum: str!("f9ef007b"),
-                    indexes: vec![2.to_string(), 1.to_string()],
+                    indexes: vec![2.to_string(), 4.to_string()],
                 }),
             },
             Case {
@@ -640,8 +637,8 @@ mod tests {
                     mutations: vec![
                         push::Mutation {
                             id: 2,
-                            name: "mutator_name_2".to_string(),
-                            args: json!([2]),
+                            name: "mutator_name_3".to_string(),
+                            args: json!([3]),
                         },
                     ],
                 }),
@@ -662,7 +659,7 @@ mod tests {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 1,
                     checksum: str!("f9ef007b"),
-                    indexes: vec![1.to_string()],
+                    indexes: vec![2.to_string()],
                 }),
             },
             Case {
@@ -676,13 +673,13 @@ mod tests {
                         // test helpers so we use that knowledge here.
                         push::Mutation {
                             id: 2,
-                            name: "mutator_name_2".to_string(),
-                            args: json!([2]),
+                            name: "mutator_name_3".to_string(),
+                            args: json!([3]),
                         },
                         push::Mutation {
                             id: 3,
-                            name: "mutator_name_3".to_string(),
-                            args: json!([3]),
+                            name: "mutator_name_5".to_string(),
+                            args: json!([5]),
                         },
                     ],
                 }),
@@ -700,7 +697,7 @@ mod tests {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 10,
                     checksum: str!("f9ef007b"),
-                    indexes: vec![3.to_string(), 2.to_string(), 1.to_string()],
+                    indexes: vec![2.to_string(), 4.to_string(), 6.to_string()],
                 }),
             },
             Case {
@@ -714,13 +711,13 @@ mod tests {
                         // test helpers so we use that knowledge here.
                         push::Mutation {
                             id: 2,
-                            name: "mutator_name_2".to_string(),
-                            args: json!([2]),
+                            name: "mutator_name_3".to_string(),
+                            args: json!([3]),
                         },
                         push::Mutation {
                             id: 3,
-                            name: "mutator_name_3".to_string(),
-                            args: json!([3]),
+                            name: "mutator_name_5".to_string(),
+                            args: json!([5]),
                         },
                     ],
                 }),
@@ -741,7 +738,7 @@ mod tests {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 2,
                     checksum: str!("f9ef007b"),
-                    indexes: vec![2.to_string(), 1.to_string()],
+                    indexes: vec![2.to_string(), 4.to_string()],
                 }),
             },
             Case {
@@ -755,13 +752,13 @@ mod tests {
                         // test helpers so we use that knowledge here.
                         push::Mutation {
                             id: 2,
-                            name: "mutator_name_2".to_string(),
-                            args: json!([2]),
+                            name: "mutator_name_3".to_string(),
+                            args: json!([3]),
                         },
                         push::Mutation {
                             id: 3,
-                            name: "mutator_name_3".to_string(),
-                            args: json!([3]),
+                            name: "mutator_name_5".to_string(),
+                            args: json!([5]),
                         },
                     ],
                 }),
@@ -779,7 +776,7 @@ mod tests {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 10,
                     checksum: str!("f9ef007b"),
-                    indexes: vec![3.to_string(), 2.to_string(), 1.to_string()],
+                    indexes: vec![2.to_string(), 4.to_string(), 6.to_string()],
                 }),
             },
 
@@ -904,7 +901,7 @@ mod tests {
         ];
         for c in cases.iter() {
             // Reset state of the store.
-            chain.truncate(2);
+            chain.truncate(starting_num_commits);
             let w = store.write(LogContext::new()).await.unwrap();
             w.set_head(
                 DEFAULT_HEAD_NAME,
@@ -916,13 +913,13 @@ mod tests {
             w.commit().await.unwrap();
             for _ in 0..c.num_pending_mutations {
                 add_local(&mut chain, &store).await;
+                add_index_change(&mut chain, &store).await;
             }
 
-            // Both add_local() and add_snapshot() helpers create an index named "i"
-            // where the commit is ith in the chain. add_local() also does put("local", "i").
-            // Here we scan to ensure that one of the local indexes has values. We do
-            // this because after calling begin_sync we check that the index no longer
-            // returns values, demonstrating that it was rebuilt.
+            // There was an index added after the snapshot, and one for each local commit.
+            // Here we scan to ensure that we get values when scanning using one of the
+            // indexes created. We do this because after calling begin_sync we check that
+            // the index no longer returns values, demonstrating that it was rebuilt.
             if c.num_pending_mutations > 0 {
                 let dag_read = store.read(LogContext::new()).await.unwrap();
                 let read = db::OwnedRead::from_whence(
@@ -1059,14 +1056,11 @@ mod tests {
                         .iter()
                         .for_each(|i| assert!(indexes.contains(i)));
 
-                    // Check that we *don't* have old indexed values. The add_local()
-                    // helper for local commit i on the chain puts the value local=>"i"
-                    // into the (value) map and adds an index on the prefix "local".
-                    // Here we check that we don't see any of those indexed values.
-                    // The indexes should have been rebuilt with a client view
-                    // returned by the server that does not include local= values.
-                    // The check for len > 1 is because the snapshot's index is not what
-                    // we want; we want the first local commit's index ("2").
+                    // Check that we *don't* have old indexed values. The indexes should
+                    // have been rebuilt with a client view returned by the server that
+                    // does not include local= values. The check for len > 1 is because
+                    // the snapshot's index is not what we want; we want the first index
+                    // change's index ("2").
                     if exp_sync_head.indexes.len() > 1 {
                         let dag_read = store.read(LogContext::new()).await.unwrap();
                         let read = db::OwnedRead::from_whence(

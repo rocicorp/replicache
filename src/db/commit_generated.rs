@@ -22,12 +22,13 @@ pub mod commit {
     #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
     pub enum MetaTyped {
         NONE = 0,
-        LocalMeta = 1,
-        SnapshotMeta = 2,
+        IndexChangeMeta = 1,
+        LocalMeta = 2,
+        SnapshotMeta = 3,
     }
 
     pub const ENUM_MIN_META_TYPED: u8 = 0;
-    pub const ENUM_MAX_META_TYPED: u8 = 2;
+    pub const ENUM_MAX_META_TYPED: u8 = 3;
 
     impl<'a> flatbuffers::Follow<'a> for MetaTyped {
         type Inner = Self;
@@ -61,14 +62,16 @@ pub mod commit {
     }
 
     #[allow(non_camel_case_types)]
-    pub const ENUM_VALUES_META_TYPED: [MetaTyped; 3] = [
+    pub const ENUM_VALUES_META_TYPED: [MetaTyped; 4] = [
         MetaTyped::NONE,
+        MetaTyped::IndexChangeMeta,
         MetaTyped::LocalMeta,
         MetaTyped::SnapshotMeta,
     ];
 
     #[allow(non_camel_case_types)]
-    pub const ENUM_NAMES_META_TYPED: [&'static str; 3] = ["NONE", "LocalMeta", "SnapshotMeta"];
+    pub const ENUM_NAMES_META_TYPED: [&'static str; 4] =
+        ["NONE", "IndexChangeMeta", "LocalMeta", "SnapshotMeta"];
 
     pub fn enum_name_meta_typed(e: MetaTyped) -> &'static str {
         let index = e as u8;
@@ -76,6 +79,86 @@ pub mod commit {
     }
 
     pub struct MetaTypedUnionTableOffset {}
+    pub enum IndexChangeMetaOffset {}
+    #[derive(Copy, Clone, Debug, PartialEq)]
+
+    pub struct IndexChangeMeta<'a> {
+        pub _tab: flatbuffers::Table<'a>,
+    }
+
+    impl<'a> flatbuffers::Follow<'a> for IndexChangeMeta<'a> {
+        type Inner = IndexChangeMeta<'a>;
+        #[inline]
+        fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+            Self {
+                _tab: flatbuffers::Table { buf: buf, loc: loc },
+            }
+        }
+    }
+
+    impl<'a> IndexChangeMeta<'a> {
+        #[inline]
+        pub fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+            IndexChangeMeta { _tab: table }
+        }
+        #[allow(unused_mut)]
+        pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr>(
+            _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr>,
+            args: &'args IndexChangeMetaArgs,
+        ) -> flatbuffers::WIPOffset<IndexChangeMeta<'bldr>> {
+            let mut builder = IndexChangeMetaBuilder::new(_fbb);
+            builder.add_last_mutation_id(args.last_mutation_id);
+            builder.finish()
+        }
+
+        pub const VT_LAST_MUTATION_ID: flatbuffers::VOffsetT = 4;
+
+        #[inline]
+        pub fn last_mutation_id(&self) -> u64 {
+            self._tab
+                .get::<u64>(IndexChangeMeta::VT_LAST_MUTATION_ID, Some(0))
+                .unwrap()
+        }
+    }
+
+    pub struct IndexChangeMetaArgs {
+        pub last_mutation_id: u64,
+    }
+    impl<'a> Default for IndexChangeMetaArgs {
+        #[inline]
+        fn default() -> Self {
+            IndexChangeMetaArgs {
+                last_mutation_id: 0,
+            }
+        }
+    }
+    pub struct IndexChangeMetaBuilder<'a: 'b, 'b> {
+        fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a>,
+        start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+    }
+    impl<'a: 'b, 'b> IndexChangeMetaBuilder<'a, 'b> {
+        #[inline]
+        pub fn add_last_mutation_id(&mut self, last_mutation_id: u64) {
+            self.fbb_
+                .push_slot::<u64>(IndexChangeMeta::VT_LAST_MUTATION_ID, last_mutation_id, 0);
+        }
+        #[inline]
+        pub fn new(
+            _fbb: &'b mut flatbuffers::FlatBufferBuilder<'a>,
+        ) -> IndexChangeMetaBuilder<'a, 'b> {
+            let start = _fbb.start_table();
+            IndexChangeMetaBuilder {
+                fbb_: _fbb,
+                start_: start,
+            }
+        }
+        #[inline]
+        pub fn finish(self) -> flatbuffers::WIPOffset<IndexChangeMeta<'a>> {
+            let o = self.fbb_.end_table(self.start_);
+            flatbuffers::WIPOffset::new(o.value())
+        }
+    }
+
     pub enum LocalMetaOffset {}
     #[derive(Copy, Clone, Debug, PartialEq)]
 
@@ -380,6 +463,16 @@ pub mod commit {
             self._tab
                 .get::<flatbuffers::ForwardsUOffset<flatbuffers::Table<'a>>>(Meta::VT_TYPED, None)
         }
+        #[inline]
+        #[allow(non_snake_case)]
+        pub fn typed_as_index_change_meta(&self) -> Option<IndexChangeMeta<'a>> {
+            if self.typed_type() == MetaTyped::IndexChangeMeta {
+                self.typed().map(|u| IndexChangeMeta::init_from_table(u))
+            } else {
+                None
+            }
+        }
+
         #[inline]
         #[allow(non_snake_case)]
         pub fn typed_as_local_meta(&self) -> Option<LocalMeta<'a>> {

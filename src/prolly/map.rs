@@ -17,7 +17,7 @@ pub struct Map {
     pending: BTreeMap<Vec<u8>, Option<Vec<u8>>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum LoadError {
     Storage(dag::Error),
     UnknownHash,
@@ -36,7 +36,7 @@ impl From<leaf::LoadError> for LoadError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum FlushError {
     Storage(dag::Error),
 }

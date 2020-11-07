@@ -78,7 +78,7 @@ impl<'a> MapWriteGuard<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum GetMapError {
     MapLoadError(prolly::LoadError),
 }

@@ -81,6 +81,16 @@ async fn open_transaction(
     .unwrap()
 }
 
+async fn open_index_transaction(db_name: &str) -> OpenIndexTransactionResponse {
+    dispatch(
+        db_name,
+        "openIndexTransaction",
+        &OpenIndexTransactionRequest {},
+    )
+    .await
+    .unwrap()
+}
+
 async fn put(db_name: &str, transaction_id: u32, key: &str, value: &str) {
     let _: PutResponse = dispatch(
         db_name,
@@ -386,9 +396,7 @@ async fn test_create_drop_index() {
     let db = &random_db();
     assert_eq!(dispatch::<_, String>(db, "open", "").await.unwrap(), "");
 
-    let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
+    let transaction_id = open_index_transaction(db).await.transaction_id;
     dispatch::<_, CreateIndexResponse>(
         db,
         "createIndex",
@@ -404,9 +412,7 @@ async fn test_create_drop_index() {
     commit(db, transaction_id).await;
 
     // Ensure we can't create an index of the same name with different definition.
-    let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
+    let transaction_id = open_index_transaction(db).await.transaction_id;
     let response = dispatch::<_, CreateIndexResponse>(
         db,
         "createIndex",
@@ -440,9 +446,7 @@ async fn test_create_drop_index() {
     abort(db, transaction_id).await;
 
     // Check that drop works.
-    let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
+    let transaction_id = open_index_transaction(db).await.transaction_id;
     dispatch::<_, DropIndexResponse>(
         db,
         "dropIndex",
@@ -486,9 +490,7 @@ async fn test_create_drop_index() {
     abort(db, transaction_id).await;
 
     // Check that dropping a non-existent index errors.
-    let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
+    let transaction_id = open_index_transaction(db).await.transaction_id;
     let result = dispatch::<_, DropIndexResponse>(
         db,
         "dropIndex",
@@ -667,13 +669,16 @@ async fn test_scan_with_index() {
 
         let db = &random_db();
         dispatch::<_, String>(db, "open", "").await.unwrap();
-        let mut txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+        let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
             .await
             .transaction_id;
         for entry in entries {
             put(db, txn_id, entry.0, entry.1).await;
         }
+        commit(db, txn_id).await;
 
+        dispatch::<_, String>(db, "open", "").await.unwrap();
+        let txn_id = open_index_transaction(db).await.transaction_id;
         dispatch::<_, CreateIndexResponse>(
             db,
             "createIndex",
@@ -686,7 +691,11 @@ async fn test_scan_with_index() {
         )
         .await
         .unwrap();
+        commit(db, txn_id).await;
 
+        let mut txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
         match op {
             Op::None => {}
             Op::Del(key) => {
@@ -1035,7 +1044,7 @@ async fn test_get_root() {
             .await
             .unwrap(),
         GetRootResponse {
-            root: str!("h74aum0pgl4c5h5mnrsmisld16t4m2jc"),
+            root: str!("3hjt1p4m1emdttgrii2p0o3te1kt8rhv"),
         }
     );
     let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
@@ -1048,7 +1057,7 @@ async fn test_get_root() {
             .await
             .unwrap(),
         GetRootResponse {
-            root: str!("47mlcldf338lnq54hqj9gl4boohtefob"),
+            root: str!("8tnlpltjbt23hc0v8h3td7ssflsnot84"),
         }
     );
     assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");

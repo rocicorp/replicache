@@ -4,6 +4,13 @@
 // instance.
 namespace commit;
 
+// Commit metadata specific to index change commits.
+table IndexChangeMeta {
+    last_mutation_id: ulong;
+    // We could keep track of new and dropped index definitions here
+    // if we wanted to, but there is little value in it atm.
+}
+
 // Commit metadata specific to local commits.
 table LocalMeta {
     mutation_id: ulong;
@@ -20,6 +27,7 @@ table SnapshotMeta {
 
 // Commit metadata specific to the type of commit.
 union MetaTyped {
+    IndexChangeMeta,
     LocalMeta,
     SnapshotMeta,
 }

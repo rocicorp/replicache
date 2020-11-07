@@ -97,6 +97,29 @@ impl Commit {
         )
     }
 
+    pub fn new_index_change(
+        basis_hash: Option<&str>,
+        checksum: Checksum,
+        last_mutation_id: u64,
+        value_hash: &str,
+        indexes: &[IndexRecord],
+    ) -> Commit {
+        let mut builder = FlatBufferBuilder::default();
+        let index_change_meta_args = &commit_fb::IndexChangeMetaArgs { last_mutation_id };
+        let index_change_meta =
+            commit_fb::IndexChangeMeta::create(&mut builder, index_change_meta_args);
+        Commit::new_impl(
+            builder,
+            basis_hash.map(Ref::Strong),
+            checksum,
+            commit_fb::MetaTyped::IndexChangeMeta,
+            index_change_meta.as_union_value(),
+            Ref::Strong(value_hash),
+            None,
+            indexes,
+        )
+    }
+
     pub fn from_chunk(chunk: dag::Chunk) -> Result<Commit, LoadError> {
         Commit::validate(chunk.data())?;
         Ok(Commit { chunk })
@@ -130,6 +153,7 @@ impl Commit {
     pub fn mutation_id(&self) -> u64 {
         let meta = self.meta();
         match meta.typed() {
+            MetaTyped::IndexChange(icm) => icm.last_mutation_id(),
             MetaTyped::Local(lm) => lm.mutation_id(),
             MetaTyped::Snapshot(sm) => sm.last_mutation_id(),
         }
@@ -174,6 +198,9 @@ impl Commit {
         Checksum::from_str(meta.checksum().unwrap()).map_err(|_| InvalidChecksum)?;
 
         match meta.typed_type() {
+            commit_fb::MetaTyped::IndexChangeMeta => Commit::validate_index_change_meta(
+                meta.typed_as_index_change_meta().ok_or(MissingTyped)?,
+            ),
             commit_fb::MetaTyped::LocalMeta => {
                 Commit::validate_local_meta(meta.typed_as_local_meta().ok_or(MissingTyped)?)
             }
@@ -199,6 +226,16 @@ impl Commit {
             }
         }
 
+        Ok(())
+    }
+
+    fn validate_index_change_meta(_: commit_fb::IndexChangeMeta) -> Result<(), LoadError> {
+        // Note: indexes are already validated for all commit types. Only additional
+        // things to validate are:
+        //   - last_mutation_id is equal to the basis
+        //   - value_hash has not been changed
+        // However we don't have a write transaction this deep, so these validated at
+        // commit time.
         Ok(())
     }
 
@@ -314,19 +351,13 @@ impl Commit {
         Ok(commit)
     }
 
-    // Returns the set of local commits from the given from_commit_hash back to but not
-    // including its base snapshot. If from_commit_hash is a snapshot, the returned vector
-    // will be empty. When, as typical, from_commit_hash is the head of the default chain
-    // then the returned commits are the set of pending commits, ie the set of local commits
-    // that have not yet been pushed to the data layer.
-    //
-    // The vector of commits is returned in reverse chain order, that is, starting
-    // with the commit with hash from_commit_hash and walking backwards.
-    pub async fn local_mutations(
+    // Returns all commits from the commit with from_commit_hash to its base snapshot, inclusive
+    // of both. Resulting vector is in chain-head-first order (so snapshot comes last).
+    pub async fn chain(
         from_commit_hash: &str,
         dag_read: &dag::Read<'_>,
-    ) -> Result<Vec<Commit>, PendingError> {
-        use PendingError::*;
+    ) -> Result<Vec<Commit>, WalkChainError> {
+        use WalkChainError::*;
         let mut commit = Commit::from_hash(from_commit_hash, dag_read)
             .await
             .map_err(NoSuchCommit)?;
@@ -342,18 +373,45 @@ impl Commit {
                 .await
                 .map_err(NoSuchCommit)?;
         }
+        match commit.meta().is_snapshot() {
+            true => {
+                commits.push(commit);
+                Ok(commits)
+            }
+            false => Err(EndOfChainNotASnapshot(from_commit_hash.to_string())),
+        }
+    }
+
+    // Returns the set of local commits from the given from_commit_hash back to but not
+    // including its base snapshot. If from_commit_hash is a snapshot, the returned vector
+    // will be empty. When, as typical, from_commit_hash is the head of the default chain
+    // then the returned commits are the set of pending commits, ie the set of local commits
+    // that have not yet been pushed to the data layer.
+    //
+    // The vector of commits is returned in reverse chain order, that is, starting
+    // with the commit with hash from_commit_hash and walking backwards.
+    pub async fn local_mutations(
+        from_commit_hash: &str,
+        dag_read: &dag::Read<'_>,
+    ) -> Result<Vec<Commit>, WalkChainError> {
+        let commits = Self::chain(from_commit_hash, dag_read)
+            .await?
+            .into_iter()
+            .filter(|c| c.meta().is_local())
+            .collect();
+
         Ok(commits)
     }
 
     // Parts are (last_mutation_id, server_state_id).
     pub fn snapshot_meta_parts(c: &Commit) -> Result<(u64, String), InternalProgrammerError> {
         match c.meta().typed() {
-            MetaTyped::Local(_) => Err(InternalProgrammerError::WrongType(str!(
-                "Snapshot meta expected"
-            ))),
             MetaTyped::Snapshot(sm) => {
                 Ok((sm.last_mutation_id(), sm.server_state_id().to_string()))
             }
+            _ => Err(InternalProgrammerError::WrongType(str!(
+                "Snapshot meta expected"
+            ))),
         }
     }
 }
@@ -365,7 +423,8 @@ pub enum BaseSnapshotError {
 }
 
 #[derive(Debug)]
-pub enum PendingError {
+pub enum WalkChainError {
+    EndOfChainNotASnapshot(String),
     NoBasis(String),
     NoSuchCommit(FromHashError),
 }
@@ -385,6 +444,9 @@ impl<'a> Meta<'a> {
 
     pub fn typed(&self) -> MetaTyped {
         match self.fb.typed_type() {
+            commit_fb::MetaTyped::IndexChangeMeta => MetaTyped::IndexChange(IndexChangeMeta {
+                fb: self.fb.typed_as_index_change_meta().unwrap(),
+            }),
             commit_fb::MetaTyped::LocalMeta => MetaTyped::Local(LocalMeta {
                 fb: self.fb.typed_as_local_meta().unwrap(),
             }),
@@ -396,20 +458,28 @@ impl<'a> Meta<'a> {
     }
 
     pub fn is_snapshot(&self) -> bool {
-        match self.typed() {
-            MetaTyped::Local(_) => false,
-            MetaTyped::Snapshot(_) => true,
-        }
+        matches!(self.typed(), MetaTyped::Snapshot(_))
     }
 
     pub fn is_local(&self) -> bool {
-        !self.is_snapshot()
+        matches!(self.typed(), MetaTyped::Local(_))
     }
 }
 
 pub enum MetaTyped<'a> {
+    IndexChange(IndexChangeMeta<'a>),
     Local(LocalMeta<'a>),
     Snapshot(SnapshotMeta<'a>),
+}
+
+pub struct IndexChangeMeta<'a> {
+    fb: commit_fb::IndexChangeMeta<'a>,
+}
+
+impl<'a> IndexChangeMeta<'a> {
+    pub fn last_mutation_id(&self) -> u64 {
+        self.fb.last_mutation_id()
+    }
 }
 
 pub struct LocalMeta<'a> {
@@ -536,6 +606,7 @@ mod tests {
         );
 
         add_local(&mut chain, &store).await;
+        add_index_change(&mut chain, &store).await;
         add_local(&mut chain, &store).await;
         let genesis_hash = chain[0].chunk().hash();
         assert_eq!(
@@ -606,8 +677,10 @@ mod tests {
         );
 
         add_local(&mut chain, &store).await;
+        add_index_change(&mut chain, &store).await;
         add_local(&mut chain, &store).await;
-        let head_hash = chain[2].chunk().hash();
+        add_index_change(&mut chain, &store).await;
+        let head_hash = chain.last().unwrap().chunk().hash();
         let commits = Commit::local_mutations(
             head_hash,
             &store.read(LogContext::new()).await.unwrap().read(),
@@ -615,8 +688,39 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(2, commits.len());
-        assert_eq!(chain[2], commits[0]);
+        assert_eq!(chain[3], commits[0]);
         assert_eq!(chain[1], commits[1]);
+    }
+
+    #[async_std::test]
+    async fn test_chain() {
+        let store = dag::Store::new(Box::new(MemStore::new()));
+        let mut chain: Chain = vec![];
+
+        add_genesis(&mut chain, &store).await;
+        let got = Commit::chain(
+            chain.last().unwrap().chunk().hash(),
+            &store.read(LogContext::new()).await.unwrap().read(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(1, got.len());
+        assert_eq!(chain[0], got[0]);
+
+        add_snapshot(&mut chain, &store, None).await;
+        add_local(&mut chain, &store).await;
+        add_index_change(&mut chain, &store).await;
+        let head_hash = chain.last().unwrap().chunk().hash();
+        let got = Commit::chain(
+            head_hash,
+            &store.read(LogContext::new()).await.unwrap().read(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(3, got.len());
+        assert_eq!(chain[3], got[0]);
+        assert_eq!(chain[2], got[1]);
+        assert_eq!(chain[1], got[2]);
     }
 
     #[test]
@@ -785,7 +889,31 @@ mod tests {
             Err(LoadError::MissingServerStateID),
         );
 
-        // invalid index definitions
+        for basis_hash in &[None, Some(""), Some("hash")] {
+            test(
+                make_commit(
+                    Some(Box::new(|b: &mut FlatBufferBuilder| {
+                        make_index_change_meta(b, 0)
+                    })),
+                    *basis_hash,
+                    checksum_str,
+                    "value".into(),
+                    &(if basis_hash.is_none() {
+                        vec!["value"]
+                    } else {
+                        vec!["value", basis_hash.unwrap()]
+                    }),
+                    vec![].into(),
+                ),
+                Ok(Commit::new_index_change(
+                    *basis_hash,
+                    checksum,
+                    0,
+                    "value",
+                    &vec![],
+                )),
+            );
+        }
     }
 
     #[test]
@@ -809,13 +937,13 @@ mod tests {
         .unwrap();
 
         match local.meta().typed() {
-            MetaTyped::Snapshot(_) => assert!(false),
             MetaTyped::Local(lm) => {
                 assert_eq!(lm.mutation_id(), 1);
                 assert_eq!(lm.mutator_name(), "foo_mutator");
                 assert_eq!(lm.mutator_args_json(), vec![42u8].as_slice());
                 assert_eq!(lm.original_hash(), Some("original_hash"));
             }
+            _ => assert!(false),
         }
         assert_eq!(local.meta().basis_hash(), Some("basis_hash"));
         assert_eq!(local.meta().checksum(), "11111111");
@@ -835,16 +963,39 @@ mod tests {
         .unwrap();
 
         match snapshot.meta().typed() {
-            MetaTyped::Local(_) => assert!(false),
             MetaTyped::Snapshot(sm) => {
                 assert_eq!(sm.last_mutation_id(), 2);
                 assert_eq!(sm.server_state_id(), "server_state_id 2");
             }
+            _ => assert!(false),
         }
         assert_eq!(snapshot.meta().basis_hash(), Some("basis_hash 2"));
         assert_eq!(snapshot.meta().checksum(), "22222222");
         assert_eq!(snapshot.value_hash(), "value_hash 2");
         assert_eq!(snapshot.next_mutation_id(), 3);
+
+        let index_change = Commit::from_chunk(make_commit(
+            Some(Box::new(|b: &mut FlatBufferBuilder| {
+                make_index_change_meta(b, 3)
+            })),
+            "basis_hash 3".into(),
+            "33".into(),
+            "value_hash 3".into(),
+            &["value_hash 3", "basis_hash 3"],
+            None,
+        ))
+        .unwrap();
+
+        match index_change.meta().typed() {
+            MetaTyped::IndexChange(ic) => {
+                assert_eq!(ic.last_mutation_id(), 3);
+            }
+            _ => assert!(false),
+        }
+        assert_eq!(index_change.meta().basis_hash(), Some("basis_hash 3"));
+        assert_eq!(index_change.meta().checksum(), "33");
+        assert_eq!(index_change.value_hash(), "value_hash 3");
+        assert_eq!(index_change.mutation_id(), 3);
     }
 
     struct MakeIndexDefinition {
@@ -962,6 +1113,21 @@ mod tests {
         (
             commit_fb::MetaTyped::SnapshotMeta,
             snapshot_meta.as_union_value(),
+        )
+    }
+
+    fn make_index_change_meta(
+        builder: &mut FlatBufferBuilder,
+        last_mutation_id: u64,
+    ) -> (
+        commit_fb::MetaTyped,
+        flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
+    ) {
+        let args = &commit_fb::IndexChangeMetaArgs { last_mutation_id };
+        let index_change_meta = commit_fb::IndexChangeMeta::create(builder, args);
+        (
+            commit_fb::MetaTyped::IndexChangeMeta,
+            index_change_meta.as_union_value(),
         )
     }
 }

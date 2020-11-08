@@ -531,9 +531,9 @@ async fn do_scan(
         let secondary_key: JsValue;
         if using_index {
             // TODO the unwrap()s below are really unfortunate
-            let (secondary, primary) = db::index::decode_index_key(pe.key).unwrap();
+            let db::IndexKeyOwned { secondary, primary } = db::index::decode_index_key(pe.key).unwrap();
             primary_key = JsValue::from_str(std::str::from_utf8(&primary).unwrap());
-            secondary_key = JsValue::from_str(&secondary);
+            secondary_key = JsValue::from_str(std::str::from_utf8(&secondary).unwrap())
         } else {
             primary_key = JsValue::from_str(std::str::from_utf8(pe.key).unwrap());
             secondary_key = JsValue::null();

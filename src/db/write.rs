@@ -887,7 +887,7 @@ mod tests {
                 assert_eq!(
                     entries.get(i).unwrap().key,
                     index::encode_index_key(&index::IndexKey {
-                        secondary: format!("s{}", i).as_str(),
+                        secondary: format!("s{}", i).as_bytes(),
                         primary: format!("k{}", i).as_bytes(),
                     })
                     .unwrap()

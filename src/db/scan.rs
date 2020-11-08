@@ -42,7 +42,7 @@ impl TryFrom<ScanOptions> for ScanOptionsInternal {
         // If the scan is using an index then we need to generate the scan keys.
         let prefix = if let Some(p) = source.prefix {
             if source.index_name.is_some() {
-                super::index::encode_scan_key(&p, false)
+                super::index::encode_scan_key(p.as_bytes(), false)
                     .map_err(ScanOptionsError::CreateScanKeyFailure)?
             } else {
                 p.into_bytes()
@@ -53,7 +53,7 @@ impl TryFrom<ScanOptions> for ScanOptionsInternal {
         };
         let start_key = if let Some(sk) = source.start_key {
             if source.index_name.is_some() {
-                super::index::encode_scan_key(&sk, source.start_key_exclusive.unwrap_or(false))
+                super::index::encode_scan_key(sk.as_bytes(), source.start_key_exclusive.unwrap_or(false))
                     .map_err(ScanOptionsError::CreateScanKeyFailure)?
             } else {
                 sk.into_bytes()

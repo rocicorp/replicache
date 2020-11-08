@@ -92,8 +92,14 @@ pub enum IndexFlushError {
 // is serialized by encode_index_key such that proper sort order is preserved.
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct IndexKey<'a> {
-    pub secondary: &'a str,
+    pub secondary: &'a [u8],
     pub primary: &'a [u8],
+}
+
+#[derive(Debug, PartialEq)]
+pub struct IndexKeyOwned {
+    pub secondary: Vec<u8>,
+    pub primary: Vec<u8>,
 }
 
 #[allow(dead_code)]
@@ -130,7 +136,7 @@ pub fn index_value(
 pub enum GetIndexKeysError {
     DeserializeError(String),
     NoValueAtPath(String),
-    StringContainsNull(String),
+    SecondaryKeyContainsNull(String),
     UnsupportedTargetType,
 }
 
@@ -172,7 +178,7 @@ fn get_index_keys(
         .into_iter()
         .map(|v| {
             encode_index_key(&IndexKey {
-                secondary: v.as_str(),
+                secondary: v.as_bytes(),
                 primary: key,
             })
         })
@@ -184,26 +190,27 @@ static KEY_SEPARATOR: &[u8] = &[0];
 
 // An index key is encoded to vec of bytes in the following order:
 //   - key version byte(s), followed by
-//   - the UTF8 encoded secondary key value, followed by
+//   - the secondary key bytes (which for now is a UTF8 encoded string), followed by
 //   - the key separator, a null byte, followed by
 //   - the primary key bytes
 //
 // The null separator byte ensures that if a secondary key A is longer than B then
 // A always sorts after B. Appending the primary key ensures index keys with
 // identical secondary keys sort in primary key order. Secondary keys must not
-// contain a null byte.
+// contain a zero (null) byte.
 pub fn encode_index_key(index_key: &IndexKey) -> Result<Vec<u8>, GetIndexKeysError> {
     use GetIndexKeysError::*;
 
     let IndexKey { secondary, primary } = *index_key;
 
-    if secondary.contains('\0') {
-        return Err(StringContainsNull(secondary.to_string()));
+    if secondary.contains(&0u8) {
+        let msg = String::from_utf8(secondary.to_vec()).unwrap_or_else(|_| format!("{:?}", secondary));
+        return Err(SecondaryKeyContainsNull(msg))
     }
     let mut v = Vec::new();
     v.reserve(KEY_VERSION_0.len() + secondary.len() + KEY_SEPARATOR.len() + primary.len());
     v.extend_from_slice(KEY_VERSION_0);
-    v.extend_from_slice(secondary.as_bytes());
+    v.extend_from_slice(secondary);
     v.extend_from_slice(KEY_SEPARATOR);
     v.extend_from_slice(primary);
     Ok(v)
@@ -214,7 +221,7 @@ pub fn encode_index_key(index_key: &IndexKey) -> Result<Vec<u8>, GetIndexKeysErr
 // byte separating secondary and primary keys ("key\0" is not a prefix of "keyfoo").
 // Exclusive scans are implemented by appending a 0x01 byte to the end of the scan key,
 // making it start atthe next higher value.
-pub fn encode_scan_key(secondary: &str, exclusive: bool) -> Result<Vec<u8>, GetIndexKeysError> {
+pub fn encode_scan_key(secondary: &[u8], exclusive: bool) -> Result<Vec<u8>, GetIndexKeysError> {
     let mut k = encode_index_key(&IndexKey {
         secondary,
         primary: &[],
@@ -228,39 +235,35 @@ pub fn encode_scan_key(secondary: &str, exclusive: bool) -> Result<Vec<u8>, GetI
     Ok(k)
 }
 
-// Decodes an IndexKey encoded by encode_index_key, returning the values as a tuple
-// since IndexKey holds references.
-pub fn decode_index_key(index_key: &[u8]) -> Result<(String, Vec<u8>), DecodeIndexKeyError> {
+// Decodes an IndexKey encoded by encode_index_key.
+pub fn decode_index_key(encoded_index_key: &[u8]) -> Result<IndexKeyOwned, DecodeIndexKeyError> {
     use DecodeIndexKeyError::*;
 
-    if !index_key.starts_with(KEY_VERSION_0) {
+    if !encoded_index_key.starts_with(KEY_VERSION_0) {
         return Err(InvalidVersion);
     }
 
     let version_len = KEY_VERSION_0.len();
     let separator_len = KEY_SEPARATOR.len();
     let mut separator_offset: Option<usize> = None;
-    for i in version_len..index_key.len() {
-        if &index_key[i..i + separator_len] == KEY_SEPARATOR {
+    for i in version_len..encoded_index_key.len() {
+        if &encoded_index_key[i..i + separator_len] == KEY_SEPARATOR {
             separator_offset = Some(i);
             break;
         }
     }
     if separator_offset.is_none() {
-        return Err(InvalidFormatting(index_key.to_vec()));
+        return Err(InvalidFormatting(encoded_index_key.to_vec()));
     }
     let separator_offset = separator_offset.unwrap();
-    let secondary_bytes = &index_key[version_len..separator_offset];
-    let secondary = String::from_utf8(secondary_bytes.to_vec())
-        .map_err(|e| InvalidSecondaryKey((e, secondary_bytes.to_vec())))?;
-    let primary_bytes = &index_key[separator_offset + separator_len..];
-    Ok((secondary, primary_bytes.to_vec()))
+    let secondary_bytes = &encoded_index_key[version_len..separator_offset];
+    let primary_bytes = &encoded_index_key[separator_offset + separator_len..];
+    Ok(IndexKeyOwned {secondary: secondary_bytes.to_vec(), primary: primary_bytes.to_vec()})
 }
 
 #[derive(Debug)]
 pub enum DecodeIndexKeyError {
     InvalidFormatting(Vec<u8>),
-    InvalidSecondaryKey((std::string::FromUtf8Error, Vec<u8>)),
     InvalidVersion,
 }
 
@@ -274,7 +277,7 @@ mod tests {
     fn test_index_key() {
         fn test_valid(secondary: &str, primary: &[u8]) {
             // Ensure the encoded value is what we expect.
-            let encoded = encode_index_key(&IndexKey { secondary, primary }).unwrap();
+            let encoded = encode_index_key(&IndexKey { secondary: secondary.as_bytes(), primary }).unwrap();
             assert_eq!(KEY_VERSION_0, &encoded[..KEY_VERSION_0.len()]);
             let secondary_index = KEY_VERSION_0.len();
             let separator_index = secondary_index + secondary.len();
@@ -288,8 +291,8 @@ mod tests {
 
             // Ensure we can decode it properly.
             let decoded = decode_index_key(&encoded).unwrap();
-            assert_eq!(secondary, decoded.0);
-            assert_eq!(primary, &decoded.1[..]);
+            assert_eq!(secondary.as_bytes(), &decoded.secondary[..]);
+            assert_eq!(primary, &decoded.primary[..]);
         }
         test_valid("", &[]);
         test_valid("", &[0x00]);
@@ -299,7 +302,7 @@ mod tests {
         test_valid("foo", &[0x01, 0x02, 0x03]);
 
         fn test_invalid_encode(secondary: &str, primary: &[u8], expected: &str) {
-            let err = encode_index_key(&IndexKey { secondary, primary }).unwrap_err();
+            let err = encode_index_key(&IndexKey { secondary: secondary.as_bytes(), primary }).unwrap_err();
             let err_str = format!("{:?}", err);
             assert!(
                 err_str.contains(expected),
@@ -330,17 +333,17 @@ mod tests {
     fn test_encode_scan_key() {
         fn test(secondary: &str) {
             let encoded_index_key = encode_index_key(&IndexKey {
-                secondary,
+                secondary: secondary.as_bytes(),
                 primary: &[],
             })
             .unwrap();
             // With exclusive == false
-            let scan_key = encode_scan_key(secondary, false).unwrap();
+            let scan_key = encode_scan_key(secondary.as_bytes(), false).unwrap();
             assert!(encoded_index_key.starts_with(&scan_key[..]));
             assert!(encoded_index_key >= scan_key);
 
             // With exclusive == true
-            let scan_key = encode_scan_key(secondary, true).unwrap();
+            let scan_key = encode_scan_key(secondary.as_bytes(), true).unwrap();
             assert!(encoded_index_key < scan_key);
         }
 
@@ -353,12 +356,12 @@ mod tests {
         fn test(left: (&str, &[u8]), right: (&str, &[u8])) {
             assert!(
                 encode_index_key(&IndexKey {
-                    secondary: left.0,
+                    secondary: left.0.as_bytes(),
                     primary: left.1
                 })
                 .unwrap()
                     < encode_index_key(&IndexKey {
-                        secondary: right.0,
+                        secondary: right.0.as_bytes(),
                         primary: right.1
                     })
                     .unwrap()
@@ -383,12 +386,12 @@ mod tests {
         fn test(left: (&str, &[u8]), right: (&str, &[u8])) {
             assert_ne!(
                 encode_index_key(&IndexKey {
-                    secondary: left.0,
+                    secondary: left.0.as_bytes(),
                     primary: left.1
                 })
                 .unwrap(),
                 encode_index_key(&IndexKey {
-                    secondary: right.0,
+                    secondary: right.0.as_bytes(),
                     primary: right.1
                 })
                 .unwrap()
@@ -465,7 +468,7 @@ mod tests {
             "k",
             &serde_json::to_vec(&json!("no \0 allowed")).unwrap(),
             "",
-            Err(StringContainsNull(str!("no \0 allowed"))),
+            Err(SecondaryKeyContainsNull(str!("no \0 allowed"))),
         );
 
         // success
@@ -482,15 +485,15 @@ mod tests {
             "/foo",
             Ok(vec![
                 IndexKey {
-                    secondary: "bar",
+                    secondary: b"bar",
                     primary: b"k",
                 },
                 IndexKey {
-                    secondary: "",
+                    secondary: b"",
                     primary: b"k",
                 },
                 IndexKey {
-                    secondary: "baz",
+                    secondary: b"baz",
                     primary: b"k",
                 },
             ]),
@@ -502,7 +505,7 @@ mod tests {
             &serde_json::to_vec(&json!({"foo":"bar"})).unwrap(),
             "/foo",
             Ok(vec![IndexKey {
-                secondary: "bar",
+                secondary: b"bar",
                 primary: b"foo",
             }]),
         );
@@ -511,7 +514,7 @@ mod tests {
             &serde_json::to_vec(&json!({"foo":{"bar":["hot", "dog"]}})).unwrap(),
             "/foo/bar/1",
             Ok(vec![IndexKey {
-                secondary: "dog",
+                secondary: b"dog",
                 primary: b"foo",
             }]),
         );
@@ -520,7 +523,7 @@ mod tests {
             &serde_json::to_vec(&json!({"foo":"bar"})).unwrap(),
             "/foo",
             Ok(vec![IndexKey {
-                secondary: "bar",
+                secondary: b"bar",
                 primary: b"",
             }]),
         );
@@ -529,7 +532,7 @@ mod tests {
             &serde_json::to_vec(&json!({"foo":"bar"})).unwrap(),
             "/foo",
             Ok(vec![IndexKey {
-                secondary: "bar",
+                secondary: b"bar",
                 primary: b"/! ",
             }]),
         );
@@ -547,7 +550,7 @@ mod tests {
             let mut index = prolly::Map::new();
             index.put(
                 encode_index_key(&IndexKey {
-                    secondary: "s1",
+                    secondary: b"s1",
                     primary: b"1",
                 })
                 .unwrap(),
@@ -555,7 +558,7 @@ mod tests {
             );
             index.put(
                 encode_index_key(&IndexKey {
-                    secondary: "s2",
+                    secondary: b"s2",
                     primary: b"2",
                 })
                 .unwrap(),
@@ -570,7 +573,7 @@ mod tests {
                     assert_eq!(expected_val.len(), actual_val.len());
                     for (exp_id, act) in expected_val.iter().zip(actual_val) {
                         let exp_entry = encode_index_key(&IndexKey {
-                            secondary: format!("s{}", exp_id).as_str(),
+                            secondary: format!("s{}", exp_id).as_bytes(),
                             primary: format!("{}", exp_id).as_bytes(),
                         })
                         .unwrap();

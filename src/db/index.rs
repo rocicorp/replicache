@@ -96,12 +96,6 @@ pub struct IndexKey<'a> {
     pub primary: &'a [u8],
 }
 
-#[derive(Debug, PartialEq)]
-pub struct IndexKeyOwned {
-    pub secondary: Vec<u8>,
-    pub primary: Vec<u8>,
-}
-
 #[allow(dead_code)]
 #[derive(Copy, Clone)]
 pub enum IndexOperation {
@@ -204,8 +198,9 @@ pub fn encode_index_key(index_key: &IndexKey) -> Result<Vec<u8>, GetIndexKeysErr
     let IndexKey { secondary, primary } = *index_key;
 
     if secondary.contains(&0u8) {
-        let msg = String::from_utf8(secondary.to_vec()).unwrap_or_else(|_| format!("{:?}", secondary));
-        return Err(SecondaryKeyContainsNull(msg))
+        let msg =
+            String::from_utf8(secondary.to_vec()).unwrap_or_else(|_| format!("{:?}", secondary));
+        return Err(SecondaryKeyContainsNull(msg));
     }
     let mut v = Vec::new();
     v.reserve(KEY_VERSION_0.len() + secondary.len() + KEY_SEPARATOR.len() + primary.len());
@@ -236,7 +231,9 @@ pub fn encode_scan_key(secondary: &[u8], exclusive: bool) -> Result<Vec<u8>, Get
 }
 
 // Decodes an IndexKey encoded by encode_index_key.
-pub fn decode_index_key(encoded_index_key: &[u8]) -> Result<IndexKeyOwned, DecodeIndexKeyError> {
+pub fn decode_index_key<'a>(
+    encoded_index_key: &'a [u8],
+) -> Result<IndexKey<'a>, DecodeIndexKeyError> {
     use DecodeIndexKeyError::*;
 
     if !encoded_index_key.starts_with(KEY_VERSION_0) {
@@ -256,9 +253,9 @@ pub fn decode_index_key(encoded_index_key: &[u8]) -> Result<IndexKeyOwned, Decod
         return Err(InvalidFormatting(encoded_index_key.to_vec()));
     }
     let separator_offset = separator_offset.unwrap();
-    let secondary_bytes = &encoded_index_key[version_len..separator_offset];
-    let primary_bytes = &encoded_index_key[separator_offset + separator_len..];
-    Ok(IndexKeyOwned {secondary: secondary_bytes.to_vec(), primary: primary_bytes.to_vec()})
+    let secondary = &encoded_index_key[version_len..separator_offset];
+    let primary = &encoded_index_key[separator_offset + separator_len..];
+    Ok(IndexKey { secondary, primary })
 }
 
 #[derive(Debug)]
@@ -277,7 +274,11 @@ mod tests {
     fn test_index_key() {
         fn test_valid(secondary: &str, primary: &[u8]) {
             // Ensure the encoded value is what we expect.
-            let encoded = encode_index_key(&IndexKey { secondary: secondary.as_bytes(), primary }).unwrap();
+            let encoded = encode_index_key(&IndexKey {
+                secondary: secondary.as_bytes(),
+                primary,
+            })
+            .unwrap();
             assert_eq!(KEY_VERSION_0, &encoded[..KEY_VERSION_0.len()]);
             let secondary_index = KEY_VERSION_0.len();
             let separator_index = secondary_index + secondary.len();
@@ -302,7 +303,11 @@ mod tests {
         test_valid("foo", &[0x01, 0x02, 0x03]);
 
         fn test_invalid_encode(secondary: &str, primary: &[u8], expected: &str) {
-            let err = encode_index_key(&IndexKey { secondary: secondary.as_bytes(), primary }).unwrap_err();
+            let err = encode_index_key(&IndexKey {
+                secondary: secondary.as_bytes(),
+                primary,
+            })
+            .unwrap_err();
             let err_str = format!("{:?}", err);
             assert!(
                 err_str.contains(expected),

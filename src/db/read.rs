@@ -110,7 +110,7 @@ impl<'a> Read<'a> {
     pub async fn scan(
         &'a self,
         opts: super::ScanOptions,
-        callback: impl Fn(prolly::Entry<'_>),
+        callback: impl Fn(super::scan::ScanResult<'_>),
     ) -> Result<(), ScanError> {
         use ScanError::*;
 

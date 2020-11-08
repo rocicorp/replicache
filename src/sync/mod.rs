@@ -490,7 +490,6 @@ mod tests {
     use super::*;
     use crate::db::test_helpers::*;
     use crate::kv::memstore::MemStore;
-    use crate::prolly;
     use crate::util::rlog::LogContext;
     use crate::util::to_debug;
     use async_std::net::TcpListener;
@@ -940,7 +939,7 @@ mod tests {
                             limit: None,
                             index_name: Some(str!("2")),
                         },
-                        |_: prolly::Entry<'_>| {
+                        |_: db::ScanResult<'_>| {
                             *got.borrow_mut() = true;
                         },
                     )
@@ -1078,8 +1077,8 @@ mod tests {
                                     limit: None,
                                     index_name: Some(str!("2")),
                                 },
-                                |pe: prolly::Entry<'_>| {
-                                    assert!(false, "{}: expected no values, got {:?}", c.name, pe);
+                                |sr: db::ScanResult<'_>| {
+                                    assert!(false, "{}: expected no values, got {:?}", c.name, sr);
                                 },
                             )
                             .await

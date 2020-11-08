@@ -301,7 +301,7 @@ impl<'a> Write<'a> {
         }
 
         let mut index_map = prolly::Map::new();
-        for entry in scan::scan(
+        for entry in scan::scan_raw(
             &self.map,
             scan::ScanOptionsInternal {
                 prefix: Some(key_prefix.into()),

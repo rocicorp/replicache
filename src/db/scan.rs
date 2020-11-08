@@ -1,3 +1,4 @@
+use super::index;
 use crate::prolly;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -35,6 +36,24 @@ pub struct ScanOptionsInternal {
     pub index_name: Option<String>,
 }
 
+#[derive(Debug)]
+pub enum ScanResult<'a> {
+    Error(ScanResultError),
+    Item(ScanItem<'a>),
+}
+
+#[derive(Debug)]
+pub struct ScanItem<'a> {
+    pub key: &'a [u8],
+    pub secondary_key: &'a [u8],
+    pub val: &'a [u8],
+}
+
+#[derive(Debug)]
+pub enum ScanResultError {
+    DecodeError(index::DecodeIndexKeyError),
+}
+
 impl TryFrom<ScanOptions> for ScanOptionsInternal {
     type Error = ScanOptionsError;
 
@@ -42,7 +61,7 @@ impl TryFrom<ScanOptions> for ScanOptionsInternal {
         // If the scan is using an index then we need to generate the scan keys.
         let prefix = if let Some(p) = source.prefix {
             if source.index_name.is_some() {
-                super::index::encode_scan_key(p.as_bytes(), false)
+                index::encode_scan_key(p.as_bytes(), false)
                     .map_err(ScanOptionsError::CreateScanKeyFailure)?
             } else {
                 p.into_bytes()
@@ -53,7 +72,7 @@ impl TryFrom<ScanOptions> for ScanOptionsInternal {
         };
         let start_key = if let Some(sk) = source.start_key {
             if source.index_name.is_some() {
-                super::index::encode_scan_key(sk.as_bytes(), source.start_key_exclusive.unwrap_or(false))
+                index::encode_scan_key(sk.as_bytes(), source.start_key_exclusive.unwrap_or(false))
                     .map_err(ScanOptionsError::CreateScanKeyFailure)?
             } else {
                 sk.into_bytes()
@@ -78,7 +97,46 @@ pub enum ScanOptionsError {
     CreateScanKeyFailure(super::index::GetIndexKeysError),
 }
 
+// scan() yields decoded prolly map entries.
 pub fn scan<'a>(
+    map: &'a prolly::Map,
+    opts: ScanOptionsInternal,
+) -> impl Iterator<Item = ScanResult<'a>> {
+    use ScanResultError::*;
+
+    // We don't do any encoding of the key in regular prolly maps, so we have
+    // no way of determining from an entry.key alone whether it is a regular
+    // prolly map key or an encoded IndexKey in an index map. Without encoding
+    // regular prolly map keys we need to rely on the opts to tell us what we expect.
+    let index_scan = opts.index_name.is_some();
+    scan_raw(map, opts).map(move |entry| {
+        if index_scan {
+            let decoded = index::decode_index_key(entry.key).map_err(DecodeError);
+            match decoded {
+                Err(e) => ScanResult::Error(e),
+                Ok(index_key) => {
+                    let index::IndexKey { secondary, primary } = index_key;
+                    let item = ScanItem {
+                        key: primary,
+                        secondary_key: secondary,
+                        val: entry.val,
+                    };
+                    ScanResult::Item(item)
+                }
+            }
+        } else {
+            ScanResult::Item(ScanItem {
+                key: entry.key,
+                secondary_key: &[],
+                val: entry.val,
+            })
+        }
+    })
+}
+
+// scan_raw() scans the prolly map yielding raw, undecoded prolly::Entrys. To
+// get decoded results use scan().
+pub fn scan_raw<'a>(
     map: &'a prolly::Map,
     opts: ScanOptionsInternal,
 ) -> impl Iterator<Item = prolly::Entry<'a>> {
@@ -133,7 +191,10 @@ mod tests {
             map.put(b"bar".to_vec(), b"bar".to_vec());
             map.put(b"baz".to_vec(), b"baz".to_vec());
             let actual = scan(&map, opts.try_into().unwrap())
-                .map(|item| item.key)
+                .map(|sr| match sr {
+                    ScanResult::Error(e) => panic!(e),
+                    ScanResult::Item(item) => item.key,
+                })
                 .collect::<Vec<&[u8]>>();
             let expected = expected
                 .into_iter()

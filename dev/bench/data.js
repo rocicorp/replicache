@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1604708063368,
+  "lastUpdate": 1604958700417,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -4643,6 +4643,44 @@ window.BENCHMARK_DATA = {
             "range": "±0.0%",
             "unit": "tx/s",
             "extra": "56 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "92a9ae6a94be2926188ca55393164b40758addde",
+          "message": "Introduce IndexTransaction (#193)\n\nAPI Change!\r\n\r\nNow `createIndex` and `dropIndex` are only available on Replicache. The\r\n`IndexTransaction` interface is currently not exposed.",
+          "timestamp": "2020-11-09T13:50:02-08:00",
+          "tree_id": "47f65101c15a5ed0c43ec62c1f52930441a79c73",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/92a9ae6a94be2926188ca55393164b40758addde"
+        },
+        "date": 1604958699861,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.58,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.38,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
           }
         ]
       }

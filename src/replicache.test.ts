@@ -20,6 +20,15 @@ const {fail} = assert;
 let rep: ReplicacheTest | null = null;
 let rep2: ReplicacheTest | null = null;
 
+// Silence console. Too much noise!
+const {warn} = console;
+console.warn = (...args: Parameters<Console['warn']>) => {
+  if (args[0] !== 'Connection loop recv failed: The channel is empty.') {
+    warn.apply(console, args);
+  }
+};
+console.log = console.info = () => void 0;
+
 async function replicacheForTesting(
   name: string,
   {
@@ -842,9 +851,7 @@ test('index', async () => {
     'c/0': {bc: '8'},
     'd/0': {d: {e: {f: '9'}}},
   });
-  await rep.register('create-index', tx =>
-    tx.createIndex({name: 'aIndex', jsonPointer: '/a'}),
-  )(null);
+  await rep.createIndex({name: 'aIndex', jsonPointer: '/a'});
 
   await testScanResult({indexName: 'aIndex'}, [
     [['0', 'a/0'], {a: '0'}],
@@ -853,7 +860,7 @@ test('index', async () => {
     [['3', 'a/3'], {a: '3'}],
     [['4', 'a/4'], {a: '4'}],
   ]);
-  await rep.register('drop-index', tx => tx.dropIndex('aIndex'))(null);
+  await rep.dropIndex('aIndex');
   await expectPromiseToReject(rep.scanAll({indexName: 'aIndex'}));
 
   await rep.createIndex({name: 'aIndex', jsonPointer: '/a'});
@@ -907,9 +914,7 @@ test('index array', async () => {
     'b/2': {bc: '7'},
     'c/0': {bc: '8'},
   });
-  await rep.register('create-index', tx =>
-    tx.createIndex({name: 'aIndex', jsonPointer: '/a'}),
-  )(null);
+
   await rep.createIndex({name: 'aIndex', jsonPointer: '/a'});
   await testScanResult({indexName: 'aIndex'}, [
     [['0', 'a/1'], {a: ['0']}],
@@ -918,4 +923,5 @@ test('index array', async () => {
     [['3', 'a/3'], {a: '3'}],
     [['4', 'a/4'], {a: ['4']}],
   ]);
+  await rep.dropIndex('aIndex');
 });

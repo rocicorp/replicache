@@ -3,9 +3,6 @@ import type {ScanOptionsRpc} from './scan-options.js';
 import init, {dispatch} from './wasm/release/replicache_client.js';
 import type {InitInput, InitOutput} from './wasm/release/replicache_client.js';
 
-// TODO(repc-switchover): isWasm can go away, but so can this whole
-// type and all the machinery connected to it. Look at the commit
-// that introduced this to unwind it.
 /**
  * @deprecated - use the wasmModule parameter to {@link Replicache.constructor} instead.
  */
@@ -118,6 +115,9 @@ type OpenTransactionResponse = {
   transactionId: number;
 };
 
+type OpenIndexTransactionRequest = unknown;
+type OpenIndexTransactionResponse = OpenTransactionResponse;
+
 type CloseTransactionRequest = TransactionRequest;
 type CloseTransactionResponse = unknown;
 
@@ -196,6 +196,10 @@ export type InvokeMap = {
   del: [DelRequest, DelResponse];
 
   openTransaction: [OpenTransactionRequest, OpenTransactionResponse];
+  openIndexTransaction: [
+    OpenIndexTransactionRequest,
+    OpenIndexTransactionResponse,
+  ];
   closeTransaction: [CloseTransactionRequest, CloseTransactionResponse];
   commitTransaction: [CommitTransactionRequest, CommitTransactionResponse];
 

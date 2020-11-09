@@ -6,7 +6,11 @@ import {
   OpenTransactionRequest,
   REPMWasmInvoker,
 } from './repm-invoker.js';
-import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
+import {
+  IndexTransactionImpl,
+  ReadTransactionImpl,
+  WriteTransactionImpl,
+} from './transactions.js';
 import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
 import type {InitInput} from './wasm/release/replicache_client.js';
@@ -268,22 +272,38 @@ export default class Replicache implements ReadTransaction {
     }
   }
 
+  /**
+   * Creates a persistent secondary index in Replicache which can be used with scan.
+   *
+   * If the named index already exists with the same definition this returns success
+   * immediately. If the named index already exists, but with a different definition
+   * an error is returned.
+   */
   async createIndex(def: {
     name: string;
     keyPrefix?: string;
     jsonPointer: string;
   }): Promise<void> {
-    const name = `.rep_internal_create_index_${def.name}`;
-    const mut = this.register(name, tx => tx.createIndex(def));
-    await mut(null);
-    this._mutatorRegistry.delete(name);
+    await this._indexOp(tx => tx.createIndex(def));
   }
 
+  /**
+   * Drops an index previously created with {@link createIndex}.
+   */
   async dropIndex(name: string): Promise<void> {
-    const internalName = `.rep_internal_drop_index_${name}`;
-    const mut = this.register(internalName, tx => tx.dropIndex(name));
-    await mut(null);
-    this._mutatorRegistry.delete(internalName);
+    await this._indexOp(tx => tx.dropIndex(name));
+  }
+
+  private async _indexOp(
+    f: (tx: IndexTransactionImpl) => Promise<void>,
+  ): Promise<void> {
+    const tx = new IndexTransactionImpl(this._invoke);
+    try {
+      await tx.open({});
+      await f(tx);
+    } finally {
+      tx.commit();
+    }
   }
 
   private async _sync(): Promise<void> {

@@ -638,15 +638,7 @@ export default class Replicache implements ReadTransaction {
       tx.close();
       throw ex;
     }
-    const commitRes = await tx.commit();
-    if (commitRes.retryCommit) {
-      return await this._mutate(name, mutatorImpl, args, {
-        invokeArgs,
-        shouldCheckChange,
-      });
-    }
-
-    const {ref} = commitRes;
+    const {ref} = await tx.commit();
     if (shouldCheckChange) {
       await this._checkChange(ref);
     }

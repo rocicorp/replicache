@@ -122,14 +122,9 @@ type CloseTransactionRequest = TransactionRequest;
 type CloseTransactionResponse = unknown;
 
 type CommitTransactionRequest = TransactionRequest;
-export type CommitTransactionResponse =
-  | {
-      retryCommit: false;
-      ref: string;
-    }
-  | {
-      retryCommit: true;
-    };
+export type CommitTransactionResponse = {
+  ref: string;
+};
 
 type BeginSyncRequest = {
   batchPushURL: string;

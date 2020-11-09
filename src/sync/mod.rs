@@ -934,8 +934,9 @@ mod tests {
                     .scan(
                         db::ScanOptions {
                             prefix: Some(str!("")),
+                            start_secondary_key: None,
                             start_key: None,
-                            start_key_exclusive: None,
+                            start_exclusive: None,
                             limit: None,
                             index_name: Some(str!("2")),
                         },
@@ -1072,8 +1073,9 @@ mod tests {
                             .scan(
                                 db::ScanOptions {
                                     prefix: Some(str!("")),
+                                    start_secondary_key: None,
                                     start_key: None,
-                                    start_key_exclusive: None,
+                                    start_exclusive: None,
                                     limit: None,
                                     index_name: Some(str!("2")),
                                 },

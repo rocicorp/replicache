@@ -138,7 +138,8 @@ async fn scan(
     db_name: &str,
     txn_id: u32,
     prefix: &str,
-    start_key: &str,
+    start_secondary_key: Option<&str>,
+    start_key: Option<&str>,
     exclusive: bool,
     index_name: Option<&str>,
     receiver: js_sys::Function,
@@ -150,8 +151,9 @@ async fn scan(
             transaction_id: txn_id,
             opts: ScanOptions {
                 prefix: Some(prefix.to_string()),
-                start_key: Some(start_key.to_string()),
-                start_key_exclusive: Some(exclusive),
+                start_secondary_key: start_secondary_key.map(|s| s.to_string()),
+                start_key: start_key.map(|s| s.to_string()),
+                start_exclusive: Some(exclusive),
                 limit: None,
                 index_name: index_name.map(|s| s.into()),
             },
@@ -440,7 +442,17 @@ async fn test_create_drop_index() {
     let expected = vec![(str!("boo"), str!("foo"), str!(r#"{"s": "foo"}"#))];
     {
         let (receive, _cb, got) = new_test_scan_receiver();
-        scan(db, transaction_id, "", "", false, Some("idx1"), receive).await;
+        scan(
+            db,
+            transaction_id,
+            "",
+            None,
+            Some(""),
+            false,
+            Some("idx1"),
+            receive,
+        )
+        .await;
         assert_eq!(&expected, &*got.borrow());
     }
     abort(db, transaction_id).await;
@@ -472,8 +484,9 @@ async fn test_create_drop_index() {
                 transaction_id,
                 opts: ScanOptions {
                     prefix: None,
+                    start_secondary_key: None,
                     start_key: None,
-                    start_key_exclusive: None,
+                    start_exclusive: None,
                     limit: None,
                     index_name: Some(str!("idx1")),
                 },
@@ -540,7 +553,17 @@ async fn test_scan() {
         }
 
         let (receive, _cb, got) = new_test_scan_receiver();
-        scan(db, txn_id, prefix, start_key, exclusive, None, receive).await;
+        scan(
+            db,
+            txn_id,
+            prefix,
+            None,
+            Some(start_key),
+            exclusive,
+            None,
+            receive,
+        )
+        .await;
         assert_eq!(&expected, &*got.borrow());
 
         abort(db, txn_id).await;
@@ -657,8 +680,9 @@ async fn test_scan_with_index() {
         op: Op, // op if any to perform after index is created, before we scan with it
         scan_in_write_txn: bool, // run the scan in the tx that creates the index, vs in a separate one
         prefix: &str,            // scan prefix
-        start_key: &str,         // scan start key
-        exclusive: bool,         // scan start exclusive
+        start_secondary_key: &str, // scan start_secondary_key
+        start_key: Option<&str>, // scan start_key
+        exclusive: bool,         // scan start_exclusive
         expected: Vec<(&str, &str, &str)>, // expected results of the scan
     ) {
         let index_name = str!("idx1");
@@ -714,6 +738,7 @@ async fn test_scan_with_index() {
             db,
             txn_id,
             prefix,
+            Some(start_secondary_key),
             start_key,
             exclusive,
             Some(&index_name),
@@ -727,7 +752,7 @@ async fn test_scan_with_index() {
     }
 
     // Scan an empty db
-    test(vec![], "", "", Op::None, false, "", "", false, vec![]).await;
+    test(vec![], "", "", Op::None, false, "", "", None, false, vec![]).await;
 
     // Ensure empty key is OK
     let bools = vec![false, true];
@@ -740,6 +765,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "",
             "",
+            None,
             false,
             vec![("", "value", r#""value""#)],
         )
@@ -757,6 +783,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "",
             "",
+            None,
             false,
             vec![("key", "value", r#""value""#)],
         )
@@ -770,6 +797,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "",
             "",
+            None,
             false,
             vec![
                 ("key", "value1", r#"{"s": ["value1", "value2"]}"#),
@@ -786,6 +814,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "",
             "",
+            None,
             false,
             vec![],
         )
@@ -799,6 +828,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "",
             "",
+            None,
             false,
             vec![],
         )
@@ -812,6 +842,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "v",
             "",
+            None,
             false,
             vec![("key", "value", r#""value""#)],
         )
@@ -825,6 +856,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "value",
             "",
+            None,
             false,
             vec![("key", "value", r#""value""#)],
         )
@@ -838,6 +870,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "nomatch",
             "",
+            None,
             false,
             vec![],
         )
@@ -851,6 +884,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "",
             "v",
+            None,
             false,
             vec![("key", "value", r#""value""#)],
         )
@@ -864,6 +898,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "",
             "value",
+            None,
             false,
             vec![("key", "value", r#""value""#)],
         )
@@ -877,6 +912,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "",
             "nomatch",
+            None,
             false,
             vec![],
         )
@@ -901,6 +937,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "",
             "",
+            None,
             true,
             expected[..].to_vec(),
         )
@@ -913,6 +950,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "",
             "a",
+            None,
             true,
             expected[1..].to_vec(),
         )
@@ -930,6 +968,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "",
             "",
+            None,
             false,
             vec![],
         )
@@ -943,6 +982,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "",
             "",
+            None,
             false,
             vec![("key", "value", r#""value""#)],
         )
@@ -956,6 +996,7 @@ async fn test_scan_with_index() {
             *in_txn,
             "",
             "",
+            None,
             false,
             vec![("key", "NEW", r#"{"s": "NEW"}"#)],
         )
@@ -974,7 +1015,71 @@ async fn test_scan_with_index() {
         ("key1", "value2", r#"{"s": "value2"}"#),
         ("key11", "value3", r#"{"s": "value3"}"#),
     ];
-    test(entries, "", "/s", Op::None, false, "", "", false, expected).await;
+    test(
+        entries,
+        "",
+        "/s",
+        Op::None,
+        false,
+        "",
+        "",
+        None,
+        false,
+        expected,
+    )
+    .await;
+
+    // Use both start_secondary_key and start_key
+    let entries = vec![
+        ("key1", r#"{"s": "value1"}"#),
+        ("key11", r#"{"s": "value1"}"#),
+        ("key2", r#""nomatch""#),
+        ("key", r#"{"s": "value1"}"#),
+    ];
+    let expected = vec![
+        ("key", "value1", r#"{"s": "value1"}"#),
+        ("key1", "value1", r#"{"s": "value1"}"#),
+        ("key11", "value1", r#"{"s": "value1"}"#),
+    ];
+    test(
+        entries.clone(),
+        "",
+        "/s",
+        Op::None,
+        false,
+        "",
+        "value1",
+        Some(""),
+        false,
+        expected.clone(),
+    )
+    .await;
+    test(
+        entries.clone(),
+        "",
+        "/s",
+        Op::None,
+        false,
+        "",
+        "value1",
+        Some("key"),
+        false,
+        expected.clone(),
+    )
+    .await;
+    test(
+        entries.clone(),
+        "",
+        "/s",
+        Op::None,
+        false,
+        "",
+        "value1",
+        Some("key"),
+        true,
+        (expected.clone())[1..].to_vec(),
+    )
+    .await;
 }
 
 // new_test_scan_receiver is a helper for scan tests. Scan requires a js_sys::Function to send

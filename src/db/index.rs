@@ -212,20 +212,47 @@ pub fn encode_index_key(index_key: &IndexKey) -> Result<Vec<u8>, GetIndexKeysErr
 }
 
 // Returns bytes that can be used to scan for the given secondary index value.
+//
+// Consider a scan for start_secondary_key="a" (97). We want to scan with scan
+// key [0, 97]. We could also scan with [0, 97, 0], but then we couldn't use
+// this function for prefix scans, so we lop off the null byte. If we want
+// the scan to be exclusive, we scan with the next greater value, [0, 97, 1]
+// (we disallow zero bytes in secondary keys).
+//
+// Now it gets a little tricky. We also want to be able to scan using the
+// primary key, start_key. When we do this we have to encode the scan key
+// a little differently We essentially have to fix the value of the
+// secondary key so we can vary the start_key. That is, the match on
+// start_secondary_key becomes an exact match.
+//
+// Consider the scan for start_secondary_key="a" and start_key=[2]. We want
+// to scan with [0, 97, 0, 2]. If we want exclusive we want to scan with
+// the next highest value, [0, 97, 0, 2, 0] (zero bytes are allowed in primary
+// keys). So far so good. It is important to notice that we need to
+// be able to distinguish between not wanting use start_key and wanting to
+// use start_key=[]. In the former case we want to scan with the secondary
+// key value, possibly followed by a 1 with no trailing zero byte ([0, 97]
+// or [0, 97, 1]). In the latter case we want to scan by the secondary
+// key value, followed by the zero byte, followed by the primary key value
+// and another zero if it is exclusive ([0, 97, 0] or [0, 97, 0, 0]).
+// This explains why we need the Option around start_key.
 pub fn encode_index_scan_key(
     secondary: &[u8],
+    primary: Option<&[u8]>,
     exclusive: bool,
 ) -> Result<Vec<u8>, GetIndexKeysError> {
     let mut k = encode_index_key(&IndexKey {
         secondary,
-        primary: &[],
+        primary: primary.unwrap_or(&[]),
     })?;
-    // We remove the trailing null so perfix scans work.
-    k.pop();
-    // If exclusive we start scanning for the next legal value after the
-    // indexkey, which is the key followed by a 0x01.
+
+    let mut smallest_legal_value = 0x00;
+    if primary.is_none() {
+        k.pop();
+        smallest_legal_value = 0x01;
+    }
     if exclusive {
-        k.push(0x01);
+        k.push(smallest_legal_value);
     }
     Ok(k)
 }
@@ -334,24 +361,30 @@ mod tests {
 
     #[test]
     fn test_encode_scan_key() {
-        fn test(secondary: &str) {
+        fn test(secondary: &str, primary: &[u8]) {
             let encoded_index_key = encode_index_key(&IndexKey {
                 secondary: secondary.as_bytes(),
-                primary: &[],
+                primary,
             })
             .unwrap();
             // With exclusive == false
-            let scan_key = encode_index_scan_key(secondary.as_bytes(), false).unwrap();
+            let scan_key =
+                encode_index_scan_key(secondary.as_bytes(), Some(primary), false).unwrap();
             assert!(encoded_index_key.starts_with(&scan_key[..]));
             assert!(encoded_index_key >= scan_key);
 
             // With exclusive == true
-            let scan_key = encode_index_scan_key(secondary.as_bytes(), true).unwrap();
+            let scan_key =
+                encode_index_scan_key(secondary.as_bytes(), Some(primary), true).unwrap();
             assert!(encoded_index_key < scan_key);
         }
 
-        test("");
-        test("foo");
+        test("", &[]);
+        test("", &[0x00]);
+        test("", &[0x01]);
+        test("foo", &[]);
+        test("foo", &[0x00]);
+        test("foo", &[0x01]);
     }
 
     #[test]

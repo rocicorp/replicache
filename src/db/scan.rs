@@ -2,23 +2,43 @@ use super::index;
 use crate::prolly;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use str_macro::str;
 
-// How to use ScanOptions:
-// - prefix: key prefix to scan, "" matches all of them
-// - limit: only return at most this many matches
-// - start_key: start returning matches from this value, inclusive unless:
-// - start_key_exclusive: start returning matches *after* the start_key
-// - if passing index_name, the prefix and start_key will match against
-//   indexed values in the same way as for non-index scans
+// How to use ScanOptions. This could be simpler if we added more
+// structure, eg separate scan types for regular vs index scans,
+// but opting instead for simpler structure at the cost of making
+// it slightly harder to hold.
 //
-// Note that:
+// For *all* scans:
+// - limit: only return at most this many matches
+//
+// For *regular* scans:
+// - prefix: (primary) key prefix to scan, "" matches all of them
+// - start_key: start returning (primary key) matches from this value,
+//   inclusive unless:
+// - start_exclusive: start returning matches *after* the start_key
 // - start_key can be used for pagination
-// - all combinations of options are allowed, for better or worse
+//
+// For *index* scans:
+// - index_name: name of the index to use
+// - prefix: *secondary* key prefix to scan for, "" matches all of them
+// - start_secondary_key: start returning *secondary* key matches from
+//   this value, AND:
+// - start_key: if provided start matching on EXACTLY the start_secondary_key
+//   and return *primary* key matches starting from this value (empty string
+//   means all of them).
+// - start_exclusive: start returning matches *after* the
+//   (start_secondary_key, start_key) entry; exclusive covers both
+// - start_secondary_key and start_key can be used for pagination
+//
+// NOTE that in above for index scans if you provide Some start_key, the
+// secondary_index_key is treated as an exact match.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ScanOptions {
     pub prefix: Option<String>,
+    pub start_secondary_key: Option<String>,
     pub start_key: Option<String>,
-    pub start_key_exclusive: Option<bool>,
+    pub start_exclusive: Option<bool>,
     pub limit: Option<u64>,
     #[serde(rename = "indexName")]
     pub index_name: Option<String>,
@@ -30,7 +50,7 @@ pub struct ScanOptions {
 // probably not create this structure directly. It is intended to be
 // created via TryFrom a ScanOptions.
 //
-// You'll note that 'start_key_exclusive' is missing. That's because
+// You'll note that 'start_exclusive' is missing. That's because
 // of the above-mentioned scan prep; exclusive is implemented by scanning
 // for the next value after the one provided.
 #[derive(Debug)]
@@ -66,7 +86,7 @@ impl TryFrom<ScanOptions> for ScanOptionsInternal {
         // If the scan is using an index then we need to generate the scan keys.
         let prefix = if let Some(p) = source.prefix {
             if source.index_name.is_some() {
-                index::encode_index_scan_key(p.as_bytes(), false)
+                index::encode_index_scan_key(p.as_bytes(), None, false)
                     .map_err(ScanOptionsError::CreateScanKeyFailure)?
             } else {
                 p.into_bytes()
@@ -75,23 +95,25 @@ impl TryFrom<ScanOptions> for ScanOptionsInternal {
         } else {
             None
         };
-        let start_key = if let Some(mut sk) = source.start_key {
-            if source.index_name.is_some() {
-                index::encode_index_scan_key(
-                    sk.as_bytes(),
-                    source.start_key_exclusive.unwrap_or(false),
-                )
-                .map_err(ScanOptionsError::CreateScanKeyFailure)?
-            } else {
-                if source.start_key_exclusive.unwrap_or(false) {
-                    sk.push('\u{0001}');
-                }
-                sk.into_bytes()
-            }
-            .into()
+        let start_key = if source.index_name.is_some() {
+            // Note: encoding of exclusive done inside encode_index_scan_key
+            index::encode_index_scan_key(
+                source
+                    .start_secondary_key
+                    .unwrap_or_else(|| str!(""))
+                    .as_bytes(),
+                source.start_key.as_deref().map(|s| s.as_bytes()),
+                source.start_exclusive.unwrap_or(false),
+            )
+            .map_err(ScanOptionsError::CreateScanKeyFailure)?
         } else {
-            None
-        };
+            let mut sk = source.start_key.unwrap_or_else(|| str!(""));
+            if source.start_exclusive.unwrap_or(false) {
+                sk.push('\u{0000}');
+            }
+            sk.into_bytes()
+        }
+        .into();
 
         Ok(ScanOptionsInternal {
             prefix,
@@ -206,8 +228,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: None,
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: None,
                 index_name: None,
             },
@@ -218,8 +241,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: Some("".into()),
+                start_secondary_key: None,
                 start_key: None,
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: None,
                 index_name: None,
             },
@@ -228,8 +252,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: Some("ba".into()),
+                start_secondary_key: None,
                 start_key: None,
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: None,
                 index_name: None,
             },
@@ -238,8 +263,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: Some("bar".into()),
+                start_secondary_key: None,
                 start_key: None,
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: None,
                 index_name: None,
             },
@@ -248,8 +274,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: Some("bas".into()),
+                start_secondary_key: None,
                 start_key: None,
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: None,
                 index_name: None,
             },
@@ -259,8 +286,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: Some("".into()),
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: None,
                 index_name: None,
             },
@@ -269,8 +297,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: Some("a".into()),
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: None,
                 index_name: None,
             },
@@ -279,8 +308,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: Some("b".into()),
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: None,
                 index_name: None,
             },
@@ -289,8 +319,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: Some("bas".into()),
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: None,
                 index_name: None,
             },
@@ -299,8 +330,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: Some("baz".into()),
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: None,
                 index_name: None,
             },
@@ -309,8 +341,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: Some("baza".into()),
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: None,
                 index_name: None,
             },
@@ -319,8 +352,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: Some("fop".into()),
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: None,
                 index_name: None,
             },
@@ -331,8 +365,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: Some("".into()),
-                start_key_exclusive: true.into(),
+                start_exclusive: true.into(),
                 limit: None,
                 index_name: None,
             },
@@ -341,8 +376,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: Some("bar".into()),
-                start_key_exclusive: true.into(),
+                start_exclusive: true.into(),
                 limit: None,
                 index_name: None,
             },
@@ -353,8 +389,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: None,
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: 0.into(),
                 index_name: None,
             },
@@ -363,8 +400,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: None,
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: 1.into(),
                 index_name: None,
             },
@@ -373,8 +411,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: None,
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: 2.into(),
                 index_name: None,
             },
@@ -383,8 +422,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: None,
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: 3.into(),
                 index_name: None,
             },
@@ -393,8 +433,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: None,
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: 7.into(),
                 index_name: None,
             },
@@ -405,8 +446,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: Some("f".into()),
+                start_secondary_key: None,
                 start_key: None,
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: 0.into(),
                 index_name: None,
             },
@@ -415,8 +457,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: Some("f".into()),
+                start_secondary_key: None,
                 start_key: None,
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: 7.into(),
                 index_name: None,
             },
@@ -425,8 +468,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: Some("ba".into()),
+                start_secondary_key: None,
                 start_key: Some("a".into()),
-                start_key_exclusive: None,
+                start_exclusive: None,
                 limit: 2.into(),
                 index_name: None,
             },
@@ -435,8 +479,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: Some("ba".into()),
+                start_secondary_key: None,
                 start_key: Some("a".into()),
-                start_key_exclusive: false.into(),
+                start_exclusive: false.into(),
                 limit: 1.into(),
                 index_name: None,
             },
@@ -445,8 +490,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: Some("ba".into()),
+                start_secondary_key: None,
                 start_key: Some("a".into()),
-                start_key_exclusive: false.into(),
+                start_exclusive: false.into(),
                 limit: 1.into(),
                 index_name: None,
             },
@@ -455,8 +501,9 @@ mod tests {
         test(
             ScanOptions {
                 prefix: Some("ba".into()),
+                start_secondary_key: None,
                 start_key: Some("bar".into()),
-                start_key_exclusive: true.into(),
+                start_exclusive: true.into(),
                 limit: 1.into(),
                 index_name: None,
             },
@@ -477,8 +524,9 @@ mod tests {
             }
             let opts = ScanOptions {
                 prefix: None,
+                start_secondary_key: None,
                 start_key: Some(start_key.to_string()),
-                start_key_exclusive: Some(true),
+                start_exclusive: Some(true),
                 limit: None,
                 index_name: None,
             };
@@ -503,43 +551,173 @@ mod tests {
 
     #[test]
     fn test_exclusive_index_map() {
-        fn test(secondary_keys: Vec<&str>, start_key: &str, expected: Vec<&str>) {
+        fn test(
+            entries: Vec<(&str, &[u8])>,
+            start_secondary_key: &str,
+            start_key: Option<&str>,
+            expected: Vec<(&str, &[u8])>,
+        ) {
             let test_desc = format!(
-                "secondary_keys: {:?}, start_key: {:?}, expected: {:?}",
-                secondary_keys, start_key, expected
+                "entries: {:?}, start_secondary_key {:?}, start_key: {:?}, expected: {:?}",
+                entries, start_secondary_key, start_key, expected
             );
             let mut map = prolly::Map::new();
-            for key in secondary_keys {
+            for entry in entries {
                 let encoded = index::encode_index_key(&index::IndexKey {
-                    secondary: key.as_bytes(),
-                    primary: b"primary",
+                    secondary: entry.0.as_bytes(),
+                    primary: entry.1,
                 })
                 .unwrap();
                 map.put(encoded, b"value".to_vec());
             }
             let opts = ScanOptions {
                 prefix: None,
-                start_key: Some(start_key.to_string()),
-                start_key_exclusive: Some(true),
+                start_secondary_key: Some(start_secondary_key.into()),
+                start_key: start_key.map(|s| s.to_string()),
+                start_exclusive: Some(true),
                 limit: None,
                 index_name: Some("index".into()),
             };
             let got = scan(&map, opts.try_into().unwrap())
                 .map(|sr| match sr {
                     ScanResult::Error(e) => panic!(e),
-                    ScanResult::Item(item) => std::str::from_utf8(item.secondary_key).unwrap(),
+                    ScanResult::Item(item) => {
+                        (std::str::from_utf8(item.secondary_key).unwrap(), item.key)
+                    }
                 })
-                .collect::<Vec<&str>>();
+                .collect::<Vec<(&str, &[u8])>>();
             assert_eq!(expected, got, "{}", test_desc);
         }
 
-        // test(
-        //     vec!["", "a", "aa", "ab", "b"],
-        //     "",
-        //     vec!["a", "aa", "ab", "b"],
-        // );
-        test(vec!["", "a", "aa", "ab", "b"], "a", vec!["aa", "ab", "b"]);
-        test(vec!["", "a", "aa", "ab", "b"], "aa", vec!["ab", "b"]);
-        test(vec!["", "a", "aa", "ab", "b"], "ab", vec!["b"]);
+        // Test exclusive scanning with start_secondary_key.
+        let v: Vec<&[u8]> = vec![&[], &[0], &[1], &[1, 2]];
+        for pk in v {
+            test(
+                vec![("", pk), ("a", pk), ("aa", pk), ("ab", pk), ("b", pk)],
+                "",
+                None,
+                vec![("a", pk), ("aa", pk), ("ab", pk), ("b", pk)],
+            );
+            test(
+                vec![("", pk), ("a", pk), ("aa", pk), ("ab", pk), ("b", pk)],
+                "a",
+                None,
+                vec![("aa", pk), ("ab", pk), ("b", pk)],
+            );
+            test(
+                vec![("", pk), ("a", pk), ("aa", pk), ("ab", pk), ("b", pk)],
+                "aa",
+                None,
+                vec![("ab", pk), ("b", pk)],
+            );
+            test(
+                vec![("", pk), ("a", pk), ("aa", pk), ("ab", pk), ("b", pk)],
+                "ab",
+                None,
+                vec![("b", pk)],
+            );
+        }
+
+        // Test exclusive scanning with start_secondary_key and start_key,
+        // with the same secondary value.
+        test(
+            vec![
+                ("a", &[]),
+                ("a", &[0]),
+                ("a", &[0, 0]),
+                ("a", &[0, 1]),
+                ("a", &[1]),
+            ],
+            "a",
+            Some(""),
+            vec![("a", &[0]), ("a", &[0, 0]), ("a", &[0, 1]), ("a", &[1])],
+        );
+        test(
+            vec![
+                ("a", &[]),
+                ("a", &[0]),
+                ("a", &[0, 0]),
+                ("a", &[0, 1]),
+                ("a", &[1]),
+            ],
+            "a",
+            Some("\u{0000}"),
+            vec![("a", &[0, 0]), ("a", &[0, 1]), ("a", &[1])],
+        );
+        test(
+            vec![
+                ("a", &[]),
+                ("a", &[0]),
+                ("a", &[0, 0]),
+                ("a", &[0, 1]),
+                ("a", &[1]),
+            ],
+            "a",
+            Some("\u{0000}\u{0000}"),
+            vec![("a", &[0, 1]), ("a", &[1])],
+        );
+        test(
+            vec![
+                ("a", &[]),
+                ("a", &[0]),
+                ("a", &[0, 0]),
+                ("a", &[0, 1]),
+                ("a", &[1]),
+            ],
+            "a",
+            Some("\u{0000}\u{0001}"),
+            vec![("a", &[1])],
+        );
+
+        // Test exclusive scanning with start_secondary_key and start_key,
+        // with different secondary values.
+        test(
+            vec![
+                ("", &[]),
+                ("a", &[0]),
+                ("aa", &[0, 0]),
+                ("ab", &[0, 1]),
+                ("b", &[1]),
+            ],
+            "",
+            Some(""),
+            vec![("a", &[0]), ("aa", &[0, 0]), ("ab", &[0, 1]), ("b", &[1])],
+        );
+        test(
+            vec![
+                ("", &[]),
+                ("a", &[0]),
+                ("aa", &[0, 0]),
+                ("ab", &[0, 1]),
+                ("b", &[1]),
+            ],
+            "a",
+            Some("\u{0000}"),
+            vec![("aa", &[0, 0]), ("ab", &[0, 1]), ("b", &[1])],
+        );
+        test(
+            vec![
+                ("", &[]),
+                ("a", &[0]),
+                ("aa", &[0, 0]),
+                ("ab", &[0, 1]),
+                ("b", &[1]),
+            ],
+            "aa",
+            Some("\u{0000}\u{0000}"),
+            vec![("ab", &[0, 1]), ("b", &[1])],
+        );
+        test(
+            vec![
+                ("", &[]),
+                ("a", &[0]),
+                ("aa", &[0, 0]),
+                ("ab", &[0, 1]),
+                ("b", &[1]),
+            ],
+            "ab",
+            Some("\u{0000}\u{0001}"),
+            vec![("b", &[1])],
+        );
     }
 }

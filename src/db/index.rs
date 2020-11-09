@@ -211,19 +211,19 @@ pub fn encode_index_key(index_key: &IndexKey) -> Result<Vec<u8>, GetIndexKeysErr
     Ok(v)
 }
 
-// Returns bytes that can be used to scan for the given secondary index value. These bytes
-// are different from the full index key bytes in that we do *not* want the null
-// byte separating secondary and primary keys ("key\0" is not a prefix of "keyfoo").
-// Exclusive scans are implemented by appending a 0x01 byte to the end of the scan key,
-// making it start atthe next higher value.
-pub fn encode_scan_key(secondary: &[u8], exclusive: bool) -> Result<Vec<u8>, GetIndexKeysError> {
+// Returns bytes that can be used to scan for the given secondary index value.
+pub fn encode_index_scan_key(
+    secondary: &[u8],
+    exclusive: bool,
+) -> Result<Vec<u8>, GetIndexKeysError> {
     let mut k = encode_index_key(&IndexKey {
         secondary,
         primary: &[],
     })?;
-    // Final byte will be the 0x00 separator. If exclusive, change it to 0x01 (the next
-    // value higher than secondary), otherwise strip it off.
+    // We remove the trailing null so perfix scans work.
     k.pop();
+    // If exclusive we start scanning for the next legal value after the
+    // indexkey, which is the key followed by a 0x01.
     if exclusive {
         k.push(0x01);
     }
@@ -231,9 +231,7 @@ pub fn encode_scan_key(secondary: &[u8], exclusive: bool) -> Result<Vec<u8>, Get
 }
 
 // Decodes an IndexKey encoded by encode_index_key.
-pub fn decode_index_key<'a>(
-    encoded_index_key: &'a [u8],
-) -> Result<IndexKey<'a>, DecodeIndexKeyError> {
+pub fn decode_index_key(encoded_index_key: &[u8]) -> Result<IndexKey, DecodeIndexKeyError> {
     use DecodeIndexKeyError::*;
 
     if !encoded_index_key.starts_with(KEY_VERSION_0) {
@@ -343,12 +341,12 @@ mod tests {
             })
             .unwrap();
             // With exclusive == false
-            let scan_key = encode_scan_key(secondary.as_bytes(), false).unwrap();
+            let scan_key = encode_index_scan_key(secondary.as_bytes(), false).unwrap();
             assert!(encoded_index_key.starts_with(&scan_key[..]));
             assert!(encoded_index_key >= scan_key);
 
             // With exclusive == true
-            let scan_key = encode_scan_key(secondary.as_bytes(), true).unwrap();
+            let scan_key = encode_index_scan_key(secondary.as_bytes(), true).unwrap();
             assert!(encoded_index_key < scan_key);
         }
 

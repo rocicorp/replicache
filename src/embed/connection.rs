@@ -535,18 +535,19 @@ async fn do_scan(
                         .call3(&JsValue::null(), &primary_key, &secondary_key, &val)
                         .unwrap();
                 } else {
-                    primary_key_string
-                        .err()
-                        .map(|e| error!(lc, "Error parsing primary key: {:?}", e));
-                    secondary_key_string
-                        .err()
-                        .map(|e| error!(lc, "Error parsing secondary key: {:?}", e));
+                    if let Some(e) = primary_key_string.err() {
+                        error!(lc, "Error parsing primary key: {:?}", e);
+                    }
+                    if let Some(e) = secondary_key_string.err() {
+                        error!(lc, "Error parsing secondary key: {:?}", e);
+                    }
                 }
             }
         }
     })
     .await
     .map_err(ScanError::ScanError)?;
+
     Ok(ScanResponse {})
 }
 

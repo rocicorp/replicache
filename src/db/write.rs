@@ -307,7 +307,6 @@ impl<'a> Write<'a> {
                 prefix: Some(key_prefix.into()),
                 limit: None,
                 start_key: None,
-                start_key_exclusive: None,
                 index_name: None,
             },
         ) {

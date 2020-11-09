@@ -24,14 +24,19 @@ pub struct ScanOptions {
     pub index_name: Option<String>,
 }
 
-// We have this internal version of ScanOptions because the dispatch interface
-// uses strings but internally we use bytes. Also our scan keys are not
-// necessarily valid utf8 strings.
+// ScanOptionsInternal is a version of the ScanOptions that has been
+// prepared for execution of a scan. We need to carefully set up scan
+// keys based on several factors (eg, is it an index scan), so you should
+// probably not create this structure directly. It is intended to be
+// created via TryFrom a ScanOptions.
+//
+// You'll note that 'start_key_exclusive' is missing. That's because
+// of the above-mentioned scan prep; exclusive is implemented by scanning
+// for the next value after the one provided.
 #[derive(Debug)]
 pub struct ScanOptionsInternal {
     pub prefix: Option<Vec<u8>>,
     pub start_key: Option<Vec<u8>>,
-    pub start_key_exclusive: Option<bool>,
     pub limit: Option<u64>,
     pub index_name: Option<String>,
 }
@@ -61,7 +66,7 @@ impl TryFrom<ScanOptions> for ScanOptionsInternal {
         // If the scan is using an index then we need to generate the scan keys.
         let prefix = if let Some(p) = source.prefix {
             if source.index_name.is_some() {
-                index::encode_scan_key(p.as_bytes(), false)
+                index::encode_index_scan_key(p.as_bytes(), false)
                     .map_err(ScanOptionsError::CreateScanKeyFailure)?
             } else {
                 p.into_bytes()
@@ -70,11 +75,17 @@ impl TryFrom<ScanOptions> for ScanOptionsInternal {
         } else {
             None
         };
-        let start_key = if let Some(sk) = source.start_key {
+        let start_key = if let Some(mut sk) = source.start_key {
             if source.index_name.is_some() {
-                index::encode_scan_key(sk.as_bytes(), source.start_key_exclusive.unwrap_or(false))
-                    .map_err(ScanOptionsError::CreateScanKeyFailure)?
+                index::encode_index_scan_key(
+                    sk.as_bytes(),
+                    source.start_key_exclusive.unwrap_or(false),
+                )
+                .map_err(ScanOptionsError::CreateScanKeyFailure)?
             } else {
+                if source.start_key_exclusive.unwrap_or(false) {
+                    sk.push('\u{0001}');
+                }
                 sk.into_bytes()
             }
             .into()
@@ -85,7 +96,6 @@ impl TryFrom<ScanOptions> for ScanOptionsInternal {
         Ok(ScanOptionsInternal {
             prefix,
             start_key,
-            start_key_exclusive: source.start_key_exclusive,
             limit: source.limit,
             index_name: source.index_name,
         })
@@ -98,10 +108,7 @@ pub enum ScanOptionsError {
 }
 
 // scan() yields decoded prolly map entries.
-pub fn scan<'a>(
-    map: &'a prolly::Map,
-    opts: ScanOptionsInternal,
-) -> impl Iterator<Item = ScanResult<'a>> {
+pub fn scan(map: &prolly::Map, opts: ScanOptionsInternal) -> impl Iterator<Item = ScanResult> {
     use ScanResultError::*;
 
     // We don't do any encoding of the key in regular prolly maps, so we have
@@ -143,7 +150,6 @@ pub fn scan_raw<'a>(
     let mut it = map.iter().peekable();
     let mut prefix: Vec<u8> = Vec::new();
     let mut from_key: &[u8] = &[];
-    let mut exclusive = false;
 
     if let Some(p) = opts.prefix {
         prefix = p;
@@ -153,20 +159,13 @@ pub fn scan_raw<'a>(
     if let Some(key) = opts.start_key.as_ref().map(|k| &k[..]) {
         if key > from_key {
             from_key = key;
-            exclusive = opts.start_key_exclusive.unwrap_or(false);
         }
     }
 
-    let key_met = |key: &[u8]| {
-        if exclusive {
-            key > from_key
-        } else {
-            key >= from_key
-        }
-    };
-
     while it.peek().is_some() {
-        if key_met(it.peek().unwrap().key) {
+        // Note: exclusive implemented at a higher level by appending a 0x01 to the
+        // key before passing it to scan.
+        if it.peek().unwrap().key >= from_key {
             break;
         }
 
@@ -183,7 +182,7 @@ mod tests {
     use std::convert::TryInto;
 
     #[test]
-    fn iter_from_key() {
+    fn test_scan() {
         fn test(opts: ScanOptions, expected: Vec<&str>) {
             let test_desc = format!("opts: {:?}, expected: {:?}", &opts, &expected);
             let mut map = prolly::Map::new();
@@ -463,5 +462,84 @@ mod tests {
             },
             vec!["baz"],
         );
+    }
+
+    #[test]
+    fn test_exclusive_regular_map() {
+        fn test(keys: Vec<&str>, start_key: &str, expected: Vec<&str>) {
+            let test_desc = format!(
+                "keys: {:?}, start_key: {:?}, expected: {:?}",
+                keys, start_key, expected
+            );
+            let mut map = prolly::Map::new();
+            for key in keys {
+                map.put(key.as_bytes().to_vec(), b"value".to_vec());
+            }
+            let opts = ScanOptions {
+                prefix: None,
+                start_key: Some(start_key.to_string()),
+                start_key_exclusive: Some(true),
+                limit: None,
+                index_name: None,
+            };
+            let got = scan(&map, opts.try_into().unwrap())
+                .map(|sr| match sr {
+                    ScanResult::Error(e) => panic!(e),
+                    ScanResult::Item(item) => std::str::from_utf8(item.key).unwrap(),
+                })
+                .collect::<Vec<&str>>();
+            assert_eq!(expected, got, "{}", test_desc);
+        }
+
+        test(
+            vec!["", "a", "aa", "ab", "b"],
+            "",
+            vec!["a", "aa", "ab", "b"],
+        );
+        test(vec!["", "a", "aa", "ab", "b"], "a", vec!["aa", "ab", "b"]);
+        test(vec!["", "a", "aa", "ab", "b"], "aa", vec!["ab", "b"]);
+        test(vec!["", "a", "aa", "ab", "b"], "ab", vec!["b"]);
+    }
+
+    #[test]
+    fn test_exclusive_index_map() {
+        fn test(secondary_keys: Vec<&str>, start_key: &str, expected: Vec<&str>) {
+            let test_desc = format!(
+                "secondary_keys: {:?}, start_key: {:?}, expected: {:?}",
+                secondary_keys, start_key, expected
+            );
+            let mut map = prolly::Map::new();
+            for key in secondary_keys {
+                let encoded = index::encode_index_key(&index::IndexKey {
+                    secondary: key.as_bytes(),
+                    primary: b"primary",
+                })
+                .unwrap();
+                map.put(encoded, b"value".to_vec());
+            }
+            let opts = ScanOptions {
+                prefix: None,
+                start_key: Some(start_key.to_string()),
+                start_key_exclusive: Some(true),
+                limit: None,
+                index_name: Some("index".into()),
+            };
+            let got = scan(&map, opts.try_into().unwrap())
+                .map(|sr| match sr {
+                    ScanResult::Error(e) => panic!(e),
+                    ScanResult::Item(item) => std::str::from_utf8(item.secondary_key).unwrap(),
+                })
+                .collect::<Vec<&str>>();
+            assert_eq!(expected, got, "{}", test_desc);
+        }
+
+        // test(
+        //     vec!["", "a", "aa", "ab", "b"],
+        //     "",
+        //     vec!["a", "aa", "ab", "b"],
+        // );
+        test(vec!["", "a", "aa", "ab", "b"], "a", vec!["aa", "ab", "b"]);
+        test(vec!["", "a", "aa", "ab", "b"], "aa", vec!["ab", "b"]);
+        test(vec!["", "a", "aa", "ab", "b"], "ab", vec!["b"]);
     }
 }

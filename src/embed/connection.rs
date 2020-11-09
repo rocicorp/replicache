@@ -440,10 +440,7 @@ async fn do_commit<'a, 'b>(
         db::DEFAULT_HEAD_NAME
     };
     let hash = txn.commit(head_name).await.map_err(CommitError)?;
-    Ok(CommitTransactionResponse {
-        hash,
-        retry_commit: false,
-    })
+    Ok(CommitTransactionResponse { hash })
 }
 
 async fn do_close<'a, 'b>(

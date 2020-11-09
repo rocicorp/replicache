@@ -47,10 +47,6 @@ pub struct CommitTransactionResponse {
     // Note: the field is named "ref" in go but "ref" is a reserved word in rust.
     #[serde(rename = "ref")]
     pub hash: String,
-    // TODO I think retry_commit was required to accommodate noms' optimistic locking
-    // and we can do away with it in repc once compatability is no longer an issue.
-    #[serde(rename = "retryCommit")]
-    pub retry_commit: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

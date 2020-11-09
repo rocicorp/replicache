@@ -113,6 +113,5 @@ type closeTransactionResponse struct {
 type commitTransactionRequest transactionRequest
 
 type commitTransactionResponse struct {
-	Ref         *jsnoms.Hash `json:"ref,omitempty"`
-	RetryCommit bool         `json:"retryCommit,omitempty"`
+	Ref *jsnoms.Hash `json:"ref,omitempty"`
 }

@@ -52,6 +52,9 @@ export class ReadTransactionImpl implements ReadTransaction {
   private _transactionId = -1;
   protected readonly _invoke: Invoke;
   protected _closed = false;
+  protected readonly _openTransactionName:
+    | 'openTransaction'
+    | 'openIndexTransaction' = 'openTransaction';
 
   constructor(invoke: Invoke) {
     this._invoke = invoke;
@@ -116,7 +119,7 @@ export class ReadTransactionImpl implements ReadTransaction {
   }
 
   async open(args: OpenTransactionRequest): Promise<void> {
-    const {transactionId} = await this._invoke('openTransaction', args);
+    const {transactionId} = await this._invoke(this._openTransactionName, args);
     this._transactionId = transactionId;
   }
 
@@ -148,31 +151,6 @@ export interface WriteTransaction extends ReadTransaction {
    * key to remove.
    */
   del(key: string): Promise<boolean>;
-
-  /**
-   * Creates a persistent secondary index in Replicache which can be used with scan.
-   *
-   * If the named index already exists with the same definition this returns success
-   * immediately. If the named index already exists, but with a different definition
-   * an error is returned.
-   */
-  createIndex({
-    name,
-    keyPrefix,
-    jsonPointer,
-  }: CreateIndexOptions): Promise<void>;
-
-  /**
-   * Drops an index previously created with {@link createIndex}.
-   * @param name
-   */
-  dropIndex(name: string): Promise<void>;
-}
-
-interface CreateIndexOptions {
-  name: string;
-  keyPrefix?: string;
-  jsonPointer: string;
 }
 
 export class WriteTransactionImpl
@@ -196,6 +174,45 @@ export class WriteTransactionImpl
     return result.ok;
   }
 
+  async commit(): Promise<CommitTransactionResponse> {
+    this._closed = true;
+    return await this._invoke('commitTransaction', {
+      transactionId: this.id,
+    });
+  }
+}
+
+export interface IndexTransaction extends ReadTransaction {
+  /**
+   * Creates a persistent secondary index in Replicache which can be used with scan.
+   *
+   * If the named index already exists with the same definition this returns success
+   * immediately. If the named index already exists, but with a different definition
+   * an error is returned.
+   */
+  createIndex({
+    name,
+    keyPrefix,
+    jsonPointer,
+  }: CreateIndexOptions): Promise<void>;
+
+  /**
+   * Drops an index previously created with {@link createIndex}.
+   */
+  dropIndex(name: string): Promise<void>;
+}
+
+interface CreateIndexOptions {
+  name: string;
+  keyPrefix?: string;
+  jsonPointer: string;
+}
+
+export class IndexTransactionImpl
+  extends ReadTransactionImpl
+  implements IndexTransaction {
+  protected readonly _openTransactionName = 'openIndexTransaction';
+
   async createIndex(options: CreateIndexOptions): Promise<void> {
     throwIfClosed(this);
     await this._invoke('createIndex', {
@@ -216,9 +233,8 @@ export class WriteTransactionImpl
 
   async commit(): Promise<CommitTransactionResponse> {
     this._closed = true;
-    const commitRes = await this._invoke('commitTransaction', {
+    return await this._invoke('commitTransaction', {
       transactionId: this.id,
     });
-    return commitRes;
   }
 }

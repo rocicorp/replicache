@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1604958700417,
+  "lastUpdate": 1604966292614,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -4678,6 +4678,44 @@ window.BENCHMARK_DATA = {
           {
             "name": "populate 1024x1000 (dirty, indexes: 0)",
             "value": 4.38,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1a83d41b2c17a45e34f1ec80497c0fbdad611146",
+          "message": "Remove retryCommit (#195)\n\nIt was a remnant of the Noms implementation",
+          "timestamp": "2020-11-09T15:56:43-08:00",
+          "tree_id": "50ca50e84b575ed30256831e3f791047873f0be6",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/1a83d41b2c17a45e34f1ec80497c0fbdad611146"
+        },
+        "date": 1604966292043,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.98,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.28,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "5 samples"

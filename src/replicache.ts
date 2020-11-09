@@ -62,7 +62,7 @@ export default class Replicache implements ReadTransaction {
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
-    MutatorImpl<JSONValue, JSONValue>
+    MutatorImpl<JSONValue | void, JSONValue>
   >();
   private _syncPromise: Promise<void> | null = null;
   private readonly _subscriptions = new Set<Subscription<unknown, unknown>>();
@@ -436,10 +436,12 @@ export default class Replicache implements ReadTransaction {
     name: string,
     args: A,
   ): Promise<string> {
-    const mutatorImpl = this._mutatorRegistry.get(name);
+    let mutatorImpl = this._mutatorRegistry.get(name);
     if (!mutatorImpl) {
       console.error(`Unknown mutator ${name}`);
-      return basis;
+      mutatorImpl = async () => {
+        // no op
+      };
     }
     const res = await this._mutate(name, mutatorImpl, args, {
       invokeArgs: {

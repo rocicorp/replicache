@@ -44,6 +44,8 @@ For example, [sample TODO app](https://github.com/rocicorp/replicache-sample-tod
 
 The key/value pairs you return are up to you — Replicache just makes sure they get to the client.
 
+See [client-view-schema.jsonc](./client-view-schema.jsonc) for the schema of the Client View response.
+
 #### Authentication
 
 Most applications return a Client View that is specific to the calling user. Replicache supports sending user credentials through the standard `Authorization` HTTP header. If authorization fails, the Client View should return HTTP 401 (Unauthorized). The Replicache client will prompt user code to reauthenticate in that case.
@@ -123,39 +125,6 @@ If you use e.g., Postgres, for your user data, you might store Replicache Change
 
 Replicache implements upstream sync by queuing calls to your service on the client-side and uploading them in batches. By default Replicache posts these batches to `https://yourdomain.com/replicache-batch`.
 
-The payload of the batch request is JSON matching the JSON Schema:
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "clientID": {
-      "type": "string",
-      "minLength": 1
-    },
-    "mutations": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "name": {
-            "type": "string",
-            "minLength": 1
-          },
-          "args": {},
-        },
-        "required": ["id", "name", "args"]
-      }
-    }
-  },
-  "required": ["clientID", "mutations"]
-}
-```
-
 Here is an example batch request to our TODO example app backend.
 
 ```json
@@ -185,33 +154,10 @@ Here is an example batch request to our TODO example app backend.
 }
 ```
 
-The response format matches the schema:
+The response from the batch endpoint is **completely optional** — Replicache doesn't use it for anything.
 
-```json
-{
-  "type": "array",
-  "properties": {
-    "mutationInfos": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "int",
-            "minimium": 0,
-          },
-          "error": {
-            "type": "string"
-          }
-        },
-        "required": ["id"]
-      }
-    }
-  },
-  "required": ["mutationInfos"]
-```
+However, we recommend returning information about failed requests in the response. Replicache prints these to the developer console for debugging purposes. Here is an example response:
 
-For example:
 
 ```json
 {
@@ -228,7 +174,7 @@ For example:
 }
 ```
 
-You do not ever need to return any `mutationInfos`. They are **completely informational** and not used programmatically by Replicache. However, Replicache does dump this response to the developer console for debugging purposes.
+See [replicache-batch-request.jsonc](./replicache-batch-request.jsonc) for the detailed schema of the payload Replicache sends to your batch endpoint. See [replicache-batch-response.jsonc](./replicache-batch-reponse.jsonc) for the response schema.
 
 #### Implementing the Batch Endpoint
 

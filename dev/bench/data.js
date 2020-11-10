@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1604966292614,
+  "lastUpdate": 1605038384738,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -4716,6 +4716,44 @@ window.BENCHMARK_DATA = {
           {
             "name": "populate 1024x1000 (dirty, indexes: 0)",
             "value": 4.28,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "95c3d456f5ab0a4f0cbccb8b04760b4dddfd1922",
+          "message": "Disable sync interval entirely since we have push.",
+          "timestamp": "2020-11-10T09:58:17-10:00",
+          "tree_id": "b23761308473b774d2d43a7af0178c69ad9fb6d5",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/95c3d456f5ab0a4f0cbccb8b04760b4dddfd1922"
+        },
+        "date": 1605038381535,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.55,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.96,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "5 samples"

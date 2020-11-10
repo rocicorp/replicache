@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1605038384738,
+  "lastUpdate": 1605047973216,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -4754,6 +4754,44 @@ window.BENCHMARK_DATA = {
           {
             "name": "populate 1024x1000 (dirty, indexes: 0)",
             "value": 4.96,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3fa513d41834f9292edf06a270319c73a78b0df0",
+          "message": "If a mutator is not registered use a no op function (#194)\n\nIf a mutator is not registered we log a warning but we use an empty\r\nfunction as a mutator to make repc able to move forward.\r\n\r\nFixes #188",
+          "timestamp": "2020-11-10T14:37:40-08:00",
+          "tree_id": "3c07c15391e190fd2cce235c8f9c8c9ca471559a",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/3fa513d41834f9292edf06a270319c73a78b0df0"
+        },
+        "date": 1605047972638,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.03,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.54,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "5 samples"

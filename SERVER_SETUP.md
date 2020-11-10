@@ -6,7 +6,7 @@ Questions? Comments? We'd love to help you evaluate Replicache — [Join us on S
 You can also refer to our fully-functional [TODO sample application](https://github.com/rocicorp/replicache-sample-todo). For information about contributing, see our [contributing guide](contributing.md).
 
 **Note:** This document assumes you already know what Replicache is, why you might need it, and broadly how it works. If that's not true, see the [Replicache homepage](https://replicache.dev) for an overview, or the [design document](design.md) for a detailed deep-dive.
-
+fbatch
 # Overview
 
 ![Picture of Replicache Architecture](diagram.png)
@@ -174,7 +174,7 @@ However, we recommend returning information about failed requests in the respons
 }
 ```
 
-See [batch-request-schema.jsonc](./batch-request-schema.jsonc) for the detailed schema of the payload Replicache sends to your batch endpoint. See [batch-response-schema.jsonc](./batch-reponse-schema.jsonc) for the response schema.
+See [batch-request-schema.jsonc](./batch-request-schema.jsonc) for the detailed schema of the payload Replicache sends to your batch endpoint. See [batch-response-schema.jsonc](./batch-response-schema.jsonc) for the response schema.
 
 #### Implementing the Batch Endpoint
 

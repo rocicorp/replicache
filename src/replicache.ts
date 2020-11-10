@@ -235,15 +235,9 @@ export default class Replicache implements ReadTransaction {
   scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): ScanResult<K> {
-    const {prefix = '', startKey, startKeyExclusive, limit, indexName} =
-      options || {};
     let tx: ReadTransactionImpl;
     return new ScanResult<K>(
-      prefix,
-      startKey,
-      startKeyExclusive,
-      limit,
-      indexName,
+      options,
       this._invoke,
       async () => {
         if (tx) {

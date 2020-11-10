@@ -84,18 +84,7 @@ export class ReadTransactionImpl implements ReadTransaction {
   scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): ScanResult<K> {
-    const {prefix = '', startKey, startKeyExclusive, limit, indexName} =
-      options || {};
-    return new ScanResult(
-      prefix,
-      startKey,
-      startKeyExclusive,
-      limit,
-      indexName,
-      this._invoke,
-      () => this,
-      false,
-    );
+    return new ScanResult(options, this._invoke, () => this, false);
   }
 
   async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(

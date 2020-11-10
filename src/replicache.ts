@@ -62,7 +62,7 @@ export default class Replicache implements ReadTransaction {
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
-    MutatorImpl<JSONValue, JSONValue>
+    MutatorImpl<JSONValue | void, JSONValue>
   >();
   private _syncPromise: Promise<void> | null = null;
   private readonly _subscriptions = new Set<Subscription<unknown, unknown>>();
@@ -436,10 +436,19 @@ export default class Replicache implements ReadTransaction {
     name: string,
     args: A,
   ): Promise<string> {
-    const mutatorImpl = this._mutatorRegistry.get(name);
+    let mutatorImpl = this._mutatorRegistry.get(name);
     if (!mutatorImpl) {
+      // Developers must not remove mutator names from the set once registered,
+      // because Replicache needs to be able to replay mutations during sync.
+      //
+      // If we detect that this has happened, stub in a no-op mutator so that at
+      // least sync can move forward. Note that the server-side mutation will
+      // still get sent. This doesn't remove the queued local mutation, it just
+      // removes its visible effects.
       console.error(`Unknown mutator ${name}`);
-      return basis;
+      mutatorImpl = async () => {
+        // no op
+      };
     }
     const res = await this._mutate(name, mutatorImpl, args, {
       invokeArgs: {

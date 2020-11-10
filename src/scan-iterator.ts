@@ -2,6 +2,7 @@ import type {ScanItem} from './scan-item.js';
 import type {Invoke, ScanRequest} from './repm-invoker.js';
 import type {JSONValue} from './json.js';
 import {throwIfClosed} from './transaction-closed-error.js';
+import {ScanOptions, toRPC} from './scan-options.js';
 
 interface IdCloser {
   close(): void;
@@ -17,12 +18,8 @@ type ScanIterableKind = 'key' | 'value' | 'entry';
 class ScanIterator<V> implements AsyncIterableIterator<V> {
   private readonly _scanItems: ScanItem[] = [];
   private _current = 0;
-  private readonly _prefix: string;
+  private readonly _options: ScanOptions | undefined;
   private readonly _kind: ScanIterableKind;
-  private readonly _startKey?: string;
-  private readonly _startKeyExclusive?: boolean;
-  private readonly _limit?: number;
-  private readonly _indexName?: string;
   private _loadPromise?: Promise<unknown> = undefined;
   private readonly _getTransaction: () => Promise<IdCloser> | IdCloser;
   private readonly _shouldCloseTransaction: boolean;
@@ -31,21 +28,13 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
 
   constructor(
     kind: ScanIterableKind,
-    prefix: string,
-    startKey: string | undefined,
-    startKeyExclusive: boolean | undefined,
-    limit: number | undefined,
-    indexName: string | undefined,
+    options: ScanOptions | undefined,
     invoke: Invoke,
     getTransaction: () => Promise<IdCloser> | IdCloser,
     shouldCloseTranscation: boolean,
   ) {
     this._kind = kind;
-    this._prefix = prefix;
-    this._startKey = startKey;
-    this._startKeyExclusive = startKeyExclusive;
-    this._limit = limit;
-    this._indexName = indexName;
+    this._options = options;
     this._invoke = invoke;
     this._getTransaction = getTransaction;
     this._shouldCloseTransaction = shouldCloseTranscation;
@@ -75,10 +64,13 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
     if (this._kind === 'value') {
       return {value: entry.value} as IteratorResult<V>;
     }
+
+    type MaybeIndexName = {indexName?: string};
     const key =
-      this._indexName !== undefined
+      (this._options as MaybeIndexName)?.indexName !== undefined
         ? [entry.secondaryKey, entry.primaryKey]
         : entry.primaryKey;
+
     switch (this._kind) {
       case 'key':
         return {value: key} as IteratorResult<V>;
@@ -123,15 +115,7 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
     };
     const args: ScanRequest = {
       transactionId: this._transaction.id,
-      opts: {
-        prefix: this._prefix,
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        start_key: this._startKey,
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        start_key_exclusive: this._startKeyExclusive,
-        limit: this._limit,
-        indexName: this._indexName,
-      },
+      opts: toRPC(this._options),
       receiver,
     };
     this._loadPromise = this._invoke('scan', args);
@@ -142,11 +126,7 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
 }
 
 type Args = [
-  prefix: string,
-  startKey: string | undefined,
-  startKeyExclusive: boolean | undefined,
-  limit: number | undefined,
-  indexName: string | undefined,
+  options: ScanOptions | undefined,
   invoke: Invoke,
   getTransaction: () => Promise<IdCloser> | IdCloser,
   shouldCloseTranscation: boolean,

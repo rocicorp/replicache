@@ -7,4 +7,10 @@ export type {Mutator} from './replicache.js';
 export type {REPMInvoke, Invoker} from './repm-invoker.js';
 export type {ReadTransaction, WriteTransaction} from './transactions.js';
 export type {ScanResult} from './scan-iterator.js';
-export type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
+export type {
+  KeyTypeForScanOptions,
+  ScanIndexOptions,
+  ScanNoIndexOptions,
+  ScanOptionIndexedStartKey,
+  ScanOptions,
+} from './scan-options.js';

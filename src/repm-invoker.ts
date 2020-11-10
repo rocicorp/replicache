@@ -1,5 +1,5 @@
 import type {JSONValue, ToJSON} from './json.js';
-import type {ScanOptionsRpc} from './scan-options.js';
+import type {ScanOptionsRPC} from './scan-options.js';
 import init, {dispatch} from './wasm/release/replicache_client.js';
 import type {InitInput, InitOutput} from './wasm/release/replicache_client.js';
 
@@ -11,22 +11,22 @@ export type Invoker = {
 };
 
 export interface Invoke {
-  <Rpc extends keyof InvokeMapNoArgs>(rpc: Rpc): Promise<InvokeMapNoArgs[Rpc]>;
-  <Rpc extends keyof InvokeMap>(rpc: Rpc, args: InvokeMap[Rpc][0]): Promise<
-    InvokeMap[Rpc][1]
+  <RPC extends keyof InvokeMapNoArgs>(rpc: RPC): Promise<InvokeMapNoArgs[RPC]>;
+  <RPC extends keyof InvokeMap>(rpc: RPC, args: InvokeMap[RPC][0]): Promise<
+    InvokeMap[RPC][1]
   >;
   (rpc: string, args?: JSONValue | ToJSON): Promise<JSONValue>;
 }
 
 export interface REPMInvoke {
-  <Rpc extends keyof InvokeMapNoArgs>(dbName: string, rpc: Rpc): Promise<
-    InvokeMapNoArgs[Rpc]
+  <RPC extends keyof InvokeMapNoArgs>(dbName: string, rpc: RPC): Promise<
+    InvokeMapNoArgs[RPC]
   >;
-  <Rpc extends keyof InvokeMap>(
+  <RPC extends keyof InvokeMap>(
     dbName: string,
-    rpc: Rpc,
-    args: InvokeMap[Rpc][0],
-  ): Promise<InvokeMap[Rpc][1]>;
+    rpc: RPC,
+    args: InvokeMap[RPC][0],
+  ): Promise<InvokeMap[RPC][1]>;
   (dbName: string, rpc: string, args?: JSONValue | ToJSON): Promise<JSONValue>;
 }
 
@@ -81,7 +81,7 @@ type TransactionRequest = {
 };
 
 export type ScanRequest = TransactionRequest & {
-  opts?: ScanOptionsRpc;
+  opts?: ScanOptionsRPC;
   receiver: (
     primaryKey: string,
     secondaryKey: string | null,

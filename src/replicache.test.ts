@@ -236,8 +236,7 @@ test('scan', async () => {
 
   await testScanResult(
     {
-      startKey: 'b/1',
-      startKeyExclusive: false,
+      start: {key: 'b/1', exclusive: false},
     },
     [
       ['b/1', 6],
@@ -248,7 +247,7 @@ test('scan', async () => {
 
   await testScanResult(
     {
-      startKey: 'b/1',
+      start: {key: 'b/1'},
     },
     [
       ['b/1', 6],
@@ -259,8 +258,7 @@ test('scan', async () => {
 
   await testScanResult(
     {
-      startKey: 'b/1',
-      startKeyExclusive: true,
+      start: {key: 'b/1', exclusive: true},
     },
     [
       ['b/2', 7],
@@ -924,4 +922,110 @@ test('index array', async () => {
     [['4', 'a/4'], {a: ['4']}],
   ]);
   await rep.dropIndex('aIndex');
+});
+
+test('index scan start', async () => {
+  rep = await replicacheForTesting('test-index-scan');
+
+  const add = rep.register('add-data', addData);
+  await add({
+    'a/1': {a: '0'},
+    'b/0': {b: 'a5'},
+    'b/1': {b: 'a6'},
+    'b/2': {b: 'b7'},
+    'b/3': {b: 'b8'},
+  });
+
+  await rep.createIndex({
+    name: 'bIndex',
+    jsonPointer: '/b',
+  });
+
+  for (const key of ['a6', ['a6'], ['a6', undefined], ['a6', '']] as (
+    | string
+    | [string, string?]
+  )[]) {
+    await testScanResult({indexName: 'bIndex', start: {key}}, [
+      [['a6', 'b/1'], {b: 'a6'}],
+      [['b7', 'b/2'], {b: 'b7'}],
+      [['b8', 'b/3'], {b: 'b8'}],
+    ]);
+    await testScanResult(
+      {indexName: 'bIndex', start: {key, exclusive: false}},
+      [
+        [['a6', 'b/1'], {b: 'a6'}],
+        [['b7', 'b/2'], {b: 'b7'}],
+        [['b8', 'b/3'], {b: 'b8'}],
+      ],
+    );
+  }
+
+  for (const key of ['a6', ['a6'], ['a6', undefined]] as (
+    | string
+    | [string, string?]
+  )[]) {
+    await testScanResult(
+      {indexName: 'bIndex', start: {key, exclusive: false}},
+      [
+        [['a6', 'b/1'], {b: 'a6'}],
+        [['b7', 'b/2'], {b: 'b7'}],
+        [['b8', 'b/3'], {b: 'b8'}],
+      ],
+    );
+    await testScanResult(
+      {indexName: 'bIndex', start: {key: ['a6', ''], exclusive: true}},
+      [
+        [['a6', 'b/1'], {b: 'a6'}],
+        [['b7', 'b/2'], {b: 'b7'}],
+        [['b8', 'b/3'], {b: 'b8'}],
+      ],
+    );
+  }
+
+  for (const key of ['a6', ['a6'], ['a6', undefined]] as (
+    | string
+    | [string, string?]
+  )[]) {
+    await testScanResult({indexName: 'bIndex', start: {key, exclusive: true}}, [
+      [['b7', 'b/2'], {b: 'b7'}],
+      [['b8', 'b/3'], {b: 'b8'}],
+    ]);
+  }
+
+  await testScanResult({indexName: 'bIndex', start: {key: ['b7', 'b/2']}}, [
+    [['b7', 'b/2'], {b: 'b7'}],
+    [['b8', 'b/3'], {b: 'b8'}],
+  ]);
+  await testScanResult(
+    {indexName: 'bIndex', start: {key: ['b7', 'b/2'], exclusive: false}},
+    [
+      [['b7', 'b/2'], {b: 'b7'}],
+      [['b8', 'b/3'], {b: 'b8'}],
+    ],
+  );
+  await testScanResult(
+    {indexName: 'bIndex', start: {key: ['b7', 'b/2'], exclusive: true}},
+    [[['b8', 'b/3'], {b: 'b8'}]],
+  );
+
+  await testScanResult({indexName: 'bIndex', start: {key: ['a6', 'b/2']}}, [
+    [['b7', 'b/2'], {b: 'b7'}],
+    [['b8', 'b/3'], {b: 'b8'}],
+  ]);
+  await testScanResult(
+    {indexName: 'bIndex', start: {key: ['a6', 'b/2'], exclusive: false}},
+    [
+      [['b7', 'b/2'], {b: 'b7'}],
+      [['b8', 'b/3'], {b: 'b8'}],
+    ],
+  );
+  await testScanResult(
+    {indexName: 'bIndex', start: {key: ['a6', 'b/2'], exclusive: true}},
+    [
+      [['b7', 'b/2'], {b: 'b7'}],
+      [['b8', 'b/3'], {b: 'b8'}],
+    ],
+  );
+
+  await rep.dropIndex('bIndex');
 });

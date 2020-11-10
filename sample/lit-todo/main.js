@@ -34,6 +34,8 @@ let rep = new Replicache({
   dataLayerAuth: '2',
   pushDelay: 500,
 
+  syncInterval: null,
+
   wasmModule: './output/wasm/release/replicache_client_bg.wasm',
 });
 

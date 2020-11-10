@@ -1,0 +1,28 @@
+{
+  "type": "object",
+  "properties": {
+    "clientID": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mutations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "args": {},
+        },
+        "required": ["id", "name", "args"]
+      }
+    }
+  },
+  "required": ["clientID", "mutations"]
+}

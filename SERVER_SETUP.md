@@ -174,7 +174,7 @@ However, we recommend returning information about failed requests in the respons
 }
 ```
 
-See [replicache-batch-request.jsonc](./replicache-batch-request.jsonc) for the detailed schema of the payload Replicache sends to your batch endpoint. See [replicache-batch-response.jsonc](./replicache-batch-reponse.jsonc) for the response schema.
+See [batch-request-schema.jsonc](./batch-request-schema.jsonc) for the detailed schema of the payload Replicache sends to your batch endpoint. See [batch-response-schema.jsonc](./batch-reponse-schema.jsonc) for the response schema.
 
 #### Implementing the Batch Endpoint
 

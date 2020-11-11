@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1605047973216,
+  "lastUpdate": 1605137183028,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -4792,6 +4792,44 @@ window.BENCHMARK_DATA = {
           {
             "name": "populate 1024x1000 (dirty, indexes: 0)",
             "value": 4.54,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fe6c89c4280906ce60bf83d3a6af83cea4fe29a3",
+          "message": "Remove useless check (#199)\n\nWe already ask for a limited number of results so no need to check\r\nagain.",
+          "timestamp": "2020-11-11T15:24:52-08:00",
+          "tree_id": "5e29f3f70a631e202e9c6127eb7df09bbd481547",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/fe6c89c4280906ce60bf83d3a6af83cea4fe29a3"
+        },
+        "date": 1605137182456,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.46,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.98,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "5 samples"

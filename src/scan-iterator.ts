@@ -67,10 +67,7 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
 
     await this._load();
 
-    if (
-      this._current >= this._scanItems.length ||
-      (this._limit !== undefined && this._current >= this._limit)
-    ) {
+    if (this._current >= this._scanItems.length) {
       return this.return();
     }
 

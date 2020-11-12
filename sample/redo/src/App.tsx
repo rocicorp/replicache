@@ -2,13 +2,10 @@ import React, {useEffect, useState, useCallback, DependencyList} from 'react';
 import './App.css';
 
 import Replicache, {
-  REPMWasmInvoker,
   ReadTransaction,
   WriteTransaction,
   Mutator,
 } from 'replicache';
-// This depends on Webpack hacks... it actually returns a path to the static resource for the wasm file.
-import wasmModule from 'replicache/out/wasm/debug/replicache_client_bg';
 import {diffServerURL, diffServerAuth, batchURL} from './settings';
 import {LoginScreen, logout} from './login';
 import type {LoginResult} from './login';
@@ -43,7 +40,8 @@ function App() {
       dataLayerAuth: loginResult.userId,
       diffServerAuth,
       batchURL,
-      wasmModule,
+      // Webpack 4 tries to parse wasm files and hangs forever.
+      wasmModule: '/replicache.wasm.x',
     });
     r.syncInterval = 60 * 1000;
     setRep(r);

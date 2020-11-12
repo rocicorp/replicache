@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1605222775878,
+  "lastUpdate": 1605222833996,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -5055,6 +5055,79 @@ window.BENCHMARK_DATA = {
           {
             "name": "write single byte",
             "value": 0.48,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a1fe87d990088ad4d1d8035c9baa8c7d9d4b1cad",
+          "message": "Update sample/redo to use 3.0.0 (#204)\n\nEnded up copying and renaming the wasm file to public. Webpack 4 is too\r\nbroken.",
+          "timestamp": "2020-11-12T15:12:07-08:00",
+          "tree_id": "82a0d6944f7654c436634b71a8657b6eac390f3d",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/a1fe87d990088ad4d1d8035c9baa8c7d9d4b1cad"
+        },
+        "date": 1605222833395,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.31,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 5.06,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.24,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.45,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 19.15,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 22.82,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 37.04,
             "range": "±0.0%",
             "unit": "tx/s",
             "extra": "5 samples"

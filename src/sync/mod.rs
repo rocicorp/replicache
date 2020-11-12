@@ -1,5 +1,6 @@
 #![allow(clippy::redundant_pattern_matching)] // For derive(Deserialize).
 
+pub mod client_id;
 mod patch;
 pub mod push;
 #[cfg(test)]

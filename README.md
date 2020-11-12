@@ -110,6 +110,10 @@ const handleCheckbox = async (id, e) => {
 - We recommend [enabling console persistence](https://stackoverflow.com/questions/5327955/how-to-make-google-chrome-javascript-console-persistent) while developing replicache-enabled apps to make debugging easier.
 - Remember that data changes can happen "underneath" you and cause `subscribe()` to re-fire at any time. These changes can come from the server or from a different tab. If your UI is not reactive (driven solely by the data model) you need to take extra steps to ensure the UI is in sync with the data.
 
+## Versioning
+
+We use strict semantic versioning. We will not make any backwards incompatible changes without a major revision change. We will try to minimize the number of backwards incompatible change but we are still in the early days so the major version number is going to grow.
+
 ## 🚀 Next Steps
 
 That's it! You've built a fully-functioning offline-first todo app against our sample backend. What will you do next?

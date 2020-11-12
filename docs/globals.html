@@ -77,7 +77,6 @@
 							<ul class="tsd-index-list">
 								<li class="tsd-kind-interface tsd-has-type-parameter"><a href="interfaces/repminvoke.html" class="tsd-kind-icon">REPMInvoke</a></li>
 								<li class="tsd-kind-interface"><a href="interfaces/readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a></li>
-								<li class="tsd-kind-interface"><a href="interfaces/scanoptions.html" class="tsd-kind-icon">Scan<wbr>Options</a></li>
 								<li class="tsd-kind-interface"><a href="interfaces/writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a></li>
 							</ul>
 						</section>
@@ -87,6 +86,10 @@
 								<li class="tsd-kind-type-alias"><a href="globals.html#invoker" class="tsd-kind-icon">Invoker</a></li>
 								<li class="tsd-kind-type-alias tsd-has-type-parameter"><a href="globals.html#keytypeforscanoptions" class="tsd-kind-icon">Key<wbr>Type<wbr>For<wbr>Scan<wbr>Options</a></li>
 								<li class="tsd-kind-type-alias tsd-has-type-parameter"><a href="globals.html#mutator" class="tsd-kind-icon">Mutator</a></li>
+								<li class="tsd-kind-type-alias"><a href="globals.html#scanindexoptions" class="tsd-kind-icon">Scan<wbr>Index<wbr>Options</a></li>
+								<li class="tsd-kind-type-alias"><a href="globals.html#scannoindexoptions" class="tsd-kind-icon">Scan<wbr>NoIndex<wbr>Options</a></li>
+								<li class="tsd-kind-type-alias"><a href="globals.html#scanoptionindexedstartkey" class="tsd-kind-icon">Scan<wbr>Option<wbr>Indexed<wbr>Start<wbr>Key</a></li>
+								<li class="tsd-kind-type-alias"><a href="globals.html#scanoptions" class="tsd-kind-icon">Scan<wbr>Options</a></li>
 							</ul>
 						</section>
 					</div>
@@ -100,7 +103,7 @@
 					<div class="tsd-signature tsd-kind-icon">Invoker<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span>invoke<span class="tsd-signature-symbol">: </span><a href="interfaces/repminvoke.html" class="tsd-signature-type">REPMInvoke</a><span class="tsd-signature-symbol"> }</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/95d63ff/src/repm-invoker.ts#L9">src/repm-invoker.ts:9</a></li>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/f8060b7/src/repm-invoker.ts#L9">src/repm-invoker.ts:9</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -124,10 +127,10 @@
 				<section class="tsd-panel tsd-member tsd-kind-type-alias tsd-has-type-parameter">
 					<a name="keytypeforscanoptions" class="tsd-anchor"></a>
 					<h3>Key<wbr>Type<wbr>For<wbr>Scan<wbr>Options</h3>
-					<div class="tsd-signature tsd-kind-icon">Key<wbr>Type<wbr>For<wbr>Scan<wbr>Options&lt;O&gt;<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">O</span><span class="tsd-signature-symbol"> extends </span><span class="tsd-signature-symbol">{ </span>indexName<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol"> ? </span><span class="tsd-signature-symbol">[</span><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol"> : </span><span class="tsd-signature-type">string</span></div>
+					<div class="tsd-signature tsd-kind-icon">Key<wbr>Type<wbr>For<wbr>Scan<wbr>Options&lt;O&gt;<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">O</span><span class="tsd-signature-symbol"> extends </span><span class="tsd-signature-symbol">{ </span>indexName<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol"> ? </span><span class="tsd-signature-type">ScanOptionIndexedStartKey</span><span class="tsd-signature-symbol"> : </span><span class="tsd-signature-type">string</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/95d63ff/src/scan-options.ts#L25">src/scan-options.ts:25</a></li>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/f8060b7/src/scan-options.ts#L51">src/scan-options.ts:51</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -139,7 +142,7 @@
 					<h4 class="tsd-type-parameters-title">Type parameters</h4>
 					<ul class="tsd-type-parameters">
 						<li>
-							<h4>O<span class="tsd-signature-symbol">: </span><a href="interfaces/scanoptions.html" class="tsd-signature-type">ScanOptions</a></h4>
+							<h4>O<span class="tsd-signature-symbol">: </span><a href="globals.html#scanoptions" class="tsd-signature-type">ScanOptions</a></h4>
 						</li>
 					</ul>
 				</section>
@@ -149,7 +152,7 @@
 					<div class="tsd-signature tsd-kind-icon">Mutator&lt;Return, Args&gt;<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">(</span>args<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Args</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Return</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/95d63ff/src/replicache.ts#L18">src/replicache.ts:18</a></li>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/f8060b7/src/replicache.ts#L18">src/replicache.ts:18</a></li>
 						</ul>
 					</aside>
 					<h4 class="tsd-type-parameters-title">Type parameters</h4>
@@ -183,6 +186,137 @@
 						</ul>
 					</div>
 				</section>
+				<section class="tsd-panel tsd-member tsd-kind-type-alias">
+					<a name="scanindexoptions" class="tsd-anchor"></a>
+					<h3>Scan<wbr>Index<wbr>Options</h3>
+					<div class="tsd-signature tsd-kind-icon">Scan<wbr>Index<wbr>Options<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span>indexName<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>limit<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span>prefix<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>start<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">{ </span>exclusive<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span><span class="tsd-signature-symbol">; </span>key<span class="tsd-signature-symbol">: </span><a href="globals.html#scanoptionindexedstartkey" class="tsd-signature-type">ScanOptionIndexedStartKey</a><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol"> }</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/f8060b7/src/scan-options.ts#L28">src/scan-options.ts:28</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Options for <a href="classes/replicache.html#scan">scan</a> and <a href="classes/replicache.html#scanall">scanAll</a> when scanning over an index. When
+								scanning over and index you need to provide the <code>indexName</code> and the <code>start</code>
+							<code>key</code> is now a tuple consisting of secondar and primary key</p>
+						</div>
+					</div>
+					<div class="tsd-type-declaration">
+						<h4>Type declaration</h4>
+						<ul class="tsd-parameters">
+							<li class="tsd-parameter">
+								<h5>index<wbr>Name<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></h5>
+								<div class="tsd-comment tsd-typography">
+									<div class="lead">
+										<p>Do a <code>scan</code> over a named index. The <code>indexName</code> needs to match an index created with <a href="classes/replicache.html#createindex">createIndex</a>.</p>
+									</div>
+								</div>
+							</li>
+							<li class="tsd-parameter">
+								<h5><span class="tsd-flag ts-flagOptional">Optional</span> limit<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></h5>
+								<div class="tsd-comment tsd-typography">
+									<div class="lead">
+										<p>Only include up to <code>limit</code> results.</p>
+									</div>
+								</div>
+							</li>
+							<li class="tsd-parameter">
+								<h5><span class="tsd-flag ts-flagOptional">Optional</span> prefix<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></h5>
+								<div class="tsd-comment tsd-typography">
+									<div class="lead">
+										<p>Only include results starting with the <em>secondary</em> keys starting with <code>prefix</code>.</p>
+									</div>
+								</div>
+							</li>
+							<li class="tsd-parameter">
+								<h5><span class="tsd-flag ts-flagOptional">Optional</span> start<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">{ </span>exclusive<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span><span class="tsd-signature-symbol">; </span>key<span class="tsd-signature-symbol">: </span><a href="globals.html#scanoptionindexedstartkey" class="tsd-signature-type">ScanOptionIndexedStartKey</a><span class="tsd-signature-symbol"> }</span></h5>
+								<div class="tsd-comment tsd-typography">
+									<div class="lead">
+										<p>When provided the scan starts at this key.</p>
+									</div>
+								</div>
+							</li>
+						</ul>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-type-alias">
+					<a name="scannoindexoptions" class="tsd-anchor"></a>
+					<h3>Scan<wbr>NoIndex<wbr>Options</h3>
+					<div class="tsd-signature tsd-kind-icon">Scan<wbr>NoIndex<wbr>Options<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{ </span>limit<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span>prefix<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span>start<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">{ </span>exclusive<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span><span class="tsd-signature-symbol">; </span>key<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> }</span><span class="tsd-signature-symbol"> }</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/f8060b7/src/scan-options.ts#L7">src/scan-options.ts:7</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Options for <a href="classes/replicache.html#scan">scan</a> and <a href="classes/replicache.html#scanall">scanAll</a> when scanning over the entire key space.</p>
+						</div>
+					</div>
+					<div class="tsd-type-declaration">
+						<h4>Type declaration</h4>
+						<ul class="tsd-parameters">
+							<li class="tsd-parameter">
+								<h5><span class="tsd-flag ts-flagOptional">Optional</span> limit<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></h5>
+								<div class="tsd-comment tsd-typography">
+									<div class="lead">
+										<p>Only include up to <code>limit</code> results.</p>
+									</div>
+								</div>
+							</li>
+							<li class="tsd-parameter">
+								<h5><span class="tsd-flag ts-flagOptional">Optional</span> prefix<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></h5>
+								<div class="tsd-comment tsd-typography">
+									<div class="lead">
+										<p>Only include keys starting with <code>prefix</code>.</p>
+									</div>
+								</div>
+							</li>
+							<li class="tsd-parameter">
+								<h5><span class="tsd-flag ts-flagOptional">Optional</span> start<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-symbol">{ </span>exclusive<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span><span class="tsd-signature-symbol">; </span>key<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> }</span></h5>
+								<div class="tsd-comment tsd-typography">
+									<div class="lead">
+										<p>When provided the scan starts at this key.</p>
+									</div>
+								</div>
+							</li>
+						</ul>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-type-alias">
+					<a name="scanoptionindexedstartkey" class="tsd-anchor"></a>
+					<h3>Scan<wbr>Option<wbr>Indexed<wbr>Start<wbr>Key</h3>
+					<div class="tsd-signature tsd-kind-icon">Scan<wbr>Option<wbr>Indexed<wbr>Start<wbr>Key<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">[</span><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/f8060b7/src/scan-options.ts#L63">src/scan-options.ts:63</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>When providing a start key for an indexed <a href="classes/replicache.html#scan">scan</a> you need to provide the
+								<code>secondary</code> index to start <a href="classes/replicache.html#scan">scan</a> at. You may also provide a <code>primary</code>
+								index. If you pass a string, then that is the key for the secondary index. If
+							you provide tuple then this is the secondary key followed by the primary key.</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-type-alias">
+					<a name="scanoptions" class="tsd-anchor"></a>
+					<h3>Scan<wbr>Options</h3>
+					<div class="tsd-signature tsd-kind-icon">Scan<wbr>Options<span class="tsd-signature-symbol">:</span> <a href="globals.html#scanindexoptions" class="tsd-signature-type">ScanIndexOptions</a><span class="tsd-signature-symbol"> | </span><a href="globals.html#scannoindexoptions" class="tsd-signature-type">ScanNoIndexOptions</a></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/f8060b7/src/scan-options.ts#L2">src/scan-options.ts:2</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Options for <a href="classes/replicache.html#scan">scan</a> and <a href="classes/replicache.html#scanall">scanAll</a></p>
+						</div>
+					</div>
+				</section>
 			</section>
 		</div>
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
@@ -214,9 +348,6 @@
 						<a href="interfaces/readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="interfaces/scanoptions.html" class="tsd-kind-icon">Scan<wbr>Options</a>
-					</li>
-					<li class=" tsd-kind-interface">
 						<a href="interfaces/writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
@@ -227,6 +358,18 @@
 					</li>
 					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
 						<a href="globals.html#mutator" class="tsd-kind-icon">Mutator</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#scanindexoptions" class="tsd-kind-icon">Scan<wbr>Index<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#scannoindexoptions" class="tsd-kind-icon">Scan<wbr>NoIndex<wbr>Options</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#scanoptionindexedstartkey" class="tsd-kind-icon">Scan<wbr>Option<wbr>Indexed<wbr>Start<wbr>Key</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#scanoptions" class="tsd-kind-icon">Scan<wbr>Options</a>
 					</li>
 				</ul>
 			</nav>

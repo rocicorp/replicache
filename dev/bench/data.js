@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1605207598850,
+  "lastUpdate": 1605208327977,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -4944,6 +4944,44 @@ window.BENCHMARK_DATA = {
           {
             "name": "populate 1024x1000 (dirty, indexes: 0)",
             "value": 4.56,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1c769258365cbc79d1e859d28d33b8a6838ad39d",
+          "message": "Update README.md",
+          "timestamp": "2020-11-12T11:10:33-08:00",
+          "tree_id": "c21c4c24b5d31e64304810fb6de4ebfa2bad882f",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/1c769258365cbc79d1e859d28d33b8a6838ad39d"
+        },
+        "date": 1605208327169,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.32,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.07,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "5 samples"

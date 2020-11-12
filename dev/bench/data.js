@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1605207008539,
+  "lastUpdate": 1605207496924,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -4868,6 +4868,44 @@ window.BENCHMARK_DATA = {
           {
             "name": "populate 1024x1000 (dirty, indexes: 0)",
             "value": 4.5,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "distinct": true,
+          "id": "cde293103ae58f2e5a3ebebc879eaa7d747c1637",
+          "message": "Add license field to package.json",
+          "timestamp": "2020-11-12T10:56:48-08:00",
+          "tree_id": "a86f82314b0316160944ce43a2acfbe4e4d69ff3",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/cde293103ae58f2e5a3ebebc879eaa7d747c1637"
+        },
+        "date": 1605207496325,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.58,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.23,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "5 samples"

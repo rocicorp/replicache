@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1605137183028,
+  "lastUpdate": 1605207008539,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -4830,6 +4830,44 @@ window.BENCHMARK_DATA = {
           {
             "name": "populate 1024x1000 (dirty, indexes: 0)",
             "value": 4.98,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "distinct": true,
+          "id": "ae3a7705f0f0feb8ed0935674d392a0c506e80a1",
+          "message": "Docs",
+          "timestamp": "2020-11-12T10:48:33-08:00",
+          "tree_id": "6c1f47c2cc03b9368095a8126f1c8b02ae34594c",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/ae3a7705f0f0feb8ed0935674d392a0c506e80a1"
+        },
+        "date": 1605207008003,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.06,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.5,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "5 samples"

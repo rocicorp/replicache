@@ -3,6 +3,7 @@
 pub mod client_id;
 mod patch;
 pub mod push;
+pub mod sync_id;
 #[cfg(test)]
 pub mod test_helpers;
 mod types;
@@ -35,11 +36,10 @@ pub async fn begin_sync(
     puller: &dyn Puller,
     begin_sync_req: BeginSyncRequest,
     client_id: String,
+    sync_id: String,
 ) -> Result<BeginSyncResponse, BeginSyncError> {
     use BeginSyncError::*;
 
-    // TODO generate a sync id and add it to logging context (lc.add_context()).
-    let sync_id = str!("TODO_sync_id");
     let mut begin_sync_resp = BeginSyncResponse::default();
     begin_sync_resp.sync_info.sync_id = sync_id.clone();
 
@@ -260,8 +260,6 @@ pub async fn maybe_end_sync(
     maybe_end_sync_req: MaybeEndSyncRequest,
 ) -> Result<MaybeEndSyncResponse, MaybeEndSyncError> {
     use MaybeEndSyncError::*;
-
-    // TODO put sync_id in the logging context (lc.add_context()).
 
     // Ensure sync head is what the caller thinks it is.
     let dag_write = store
@@ -517,7 +515,7 @@ mod tests {
             Commit::snapshot_meta_parts(base_snapshot).unwrap();
         let base_checksum = base_snapshot.meta().checksum().to_string();
 
-        let sync_id = str!("TODO_sync_id");
+        let sync_id = str!("sync_id");
         let client_id = str!("test_client_id");
         let data_layer_auth = str!("data_layer_auth");
 
@@ -993,6 +991,7 @@ mod tests {
                 &fake_puller,
                 begin_sync_req,
                 str!("test_client_id"),
+                sync_id.clone(),
             )
             .await;
             let mut got_resp: Option<BeginSyncResponse> = None;
@@ -1311,7 +1310,7 @@ mod tests {
             let sync_head = basis_hash;
 
             let req = MaybeEndSyncRequest {
-                sync_id: str!("TODO"),
+                sync_id: str!("sync_id"),
                 sync_head: sync_head.clone(),
             };
             let result = maybe_end_sync(&store, LogContext::new(), req).await;
@@ -1383,7 +1382,7 @@ mod tests {
             static ref EXP_BODY: String = serde_json::to_string(&*PULL_REQ).unwrap();
         }
         let diff_server_auth = "diff-server-auth";
-        let sync_id = "TODO";
+        let sync_id = "sync_id";
         let path = "/pull";
 
         struct Case<'a> {

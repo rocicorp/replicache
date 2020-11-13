@@ -11,7 +11,7 @@ pub fn uuid() -> String {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn make_random_numbers(numbers: &mut [u8]) {
+pub fn make_random_numbers(numbers: &mut [u8]) {
     // TODO(arv): Return result instead of crashing.
     global_property::<web_sys::Crypto>("crypto")
         .expect("crypto is not available")
@@ -20,7 +20,7 @@ fn make_random_numbers(numbers: &mut [u8]) {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn make_random_numbers(numbers: &mut [u8]) {
+pub fn make_random_numbers(numbers: &mut [u8]) {
     use rand::Rng;
     let mut rng = rand::thread_rng();
     for v in numbers.iter_mut() {

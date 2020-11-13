@@ -69,7 +69,6 @@ pub struct ClientViewInfo {
 
 #[derive(Deserialize, Serialize)]
 pub struct MaybeEndSyncRequest {
-    // TODO return sync_id in sync_info in BeginSyncResponse.
     #[serde(rename = "syncID")]
     pub sync_id: String,
     #[serde(rename = "syncHead")]

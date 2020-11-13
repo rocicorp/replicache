@@ -599,6 +599,9 @@ async fn do_begin_sync<'a, 'b>(
     let fetch_client = fetch::client::Client::new();
     let pusher = sync::push::FetchPusher::new(&fetch_client);
     let puller = sync::FetchPuller::new(&fetch_client);
+    let sync_id = sync::sync_id::new(&ctx.client_id);
+    ctx.lc.add_context("sync_id", &sync_id);
+
     let begin_sync_response = sync::begin_sync(
         ctx.store,
         ctx.lc.clone(),
@@ -606,6 +609,7 @@ async fn do_begin_sync<'a, 'b>(
         &puller,
         req,
         ctx.client_id,
+        sync_id,
     )
     .await?;
     Ok(begin_sync_response)
@@ -615,6 +619,7 @@ async fn do_maybe_end_sync<'a, 'b>(
     ctx: Context<'a, 'b>,
     req: sync::MaybeEndSyncRequest,
 ) -> Result<sync::MaybeEndSyncResponse, sync::MaybeEndSyncError> {
+    ctx.lc.add_context("sync_id", &req.sync_id);
     let maybe_end_sync_response = sync::maybe_end_sync(ctx.store, ctx.lc.clone(), req).await?;
     Ok(maybe_end_sync_response)
 }

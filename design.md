@@ -70,69 +70,41 @@ Commits come in two flavors, those from the client and those from the server:
 
 ### API Sketch
 
-This API sketch is in Dart, for Flutter bindings. A similar API would exist for every client environment we support.
+This API sketch is in TypeScript, for JavaScript bindings. A similar API would exist for every client environment we support.
 
-```dart
-interface KVReader {
-  bool has(String key)
-  JSON get(String key)
-  List<Entry> scan(ScanOptions options)
-}
+```ts
+class Replicache implements ReadTransaction {
+  constructor(batchURL: string, dataLayerAuth: string, diffServerAuth: string, diffServerURL: string);
 
-interface KVWriteer {
-  void put(String key, JSON value);
-}
-
-interface KVStore implements KVReader, KVWriter {
-}
-
-class Replicache implements KVRead {
-  Replicache(AuthOpts authOpts)
- 
-  // Read API comes through KVRead interface
- 
-  // Write API - you can only put() inside a mutator.
-  registerLocalMutatator(String name, Function<JSON>(KVStore kv, List<JSON> args) handler);
-  mutate(LocalMutation local, RemoteMutation remote);
-
-  // Subscriptions
-  Stream<JSON> subscribe(Function handler);
-}
-
-// Describes a local mutator to call and the arguments to pass it.
-struct LocalMutation {
-  String name;
-  JSON args;
-}
-
-// Describes an invocation on a remote URL.
-struct RemoteMutation {
-  String path;
+  // Registers a mutator, which is used to make changes to the data.
+  register<Return, Args>(name: string, mutatorImpl: MutatorImpl<Return, Args>): Mutator<Return, Args>;
   
-  // Encoded as FORMURLEncoded, JSON, or raw data respectively.
-  Map<String,String>|JSON|[]byte payload;
-}
+  // Subcribe to changes to the underlying data. Every time the underlying data changes onData is called.
+  // The function is also called once the first time the subscription is added.
+  subscribe<R, E>(body: (tx: ReadTransaction) => Promise<R>, onData: (result: R) => void): void;
+};
 
-struct Entry {
-  String key
-  JSON value
-}
+// A Replicache "mutator" function is just a normal JS function that accepts any JSON value, makes changes
+// to Replicache, and returns and JSON value. Users can invoke mutators themselves, via the return type
+// from register(). Also Replicache will itself invoke these functions during sync as part of conflict
+// resolution.
+type MutatorImpl<Return extends JSONValue | void, Args extends JSONValue> = (
+  tx: WriteTransaction,
+  args: Args,
+) => Promise<Return>;
 
-struct ScanOptions {
-  String prefix
-  ScanBound start
-  Limit int
-}
+interface ReadTransaction {
+  get(key: string): Promise<JSONValue | undefined>;
+  has(key: string): Promise<boolean>;
+  scan(startAt: string): Promise<[string, JSONValue][]>;
+};
 
-struct ScanBound {
-  ScanID id
-  uint64 index
-}
-
-struct ScanID {
-  String value
-  bool exclusive
-}
+interface WriteTransaction extends ReadTransaction {
+  del(key: string): Promise<void>;
+  get(key: string): Promise<JSONValue | undefined>;
+  has(key: string): Promise<boolean>;
+  put(key: string, value: JSONValue): Promise<void>;
+};
 ```
 
 ## Diff Server

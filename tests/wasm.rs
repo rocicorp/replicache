@@ -1,4 +1,4 @@
-#![recursion_limit = "256"]
+#![recursion_limit = "512"]
 
 use futures::join;
 use rand::Rng;
@@ -15,6 +15,7 @@ use serde::Serialize;
 use serde_json::json;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicU32, Ordering};
 use str_macro::str;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -243,7 +244,7 @@ async fn test_open_close() {
 }
 
 #[wasm_bindgen_test]
-async fn test_dispatch_concurrency() {
+async fn test_concurrency_within_a_read_tx() {
     let db = &random_db();
     let performance = global_property::<web_sys::Performance>("performance")
         .expect("performance should be available");
@@ -255,6 +256,8 @@ async fn test_dispatch_concurrency() {
     let now_ms = performance.now();
     join!(
         async {
+            // Note: could use atomic counters if we wanted, see
+            // test_read_txs_do_run_concurrently.
             get(db, txn_id, "sleep100").await;
         },
         async {
@@ -269,17 +272,25 @@ async fn test_dispatch_concurrency() {
 }
 
 #[wasm_bindgen_test]
-async fn test_write_concurrency() {
+// TODO if/when we have a rust version of dispatch again we should have a much
+// cleaner version of this test there (eg, no spin hack, greater concurrency).
+async fn test_write_txs_dont_run_concurrently() {
     let db = &random_db();
 
     dispatch::<_, String>(db, "open", "").await.unwrap();
     let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
         .await
         .transaction_id;
-    put(db, txn_id, "value", "1").await;
+    put(db, txn_id, "value", "0").await;
     commit(db, txn_id).await;
 
-    // TODO(nate): Strengthen test to prove these open waits overlap.
+    // To verify that write transactions don't overlap we start parallel tasks that
+    // increment an atomic counter when they begin and decrement it just before they
+    // complete. If any task reads a value other than zero when it starts or a value
+    // other than 1 when it completes there are overlapping transactions. For extra
+    // assurance we also add to a value in the db itself and verify it has the expected
+    // result.
+    let counter = AtomicU32::new(0);
     join!(
         async {
             let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
@@ -290,7 +301,14 @@ async fn test_write_concurrency() {
                 .unwrap()
                 .parse::<u32>()
                 .unwrap();
-            put(db, txn_id, "value", &(value + 2).to_string()).await;
+            // Note that we increment after the get() completes to ensure we really are
+            // inside of the transaction. One could imagine an implementation of open_transaction
+            // that returns before the transaction has actually started.
+            assert_eq!(0, counter.fetch_add(1, Ordering::SeqCst));
+            get(db, txn_id, "spin20").await; // Spins cpu *and yields* for ~20ms
+            put(db, txn_id, "value", &(value + 1).to_string()).await;
+            // Asserting not strictly required but easy so why not:
+            assert_eq!(1, counter.fetch_sub(1, Ordering::SeqCst));
             commit(db, txn_id).await;
         },
         async {
@@ -302,7 +320,25 @@ async fn test_write_concurrency() {
                 .unwrap()
                 .parse::<u32>()
                 .unwrap();
+            assert_eq!(0, counter.fetch_add(1, Ordering::SeqCst));
+            get(db, txn_id, "spin20").await;
+            put(db, txn_id, "value", &(value + 2).to_string()).await;
+            assert_eq!(1, counter.fetch_sub(1, Ordering::SeqCst));
+            commit(db, txn_id).await;
+        },
+        async {
+            let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+                .await
+                .transaction_id;
+            let value = get(db, txn_id, "value")
+                .await
+                .unwrap()
+                .parse::<u32>()
+                .unwrap();
+            assert_eq!(0, counter.fetch_add(1, Ordering::SeqCst));
+            get(db, txn_id, "spin20").await;
             put(db, txn_id, "value", &(value + 3).to_string()).await;
+            assert_eq!(1, counter.fetch_sub(1, Ordering::SeqCst));
             commit(db, txn_id).await;
         }
     );
@@ -318,6 +354,76 @@ async fn test_write_concurrency() {
         6
     );
     abort(db, txn_id).await;
+
+    assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+}
+
+#[wasm_bindgen_test]
+async fn test_read_txs_do_run_concurrently() {
+    let db = &random_db();
+
+    dispatch::<_, String>(db, "open", "").await.unwrap();
+    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+        .await
+        .transaction_id;
+    put(db, txn_id, "value", "42").await;
+    commit(db, txn_id).await;
+
+    // To verify that read transactions do overlap we start two parallel tasks that
+    // increment an same atomic counter when they begin. If when one begins the
+    // task sees the counter with value 0 then it decrements the counter when it exits.
+    // If when one begins and it sees the counter with value 1 then it does not decrement the
+    // counter when it exits. Execution is parallel if after both are finished the counter
+    // is > 0.
+    let counter = AtomicU32::new(0);
+    join!(
+        async {
+            let txn_id = open_transaction(db, None, None, None).await.transaction_id;
+            let value = get(db, txn_id, "value")
+                .await
+                .unwrap()
+                .parse::<u32>()
+                .unwrap();
+            assert_eq!(42, value);
+            // Note that we increment after the get() completes to ensure we really are
+            // inside of the transaction. One could imagine an implementation of open_transaction
+            // that returns before the transaction has actually started.
+            let other_tasks_running = counter.fetch_add(1, Ordering::SeqCst);
+            get(db, txn_id, "spin20").await; // Spins cpu *and yields* for ~20ms
+            let value = get(db, txn_id, "value")
+                .await
+                .unwrap()
+                .parse::<u32>()
+                .unwrap();
+            assert_eq!(42, value);
+            if other_tasks_running > 0 {
+                counter.fetch_sub(1, Ordering::SeqCst);
+            }
+            abort(db, txn_id).await;
+        },
+        async {
+            let txn_id = open_transaction(db, None, None, None).await.transaction_id;
+            let value = get(db, txn_id, "value")
+                .await
+                .unwrap()
+                .parse::<u32>()
+                .unwrap();
+            assert_eq!(42, value);
+            let other_tasks_running = counter.fetch_add(1, Ordering::SeqCst);
+            get(db, txn_id, "spin20").await;
+            let value = get(db, txn_id, "value")
+                .await
+                .unwrap()
+                .parse::<u32>()
+                .unwrap();
+            assert_eq!(42, value);
+            if other_tasks_running > 0 {
+                counter.fetch_sub(1, Ordering::SeqCst);
+            }
+            abort(db, txn_id).await;
+        },
+    );
+    assert!(counter.into_inner() > 0);
 
     assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
 }

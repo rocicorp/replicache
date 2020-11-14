@@ -493,6 +493,51 @@ async fn do_get(read: db::Read<'_>, req: GetRequest) -> Result<GetResponse, Stri
         }
     }
 
+    #[cfg(not(default))] // Not enabled in production.
+    // Sometimes we can't sleep (eg, underlying idb tx would commit) so
+    // we have to spin. It yields to other futures every iteration.
+    if req.key.starts_with("spin") {
+        match req.key[4..].parse::<u64>() {
+            Ok(ms) => {
+                use crate::util::uuid;
+                use crate::util::wasm::global_property;
+                use async_std::task;
+                use rand::seq::SliceRandom;
+                use rand::thread_rng;
+
+                let performance = global_property::<web_sys::Performance>("performance")
+                    .expect("performance should be available");
+                let start = performance.now() as u64;
+
+                loop {
+                    // Give other futures a chance to run. This is essential to testing
+                    // concurrency of two futures: if we didn't yield then the spinning
+                    // future could prevent the other future from running, giving false
+                    // ideas about whether they *could* run concurrently.
+                    task::yield_now().await;
+                    // Do something expensive that doesn't get optimized away. This
+                    // seems to work. Takes a few ms each loop when running headless.
+                    let mut v = Vec::new();
+                    for _ in 0..50 {
+                        let mut randoms: [u8; 1] = [0; 1];
+                        uuid::make_random_numbers(&mut randoms);
+                        let randoms = randoms.to_vec();
+                        for r in randoms.into_iter() {
+                            v.insert(0, r); // Insert at the front intended!
+                            v.shuffle(&mut thread_rng());
+                        }
+                    }
+                    let elapsed_ms = performance.now() as u64 - start;
+                    if elapsed_ms >= ms {
+                        break;
+                    }
+                    v.truncate(0);
+                }
+            }
+            Err(_) => error!("", "No spin time"),
+        }
+    }
+
     let got = read
         .get(req.key.as_bytes())
         .map(|buf| String::from_utf8(buf.to_vec()));

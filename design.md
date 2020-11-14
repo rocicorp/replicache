@@ -175,7 +175,7 @@ A better strategy is to capture the *intent* of changes. Replicache embraces thi
 
 For example, a transaction that reserves an hour on a user's calendar could keep a status for the reservation in the user's data. The transaction might successfully reserve the hour when running locally for the first time, setting the status to RESERVED. Later, if still pending, the transaction might be replayed on top of a state where that hour is unavailable. In this case the transaction might update the status to UNAVAILABLE. Later during Push when played against the data layer the transaction will settle on one value or the other, and the client will converge on the value in the data layer. App code can rely on subscriptions to keep the UI correctly reflective of the reservation status, or to trigger notification of the user or some other kind of followup such trying the next available slot.
 
-We believe the Replicache model for dealing with conflicts — to have defensively written, programmatic transaction logic on the server that replays client operations on top of the latest state — leads to fewer actual conflicts in practice. Our experience is that it preserves expressiveness of the data model and is far easier to reason about than other general models for avoiding or minimizing conflicts.
+We believe the Replicache model for dealing with conflicts — to have defensively written, programmatic transaction logic that is replayed atop the latest state — leads to fewer actual conflicts in practice. Our experience is that it preserves expressiveness of the data model and is far easier to reason about than other general models for avoiding or minimizing conflicts.
 
 ## Encryption
 

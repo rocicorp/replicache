@@ -55,7 +55,7 @@
     "react-beautiful-dnd": "^13.0.0",
     "react-dev-utils": "^10.2.1",
     "react-dom": "^16.13.1",
-    "replicache": "file:../..",
+    "replicache": "^3.0.0",
     "resolve": "1.15.0",
     "resolve-url-loader": "3.1.1",
     "sass-loader": "8.0.2",
@@ -74,7 +74,7 @@
     "start": "node scripts/start.js",
     "prestart": "npm run prebuild",
     "build": "node scripts/build.js",
-    "prebuild": "pushd node_modules/replicache/out/wasm/debug; ls *.wasm | xargs -I{} cp {} {}.awsm; popd",
+    "prebuild": "cp node_modules/replicache/out/wasm/release/replicache_client_bg.wasm public/replicache.wasm.x",
     "test": "node scripts/test.js"
   },
   "eslintConfig": {

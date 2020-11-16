@@ -60,13 +60,10 @@ async function benchmarkPopulate(bench, opts) {
     await populate(rep, opts, makeRandomStrings(opts.numKeys));
   }
   for (let i = 0; i < opts.indexes || 0; i++) {
-    const createIndex = rep.register('createIndex', async tx => {
-      await tx.createIndex({
-        name: `idx${i}`,
-        jsonPointer: '',
-      });
+    await rep.createIndex({
+      name: `idx${i}`,
+      jsonPointer: '',
     });
-    await createIndex(null);
   }
   const randomStrings = makeRandomStrings(opts.numKeys);
   bench.reset();

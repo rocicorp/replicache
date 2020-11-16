@@ -35,6 +35,9 @@ type MaybePromise<T> = T | Promise<T>;
 /** The key name to use in localStorage when synchronizing changes. */
 const storageKeyName = (name: string) => `/replicache/root/${name}`;
 
+/** The maximum number of time to call out to getDataLayerAuth before giving up and throwing an error. */
+const MAX_REAUTH_TRIES = 32;
+
 /**
  * The options passed to [[Replicache]].
  */
@@ -329,7 +332,7 @@ export default class Replicache implements ReadTransaction {
     let online = true;
 
     try {
-      const beginSyncResult = await this._beginSync();
+      const beginSyncResult = await this._beginSync(MAX_REAUTH_TRIES);
 
       // TODO(repc-switchover)
       // replicache-client sends all zeros for null sync,
@@ -357,7 +360,7 @@ export default class Replicache implements ReadTransaction {
     this._online = online;
   }
 
-  protected async _beginSync(): Promise<BeginSyncResult> {
+  protected async _beginSync(maxAuthTries: number): Promise<BeginSyncResult> {
     const beginSyncResult = await this._invoke('beginSync', {
       batchPushURL: this._batchURL,
       diffServerURL: this._diffServerURL,
@@ -404,11 +407,14 @@ export default class Replicache implements ReadTransaction {
     }
 
     if (reauth && this.getDataLayerAuth) {
+      if (maxAuthTries === 0) {
+        throw new Error('Tried to reauthenticate too many times');
+      }
       const dataLayerAuth = await this.getDataLayerAuth();
       if (dataLayerAuth != null) {
         this._dataLayerAuth = dataLayerAuth;
         // Try again now instead of waiting for another 5 seconds.
-        return await this._beginSync();
+        return await this._beginSync(maxAuthTries - 1);
       }
     }
 
@@ -707,7 +713,7 @@ export class ReplicacheTest extends Replicache {
   }
 
   beginSync(): Promise<BeginSyncResult> {
-    return super._beginSync();
+    return super._beginSync(MAX_REAUTH_TRIES);
   }
 
   maybeEndSync(beginSyncResult: BeginSyncResult): Promise<void> {

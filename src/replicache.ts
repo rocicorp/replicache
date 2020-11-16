@@ -370,13 +370,15 @@ export default class Replicache implements ReadTransaction {
     let reauth = false;
 
     function checkStatus(
-      data: {httpStatusCode?: number; errorMessage?: string},
+      data: {httpStatusCode: number; errorMessage: string},
       serverName: string,
+      serverURL: string,
     ) {
       const {httpStatusCode, errorMessage} = data;
-      if (errorMessage !== '') {
+      if (errorMessage || httpStatusCode >= 400) {
         console.error(
-          `Got error response from ${serverName} server: ${httpStatusCode}: ${errorMessage}`,
+          `Got error response from ${serverName} server (${serverURL}): ${httpStatusCode}` +
+            (errorMessage ? `: ${errorMessage}` : ''),
         );
       }
       if (httpStatusCode === httpStatusUnauthorized) {
@@ -386,7 +388,7 @@ export default class Replicache implements ReadTransaction {
 
     const {batchPushInfo, clientViewInfo} = syncInfo;
     if (batchPushInfo) {
-      checkStatus(batchPushInfo, 'batch');
+      checkStatus(batchPushInfo, 'batch', this._batchURL);
       const mutationInfos = batchPushInfo.batchPushResponse?.mutationInfos;
       if (mutationInfos != null) {
         for (const mutationInfo of mutationInfos) {
@@ -398,7 +400,7 @@ export default class Replicache implements ReadTransaction {
     }
 
     if (clientViewInfo) {
-      checkStatus(clientViewInfo, 'client view');
+      checkStatus(clientViewInfo, 'client view', this._diffServerURL);
     }
 
     if (reauth && this.getDataLayerAuth) {

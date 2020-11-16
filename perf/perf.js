@@ -3,7 +3,7 @@
 
 /* eslint-env browser, es2020 */
 
-import Replicache from '../out/mod.js';
+import Replicache from '../out/replicache.js';
 
 console.assert = console.debug = console.error = console.info = console.log = console.warn = () =>
   void 0;

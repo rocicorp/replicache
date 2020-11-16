@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1605564826950,
+  "lastUpdate": 1605569722141,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -5274,6 +5274,79 @@ window.BENCHMARK_DATA = {
           {
             "name": "write single byte",
             "value": 37.04,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "62 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "787a7d15982fa83263d6e1a3861fc535560b9b90",
+          "message": "Log more errors when sync fails (#210)\n\nWe didn't use to log anything when auth failed.\r\n\r\nTowards #188",
+          "timestamp": "2020-11-16T15:33:06-08:00",
+          "tree_id": "d264c60afb109b7fe8e0ffb121d910f6a8721ed5",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/787a7d15982fa83263d6e1a3861fc535560b9b90"
+        },
+        "date": 1605569721583,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.03,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.88,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.16,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.31,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 17.44,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 20.01,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 34.48,
             "range": "±0.0%",
             "unit": "tx/s",
             "extra": "62 samples"

@@ -35,7 +35,10 @@ type MaybePromise<T> = T | Promise<T>;
 /** The key name to use in localStorage when synchronizing changes. */
 const storageKeyName = (name: string) => `/replicache/root/${name}`;
 
-interface ReplicacheOptions {
+/**
+ * The options passed to [[Replicache]].
+ */
+export interface ReplicacheOptions {
   batchURL?: string;
   dataLayerAuth?: string;
   diffServerAuth?: string;
@@ -45,6 +48,27 @@ interface ReplicacheOptions {
   repmInvoker?: Invoker;
   syncInterval?: number | null;
   pushDelay?: number;
+
+  /**
+   * By default we will load the Replicache wasm module relative to the
+   * Replicache js files but under some circumstances (like bundling with old
+   * versions of Webpack) it is useful to manually configure where the wasm
+   * module is located on the web server.
+   *
+   * If you provide your own path to the wasm module it probably makes sense to
+   * use a relative URL relative to your current file.
+   *
+   * ```js
+   * wasmModule: new URL('./relative/path/to/replicache.wasm', import.meta.url),
+   * ```
+   *
+   * You might also want to consider using an absolute URL so that we can find
+   * the wasm module no matter where your js file is loaded from:
+   *
+   * ```js
+   * wasmModule: '/static/replicache.wasm',
+   * ```
+   */
   wasmModule?: InitInput | undefined;
 }
 
@@ -88,17 +112,18 @@ export default class Replicache implements ReadTransaction {
     | null
     | undefined = null;
 
-  constructor({
-    batchURL = '',
-    dataLayerAuth = '',
-    diffServerAuth = '',
-    diffServerURL,
-    name = 'default',
-    repmInvoker,
-    syncInterval = 60_000,
-    pushDelay = 300,
-    wasmModule,
-  }: ReplicacheOptions) {
+  constructor(options: ReplicacheOptions) {
+    const {
+      batchURL = '',
+      dataLayerAuth = '',
+      diffServerAuth = '',
+      diffServerURL,
+      name = 'default',
+      repmInvoker,
+      syncInterval = 60_000,
+      pushDelay = 300,
+      wasmModule,
+    } = options;
     this._batchURL = batchURL;
     this._dataLayerAuth = dataLayerAuth;
     this._diffServerAuth = diffServerAuth;

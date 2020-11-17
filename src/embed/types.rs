@@ -186,3 +186,17 @@ pub struct DropIndexResponse {}
 pub enum DropIndexError {
     DBError(db::DropIndexError),
 }
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SetLogLevelRequest {
+    // level is one of "debug", "info", or "error"
+    pub level: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SetLogLevelResponse {}
+
+#[derive(Debug)]
+pub enum SetLogLevelError {
+    UnknownLogLevel(String),
+}

@@ -1271,6 +1271,40 @@ async fn test_get_root() {
 }
 
 #[wasm_bindgen_test]
+async fn test_set_log_level() {
+    let level = log::max_level();
+    let db = &random_db();
+    assert_eq!(dispatch::<_, String>(db, "open", "").await.unwrap(), "");
+
+    assert_ne!(log::LevelFilter::Error, level);
+    dispatch::<_, SetLogLevelResponse>(
+        db,
+        "setLogLevel",
+        SetLogLevelRequest {
+            level: str!("error"),
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(log::LevelFilter::Error, log::max_level());
+
+    let response = dispatch::<_, SetLogLevelResponse>(
+        db,
+        "setLogLevel",
+        SetLogLevelRequest {
+            level: str!("BOOM"),
+        },
+    )
+    .await
+    .unwrap_err();
+    assert_eq!("UnknownLogLevel(\"BOOM\")", response);
+    assert_eq!(log::LevelFilter::Error, log::max_level());
+
+    log::set_max_level(level);
+    dispatch::<_, String>(db, "close", "").await.unwrap();
+}
+
+#[wasm_bindgen_test]
 fn test_browser_timer() {
     let timer = rlog::Timer::new().unwrap();
     // Sleep is a PITA so we'll leave it at "it doesn't error".

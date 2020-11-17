@@ -192,6 +192,7 @@ async fn execute<'a, 'b>(
         "closeTransaction" => return to_js(do_close(ctx, from_js(data)?).await),
         "beginSync" => return to_js(do_begin_sync(ctx, from_js(data)?).await),
         "maybeEndSync" => return to_js(do_maybe_end_sync(ctx, from_js(data)?).await),
+        "setLogLevel" => return to_js(do_set_log_level(ctx, from_js(data)?).await),
         _ => (),
     };
 
@@ -667,6 +668,20 @@ async fn do_maybe_end_sync<'a, 'b>(
     ctx.lc.add_context("sync_id", &req.sync_id);
     let maybe_end_sync_response = sync::maybe_end_sync(ctx.store, ctx.lc.clone(), req).await?;
     Ok(maybe_end_sync_response)
+}
+
+async fn do_set_log_level<'a, 'b>(
+    _: Context<'a, 'b>,
+    req: SetLogLevelRequest,
+) -> Result<SetLogLevelResponse, SetLogLevelError> {
+    use SetLogLevelError::*;
+    match req.level.as_str() {
+        "debug" => log::set_max_level(log::LevelFilter::Debug),
+        "info" => log::set_max_level(log::LevelFilter::Info),
+        "error" => log::set_max_level(log::LevelFilter::Error),
+        _ => return Err(UnknownLogLevel(req.level.clone())),
+    }
+    Ok(SetLogLevelResponse {})
 }
 
 #[derive(Debug)]

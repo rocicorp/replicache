@@ -684,6 +684,12 @@ test('sync2', async () => {
 test('reauth', async () => {
   const diffServerURL = 'https://diff.com/pull';
 
+  rep = await replicacheForTesting('reauth', {
+    diffServerURL,
+    diffServerAuth: '1',
+    dataLayerAuth: 'wrong',
+  });
+
   fetchMock.post(diffServerURL, () => ({
     stateID: 'fq40kklle30lr20vpjiv0ios8hgipnut',
     lastMutationID: 0,
@@ -695,11 +701,7 @@ test('reauth', async () => {
     },
   }));
 
-  rep = await replicacheForTesting('reauth', {
-    diffServerURL,
-    diffServerAuth: '1',
-    dataLayerAuth: 'wrong',
-  });
+  const consoleErrorStub = sinon.stub(console, 'error');
 
   const getDataLayerAuthFake = sinon.fake.returns(null);
   rep.getDataLayerAuth = getDataLayerAuthFake;
@@ -707,6 +709,21 @@ test('reauth', async () => {
   await rep.beginSync();
 
   expect(getDataLayerAuthFake.callCount).to.equal(1);
+  expect(consoleErrorStub.firstCall.args[0]).to.equal(
+    'Got error response from client view server (https://diff.com/pull): 401: xxx',
+  );
+
+  {
+    const getDataLayerAuthFake = sinon.fake(() => 'boo');
+    rep.getDataLayerAuth = getDataLayerAuthFake;
+
+    (await expectPromiseToReject(rep.beginSync())).to.be
+      .instanceOf(Error)
+      .with.property('message')
+      .equals('Tried to reauthenticate too many times');
+
+    expect(getDataLayerAuthFake.callCount).to.equal(32);
+  }
 });
 
 test('closed tx', async () => {

@@ -118,6 +118,7 @@ pub async fn begin_sync(
         client_id,
         base_state_id: base_state_id.clone(),
         checksum: base_checksum.clone(),
+        last_mutation_id: base_snapshot.mutation_id(),
         version: 2,
     };
     debug!(lc, "Starting pull...");
@@ -386,6 +387,9 @@ pub struct PullRequest {
     pub base_state_id: String,
     #[serde(rename = "checksum")]
     pub checksum: String,
+    #[serde(rename = "lastMutationID")]
+    pub last_mutation_id: u64,
+
     pub version: u32,
 }
 
@@ -583,6 +587,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    last_mutation_id: base_last_mutation_id,
                     version: 2,
                 },
                 pull_result: Ok(good_pull_resp.clone()),
@@ -613,6 +618,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    last_mutation_id: base_last_mutation_id,
                     version: 2,
                 },
                 pull_result: Ok(PullResponse {
@@ -646,6 +652,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    last_mutation_id: base_last_mutation_id,
                     version: 2,
                 },
                 pull_result: Ok(PullResponse {
@@ -687,6 +694,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    last_mutation_id: base_last_mutation_id,
                     version: 2,
                 },
                 pull_result: Ok(good_pull_resp.clone()),
@@ -725,6 +733,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    last_mutation_id: base_last_mutation_id,
                     version: 2,
                 },
                 pull_result: Ok(PullResponse {
@@ -766,6 +775,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    last_mutation_id: base_last_mutation_id,
                     version: 2,
                 },
                 pull_result: Ok(good_pull_resp.clone()),
@@ -792,6 +802,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    last_mutation_id: base_last_mutation_id,
                     version: 2,
                 },
                 pull_result: Ok(PullResponse {
@@ -814,6 +825,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    last_mutation_id: base_last_mutation_id,
                     version: 2,
                 },
                 pull_result: Ok(PullResponse {
@@ -833,6 +845,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    last_mutation_id: base_last_mutation_id,
                     version: 2,
                 },
                 pull_result: Ok(PullResponse {
@@ -852,6 +865,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    last_mutation_id: base_last_mutation_id,
                     version: 2,
                 },
                 pull_result: Ok(PullResponse {
@@ -871,6 +885,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    last_mutation_id: base_last_mutation_id,
                     version: 2,
                 },
                 pull_result: Ok(PullResponse {
@@ -890,6 +905,7 @@ mod tests {
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
+                    last_mutation_id: base_last_mutation_id,
                     version: 2,
                 },
                 pull_result: Err(str!("FetchNotOk(500)")),
@@ -1376,6 +1392,7 @@ mod tests {
                 client_id: str!("client_id"),
                 base_state_id: str!("base-state-id"),
                 checksum: str!("00000000"),
+                last_mutation_id: 123,
                 version: 2,
             };
             // EXP_BODY must be 'static to be used in HTTP handler closure.

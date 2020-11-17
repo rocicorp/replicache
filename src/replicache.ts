@@ -443,6 +443,7 @@ export default class Replicache implements ReadTransaction {
     }
 
     // Replay.
+    console.group('Replaying');
     for (const mutation of replayMutations) {
       const {original} = mutation;
       syncHead = await this._replay(
@@ -452,6 +453,7 @@ export default class Replicache implements ReadTransaction {
         JSON.parse(mutation.args),
       );
     }
+    console.groupEnd();
 
     const {syncID} = beginSyncResult;
     await this._maybeEndSync({syncID, syncHead});

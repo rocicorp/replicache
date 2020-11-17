@@ -3,13 +3,13 @@
 use futures::join;
 use rand::Rng;
 use replicache_client::db::ScanOptions;
-#[allow(unused_imports)]
-use replicache_client::fetch;
 use replicache_client::sync;
 use replicache_client::util::rlog;
 use replicache_client::util::to_debug;
 use replicache_client::wasm;
 use replicache_client::{embed::types::*, util::wasm::global_property};
+#[allow(unused_imports)]
+use replicache_client::{fetch, util::uuid::make_random_numbers};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::json;
@@ -1320,4 +1320,11 @@ async fn test_browser_fetch_timeout() {
     client.timeout = std::time::Duration::from_millis(1);
     let err = client.request(req).await.unwrap_err();
     assert!(to_debug(err).contains("Timeout"));
+}
+
+#[wasm_bindgen_test]
+async fn test_make_random_numbers() {
+    // Just testing that it doesn't return error...
+    let mut numbers = [0u8; 4];
+    make_random_numbers(&mut numbers).unwrap();
 }

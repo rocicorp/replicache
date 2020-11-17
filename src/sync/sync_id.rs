@@ -7,7 +7,7 @@ use str_macro::str;
 lazy_static! {
     static ref SESSION_ID: String = {
         let mut randoms: [u8; 4] = [0; 4];
-        uuid::make_random_numbers(&mut randoms);
+        let _ = uuid::make_random_numbers(&mut randoms);
         format!(
             "{:x}{:x}{:x}{:x}",
             randoms[0], randoms[1], randoms[2], randoms[3]

@@ -1,6 +1,9 @@
-use crate::kv::{Store, StoreError};
 use crate::util::rlog::LogContext;
 use crate::util::uuid::uuid;
+use crate::{
+    kv::{Store, StoreError},
+    util::uuid::UuidError,
+};
 
 pub async fn init(s: &dyn Store, lc: LogContext) -> Result<String, InitClientIdError> {
     use InitClientIdError::*;
@@ -12,7 +15,7 @@ pub async fn init(s: &dyn Store, lc: LogContext) -> Result<String, InitClientIdE
         return Ok(s);
     }
     let wt = s.write(lc).await.map_err(OpenErr)?;
-    let uuid = uuid();
+    let uuid = uuid().map_err(UuidErr)?;
     wt.put(CID_KEY, &uuid.as_bytes())
         .await
         .map_err(PutClientIdErr)?;
@@ -27,6 +30,7 @@ pub enum InitClientIdError {
     InvalidUtf8(std::string::FromUtf8Error),
     OpenErr(StoreError),
     PutClientIdErr(StoreError),
+    UuidErr(UuidError),
 }
 
 #[cfg(test)]

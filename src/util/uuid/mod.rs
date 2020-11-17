@@ -3,29 +3,35 @@ use super::wasm::global_property;
 use std::char;
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen]
-pub fn uuid() -> String {
+#[derive(Debug)]
+pub enum UuidError {
+    NoCryptoGetRandomValues(JsValue),
+}
+
+pub fn uuid() -> Result<String, UuidError> {
     let mut numbers = [0u8; 36];
-    make_random_numbers(&mut numbers);
-    uuid_from_numbers(&numbers)
+    make_random_numbers(&mut numbers)?;
+    Ok(uuid_from_numbers(&numbers))
 }
 
 #[cfg(target_arch = "wasm32")]
-pub fn make_random_numbers(numbers: &mut [u8]) {
-    // TODO(arv): Return result instead of crashing.
+pub fn make_random_numbers(numbers: &mut [u8]) -> Result<(), UuidError> {
+    use UuidError::*;
     global_property::<web_sys::Crypto>("crypto")
-        .expect("crypto is not available")
+        .map_err(NoCryptoGetRandomValues)?
         .get_random_values_with_u8_array(numbers)
-        .expect("crypto.getRandomValues not available");
+        .map_err(NoCryptoGetRandomValues)?;
+    Ok(())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn make_random_numbers(numbers: &mut [u8]) {
+pub fn make_random_numbers(numbers: &mut [u8]) -> Result<(), UuidError> {
     use rand::Rng;
     let mut rng = rand::thread_rng();
     for v in numbers.iter_mut() {
         *v = rng.gen();
     }
+    Ok(())
 }
 
 enum UuidElements {

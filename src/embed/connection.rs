@@ -520,7 +520,7 @@ async fn do_get(read: db::Read<'_>, req: GetRequest) -> Result<GetResponse, Stri
                     let mut v = Vec::new();
                     for _ in 0..50 {
                         let mut randoms: [u8; 1] = [0; 1];
-                        uuid::make_random_numbers(&mut randoms);
+                        let _ = uuid::make_random_numbers(&mut randoms);
                         let randoms = randoms.to_vec();
                         for r in randoms.into_iter() {
                             v.insert(0, r); // Insert at the front intended!

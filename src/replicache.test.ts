@@ -27,7 +27,7 @@ console.warn = (...args: Parameters<Console['warn']>) => {
     warn.apply(console, args);
   }
 };
-console.log = console.info = () => void 0;
+console.log = console.info = console.group = console.groupEnd = () => void 0;
 
 async function replicacheForTesting(
   name: string,
@@ -476,7 +476,7 @@ test('overlapping writes', async () => {
     },
   );
 
-  let resA = mut({duration: 500, ret: 'a'});
+  let resA = mut({duration: 250, ret: 'a'});
   // create a gap to make sure resA starts first (our rwlock isn't fair).
   await timerWait(100);
   let resB = mut({duration: 0, ret: 'b'});
@@ -486,7 +486,7 @@ test('overlapping writes', async () => {
   await Promise.all([resA, resB]);
 
   // reads wait on writes
-  resA = mut({duration: 500, ret: 'a'});
+  resA = mut({duration: 250, ret: 'a'});
   await timerWait(100);
   resB = rep.query(() => 'b');
   expect(await Promise.race([resA, resB])).to.equal('a');
@@ -495,6 +495,13 @@ test('overlapping writes', async () => {
 test('sync', async () => {
   const diffServerURL = 'https://diff.com/pull';
   const batchURL = 'https://batch.com';
+
+  rep = await replicacheForTesting('sync', {
+    batchURL,
+    dataLayerAuth: '1',
+    diffServerAuth: '1',
+    diffServerURL,
+  });
 
   let pullCounter = 0;
   fetchMock.post(
@@ -573,13 +580,6 @@ test('sync', async () => {
         {mutationInfos: []},
       ][batchCounter++],
   );
-
-  rep = await replicacheForTesting('sync', {
-    batchURL,
-    dataLayerAuth: '1',
-    diffServerAuth: '1',
-    diffServerURL,
-  });
 
   let createCount = 0;
   let deleteCount = 0;

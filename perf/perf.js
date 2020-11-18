@@ -76,6 +76,29 @@ async function benchmarkPopulate(bench, opts) {
   await rep.close();
 }
 
+async function benchmarkReadTransaction(bench, opts) {
+  const rep = await makeRep();
+  bench.name = `read tx ${valSize}x${opts.numKeys}`;
+  bench.size = opts.numKeys * valSize;
+  await populate(rep, opts, makeRandomStrings(opts.numKeys));
+  bench.reset();
+  await rep.query(async tx => {
+    let getCount = 0;
+    let hasCount = false;
+    for (let i = 0; i < opts.numKeys; i++) {
+      // use the values to be confident we're not optimizing away.
+      // @ts-ignore
+      getCount += (await tx.get(`key${i}`)).length;
+      // @ts-ignore
+      hasCount = (await tx.has(`key${i}`)) === true ? 1 : 0;
+    }
+
+    console.log(getCount, hasCount);
+  });
+  bench.stop();
+  await rep.close();
+}
+
 async function benchmarkScan(bench, opts) {
   const rep = await makeRep();
   bench.name = `scan ${valSize}x${opts.numKeys}`;
@@ -119,8 +142,7 @@ async function benchmark(fn) {
   let name = String(fn);
   let size = 0;
   let format = formatToMBPerSecond;
-  let start = Date.now();
-  for (let i = 0; i < minRuns || Date.now() - start < minTime; i++) {
+  for (let i = 0; i < minRuns || sum < minTime; i++) {
     let t0 = Date.now();
     let t1 = 0;
     await fn(
@@ -176,6 +198,8 @@ const benchmarks = [
   bench => benchmarkPopulate(bench, {numKeys: 1000, clean: false}),
   bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true, indexes: 1}),
   bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true, indexes: 2}),
+  bench => benchmarkReadTransaction(bench, {numKeys: 1000}),
+  bench => benchmarkReadTransaction(bench, {numKeys: 5000}),
   bench => benchmarkScan(bench, {numKeys: 1000}),
   bench => benchmarkScan(bench, {numKeys: 5000}),
   benchmarkSingleByteWrite,

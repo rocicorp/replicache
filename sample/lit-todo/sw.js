@@ -35,22 +35,38 @@ const PRECACHE_URLS = [
   'https://js.pusher.com/7.0/pusher.min.js',
 ];
 
-// The install handler takes care of precaching the resources we always need.
+// Force new SW versions to become active immediately instead of waiting for
+// connected clients to close.
 self.addEventListener('install', event => {
-  event.waitUntil(precache());
+  console.info('new sw installed');
+  event.waitUntil(precache().then(() => self.skipWaiting()));
+});
+
+// Force reload clients when new sw is activated. This is not fantastic, but
+// simple and easy for a demo.
+//
+// In combination with above, this has the effect of immediately force-reloading
+// the app as soon as a new version of the sw is discovered.
+self.addEventListener('activate', event => {
+  console.info('new sw activating');
+  event.waitUntil(
+    self.clients
+      .claim()
+      .then(() => {
+        return self.clients.matchAll({type: 'window'});
+      })
+      .then(clients => {
+        return clients.map(client => {
+          console.info('reloading client', client.url);
+          return client.navigate(client.url);
+        });
+      }),
+  );
 });
 
 function precache() {
-  return caches
-    .open(PRECACHE)
-    .then(cache => cache.addAll(PRECACHE_URLS))
-    .then(self.skipWaiting());
+  return caches.open(PRECACHE).then(cache => cache.addAll(PRECACHE_URLS));
 }
-
-// The activate handler takes care of cleaning up old caches.
-self.addEventListener('activate', event => {
-  event.waitUntil(self.clients.claim());
-});
 
 // The fetch handler serves responses for same-origin resources from a cache.
 // If no response is found, it populates the runtime cache with the response

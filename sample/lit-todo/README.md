@@ -6,6 +6,7 @@ Absurdy small, fully functioning local-first todo list using Replicache.
 
 ```
 npm install
+npm run build # copies the wasm bundle to the right location
 rollup -c --watch &
 python -m SimpleHTTPServer
 ```

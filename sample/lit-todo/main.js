@@ -1,5 +1,5 @@
 import {handleDragStart, isDragging} from './drag.js';
-import Replicache, {REPMWasmInvoker} from 'replicache/out/mod.js';
+import Replicache from 'replicache';
 import {html, render} from 'lit-html';
 import {classMap} from 'lit-html/directives/class-map.js';
 import {live} from 'lit-html/directives/live';
@@ -10,6 +10,7 @@ import '@material/mwc-icon';
 import '@material/mwc-icon-button';
 import '@material/mwc-textfield';
 import '@material/mwc-top-app-bar/mwc-top-app-bar.js';
+import {generateKeyBetween} from 'fractional-indexing';
 
 const key = id => `/todo/${id}`;
 
@@ -31,12 +32,10 @@ let rep = new Replicache({
   batchURL: 'https://replicache-sample-todo.now.sh/serve/replicache-batch',
 
   // Auth token for your client view and batch endpoints, if any.
-  dataLayerAuth: '2',
+  dataLayerAuth: '1',
   pushDelay: 500,
 
   syncInterval: null,
-
-  wasmModule: './output/wasm/release/replicache_client_bg.wasm',
 });
 
 rep.onSync = syncing => {
@@ -55,20 +54,20 @@ rep.onSync = syncing => {
 
 rep.subscribe(
   async tx => {
-    return (await tx.scanAll({indexName: 'byOrder'})).map(([_, v]) => v);
+    return (await tx.scanAll({indexName: 'byOrder2'})).map(([_, v]) => v);
   },
   {
     onData: update,
   },
 );
 
-const initIndexes = rep.register('initIndexes', async tx => {
-  await tx.createIndex({
-    name: 'byOrder',
+async function initIndexes() {
+  await rep.createIndex({
+    name: 'byOrder2',
     keyPrefix: '/todo/',
     jsonPointer: '/order',
   });
-});
+}
 
 const updateTodo = rep.register('updateTodo', async (tx, changes) => {
   const todo = await tx.get(key(changes.id));
@@ -89,12 +88,14 @@ initIndexes([]).then(() => {
 });
 
 async function handleCreate() {
-  const last = todos[todos.length - 1];
+  const prev = todos[todos.length - 1]?.order || null;
+  const next = null;
+  const order = generateKeyBetween(prev, next);
   await createTodo({
     id: Math.round(Math.random() * 2 ** 30),
-    listID: 2,
+    listID: 1,
     text: 'Untitled',
-    order: last ? last.order + (1 - last.order) / 2 : 0.5,
+    order,
     complete: false,
   });
   document

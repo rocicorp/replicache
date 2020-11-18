@@ -42,6 +42,15 @@ async function makeRep() {
   });
 }
 
+function makeLastRep() {
+  const name = `bench${counter - 1}`;
+  return new Replicache({
+    diffServerURL: '',
+    name,
+    syncInterval: null,
+  });
+}
+
 /**
  * @param {Replicache} rep
  */
@@ -77,9 +86,15 @@ async function benchmarkPopulate(bench, opts) {
 }
 
 async function benchmarkReadTransaction(bench, opts) {
-  const rep = await makeRep();
-  bench.name = `read tx ${valSize}x${opts.numKeys}`;
-  bench.size = opts.numKeys * valSize;
+  await bench.setup(async () => {
+    bench.name = `read tx ${valSize}x${opts.numKeys}`;
+    bench.size = opts.numKeys * valSize;
+    const rep = await makeRep();
+    await populate(rep, opts, makeRandomStrings(opts.numKeys));
+    await rep.close();
+  });
+  const rep = makeLastRep();
+
   await populate(rep, opts, makeRandomStrings(opts.numKeys));
   bench.reset();
   await rep.query(async tx => {
@@ -100,10 +115,15 @@ async function benchmarkReadTransaction(bench, opts) {
 }
 
 async function benchmarkScan(bench, opts) {
-  const rep = await makeRep();
-  bench.name = `scan ${valSize}x${opts.numKeys}`;
-  bench.size = opts.numKeys * valSize;
-  await populate(rep, opts, makeRandomStrings(opts.numKeys));
+  await bench.setup(async () => {
+    bench.name = `scan ${valSize}x${opts.numKeys}`;
+    bench.size = opts.numKeys * valSize;
+    const rep = await makeRep();
+    await populate(rep, opts, makeRandomStrings(opts.numKeys));
+    await rep.close();
+  });
+  const rep = makeLastRep();
+
   bench.reset();
   await rep.query(async tx => {
     let count = 0;
@@ -142,6 +162,7 @@ async function benchmark(fn) {
   let name = String(fn);
   let size = 0;
   let format = formatToMBPerSecond;
+  let setupCalled = false;
   for (let i = 0; i < minRuns || sum < minTime; i++) {
     let t0 = Date.now();
     let t1 = 0;
@@ -161,6 +182,12 @@ async function benchmark(fn) {
         },
         set formatter(f) {
           format = f;
+        },
+        async setup(f) {
+          if (!setupCalled) {
+            await f();
+            setupCalled = true;
+          }
         },
       },
       i,

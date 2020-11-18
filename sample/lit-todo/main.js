@@ -15,6 +15,8 @@ import {generateKeyBetween} from 'fractional-indexing';
 const key = id => `/todo/${id}`;
 
 let rep = new Replicache({
+  name: 'todo',
+
   // URL of the diff server to use. The diff server periodically fetches
   // the 'client view' from your service and returns any delta. You can
   // use our hosted diff server (as here) or a local diff server, which

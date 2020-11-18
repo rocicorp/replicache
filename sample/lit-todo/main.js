@@ -12,6 +12,9 @@ import '@material/mwc-textfield';
 import '@material/mwc-top-app-bar/mwc-top-app-bar.js';
 import {generateKeyBetween} from 'fractional-indexing';
 
+/* eslint-env browser */
+/* global Pusher */
+
 const key = id => `/todo/${id}`;
 
 let rep = new Replicache({
@@ -56,7 +59,11 @@ rep.onSync = syncing => {
 
 rep.subscribe(
   async tx => {
-    return (await tx.scanAll({indexName: 'byOrder2'})).map(([_, v]) => v);
+    const res = [];
+    for await (const v of tx.scan({indexName: 'byOrder2'})) {
+      res.push(v);
+    }
+    return res;
   },
   {
     onData: update,
@@ -69,6 +76,7 @@ async function initIndexes() {
     keyPrefix: '/todo/',
     jsonPointer: '/order',
   });
+  console.log('indexes created!');
 }
 
 const updateTodo = rep.register('updateTodo', async (tx, changes) => {
@@ -85,9 +93,7 @@ const createTodo = rep.register('createTodo', async (tx, todo) => {
   await tx.put(key(todo.id), todo);
 });
 
-initIndexes([]).then(() => {
-  console.log('indexes created!');
-});
+initIndexes();
 
 async function handleCreate() {
   const prev = todos[todos.length - 1]?.order || null;

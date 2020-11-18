@@ -1,3 +1,5 @@
+import {generateKeyBetween} from 'fractional-indexing';
+
 let activeDrag = null;
 
 async function handleDragStart(
@@ -63,10 +65,10 @@ async function handleDragEnd() {
     return;
   }
 
-  const prev = currentIndex == 0 ? 0 : todos[currentIndex - 1].order;
+  const prev = currentIndex == 0 ? null : todos[currentIndex - 1].order;
   const next =
-    currentIndex == todos.length - 1 ? 1 : todos[currentIndex + 1].order;
-  const order = prev + (next - prev) / 2;
+    currentIndex == todos.length - 1 ? null : todos[currentIndex + 1].order;
+  const order = generateKeyBetween(prev, next);
   await activeDrag.handleDragEnd(activeDrag.targetID, order);
   activeDrag = null;
 }

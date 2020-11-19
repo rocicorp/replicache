@@ -86,10 +86,7 @@ export default class Replicache implements ReadTransaction {
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
-    (
-      tx: WriteTransaction,
-      args: JSONValue | undefined,
-    ) => MaybePromise<void | JSONValue>
+    (tx: WriteTransaction, args?: JSONValue) => MaybePromise<void | JSONValue>
   >();
   private _syncPromise: Promise<void> | null = null;
   private readonly _subscriptions = new Set<Subscription<unknown, unknown>>();

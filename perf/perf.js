@@ -11,8 +11,16 @@ console.assert = console.debug = console.error = console.info = console.log = co
 const valSize = 1024;
 
 function randomString(len) {
-  var arr = new Uint8Array(len);
+  const arr = new Uint8Array(len);
   crypto.getRandomValues(arr);
+  for (let i = 0; i < len; i++) {
+    // Don't allow \0 in the string because these values are used as secondary
+    // keys when building indexes and we do not allow \0 there so it slows down
+    // the benchmark.
+    if (arr[i] === 0) {
+      arr[i] = 1;
+    }
+  }
   return new TextDecoder('ascii').decode(arr);
 }
 

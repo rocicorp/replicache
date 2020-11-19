@@ -16,6 +16,7 @@ import {generateKeyBetween} from 'fractional-indexing';
 /* global Pusher */
 
 const key = id => `/todo/${id}`;
+const dataLayerAuth = '1';
 
 let rep = new Replicache({
   name: 'todo',
@@ -37,7 +38,7 @@ let rep = new Replicache({
   batchURL: 'https://replicache-sample-todo.now.sh/serve/replicache-batch',
 
   // Auth token for your client view and batch endpoints, if any.
-  dataLayerAuth: '1',
+  dataLayerAuth,
   pushDelay: 500,
 
   syncInterval: null,
@@ -233,6 +234,6 @@ function initPusher() {
   pusher = new Pusher('8084fa6056631d43897d', {
     cluster: 'us3',
   })
-    .subscribe('u-2')
+    .subscribe(`u-${dataLayerAuth}`)
     .bind('poke', () => rep.sync());
 }

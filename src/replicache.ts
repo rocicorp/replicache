@@ -15,13 +15,10 @@ import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
 import type {InitInput} from './wasm/release/replicache_client.js';
 
+/** @deprecated This type wasn't exact enough as described */
 export type Mutator<Return extends JSONValue | void, Args extends JSONValue> = (
   args: Args,
 ) => Promise<Return | void>;
-type MutatorImpl<Return extends JSONValue | void, Args extends JSONValue> = (
-  tx: WriteTransaction,
-  args: Args,
-) => Promise<Return>;
 
 type BeginSyncResult = {
   syncID: string;
@@ -89,7 +86,10 @@ export default class Replicache implements ReadTransaction {
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
-    MutatorImpl<JSONValue | void, JSONValue>
+    (
+      tx: WriteTransaction,
+      args: JSONValue | undefined,
+    ) => MaybePromise<void | JSONValue>
   >();
   private _syncPromise: Promise<void> | null = null;
   private readonly _subscriptions = new Set<Subscription<unknown, unknown>>();
@@ -636,30 +636,42 @@ export default class Replicache implements ReadTransaction {
    * As with [query] and [subscribe] all reads will see a consistent view of
    * the cache while they run.
    */
+  register<Return extends JSONValue | void>(
+    name: string,
+    mutatorImpl: (tx: WriteTransaction) => MaybePromise<Return>,
+  ): () => Promise<Return>;
   register<Return extends JSONValue | void, Args extends JSONValue>(
     name: string,
-    mutatorImpl: MutatorImpl<Return, Args>,
-  ): Mutator<Return, Args> {
+    mutatorImpl: (tx: WriteTransaction, args: Args) => MaybePromise<Return>,
+  ): (args: Args) => Promise<Return>;
+  register<Return extends JSONValue | void, Args extends JSONValue>(
+    name: string,
+    mutatorImpl: (tx: WriteTransaction, args?: Args) => MaybePromise<Return>,
+  ): (args?: Args) => Promise<Return> {
     this._mutatorRegistry.set(
       name,
-      (mutatorImpl as unknown) as MutatorImpl<JSONValue, JSONValue>,
+      mutatorImpl as (
+        tx: WriteTransaction,
+        args: JSONValue | undefined,
+      ) => Promise<void | JSONValue>,
     );
-    return async (args: Args): Promise<Return> =>
+
+    return async (args?: Args): Promise<Return> =>
       (await this._mutate(name, mutatorImpl, args, {shouldCheckChange: true}))
         .result;
   }
 
   private async _mutate<R extends JSONValue | void, A extends JSONValue>(
     name: string,
-    mutatorImpl: MutatorImpl<R, A>,
-    args: A,
+    mutatorImpl: (tx: WriteTransaction, args?: A) => MaybePromise<R>,
+    args: A | undefined,
     {
       invokeArgs,
       shouldCheckChange,
     }: {invokeArgs?: OpenTransactionRequest; shouldCheckChange: boolean},
   ): Promise<{result: R; ref: string}> {
     let actualInvokeArgs: OpenTransactionRequest = {
-      args: JSON.stringify(args),
+      args: args !== undefined ? JSON.stringify(args) : 'null',
       name,
     };
     if (invokeArgs !== undefined) {

@@ -401,9 +401,12 @@ test('name', async () => {
 test('register with error', async () => {
   rep = await replicacheForTesting('regerr');
 
-  const doErr = rep.register('err', async (_, args) => {
-    throw args;
-  });
+  const doErr = rep.register(
+    'err',
+    async (_: WriteTransaction, args: number) => {
+      throw args;
+    },
+  );
 
   try {
     await doErr(42);
@@ -744,7 +747,7 @@ test('closed tx', async () => {
     wtx = tx;
   });
 
-  await mut(0);
+  await mut();
   expect(wtx).to.not.be.undefined;
   await expectAsyncFuncToThrow(() => wtx?.put('z', 1), TransactionClosedError);
   await expectAsyncFuncToThrow(() => wtx?.del('w'), TransactionClosedError);
@@ -1045,4 +1048,52 @@ test('index scan start', async () => {
   );
 
   await rep.dropIndex('bIndex');
+});
+
+// Only used for type checking
+test.skip('mutator optional args', async () => {
+  rep = await replicacheForTesting('test-types');
+
+  const mut = rep.register('mut', async (tx: WriteTransaction, x: number) => {
+    console.log(tx);
+    return x;
+  });
+  const res: number = await mut(42);
+  console.log(res);
+
+  const mut2 = rep.register('mut', (tx: WriteTransaction, x: string) => {
+    console.log(tx);
+    return x;
+  });
+  const res2: string = await mut2('s');
+  console.log(res2);
+
+  const mut3 = rep.register('mut2', tx => {
+    console.log(tx);
+  });
+  await mut3();
+  //  @ts-expect-error: Expected 0 arguments, but got 1.ts(2554)
+  await mut3(42);
+  //  @ts-expect-error: Type 'void' is not assignable to type 'number'.ts(2322)
+  const res3: number = await mut3();
+  console.log(res3);
+
+  const mut4 = rep.register('mut2', async tx => {
+    console.log(tx);
+  });
+  await mut4();
+  //  @ts-expect-error: Expected 0 arguments, but got 1.ts(2554)
+  await mut4(42);
+  //  @ts-expect-error: Type 'void' is not assignable to type 'number'.ts(2322)
+  const res4: number = await mut4();
+  console.log(res4);
+
+  // @ts-expect-error: Types of parameters 'x' and 'args' are incompatible.
+  //   Type 'JSONValue' is not assignable to type 'Date'.
+  //     Type 'null' is not assignable to type 'Date'.ts(2769)
+  const mut5 = rep.register('mut3', (tx: WriteTransaction, x: Date) => {
+    console.log(tx);
+    return x;
+  });
+  console.log(mut5);
 });

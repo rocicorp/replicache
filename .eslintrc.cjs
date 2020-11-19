@@ -14,5 +14,6 @@ module.exports = {
       },
     ],
     'object-shorthand': 'error',
+    'no-var': 'error',
   },
 };

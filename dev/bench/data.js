@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1605826737047,
+  "lastUpdate": 1605830377324,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -6150,6 +6150,93 @@ window.BENCHMARK_DATA = {
             "range": "±0.0%",
             "unit": "tx/s",
             "extra": "98 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "6597500e296eea73f76ca3837851d730df97af30",
+          "message": "Whoops. Fix broken sync on redo.replicache.dev.\n\nI changed the user id for the demo on the backend and changed it\non the frontend, but the bit for pusher-js was non-DRY.\n\n😬",
+          "timestamp": "2020-11-19T13:57:10-10:00",
+          "tree_id": "66334b44c9254e3ed4fae4feecce5e5ecb920bfe",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/6597500e296eea73f76ca3837851d730df97af30"
+        },
+        "date": 1605830376683,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.7,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.3,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.75,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.21,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 5.85,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "12 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.26,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 17.44,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "35 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 19,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 31.25,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "62 samples"
           }
         ]
       }

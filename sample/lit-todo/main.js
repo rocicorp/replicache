@@ -94,8 +94,6 @@ const createTodo = rep.register('createTodo', async (tx, todo) => {
   await tx.put(key(todo.id), todo);
 });
 
-initIndexes();
-
 async function handleCreate() {
   const prev = todos[todos.length - 1]?.order || null;
   const next = null;
@@ -201,8 +199,10 @@ function update(newTodos) {
 }
 
 // FOUC
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
   document.body.style.visibility = 'visible';
+  await initIndexes();
+  rep.sync();
 });
 
 document.querySelector('mwc-fab').addEventListener('click', e => {

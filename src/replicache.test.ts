@@ -717,15 +717,16 @@ test('reauth', async () => {
   );
 
   {
+    const consoleInfoStub = sinon.stub(console, 'info');
     const getDataLayerAuthFake = sinon.fake(() => 'boo');
     rep.getDataLayerAuth = getDataLayerAuthFake;
 
-    (await expectPromiseToReject(rep.beginSync())).to.be
-      .instanceOf(Error)
-      .with.property('message')
-      .equals('Tried to reauthenticate too many times');
+    expect((await rep.beginSync()).syncHead).to.equal('');
 
-    expect(getDataLayerAuthFake.callCount).to.equal(32);
+    expect(getDataLayerAuthFake.callCount).to.equal(8);
+    expect(consoleInfoStub.firstCall.args[0]).to.equal(
+      'Tried to reauthenticate too many times',
+    );
   }
 });
 

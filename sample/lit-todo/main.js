@@ -219,8 +219,8 @@ document.querySelector('mwc-fab').addEventListener('click', e => {
 // navigator.serviceWorker?.register('sw.js');
 navigator.serviceWorker.getRegistrations().then(registrations => {
   for (let registration of registrations) {
-   registration.unregister();
- }
+    registration.unregister();
+  }
 });
 
 window.addEventListener('online', e => rep.sync());

@@ -198,11 +198,16 @@ function update(newTodos) {
   );
 }
 
+async function init() {
+  await initIndexes();
+  rep.sync();
+}
+
+init();
+
 // FOUC
 window.addEventListener('load', async () => {
   document.body.style.visibility = 'visible';
-  await initIndexes();
-  rep.sync();
 });
 
 document.querySelector('mwc-fab').addEventListener('click', e => {
@@ -210,7 +215,13 @@ document.querySelector('mwc-fab').addEventListener('click', e => {
   handleCreate();
 });
 
-navigator.serviceWorker?.register('sw.js');
+// argh, tired of fighting with serviceworker for now.
+// navigator.serviceWorker?.register('sw.js');
+navigator.serviceWorker.getRegistrations().then(registrations => {
+  for (let registration of registrations) {
+   registration.unregister();
+ }
+});
 
 window.addEventListener('online', e => rep.sync());
 

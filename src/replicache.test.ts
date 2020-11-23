@@ -1098,3 +1098,10 @@ test.skip('mutator optional args', async () => {
   });
   console.log(mut5);
 });
+
+test('setLogLevel', async () => {
+  // Just testing that no errors are thrown
+  rep = await replicacheForTesting('set-log-level');
+  await rep.setVerboseWasmLogging(true);
+  await rep.setVerboseWasmLogging(false);
+});

@@ -694,6 +694,18 @@ export default class Replicache implements ReadTransaction {
 
     return {result, ref};
   }
+
+  /**
+   * When this is set to `true` the internal Replicache wasm module will log
+   * more things to the console (using `console.debug`). Setting this to false
+   * reduces the amount of logging done by the wasm module.
+   *
+   * If you want to see the verbose logging from Replicache in Devtools/Web
+   * Inspector you also need to change the console log level to `Verbose`.
+   */
+  async setVerboseWasmLogging(verbose: boolean): Promise<void> {
+    await this._invoke('setLogLevel', {level: verbose ? 'debug' : 'info'});
+  }
 }
 
 export class ReplicacheTest extends Replicache {

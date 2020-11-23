@@ -183,6 +183,10 @@ type MaybeEndSyncResponse = {
   replayMutations?: ReplayMutation[];
 };
 
+type SetLogLevelRequest = {level: 'debug' | 'info' | 'error'};
+
+type SetLogLevelResponse = unknown;
+
 export type InvokeMap = {
   get: [GetRequest, GetResponse];
   has: [HasRequest, HasResponse];
@@ -200,6 +204,8 @@ export type InvokeMap = {
 
   beginSync: [BeginSyncRequest, BeginSyncResponse];
   maybeEndSync: [MaybeEndSyncRequest, MaybeEndSyncResponse];
+
+  setLogLevel: [SetLogLevelRequest, SetLogLevelResponse];
 };
 
 type OpenResponse = '';

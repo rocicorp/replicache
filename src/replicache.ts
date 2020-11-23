@@ -33,7 +33,7 @@ type MaybePromise<T> = T | Promise<T>;
 const storageKeyName = (name: string) => `/replicache/root/${name}`;
 
 /** The maximum number of time to call out to getDataLayerAuth before giving up and throwing an error. */
-const MAX_REAUTH_TRIES = 32;
+const MAX_REAUTH_TRIES = 8;
 
 /**
  * The options passed to [[Replicache]].
@@ -365,7 +365,7 @@ export default class Replicache implements ReadTransaction {
       diffServerAuth: this._diffServerAuth,
     });
 
-    const {syncInfo} = beginSyncResult;
+    const {syncInfo, syncHead} = beginSyncResult;
 
     let reauth = false;
 
@@ -386,7 +386,7 @@ export default class Replicache implements ReadTransaction {
       }
     }
 
-    const {batchPushInfo, clientViewInfo} = syncInfo;
+    const {batchPushInfo, clientViewInfo, syncID} = syncInfo;
     if (batchPushInfo) {
       checkStatus(batchPushInfo, 'batch', this._batchURL);
       const mutationInfos = batchPushInfo.batchPushResponse?.mutationInfos;
@@ -405,7 +405,8 @@ export default class Replicache implements ReadTransaction {
 
     if (reauth && this.getDataLayerAuth) {
       if (maxAuthTries === 0) {
-        throw new Error('Tried to reauthenticate too many times');
+        console.info('Tried to reauthenticate too many times');
+        return {syncID, syncHead: ''};
       }
       const dataLayerAuth = await this.getDataLayerAuth();
       if (dataLayerAuth != null) {
@@ -415,8 +416,6 @@ export default class Replicache implements ReadTransaction {
       }
     }
 
-    const syncHead = beginSyncResult.syncHead;
-    const {syncID} = syncInfo;
     return {syncID, syncHead};
   }
 

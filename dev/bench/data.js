@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1606168223362,
+  "lastUpdate": 1606176678983,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -6585,6 +6585,93 @@ window.BENCHMARK_DATA = {
             "range": "±0.0%",
             "unit": "tx/s",
             "extra": "75 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "68e9f8e73ad9ca35296af1c83bd4937643d8a1a2",
+          "message": "Fix extraneous pull requests caused by disconnect() method on\nPusherjs not working when called on subscription. For some reason\nit exists on both but needs to be called on the connection.",
+          "timestamp": "2020-11-23T14:08:48-10:00",
+          "tree_id": "02061582ca26a102aaccb3f9392993acae1aadfc",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/68e9f8e73ad9ca35296af1c83bd4937643d8a1a2"
+        },
+        "date": 1606176678369,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.86,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.44,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "10 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.86,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.19,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 5.68,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "12 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.21,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 18.78,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "38 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 20.69,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 34.48,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "69 samples"
           }
         ]
       }

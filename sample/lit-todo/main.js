@@ -244,7 +244,7 @@ function initPusher() {
   }
   pusher = new Pusher('8084fa6056631d43897d', {
     cluster: 'us3',
-  })
-    .subscribe(`u-${dataLayerAuth}`)
-    .bind('poke', () => rep.sync());
+  });
+  const sub = pusher.subscribe(`u-${dataLayerAuth}`);
+  sub.bind('poke', () => rep.sync());
 }

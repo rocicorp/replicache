@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1606176678983,
+  "lastUpdate": 1606762595536,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -6672,6 +6672,93 @@ window.BENCHMARK_DATA = {
             "range": "±0.0%",
             "unit": "tx/s",
             "extra": "69 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "distinct": true,
+          "id": "d7770b9d5b213c7ef7ef3d794be3d5d60f5e5c7a",
+          "message": "Bump highlight.js from 9.18.1 to 9.18.5\n\nBumps [highlight.js](https://github.com/highlightjs/highlight.js) from 9.18.1 to 9.18.5.\n- [Release notes](https://github.com/highlightjs/highlight.js/releases)\n- [Changelog](https://github.com/highlightjs/highlight.js/blob/9.18.5/CHANGES.md)\n- [Commits](https://github.com/highlightjs/highlight.js/compare/9.18.1...9.18.5)\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2020-11-30T10:54:17-08:00",
+          "tree_id": "404e54d5b9b2201844c49552db85346dcdce244a",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/d7770b9d5b213c7ef7ef3d794be3d5d60f5e5c7a"
+        },
+        "date": 1606762594654,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.46,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 5.17,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "11 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 3.18,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.57,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 7.23,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "16 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 7.49,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 21.23,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "43 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 22.3,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "10 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 34.48,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "66 samples"
           }
         ]
       }

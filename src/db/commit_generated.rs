@@ -437,10 +437,10 @@ pub mod commit {
             builder.finish()
         }
 
-        pub const VT_BASIS_HASH: flatbuffers::VOffsetT = 4;
-        pub const VT_CHECKSUM: flatbuffers::VOffsetT = 6;
-        pub const VT_TYPED_TYPE: flatbuffers::VOffsetT = 8;
-        pub const VT_TYPED: flatbuffers::VOffsetT = 10;
+        pub const VT_BASIS_HASH: flatbuffers::VOffsetT = 6;
+        pub const VT_CHECKSUM: flatbuffers::VOffsetT = 8;
+        pub const VT_TYPED_TYPE: flatbuffers::VOffsetT = 10;
+        pub const VT_TYPED: flatbuffers::VOffsetT = 12;
 
         #[inline]
         pub fn basis_hash(&self) -> Option<&'a str> {

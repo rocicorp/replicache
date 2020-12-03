@@ -54,7 +54,10 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
   async next(): Promise<IteratorResult<V>> {
     throwIfClosed(await this._ensureTransaction());
 
-    await this._load();
+    if (!this._loadPromise) {
+      this._loadPromise = this._load();
+    }
+    await this._loadPromise;
 
     if (this._current >= this._scanItems.length) {
       return this.return();
@@ -90,16 +93,10 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
   }
 
   private async _load(): Promise<void> {
-    if (this._loadPromise) {
-      await this._loadPromise;
-      return;
-    }
-
     if (!this._transaction) {
       this._transaction = await this._getTransaction();
     }
 
-    const responseItems: ScanItem[] = [];
     const decoder = new TextDecoder();
     const receiver = (
       primaryKey: string,
@@ -107,7 +104,7 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
       value: Uint8Array,
     ) => {
       const text = decoder.decode(value);
-      responseItems.push({
+      this._scanItems.push({
         primaryKey,
         secondaryKey,
         value: JSON.parse(text),
@@ -118,10 +115,7 @@ class ScanIterator<V> implements AsyncIterableIterator<V> {
       opts: toRPC(this._options),
       receiver,
     };
-    this._loadPromise = this._invoke('scan', args);
-    await this._loadPromise;
-
-    this._scanItems.push(...responseItems);
+    await this._invoke('scan', args);
   }
 }
 

@@ -11,6 +11,7 @@ import {promises as fs} from 'fs';
 
 async function main() {
   const verbose = process.argv.includes('--verbose');
+  const devtools = process.argv.includes('--devtools');
   const port = await getPort();
   const server = await startDevServer({
     config: {
@@ -27,14 +28,19 @@ async function main() {
   const userDataDir = await fs.mkdtemp(
     path.join(os.tmpdir(), 'replicache-playwright-'),
   );
-  const context = await playwright[browserType].launchPersistentContext(
-    userDataDir,
-  );
+  const context = await playwright[
+    browserType
+  ].launchPersistentContext(userDataDir, {devtools});
 
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${port}/perf/index.html`);
   await page.waitForFunction('typeof nextTest ===  "function"');
   logLine('Running benchmarks please wait...');
+
+  if (devtools) {
+    console.log('Enter `await nextTest()` in the devtools console');
+    return;
+  }
 
   for (;;) {
     const testResult = await page.evaluate('nextTest()');

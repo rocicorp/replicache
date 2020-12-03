@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1606854562468,
+  "lastUpdate": 1607023808907,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -6933,6 +6933,93 @@ window.BENCHMARK_DATA = {
             "range": "±0.0%",
             "unit": "tx/s",
             "extra": "69 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "distinct": true,
+          "id": "9f14305096c586b0182aedf4021111400c4bbd79",
+          "message": "Add `--devtools` flag to perf runner\n\nThis makes it easier to do a performance recording in Devtools",
+          "timestamp": "2020-12-03T11:27:49-08:00",
+          "tree_id": "cf1f66ef224f969c3c50aaefdc16bba81fdaf5a9",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/9f14305096c586b0182aedf4021111400c4bbd79"
+        },
+        "date": 1607023805474,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.96,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.67,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "10 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.81,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.17,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.22,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "13 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.47,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 19.53,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "39 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 20.96,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 43.48,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "87 samples"
           }
         ]
       }

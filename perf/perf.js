@@ -68,7 +68,7 @@ async function populate(rep, {numKeys}, randomStrings) {
       await tx.put(`key${i}`, randomStrings[i]);
     }
   });
-  await set({});
+  await set();
 }
 
 async function benchmarkPopulate(bench, opts) {
@@ -154,7 +154,7 @@ async function benchmarkSingleByteWrite(bench, i) {
   bench.formatter = formatTxPerSecond;
   bench.reset();
 
-  await write(null);
+  await write();
 
   bench.stop();
   await rep.close();

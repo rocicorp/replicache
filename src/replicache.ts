@@ -46,7 +46,17 @@ export interface ReplicacheOptions {
   name?: string;
   /** @deprecated Use wasmModule instead */
   repmInvoker?: Invoker;
+
+  /**
+   * The duration between each [[sync]]. Set this to `null` to prevent syncing in
+   * the background.
+   */
   syncInterval?: number | null;
+
+  /**
+   * The delay between when a change is made to Replicache and when Replicache
+   * attempts to push that change.
+   */
   pushDelay?: number;
 
   /**
@@ -98,7 +108,7 @@ export default class Replicache implements ReadTransaction {
    * The delay between when a change is made to Replicache and when Replicache
    * attempts to push that change.
    */
-  public pushDelay: number;
+  pushDelay: number;
 
   onSync: ((syncing: boolean) => void) | null = null;
 
@@ -154,7 +164,7 @@ export default class Replicache implements ReadTransaction {
   }
 
   /**
-   * The duration between each `sync`. Set this to `null` to prevent syncing in
+   * The duration between each [[sync]]. Set this to `null` to prevent syncing in
    * the background.
    */
   get syncInterval(): number | null {

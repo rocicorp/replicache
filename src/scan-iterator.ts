@@ -1,4 +1,3 @@
-import type {ScanItem} from './scan-item.js';
 import type {Invoke, ScanRequest} from './repm-invoker.js';
 import type {JSONValue} from './json.js';
 import {throwIfClosed} from './transaction-closed-error.js';
@@ -11,113 +10,6 @@ interface IdCloser {
 }
 
 type ScanIterableKind = 'key' | 'value' | 'entry';
-
-/**
- * An async iterator that is used with {@link ReadTransaction.scan}.
- */
-class ScanIterator<V> implements AsyncIterableIterator<V> {
-  private readonly _scanItems: ScanItem[] = [];
-  private _current = 0;
-  private readonly _options: ScanOptions | undefined;
-  private readonly _kind: ScanIterableKind;
-  private _loadPromise?: Promise<unknown> = undefined;
-  private readonly _getTransaction: () => Promise<IdCloser> | IdCloser;
-  private readonly _shouldCloseTransaction: boolean;
-  private _transaction?: IdCloser = undefined;
-  private readonly _invoke: Invoke;
-
-  constructor(
-    kind: ScanIterableKind,
-    options: ScanOptions | undefined,
-    invoke: Invoke,
-    getTransaction: () => Promise<IdCloser> | IdCloser,
-    shouldCloseTranscation: boolean,
-  ) {
-    this._kind = kind;
-    this._options = options;
-    this._invoke = invoke;
-    this._getTransaction = getTransaction;
-    this._shouldCloseTransaction = shouldCloseTranscation;
-  }
-
-  [Symbol.asyncIterator](): AsyncIterableIterator<V> {
-    return this;
-  }
-
-  private async _ensureTransaction(): Promise<IdCloser> {
-    if (!this._transaction) {
-      this._transaction = await this._getTransaction();
-    }
-    return this._transaction;
-  }
-
-  async next(): Promise<IteratorResult<V>> {
-    throwIfClosed(await this._ensureTransaction());
-
-    if (!this._loadPromise) {
-      this._loadPromise = this._load();
-    }
-    await this._loadPromise;
-
-    if (this._current >= this._scanItems.length) {
-      return this.return();
-    }
-
-    const entry = this._scanItems[this._current++];
-    if (this._kind === 'value') {
-      return {value: entry.value} as IteratorResult<V>;
-    }
-
-    type MaybeIndexName = {indexName?: string};
-    const key =
-      (this._options as MaybeIndexName)?.indexName !== undefined
-        ? [entry.secondaryKey, entry.primaryKey]
-        : entry.primaryKey;
-
-    switch (this._kind) {
-      case 'key':
-        return {value: key} as IteratorResult<V>;
-      case 'entry':
-        return {value: [key, entry.value]} as IteratorResult<V>;
-    }
-  }
-
-  async return(): Promise<IteratorResult<V>> {
-    if (this._transaction) {
-      throwIfClosed(this._transaction);
-      if (this._shouldCloseTransaction) {
-        this._transaction.close();
-      }
-    }
-    return {done: true, value: undefined};
-  }
-
-  private async _load(): Promise<void> {
-    if (!this._transaction) {
-      this._transaction = await this._getTransaction();
-    }
-
-    const decoder = new TextDecoder();
-    const receiver = (
-      primaryKey: string,
-      secondaryKey: string | null,
-      value: Uint8Array,
-    ) => {
-      const text = decoder.decode(value);
-      this._scanItems.push({
-        primaryKey,
-        secondaryKey,
-        value: JSON.parse(text),
-      });
-    };
-    const args: ScanRequest = {
-      transactionId: this._transaction.id,
-      opts: toRPC(this._options),
-      receiver,
-    };
-    await this._invoke('scan', args);
-  }
-}
 
 type Args = [
   options: ScanOptions | undefined,
@@ -150,6 +42,94 @@ export class ScanResult<K> implements AsyncIterable<JSONValue> {
   }
 
   private _newIterator<V>(kind: ScanIterableKind): AsyncIterableIterator<V> {
-    return new ScanIterator<V>(kind, ...this._args);
+    return scanIterator(kind, ...this._args);
   }
+}
+
+async function* scanIterator<V>(
+  kind: ScanIterableKind,
+  options: ScanOptions | undefined,
+  invoke: Invoke,
+  getTransaction: () => Promise<IdCloser> | IdCloser,
+  shouldCloseTranscation: boolean,
+): AsyncGenerator<V> {
+  const transaction = await getTransaction();
+  throwIfClosed(transaction);
+
+  let controller!: ReadableStreamDefaultController<V>;
+  const stream = new ReadableStream({
+    start: c => {
+      controller = c;
+    },
+  });
+  const reader: ReadableStreamDefaultReader<V> = stream.getReader();
+
+  // No await. We want the loading to happen in the background. load
+  // communicates with this function using controller.
+  load(kind, options, transaction.id, controller, invoke);
+
+  try {
+    while (true) {
+      const res = await reader.read();
+      if (res.done) {
+        break;
+      }
+      yield res.value;
+    }
+  } finally {
+    if (shouldCloseTranscation && !transaction.closed) {
+      transaction.close();
+    }
+  }
+}
+
+async function load<V>(
+  kind: ScanIterableKind,
+  options: ScanOptions | undefined,
+  transactionID: number,
+  controller: ReadableStreamDefaultController<V>,
+  invoke: Invoke,
+) {
+  const decoder = new TextDecoder();
+  const parse = (v: Uint8Array) => JSON.parse(decoder.decode(v));
+  type MaybeIndexName = {indexName?: string};
+  const key = (primaryKey: string, secondaryKey: string | null) =>
+    (options as MaybeIndexName)?.indexName !== undefined
+      ? [secondaryKey, primaryKey]
+      : primaryKey;
+
+  const receiver = (
+    primaryKey: string,
+    secondaryKey: string | null,
+    value: Uint8Array,
+  ) => {
+    switch (kind) {
+      case 'value':
+        controller.enqueue(parse(value));
+        return;
+      case 'key':
+        controller.enqueue((key(primaryKey, secondaryKey) as unknown) as V);
+        return;
+      case 'entry':
+        controller.enqueue(([
+          key(primaryKey, secondaryKey),
+          parse(value),
+        ] as unknown) as V);
+    }
+  };
+
+  const args: ScanRequest = {
+    transactionId: transactionID,
+    opts: toRPC(options),
+    receiver,
+  };
+  try {
+    await invoke('scan', args);
+  } catch (ex) {
+    // Scan can fail if no such index (for example). We still need to close the stream.
+    controller.error(ex);
+    return;
+  }
+
+  controller.close();
 }

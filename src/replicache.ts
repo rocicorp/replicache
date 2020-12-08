@@ -739,6 +739,7 @@ export class ReplicacheTest extends Replicache {
       diffServerURL,
       name,
       syncInterval: null,
+      pushDelay: 0,
     });
     await rep._opened;
     return rep;

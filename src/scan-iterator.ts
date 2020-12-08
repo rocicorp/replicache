@@ -9,7 +9,10 @@ interface IdCloser {
   id: number;
 }
 
-type ScanIterableKind = 'key' | 'value' | 'entry';
+const VALUE = 0;
+const KEY = 1;
+const ENTRY = 2;
+type ScanIterableKind = typeof VALUE | typeof KEY | typeof ENTRY;
 
 type Args = [
   options: ScanOptions | undefined,
@@ -30,15 +33,15 @@ export class ScanResult<K> implements AsyncIterable<JSONValue> {
   }
 
   values(): AsyncIterableIterator<JSONValue> {
-    return this._newIterator('value');
+    return this._newIterator(VALUE);
   }
 
   keys(): AsyncIterableIterator<K> {
-    return this._newIterator('key');
+    return this._newIterator(KEY);
   }
 
   entries(): AsyncIterableIterator<[K, JSONValue]> {
-    return this._newIterator('entry');
+    return this._newIterator(ENTRY);
   }
 
   private _newIterator<V>(kind: ScanIterableKind): AsyncIterableIterator<V> {
@@ -104,13 +107,13 @@ async function load<V>(
     value: Uint8Array,
   ) => {
     switch (kind) {
-      case 'value':
+      case VALUE:
         controller.enqueue(parse(value));
         return;
-      case 'key':
+      case KEY:
         controller.enqueue((key(primaryKey, secondaryKey) as unknown) as V);
         return;
-      case 'entry':
+      case ENTRY:
         controller.enqueue(([
           key(primaryKey, secondaryKey),
           parse(value),
@@ -126,7 +129,7 @@ async function load<V>(
   try {
     await invoke('scan', args);
   } catch (ex) {
-    // Scan can fail if no such index (for example). We still need to close the stream.
+    // Signal erros to the reader read loop.
     controller.error(ex);
     return;
   }

@@ -1,10 +1,10 @@
-import type {JSONValue, ToJSON} from './json.js';
+import type {JSONValue} from './json.js';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
-import {
+import type {
   Invoker,
   Invoke,
   OpenTransactionRequest,
-  REPMWasmInvoker,
+  InvokeMap,
 } from './repm-invoker.js';
 import {
   IndexTransactionImpl,
@@ -12,8 +12,9 @@ import {
   WriteTransactionImpl,
 } from './transactions.js';
 import {ScanResult} from './scan-iterator.js';
+import {REPMWorkerInvoker} from './repm-worker-invoker.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
-import type {InitInput} from './wasm/release/replicache_client.js';
+import type {InitInput} from './repm-wasm-invoker.js';
 
 /** @deprecated This type wasn't exact enough as described */
 export type Mutator<Return extends JSONValue | void, Args extends JSONValue> = (
@@ -139,7 +140,7 @@ export default class Replicache implements ReadTransaction {
     this._diffServerAuth = diffServerAuth;
     this._diffServerURL = diffServerURL;
     this._name = name;
-    this._repmInvoker = repmInvoker ?? new REPMWasmInvoker(wasmModule);
+    this._repmInvoker = repmInvoker ?? new REPMWorkerInvoker(wasmModule);
     this._syncInterval = syncInterval;
     this.pushDelay = pushDelay;
     this._open();
@@ -191,7 +192,7 @@ export default class Replicache implements ReadTransaction {
 
   async close(): Promise<void> {
     this._closed = true;
-    const p = this._invoke('close');
+    const p = this._invoke('close', undefined);
 
     this._clearTimer();
     window.removeEventListener('storage', this._onStorage);
@@ -209,7 +210,7 @@ export default class Replicache implements ReadTransaction {
     if (this._closed) {
       return undefined;
     }
-    const res = await this._invoke('getRoot');
+    const res = await this._invoke('getRoot', undefined);
     return res.root;
   }
 
@@ -240,10 +241,10 @@ export default class Replicache implements ReadTransaction {
     }
   }
 
-  private _invoke: Invoke = async (
-    rpc: string,
-    args?: JSONValue | ToJSON,
-  ): Promise<JSONValue> => {
+  private _invoke: Invoke = async <K extends keyof InvokeMap>(
+    rpc: K,
+    args: InvokeMap[K][0],
+  ): Promise<InvokeMap[K][1]> => {
     await this._opened;
     return await this._repmInvoker.invoke(this._name, rpc, args);
   };
@@ -740,6 +741,7 @@ export class ReplicacheTest extends Replicache {
       name,
       syncInterval: null,
       pushDelay: 0,
+      wasmModule: '/src/wasm/release/replicache_client_bg.wasm',
     });
     await rep._opened;
     return rep;

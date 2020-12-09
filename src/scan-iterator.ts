@@ -1,4 +1,4 @@
-import type {Invoke, ScanRequest} from './repm-invoker.js';
+import type {Invoke, ScanRequestRPC, ScanResponseRPC} from './repm-invoker.js';
 import type {JSONValue} from './json.js';
 import {throwIfClosed} from './transaction-closed-error.js';
 import {ScanOptions, toRPC} from './scan-options.js';
@@ -61,7 +61,7 @@ async function* scanIterator<V>(
 
   let controller!: ReadableStreamDefaultController<V>;
   const stream = new ReadableStream({
-    start: c => {
+    start(c: ReadableStreamDefaultController<V>) {
       controller = c;
     },
   });
@@ -93,8 +93,6 @@ async function load<V>(
   controller: ReadableStreamDefaultController<V>,
   invoke: Invoke,
 ) {
-  const decoder = new TextDecoder();
-  const parse = (v: Uint8Array) => JSON.parse(decoder.decode(v));
   type MaybeIndexName = {indexName?: string};
   const key = (primaryKey: string, secondaryKey: string | null) =>
     (options as MaybeIndexName)?.indexName !== undefined
@@ -104,11 +102,11 @@ async function load<V>(
   const receiver = (
     primaryKey: string,
     secondaryKey: string | null,
-    value: Uint8Array,
+    value: JSONValue,
   ) => {
     switch (kind) {
       case VALUE:
-        controller.enqueue(parse(value));
+        controller.enqueue((value as unknown) as V);
         return;
       case KEY:
         controller.enqueue((key(primaryKey, secondaryKey) as unknown) as V);
@@ -116,18 +114,24 @@ async function load<V>(
       case ENTRY:
         controller.enqueue(([
           key(primaryKey, secondaryKey),
-          parse(value),
+          value,
         ] as unknown) as V);
     }
   };
 
-  const args: ScanRequest = {
+  const args: ScanRequestRPC = {
     transactionId: transactionID,
     opts: toRPC(options),
-    receiver,
   };
   try {
-    await invoke('scan', args);
+    const res = ((await invoke(
+      'scan',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      args as any,
+    )) as unknown) as ScanResponseRPC;
+    for (const item of res) {
+      receiver(item.primaryKey, item.secondaryKey, item.value);
+    }
   } catch (ex) {
     // Signal erros to the reader read loop.
     controller.error(ex);

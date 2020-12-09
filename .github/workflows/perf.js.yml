@@ -16,7 +16,7 @@ jobs:
       - uses: microsoft/playwright-github-action@v1
 
       - run: npm ci
-      - run: npm run build --if-present
+      - run: npm run build-perf
       - run: git restore --quiet bin/diff-server
 
       # Run benchmark and stores the output to a file

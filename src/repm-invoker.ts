@@ -1,7 +1,7 @@
-import type {JSONValue, ToJSON} from './json.js';
 import type {ScanOptionsRPC} from './scan-options.js';
-import init, {dispatch} from './wasm/release/replicache_client.js';
-import type {InitInput, InitOutput} from './wasm/release/replicache_client.js';
+import type {ScanItem} from './scan-item.js';
+import type {JSONValue} from './json.js';
+import type {InitInput} from './repm-wasm-invoker.js';
 
 /**
  * @deprecated - use the wasmModule parameter to {@link Replicache.constructor} instead.
@@ -11,54 +11,17 @@ export type Invoker = {
 };
 
 export interface Invoke {
-  <RPC extends keyof InvokeMapNoArgs>(rpc: RPC): Promise<InvokeMapNoArgs[RPC]>;
   <RPC extends keyof InvokeMap>(rpc: RPC, args: InvokeMap[RPC][0]): Promise<
     InvokeMap[RPC][1]
   >;
-  (rpc: string, args?: JSONValue | ToJSON): Promise<JSONValue>;
 }
 
 export interface REPMInvoke {
-  <RPC extends keyof InvokeMapNoArgs>(dbName: string, rpc: RPC): Promise<
-    InvokeMapNoArgs[RPC]
-  >;
   <RPC extends keyof InvokeMap>(
     dbName: string,
     rpc: RPC,
-    args: InvokeMap[RPC][0],
+    args?: InvokeMap[RPC][0],
   ): Promise<InvokeMap[RPC][1]>;
-  (dbName: string, rpc: string, args?: JSONValue | ToJSON): Promise<JSONValue>;
-}
-
-let wasmModuleOutput: Promise<InitOutput> | undefined;
-
-/**
- * @deprecated - use the wasmModule parameter to {@link Replicache.constructor} instead.
- */
-export class REPMWasmInvoker {
-  constructor(wasmModuleOrPath?: InitInput) {
-    if (!wasmModuleOutput) {
-      // Hack around Webpack invalid support for import.meta.url and wasm
-      // loaders. We use the new URL pattern to tell Webpack to use a runtime
-      // URL and not a compile time file: URL.
-      if (!wasmModuleOrPath) {
-        wasmModuleOrPath = new URL(
-          './wasm/release/replicache_client_bg.wasm',
-          import.meta.url,
-        );
-      }
-      wasmModuleOutput = init(wasmModuleOrPath);
-    }
-  }
-
-  invoke: REPMInvoke = async (
-    dbName: string,
-    rpc: string,
-    args: JSONValue | ToJSON = {},
-  ): Promise<JSONValue> => {
-    await wasmModuleOutput;
-    return await dispatch(dbName, rpc, args);
-  };
 }
 
 type GetRequest = TransactionRequest & {
@@ -89,6 +52,9 @@ export type ScanRequest = TransactionRequest & {
   ) => void;
 };
 export type ScanResponse = unknown;
+
+export type ScanRequestRPC = Omit<ScanRequest, 'receiver'>;
+export type ScanResponseRPC = ScanItem<JSONValue>[];
 
 type PutRequest = TransactionRequest & {
   key: string;
@@ -187,6 +153,25 @@ type SetLogLevelRequest = {level: 'debug' | 'info' | 'error'};
 
 type SetLogLevelResponse = unknown;
 
+type OpenResponse = '';
+type CloseResponse = '';
+
+type GetRootResponse = {
+  root: string;
+};
+
+type CreateIndexRequest = TransactionRequest & {
+  name: string;
+  keyPrefix: string;
+  jsonPointer: string;
+};
+type CreateIndexResponse = unknown;
+
+type DropIndexRequest = TransactionRequest & {
+  name: string;
+};
+type DropIndexResponse = unknown;
+
 export type InvokeMap = {
   get: [GetRequest, GetResponse];
   has: [HasRequest, HasResponse];
@@ -202,21 +187,19 @@ export type InvokeMap = {
   closeTransaction: [CloseTransactionRequest, CloseTransactionResponse];
   commitTransaction: [CommitTransactionRequest, CommitTransactionResponse];
 
-  beginSync: [BeginSyncRequest, BeginSyncResponse];
-  maybeEndSync: [MaybeEndSyncRequest, MaybeEndSyncResponse];
+  beginSync: [args: BeginSyncRequest, response: BeginSyncResponse];
+  maybeEndSync: [args: MaybeEndSyncRequest, response: MaybeEndSyncResponse];
+  setLogLevel: [args: SetLogLevelRequest, response: SetLogLevelResponse];
 
-  setLogLevel: [SetLogLevelRequest, SetLogLevelResponse];
+  createIndex: [CreateIndexRequest, CreateIndexResponse];
+  dropIndex: [DropIndexRequest, DropIndexResponse];
+
+  open: [undefined, OpenResponse];
+  close: [undefined, CloseResponse];
+  getRoot: [undefined, GetRootResponse];
 };
 
-type OpenResponse = '';
-type CloseResponse = '';
-
-type GetRootResponse = {
-  root: string;
-};
-
-export type InvokeMapNoArgs = {
-  open: OpenResponse;
-  close: CloseResponse;
-  getRoot: GetRootResponse;
+export type InvokeMapRPC = Omit<InvokeMap, 'scan'> & {
+  scan: [ScanRequestRPC, ScanResponseRPC];
+  initWorker: [InitInput | undefined, null];
 };

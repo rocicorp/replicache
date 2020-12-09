@@ -6,3 +6,5 @@ build
 repc
 src/wasm
 sample/redo/public/replicache.wasm.x
+src/worker-bundle.js
+src/worker-bundle.js.map

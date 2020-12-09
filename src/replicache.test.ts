@@ -8,26 +8,22 @@ import {assert, expect} from '@esm-bundle/chai';
 import * as sinon from 'sinon';
 import type {SinonSpy} from 'sinon';
 
-// fetch-mock has invalid d.ts file so we removed that on npm install.
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error
-import fetchMock from 'fetch-mock/esm/client.js';
 import type {Invoke} from './repm-invoker.js';
 import type {ScanOptions} from './scan-options.js';
+import {findWorker, sendMessage} from './worker-util.js';
+import type {
+  ClearFetchMocksRequest,
+  MockFetch,
+  MockFetchRequest,
+} from './worker-test.js';
+import {silenceConsole} from './test-util.js';
 
 const {fail} = assert;
 
 let rep: ReplicacheTest | null = null;
 let rep2: ReplicacheTest | null = null;
 
-// Silence console. Too much noise!
-const {warn} = console;
-console.warn = (...args: Parameters<Console['warn']>) => {
-  if (args[0] !== 'Connection loop recv failed: The channel is empty.') {
-    warn.apply(console, args);
-  }
-};
-console.log = console.info = console.group = console.groupEnd = () => void 0;
+silenceConsole();
 
 async function replicacheForTesting(
   name: string,
@@ -79,8 +75,19 @@ function spyInvoke(
   return sinon.spy(rep, '_invoke');
 }
 
+async function mockFetch({method, url, responses}: MockFetch) {
+  const w = await findWorker();
+  await sendMessage(w, {
+    mockFetch: {method, url, responses},
+  } as MockFetchRequest);
+}
+
+async function clearFetchMocks() {
+  const w = await findWorker();
+  await sendMessage(w, {clearFetchMocks: true} as ClearFetchMocksRequest);
+}
+
 teardown(async () => {
-  fetchMock.restore();
   sinon.restore();
 
   if (rep !== null && !rep.closed) {
@@ -96,6 +103,8 @@ teardown(async () => {
     indexedDB.deleteDatabase(name);
   }
   dbsToDrop.clear();
+
+  await clearFetchMocks();
 });
 
 async function expectPromiseToReject(p: unknown): Promise<Chai.Assertion> {
@@ -497,7 +506,7 @@ test('overlapping writes', async () => {
 
 test('sync', async () => {
   const diffServerURL = 'https://diff.com/pull';
-  const batchURL = 'https://batch.com';
+  const batchURL = 'https://batch.com/';
 
   rep = await replicacheForTesting('sync', {
     batchURL,
@@ -506,83 +515,71 @@ test('sync', async () => {
     diffServerURL,
   });
 
-  let pullCounter = 0;
-  fetchMock.post(
-    diffServerURL,
-    () =>
-      [
-        {
-          stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
-          lastMutationID: 2,
-          patch: [
-            {op: 'remove', path: '/'},
-            {
-              op: 'add',
-              path: '/~1list~11',
-              valueString: '{"id":1,"ownerUserID":1}',
-            },
-          ],
-          checksum: 'e45e820e',
-          clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
-        },
-        {
-          stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
-          lastMutationID: 2,
-          patch: [],
-          checksum: 'e45e820e',
-          clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
-        },
-        {
-          stateID: 'g42viqe19kjv8iaahbj8ccs2aiub0po8',
-          lastMutationID: 3,
-          patch: [
-            {
-              op: 'add',
-              path: '/~1todo~114323534',
-              valueString:
-                '{"complete":false,"id":14323534,"listId":1,"order":10000,"text":"Test"}',
-            },
-          ],
-          checksum: 'bb35ac40',
-          clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
-        },
-        {
-          stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
-          lastMutationID: 2,
-          patch: [],
-          checksum: 'e45e820e',
-          clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
-        },
-        {
-          stateID: '4aqjcn91pronkc3s1uhpg8gichc1m6hv',
-          lastMutationID: 6,
-          patch: [{op: 'remove', path: '/~1todo~114323534'}],
-          checksum: 'e45e820e',
-          clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
-        },
-      ][pullCounter++],
-  );
+  await mockFetch({
+    method: 'POST',
+    url: diffServerURL,
+    responses: [
+      {
+        stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
+        lastMutationID: 2,
+        patch: [
+          {op: 'remove', path: '/'},
+          {
+            op: 'add',
+            path: '/~1list~11',
+            valueString: '{"id":1,"ownerUserID":1}',
+          },
+        ],
+        checksum: 'e45e820e',
+        clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+      },
+      {
+        stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
+        lastMutationID: 2,
+        patch: [],
+        checksum: 'e45e820e',
+        clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+      },
+      {
+        stateID: 'g42viqe19kjv8iaahbj8ccs2aiub0po8',
+        lastMutationID: 3,
+        patch: [
+          {
+            op: 'add',
+            path: '/~1todo~114323534',
+            valueString:
+              '{"complete":false,"id":14323534,"listId":1,"order":10000,"text":"Test"}',
+          },
+        ],
+        checksum: 'bb35ac40',
+        clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+      },
+      {
+        stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
+        lastMutationID: 2,
+        patch: [],
+        checksum: 'e45e820e',
+        clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+      },
+    ],
+  });
 
-  let batchCounter = 0;
-  fetchMock.post(
-    batchURL,
-    () =>
-      [
-        {
-          mutationInfos: [
-            {id: 1, error: 'deleteTodo: todo not found'},
-            {id: 2, error: 'deleteTodo: todo not found'},
-          ],
-        },
-        {mutationInfos: []},
-        {
-          mutationInfos: [
-            {id: 3, error: 'mutation has already been processed'},
-          ],
-        },
-        {mutationInfos: []},
-      ][batchCounter++],
-  );
+  await mockFetch({
+    method: 'POST',
+    url: batchURL,
+    responses: [
+      {
+        mutationInfos: [
+          {id: 1, error: 'deleteTodo: todo not found'},
+          {id: 2, error: 'deleteTodo: todo not found'},
+        ],
+      },
+      {mutationInfos: []},
+      {
+        mutationInfos: [{id: 3, error: 'mutation has already been processed'}],
+      },
+    ],
+  });
 
   let createCount = 0;
   let deleteCount = 0;
@@ -693,16 +690,20 @@ test('reauth', async () => {
     dataLayerAuth: 'wrong',
   });
 
-  fetchMock.post(diffServerURL, () => ({
-    stateID: 'fq40kklle30lr20vpjiv0ios8hgipnut',
-    lastMutationID: 0,
-    patch: [{op: 'remove', path: '/'}],
-    checksum: '00000000',
-    clientViewInfo: {
-      httpStatusCode: httpStatusUnauthorized,
-      errorMessage: 'xxx',
-    },
-  }));
+  await mockFetch({
+    method: 'POST',
+    url: diffServerURL,
+    responses: Array.from({length: 10}, () => ({
+      stateID: 'fq40kklle30lr20vpjiv0ios8hgipnut',
+      lastMutationID: 0,
+      patch: [{op: 'remove', path: '/'}],
+      checksum: '00000000',
+      clientViewInfo: {
+        httpStatusCode: httpStatusUnauthorized,
+        errorMessage: 'xxx',
+      },
+    })),
+  });
 
   const consoleErrorStub = sinon.stub(console, 'error');
 

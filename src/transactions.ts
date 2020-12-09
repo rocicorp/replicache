@@ -150,6 +150,7 @@ export class WriteTransactionImpl
     await this._invoke('put', {
       transactionId: this.id,
       key,
+      // TODO(arv): Use toJSON and not JSON.stringify here.
       value: JSON.stringify(value),
     });
   }

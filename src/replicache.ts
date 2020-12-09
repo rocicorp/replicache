@@ -156,6 +156,8 @@ export class Replicache implements ReadTransaction {
   private _pullConnectionLoop: ConnectionLoop;
   private _pushConnectionLoop: ConnectionLoop;
 
+  private _broadcastChannel?: BroadcastChannel = undefined;
+
   private readonly _subscriptions = new Set<
     Subscription<JSONValue | undefined, unknown>
   >();
@@ -254,6 +256,14 @@ export class Replicache implements ReadTransaction {
     this._openResponse = this._repmInvoker.invoke(this._name, RPC.Open, {
       useMemstore: this._useMemstore,
     });
+    if (hasBroadcastChannel) {
+      this._broadcastChannel = new BroadcastChannel(storageKeyName(this._name));
+      this._broadcastChannel.onmessage = e => {
+        this._checkChange(e.data);
+      };
+    } else {
+      window.addEventListener('storage', this._onStorage);
+    }
     this._setRoot(this._getRoot());
     await this._root;
     window.addEventListener('storage', this._onStorage);
@@ -301,7 +311,13 @@ export class Replicache implements ReadTransaction {
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
 
-    window.removeEventListener('storage', this._onStorage);
+    if (hasBroadcastChannel) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      this._broadcastChannel!.close();
+      this._broadcastChannel = undefined;
+    } else {
+      window.removeEventListener('storage', this._onStorage);
+    }
 
     // Clear subscriptions
     for (const subscription of this._subscriptions) {
@@ -326,9 +342,18 @@ export class Replicache implements ReadTransaction {
   }
 
   private async _setStorage(root: Promise<string | undefined>) {
-    // Also set an item in localStorage so that we can synchronize multiple
-    // windows/tabs.
-    localStorage[storageKeyName(this._name)] = await root;
+    const r = await root;
+    if (this._closed) {
+      return;
+    }
+    if (hasBroadcastChannel) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      this._broadcastChannel!.postMessage(r);
+    } else {
+      // Also set an item in localStorage so that we can synchronize multiple
+      // windows/tabs.
+      localStorage[storageKeyName(this._name)] = await r;
+    }
   }
 
   // Callback for when window.onstorage fires which happens when a different tab
@@ -921,3 +946,5 @@ type Subscription<R extends JSONValue | undefined, E> = {
   onDone?: () => void;
   lastValue?: R;
 };
+
+const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';

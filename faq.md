@@ -1,6 +1,6 @@
 # Frequently Asked Questions
 
-### Isn't it slow to serve the entire Client View constantly?
+## Isn't it slow to serve the entire Client View constantly?
 
 No question it's slower than serving only the changes.
 
@@ -15,12 +15,12 @@ diff to send to the client.
 
 You can of course use any standard caching techniques on the backend to make it faster to serve the client view.
 
-### How does the client know when to sync? Does it poll?
+## How does the client know when to sync? Does it poll?
 
 By default Replicache polls every 60 seconds. This is nice for development because it gets you up and running fast.
 
 For production, we recommend that you set up some kind of push channel and send a "poke" over that channel to tell the client when it might be a good time to sync.
 
-### What if I don’t have a dedicated backend? I use serverless functions for my backend
+## What if I don’t have a dedicated backend? I use serverless functions for my backend
 
 No problem. You can implement the integration points as serverless functions. Our samples are all implemented this way.

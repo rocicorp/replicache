@@ -341,10 +341,8 @@ export default class Replicache implements ReadTransaction {
     try {
       const beginSyncResult = await this._beginSync(MAX_REAUTH_TRIES);
 
-      // TODO(repc-switchover)
-      // replicache-client sends all zeros for null sync,
-      // repc sends empty string.
-      if (beginSyncResult.syncHead.replace(/0/g, '') !== '') {
+      // repc sends empty string for null sync.
+      if (beginSyncResult.syncHead !== '') {
         await this._maybeEndSync(beginSyncResult);
       }
     } catch (e) {

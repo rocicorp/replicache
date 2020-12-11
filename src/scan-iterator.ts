@@ -18,7 +18,7 @@ type Args = [
   options: ScanOptions | undefined,
   invoke: Invoke,
   getTransaction: () => Promise<IdCloser> | IdCloser,
-  shouldCloseTranscation: boolean,
+  shouldCloseTransaction: boolean,
 ];
 
 export class ScanResult<K> implements AsyncIterable<JSONValue> {
@@ -54,7 +54,7 @@ async function* scanIterator<V>(
   options: ScanOptions | undefined,
   invoke: Invoke,
   getTransaction: () => Promise<IdCloser> | IdCloser,
-  shouldCloseTranscation: boolean,
+  shouldCloseTransaction: boolean,
 ): AsyncGenerator<V> {
   const transaction = await getTransaction();
   throwIfClosed(transaction);
@@ -80,7 +80,7 @@ async function* scanIterator<V>(
       yield res.value;
     }
   } finally {
-    if (shouldCloseTranscation && !transaction.closed) {
+    if (shouldCloseTransaction && !transaction.closed) {
       transaction.close();
     }
   }

@@ -1,4 +1,4 @@
-import type {JSONValue, ToJSON} from './json.js';
+import type {JSONValue} from './json.js';
 import type {
   Invoke,
   OpenTransactionRequest,
@@ -133,7 +133,7 @@ export interface WriteTransaction extends ReadTransaction {
    * Sets a single value in the database. The `value` will be encoded using
    * `JSON.stringify`.
    */
-  put(key: string, value: JSONValue | ToJSON): Promise<void>;
+  put(key: string, value: JSONValue): Promise<void>;
 
   /**
    * Removes a key and its value from the database. Returns true if there was a
@@ -145,7 +145,7 @@ export interface WriteTransaction extends ReadTransaction {
 export class WriteTransactionImpl
   extends ReadTransactionImpl
   implements WriteTransaction {
-  async put(key: string, value: JSONValue | ToJSON): Promise<void> {
+  async put(key: string, value: JSONValue): Promise<void> {
     throwIfClosed(this);
     await this._invoke('put', {
       transactionId: this.id,

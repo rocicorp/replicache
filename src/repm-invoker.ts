@@ -1,4 +1,4 @@
-import type {JSONValue, ToJSON} from './json.js';
+import type {JSONValue} from './json.js';
 import type {ScanOptionsRPC} from './scan-options.js';
 import init, {dispatch} from './wasm/release/replicache_client.js';
 import type {InitInput, InitOutput} from './wasm/release/replicache_client.js';
@@ -15,7 +15,7 @@ export interface Invoke {
   <RPC extends keyof InvokeMap>(rpc: RPC, args: InvokeMap[RPC][0]): Promise<
     InvokeMap[RPC][1]
   >;
-  (rpc: string, args?: JSONValue | ToJSON): Promise<JSONValue>;
+  (rpc: string, args?: JSONValue): Promise<JSONValue>;
 }
 
 export interface REPMInvoke {
@@ -27,7 +27,7 @@ export interface REPMInvoke {
     rpc: RPC,
     args: InvokeMap[RPC][0],
   ): Promise<InvokeMap[RPC][1]>;
-  (dbName: string, rpc: string, args?: JSONValue | ToJSON): Promise<JSONValue>;
+  (dbName: string, rpc: string, args?: JSONValue): Promise<JSONValue>;
 }
 
 let wasmModuleOutput: Promise<InitOutput> | undefined;
@@ -54,7 +54,7 @@ export class REPMWasmInvoker {
   invoke: REPMInvoke = async (
     dbName: string,
     rpc: string,
-    args: JSONValue | ToJSON = {},
+    args: JSONValue = {},
   ): Promise<JSONValue> => {
     await wasmModuleOutput;
     return await dispatch(dbName, rpc, args);

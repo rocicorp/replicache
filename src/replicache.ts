@@ -1,4 +1,4 @@
-import type {JSONValue, ToJSON} from './json.js';
+import {deepEqual, JSONValue} from './json.js';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
 import {
   Invoker,
@@ -99,7 +99,9 @@ export default class Replicache implements ReadTransaction {
     (tx: WriteTransaction, args?: JSONValue) => MaybePromise<void | JSONValue>
   >();
   private _syncPromise: Promise<void> | null = null;
-  private readonly _subscriptions = new Set<Subscription<unknown, unknown>>();
+  private readonly _subscriptions = new Set<
+    Subscription<JSONValue | undefined, unknown>
+  >();
   private _syncInterval: number | null;
   // NodeJS has a non standard setTimeout function :'(
   protected _timerId: ReturnType<typeof setTimeout> | 0 = 0;
@@ -242,7 +244,7 @@ export default class Replicache implements ReadTransaction {
 
   private _invoke: Invoke = async (
     rpc: string,
-    args?: JSONValue | ToJSON,
+    args?: JSONValue,
   ): Promise<JSONValue> => {
     await this._opened;
     return await this._repmInvoker.invoke(this._name, rpc, args);
@@ -528,24 +530,32 @@ export default class Replicache implements ReadTransaction {
   }
 
   private async _fireOnChange(): Promise<void> {
+    type R =
+      | {ok: true; value: JSONValue | undefined}
+      | {ok: false; error: unknown};
     const subscriptions = [...this._subscriptions];
     const results = await this.query(async tx => {
       const promises = subscriptions.map(async s => {
         // Tag the result so we can deal with success vs error below.
         try {
-          return {ok: true, value: await s.body(tx)};
+          return {ok: true, value: await s.body(tx)} as R;
         } catch (ex) {
-          return {ok: false, error: ex};
+          return {ok: false, error: ex} as R;
         }
       });
       return await Promise.all(promises);
     });
     for (let i = 0; i < subscriptions.length; i++) {
+      const s = subscriptions[i];
       const result = results[i];
       if (result.ok) {
-        subscriptions[i].onData(result.value);
+        const value: JSONValue | undefined = result.value;
+        if (!deepEqual(value, s.lastValue)) {
+          s.lastValue = value;
+          s.onData(value);
+        }
       } else {
-        subscriptions[i].onError?.(result.error);
+        s.onError?.(result.error);
       }
     }
   }
@@ -562,7 +572,7 @@ export default class Replicache implements ReadTransaction {
    * If an error occurs in the `body` the `onError` function is called if
    * present. Otherwise, the error is thrown.
    */
-  subscribe<R, E>(
+  subscribe<R extends JSONValue | undefined, E>(
     body: (tx: ReadTransaction) => Promise<R>,
     {
       onData,
@@ -574,11 +584,20 @@ export default class Replicache implements ReadTransaction {
       onDone?: () => void;
     },
   ): () => void {
-    const s = {body, onData, onError, onDone} as Subscription<unknown, unknown>;
-    this._subscriptions.add(s);
+    const s = {
+      body,
+      onData,
+      onError,
+      onDone,
+      lastValue: undefined,
+    } as Subscription<R, E>;
+    this._subscriptions.add(
+      (s as unknown) as Subscription<JSONValue | undefined, unknown>,
+    );
     (async () => {
       try {
         const res = await this.query(s.body);
+        s.lastValue = res;
         s.onData(res);
       } catch (ex) {
         if (s.onError) {
@@ -589,7 +608,9 @@ export default class Replicache implements ReadTransaction {
       }
     })();
     return (): void => {
-      this._subscriptions.delete(s);
+      this._subscriptions.delete(
+        (s as unknown) as Subscription<JSONValue | undefined, unknown>,
+      );
     };
   }
 
@@ -752,9 +773,10 @@ export class ReplicacheTest extends Replicache {
   }
 }
 
-type Subscription<R, E> = {
+type Subscription<R extends JSONValue | undefined, E> = {
   body: (tx: ReadTransaction) => Promise<R>;
   onData: (r: R) => void;
   onError?: (e: E) => void;
   onDone?: () => void;
+  lastValue?: R;
 };

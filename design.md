@@ -8,13 +8,17 @@ These applications are highly desired by product teams and users because they ar
 reliable than applications that are directly dependent upon servers. By using a local database, offline-first
 applications are instantaneously responsive and reliable in any network conditions.
 
+Additionally, offline-first applications typically update live, in real time, when something change server side, without
+the user having to refresh. Since they are already continuously synchronizing, realtime updates are just updating the UI
+when new data arrives.
+
 Unfortunately, offline-first applications are also really hard to build. Many previous companies and open source projects
 have sought to provide an easy framework for buiding offline-first applications, but for a variety of reasons none have
 succeeded.
 
 # Introducing Replicache
 
-Replicache dramatically reduces the difficulty of building offline-first applications. Replicache's goals are:
+[Replicache](https://replicache.dev) dramatically reduces the difficulty of building offline-first applications. Replicache's goals are:
 
 1. Providing a truly offline-first programming model that is natural and easy to reason about
 1. Maximizing compatability with existing application infrastructure and patterns, minimizing the work to integrate

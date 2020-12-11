@@ -5,7 +5,7 @@ the application reads and writes to a local database on the device, and synchron
 there is connectivity.
 
 These applications are highly desired by product teams and users because they are so much more responsive and
-reliable than applications that are directly dependent upon servers. By using a local database, offline-first
+reliable than applications that are directly dependent upon servers. By storing data in a local database, offline-first
 applications are instantaneously responsive and reliable in any network conditions.
 
 Additionally, offline-first applications typically update live, in real time, when something change server side, without

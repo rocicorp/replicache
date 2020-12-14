@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1607755993233,
+  "lastUpdate": 1607975627357,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -7532,6 +7532,93 @@ window.BENCHMARK_DATA = {
           {
             "name": "scan 1024x5000",
             "value": 18.22,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 40,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "79 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "distinct": true,
+          "id": "e90d13cf27049c162bd07218d5d2705c50832543",
+          "message": "Bump ini from 1.3.5 to 1.3.8 in /sample/next\n\nBumps [ini](https://github.com/isaacs/ini) from 1.3.5 to 1.3.8.\n- [Release notes](https://github.com/isaacs/ini/releases)\n- [Commits](https://github.com/isaacs/ini/compare/v1.3.5...v1.3.8)\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2020-12-14T11:51:22-08:00",
+          "tree_id": "c03c0e86956562e96113c7695d60806123e3f40d",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/e90d13cf27049c162bd07218d5d2705c50832543"
+        },
+        "date": 1607975625450,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.67,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.3,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.48,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.98,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 5.37,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "12 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 5.85,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 16.01,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "32 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 17.44,
             "range": "±0.0%",
             "unit": "MB/s",
             "extra": "8 samples"

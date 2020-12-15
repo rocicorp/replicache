@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1608058969516,
+  "lastUpdate": 1608060400362,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -7716,6 +7716,93 @@ window.BENCHMARK_DATA = {
             "range": "±0.0%",
             "unit": "tx/s",
             "extra": "69 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "distinct": true,
+          "id": "f3fff7dfd4df9b8534e11154c573615258817269",
+          "message": "Call subscribe onData when query retval changes\n\nFor `subscribe`, we now only call `onData` if the return value of the\n`body` function changes compared to last time.\n\nThis requires that we store the last return value to be able to compare\nwith that.\n\nWe consider the values equal if they behave like `JSON.stringify(a) ===\nJSON.stringify(b)` except for the ordering of the property keys.\n\n*BREAKING CHANGE*\n\nThis is a breaking API change because subscribe now has a slightly more\nrestricted type which can lead to new TypeScript type errors.\n\nAlso, we changed the type signature from `ToJSON` to `JSONValue` in a\nfew places.\n\nhttps://github.com/rocicorp/replicache-sdk-js/issues/63",
+          "timestamp": "2020-12-15T11:24:04-08:00",
+          "tree_id": "2ecee161e748fc0f70f93a40c2e32ba1f9cc0c9e",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/f3fff7dfd4df9b8534e11154c573615258817269"
+        },
+        "date": 1608060399631,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.5,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.14,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.5,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.97,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 5.31,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "12 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 5.69,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 17.13,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "35 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 19.45,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 30.3,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "59 samples"
           }
         ]
       }

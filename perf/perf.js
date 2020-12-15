@@ -10,6 +10,9 @@ console.assert = console.debug = console.error = console.info = console.log = co
 
 const valSize = 1024;
 
+/**
+ * @param {number} len
+ */
 function randomString(len) {
   const arr = new Uint8Array(len);
   crypto.getRandomValues(arr);
@@ -24,6 +27,9 @@ function randomString(len) {
   return new TextDecoder('ascii').decode(arr);
 }
 
+/**
+ * @param {number} length
+ */
 function makeRandomStrings(length) {
   return Array.from({length}, () => randomString(valSize));
 }
@@ -61,6 +67,8 @@ function makeLastRep() {
 
 /**
  * @param {Replicache} rep
+ * @param {{numKeys: number}}
+ * @param {string[]} randomStrings
  */
 async function populate(rep, {numKeys}, randomStrings) {
   const set = rep.register('populate', async tx => {
@@ -71,6 +79,10 @@ async function populate(rep, {numKeys}, randomStrings) {
   await set();
 }
 
+/**
+ * @param {Bench} bench
+ * @param {{numKeys: number; clean: boolean; indexes?: number;}} opts
+ */
 async function benchmarkPopulate(bench, opts) {
   const rep = await makeRep();
   if (!opts.clean) {
@@ -92,6 +104,18 @@ async function benchmarkPopulate(bench, opts) {
   bench.stop();
   await rep.close();
 }
+
+/** @typedef {{
+ *   setup: (body: () => Promise<void>) => void;
+ *   name: string;
+ *   size: number;
+ *   reset: () => void;
+ *   stop: () => void;
+ *   formatter: (size: number, timeMS: number) => string;
+ * }}
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+let Bench;
 
 async function benchmarkReadTransaction(bench, opts) {
   await bench.setup(async () => {
@@ -122,6 +146,10 @@ async function benchmarkReadTransaction(bench, opts) {
   await rep.close();
 }
 
+/**
+ * @param {Bench} bench
+ * @param {{numKeys: number;}} opts
+ */
 async function benchmarkScan(bench, opts) {
   await bench.setup(async () => {
     bench.name = `scan ${valSize}x${opts.numKeys}`;
@@ -146,6 +174,10 @@ async function benchmarkScan(bench, opts) {
   await rep.close();
 }
 
+/**
+ * @param {Bench} bench
+ * @param {number} i
+ */
 async function benchmarkSingleByteWrite(bench, i) {
   const rep = await makeRep();
   const write = rep.register('write', tx => tx.put('k', i % 10));
@@ -160,6 +192,29 @@ async function benchmarkSingleByteWrite(bench, i) {
   await rep.close();
 }
 
+/**
+ * @param {Bench} bench
+ * @param {{numKeys: number;}} opts
+ */
+async function createIndex(bench, opts) {
+  const rep = await makeRep();
+  await populate(rep, opts, makeRandomStrings(opts.numKeys));
+  bench.name = `create index ${valSize}x${opts.numKeys}`;
+  bench.size = 1;
+  bench.formatter = formatOpPerSecond;
+  bench.reset();
+  await rep.createIndex({
+    name: `idx`,
+    jsonPointer: '',
+  });
+
+  bench.stop();
+  await rep.close();
+}
+
+/**
+ * @param {(bench: Bench, i: number) => void | Promise<void>} fn
+ */
 async function benchmark(fn) {
   // Execute fn at least this many runs.
   const minRuns = 5;
@@ -182,15 +237,33 @@ async function benchmark(fn) {
         stop() {
           t1 = Date.now();
         },
+        /**
+         * @param {string} n
+         */
         set name(n) {
           name = n;
         },
+        /**
+         * @param {number} s
+         */
         set size(s) {
           size = s;
         },
+        /**
+         * @return {number} s
+         */
+        get size() {
+          return size;
+        },
+        /**
+         * @param {(size: number, timeMS: number) => string} f
+         */
         set formatter(f) {
           format = f;
         },
+        /**
+         * @param {() => void | Promise<void>} f
+         */
         async setup(f) {
           if (!setupCalled) {
             await f();
@@ -219,14 +292,25 @@ async function benchmark(fn) {
   return {name, value, median, runs};
 }
 
+/**
+ * @param {number} size
+ * @param {number} timeMS
+ */
 function formatToMBPerSecond(size, timeMS) {
   const bytes = (size / timeMS) * 1000;
   return (bytes / 2 ** 20).toFixed(2) + ' MB/s';
 }
 
-function formatTxPerSecond(size, timeMS) {
-  return ((size / timeMS) * 1000).toFixed(2) + ' tx/s';
+/**
+ * @param {string} x
+ * @return {(size: number, timeMS: number) => string}
+ */
+function makeFormatXPerSecond(x) {
+  return (size, timeMS) => `${((size / timeMS) * 1000).toFixed(2)} ${x}/s`;
 }
+
+const formatTxPerSecond = makeFormatXPerSecond('tx');
+const formatOpPerSecond = makeFormatXPerSecond('op');
 
 const benchmarks = [
   bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true}),
@@ -238,6 +322,8 @@ const benchmarks = [
   bench => benchmarkScan(bench, {numKeys: 1000}),
   bench => benchmarkScan(bench, {numKeys: 5000}),
   benchmarkSingleByteWrite,
+  bench => createIndex(bench, {numKeys: 1000}),
+  bench => createIndex(bench, {numKeys: 5000}),
 ];
 
 let current = 0;

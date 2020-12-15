@@ -59,25 +59,11 @@ async function* scanIterator<V>(
   const transaction = await getTransaction();
   throwIfClosed(transaction);
 
-  let controller!: ReadableStreamDefaultController<V>;
-  const stream = new ReadableStream({
-    start: c => {
-      controller = c;
-    },
-  });
-  const reader: ReadableStreamDefaultReader<V> = stream.getReader();
-
-  // No await. We want the loading to happen in the background. load
-  // communicates with this function using controller.
-  load(kind, options, transaction.id, controller, invoke);
+  const items = await load<V>(kind, options, transaction.id, invoke);
 
   try {
-    while (true) {
-      const res = await reader.read();
-      if (res.done) {
-        break;
-      }
-      yield res.value;
+    for (const item of items) {
+      yield item;
     }
   } finally {
     if (shouldCloseTransaction && !transaction.closed) {
@@ -90,9 +76,9 @@ async function load<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
   transactionID: number,
-  controller: ReadableStreamDefaultController<V>,
   invoke: Invoke,
-) {
+): Promise<V[]> {
+  const items: V[] = [];
   const decoder = new TextDecoder();
   const parse = (v: Uint8Array) => JSON.parse(decoder.decode(v));
   type MaybeIndexName = {indexName?: string};
@@ -108,13 +94,13 @@ async function load<V>(
   ) => {
     switch (kind) {
       case VALUE:
-        controller.enqueue(parse(value));
+        items.push(parse(value));
         return;
       case KEY:
-        controller.enqueue((key(primaryKey, secondaryKey) as unknown) as V);
+        items.push((key(primaryKey, secondaryKey) as unknown) as V);
         return;
       case ENTRY:
-        controller.enqueue(([
+        items.push(([
           key(primaryKey, secondaryKey),
           parse(value),
         ] as unknown) as V);
@@ -126,13 +112,8 @@ async function load<V>(
     opts: toRPC(options),
     receiver,
   };
-  try {
-    await invoke('scan', args);
-  } catch (ex) {
-    // Signal erros to the reader read loop.
-    controller.error(ex);
-    return;
-  }
 
-  controller.close();
+  await invoke('scan', args);
+
+  return items;
 }

@@ -5,6 +5,7 @@ import {
   Invoke,
   OpenTransactionRequest,
   REPMWasmInvoker,
+  InitInput,
 } from './repm-invoker.js';
 import {
   IndexTransactionImpl,
@@ -13,12 +14,6 @@ import {
 } from './transactions.js';
 import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
-import type {InitInput} from './wasm/release/replicache_client.js';
-
-/** @deprecated This type wasn't exact enough as described */
-export type Mutator<Return extends JSONValue | void, Args extends JSONValue> = (
-  args: Args,
-) => Promise<Return | void>;
 
 type BeginSyncResult = {
   syncID: string;
@@ -27,7 +22,7 @@ type BeginSyncResult = {
 
 export const httpStatusUnauthorized = 401;
 
-type MaybePromise<T> = T | Promise<T>;
+export type MaybePromise<T> = T | Promise<T>;
 
 /** The key name to use in localStorage when synchronizing changes. */
 const storageKeyName = (name: string) => `/replicache/root/${name}`;
@@ -44,8 +39,6 @@ export interface ReplicacheOptions {
   diffServerAuth?: string;
   diffServerURL: string;
   name?: string;
-  /** @deprecated Use wasmModule instead */
-  repmInvoker?: Invoker;
 
   /**
    * The duration between each [[sync]]. Set this to `null` to prevent syncing in
@@ -131,7 +124,6 @@ export default class Replicache implements ReadTransaction {
       diffServerAuth = '',
       diffServerURL,
       name = 'default',
-      repmInvoker,
       syncInterval = 60_000,
       pushDelay = 300,
       wasmModule,
@@ -141,7 +133,7 @@ export default class Replicache implements ReadTransaction {
     this._diffServerAuth = diffServerAuth;
     this._diffServerURL = diffServerURL;
     this._name = name;
-    this._repmInvoker = repmInvoker ?? new REPMWasmInvoker(wasmModule);
+    this._repmInvoker = new REPMWasmInvoker(wasmModule);
     this._syncInterval = syncInterval;
     this.pushDelay = pushDelay;
     this._open();

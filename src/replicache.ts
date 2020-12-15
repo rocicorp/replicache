@@ -554,10 +554,9 @@ export default class Replicache implements ReadTransaction {
 
   /**
    * Subcribe to changes to the underlying data. Every time the underlying data
-   * changes `onData` is called. The function is also called once the first time
-   * the subscription is added. There is currently no guarantee that the result
-   * of this subscription changes and it might get called with the same value
-   * over and over.
+   * changes `body` is called and if the result of `body` changes compared to
+   * last time `onData` is called. The function is also called once the first
+   * time the subscription is added.
    *
    * This returns a function that can be used to cancel the subscription.
    *

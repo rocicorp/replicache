@@ -1,11 +1,15 @@
 import type {JSONValue} from './json.js';
 import type {ScanOptionsRPC} from './scan-options.js';
 import init, {dispatch} from './wasm/release/replicache_client.js';
-import type {InitInput, InitOutput} from './wasm/release/replicache_client.js';
+import type {InitOutput} from './wasm/release/replicache_client.js';
 
-/**
- * @deprecated - use the wasmModule parameter to {@link Replicache.constructor} instead.
- */
+export type InitInput =
+  | RequestInfo
+  | URL
+  | Response
+  | BufferSource
+  | WebAssembly.Module;
+
 export type Invoker = {
   readonly invoke: REPMInvoke;
 };
@@ -32,9 +36,6 @@ export interface REPMInvoke {
 
 let wasmModuleOutput: Promise<InitOutput> | undefined;
 
-/**
- * @deprecated - use the wasmModule parameter to {@link Replicache.constructor} instead.
- */
 export class REPMWasmInvoker {
   constructor(wasmModuleOrPath?: InitInput) {
     if (!wasmModuleOutput) {

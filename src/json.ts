@@ -6,7 +6,7 @@ export type JSONValue =
   | Array<JSONValue>
   | JSONObject;
 
-type JSONObject = {[key: string]: JSONValue};
+export type JSONObject = {[key: string]: JSONValue};
 
 /**
  * Checks deep equality of two JSON value with (almost) same semantics as

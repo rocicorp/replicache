@@ -31,7 +31,7 @@ const PRECACHE_URLS = [
   'roboto.woff2',
   'roboto-medium.woff2',
   'output/main.js',
-  'output/wasm/release/replicache_client_bg.wasm',
+  'output/replicache.wasm',
   'https://js.pusher.com/7.0/pusher.min.js',
 ];
 

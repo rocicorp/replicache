@@ -197,10 +197,8 @@ function registerMutations(rep: Replicache) {
 
   const updateTodo = rep.register(
     'updateTodo',
-    async (tx: WriteTransaction, args: JSONValue) => {
-      // TODO(arv): Fix me. This should really be Partial<Todo> & {id: number} but we cannot pass in optional fields any more :'(
-      const a = args as Partial<Todo> & {id: number};
-      const {id} = a;
+    async (tx: WriteTransaction, args: Partial<Todo> & {id: number}) => {
+      const {id} = args;
       const todo = await read(tx, id);
       if (!todo) {
         console.info(
@@ -209,9 +207,9 @@ function registerMutations(rep: Replicache) {
         );
         return;
       }
-      todo.text = a.text ?? todo.text;
-      todo.complete = a.complete ?? todo.complete;
-      todo.order = a.order ?? todo.order;
+      todo.text = args.text ?? todo.text;
+      todo.complete = args.complete ?? todo.complete;
+      todo.order = args.order ?? todo.order;
       await write(tx, todo);
     },
   );

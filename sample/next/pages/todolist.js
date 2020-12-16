@@ -8,29 +8,37 @@ const rep = new Replicache({
   dataLayerAuth: '2',
 });
 
-function useSubscribe(query, def, deps) {
-  const [snapshot, setSnapshot] = useState(def);
+function useSubscribe(query, defaultValue, deps) {
+  const [snapshot, setSnapshot] = useState(defaultValue);
   const q = useCallback(query, deps);
-  useEffect(() => {
-    return rep.subscribe(q, {onData: setSnapshot});
-  }, [q]);
+  useEffect(() => rep.subscribe(q, {onData: setSnapshot}), [q]);
   return snapshot;
 }
 
 export default function TodoList() {
   const todos = useSubscribe(
-    async tx => tx.scanAll({prefix: '/todo/'}),
+    async tx => {
+      const values = [];
+      for await (const v of tx.scan({prefix: '/todo/'})) {
+        values.push(v);
+      }
+      return values.sort((v1, v2) =>
+        v1.order === v2.order ? 0 : v1.order < v2.order ? -1 : 1,
+      );
+    },
     [],
     [],
-  ).sort(([k1, v1], [k2, v2]) => v1.order - v2.order);
+  );
   return (
-    <table border="1" width="100%">
-      {todos.map(([id, todo]) => (
-        <tr>
-          <td>{todo.complete ? '☑' : '◻️'}</td>
-          <td>{todo.text}</td>
-        </tr>
-      ))}
+    <table>
+      <tbody>
+        {todos.map(todo => (
+          <tr key={todo.id}>
+            <td>{todo.complete ? '☑' : '◻️'}</td>
+            <td>{todo.text}</td>
+          </tr>
+        ))}
+      </tbody>
     </table>
   );
 }

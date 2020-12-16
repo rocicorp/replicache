@@ -6,7 +6,12 @@ export type JSONValue =
   | Array<JSONValue>
   | JSONObject;
 
-export type JSONObject = {[key: string]: JSONValue};
+/**
+ * A JSON object. We allow undefined values because in TypeScript there is no
+ * way to express optional missing properties vs proeprties with the value
+ * `undefined`.
+ */
+export type JSONObject = Partial<{[key: string]: JSONValue}>;
 
 /**
  * Checks deep equality of two JSON value with (almost) same semantics as

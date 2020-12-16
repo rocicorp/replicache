@@ -4,7 +4,7 @@ import './App.css';
 import Replicache, {
   ReadTransaction,
   WriteTransaction,
-  Mutator,
+  JSONValue,
 } from 'replicache';
 import {diffServerURL, diffServerAuth, batchURL} from './settings';
 import {LoginScreen, logout} from './login';
@@ -13,9 +13,9 @@ import {List} from './List';
 import {newOrderBetween} from './order';
 
 export interface MutationFunctions {
-  createTodo: Mutator<void, Todo>;
-  deleteTodo: Mutator<void, Todo>;
-  updateTodo: Mutator<void, Partial<Todo> & {id: number}>;
+  createTodo: (args: Todo) => Promise<void>;
+  deleteTodo: (args: {id: number}) => Promise<void>;
+  updateTodo: (args: JSONValue) => Promise<void>;
 }
 
 function App() {
@@ -69,7 +69,7 @@ function App() {
   );
 }
 
-function useSubscribe<R>(
+function useSubscribe<R extends JSONValue>(
   rep: Replicache,
   query: (tx: ReadTransaction) => Promise<R>,
   def: R,
@@ -189,7 +189,7 @@ function registerMutations(rep: Replicache) {
 
   const deleteTodo = rep.register(
     'deleteTodo',
-    async (tx: WriteTransaction, args: Todo) => {
+    async (tx: WriteTransaction, args: {id: number}) => {
       const id = args['id'];
       await del(tx, id);
     },
@@ -197,8 +197,10 @@ function registerMutations(rep: Replicache) {
 
   const updateTodo = rep.register(
     'updateTodo',
-    async (tx: WriteTransaction, args: Partial<Todo> & {id: number}) => {
-      const {id} = args;
+    async (tx: WriteTransaction, args: JSONValue) => {
+      // TODO(arv): Fix me. This should really be Partial<Todo> & {id: number} but we cannot pass in optional fields any more :'(
+      const a = args as Partial<Todo> & {id: number};
+      const {id} = a;
       const todo = await read(tx, id);
       if (!todo) {
         console.info(
@@ -207,9 +209,9 @@ function registerMutations(rep: Replicache) {
         );
         return;
       }
-      todo.text = args.text ?? todo.text;
-      todo.complete = args.complete ?? todo.complete;
-      todo.order = args.order ?? todo.order;
+      todo.text = a.text ?? todo.text;
+      todo.complete = a.complete ?? todo.complete;
+      todo.order = a.order ?? todo.order;
       await write(tx, todo);
     },
   );
@@ -227,7 +229,9 @@ async function allTodosInTx(tx: ReadTransaction): Promise<Todo[]> {
 
 function todosInList(allTodos: Todo[], listId: number | null): Todo[] {
   const todos = allTodos.filter(todo => todo.listId === listId);
-  todos.sort((t1, t2) => t1.order - t2.order);
+  todos.sort((t1, t2) =>
+    t1.order === t2.order ? 0 : t1.order < t2.order ? -1 : 1,
+  );
   return todos;
 }
 
@@ -244,5 +248,5 @@ export type Todo = {
   listId: number;
   text: string;
   complete: boolean;
-  order: number;
+  order: string;
 };

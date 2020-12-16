@@ -1061,7 +1061,7 @@ test('index scan start', async () => {
 });
 
 // Only used for type checking
-test.skip('mutator optional args', async () => {
+test.skip('mutator optional args [type checking only]', async () => {
   rep = await replicacheForTesting('test-types');
 
   const mut = rep.register('mut', async (tx: WriteTransaction, x: number) => {
@@ -1164,4 +1164,27 @@ test('JSON deep equal', () => {
   }
 
   t({a: 1, b: 2}, {b: 2, a: 1});
+});
+
+// Only used for type checking
+test.skip('Test partial JSONObject [type checking only]', async () => {
+  rep = await replicacheForTesting('test-types');
+
+  type Todo = {id: number; text: string};
+
+  const mut = rep.register(
+    'mut',
+    async (tx: WriteTransaction, todo: Partial<Todo>) => {
+      console.log(tx);
+      return todo;
+    },
+  );
+  await mut({});
+  await mut({id: 42});
+  await mut({text: 'abc'});
+
+  // @ts-expect-error Type '42' has no properties in common with type 'Partial<Todo>'.ts(2559)
+  await mut(42);
+  // @ts-expect-error Type 'string' is not assignable to type 'number | undefined'.ts(2322)
+  await mut({id: 'abc'});
 });

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1608141570564,
+  "lastUpdate": 1608146646466,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -8468,6 +8468,107 @@ window.BENCHMARK_DATA = {
             "range": "±0.0%",
             "unit": "op/s",
             "extra": "9 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "distinct": true,
+          "id": "f62ebdf502eb16ec557f169a3e52b83938c2b8d4",
+          "message": "Relax JSONObject type a bit\n\nWe need to allow undefined after all. It is common to use optional\nfields and TypeScript cannot distinguish those from the value undefined.",
+          "timestamp": "2020-12-16T11:21:11-08:00",
+          "tree_id": "5c3511f89b564a4cf5208c855d516f010b5fc3ca",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/f62ebdf502eb16ec557f169a3e52b83938c2b8d4"
+        },
+        "date": 1608146643104,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.14,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.86,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "10 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 3.03,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.42,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.47,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "13 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.46,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 20.78,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "42 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 21.7,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 37.04,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "73 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 22.22,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "45 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 5,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "10 samples"
           }
         ]
       }

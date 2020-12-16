@@ -11,7 +11,7 @@
     "next": "10.0.1",
     "react": "17.0.1",
     "react-dom": "17.0.1",
-    "replicache": "^2.0.2"
+    "replicache": "^4.0.0"
   },
   "resolutions": {
     "webpack": "^5.0.0"

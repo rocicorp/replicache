@@ -207,7 +207,7 @@ async fn execute<'a, 'b>(
     let txns = ctx.txns.read().await;
     let txn = txns
         .get(&txn_id)
-        .ok_or_else(|| TransactionNotFound(txn_id))
+        .ok_or(TransactionNotFound(txn_id))
         .map_err(to_debug)?;
 
     match rpc.as_str() {

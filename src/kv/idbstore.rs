@@ -225,7 +225,7 @@ async fn get_impl(tx: &IdbTransaction, key: &str, lc: LogContext) -> Result<Opti
     receiver.await?;
     Ok(match request.result()? {
         v if v.is_undefined() => None,
-        v => Some(js_sys::Uint8Array::new(&v).to_vec()),
+        v => Some(v.unchecked_into::<js_sys::Uint8Array>().to_vec()),
     })
 }
 

@@ -26,15 +26,15 @@ export interface Invoke {
 }
 
 export interface REPMInvoke {
-  <RPC extends keyof InvokeMapNoArgs>(dbName: string, rpc: RPC): Promise<
-    InvokeMapNoArgs[RPC]
+  <R extends keyof InvokeMapNoArgs>(dbName: string, rpc: R): Promise<
+    InvokeMapNoArgs[R]
   >;
-  <RPC extends keyof InvokeMap>(
+  <R extends keyof InvokeMap>(
     dbName: string,
-    rpc: RPC,
-    args: InvokeMap[RPC][0],
-  ): Promise<InvokeMap[RPC][1]>;
-  (dbName: string, rpc: string, args?: JSONValue): Promise<JSONValue>;
+    rpc: R,
+    args: InvokeMap[R][0],
+  ): Promise<InvokeMap[R][1]>;
+  (dbName: string, rpc: RPC, args?: JSONValue): Promise<JSONValue>;
 }
 
 let wasmModuleOutput: Promise<InitOutput> | undefined;
@@ -57,7 +57,7 @@ export class REPMWasmInvoker {
 
   invoke: REPMInvoke = async (
     dbName: string,
-    rpc: string,
+    rpc: RPC,
     args: JSONValue = {},
   ): Promise<JSONValue> => {
     await wasmModuleOutput;
@@ -201,29 +201,32 @@ type DropIndexRequest = TransactionRequest & {
 type DropIndexResponse = unknown;
 
 export type InvokeMap = {
-  open: [OpenRequest, OpenResponse];
-  get: [GetRequest, GetResponse];
-  has: [HasRequest, HasResponse];
-  scan: [ScanRequest, ScanResponse];
-  put: [PutRequest, PutResponse];
-  del: [DelRequest, DelResponse];
+  [RPC.Open]: [OpenRequest, OpenResponse];
+  [RPC.Get]: [GetRequest, GetResponse];
+  [RPC.Has]: [HasRequest, HasResponse];
+  [RPC.Scan]: [ScanRequest, ScanResponse];
+  [RPC.Put]: [PutRequest, PutResponse];
+  [RPC.Del]: [DelRequest, DelResponse];
 
-  openTransaction: [OpenTransactionRequest, OpenTransactionResponse];
-  openIndexTransaction: [
+  [RPC.OpenTransaction]: [OpenTransactionRequest, OpenTransactionResponse];
+  [RPC.OpenIndexTransaction]: [
     OpenIndexTransactionRequest,
     OpenIndexTransactionResponse,
   ];
-  closeTransaction: [CloseTransactionRequest, CloseTransactionResponse];
-  commitTransaction: [CommitTransactionRequest, CommitTransactionResponse];
+  [RPC.CloseTransaction]: [CloseTransactionRequest, CloseTransactionResponse];
+  [RPC.CommitTransaction]: [
+    CommitTransactionRequest,
+    CommitTransactionResponse,
+  ];
 
-  beginTryPull: [BeginTryPullRequest, BeginTryPullResponse];
-  maybeEndTryPull: [MaybeEndTryPullRequest, MaybeEndTryPullResponse];
-  tryPush: [TryPushRequest, TryPushResponse];
+  [RPC.BeginTryPull]: [BeginTryPullRequest, BeginTryPullResponse];
+  [RPC.MaybeEndTryPull]: [MaybeEndTryPullRequest, MaybeEndTryPullResponse];
+  [RPC.TryPush]: [TryPushRequest, TryPushResponse];
 
-  setLogLevel: [SetLogLevelRequest, SetLogLevelResponse];
+  [RPC.SetLogLevel]: [SetLogLevelRequest, SetLogLevelResponse];
 
-  createIndex: [CreateIndexRequest, CreateIndexResponse];
-  dropIndex: [DropIndexRequest, DropIndexResponse];
+  [RPC.CreateIndex]: [CreateIndexRequest, CreateIndexResponse];
+  [RPC.DropIndex]: [DropIndexRequest, DropIndexResponse];
 };
 
 type CloseResponse = '';
@@ -233,6 +236,28 @@ type GetRootResponse = {
 };
 
 export type InvokeMapNoArgs = {
-  close: CloseResponse;
-  getRoot: GetRootResponse;
+  [RPC.Close]: CloseResponse;
+  [RPC.GetRoot]: GetRootResponse;
 };
+
+export enum RPC {
+  BeginTryPull = 1,
+  Close,
+  CloseTransaction,
+  CommitTransaction,
+  CreateIndex,
+  Debug,
+  Del,
+  DropIndex,
+  Get,
+  GetRoot,
+  Has,
+  MaybeEndTryPull,
+  Open,
+  OpenIndexTransaction,
+  OpenTransaction,
+  Put,
+  Scan,
+  SetLogLevel,
+  TryPush,
+}

@@ -518,7 +518,7 @@ export default class Replicache implements ReadTransaction {
   }
 
   private _fireOnSync(syncing: boolean): void {
-    queueMicrotask(() => this.onSync?.(syncing));
+    Promise.resolve().then(() => this.onSync?.(syncing));
   }
 
   private async _fireOnChange(): Promise<void> {

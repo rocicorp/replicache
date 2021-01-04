@@ -11,7 +11,6 @@ use async_std::stream::StreamExt;
 use async_std::sync::{Receiver, RecvError, RwLock};
 use futures::stream::futures_unordered::FuturesUnordered;
 use js_sys::{Function, Reflect, Uint8Array};
-use log::warn;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use wasm_bindgen::{JsCast, JsValue};
@@ -124,9 +123,7 @@ pub async fn process(store: dag::Store, rx: Receiver<Request>, client_id: String
         }
         match value {
             UnorderedResult::Request(value) => match value {
-                // TODO turn this into lc.info() it is expected and not a problem or
-                // turn it into an lc.error() otherwise.
-                Err(why) => warn!("Connection loop recv failed: {}", why),
+                Err(why) => info!(lc, "Connection loop recv failed: {}", why),
                 Ok(req) => {
                     futures.push(connection_future(
                         &rx,

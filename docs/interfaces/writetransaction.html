@@ -4,16 +4,17 @@
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<title>WriteTransaction | Replicache</title>
-	<meta name="description" content="">
+	<meta name="description" content="Documentation for Replicache">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
+	<script async src="../assets/js/search.js" id="search-script"></script>
 </head>
 <body>
 <header>
 	<div class="tsd-page-toolbar">
 		<div class="container">
 			<div class="table-wrap">
-				<div class="table-cell" id="tsd-search" data-index="../assets/js/search.js" data-base="..">
+				<div class="table-cell" id="tsd-search" data-index="../assets/js/search.json" data-base="..">
 					<div class="field">
 						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
 						<input id="tsd-search-field" type="text" />
@@ -49,7 +50,7 @@
 		<div class="container">
 			<ul class="tsd-breadcrumb">
 				<li>
-					<a href="../globals.html">Globals</a>
+					<a href="../modules.html">Replicache</a>
 				</li>
 				<li>
 					<a href="writetransaction.html">WriteTransaction</a>
@@ -74,7 +75,7 @@
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
 					<li>
-						<a href="readtransaction.html" class="tsd-signature-type">ReadTransaction</a>
+						<a href="readtransaction.html" class="tsd-signature-type" data-tsd-kind="Interface">ReadTransaction</a>
 						<ul class="tsd-hierarchy">
 							<li>
 								<span class="target">WriteTransaction</span>
@@ -113,7 +114,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b07bc1c/src/transactions.ts#L142">src/transactions.ts:142</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/bd0828d/src/transactions.ts#L142">transactions.ts:142</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -136,14 +137,14 @@
 					<a name="get" class="tsd-anchor"></a>
 					<h3>get</h3>
 					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface tsd-is-inherited">
-						<li class="tsd-signature tsd-kind-icon">get<span class="tsd-signature-symbol">(</span>key<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../globals.html#jsonvalue" class="tsd-signature-type">JSONValue</a><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol">&gt;</span></li>
+						<li class="tsd-signature tsd-kind-icon">get<span class="tsd-signature-symbol">(</span>key<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol"> | </span><a href="../modules.html#jsonvalue" class="tsd-signature-type" data-tsd-kind="Type alias">JSONValue</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Partial</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-symbol">{}</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span></li>
 					</ul>
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<p>Inherited from <a href="readtransaction.html">ReadTransaction</a>.<a href="readtransaction.html#get">get</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b07bc1c/src/transactions.ts#L20">src/transactions.ts:20</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/bd0828d/src/transactions.ts#L20">transactions.ts:20</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -158,7 +159,7 @@
 									<h5>key: <span class="tsd-signature-type">string</span></h5>
 								</li>
 							</ul>
-							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../globals.html#jsonvalue" class="tsd-signature-type">JSONValue</a><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol">&gt;</span></h4>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol"> | </span><a href="../modules.html#jsonvalue" class="tsd-signature-type" data-tsd-kind="Type alias">JSONValue</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Partial</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-symbol">{}</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">&gt;</span></h4>
 						</li>
 					</ul>
 				</section>
@@ -173,7 +174,7 @@
 							<aside class="tsd-sources">
 								<p>Inherited from <a href="readtransaction.html">ReadTransaction</a>.<a href="readtransaction.html#has">has</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b07bc1c/src/transactions.ts#L25">src/transactions.ts:25</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/bd0828d/src/transactions.ts#L25">transactions.ts:25</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -195,13 +196,13 @@
 					<a name="put" class="tsd-anchor"></a>
 					<h3>put</h3>
 					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface">
-						<li class="tsd-signature tsd-kind-icon">put<span class="tsd-signature-symbol">(</span>key<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, value<span class="tsd-signature-symbol">: </span><a href="../globals.html#jsonvalue" class="tsd-signature-type">JSONValue</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></li>
+						<li class="tsd-signature tsd-kind-icon">put<span class="tsd-signature-symbol">(</span>key<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, value<span class="tsd-signature-symbol">: </span><a href="../modules.html#jsonvalue" class="tsd-signature-type" data-tsd-kind="Type alias">JSONValue</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></li>
 					</ul>
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b07bc1c/src/transactions.ts#L136">src/transactions.ts:136</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/bd0828d/src/transactions.ts#L136">transactions.ts:136</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -216,7 +217,7 @@
 									<h5>key: <span class="tsd-signature-type">string</span></h5>
 								</li>
 								<li>
-									<h5>value: <a href="../globals.html#jsonvalue" class="tsd-signature-type">JSONValue</a></h5>
+									<h5>value: <a href="../modules.html#jsonvalue" class="tsd-signature-type" data-tsd-kind="Type alias">JSONValue</a></h5>
 								</li>
 							</ul>
 							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4>
@@ -227,14 +228,14 @@
 					<a name="scan" class="tsd-anchor"></a>
 					<h3>scan</h3>
 					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface tsd-has-type-parameter tsd-is-inherited">
-						<li class="tsd-signature tsd-kind-icon">scan&lt;O, K&gt;<span class="tsd-signature-symbol">(</span>options<span class="tsd-signature-symbol">?: </span><a href="" class="tsd-signature-type">O</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../classes/scanresult.html" class="tsd-signature-type">ScanResult</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">K</span><span class="tsd-signature-symbol">&gt;</span></li>
+						<li class="tsd-signature tsd-kind-icon">scan&lt;O, K&gt;<span class="tsd-signature-symbol">(</span>options<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">O</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../classes/scanresult.html" class="tsd-signature-type" data-tsd-kind="Class">ScanResult</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">K</span><span class="tsd-signature-symbol">&gt;</span></li>
 					</ul>
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<p>Inherited from <a href="readtransaction.html">ReadTransaction</a>.<a href="readtransaction.html#scan">scan</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b07bc1c/src/transactions.ts#L39">src/transactions.ts:39</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/bd0828d/src/transactions.ts#L39">transactions.ts:39</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -252,19 +253,19 @@
 							<h4 class="tsd-type-parameters-title">Type parameters</h4>
 							<ul class="tsd-type-parameters">
 								<li>
-									<h4>O<span class="tsd-signature-symbol">: </span><a href="../globals.html#scanoptions" class="tsd-signature-type">ScanOptions</a></h4>
+									<h4>O<span class="tsd-signature-symbol">: </span><a href="../modules.html#scanoptions" class="tsd-signature-type" data-tsd-kind="Type alias">ScanOptions</a></h4>
 								</li>
 								<li>
-									<h4>K<span class="tsd-signature-symbol">: </span><a href="../globals.html#keytypeforscanoptions" class="tsd-signature-type">KeyTypeForScanOptions</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">O</span><span class="tsd-signature-symbol">&gt;</span></h4>
+									<h4>K<span class="tsd-signature-symbol">: </span><a href="../modules.html#scanoptionindexedstartkey" class="tsd-signature-type" data-tsd-kind="Type alias">ScanOptionIndexedStartKey</a></h4>
 								</li>
 							</ul>
 							<h4 class="tsd-parameters-title">Parameters</h4>
 							<ul class="tsd-parameters">
 								<li>
-									<h5><span class="tsd-flag ts-flagOptional">Optional</span> options: <a href="" class="tsd-signature-type">O</a></h5>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> options: <span class="tsd-signature-type">O</span></h5>
 								</li>
 							</ul>
-							<h4 class="tsd-returns-title">Returns <a href="../classes/scanresult.html" class="tsd-signature-type">ScanResult</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">K</span><span class="tsd-signature-symbol">&gt;</span></h4>
+							<h4 class="tsd-returns-title">Returns <a href="../classes/scanresult.html" class="tsd-signature-type" data-tsd-kind="Class">ScanResult</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">K</span><span class="tsd-signature-symbol">&gt;</span></h4>
 						</li>
 					</ul>
 				</section>
@@ -272,14 +273,14 @@
 					<a name="scanall" class="tsd-anchor"></a>
 					<h3>scan<wbr>All</h3>
 					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-interface tsd-has-type-parameter tsd-is-inherited">
-						<li class="tsd-signature tsd-kind-icon">scan<wbr>All&lt;O, K&gt;<span class="tsd-signature-symbol">(</span>options<span class="tsd-signature-symbol">?: </span><a href="" class="tsd-signature-type">O</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-symbol">[</span><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></li>
+						<li class="tsd-signature tsd-kind-icon">scan<wbr>All&lt;O, K&gt;<span class="tsd-signature-symbol">(</span>options<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">O</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-symbol">[</span><span class="tsd-signature-type">K</span><span class="tsd-signature-symbol">, </span><a href="../modules.html#jsonvalue" class="tsd-signature-type" data-tsd-kind="Type alias">JSONValue</a><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></li>
 					</ul>
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<p>Inherited from <a href="readtransaction.html">ReadTransaction</a>.<a href="readtransaction.html#scanall">scanAll</a></p>
 								<ul>
-									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/b07bc1c/src/transactions.ts#L46">src/transactions.ts:46</a></li>
+									<li>Defined in <a href="https://github.com/rocicorp/replicache-sdk-js/blob/bd0828d/src/transactions.ts#L46">transactions.ts:46</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -290,19 +291,19 @@
 							<h4 class="tsd-type-parameters-title">Type parameters</h4>
 							<ul class="tsd-type-parameters">
 								<li>
-									<h4>O<span class="tsd-signature-symbol">: </span><a href="../globals.html#scanoptions" class="tsd-signature-type">ScanOptions</a></h4>
+									<h4>O<span class="tsd-signature-symbol">: </span><a href="../modules.html#scanoptions" class="tsd-signature-type" data-tsd-kind="Type alias">ScanOptions</a></h4>
 								</li>
 								<li>
-									<h4>K<span class="tsd-signature-symbol">: </span><a href="../globals.html#keytypeforscanoptions" class="tsd-signature-type">KeyTypeForScanOptions</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">O</span><span class="tsd-signature-symbol">&gt;</span></h4>
+									<h4>K<span class="tsd-signature-symbol">: </span><a href="../modules.html#scanoptionindexedstartkey" class="tsd-signature-type" data-tsd-kind="Type alias">ScanOptionIndexedStartKey</a></h4>
 								</li>
 							</ul>
 							<h4 class="tsd-parameters-title">Parameters</h4>
 							<ul class="tsd-parameters">
 								<li>
-									<h5><span class="tsd-flag ts-flagOptional">Optional</span> options: <a href="" class="tsd-signature-type">O</a></h5>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> options: <span class="tsd-signature-type">O</span></h5>
 								</li>
 							</ul>
-							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-symbol">[</span><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></h4>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-symbol">[</span><span class="tsd-signature-type">K</span><span class="tsd-signature-symbol">, </span><a href="../modules.html#jsonvalue" class="tsd-signature-type" data-tsd-kind="Type alias">JSONValue</a><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></h4>
 						</li>
 					</ul>
 				</section>
@@ -311,21 +312,21 @@
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
 			<nav class="tsd-navigation primary">
 				<ul>
-					<li class="globals  ">
-						<a href="../globals.html"><em>Globals</em></a>
+					<li class=" ">
+						<a href="../modules.html">Exports</a>
 					</li>
 				</ul>
 			</nav>
 			<nav class="tsd-navigation secondary menu-sticky">
 				<ul class="before-current">
-					<li class=" tsd-kind-class">
-						<a href="../classes/replicache.html" class="tsd-kind-icon">Replicache</a>
-					</li>
 					<li class=" tsd-kind-class tsd-has-type-parameter">
 						<a href="../classes/scanresult.html" class="tsd-kind-icon">Scan<wbr>Result</a>
 					</li>
 					<li class=" tsd-kind-class">
 						<a href="../classes/transactionclosederror.html" class="tsd-kind-icon">Transaction<wbr>Closed<wbr>Error</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="../classes/default.html" class="tsd-kind-icon">default</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a>
@@ -361,31 +362,31 @@
 				</ul>
 				<ul class="after-current">
 					<li class=" tsd-kind-type-alias">
-						<a href="../globals.html#initinput" class="tsd-kind-icon">Init<wbr>Input</a>
+						<a href="../modules.html#initinput" class="tsd-kind-icon">Init<wbr>Input</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
-						<a href="../globals.html#jsonobject" class="tsd-kind-icon">JSONObject</a>
+						<a href="../modules.html#jsonobject" class="tsd-kind-icon">JSONObject</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
-						<a href="../globals.html#jsonvalue" class="tsd-kind-icon">JSONValue</a>
+						<a href="../modules.html#jsonvalue" class="tsd-kind-icon">JSONValue</a>
 					</li>
 					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
-						<a href="../globals.html#keytypeforscanoptions" class="tsd-kind-icon">Key<wbr>Type<wbr>For<wbr>Scan<wbr>Options</a>
+						<a href="../modules.html#keytypeforscanoptions" class="tsd-kind-icon">Key<wbr>Type<wbr>For<wbr>Scan<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
-						<a href="../globals.html#maybepromise" class="tsd-kind-icon">Maybe<wbr>Promise</a>
+						<a href="../modules.html#maybepromise" class="tsd-kind-icon">Maybe<wbr>Promise</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
-						<a href="../globals.html#scanindexoptions" class="tsd-kind-icon">Scan<wbr>Index<wbr>Options</a>
+						<a href="../modules.html#scanindexoptions" class="tsd-kind-icon">Scan<wbr>Index<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
-						<a href="../globals.html#scannoindexoptions" class="tsd-kind-icon">Scan<wbr>NoIndex<wbr>Options</a>
+						<a href="../modules.html#scannoindexoptions" class="tsd-kind-icon">Scan<wbr>NoIndex<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
-						<a href="../globals.html#scanoptionindexedstartkey" class="tsd-kind-icon">Scan<wbr>Option<wbr>Indexed<wbr>Start<wbr>Key</a>
+						<a href="../modules.html#scanoptionindexedstartkey" class="tsd-kind-icon">Scan<wbr>Option<wbr>Indexed<wbr>Start<wbr>Key</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
-						<a href="../globals.html#scanoptions" class="tsd-kind-icon">Scan<wbr>Options</a>
+						<a href="../modules.html#scanoptions" class="tsd-kind-icon">Scan<wbr>Options</a>
 					</li>
 				</ul>
 			</nav>
@@ -397,57 +398,14 @@
 		<h2>Legend</h2>
 		<div class="tsd-legend-group">
 			<ul class="tsd-legend">
-				<li class="tsd-kind-module"><span class="tsd-kind-icon">Module</span></li>
-				<li class="tsd-kind-object-literal"><span class="tsd-kind-icon">Object literal</span></li>
-				<li class="tsd-kind-variable"><span class="tsd-kind-icon">Variable</span></li>
-				<li class="tsd-kind-function"><span class="tsd-kind-icon">Function</span></li>
-				<li class="tsd-kind-function tsd-has-type-parameter"><span class="tsd-kind-icon">Function with type parameter</span></li>
-				<li class="tsd-kind-index-signature"><span class="tsd-kind-icon">Index signature</span></li>
-				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
-				<li class="tsd-kind-type-alias tsd-has-type-parameter"><span class="tsd-kind-icon">Type alias with type parameter</span></li>
-			</ul>
-			<ul class="tsd-legend">
-				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>
-				<li class="tsd-kind-enum-member"><span class="tsd-kind-icon">Enumeration member</span></li>
-				<li class="tsd-kind-property tsd-parent-kind-enum"><span class="tsd-kind-icon">Property</span></li>
-				<li class="tsd-kind-method tsd-parent-kind-enum"><span class="tsd-kind-icon">Method</span></li>
-			</ul>
-			<ul class="tsd-legend">
-				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
-				<li class="tsd-kind-interface tsd-has-type-parameter"><span class="tsd-kind-icon">Interface with type parameter</span></li>
-				<li class="tsd-kind-constructor tsd-parent-kind-interface"><span class="tsd-kind-icon">Constructor</span></li>
-				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
-				<li class="tsd-kind-method tsd-parent-kind-interface"><span class="tsd-kind-icon">Method</span></li>
-				<li class="tsd-kind-index-signature tsd-parent-kind-interface"><span class="tsd-kind-icon">Index signature</span></li>
-			</ul>
-			<ul class="tsd-legend">
-				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
-				<li class="tsd-kind-class tsd-has-type-parameter"><span class="tsd-kind-icon">Class with type parameter</span></li>
 				<li class="tsd-kind-constructor tsd-parent-kind-class"><span class="tsd-kind-icon">Constructor</span></li>
 				<li class="tsd-kind-property tsd-parent-kind-class"><span class="tsd-kind-icon">Property</span></li>
 				<li class="tsd-kind-method tsd-parent-kind-class"><span class="tsd-kind-icon">Method</span></li>
 				<li class="tsd-kind-accessor tsd-parent-kind-class"><span class="tsd-kind-icon">Accessor</span></li>
-				<li class="tsd-kind-index-signature tsd-parent-kind-class"><span class="tsd-kind-icon">Index signature</span></li>
 			</ul>
 			<ul class="tsd-legend">
-				<li class="tsd-kind-constructor tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited constructor</span></li>
-				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited property</span></li>
-				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited method</span></li>
-				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited accessor</span></li>
-			</ul>
-			<ul class="tsd-legend">
-				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected property</span></li>
-				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected method</span></li>
-				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected accessor</span></li>
-			</ul>
-			<ul class="tsd-legend">
-				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private property</span></li>
-				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private method</span></li>
-				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private accessor</span></li>
-			</ul>
-			<ul class="tsd-legend">
-				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static property</span></li>
-				<li class="tsd-kind-call-signature tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static method</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-interface"><span class="tsd-kind-icon">Method</span></li>
 			</ul>
 		</div>
 	</div>
@@ -457,6 +415,5 @@
 </div>
 <div class="overlay"></div>
 <script src="../assets/js/main.js"></script>
-<script>if (location.protocol == 'file:') document.write('<script src="../assets/js/search.js"><' + '/script>');</script>
 </body>
 </html>

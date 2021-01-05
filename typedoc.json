@@ -1,0 +1,8 @@
+{
+  "name": "Replicache",
+  "exclude": ["node_modules", "src/*.test.ts"],
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "out": "docs",
+  "excludeExternals": true
+}

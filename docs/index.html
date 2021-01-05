@@ -4,16 +4,17 @@
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<title>Replicache</title>
-	<meta name="description" content="">
+	<meta name="description" content="Documentation for Replicache">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="assets/css/main.css">
+	<script async src="assets/js/search.js" id="search-script"></script>
 </head>
 <body>
 <header>
 	<div class="tsd-page-toolbar">
 		<div class="container">
 			<div class="table-wrap">
-				<div class="table-cell" id="tsd-search" data-index="assets/js/search.js" data-base=".">
+				<div class="table-cell" id="tsd-search" data-index="assets/js/search.json" data-base=".">
 					<div class="field">
 						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
 						<input id="tsd-search-field" type="text" />
@@ -47,12 +48,7 @@
 	</div>
 	<div class="tsd-page-title">
 		<div class="container">
-			<ul class="tsd-breadcrumb">
-				<li>
-					<a href="globals.html">Globals</a>
-				</li>
-			</ul>
-			<h1>Replicache</h1>
+			<h1>Project Replicache</h1>
 		</div>
 	</div>
 </header>
@@ -78,78 +74,82 @@
 				<a href="#🏃♂️-install" id="🏃♂️-install" style="color: inherit; text-decoration: none;">
 					<h2>🏃‍♂️ Install</h2>
 				</a>
-				<pre><code>npm <span class="hljs-keyword">install</span> replicache</code></pre>
+				<pre><code><span style="color: #001080">npm</span><span style="color: #000000"> </span><span style="color: #001080">install</span><span style="color: #000000"> </span><span style="color: #001080">replicache</span>
+</code></pre>
 				<a href="#🚴🏿♀️-instantiate" id="🚴🏿♀️-instantiate" style="color: inherit; text-decoration: none;">
 					<h2>🚴🏿‍♀️ Instantiate</h2>
 				</a>
-				<pre><code class="language-html"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">type</span>=<span class="hljs-string">"module"</span>&gt;</span><span class="javascript">
-  <span class="hljs-keyword">import</span> Replicache <span class="hljs-keyword">from</span> <span class="hljs-string">'replicache'</span>; <span class="hljs-comment">// Replace with a real module path as needed...</span>
+				<pre><code class="language-html"><span style="color: #800000">&lt;script</span><span style="color: #000000FF"> </span><span style="color: #FF0000">type</span><span style="color: #000000FF">=</span><span style="color: #0000FF">&quot;module&quot;</span><span style="color: #800000">&gt;</span>
+<span style="color: #000000FF">  </span><span style="color: #AF00DB">import</span><span style="color: #000000FF"> </span><span style="color: #001080">Replicache</span><span style="color: #000000FF"> </span><span style="color: #AF00DB">from</span><span style="color: #000000FF"> </span><span style="color: #A31515">&#039;replicache&#039;</span><span style="color: #000000FF">; </span><span style="color: #008000">// Replace with a real module path as needed...</span>
 
-  <span class="hljs-keyword">var</span> rep = <span class="hljs-keyword">new</span> Replicache({
-    <span class="hljs-comment">// URL of the diff server to use. The diff server periodically fetches</span>
-    <span class="hljs-comment">// the "client view" from your service and forwards any delta to the</span>
-    <span class="hljs-comment">// client. You can use our hosted diff server (as here) or a local diff</span>
-    <span class="hljs-comment">// server, which is useful during development. See</span>
-    <span class="hljs-comment">// https://github.com/rocicorp/replicache#server-side for more</span>
-    <span class="hljs-comment">// information on setting up your client view.</span>
-    <span class="hljs-attr">diffServerURL</span>: <span class="hljs-string">'https://serve.replicache.dev/pull'</span>,
+<span style="color: #000000FF">  </span><span style="color: #0000FF">var</span><span style="color: #000000FF"> </span><span style="color: #001080">rep</span><span style="color: #000000FF"> </span><span style="color: #000000">=</span><span style="color: #000000FF"> </span><span style="color: #0000FF">new</span><span style="color: #000000FF"> </span><span style="color: #267F99">Replicache</span><span style="color: #000000FF">({</span>
+<span style="color: #000000FF">    </span><span style="color: #008000">// URL of the diff server to use. The diff server periodically fetches</span>
+<span style="color: #000000FF">    </span><span style="color: #008000">// the &quot;client view&quot; from your service and forwards any delta to the</span>
+<span style="color: #000000FF">    </span><span style="color: #008000">// client. You can use our hosted diff server (as here) or a local diff</span>
+<span style="color: #000000FF">    </span><span style="color: #008000">// server, which is useful during development. See</span>
+<span style="color: #000000FF">    </span><span style="color: #008000">// https://github.com/rocicorp/replicache#server-side for more</span>
+<span style="color: #000000FF">    </span><span style="color: #008000">// information on setting up your client view.</span>
+<span style="color: #000000FF">    </span><span style="color: #001080">diffServerURL:</span><span style="color: #000000FF"> </span><span style="color: #A31515">&#039;https://serve.replicache.dev/pull&#039;</span><span style="color: #000000FF">,</span>
 
-    <span class="hljs-comment">// Auth token for the diff server, if any.</span>
-    <span class="hljs-attr">diffServerAuth</span>: <span class="hljs-string">'1'</span>,
+<span style="color: #000000FF">    </span><span style="color: #008000">// Auth token for the diff server, if any.</span>
+<span style="color: #000000FF">    </span><span style="color: #001080">diffServerAuth:</span><span style="color: #000000FF"> </span><span style="color: #A31515">&#039;1&#039;</span><span style="color: #000000FF">,</span>
 
-    <span class="hljs-comment">// URL of your service's Replicache batch endpoint. Replicache</span>
-    <span class="hljs-comment">// will send batches of mutations here for application.</span>
-    <span class="hljs-attr">batchURL</span>: <span class="hljs-string">'https://replicache-sample-todo.now.sh/serve/replicache-batch'</span>,
+<span style="color: #000000FF">    </span><span style="color: #008000">// URL of your service&#039;s Replicache batch endpoint. Replicache</span>
+<span style="color: #000000FF">    </span><span style="color: #008000">// will send batches of mutations here for application.</span>
+<span style="color: #000000FF">    </span><span style="color: #001080">batchURL:</span><span style="color: #000000FF"> </span><span style="color: #A31515">&#039;https://replicache-sample-todo.now.sh/serve/replicache-batch&#039;</span><span style="color: #000000FF">,</span>
 
-    <span class="hljs-comment">// Auth token for your client view and batch endpoints, if any.</span>
-    <span class="hljs-attr">dataLayerAuth</span>: <span class="hljs-string">'2'</span>,
-  });
-</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span></code></pre>
+<span style="color: #000000FF">    </span><span style="color: #008000">// Auth token for your client view and batch endpoints, if any.</span>
+<span style="color: #000000FF">    </span><span style="color: #001080">dataLayerAuth:</span><span style="color: #000000FF"> </span><span style="color: #A31515">&#039;2&#039;</span><span style="color: #000000FF">,</span>
+<span style="color: #000000FF">  });</span>
+<span style="color: #800000">&lt;/script&gt;</span>
+</code></pre>
 				<a href="#🚗-render-ui" id="🚗-render-ui" style="color: inherit; text-decoration: none;">
 					<h2>🚗 Render UI</h2>
 				</a>
 				<p>Use <code>subscribe()</code> to open standing queries. Replicache calls <code>onData</code> whenever the result of the query changes, either because of local changes or sync.</p>
-				<pre><code class="language-js">rep.subscribe(
-  <span class="hljs-keyword">async</span> tx =&gt; {
-    <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> toArray(tx.scan({<span class="hljs-attr">prefix</span>: <span class="hljs-string">'/todo/'</span>}));
-  },
-  {
-    <span class="hljs-attr">onData</span>: <span class="hljs-function"><span class="hljs-params">result</span> =&gt;</span> {
-      <span class="hljs-comment">// Using lit-html, but the principle is the same in any UI framework.</span>
-      <span class="hljs-comment">// See https://github.com/rocicorp/replicache-sdk-js/tree/master/sample/cal</span>
-      <span class="hljs-comment">// for an example using React.</span>
-      <span class="hljs-keyword">const</span> toggle = <span class="hljs-function"><span class="hljs-params">complete</span> =&gt;</span>
-        html`<span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">td</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">input</span> <span class="hljs-attr">type</span>=<span class="hljs-string">"checkbox"</span> <span class="hljs-attr">.checked</span>=</span></span><span class="hljs-subst">${complete}</span><span class="xml"><span class="hljs-tag"> /&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">td</span>&gt;</span>`</span>;
-      <span class="hljs-keyword">const</span> title = <span class="hljs-function"><span class="hljs-params">text</span> =&gt;</span> html`<span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">td</span>&gt;</span></span><span class="hljs-subst">${text}</span><span class="xml"><span class="hljs-tag">&lt;/<span class="hljs-name">td</span>&gt;</span>`</span>;
-      <span class="hljs-keyword">const</span> row = <span class="hljs-function"><span class="hljs-params">todo</span> =&gt;</span>
-        html`<span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">tr</span>&gt;</span>
-          </span><span class="hljs-subst">${toggle(todo.complete)}</span><span class="hljs-subst">${title(todo.text)}</span><span class="xml">
-        <span class="hljs-tag">&lt;/<span class="hljs-name">tr</span>&gt;</span>`</span>;
-      render(
-        html`<span class="xml"><span class="hljs-tag">&lt;<span class="hljs-name">table</span>&gt;</span>
-          </span><span class="hljs-subst">${result.map(row)}</span><span class="xml">
-        <span class="hljs-tag">&lt;/<span class="hljs-name">table</span>&gt;</span>`</span>,
-        <span class="hljs-built_in">document</span>.body,
-      );
-    },
-  },
-);</code></pre>
+				<pre><code class="language-js"><span style="color: #001080">rep</span><span style="color: #000000">.</span><span style="color: #795E26">subscribe</span><span style="color: #000000">(</span>
+<span style="color: #000000">  </span><span style="color: #0000FF">async</span><span style="color: #000000"> </span><span style="color: #001080">tx</span><span style="color: #000000"> </span><span style="color: #0000FF">=&gt;</span><span style="color: #000000"> {</span>
+<span style="color: #000000">    </span><span style="color: #AF00DB">return</span><span style="color: #000000"> </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">toArray</span><span style="color: #000000">(</span><span style="color: #001080">tx</span><span style="color: #000000">.</span><span style="color: #795E26">scan</span><span style="color: #000000">({</span><span style="color: #001080">prefix:</span><span style="color: #000000"> </span><span style="color: #A31515">&#039;/todo/&#039;</span><span style="color: #000000">}));</span>
+<span style="color: #000000">  },</span>
+<span style="color: #000000">  {</span>
+<span style="color: #000000">    </span><span style="color: #795E26">onData</span><span style="color: #001080">:</span><span style="color: #000000"> </span><span style="color: #001080">result</span><span style="color: #000000"> </span><span style="color: #0000FF">=&gt;</span><span style="color: #000000"> {</span>
+<span style="color: #000000">      </span><span style="color: #008000">// Using lit-html, but the principle is the same in any UI framework.</span>
+<span style="color: #000000">      </span><span style="color: #008000">// See https://github.com/rocicorp/replicache-sdk-js/tree/master/sample/cal</span>
+<span style="color: #000000">      </span><span style="color: #008000">// for an example using React.</span>
+<span style="color: #000000">      </span><span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #795E26">toggle</span><span style="color: #000000"> = </span><span style="color: #001080">complete</span><span style="color: #000000"> </span><span style="color: #0000FF">=&gt;</span>
+<span style="color: #000000">        </span><span style="color: #795E26">html</span><span style="color: #A31515">`&lt;td&gt;&lt;input type=&quot;checkbox&quot; .checked=</span><span style="color: #0000FF">${</span><span style="color: #001080">complete</span><span style="color: #0000FF">}</span><span style="color: #A31515"> /&gt;&lt;/td&gt;`</span><span style="color: #000000">;</span>
+<span style="color: #000000">      </span><span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #795E26">title</span><span style="color: #000000"> = </span><span style="color: #001080">text</span><span style="color: #000000"> </span><span style="color: #0000FF">=&gt;</span><span style="color: #000000"> </span><span style="color: #795E26">html</span><span style="color: #A31515">`&lt;td&gt;</span><span style="color: #0000FF">${</span><span style="color: #001080">text</span><span style="color: #0000FF">}</span><span style="color: #A31515">&lt;/td&gt;`</span><span style="color: #000000">;</span>
+<span style="color: #000000">      </span><span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #795E26">row</span><span style="color: #000000"> = </span><span style="color: #001080">todo</span><span style="color: #000000"> </span><span style="color: #0000FF">=&gt;</span>
+<span style="color: #000000">        </span><span style="color: #795E26">html</span><span style="color: #A31515">`&lt;tr&gt;</span>
+<span style="color: #A31515">          </span><span style="color: #0000FF">${</span><span style="color: #795E26">toggle</span><span style="color: #000000FF">(</span><span style="color: #001080">todo</span><span style="color: #000000FF">.</span><span style="color: #001080">complete</span><span style="color: #000000FF">)</span><span style="color: #0000FF">}${</span><span style="color: #795E26">title</span><span style="color: #000000FF">(</span><span style="color: #001080">todo</span><span style="color: #000000FF">.</span><span style="color: #001080">text</span><span style="color: #000000FF">)</span><span style="color: #0000FF">}</span>
+<span style="color: #A31515">        &lt;/tr&gt;`</span><span style="color: #000000">;</span>
+<span style="color: #000000">      </span><span style="color: #795E26">render</span><span style="color: #000000">(</span>
+<span style="color: #000000">        </span><span style="color: #795E26">html</span><span style="color: #A31515">`&lt;table&gt;</span>
+<span style="color: #A31515">          </span><span style="color: #0000FF">${</span><span style="color: #001080">result</span><span style="color: #000000FF">.</span><span style="color: #795E26">map</span><span style="color: #000000FF">(</span><span style="color: #001080">row</span><span style="color: #000000FF">)</span><span style="color: #0000FF">}</span>
+<span style="color: #A31515">        &lt;/table&gt;`</span><span style="color: #000000">,</span>
+<span style="color: #000000">        </span><span style="color: #001080">document</span><span style="color: #000000">.</span><span style="color: #001080">body</span><span style="color: #000000">,</span>
+<span style="color: #000000">      );</span>
+<span style="color: #000000">    },</span>
+<span style="color: #000000">  },</span>
+<span style="color: #000000">);</span>
+</code></pre>
 				<a href="#🏎-mutate-data" id="🏎-mutate-data" style="color: inherit; text-decoration: none;">
 					<h2>🏎 Mutate Data</h2>
 				</a>
 				<p>Register client-side <em>mutators</em> using <code>register()</code>.</p>
 				<p>Mutators run completely locally, without waiting on the server — online, offline, whatever! A record of the mutation is queued and sent to your service&#39;s batch endpoint when possible.</p>
 				<p>Replicache also invokes mutators itself, during sync, to replay unacknowledged changes on top of newly received server state.</p>
-				<pre><code class="language-js"><span class="hljs-keyword">const</span> updateTodo = rep.register(<span class="hljs-string">'updateTodo'</span>, <span class="hljs-keyword">async</span> (tx, {id, complete}) =&gt; {
-  <span class="hljs-keyword">const</span> key = <span class="hljs-string">`/todo/<span class="hljs-subst">${id}</span>`</span>;
-  <span class="hljs-keyword">const</span> todo = <span class="hljs-keyword">await</span> tx.get(key);
-  todo.complete = complete;
-  <span class="hljs-keyword">await</span> tx.put(key, todo);
-});
+				<pre><code class="language-js"><span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">updateTodo</span><span style="color: #000000"> = </span><span style="color: #001080">rep</span><span style="color: #000000">.</span><span style="color: #795E26">register</span><span style="color: #000000">(</span><span style="color: #A31515">&#039;updateTodo&#039;</span><span style="color: #000000">, </span><span style="color: #0000FF">async</span><span style="color: #000000"> (</span><span style="color: #001080">tx</span><span style="color: #000000">, {</span><span style="color: #001080">id</span><span style="color: #000000">, </span><span style="color: #001080">complete</span><span style="color: #000000">}) </span><span style="color: #0000FF">=&gt;</span><span style="color: #000000"> {</span>
+<span style="color: #000000">  </span><span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">key</span><span style="color: #000000"> = </span><span style="color: #A31515">`/todo/</span><span style="color: #0000FF">${</span><span style="color: #001080">id</span><span style="color: #0000FF">}</span><span style="color: #A31515">`</span><span style="color: #000000">;</span>
+<span style="color: #000000">  </span><span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">todo</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">tx</span><span style="color: #000000">.</span><span style="color: #795E26">get</span><span style="color: #000000">(</span><span style="color: #001080">key</span><span style="color: #000000">);</span>
+<span style="color: #000000">  </span><span style="color: #001080">todo</span><span style="color: #000000">.</span><span style="color: #001080">complete</span><span style="color: #000000"> = </span><span style="color: #001080">complete</span><span style="color: #000000">;</span>
+<span style="color: #000000">  </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">tx</span><span style="color: #000000">.</span><span style="color: #795E26">put</span><span style="color: #000000">(</span><span style="color: #001080">key</span><span style="color: #000000">, </span><span style="color: #001080">todo</span><span style="color: #000000">);</span>
+<span style="color: #000000">});</span>
 
-<span class="hljs-keyword">const</span> handleCheckbox = <span class="hljs-keyword">async</span> (id, e) =&gt; {
-  <span class="hljs-keyword">await</span> updateTodo({id, <span class="hljs-attr">complete</span>: e.srcElement.checked});
-};</code></pre>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #795E26">handleCheckbox</span><span style="color: #000000"> = </span><span style="color: #0000FF">async</span><span style="color: #000000"> (</span><span style="color: #001080">id</span><span style="color: #000000">, </span><span style="color: #001080">e</span><span style="color: #000000">) </span><span style="color: #0000FF">=&gt;</span><span style="color: #000000"> {</span>
+<span style="color: #000000">  </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">updateTodo</span><span style="color: #000000">({</span><span style="color: #001080">id</span><span style="color: #000000">, </span><span style="color: #001080">complete:</span><span style="color: #000000"> </span><span style="color: #001080">e</span><span style="color: #000000">.</span><span style="color: #001080">srcElement</span><span style="color: #000000">.</span><span style="color: #001080">checked</span><span style="color: #000000">});</span>
+<span style="color: #000000">};</span>
+</code></pre>
 				<a href="#🛫-tips" id="🛫-tips" style="color: inherit; text-decoration: none;">
 					<h2>🛫 Tips</h2>
 				</a>
@@ -172,21 +172,21 @@
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
 			<nav class="tsd-navigation primary">
 				<ul>
-					<li class="globals  ">
-						<a href="globals.html"><em>Globals</em></a>
+					<li class=" ">
+						<a href="modules.html">Exports</a>
 					</li>
 				</ul>
 			</nav>
 			<nav class="tsd-navigation secondary menu-sticky">
 				<ul class="before-current">
-					<li class=" tsd-kind-class">
-						<a href="classes/replicache.html" class="tsd-kind-icon">Replicache</a>
-					</li>
 					<li class=" tsd-kind-class tsd-has-type-parameter">
 						<a href="classes/scanresult.html" class="tsd-kind-icon">Scan<wbr>Result</a>
 					</li>
 					<li class=" tsd-kind-class">
 						<a href="classes/transactionclosederror.html" class="tsd-kind-icon">Transaction<wbr>Closed<wbr>Error</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/default.html" class="tsd-kind-icon">default</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/readtransaction.html" class="tsd-kind-icon">Read<wbr>Transaction</a>
@@ -198,31 +198,31 @@
 						<a href="interfaces/writetransaction.html" class="tsd-kind-icon">Write<wbr>Transaction</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
-						<a href="globals.html#initinput" class="tsd-kind-icon">Init<wbr>Input</a>
+						<a href="modules.html#initinput" class="tsd-kind-icon">Init<wbr>Input</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
-						<a href="globals.html#jsonobject" class="tsd-kind-icon">JSONObject</a>
+						<a href="modules.html#jsonobject" class="tsd-kind-icon">JSONObject</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
-						<a href="globals.html#jsonvalue" class="tsd-kind-icon">JSONValue</a>
+						<a href="modules.html#jsonvalue" class="tsd-kind-icon">JSONValue</a>
 					</li>
 					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
-						<a href="globals.html#keytypeforscanoptions" class="tsd-kind-icon">Key<wbr>Type<wbr>For<wbr>Scan<wbr>Options</a>
+						<a href="modules.html#keytypeforscanoptions" class="tsd-kind-icon">Key<wbr>Type<wbr>For<wbr>Scan<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
-						<a href="globals.html#maybepromise" class="tsd-kind-icon">Maybe<wbr>Promise</a>
+						<a href="modules.html#maybepromise" class="tsd-kind-icon">Maybe<wbr>Promise</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
-						<a href="globals.html#scanindexoptions" class="tsd-kind-icon">Scan<wbr>Index<wbr>Options</a>
+						<a href="modules.html#scanindexoptions" class="tsd-kind-icon">Scan<wbr>Index<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
-						<a href="globals.html#scannoindexoptions" class="tsd-kind-icon">Scan<wbr>NoIndex<wbr>Options</a>
+						<a href="modules.html#scannoindexoptions" class="tsd-kind-icon">Scan<wbr>NoIndex<wbr>Options</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
-						<a href="globals.html#scanoptionindexedstartkey" class="tsd-kind-icon">Scan<wbr>Option<wbr>Indexed<wbr>Start<wbr>Key</a>
+						<a href="modules.html#scanoptionindexedstartkey" class="tsd-kind-icon">Scan<wbr>Option<wbr>Indexed<wbr>Start<wbr>Key</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
-						<a href="globals.html#scanoptions" class="tsd-kind-icon">Scan<wbr>Options</a>
+						<a href="modules.html#scanoptions" class="tsd-kind-icon">Scan<wbr>Options</a>
 					</li>
 				</ul>
 			</nav>
@@ -234,57 +234,14 @@
 		<h2>Legend</h2>
 		<div class="tsd-legend-group">
 			<ul class="tsd-legend">
-				<li class="tsd-kind-module"><span class="tsd-kind-icon">Module</span></li>
-				<li class="tsd-kind-object-literal"><span class="tsd-kind-icon">Object literal</span></li>
-				<li class="tsd-kind-variable"><span class="tsd-kind-icon">Variable</span></li>
-				<li class="tsd-kind-function"><span class="tsd-kind-icon">Function</span></li>
-				<li class="tsd-kind-function tsd-has-type-parameter"><span class="tsd-kind-icon">Function with type parameter</span></li>
-				<li class="tsd-kind-index-signature"><span class="tsd-kind-icon">Index signature</span></li>
-				<li class="tsd-kind-type-alias"><span class="tsd-kind-icon">Type alias</span></li>
-				<li class="tsd-kind-type-alias tsd-has-type-parameter"><span class="tsd-kind-icon">Type alias with type parameter</span></li>
-			</ul>
-			<ul class="tsd-legend">
-				<li class="tsd-kind-enum"><span class="tsd-kind-icon">Enumeration</span></li>
-				<li class="tsd-kind-enum-member"><span class="tsd-kind-icon">Enumeration member</span></li>
-				<li class="tsd-kind-property tsd-parent-kind-enum"><span class="tsd-kind-icon">Property</span></li>
-				<li class="tsd-kind-method tsd-parent-kind-enum"><span class="tsd-kind-icon">Method</span></li>
-			</ul>
-			<ul class="tsd-legend">
-				<li class="tsd-kind-interface"><span class="tsd-kind-icon">Interface</span></li>
-				<li class="tsd-kind-interface tsd-has-type-parameter"><span class="tsd-kind-icon">Interface with type parameter</span></li>
-				<li class="tsd-kind-constructor tsd-parent-kind-interface"><span class="tsd-kind-icon">Constructor</span></li>
-				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
-				<li class="tsd-kind-method tsd-parent-kind-interface"><span class="tsd-kind-icon">Method</span></li>
-				<li class="tsd-kind-index-signature tsd-parent-kind-interface"><span class="tsd-kind-icon">Index signature</span></li>
-			</ul>
-			<ul class="tsd-legend">
-				<li class="tsd-kind-class"><span class="tsd-kind-icon">Class</span></li>
-				<li class="tsd-kind-class tsd-has-type-parameter"><span class="tsd-kind-icon">Class with type parameter</span></li>
 				<li class="tsd-kind-constructor tsd-parent-kind-class"><span class="tsd-kind-icon">Constructor</span></li>
 				<li class="tsd-kind-property tsd-parent-kind-class"><span class="tsd-kind-icon">Property</span></li>
 				<li class="tsd-kind-method tsd-parent-kind-class"><span class="tsd-kind-icon">Method</span></li>
 				<li class="tsd-kind-accessor tsd-parent-kind-class"><span class="tsd-kind-icon">Accessor</span></li>
-				<li class="tsd-kind-index-signature tsd-parent-kind-class"><span class="tsd-kind-icon">Index signature</span></li>
 			</ul>
 			<ul class="tsd-legend">
-				<li class="tsd-kind-constructor tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited constructor</span></li>
-				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited property</span></li>
-				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited method</span></li>
-				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited accessor</span></li>
-			</ul>
-			<ul class="tsd-legend">
-				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected property</span></li>
-				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected method</span></li>
-				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-protected"><span class="tsd-kind-icon">Protected accessor</span></li>
-			</ul>
-			<ul class="tsd-legend">
-				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private property</span></li>
-				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private method</span></li>
-				<li class="tsd-kind-accessor tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private accessor</span></li>
-			</ul>
-			<ul class="tsd-legend">
-				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static property</span></li>
-				<li class="tsd-kind-call-signature tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static method</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-interface"><span class="tsd-kind-icon">Method</span></li>
 			</ul>
 		</div>
 	</div>
@@ -294,6 +251,5 @@
 </div>
 <div class="overlay"></div>
 <script src="assets/js/main.js"></script>
-<script>if (location.protocol == 'file:') document.write('<script src="assets/js/search.js"><' + '/script>');</script>
 </body>
 </html>

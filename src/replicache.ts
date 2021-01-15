@@ -105,6 +105,19 @@ export default class Replicache implements ReadTransaction {
    */
   pushDelay: number;
 
+  /**
+   * `onSync` is called when a sync begins and ends. The paramater `syncing`
+   * determines if we are currently syncing.
+   *
+   * This can be used in a React like app by doing something like the following:
+   *
+   * ```js
+   * const [syncing, setSyncing] = useState(false);
+   * useEffect(() => {
+   *   rep.onSync = setSyncing;
+   * }, [rep]);
+   * ```
+   */
   onSync: ((syncing: boolean) => void) | null = null;
 
   /**

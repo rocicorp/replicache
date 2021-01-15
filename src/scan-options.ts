@@ -38,7 +38,7 @@ export type ScanIndexOptions = {
   limit?: number;
 
   /** Do a [[ReadTransaction.scan|scan]] over a named index. The `indexName`
-   * needs to match an index created with [[createIndex]]. */
+   * is the name of an index previously created with [[createIndex]]. */
   indexName: string;
 
   /** When provided the scan starts at this key. */

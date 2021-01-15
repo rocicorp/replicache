@@ -203,6 +203,11 @@ export default class Replicache implements ReadTransaction {
     }
   }
 
+  /**
+   * Closes this Replicache instance.
+   *
+   * When closed all subscriptions end and no more read or writes are allowed.
+   */
   async close(): Promise<void> {
     this._closed = true;
     const p = this._invoke('close');

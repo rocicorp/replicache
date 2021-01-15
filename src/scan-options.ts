@@ -61,11 +61,17 @@ export type KeyTypeForScanOptions<O extends ScanOptions> = O extends {
   : string;
 
 /**
- * When providing a start key for an indexed [[ReadTransaction.scan|scan]] you need to provide the
- * `secondary` index to start [[ReadTransaction.scan|scan]] at. You may also provide a `primary`
- * index. If you pass a string, then that is the key for the secondary index. If
- * you provide tuple then this is the secondary key followed by the primary key.
+ * The key to start scanning at.
+ *
+ * If you are scanning the primary index (i.e., you did not specify
+ * `indexName`), then pass a single string for this field, which is the key in
+ * the primary index to scan at.
+ *
+ * If you are scanning a secondary index (i.e., you specified `indexName`), then
+ * use the tuple form. In that case, `secondary` is the secondary key to start
+ * scanning at, and `primary` (if any) is the primary key to start scanning at.
  */
+
 export type ScanOptionIndexedStartKey =
   | [secondary: string, primary?: string]
   | string;

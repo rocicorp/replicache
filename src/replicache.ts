@@ -716,6 +716,27 @@ export default class Replicache implements ReadTransaction {
    * Throwing an exception aborts the transaction. Otherwise, it is committed.
    * As with [query] and [subscribe] all reads will see a consistent view of
    * the cache while they run.
+   *
+   * ## Example
+   *
+   * `register` returns the function to use to mutate Replicache.
+   *
+   * ```ts
+   * const createTodo = rep.register('createTodo',
+   *   async (tx: WriteTransaction, args: JSONValue) => {
+   *     const key = `/todo/${args.id}`;
+   *     if (await tx.has(key)) {
+   *       throw new Error('Todo already exists');
+   *     }
+   *     await tx.put(key, args);
+   *   });
+   * ```
+   *
+   * This will create the function to later use:
+   *
+   * ```ts
+   * await createTodo({id: 1234, title: 'Make things work offline', complete: true});
+   * ```
    */
   register<Return extends JSONValue | void>(
     name: string,

@@ -8,6 +8,7 @@ import {
   InitInput,
 } from './repm-invoker.js';
 import {
+  CreateIndexDefinition,
   IndexTransactionImpl,
   ReadTransactionImpl,
   WriteTransactionImpl,
@@ -31,18 +32,56 @@ const storageKeyName = (name: string) => `/replicache/root/${name}`;
 const MAX_REAUTH_TRIES = 8;
 
 /**
- * The options passed to [[Replicache]].
+ * The options passed to [[default|Replicache]].
  */
 export interface ReplicacheOptions {
+  /**
+   * This is the URL to the server endpoint dealing with the batch updates. See
+   * [Server Setup Upstream Sync](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync)
+   * for more details.
+   */
   batchURL?: string;
+
+  /**
+   * This is the
+   * [authentication](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#authentication)
+   * token used with the [upstream batch
+   * server](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync)
+   * as well as the [client
+   * view](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-1-downstream-sync).
+   */
   dataLayerAuth?: string;
+
+  /**
+   * The diff server deals with computing the diffs in the downstream sync.
+   * This is the auth token for the [diff server](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-2-test-downstream-sync) if any.
+   */
   diffServerAuth?: string;
+
+  /**
+   * The [diff
+   * server](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-2-test-downstream-sync)
+   * deals with computing the diffs in the downstream sync. This is the URL to
+   * talk to get the diffs as needed.
+   *
+   */
   diffServerURL: string;
+
+  /**
+   * The name of the Replicache database. This defaults to `"default"`.
+   *
+   * You can use multiple Replicache instances as long as the names are unique.
+   *
+   * Using different names for different users allows you to switch users even
+   * when you are offline. See
+   * [sample/redo](https://github.com/rocicorp/replicache-sdk-js/blob/main/sample/redo/src/login.tsx)
+   * for inspiration on how to do this.
+   */
   name?: string;
 
   /**
-   * The duration between each [[sync]]. Set this to `null` to prevent syncing in
-   * the background.
+   * The duration between each [[sync]]. Set this to `null` to prevent syncing
+   * in the background.
    */
   syncInterval?: number | null;
 
@@ -105,6 +144,20 @@ export default class Replicache implements ReadTransaction {
    */
   pushDelay: number;
 
+  /**
+   * `onSync` is called when a sync begins, and again when the sync ends. The parameter `syncing`
+   * is set to `true` when `onSync` is called at the beginning of a sync, and `false` when it
+   * is called at the end of a sync.
+   *
+   * This can be used in a React like app by doing something like the following:
+   *
+   * ```js
+   * const [syncing, setSyncing] = useState(false);
+   * useEffect(() => {
+   *   rep.onSync = setSyncing;
+   * }, [rep]);
+   * ```
+   */
   onSync: ((syncing: boolean) => void) | null = null;
 
   /**
@@ -149,17 +202,28 @@ export default class Replicache implements ReadTransaction {
     window.addEventListener('storage', this._onStorage);
   }
 
+  /**
+   * A rough heuristic for whether the client is currently online. Note that there is no way to know
+   * for certain whether a client is online - the next request can always fail. This is true if the last
+   * sync attempt succeeded, and false otherwise.
+   */
   get online(): boolean {
     return this._online;
   }
 
+  /**
+   * Whether the Replicache database has been closed. Once Replicache has been
+   * closed it no longer syncs and you can no longer read or write data out of
+   * it. After it has been closed it is pretty much useless and should not be
+   * used any more.
+   */
   get closed(): boolean {
     return this._closed;
   }
 
   /**
-   * The duration between each [[sync]]. Set this to `null` to prevent syncing in
-   * the background.
+   * The duration between each periodic [[sync]]. Setting this to `null` disables periodic sync completely.
+   * Sync will still happen if you call [[sync]] manually, and after writes (see [[pushDelay]]).
    */
   get syncInterval(): number | null {
     return this._syncInterval;
@@ -183,6 +247,11 @@ export default class Replicache implements ReadTransaction {
     }
   }
 
+  /**
+   * Closes this Replicache instance.
+   *
+   * When closed all subscriptions end and no more read or writes are allowed.
+   */
   async close(): Promise<void> {
     this._closed = true;
     const p = this._invoke('close');
@@ -302,16 +371,12 @@ export default class Replicache implements ReadTransaction {
    * immediately. If the named index already exists, but with a different definition
    * an error is returned.
    */
-  async createIndex(def: {
-    name: string;
-    keyPrefix?: string;
-    jsonPointer: string;
-  }): Promise<void> {
+  async createIndex(def: CreateIndexDefinition): Promise<void> {
     await this._indexOp(tx => tx.createIndex(def));
   }
 
   /**
-   * Drops an index previously created with {@link createIndex}.
+   * Drops an index previously created with [[createIndex]].
    */
   async dropIndex(name: string): Promise<void> {
     await this._indexOp(tx => tx.dropIndex(name));
@@ -651,6 +716,27 @@ export default class Replicache implements ReadTransaction {
    * Throwing an exception aborts the transaction. Otherwise, it is committed.
    * As with [query] and [subscribe] all reads will see a consistent view of
    * the cache while they run.
+   *
+   * ## Example
+   *
+   * `register` returns the function to use to mutate Replicache.
+   *
+   * ```ts
+   * const createTodo = rep.register('createTodo',
+   *   async (tx: WriteTransaction, args: JSONValue) => {
+   *     const key = `/todo/${args.id}`;
+   *     if (await tx.has(key)) {
+   *       throw new Error('Todo already exists');
+   *     }
+   *     await tx.put(key, args);
+   *   });
+   * ```
+   *
+   * This will create the function to later use:
+   *
+   * ```ts
+   * await createTodo({id: 1234, title: 'Make things work offline', complete: true});
+   * ```
    */
   register<Return extends JSONValue | void>(
     name: string,

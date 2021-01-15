@@ -21,25 +21,45 @@ type Args = [
   shouldCloseTransaction: boolean,
 ];
 
+/**
+ * This class is used for the results of [[ReadTransaction.scan|scan]]. It
+ * implements `AsyncIterable<JSONValue>` which allows you to use it in a `for
+ * await` loop. There are also methods to iterate over the [[keys]],
+ * [[entries]] or [[values]].
+ */
 export class ScanResult<K> implements AsyncIterable<JSONValue> {
   private readonly _args: Args;
 
+  /** @internal */
   constructor(...args: Args) {
     this._args = args;
   }
 
+  /** The default AsyncIterable. This is the same as [[values]]. */
   [Symbol.asyncIterator](): AsyncIterableIterator<JSONValue> {
     return this.values();
   }
 
+  /** Async iterator over the valus of the [[ReadTransaction.scan|scan]] call. */
   values(): AsyncIterableIterator<JSONValue> {
     return this._newIterator(VALUE);
   }
 
+  /**
+   * Async iterator over the keys of the [[ReadTransaction.scan|scan]]
+   * call. If the [[ReadTransaction.scan|scan]] is over an index the key
+   * is a tuple of `[secondaryKey: string, primaryKey]`
+   */
   keys(): AsyncIterableIterator<K> {
     return this._newIterator(KEY);
   }
 
+  /**
+   * Async iterator over the entries of the [[ReadTransaction.scan|scan]]
+   * call. An entry is a tuple of key values. If the
+   * [[ReadTransaction.scan|scan]] is over an index the key is a tuple of
+   * `[secondaryKey: string, primaryKey]`
+   */
   entries(): AsyncIterableIterator<[K, JSONValue]> {
     return this._newIterator(ENTRY);
   }

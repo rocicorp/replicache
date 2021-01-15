@@ -9,39 +9,39 @@ import {ScanResult} from './scan-iterator.js';
 import {throwIfClosed} from './transaction-closed-error.js';
 
 /**
- * ReadTransactions are used with `Replicache.query` and allows read operations
+ * ReadTransactions are used with [[default.query|Replicache.query]] and allows read operations
  * on the database.
  */
 export interface ReadTransaction {
   /**
-   * Get a single value from the database. If the key is not present this
+   * Get a single value from the database. If the `key` is not present this
    * returns `undefined`.
    */
   get(key: string): Promise<JSONValue | undefined>;
 
   /**
-   * Determines if a single key is present in the database.
+   * Determines if a single `key` is present in the database.
    */
   has(key: string): Promise<boolean>;
 
   /**
-   * Gets many values from the database. This returns a `ScanResult` which
-   * implements `AsyncIterable`. It also has methods to iterate over the `keys`
-   * and `entries`.
+   * Gets many values from the database. This returns a [[ScanResult]] which
+   * implements `AsyncIterable`. It also has methods to iterate over the [[ScanResult.keys|keys]]
+   * and [[ScanResult.entries|entries]].
    *
    * If `options` has an `indexName`, then this does a scan over an index with
    * that name. A scan over an index uses a tuple for the key consisting of
    * `[secondary: string, primary: string]`.
    *
-   * If the `ScanResult` is used after the `ReadTransaction` has been closed it
-   * will throw a {@link TransactionClosedError}.
+   * If the [[ScanResult]] is used after the `ReadTransaction` has been closed it
+   * will throw a [[TransactionClosedError]].
    */
   scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): ScanResult<K>;
 
   /**
-   * Convenience form of `scan()` which returns all the entries as an array.
+   * Convenience form of [[scan]] which returns all the entries as an array.
    */
   scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
@@ -125,19 +125,20 @@ export class ReadTransactionImpl implements ReadTransaction {
 }
 
 /**
- * WriteTransactions are used with `Replicache.register` and allows read and
- * write operations on the database.
+ * WriteTransactions are used with
+ * [[default.register|Replicache.register]] and allows read and write
+ * operations on the database.
  */
 export interface WriteTransaction extends ReadTransaction {
   /**
-   * Sets a single value in the database. The `value` will be encoded using
+   * Sets a single `value` in the database. The `value` will be encoded using
    * `JSON.stringify`.
    */
   put(key: string, value: JSONValue): Promise<void>;
 
   /**
-   * Removes a key and its value from the database. Returns true if there was a
-   * key to remove.
+   * Removes a `key` and its value from the database. Returns `true` if there was a
+   * `key` to remove.
    */
   del(key: string): Promise<boolean>;
 }
@@ -173,27 +174,42 @@ export class WriteTransactionImpl
 
 export interface IndexTransaction extends ReadTransaction {
   /**
-   * Creates a persistent secondary index in Replicache which can be used with scan.
+   * Creates a persistent secondary index in Replicache which can be used with
+   * scan.
    *
-   * If the named index already exists with the same definition this returns success
-   * immediately. If the named index already exists, but with a different definition
-   * an error is returned.
+   * If the named index already exists with the same definition this returns
+   * success immediately. If the named index already exists, but with a
+   * different definition an error is returned.
    */
-  createIndex({
-    name,
-    keyPrefix,
-    jsonPointer,
-  }: CreateIndexOptions): Promise<void>;
+  createIndex(def: CreateIndexDefinition): Promise<void>;
 
   /**
-   * Drops an index previously created with {@link createIndex}.
+   * Drops an index previously created with [[createIndex]].
    */
   dropIndex(name: string): Promise<void>;
 }
 
-interface CreateIndexOptions {
+/**
+ * The definition of an index. This is used with
+ * [[default.createIndex|createIndex]] when creating indexes.
+ */
+export interface CreateIndexDefinition {
+  /** The name of the index. This is used when you [[ReadTransaction.scan|scan]] over an index. */
   name: string;
+
+  /**
+   * The prefix, if any, to limit the index over. If not provided the values of
+   * all keys are indexed.
+   */
   keyPrefix?: string;
+
+  /**
+   * A [JSON Ponter](https://tools.ietf.org/html/rfc6901) pointing at the sub
+   * value inside each value to index over.
+   *
+   * For example, one might index over users' ages like so:
+   * `createIndex({name: 'usersByAge', keyPrefix: '/user/', jsonPointer: '/age'})`
+   */
   jsonPointer: string;
 }
 
@@ -202,7 +218,7 @@ export class IndexTransactionImpl
   implements IndexTransaction {
   protected readonly _openTransactionName = 'openIndexTransaction';
 
-  async createIndex(options: CreateIndexOptions): Promise<void> {
+  async createIndex(options: CreateIndexDefinition): Promise<void> {
     throwIfClosed(this);
     await this._invoke('createIndex', {
       transactionId: this.id,

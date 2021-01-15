@@ -3,7 +3,11 @@ import type {ScanOptionsRPC} from './scan-options.js';
 import init, {dispatch} from './wasm/release/replicache_client.js';
 import type {InitOutput} from './wasm/release/replicache_client.js';
 
+/**
+ * This type is used for the [[ReplicacheOptions.wasmModule]] property.
+ */
 export type InitInput =
+  | string
   | RequestInfo
   | URL
   | Response

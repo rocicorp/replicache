@@ -1,8 +1,12 @@
-/** Options for [[scan]] and [[scanAll]] */
+/**
+ * Options for [[ReadTransaction.scan|scan]] and
+ * [[ReadTransaction.scanAll|scanAll]]
+ */
 export type ScanOptions = ScanIndexOptions | ScanNoIndexOptions;
 
 /**
- * Options for [[scan]] and [[scanAll]] when scanning over the entire key space.
+ * Options for [[ReadTransaction.scan|scan]] and
+ * [[ReadTransaction.scanAll|scanAll]] when scanning over the entire key space.
  */
 export type ScanNoIndexOptions = {
   /** Only include keys starting with `prefix`. */
@@ -21,7 +25,8 @@ export type ScanNoIndexOptions = {
 };
 
 /**
- * Options for [[scan]] and [[scanAll]] when scanning over an index. When
+ * Options for [[ReadTransaction.scan|scan]] and
+ * [[ReadTransaction.scanAll|scanAll]] when scanning over an index. When
  * scanning over and index you need to provide the `indexName` and the `start`
  * `key` is now a tuple consisting of secondar and primary key
  */
@@ -32,7 +37,8 @@ export type ScanIndexOptions = {
   /** Only include up to `limit` results. */
   limit?: number;
 
-  /** Do a `scan` over a named index. The `indexName` needs to match an index created with [[createIndex]]. */
+  /** Do a [[ReadTransaction.scan|scan]] over a named index. The `indexName`
+   * is the name of an index previously created with [[createIndex]]. */
   indexName: string;
 
   /** When provided the scan starts at this key. */
@@ -55,11 +61,17 @@ export type KeyTypeForScanOptions<O extends ScanOptions> = O extends {
   : string;
 
 /**
- * When providing a start key for an indexed [[scan]] you need to provide the
- * `secondary` index to start [[scan]] at. You may also provide a `primary`
- * index. If you pass a string, then that is the key for the secondary index. If
- * you provide tuple then this is the secondary key followed by the primary key.
+ * The key to start scanning at.
+ *
+ * If you are scanning the primary index (i.e., you did not specify
+ * `indexName`), then pass a single string for this field, which is the key in
+ * the primary index to scan at.
+ *
+ * If you are scanning a secondary index (i.e., you specified `indexName`), then
+ * use the tuple form. In that case, `secondary` is the secondary key to start
+ * scanning at, and `primary` (if any) is the primary key to start scanning at.
  */
+
 export type ScanOptionIndexedStartKey =
   | [secondary: string, primary?: string]
   | string;

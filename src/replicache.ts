@@ -162,6 +162,10 @@ export default class Replicache implements ReadTransaction {
     window.addEventListener('storage', this._onStorage);
   }
 
+  /**
+   * Whether Replicache thinks that we are online. This is a heuristic and we
+   * treat failure to sync as being offline.
+   */
   get online(): boolean {
     return this._online;
   }

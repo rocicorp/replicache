@@ -1188,3 +1188,46 @@ test.skip('Test partial JSONObject [type checking only]', async () => {
   // @ts-expect-error Type 'string' is not assignable to type 'number | undefined'.ts(2322)
   await mut({id: 'abc'});
 });
+
+// Only used for type checking
+test.skip('Key type for scans', async () => {
+  rep = await replicacheForTesting('test-types');
+
+  for await (const k of rep.scan({indexName: 'n'}).keys()) {
+    // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
+    const k2: string = k;
+    console.log(k2);
+  }
+
+  for await (const k of rep.scan({indexName: 'n', start: {key: 's'}}).keys()) {
+    // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
+    const k2: string = k;
+    console.log(k2);
+  }
+
+  for await (const k of rep
+    .scan({indexName: 'n', start: {key: ['s']}})
+    .keys()) {
+    // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
+    const k2: string = k;
+    console.log(k2);
+  }
+
+  for await (const k of rep.scan({start: {key: 'p'}}).keys()) {
+    // @ts-expect-error Type 'string' is not assignable to type '[string]'.ts(2322)
+    const k2: [string] = k;
+    console.log(k2);
+  }
+
+  // @ts-expect-error Type 'number' is not assignable to type 'string | undefined'.ts(2322)
+  rep.scan({indexName: 'n', start: {key: ['s', 42]}});
+
+  // @ts-expect-error Type 'number' is not assignable to type 'string | undefined'.ts(2322)
+  rep.scanAll({indexName: 'n', start: {key: ['s', 42]}});
+
+  // @ts-expect-error Type '[string]' is not assignable to type 'string'.ts(2322)
+  rep.scan({start: {key: ['s']}});
+
+  // @ts-expect-error Type '[string]' is not assignable to type 'string'.ts(2322)
+  rep.scanAll({start: {key: ['s']}});
+});

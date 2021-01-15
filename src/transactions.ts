@@ -205,7 +205,10 @@ export interface CreateIndexDefinition {
 
   /**
    * A [JSON Ponter](https://tools.ietf.org/html/rfc6901) pointing at the sub
-   * value inside the value that you want to index.
+   * value inside each value to index over.
+   *
+   * For example, one might index over users' ages like so:
+   * `createIndex({name: 'usersByAge', keyPrefix: '/user/', jsonPointer: '/age'})`
    */
   jsonPointer: string;
 }

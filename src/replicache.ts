@@ -31,18 +31,56 @@ const storageKeyName = (name: string) => `/replicache/root/${name}`;
 const MAX_REAUTH_TRIES = 8;
 
 /**
- * The options passed to [[Replicache]].
+ * The options passed to [[default|Replicache]].
  */
 export interface ReplicacheOptions {
+  /**
+   * This is the URL to the server endpoint dealing with the batch updates. See
+   * [Server Setup Upstream Sync](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync)
+   * for more details.
+   */
   batchURL?: string;
+
+  /**
+   * This is the
+   * [authentication](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#authentication)
+   * token used with the [upstream batch
+   * server](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync)
+   * as well as the [client
+   * view](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-1-downstream-sync).
+   */
   dataLayerAuth?: string;
+
+  /**
+   * The diff server deals with computing the diffs in the downstream sync.
+   * This is the auth token for the [diff server](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-2-test-downstream-sync) if any.
+   */
   diffServerAuth?: string;
+
+  /**
+   * The [diff
+   * server](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-2-test-downstream-sync)
+   * deals with computing the diffs in the downstream sync. This is the URL to
+   * talk to get the diffs as needed.
+   *
+   */
   diffServerURL: string;
+
+  /**
+   * The name of the Replicache database. This defaults to `"default"`.
+   *
+   * You can use multiple Replicache instances as long as the names are unique.
+   *
+   * Using differen names for different users allows you to swithch users even
+   * when you are online. See
+   * [sample/redo](https://github.com/rocicorp/replicache-sdk-js/blob/main/sample/redo/src/login.tsx)
+   * for inspiration on how to do this.
+   */
   name?: string;
 
   /**
-   * The duration between each [[sync]]. Set this to `null` to prevent syncing in
-   * the background.
+   * The duration between each [[sync]]. Set this to `null` to prevent syncing
+   * in the background.
    */
   syncInterval?: number | null;
 

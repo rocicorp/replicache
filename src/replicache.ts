@@ -8,6 +8,7 @@ import {
   InitInput,
 } from './repm-invoker.js';
 import {
+  CreateIndexDefinition,
   IndexTransactionImpl,
   ReadTransactionImpl,
   WriteTransactionImpl,
@@ -369,16 +370,12 @@ export default class Replicache implements ReadTransaction {
    * immediately. If the named index already exists, but with a different definition
    * an error is returned.
    */
-  async createIndex(def: {
-    name: string;
-    keyPrefix?: string;
-    jsonPointer: string;
-  }): Promise<void> {
+  async createIndex(def: CreateIndexDefinition): Promise<void> {
     await this._indexOp(tx => tx.createIndex(def));
   }
 
   /**
-   * Drops an index previously created with {@link createIndex}.
+   * Drops an index previously created with [[createIndex]].
    */
   async dropIndex(name: string): Promise<void> {
     await this._indexOp(tx => tx.dropIndex(name));

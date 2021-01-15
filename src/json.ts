@@ -1,3 +1,4 @@
+/** The values that can be represented in JSON */
 export type JSONValue =
   | null
   | string
@@ -8,7 +9,7 @@ export type JSONValue =
 
 /**
  * A JSON object. We allow undefined values because in TypeScript there is no
- * way to express optional missing properties vs proeprties with the value
+ * way to express optional missing properties vs properties with the value
  * `undefined`.
  */
 export type JSONObject = Partial<{[key: string]: JSONValue}>;

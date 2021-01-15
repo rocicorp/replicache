@@ -166,12 +166,19 @@ export default class Replicache implements ReadTransaction {
     return this._online;
   }
 
+  /**
+   * Whether the Replicache database has been closed. Once Replicache has been
+   * closed it no longer syncs and you can no longer read or write data out of
+   * it. After it has been closed it is pretty much useless and should not be
+   * used any more.
+   */
   get closed(): boolean {
     return this._closed;
   }
 
   /**
-   * The duration between each [[sync]]. Set this to `null` to prevent syncing in
+   * The duration between each [[sync]]. Set this to `null` to prevent syncing
+     in
    * the background.
    */
   get syncInterval(): number | null {

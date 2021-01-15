@@ -72,7 +72,7 @@ export interface ReplicacheOptions {
    *
    * You can use multiple Replicache instances as long as the names are unique.
    *
-   * Using differen names for different users allows you to swithch users even
+   * Using different names for different users allows you to switch users even
    * when you are online. See
    * [sample/redo](https://github.com/rocicorp/replicache-sdk-js/blob/main/sample/redo/src/login.tsx)
    * for inspiration on how to do this.

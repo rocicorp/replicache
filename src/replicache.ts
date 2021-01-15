@@ -221,9 +221,8 @@ export default class Replicache implements ReadTransaction {
   }
 
   /**
-   * The duration between each [[sync]]. Set this to `null` to prevent syncing
-     in
-   * the background.
+   * The duration between each periodic [[sync]]. Setting this to `null` disables periodic sync completely.
+   * Sync will still happen if you call [[sync]] manually, and after writes (see [[pushDelay]]).
    */
   get syncInterval(): number | null {
     return this._syncInterval;

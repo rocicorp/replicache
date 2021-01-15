@@ -9,31 +9,31 @@ import {ScanResult} from './scan-iterator.js';
 import {throwIfClosed} from './transaction-closed-error.js';
 
 /**
- * ReadTransactions are used with `Replicache.query` and allows read operations
+ * ReadTransactions are used with {@link default.query | Replicache.query} and allows read operations
  * on the database.
  */
 export interface ReadTransaction {
   /**
-   * Get a single value from the database. If the key is not present this
+   * Get a single value from the database. If the `key` is not present this
    * returns `undefined`.
    */
   get(key: string): Promise<JSONValue | undefined>;
 
   /**
-   * Determines if a single key is present in the database.
+   * Determines if a single `key` is present in the database.
    */
   has(key: string): Promise<boolean>;
 
   /**
-   * Gets many values from the database. This returns a `ScanResult` which
-   * implements `AsyncIterable`. It also has methods to iterate over the `keys`
-   * and `entries`.
+   * Gets many values from the database. This returns a {@link ScanResult} which
+   * implements `AsyncIterable`. It also has methods to iterate over the {@link ScanResult.keys | keys}
+   * and {@link ScanResult.entries | entries}.
    *
    * If `options` has an `indexName`, then this does a scan over an index with
    * that name. A scan over an index uses a tuple for the key consisting of
    * `[secondary: string, primary: string]`.
    *
-   * If the `ScanResult` is used after the `ReadTransaction` has been closed it
+   * If the {@link ScanResult} is used after the `ReadTransaction` has been closed it
    * will throw a {@link TransactionClosedError}.
    */
   scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
@@ -41,7 +41,7 @@ export interface ReadTransaction {
   ): ScanResult<K>;
 
   /**
-   * Convenience form of `scan()` which returns all the entries as an array.
+   * Convenience form of {@link scan} which returns all the entries as an array.
    */
   scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
@@ -125,19 +125,20 @@ export class ReadTransactionImpl implements ReadTransaction {
 }
 
 /**
- * WriteTransactions are used with `Replicache.register` and allows read and
- * write operations on the database.
+ * WriteTransactions are used with
+ * {@link default.register | Replicache.register} and allows read and write
+ * operations on the database.
  */
 export interface WriteTransaction extends ReadTransaction {
   /**
-   * Sets a single value in the database. The `value` will be encoded using
+   * Sets a single `value` in the database. The `value` will be encoded using
    * `JSON.stringify`.
    */
   put(key: string, value: JSONValue): Promise<void>;
 
   /**
-   * Removes a key and its value from the database. Returns true if there was a
-   * key to remove.
+   * Removes a `key` and its value from the database. Returns `true` if there was a
+   * `key` to remove.
    */
   del(key: string): Promise<boolean>;
 }

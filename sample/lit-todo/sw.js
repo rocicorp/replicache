@@ -16,7 +16,7 @@
 // in turn trigger the install event again.
 const PRECACHE = 'precache-v1';
 
-const NETWORK_WHITELIST = [
+const NETWORK_ALLOWLIST = [
   'https://serve.replicache.dev/pull',
   'https://replicache-sample-todo.now.sh/serve/replicache-batch',
 ];
@@ -76,7 +76,7 @@ self.addEventListener('fetch', event => {
     caches.match(event.request).then(cachedResponse => {
       if (cachedResponse) {
         return cachedResponse;
-      } else if (NETWORK_WHITELIST.indexOf(event.request.url) > -1) {
+      } else if (NETWORK_ALLOWLIST.indexOf(event.request.url) > -1) {
         return fetch(event.request);
       } else {
         return new Response('404: 😢🐼', {status: 404});

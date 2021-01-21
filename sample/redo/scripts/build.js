@@ -3,6 +3,8 @@ import fs from 'fs/promises';
 
 /* eslint-env node */
 
+const isProd = process.env.NODE_ENV === 'production';
+
 await Promise.all([
   fs.copyFile(
     'node_modules/replicache/out/replicache.wasm',
@@ -18,6 +20,7 @@ await Promise.all([
       ['process.env.NODE_ENV']: JSON.stringify(process.env.NODE_ENV || ''),
     },
     format: 'esm',
-    minify: process.env.NODE_ENV === 'production',
+    minify: isProd,
+    target: isProd ? 'es2018' : 'esnext',
   }),
 ]);

@@ -1,27 +1,26 @@
 import React, {useEffect, useState, useCallback, DependencyList} from 'react';
 import './App.css';
 
-import Replicache, {
-  ReadTransaction,
-  WriteTransaction,
-  JSONValue,
-} from 'replicache';
+import Replicache from 'replicache';
+import type {ReadTransaction, WriteTransaction, JSONValue} from 'replicache';
 import {diffServerURL, diffServerAuth, batchURL} from './settings';
 import {LoginScreen, logout} from './login';
 import type {LoginResult} from './login';
 import {List} from './List';
 import {newOrderBetween} from './order';
 
+type UpdateTodoArg = Partial<Todo> & {id: number};
+
 export interface MutationFunctions {
   createTodo: (args: Todo) => Promise<void>;
   deleteTodo: (args: {id: number}) => Promise<void>;
-  updateTodo: (args: JSONValue) => Promise<void>;
+  updateTodo: (args: UpdateTodoArg) => Promise<void>;
 }
 
-function App() {
+function App(): JSX.Element | null {
   const [loginResult, setLoginResult] = useState<LoginResult>();
-  let [rep, setRep] = useState<Replicache>();
-  let [mutations, setMutations] = useState<MutationFunctions>();
+  const [rep, setRep] = useState<Replicache>();
+  const [mutations, setMutations] = useState<MutationFunctions>();
 
   const logoutCallback = useCallback(async () => {
     logout();
@@ -40,8 +39,8 @@ function App() {
       dataLayerAuth: loginResult.userId,
       diffServerAuth,
       batchURL,
-      // Webpack 4 tries to parse wasm files and hangs forever.
-      wasmModule: '/replicache.wasm.x',
+      // ESBuild does not correctly deal with import.meta.url.
+      wasmModule: '/replicache.wasm',
     });
     r.syncInterval = 60 * 1000;
     setRep(r);
@@ -197,7 +196,7 @@ function registerMutations(rep: Replicache) {
 
   const updateTodo = rep.register(
     'updateTodo',
-    async (tx: WriteTransaction, args: Partial<Todo> & {id: number}) => {
+    async (tx: WriteTransaction, args: UpdateTodoArg) => {
       const {id} = args;
       const todo = await read(tx, id);
       if (!todo) {

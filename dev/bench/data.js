@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1611178698610,
+  "lastUpdate": 1611263154652,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -9778,6 +9778,107 @@ window.BENCHMARK_DATA = {
           {
             "name": "create index 1024x5000",
             "value": 3.85,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "8 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "58d61850feb94b93056ce5e7d06b9c284495e1d5",
+          "message": "Get rid of create-react-app gunk (#256)\n\nUse esbuild and light-server instead",
+          "timestamp": "2021-01-21T13:02:46-08:00",
+          "tree_id": "e5cbd6fd33b68c4f791d64be6c7043f9ee6aba04",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/58d61850feb94b93056ce5e7d06b9c284495e1d5"
+        },
+        "date": 1611263154071,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.48,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.19,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.56,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.97,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 5.64,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "12 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 5.76,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 17.76,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "36 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 17.63,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 37.04,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "72 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 18.52,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "37 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 3.73,
             "range": "±0.0%",
             "unit": "op/s",
             "extra": "8 samples"

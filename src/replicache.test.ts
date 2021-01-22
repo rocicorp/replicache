@@ -765,8 +765,9 @@ test('closed tx', async () => {
 
 test('syncInterval in constructor', async () => {
   const rep = new Replicache({
+    clientViewURL: 'clientViewURL',
+    diffServerURL: 'diffServerURL',
     syncInterval: 12.34,
-    diffServerURL: 'xxx',
   });
   expect(rep.syncInterval).to.equal(12.34);
   await rep.close();

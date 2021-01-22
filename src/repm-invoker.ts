@@ -133,6 +133,7 @@ export type CommitTransactionResponse = {
 
 type BeginSyncRequest = {
   batchPushURL: string;
+  clientViewURL: string;
   dataLayerAuth: string;
   diffServerURL: string;
   diffServerAuth: string;

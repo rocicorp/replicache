@@ -11,7 +11,7 @@ type ListProps = {
   focusedId: number | null;
 };
 
-export function ListItem(props: ListProps) {
+export function TodoListItem(props: ListProps): JSX.Element {
   const {todo, mutations, index, focusedId} = props;
 
   const changeCompleteCallback = useCallback(() => {

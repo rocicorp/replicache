@@ -1,0 +1,33 @@
+.ListListItem {
+  box-sizing: border-box;
+  height: 33px;
+  white-space: nowrap;
+  cursor: default;
+  display: flex;
+}
+
+.ListListItem.selected > button {
+  background-color: var(--lightest);
+}
+
+.ListListItem > button {
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* display: flex; */
+  text-align: left;
+  padding: 6.5px 5px;
+  margin: 0;
+  flex: 1;
+  background-color: transparent;
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: inherit;
+  border-radius: 5px;
+}
+
+.ListListItem > button:focus {
+  outline: none;
+  border: var(--light) solid 1px;
+}

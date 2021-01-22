@@ -5,6 +5,7 @@
   --dark: hsl(220 13% 70%);
   --darkest: hsl(220 13% 18%);
 }
+
 body {
   background-color: var(--white);
   margin: 0;

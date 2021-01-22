@@ -1,10 +1,12 @@
 import React, {useCallback} from 'react';
 import type {Todo, MutationFunctions} from './App';
-import {ListItem} from './ListItem';
+import {TodoListItem} from './TodoListItem';
 import {DragDropContext, Droppable} from 'react-beautiful-dnd';
 import type {DropResult} from 'react-beautiful-dnd';
 import type Replicache from 'replicache';
 import {newOrderBetween} from './order';
+
+import './TodoList.css';
 
 type ListProps = {
   todos: Todo[];
@@ -13,7 +15,7 @@ type ListProps = {
   focusedId: number | null;
 };
 
-export const List = React.memo(
+export const TodoList = React.memo(
   (props: ListProps) => {
     const {todos, mutations, rep, focusedId} = props;
     const onDragEnd = useCallback(
@@ -52,7 +54,7 @@ export const List = React.memo(
               {...provided.droppableProps}
             >
               {todos.map((todo, index) => (
-                <ListItem
+                <TodoListItem
                   key={todo.id}
                   todo={todo}
                   mutations={mutations}
@@ -106,7 +108,7 @@ async function handleReorder(
   }
 
   const todo = todos[oldIndex];
-  let {id} = todo;
+  const {id} = todo;
   let left: Todo | null = null;
   let right: Todo | null = null;
   if (newIndex === 0) {

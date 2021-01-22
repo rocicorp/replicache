@@ -6,15 +6,17 @@ import type {ReadTransaction, WriteTransaction, JSONValue} from 'replicache';
 import {diffServerURL, diffServerAuth, batchURL} from './settings';
 import {LoginScreen, logout} from './login';
 import type {LoginResult} from './login';
-import {List} from './List';
+import {TodoList} from './TodoList';
 import {newOrderBetween} from './order';
+import {ListList} from './ListList';
 
 type UpdateTodoArg = Partial<Todo> & {id: number};
 
 export interface MutationFunctions {
-  createTodo: (args: Todo) => Promise<void>;
-  deleteTodo: (args: {id: number}) => Promise<void>;
-  updateTodo: (args: UpdateTodoArg) => Promise<void>;
+  createList(args: {id: number}): Promise<void>;
+  createTodo(args: Todo): Promise<void>;
+  deleteTodo(args: {id: number}): Promise<void>;
+  updateTodo(args: UpdateTodoArg): Promise<void>;
 }
 
 function App(): JSX.Element | null {
@@ -89,6 +91,10 @@ type LoggedInAppProps = {
   email: string;
 };
 
+function newRandomId() {
+  return (Math.random() * 2 ** 31) | 0;
+}
+
 function LoggedInApp(props: LoggedInAppProps) {
   const {rep, mutations, logout, email} = props;
 
@@ -101,11 +107,11 @@ function LoggedInApp(props: LoggedInAppProps) {
 
   const todos = todosInList(allTodos, selectedListId);
 
-  const createCallback = useCallback(() => {
+  const createTodoCallback = useCallback(() => {
     if (!selectedListId) {
       return;
     }
-    const id = (Math.random() * 2 ** 31) | 0;
+    const id = newRandomId();
 
     const order = newOrderBetween(
       todos.length === 0 ? null : todos[todos.length - 1],
@@ -122,6 +128,14 @@ function LoggedInApp(props: LoggedInAppProps) {
     });
   }, [todos, selectedListId, mutations]);
 
+  const createListCallback = useCallback(async () => {
+    const id = newRandomId();
+    await mutations.createList({
+      id,
+    });
+    setSelectedListId(id);
+  }, [mutations]);
+
   const syncCallback = useCallback(() => {
     rep.sync();
   }, [rep]);
@@ -137,20 +151,28 @@ function LoggedInApp(props: LoggedInAppProps) {
     <div className="App">
       <header className="App-header">Todo</header>
       <header className="App-sub-header">
-        <button onClick={createCallback} disabled={!selectedListId}>
+        <button onClick={createTodoCallback} disabled={!selectedListId}>
           Create Todo
         </button>
+        <button onClick={createListCallback}>New List</button>
         <button onClick={syncCallback}>Sync</button>
         <button onClick={logout} title="Logout">
           Logged in as {email}
         </button>
       </header>
-      <List
-        todos={todosInList(allTodos, selectedListId)}
-        mutations={mutations}
-        rep={rep}
-        focusedId={focusedId}
-      />
+      <main>
+        <ListList
+          listIds={listIds}
+          onClick={setSelectedListId}
+          selectedId={selectedListId}
+        />
+        <TodoList
+          todos={todosInList(allTodos, selectedListId)}
+          mutations={mutations}
+          rep={rep}
+          focusedId={focusedId}
+        />
+      </main>
     </div>
   );
 }
@@ -213,7 +235,14 @@ function registerMutations(rep: Replicache) {
     },
   );
 
-  return {createTodo, deleteTodo, updateTodo};
+  const createList = rep.register(
+    'createList',
+    async (tx: WriteTransaction, {id}: {id: number}) => {
+      await tx.put(`/list/${id}`, {id});
+    },
+  );
+
+  return {createList, createTodo, deleteTodo, updateTodo};
 }
 
 async function allTodosInTx(tx: ReadTransaction): Promise<Todo[]> {

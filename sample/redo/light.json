@@ -1,0 +1,9 @@
+{
+  "serve": "public",
+  "port": 8000,
+  "watchexps": [
+    "src/**.ts, src/**.tsx # npm run build",
+    "src/**.css # npm run build # reloadcss"
+  ],
+  "quiet": true
+}

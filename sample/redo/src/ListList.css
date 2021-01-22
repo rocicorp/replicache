@@ -1,0 +1,9 @@
+.ListList {
+  display: flex;
+  flex-direction: column;
+  padding: 5px;
+  margin: 0;
+  min-width: 10vw;
+  max-width: 20vw;
+  border-right: 1px solid var(--lightest);
+}

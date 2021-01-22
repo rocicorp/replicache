@@ -43,6 +43,12 @@ export interface ReplicacheOptions {
   batchURL?: string;
 
   /**
+   * The URL for the client view. This is used by the diff-server to compute
+   * diffs and to get a fresh view of the data that this client should see.
+   */
+  clientViewURL: string;
+
+  /**
    * This is the
    * [authentication](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#authentication)
    * token used with the [upstream batch
@@ -116,6 +122,7 @@ export interface ReplicacheOptions {
 
 export default class Replicache implements ReadTransaction {
   private readonly _batchURL: string;
+  private readonly _clientViewURL: string;
   private _dataLayerAuth: string;
   private readonly _diffServerAuth: string;
   private readonly _diffServerURL: string;
@@ -173,6 +180,7 @@ export default class Replicache implements ReadTransaction {
   constructor(options: ReplicacheOptions) {
     const {
       batchURL = '',
+      clientViewURL,
       dataLayerAuth = '',
       diffServerAuth = '',
       diffServerURL,
@@ -182,6 +190,7 @@ export default class Replicache implements ReadTransaction {
       wasmModule,
     } = options;
     this._batchURL = batchURL;
+    this._clientViewURL = clientViewURL;
     this._dataLayerAuth = dataLayerAuth;
     this._diffServerAuth = diffServerAuth;
     this._diffServerURL = diffServerURL;
@@ -427,6 +436,7 @@ export default class Replicache implements ReadTransaction {
   protected async _beginSync(maxAuthTries: number): Promise<BeginSyncResult> {
     const beginSyncResult = await this._invoke('beginSync', {
       batchPushURL: this._batchURL,
+      clientViewURL: this._clientViewURL,
       diffServerURL: this._diffServerURL,
       dataLayerAuth: this._dataLayerAuth,
       diffServerAuth: this._diffServerAuth,
@@ -822,14 +832,15 @@ export class ReplicacheTest extends Replicache {
     diffServerURL,
     name = '',
   }: {
-    diffServerURL: string;
     batchURL?: string;
     dataLayerAuth?: string;
+    diffServerURL: string;
     diffServerAuth?: string;
     name?: string;
   }): Promise<ReplicacheTest> {
     const rep = new ReplicacheTest({
       batchURL,
+      clientViewURL: 'clientViewURL',
       dataLayerAuth,
       diffServerAuth,
       diffServerURL,

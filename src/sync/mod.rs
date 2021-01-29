@@ -115,11 +115,12 @@ pub async fn begin_sync(
 
     let pull_req = PullRequest {
         client_view_auth: begin_sync_req.data_layer_auth,
+        client_view_url: begin_sync_req.client_view_url,
         client_id,
         base_state_id: base_state_id.clone(),
         checksum: base_checksum.clone(),
         last_mutation_id: base_snapshot.mutation_id(),
-        version: 2,
+        version: 3,
     };
     debug!(lc, "Starting pull...");
     let pull_timer = rlog::Timer::new().map_err(InternalTimerError)?;
@@ -381,6 +382,8 @@ pub enum MaybeEndSyncError {
 pub struct PullRequest {
     #[serde(rename = "clientViewAuth")]
     pub client_view_auth: String,
+    #[serde(rename = "clientViewURL")]
+    pub client_view_url: String,
     #[serde(rename = "clientID")]
     pub client_id: String,
     #[serde(rename = "baseStateID")]
@@ -525,6 +528,7 @@ mod tests {
 
         // Push
         let batch_push_url = str!("batch_push_url");
+        let client_view_url = str!("client_view_url");
 
         // Pull
         let diff_server_url = str!("diff_server_url");
@@ -584,11 +588,12 @@ mod tests {
                 push_result: None,
                 exp_pull_req: PullRequest {
                     client_view_auth: data_layer_auth.clone(),
+                    client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
-                    version: 2,
+                    version: 3,
                 },
                 pull_result: Ok(good_pull_resp.clone()),
                 exp_err: None,
@@ -615,11 +620,12 @@ mod tests {
                 push_result: Some(Ok(push::BatchPushResponse {})),
                 exp_pull_req: PullRequest {
                     client_view_auth: data_layer_auth.clone(),
+                    client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
-                    version: 2,
+                    version: 3,
                 },
                 pull_result: Ok(PullResponse {
                     last_mutation_id: 2,
@@ -649,11 +655,12 @@ mod tests {
                 push_result: Some(Ok(push::BatchPushResponse {})),
                 exp_pull_req: PullRequest {
                     client_view_auth: data_layer_auth.clone(),
+                    client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
-                    version: 2,
+                    version: 3,
                 },
                 pull_result: Ok(PullResponse {
                     last_mutation_id: 1,
@@ -691,11 +698,12 @@ mod tests {
                 push_result: Some(Ok(push::BatchPushResponse {})),
                 exp_pull_req: PullRequest {
                     client_view_auth: data_layer_auth.clone(),
+                    client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
-                    version: 2,
+                    version: 3,
                 },
                 pull_result: Ok(good_pull_resp.clone()),
                 exp_err: None,
@@ -730,11 +738,12 @@ mod tests {
                 push_result: Some(Ok(push::BatchPushResponse {})),
                 exp_pull_req: PullRequest {
                     client_view_auth: data_layer_auth.clone(),
+                    client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
-                    version: 2,
+                    version: 3,
                 },
                 pull_result: Ok(PullResponse {
                     last_mutation_id: 2,
@@ -772,11 +781,12 @@ mod tests {
                 push_result: Some(Err(str!("FetchNotOk(500)"))),
                 exp_pull_req: PullRequest {
                     client_view_auth: data_layer_auth.clone(),
+                    client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
-                    version: 2,
+                    version: 3,
                 },
                 pull_result: Ok(good_pull_resp.clone()),
                 exp_err: None,
@@ -799,11 +809,12 @@ mod tests {
                 push_result: None,
                 exp_pull_req: PullRequest {
                     client_view_auth: data_layer_auth.clone(),
+                    client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
-                    version: 2,
+                    version: 3,
                 },
                 pull_result: Ok(PullResponse {
                     state_id: base_server_state_id.clone(),
@@ -822,11 +833,12 @@ mod tests {
                 push_result: None,
                 exp_pull_req: PullRequest {
                     client_view_auth: data_layer_auth.clone(),
+                    client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
-                    version: 2,
+                    version: 3,
                 },
                 pull_result: Ok(PullResponse {
                     last_mutation_id: 0,
@@ -842,11 +854,12 @@ mod tests {
                 push_result: None,
                 exp_pull_req: PullRequest {
                     client_view_auth: data_layer_auth.clone(),
+                    client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
-                    version: 2,
+                    version: 3,
                 },
                 pull_result: Ok(PullResponse {
                     state_id: str!(""),
@@ -862,11 +875,12 @@ mod tests {
                 push_result: None,
                 exp_pull_req: PullRequest {
                     client_view_auth: data_layer_auth.clone(),
+                    client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
-                    version: 2,
+                    version: 3,
                 },
                 pull_result: Ok(PullResponse {
                     checksum: str!(""),
@@ -882,11 +896,12 @@ mod tests {
                 push_result: None,
                 exp_pull_req: PullRequest {
                     client_view_auth: data_layer_auth.clone(),
+                    client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
-                    version: 2,
+                    version: 3,
                 },
                 pull_result: Ok(PullResponse {
                     checksum: str!(12345678),
@@ -902,11 +917,12 @@ mod tests {
                 push_result: None,
                 exp_pull_req: PullRequest {
                     client_view_auth: data_layer_auth.clone(),
+                    client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
                     checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
-                    version: 2,
+                    version: 3,
                 },
                 pull_result: Err(str!("FetchNotOk(500)")),
                 exp_err: Some("FetchNotOk(500)"),
@@ -996,6 +1012,7 @@ mod tests {
 
             let begin_sync_req = BeginSyncRequest {
                 batch_push_url: batch_push_url.clone(),
+                client_view_url: client_view_url.clone(),
                 data_layer_auth: data_layer_auth.clone(),
                 diff_server_url: diff_server_url.clone(),
                 diff_server_auth: diff_server_auth.clone(),
@@ -1389,11 +1406,12 @@ mod tests {
         lazy_static! {
             static ref PULL_REQ: PullRequest = PullRequest {
                 client_view_auth: str!("client-view-auth"),
+                client_view_url: str!("client-view-url"),
                 client_id: str!("client_id"),
                 base_state_id: str!("base-state-id"),
                 checksum: str!("00000000"),
                 last_mutation_id: 123,
-                version: 2,
+                version: 3,
             };
             // EXP_BODY must be 'static to be used in HTTP handler closure.
             static ref EXP_BODY: String = serde_json::to_string(&*PULL_REQ).unwrap();

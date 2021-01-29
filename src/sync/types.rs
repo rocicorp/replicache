@@ -5,6 +5,8 @@ use std::default::Default;
 pub struct BeginSyncRequest {
     #[serde(rename = "batchPushURL")]
     pub batch_push_url: String,
+    #[serde(rename = "clientViewURL")]
+    pub client_view_url: String,
     // data_layer_auth is used for push and for pull (as the client_view_auth).
     #[serde(rename = "dataLayerAuth")]
     pub data_layer_auth: String,

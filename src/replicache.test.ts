@@ -1190,6 +1190,54 @@ test.skip('Test partial JSONObject [type checking only]', async () => {
 });
 
 // Only used for type checking
+test.skip('Test register param [type checking only]', async () => {
+  rep = await replicacheForTesting('test-types');
+
+  const mut: () => Promise<void> = rep.register(
+    'mut',
+    async (tx: WriteTransaction) => {
+      console.log(tx);
+    },
+  );
+  console.log(mut);
+
+  // @ts-expect-error Type 'number' is not assignable to type 'string'.ts(2322)
+  const mut2: (x: number) => Promise<void> = rep.register(
+    'mut2',
+    async (tx: WriteTransaction, x: string) => {
+      console.log(tx, x);
+    },
+  );
+  console.log(mut2);
+
+  // @ts-expect-error Type '(args: string) => Promise<void>' is not assignable to type '() => Promise<void>'.ts(2322)
+  const mut3: () => Promise<void> = rep.register(
+    'mut3',
+    async (tx: WriteTransaction, x: string) => {
+      console.log(tx, x);
+    },
+  );
+  console.log(mut3);
+
+  // This is fine according to the rules of JS/TS
+  const mut4: (x: number) => Promise<void> = rep.register(
+    'mut4',
+    async (tx: WriteTransaction) => {
+      console.log(tx);
+    },
+  );
+  console.log(mut4);
+
+  rep.register(
+    'mut5',
+    // @ts-expect-error ts(2345)
+    async (tx: WriteTransaction, a: string, b: number) => {
+      console.log(tx, a, b);
+    },
+  );
+});
+
+// Only used for type checking
 test.skip('Key type for scans', async () => {
   rep = await replicacheForTesting('test-types');
 

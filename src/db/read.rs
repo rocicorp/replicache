@@ -5,7 +5,6 @@ use crate::dag;
 use crate::prolly;
 use std::collections::hash_map::HashMap;
 use std::convert::TryInto;
-use std::iter::FromIterator;
 
 #[derive(Debug)]
 pub enum Whence {
@@ -71,12 +70,16 @@ pub async fn read_commit(
 }
 
 pub fn read_indexes(commit: &Commit) -> HashMap<String, index::Index> {
-    HashMap::from_iter(commit.indexes().iter().map(|meta| {
-        (
-            meta.definition.name.clone(),
-            index::Index::new(meta.clone(), None),
-        )
-    }))
+    commit
+        .indexes()
+        .iter()
+        .map(|meta| {
+            (
+                meta.definition.name.clone(),
+                index::Index::new(meta.clone(), None),
+            )
+        })
+        .collect()
 }
 
 pub struct Read<'a> {

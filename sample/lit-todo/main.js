@@ -17,9 +17,12 @@ import {generateKeyBetween} from 'fractional-indexing';
 
 const key = id => `/todo/${id}`;
 const dataLayerAuth = '1';
+const dataLayerBase = 'https://replicache-sample-todo.now.sh/serve/';
 
 let rep = new Replicache({
   name: 'todo',
+
+  clientViewURL: `${dataLayerBase}replicache-client-view`,
 
   // URL of the diff server to use. The diff server periodically fetches
   // the 'client view' from your service and returns any delta. You can
@@ -35,7 +38,7 @@ let rep = new Replicache({
   // URL of your service's Replicache batch endpoint. Replicache
   // will send batches of mutations here for application when the
   // network is available.
-  batchURL: 'https://replicache-sample-todo.now.sh/serve/replicache-batch',
+  batchURL: `${dataLayerBase}replicache-batch`,
 
   // Auth token for your client view and batch endpoints, if any.
   dataLayerAuth,

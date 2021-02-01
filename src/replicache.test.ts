@@ -1311,3 +1311,43 @@ test('mem store', async () => {
   rep = await replicacheForTesting('mem', {useMemstore: true});
   expect(await rep.query(tx => tx.get('a'))).to.equal(undefined);
 });
+
+testWithBothStores('isEmpty', async () => {
+  rep = await replicacheForTesting('test-is-empty');
+  const add = rep.register('add-data', addData);
+  const del = rep.register('del', (tx: WriteTransaction, key: string) =>
+    tx.del(key),
+  );
+
+  async function t(expected: boolean) {
+    expect(await rep?.query(tx => tx.isEmpty())).to.eq(expected);
+    expect(await rep?.isEmpty()).to.eq(expected);
+  }
+
+  await t(true);
+
+  await add({a: 1});
+  await t(false);
+
+  await add({b: 2, c: 3});
+  await t(false);
+
+  await del('b');
+  await t(false);
+
+  const mut = rep.register('mut', async tx => {
+    expect(await tx.isEmpty()).to.eq(false);
+
+    tx.del('c');
+    expect(await tx.isEmpty()).to.eq(false);
+
+    tx.del('a');
+    expect(await tx.isEmpty()).to.eq(true);
+
+    tx.put('d', 4);
+    expect(await tx.isEmpty()).to.eq(false);
+  });
+  await mut();
+
+  await t(false);
+});

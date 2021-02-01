@@ -340,9 +340,14 @@ export default class Replicache implements ReadTransaction {
     return this.query(tx => tx.get(key));
   }
 
-  /** Determines if a single key is present in the database. */
+  /** Determines if a single `key` is present in the database. */
   has(key: string): Promise<boolean> {
     return this.query(tx => tx.has(key));
+  }
+
+  /** Whether the database is empty. */
+  isEmpty(): Promise<boolean> {
+    return this.query(tx => tx.isEmpty());
   }
 
   /**

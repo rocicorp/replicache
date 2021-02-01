@@ -1,18 +1,20 @@
 import Replicache, {WriteTransaction} from 'replicache';
 
 import {
-  dataLayerAuth,
-  diffServerURL,
-  diffServerAuth,
   batchURL,
+  clientViewURL,
+  dataLayerAuth,
+  diffServerAuth,
+  diffServerURL,
 } from './settings';
 import type {EventIdentity, Event, EventUpdate} from './types';
 
 export const rep = new Replicache({
-  diffServerURL,
+  batchURL,
+  clientViewURL,
   dataLayerAuth,
   diffServerAuth,
-  batchURL,
+  diffServerURL,
 });
 
 function eventKey(event: EventIdentity) {

@@ -3,7 +3,12 @@ import './App.css';
 
 import Replicache from 'replicache';
 import type {ReadTransaction, WriteTransaction, JSONValue} from 'replicache';
-import {diffServerURL, diffServerAuth, batchURL} from './settings';
+import {
+  batchURL,
+  clientViewURL,
+  diffServerAuth,
+  diffServerURL,
+} from './settings';
 import {LoginScreen, logout} from './login';
 import type {LoginResult} from './login';
 import {List} from './List';
@@ -34,11 +39,12 @@ function App(): JSX.Element | null {
       return;
     }
     const r = new Replicache({
-      name: loginResult.userId,
-      diffServerURL,
+      batchURL,
+      clientViewURL,
       dataLayerAuth: loginResult.userId,
       diffServerAuth,
-      batchURL,
+      diffServerURL,
+      name: loginResult.userId,
       // ESBuild does not correctly deal with import.meta.url.
       wasmModule: '/replicache.wasm',
     });

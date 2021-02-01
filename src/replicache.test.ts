@@ -61,6 +61,15 @@ async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
   }
 }
 
+async function delData(tx: WriteTransaction, data: string | string[]) {
+  if (Array.isArray(data)) {
+    data = [data];
+  }
+  for (const key of data) {
+    await tx.del(key);
+  }
+}
+
 const emptyHash = '';
 
 async function asyncIterableToArray<T>(it: AsyncIterable<T>) {
@@ -1279,4 +1288,32 @@ test.skip('Key type for scans', async () => {
 
   // @ts-expect-error Type '[string]' is not assignable to type 'string'.ts(2322)
   rep.scanAll({start: {key: ['s']}});
+});
+
+test('size and isEmpty', async () => {
+  rep = await replicacheForTesting('test-size');
+  const add = rep.register('add-data', addData);
+  const del = rep.register('del-data', delData);
+
+  async function t(expectedSize: number) {
+    expect(await rep?.query(tx => tx.size())).to.eq(expectedSize);
+    expect(await rep?.size()).to.eq(expectedSize);
+
+    expect(await rep?.query(tx => tx.isEmpty())).to.eq(expectedSize === 0);
+    expect(await rep?.isEmpty()).to.eq(expectedSize === 0);
+  }
+
+  await t(0);
+
+  await add({a: 1});
+  await t(1);
+
+  await add({b: 2, c: 3});
+  await t(3);
+
+  await del('b');
+  await t(2);
+
+  await del('a');
+  await t(1);
 });

@@ -3,6 +3,7 @@ import type {
   Invoke,
   OpenTransactionRequest,
   CommitTransactionResponse,
+  ScanRequest,
 } from './repm-invoker.js';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
 import {ScanResult} from './scan-iterator.js';
@@ -19,10 +20,14 @@ export interface ReadTransaction {
    */
   get(key: string): Promise<JSONValue | undefined>;
 
-  /**
-   * Determines if a single `key` is present in the database.
-   */
+  /** Determines if a single `key` is present in the database. */
   has(key: string): Promise<boolean>;
+
+  /** The number of entries in the database. */
+  size(): Promise<number>;
+
+  /** Whether the database is empty. */
+  isEmpty(): Promise<boolean>;
 
   /**
    * Gets many values from the database. This returns a [[ScanResult]] which
@@ -79,6 +84,30 @@ export class ReadTransactionImpl implements ReadTransaction {
       key,
     });
     return result['has'];
+  }
+
+  async size(): Promise<number> {
+    throwIfClosed(this);
+
+    let size = 0;
+    await this._invoke('scan', {
+      transactionId: this._transactionId,
+      opts: {},
+      receiver: () => size++,
+    } as ScanRequest);
+    return size;
+  }
+
+  async isEmpty(): Promise<boolean> {
+    throwIfClosed(this);
+
+    let empty = true;
+    await this._invoke('scan', {
+      transactionId: this._transactionId,
+      opts: {limit: 1},
+      receiver: () => (empty = false),
+    });
+    return empty;
   }
 
   scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(

@@ -6,7 +6,7 @@ Questions? Comments? We'd love to help you evaluate Replicache — [Join us on S
 You can also refer to our fully-functional [TODO sample application](https://github.com/rocicorp/replicache-sample-todo). For information about contributing, see our [contributing guide](contributing.md).
 
 **Note:** This document assumes you already know what Replicache is, why you might need it, and broadly how it works. If that's not true, see the [Replicache homepage](https://replicache.dev) for an overview, or the [design document](design.md) for a detailed deep-dive.
-fbatch
+
 # Overview
 
 ![Picture of Replicache Architecture](diagram.png)
@@ -46,9 +46,13 @@ The key/value pairs you return are up to you — Replicache just makes sure they
 
 See [client-view-schema.jsonc](./client-view-schema.jsonc) for the schema of the Client View response.
 
-#### Authentication
+#### Client View Authentication
 
 Most applications return a Client View that is specific to the calling user. Replicache supports sending user credentials through the standard `Authorization` HTTP header. If authorization fails, the Client View should return HTTP 401 (Unauthorized). The Replicache client will prompt user code to reauthenticate in that case.
+
+Note that there is nothing Replicache-specific about Client View authenticaiton.
+Presumably your service already authenticates users so that they can't fetch
+each others' data.
 
 #### Errors
 
@@ -56,7 +60,25 @@ All responses other than HTTP 200 with a valid JSON Client View and HTTP 401 are
 
 ### Step 2: Test Downstream Sync
 
-Download diff-server:
+The request to your Client View goes through the Diff Server, which turns the full Client View your service returns into a smaller delta to be applied to the state if any that your client has. If your service is publicly accessible, you can use the Diff Server service we provide. If not, for example your Client View is running on `localhost`, you can run the Diff Server yourself. 
+
+Note that running the Diff Server yourself is convenient for evaluating
+Replicache, but in order to launch to users "for real", your Client View will
+need to be publicly accessible, and you will need to create a Replicache account
+as outlined below.
+
+#### If your Client View is publicly accessible...
+
+[Sign up for a Replicache account](https://serve.replicache.dev/signup)
+if you have not already. Note your `Account ID`. You will need to pass it to the
+Diff Server when manually `curl`ing requests below and in the `diffServerAuth`
+field of the
+[ReplicacheOptions passed to the Replicache constructor](https://replicache-sdk-js.now.sh/interfaces/replicacheoptions.html)
+when instantiating your JS client.
+
+#### Else if your Client View is NOT publicly accessible..
+
+Download the Diff Server:
 
 ```bash
 # For OSX
@@ -71,26 +93,59 @@ chmod u+x diffs
 Run it:
 
 ```bash
-# The --client-view parameter should point to the Client View endpoint you implemented above.
-./<your-platform>/diffs --db=/tmp/foo serve \
-  --client-view=http://localhost:8000/replicache-client-view
+# Begins serving on localhost:7001
+./<your-platform>/diffs --disable-auth=true --db=/tmp/replicache-db --account-db=/tmp/replicache-adb serve
 ```
 
-Then *pull* from that diff-server:
+The command line above disables the Diff Server auth check so you can pass any number
+for the `Account ID` in the next step.
+
+#### Pull from the Diff Server
+
+To *pull* from the Diff Server provide the variables listed below and `curl` the request. 
 
 ```bash
-curl -H "Authorization:sandbox" -d '{"clientID":"c1", "baseStateID":"00000000000000000000000000000000", "checksum":"00000000"}' \
-http://localhost:7001/pull
+# The URL of your Client View, e.g. http://yourservice.com/replicache-client-view.
+CLIENT_VIEW=<Client View URL>
+# The value of the Authorization HTTP header to send in the Client View request to your
+# service, identifying the user to your service.
+CLIENT_VIEW_AUTH=<Client View Authorization>
+# If you are using the Diff Server service, https://serve.replicache.dev/pull.
+# If you are running the Diff Server yourself, its address, e.g. http://localhost:7001/pull.
+DIFF_SERVER=<Diff Server URL>
+# The Account ID assigned during the signup step above if using the Diff Server service,
+# otherwise any integer if you are running the Diff Server yourself, e.g., 123.
+ACCOUNT_ID=<Account ID>
+curl -H "Authorization: $ACCOUNT_ID" -d '{ \
+  "clientID": "c1", \
+  "clientViewAuth": "$CLIENT_VIEW_AUTH", \
+  "clientViewURL": "$CLIENT_VIEW", \
+  "baseStateID": "00000000000000000000000000000000", \
+  "checksum": "00000000", \
+  "lastMutationID": 0, \
+  "version": 3 \
+  }' $DIFF_SERVER
 ```
 
-Take note of the returned `stateID` and `checksum`. Then make a change to your server and pull again, but specifying a `baseStateID` and `checksum` like so:
-
+Take note of the returned `stateID` and `checksum`. Then make a change to the user's Client View in your service and pull again, but specifying a `baseStateID` and `checksum` like so:
 
 ```bash
 BASE_STATE_ID=<stateid-from-previous-response>
 CHECKSUM=<checksum-from-previous-reseponse>
-curl -H "Authorization:sandbox" -d '{"clientID":"c1", "baseStateID":"$BASE_STATE_ID", "checksum":"$CHECKSUM"}' \
-http://localhost:7001/pull
+# Use the same values for the following variables that you used above.
+CLIENT_VIEW=<Client View URL>
+CLIENT_VIEW_AUTH=<Client View Authorization>
+DIFF_SERVER=<Diff Server URL>
+ACCOUNT_ID=<Account ID>
+curl -H "Authorization: $ACCOUNT_ID" -d '{ \
+  "clientID": "c1", \
+  "clientViewAuth": "$CLIENT_VIEW_AUTH", \
+  "clientViewURL": "$CLIENT_VIEW", \
+  "baseStateID": "$BASE_STATE_ID", \
+  "checksum": "$CHECKSUM", \
+  "lastMutationID": 0, \
+  "version": 3 \
+  }' $DIFF_SERVER
 ```
 
 You'll get a response that includes only the diff!
@@ -103,7 +158,7 @@ Replicache identifies each change (or *Mutation*) that originates on the Replica
 
 Your service must store the last MutationID it has processed for each client, and return it to Replicache in the Client View response. This allows Replicache to know when it can discard the speculative version of that change from the client.
 
-Depending on how your service is built, storing MutationIDs can be done a number of ways. But typically you'll store them in the same database as your user data and update them transactionally as part of each mutation.
+Storing the last MutationIDs can be done a number of ways, but typically they are stored in the same datastore as your user data. You must update the last MutationID for a client transactionally as part of each mutation.
 
 If you use e.g., Postgres, for your user data, you might store Replicache Change IDs in a table like:
 
@@ -123,7 +178,9 @@ If you use e.g., Postgres, for your user data, you might store Replicache Change
 
 ### Step 4: Upstream Sync
 
-Replicache implements upstream sync by queuing calls to your service on the client-side and uploading them in batches. By default Replicache posts these batches to `https://yourdomain.com/replicache-batch`.
+Replicache implements upstream sync by queuing calls to your service on the client-side and uploading them in batches. Your batch endpoint can be any URL, and when you set your
+client up you will provide the URL via the `batchURL` parameter in the Replicache client
+constructor.
 
 Here is an example batch request to our TODO example app backend.
 
@@ -180,7 +237,7 @@ See [batch-request-schema.jsonc](./batch-request-schema.jsonc) for the detailed 
 
 Conceptually, the batch endpoint receives an ordered batch of mutation requests and applies them in sequence, reporting any errors back to the client. There are some sublteties to be aware of, though:
 
-* Replicache can send mutations that have already been processed. This is in fact common when the network is spotty. This is why you need to [store the last processed mutation ID](#step-4-mutation-id-storage): You **MUST** skip mutations you have already seen.
+* Replicache can send mutations that have already been processed. This is in fact common when the network is spotty. This is why you need to [store the last processed mutation ID](#step-4-upstream-sync): You **MUST** skip mutations you have already seen.
 * Generally, mutations for a given client **SHOULD** be processed serially and in-order to achieve [causal consistency](https://jepsen.io/consistency/models/causal). However if you have special knowledge that pairs of mutations are commutative, you can process them in parallel.
 * Each mutation **MUST** eventually be acknowledged by your service, by updating the stored `lastMutationID` value for the client and returning it in the client view.
   * If a mutation can't be processed temporarily (e.g., some server-side resource is temporarily unavailable), simply return early from the batch without updating `lastMutationID`. Replicache will retry the mutation later.
@@ -196,22 +253,21 @@ Here's a bash transcript demonstrating a series of requests Replicache might mak
 ```bash
 BATCH=https://replicache-sample-todo.now.sh/serve/replicache-batch
 CLIENT_VIEW=https://replicache-sample-todo.now.sh/serve/replicache-client-view
-NEW_USER_EMAIL=$RANDOM@foo.com
-PLATFORM=darwin-amd64 # or linux-amd64
+DIFF_SERVER=https://serve.replicache.dev/pull
+ACCOUNT_ID=1 # The Replicache TODO sample account.
 
-# Start diffs talking to TODO service
-./$PLATFORM/diffs --db=/tmp/foo serve --client-view=$CLIENT_VIEW &
+NEW_USER_EMAIL=$RANDOM@example.com
 
 # Create a new user
 curl -d "{\"email\":\"$NEW_USER_EMAIL\"}" https://replicache-sample-todo.now.sh/serve/login
 
-USER_ID=<user-id-from-prev-cmd>
+CLIENT_VIEW_AUTH=<user-id-from-prev-cmd>
 CLIENT_ID=$RANDOM
 LIST_ID=$RANDOM
 TODO_ID=$RANDOM
 
 # Create a first list and todo
-curl -H "Authorization:$USER_ID" 'https://replicache-sample-todo.now.sh/serve/replicache-batch' --data-binary @- << EOF
+curl -H "Authorization: $CLIENT_VIEW_AUTH" 'https://replicache-sample-todo.now.sh/serve/replicache-batch' --data-binary @- << EOF
 {
     "clientID": "$CLIENT_ID",
     "mutations": [
@@ -229,7 +285,6 @@ curl -H "Authorization:$USER_ID" 'https://replicache-sample-todo.now.sh/serve/re
                 "id": $TODO_ID,
                 "listID": $LIST_ID,
                 "text": "Walk the dog",
-                "order": 0.5,
                 "complete": false
             }
         }
@@ -237,44 +292,50 @@ curl -H "Authorization:$USER_ID" 'https://replicache-sample-todo.now.sh/serve/re
 }
 EOF
 
+# If successful, you should see an empty response e.g., {"mutationInfos":[]}
+
 # Do an initial pull from diff-server
-curl -H "Authorization:sandbox" http://localhost:7001/pull --data-binary @- << EOF
-{
-  "clientID":"$CLIENT_ID",
-  "baseStateID":"00000000000000000000000000000000",
-  "checksum":"00000000",
-  "clientViewAuth": "$USER_ID"
+curl -H "Authorization: $ACCOUNT_ID" $DIFF_SERVER --data-binary @- << EOF
+{ 
+  "clientID": "$CLIENT_ID",
+  "clientViewAuth": "$CLIENT_VIEW_AUTH",
+  "clientViewURL": "$CLIENT_VIEW",
+  "baseStateID": "00000000000000000000000000000000",
+  "checksum": "00000000",
+  "lastMutationID": 0,
+  "version": 3
 }
 EOF
 
 BASE_STATE_ID=<stateID from prev response>
 CHECKSUM=<checksum from prev response>
+LAST_MUTATION_ID=<lastMutationID from prev response>
 
 # Create a second TODO
 # Do this one via the classic REST API, circumventing Replicache entirely
 TODO_ID=$RANDOM
-curl -H "Authorization:$USER_ID" https://replicache-sample-todo.now.sh/serve/todo-create --data-binary @- << EOF
+curl -H "Authorization: $CLIENT_VIEW_AUTH" https://replicache-sample-todo.now.sh/serve/todo-create --data-binary @- << EOF
 {
   "id": $TODO_ID,
   "listID": $LIST_ID,
   "text": "Take out the trash",
-  "complete": false,
-  "order": 0.75
+  "complete": false
 }
 EOF
 
 # Do an incremental pull from diff-server
 # Note that only the second todo is returned
-curl -H "Authorization:sandbox" http://localhost:7001/pull --data-binary @- << EOF
-{
-  "clientID":"$CLIENT_ID",
-  "baseStateID":"$BASE_STATE_ID",
-  "checksum":"$CHECKSUM",
-  "clientViewAuth": "$USER_ID"
+curl -H "Authorization: $ACCOUNT_ID" $DIFF_SERVER --data-binary @- << EOF
+{ 
+  "clientID": "$CLIENT_ID",
+  "clientViewAuth": "$CLIENT_VIEW_AUTH",
+  "clientViewURL": "$CLIENT_VIEW",
+  "baseStateID": "$BASE_STATE_ID",
+  "checksum": "$CHECKSUM",
+  "lastMutationID": $LAST_MUTATION_ID,
+  "version": 3
 }
 EOF
-
-fg
 ```
 
 ### Step 6: 🎉🎉

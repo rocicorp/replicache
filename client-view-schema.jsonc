@@ -3,7 +3,7 @@
   "properties": {	
     // The last Replicache Mutation ID that your service has processed. See Step 4 and 5 for more information.	
     "lastMutationID": {"type": "integer", "minimum": 0},	
-    // An arbitrary map of key/value pairs. Any JSON type is legal for each value.	
+    // A map of UTF8 string keys to JSON values. Any JSON type is legal for each value.	
     // This is the data that will be available on the client side.	
     "clientView": {"type": "object"}	
   },	

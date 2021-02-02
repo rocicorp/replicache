@@ -3,7 +3,6 @@ import type {
   Invoke,
   OpenTransactionRequest,
   CommitTransactionResponse,
-  ScanRequest,
 } from './repm-invoker.js';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
 import {ScanResult} from './scan-iterator.js';
@@ -94,7 +93,7 @@ export class ReadTransactionImpl implements ReadTransaction {
       transactionId: this._transactionId,
       opts: {},
       receiver: () => size++,
-    } as ScanRequest);
+    });
     return size;
   }
 

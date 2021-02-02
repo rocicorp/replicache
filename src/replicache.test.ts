@@ -62,7 +62,7 @@ async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
 }
 
 async function delData(tx: WriteTransaction, data: string | string[]) {
-  if (Array.isArray(data)) {
+  if (!Array.isArray(data)) {
     data = [data];
   }
   for (const key of data) {

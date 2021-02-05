@@ -34,6 +34,8 @@ You can put any key/value pairs you want in the `"clientView"` section.
 
 For more details on implementing your Client View, see [Client View Setup](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-1-downstream-sync).
 
+You can also skip this step for now, and just use our sample backend instead. See [replicache-echo-backend](https://github.com/rocicorp/replicache-echo-backend).
+
 ## 🛹 Install Replicache
 
 In your web client root:
@@ -164,7 +166,9 @@ Notes:
 
 ## 🏎 Batch Endpoint
 
-Add a `/replicache-batch` endpoint to your API server that accepts and processes batches of mutations that look like this:
+If you are using `replicache-echo-backend` you can skip this step!
+
+Otherwise, add a `/replicache-batch` endpoint to your API server that accepts and processes batches of mutations that look like this:
 
 ```
 {

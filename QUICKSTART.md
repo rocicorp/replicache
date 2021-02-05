@@ -50,7 +50,7 @@ Start this and keep it running:
 ./node_modules/replicache/bin/diff-server  --disable-auth --db=/tmp/diffs-db --account-db=/tmp/accounts-db serve
 ```
 
-**Note:** This step is temporary - the diff server is being removed from the Replicache sync protocol.
+**Note:** This step is temporary - [the diff server is being removed from the Replicache sync protocol](https://www.notion.so/Differential-Client-View-12be3a636c9f404b88d49ecbd100a694). Yay!
 
 ## 🚗 User Interface
 

@@ -60,8 +60,9 @@ Now let's add a user interface to render the synced data.
 
 ### If you use React:
 
+1. `npm add replicache-react-util`
 1. If you use webpack 4, follow [this procedure](./webpack4-setup.md) to configure webpack to load wasm properly. If you use webpack 5, nothing special is needed. If you use another bundler, try it and let us know 😀.
-2. Then, add this code somewhere:
+1. Then, add this code somewhere:
 
 ```js
 import React from 'react';

@@ -218,7 +218,7 @@ button.onclick = () => {
 
 Wire up your batch handler:
 
-```
+```patch
 const rep = new Replicache({
    ...
 +  // The URL to your batch endpoint added above.

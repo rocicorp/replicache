@@ -217,7 +217,5 @@ off in web inspector or slowing it down.
 
 That's it! You've built a fully-functioning Replicache-powered app against your own backend. What will you do next?
 
-- [Check out the full version of this sample](https://github.com/rocicorp/replicache-sdk-js/tree/main/sample/lit-todo)
-- [Learn how to add Replicache support to your own backend service](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md)
-- [Check out the richer React/Babel/GCal sample](https://github.com/rocicorp/replicache-sdk-js/tree/main/sample/cal)
+- [Check out a full React-based todo sample](https://github.com/rocicorp/replicache-sdk-js/tree/main/sample/redo)
 - [Browse the full JS documentation](https://replicache-sdk-js.now.sh/)

@@ -68,13 +68,13 @@ import Replicache from 'replicache';
 import {useSubscribe} from 'replicache-react-util';
 
 const rep = new Replicache({
-  // The URL your Client View from Step 1 is running at.
+  // The URL your Client View from above is running at.
   clientViewURL: 'http://localhost:3001/replicache-client-view',
 
   // Auth token required for your Client View endpoint, if any.
   dataLayerAuth: '<authtoken>',
 
-  // The URL the Diff Server from Step 3 is running at, defaults to 
+  // The URL your Diff Server from above is running at, defaults to 
   // localhost:7001.
   diffServerURL: 'http://localhost:7001/pull',
 
@@ -118,13 +118,13 @@ ReactDOM.render(React.createElement(MyApp), elm);
 import Replicache from './node_modules/replicache/out/replicache.dev.js';
 
 const rep = new Replicache({
-  // The URL your Client View from Step 1 is running at.
+  // The URL your Client View from above is running at.
   clientViewURL: 'http://localhost:3001/replicache-client-view',
 
   // Auth token for your Client View, if any.
   dataLayerAuth: '<authtoken>',
 
-  // The URL the Diff Server from Step 3 is running at, defaults to 
+  // The URL your Diff Server from above is running at, defaults to 
   // localhost:7001.
   diffServerURL: 'http://localhost:7001/pull',
 

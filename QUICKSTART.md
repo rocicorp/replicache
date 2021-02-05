@@ -199,7 +199,7 @@ See [Replicache Upstream Sync](https://github.com/rocicorp/replicache/blob/main/
 
 ### 🛫 Client-Side Mutations
 
-Add the following code to your user interface.
+Add the following code to the end of your script block in your UI.
 
 ```js
 const createItem = rep.register('createItem', async (tx, {key, value}) => {
@@ -214,11 +214,23 @@ button.onclick = () => {
 };
 ```
 
+### 🚀 Server-Side Mutations
+
+Wire up your batch handler:
+
+```
+const rep = new Replicache({
+   ...
++  // The URL to your batch endpoint added above.
++  batchURL: 'http://localhost:3001/replicache-batch',
+});
+```
+
 When you tap the button the change happens immediately on the client, but is
 momentarily later sent to the server. You can verify it by turning the network
 off in web inspector or slowing it down.
 
-## 🚀 Next Steps
+## Next Steps
 
 That's it! You've built a fully-functioning Replicache-powered app against your own backend. What will you do next?
 

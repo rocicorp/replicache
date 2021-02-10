@@ -11,6 +11,18 @@ console.assert = console.debug = console.error = console.info = console.log = co
 const valSize = 1024;
 
 /**
+ * @template R
+ * @returns {{promise: Promise<R>, resolve: (res: R) => void}}
+ */
+function resolver() {
+  let resolve;
+  const promise = new Promise(res => {
+    resolve = res;
+  });
+  return {promise, resolve};
+}
+
+/**
  * @param {number} len
  */
 function randomString(len) {
@@ -50,6 +62,7 @@ async function makeRep() {
   const name = `bench${counter++}`;
   await deleteDatabase(name);
   return new Replicache({
+    clientViewURL: '',
     diffServerURL: '',
     name,
     syncInterval: null,
@@ -59,6 +72,7 @@ async function makeRep() {
 function makeLastRep() {
   const name = `bench${counter - 1}`;
   return new Replicache({
+    clientViewURL: '',
     diffServerURL: '',
     name,
     syncInterval: null,
@@ -213,6 +227,43 @@ async function createIndex(bench, opts) {
 }
 
 /**
+ * @param {Bench} bench
+ * @param {number} i
+ */
+async function benchmarkWriteReadRoundTrip(bench, i) {
+  const rep = await makeRep();
+  const key = `k${i}`;
+  const value = i;
+  let {promise, resolve} = resolver();
+  rep.subscribe(tx => tx.get(key), {
+    onData(res) {
+      resolve(res);
+    },
+  });
+  // onData is called once when calling subscribe
+  await promise;
+
+  const write = rep.register('write', tx => tx.put(key, value));
+  bench.name = 'roundtrip write/subscribe/get';
+  bench.size = 1;
+  bench.formatter = formatOpPerSecond;
+  bench.reset();
+
+  // reset these.
+  ({promise, resolve} = resolver());
+
+  await write();
+
+  const res = await promise;
+  if (res !== value) {
+    throw new Error();
+  }
+
+  bench.stop();
+  await rep.close();
+}
+
+/**
  * @param {(bench: Bench, i: number) => void | Promise<void>} fn
  */
 async function benchmark(fn) {
@@ -322,6 +373,7 @@ const benchmarks = [
   bench => benchmarkScan(bench, {numKeys: 1000}),
   bench => benchmarkScan(bench, {numKeys: 5000}),
   benchmarkSingleByteWrite,
+  benchmarkWriteReadRoundTrip,
   bench => createIndex(bench, {numKeys: 1000}),
   bench => createIndex(bench, {numKeys: 5000}),
 ];

@@ -190,7 +190,8 @@ export default class Replicache implements ReadTransaction {
       wasmModule,
     } = options;
     this._batchURL = batchURL;
-    this._clientViewURL = clientViewURL;
+    // Make clientViewURL absolute since we pass it to the diff server.
+    this._clientViewURL = new URL(clientViewURL, location.href).href;
     this._dataLayerAuth = dataLayerAuth;
     this._diffServerAuth = diffServerAuth;
     this._diffServerURL = diffServerURL;

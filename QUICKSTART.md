@@ -77,7 +77,7 @@ const rep = new Replicache({
   // Auth token required for your Client View endpoint, if any.
   dataLayerAuth: '<authtoken>',
 
-  // The URL your Diff Server from above is running at, defaults to
+  // The URL your Diff Server from above is running at, defaults to 
   // localhost:7001.
   diffServerURL: 'http://localhost:7001/pull',
 
@@ -91,17 +91,19 @@ const rep = new Replicache({
 });
 
 function MyApp() {
-  const entries = useSubscribe(rep, async tx => await tx.scanAll(), []);
+  const entries = useSubscribe(
+    rep,
+    async tx => await tx.scanAll(),
+    []);
 
   return (
     <table border="1">
       <tbody>
-        {entries.map(([k, v]) => (
-          <tr key={k}>
-            <td>{k}</td>
-            <td>{JSON.stringify(v)}</td>
-          </tr>
-        ))}
+        {
+          entries.map(([k, v]) => <tr key={k}>
+            <td>{k}</td><td>{JSON.stringify(v)}</td>
+          </tr>)
+        }
       </tbody>
     </table>
   );
@@ -116,25 +118,27 @@ ReactDOM.render(React.createElement(MyApp), elm);
 
 ```html
 <script type="module">
-  import Replicache from './node_modules/replicache/out/replicache.dev.js';
+import Replicache from './node_modules/replicache/out/replicache.dev.js';
 
-  const rep = new Replicache({
-    // The URL your Client View from above is running at.
-    clientViewURL: 'http://localhost:3001/replicache-client-view',
+const rep = new Replicache({
+  // The URL your Client View from above is running at.
+  clientViewURL: 'http://localhost:3001/replicache-client-view',
 
-    // Auth token for your Client View, if any.
-    dataLayerAuth: '<authtoken>',
+  // Auth token for your Client View, if any.
+  dataLayerAuth: '<authtoken>',
 
-    // The URL your Diff Server from above is running at, defaults to
-    // localhost:7001.
-    diffServerURL: 'http://localhost:7001/pull',
+  // The URL your Diff Server from above is running at, defaults to 
+  // localhost:7001.
+  diffServerURL: 'http://localhost:7001/pull',
 
-    // Auth Token to use for the Diff Server. For development, always
-    // use 'sandbox'.
-    diffServerAuth: 'sandbox',
-  });
+  // Auth Token to use for the Diff Server. For development, always
+  // use 'sandbox'.
+  diffServerAuth: 'sandbox',
+});
 
-  rep.subscribe(async tx => await tx.scanAll(), {
+rep.subscribe(
+  async tx => await tx.scanAll(),
+  {
     onData: result => {
       const tbody = document.querySelector('tbody');
       tbody.innerHTML = '';
@@ -149,19 +153,17 @@ ReactDOM.render(React.createElement(MyApp), elm);
         tbody.appendChild(row);
       }
     },
-  });
+  }
+);
 </script>
-<table border="1">
-  <tbody></tbody>
-</table>
+<table border="1"><tbody></tbody></table>
 ```
 
 Replicache polls your Client View on a timer and updates the UI automatically.
 
 Notes:
-
-- In production, you can use our hosted Diff Server instead of a local one. See [Create Hosted Diff Server Account](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#if-your-client-view-is-publicly-accessible) for details.
-- You can adjust the frequency of the polling using the [syncInterval](https://js.replicache.dev/interfaces/replicacheoptions.html#syncinterval) property. However, polling is typically only used for development. In production, we recommend using a [WebSocket poke](TODO) to tell the client when to sync.
+* In production, you can use our hosted Diff Server instead of a local one. See [Create Hosted Diff Server Account](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#if-your-client-view-is-publicly-accessible) for details.
+* You can adjust the frequency of the polling using the [syncInterval](https://js.replicache.dev/interfaces/replicacheoptions.html#syncinterval) property. However, polling is typically only used for development. In production, we recommend using a [WebSocket poke](TODO) to tell the client when to sync.
 
 ## 🏎 Batch Endpoint
 
@@ -205,10 +207,10 @@ const createItem = rep.register('createItem', async (tx, {key, value}) => {
 });
 
 var button = document.createElement('button');
-button.textContent = 'New item...';
+button.textContent = "New item...";
 document.body.appendChild(button);
 button.onclick = () => {
-  createItem({key: `new-item-${Math.random()}`, value: 'foo'});
+  createItem({key: `new-item-${Math.random()}`, value:'foo'});
 };
 ```
 

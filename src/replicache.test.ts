@@ -1239,7 +1239,7 @@ test.skip('Test register param [type checking only]', async () => {
 });
 
 // Only used for type checking
-test.skip('Key type for scans', async () => {
+test.skip('Key type for scans [type checking only]', async () => {
   rep = await replicacheForTesting('test-types');
 
   for await (const k of rep.scan({indexName: 'n'}).keys()) {

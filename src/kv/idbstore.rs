@@ -353,7 +353,15 @@ impl Write for WriteTransaction<'_> {
         let mut requests: Vec<oneshot::Receiver<()>> = Vec::with_capacity(pending.len());
         for (key, value) in pending.iter() {
             let request = match value {
-                Some(v) => store.put_with_key(&js_sys::Uint8Array::from(&v[..]), &key.into())?,
+                Some(v) => store.put_with_key(
+                    // It is tempting to use Uint8Array::view here instead but
+                    // even though that is faster than `from` it turns out that
+                    // in combination with IDB it is a lot slower. This might be
+                    // because inefficiencies with using large ArrayBuffers in
+                    // IDB even though the view is not as large.
+                    &js_sys::Uint8Array::from(&v[..]),
+                    &key.into(),
+                )?,
                 None => store.delete(&key.into())?,
             };
             let (callback, receiver) = IdbStore::oneshot_callback(self.lc.clone());

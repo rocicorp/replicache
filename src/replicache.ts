@@ -118,6 +118,14 @@ export interface ReplicacheOptions {
    * ```
    */
   wasmModule?: InitInput | undefined;
+
+  /**
+   * Allows using an in memory store instead of IndexedDB. This is useful for
+   * testing for example. Notice that when this is `true` no data is persisted
+   * in Replicache and all the data that has not yet been synced when Replicache
+   * is [closed] or the page is unloaded is lost.
+   */
+  useMemstore?: boolean;
 }
 
 export default class Replicache implements ReadTransaction {
@@ -128,6 +136,7 @@ export default class Replicache implements ReadTransaction {
   private readonly _diffServerURL: string;
   private readonly _name: string;
   private readonly _repmInvoker: Invoker;
+  private readonly _useMemstore: boolean;
 
   private _closed = false;
   private _online = true;
@@ -188,6 +197,7 @@ export default class Replicache implements ReadTransaction {
       syncInterval = 60_000,
       pushDelay = 300,
       wasmModule,
+      useMemstore = false,
     } = options;
     this._batchURL = batchURL;
     // Make clientViewURL absolute since we pass it to the diff server.
@@ -199,11 +209,15 @@ export default class Replicache implements ReadTransaction {
     this._repmInvoker = new REPMWasmInvoker(wasmModule);
     this._syncInterval = syncInterval;
     this.pushDelay = pushDelay;
+    this._useMemstore = useMemstore;
     this._open();
   }
 
   private async _open(): Promise<void> {
-    this._opened = this._repmInvoker.invoke(this._name, 'open');
+    this._opened = this._repmInvoker.invoke(this._name, 'open', {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      use_memstore: this._useMemstore,
+    });
     this._setRoot(this._getRoot());
     await this._root;
     if (this._syncInterval !== null) {
@@ -832,12 +846,14 @@ export class ReplicacheTest extends Replicache {
     diffServerAuth,
     diffServerURL,
     name = '',
+    useMemstore = false,
   }: {
     batchURL?: string;
     dataLayerAuth?: string;
     diffServerURL: string;
     diffServerAuth?: string;
     name?: string;
+    useMemstore?: boolean;
   }): Promise<ReplicacheTest> {
     const rep = new ReplicacheTest({
       batchURL,
@@ -848,6 +864,7 @@ export class ReplicacheTest extends Replicache {
       name,
       syncInterval: null,
       pushDelay: 0,
+      useMemstore,
     });
     await rep._opened;
     return rep;

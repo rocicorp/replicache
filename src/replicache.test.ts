@@ -29,6 +29,8 @@ console.warn = (...args: Parameters<Console['warn']>) => {
 };
 console.log = console.info = console.group = console.groupEnd = () => void 0;
 
+let overrideUseMemstore = false;
+
 async function replicacheForTesting(
   name: string,
   {
@@ -36,11 +38,13 @@ async function replicacheForTesting(
     dataLayerAuth = '',
     diffServerAuth = '',
     batchURL = '',
+    useMemstore = overrideUseMemstore,
   }: {
     diffServerURL?: string;
     dataLayerAuth?: string;
     diffServerAuth?: string;
     batchURL?: string;
+    useMemstore?: boolean;
   } = {},
 ): Promise<ReplicacheTest> {
   dbsToDrop.add(name);
@@ -50,6 +54,7 @@ async function replicacheForTesting(
     diffServerAuth,
     diffServerURL,
     name,
+    useMemstore,
   });
 }
 
@@ -112,7 +117,20 @@ async function expectAsyncFuncToThrow(f: () => unknown, c: unknown) {
   (await expectPromiseToReject(f())).to.be.instanceof(c);
 }
 
-test('get, has, scan on empty db', async () => {
+function testWithBothStores(name: string, func: () => Promise<void>) {
+  for (const useMemstore of [false, true]) {
+    test(`${name} {useMemstore: ${useMemstore}}`, async () => {
+      try {
+        overrideUseMemstore = useMemstore;
+        await func();
+      } finally {
+        overrideUseMemstore = false;
+      }
+    });
+  }
+}
+
+testWithBothStores('get, has, scan on empty db', async () => {
   rep = await replicacheForTesting('test2');
   async function t(tx: ReadTransaction) {
     expect(await tx.get('key')).to.equal(undefined);
@@ -125,7 +143,7 @@ test('get, has, scan on empty db', async () => {
   await t(rep);
 });
 
-test('put, get, has, del inside tx', async () => {
+testWithBothStores('put, get, has, del inside tx', async () => {
   rep = await replicacheForTesting('test3');
   const mut = rep.register(
     'mut',
@@ -191,7 +209,7 @@ async function testScanResult<K, V>(
   });
 }
 
-test('scan', async () => {
+testWithBothStores('scan', async () => {
   rep = await replicacheForTesting('test4');
   const add = rep.register('add-data', addData);
   await add({
@@ -300,7 +318,7 @@ test('scan', async () => {
   );
 });
 
-test('subscribe', async () => {
+testWithBothStores('subscribe', async () => {
   const log: [string, JSONValue][] = [];
 
   rep = await replicacheForTesting('subscribe');
@@ -362,7 +380,7 @@ test('subscribe', async () => {
   expect(queryCallCount).to.equal(5);
 });
 
-test('subscribe close', async () => {
+testWithBothStores('subscribe close', async () => {
   rep = await replicacheForTesting('subscribe-close');
 
   const log: (JSONValue | undefined)[] = [];
@@ -386,7 +404,7 @@ test('subscribe close', async () => {
   cancel();
 });
 
-test('name', async () => {
+testWithBothStores('name', async () => {
   const repA = await replicacheForTesting('a');
   const repB = await replicacheForTesting('b');
 
@@ -406,7 +424,7 @@ test('name', async () => {
   indexedDB.deleteDatabase('b');
 });
 
-test('register with error', async () => {
+testWithBothStores('register with error', async () => {
   rep = await replicacheForTesting('regerr');
 
   const doErr = rep.register(
@@ -424,7 +442,7 @@ test('register with error', async () => {
   }
 });
 
-test('subscribe with error', async () => {
+testWithBothStores('subscribe with error', async () => {
   rep = await replicacheForTesting('suberr');
 
   const add = rep.register('add-data', addData);
@@ -462,7 +480,7 @@ test('subscribe with error', async () => {
   cancel();
 });
 
-test('overlapping writes', async () => {
+testWithBothStores('overlapping writes', async () => {
   async function dbWait(tx: ReadTransaction, dur: number) {
     // Try to take setTimeout away from me???
     const t0 = Date.now();
@@ -504,7 +522,7 @@ test('overlapping writes', async () => {
   expect(await Promise.race([resA, resB])).to.equal('a');
 });
 
-test('sync', async () => {
+testWithBothStores('sync', async () => {
   const diffServerURL = 'https://diff.com/pull';
   const batchURL = 'https://batch.com';
 
@@ -693,7 +711,7 @@ test('sync2', async () => {
   expect(syncCalls).to.equal(2);
 });
 
-test('reauth', async () => {
+testWithBothStores('reauth', async () => {
   const diffServerURL = 'https://diff.com/pull';
 
   rep = await replicacheForTesting('reauth', {
@@ -739,7 +757,7 @@ test('reauth', async () => {
   }
 });
 
-test('closed tx', async () => {
+testWithBothStores('closed tx', async () => {
   rep = await replicacheForTesting('reauth');
 
   let rtx: ReadTransaction;
@@ -763,7 +781,7 @@ test('closed tx', async () => {
   await expectAsyncFuncToThrow(() => wtx?.del('w'), TransactionClosedError);
 });
 
-test('syncInterval in constructor', async () => {
+testWithBothStores('syncInterval in constructor', async () => {
   const rep = new Replicache({
     clientViewURL: 'clientViewURL',
     diffServerURL: 'diffServerURL',
@@ -773,7 +791,7 @@ test('syncInterval in constructor', async () => {
   await rep.close();
 });
 
-test('closeTransaction after rep.scan', async () => {
+testWithBothStores('closeTransaction after rep.scan', async () => {
   rep = await replicacheForTesting('test5');
   const add = rep.register('add-data', addData);
   await add({
@@ -864,7 +882,7 @@ test('closeTransaction after rep.scan', async () => {
   expectCalls([0]);
 });
 
-test('index', async () => {
+testWithBothStores('index', async () => {
   rep = await replicacheForTesting('test-index');
 
   const add = rep.register('add-data', addData);
@@ -928,7 +946,7 @@ test('index', async () => {
   await rep.dropIndex('emptyKeyIndex');
 });
 
-test('index array', async () => {
+testWithBothStores('index array', async () => {
   rep = await replicacheForTesting('test-index');
 
   const add = rep.register('add-data', addData);
@@ -955,7 +973,7 @@ test('index array', async () => {
   await rep.dropIndex('aIndex');
 });
 
-test('index scan start', async () => {
+testWithBothStores('index scan start', async () => {
   rep = await replicacheForTesting('test-index-scan');
 
   const add = rep.register('add-data', addData);
@@ -1109,7 +1127,7 @@ test.skip('mutator optional args [type checking only]', async () => {
   console.log(mut5);
 });
 
-test('setLogLevel', async () => {
+testWithBothStores('setLogLevel', async () => {
   // Just testing that no errors are thrown
   rep = await replicacheForTesting('set-log-level');
   await rep.setVerboseWasmLogging(true);
@@ -1279,4 +1297,17 @@ test.skip('Key type for scans [type checking only]', async () => {
 
   // @ts-expect-error Type '[string]' is not assignable to type 'string'.ts(2322)
   rep.scanAll({start: {key: ['s']}});
+});
+
+test('mem store', async () => {
+  rep = await replicacheForTesting('mem', {useMemstore: true});
+  const add = rep.register('addData', addData);
+  await add({a: 42});
+  expect(await rep.query(tx => tx.get('a'))).to.equal(42);
+  await rep.close();
+  rep = null;
+
+  // Open again and test that we lost the data
+  rep = await replicacheForTesting('mem', {useMemstore: true});
+  expect(await rep.query(tx => tx.get('a'))).to.equal(undefined);
 });

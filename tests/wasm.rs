@@ -202,428 +202,472 @@ async fn abort(db_name: &str, transaction_id: u32) {
 
 #[wasm_bindgen_test]
 async fn test_open_close() {
-    assert_eq!(
-        dispatch::<_, String>("", "debug", "open_dbs")
-            .await
-            .unwrap(),
-        "[]",
-    );
-    assert_eq!(
-        dispatch::<_, String>("", "open", "").await.unwrap_err(),
-        "db_name must be non-empty"
-    );
-    assert_eq!(dispatch::<_, String>("db", "open", "").await.unwrap(), "");
-    assert_eq!(
-        dispatch::<_, String>("", "debug", "open_dbs")
-            .await
-            .unwrap(),
-        "[\"db\"]"
-    );
-    assert_eq!(dispatch::<_, String>("db2", "open", "").await.unwrap(), "");
-    assert_eq!(
-        dispatch::<_, String>("", "debug", "open_dbs")
-            .await
-            .unwrap(),
-        "[\"db\", \"db2\"]",
-    );
-    assert_eq!(dispatch::<_, String>("db", "close", "").await.unwrap(), "");
-    assert_eq!(dispatch::<_, String>("db", "close", "").await.unwrap(), "");
-    assert_eq!(
-        dispatch::<_, String>("", "debug", "open_dbs")
-            .await
-            .unwrap(),
-        "[\"db2\"]"
-    );
-    assert_eq!(dispatch::<_, String>("db2", "close", "").await.unwrap(), "");
-    assert_eq!(
-        dispatch::<_, String>("", "debug", "open_dbs")
-            .await
-            .unwrap(),
-        "[]",
-    );
+    for use_memstore in vec![true, false] {
+        let open_req = OpenRequest { use_memstore };
+        assert_eq!(
+            dispatch::<_, String>("", "debug", "open_dbs")
+                .await
+                .unwrap(),
+            "[]",
+        );
+        assert_eq!(
+            dispatch::<_, String>("", "open", &open_req)
+                .await
+                .unwrap_err(),
+            "db_name must be non-empty"
+        );
+        assert_eq!(
+            dispatch::<_, String>("db", "open", &open_req)
+                .await
+                .unwrap(),
+            ""
+        );
+        assert_eq!(
+            dispatch::<_, String>("", "debug", "open_dbs")
+                .await
+                .unwrap(),
+            "[\"db\"]"
+        );
+        assert_eq!(
+            dispatch::<_, String>("db2", "open", &open_req)
+                .await
+                .unwrap(),
+            ""
+        );
+        assert_eq!(
+            dispatch::<_, String>("", "debug", "open_dbs")
+                .await
+                .unwrap(),
+            "[\"db\", \"db2\"]",
+        );
+        assert_eq!(dispatch::<_, String>("db", "close", "").await.unwrap(), "");
+        assert_eq!(dispatch::<_, String>("db", "close", "").await.unwrap(), "");
+        assert_eq!(
+            dispatch::<_, String>("", "debug", "open_dbs")
+                .await
+                .unwrap(),
+            "[\"db2\"]"
+        );
+        assert_eq!(dispatch::<_, String>("db2", "close", "").await.unwrap(), "");
+        assert_eq!(
+            dispatch::<_, String>("", "debug", "open_dbs")
+                .await
+                .unwrap(),
+            "[]",
+        );
+    }
 }
 
 #[wasm_bindgen_test]
 async fn test_concurrency_within_a_read_tx() {
-    let db = &random_db();
-    let performance = global_property::<web_sys::Performance>("performance")
-        .expect("performance should be available");
+    for use_memstore in vec![true, false] {
+        let db = &random_db();
+        let performance = global_property::<web_sys::Performance>("performance")
+            .expect("performance should be available");
 
-    assert_eq!(dispatch::<_, String>(db, "open", "").await.unwrap(), "");
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
-    let now_ms = performance.now();
-    join!(
-        async {
-            // Note: could use atomic counters if we wanted, see
-            // test_read_txs_do_run_concurrently.
-            get(db, txn_id, "sleep100").await;
-        },
-        async {
-            get(db, txn_id, "sleep100").await;
-        }
-    );
-    let elapsed_ms = performance.now() - now_ms;
-    abort(db, txn_id).await;
-    assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
-    assert_eq!(elapsed_ms >= 100., true);
-    assert_eq!(elapsed_ms < 200., true);
+        assert_eq!(
+            dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+                .await
+                .unwrap(),
+            ""
+        );
+        let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
+        let now_ms = performance.now();
+        join!(
+            async {
+                // Note: could use atomic counters if we wanted, see
+                // test_read_txs_do_run_concurrently.
+                get(db, txn_id, "sleep100").await;
+            },
+            async {
+                get(db, txn_id, "sleep100").await;
+            }
+        );
+        let elapsed_ms = performance.now() - now_ms;
+        abort(db, txn_id).await;
+        assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+        assert_eq!(elapsed_ms >= 100., true);
+        assert_eq!(elapsed_ms < 200., true);
+    }
 }
 
 #[wasm_bindgen_test]
 // TODO if/when we have a rust version of dispatch again we should have a much
 // cleaner version of this test there (eg, no spin hack, greater concurrency).
 async fn test_write_txs_dont_run_concurrently() {
-    let db = &random_db();
+    for use_memstore in vec![true, false] {
+        let db = &random_db();
 
-    dispatch::<_, String>(db, "open", "").await.unwrap();
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
-    put(db, txn_id, "value", "0").await;
-    commit(db, txn_id).await;
-
-    // To verify that write transactions don't overlap we start parallel tasks that
-    // increment an atomic counter when they begin and decrement it just before they
-    // complete. If any task reads a value other than zero when it starts or a value
-    // other than 1 when it completes there are overlapping transactions. For extra
-    // assurance we also add to a value in the db itself and verify it has the expected
-    // result.
-    let counter = AtomicU32::new(0);
-    join!(
-        async {
-            let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-                .await
-                .transaction_id;
-            let value = get(db, txn_id, "value")
-                .await
-                .unwrap()
-                .parse::<u32>()
-                .unwrap();
-            // Note that we increment after the get() completes to ensure we really are
-            // inside of the transaction. One could imagine an implementation of open_transaction
-            // that returns before the transaction has actually started.
-            assert_eq!(0, counter.fetch_add(1, Ordering::SeqCst));
-            get(db, txn_id, "spin20").await; // Spins cpu *and yields* for ~20ms
-            put(db, txn_id, "value", &(value + 1).to_string()).await;
-            // Asserting not strictly required but easy so why not:
-            assert_eq!(1, counter.fetch_sub(1, Ordering::SeqCst));
-            commit(db, txn_id).await;
-        },
-        async {
-            let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-                .await
-                .transaction_id;
-            let value = get(db, txn_id, "value")
-                .await
-                .unwrap()
-                .parse::<u32>()
-                .unwrap();
-            assert_eq!(0, counter.fetch_add(1, Ordering::SeqCst));
-            get(db, txn_id, "spin20").await;
-            put(db, txn_id, "value", &(value + 2).to_string()).await;
-            assert_eq!(1, counter.fetch_sub(1, Ordering::SeqCst));
-            commit(db, txn_id).await;
-        },
-        async {
-            let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-                .await
-                .transaction_id;
-            let value = get(db, txn_id, "value")
-                .await
-                .unwrap()
-                .parse::<u32>()
-                .unwrap();
-            assert_eq!(0, counter.fetch_add(1, Ordering::SeqCst));
-            get(db, txn_id, "spin20").await;
-            put(db, txn_id, "value", &(value + 3).to_string()).await;
-            assert_eq!(1, counter.fetch_sub(1, Ordering::SeqCst));
-            commit(db, txn_id).await;
-        }
-    );
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
-    assert_eq!(
-        get(db, txn_id, "value")
+        dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
             .await
-            .unwrap()
-            .parse::<u32>()
-            .unwrap(),
-        6
-    );
-    abort(db, txn_id).await;
+            .unwrap();
+        let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
+        put(db, txn_id, "value", "0").await;
+        commit(db, txn_id).await;
 
-    assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+        // To verify that write transactions don't overlap we start parallel tasks that
+        // increment an atomic counter when they begin and decrement it just before they
+        // complete. If any task reads a value other than zero when it starts or a value
+        // other than 1 when it completes there are overlapping transactions. For extra
+        // assurance we also add to a value in the db itself and verify it has the expected
+        // result.
+        let counter = AtomicU32::new(0);
+        join!(
+            async {
+                let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+                    .await
+                    .transaction_id;
+                let value = get(db, txn_id, "value")
+                    .await
+                    .unwrap()
+                    .parse::<u32>()
+                    .unwrap();
+                // Note that we increment after the get() completes to ensure we really are
+                // inside of the transaction. One could imagine an implementation of open_transaction
+                // that returns before the transaction has actually started.
+                assert_eq!(0, counter.fetch_add(1, Ordering::SeqCst));
+                get(db, txn_id, "spin20").await; // Spins cpu *and yields* for ~20ms
+                put(db, txn_id, "value", &(value + 1).to_string()).await;
+                // Asserting not strictly required but easy so why not:
+                assert_eq!(1, counter.fetch_sub(1, Ordering::SeqCst));
+                commit(db, txn_id).await;
+            },
+            async {
+                let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+                    .await
+                    .transaction_id;
+                let value = get(db, txn_id, "value")
+                    .await
+                    .unwrap()
+                    .parse::<u32>()
+                    .unwrap();
+                assert_eq!(0, counter.fetch_add(1, Ordering::SeqCst));
+                get(db, txn_id, "spin20").await;
+                put(db, txn_id, "value", &(value + 2).to_string()).await;
+                assert_eq!(1, counter.fetch_sub(1, Ordering::SeqCst));
+                commit(db, txn_id).await;
+            },
+            async {
+                let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+                    .await
+                    .transaction_id;
+                let value = get(db, txn_id, "value")
+                    .await
+                    .unwrap()
+                    .parse::<u32>()
+                    .unwrap();
+                assert_eq!(0, counter.fetch_add(1, Ordering::SeqCst));
+                get(db, txn_id, "spin20").await;
+                put(db, txn_id, "value", &(value + 3).to_string()).await;
+                assert_eq!(1, counter.fetch_sub(1, Ordering::SeqCst));
+                commit(db, txn_id).await;
+            }
+        );
+        let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
+        assert_eq!(
+            get(db, txn_id, "value")
+                .await
+                .unwrap()
+                .parse::<u32>()
+                .unwrap(),
+            6
+        );
+        abort(db, txn_id).await;
+
+        assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+    }
 }
 
 #[wasm_bindgen_test]
 async fn test_read_txs_do_run_concurrently() {
-    let db = &random_db();
+    for use_memstore in vec![true, false] {
+        let db = &random_db();
 
-    dispatch::<_, String>(db, "open", "").await.unwrap();
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
-    put(db, txn_id, "value", "42").await;
-    commit(db, txn_id).await;
+        dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+            .await
+            .unwrap();
+        let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
+        put(db, txn_id, "value", "42").await;
+        commit(db, txn_id).await;
 
-    // To verify that read transactions do overlap we start two parallel tasks that
-    // increment an same atomic counter when they begin. If when one begins the
-    // task sees the counter with value 0 then it decrements the counter when it exits.
-    // If when one begins and it sees the counter with value 1 then it does not decrement the
-    // counter when it exits. Execution is parallel if after both are finished the counter
-    // is > 0.
-    let counter = AtomicU32::new(0);
-    join!(
-        async {
-            let txn_id = open_transaction(db, None, None, None).await.transaction_id;
-            let value = get(db, txn_id, "value")
-                .await
-                .unwrap()
-                .parse::<u32>()
-                .unwrap();
-            assert_eq!(42, value);
-            // Note that we increment after the get() completes to ensure we really are
-            // inside of the transaction. One could imagine an implementation of open_transaction
-            // that returns before the transaction has actually started.
-            let other_tasks_running = counter.fetch_add(1, Ordering::SeqCst);
-            get(db, txn_id, "spin20").await; // Spins cpu *and yields* for ~20ms
-            let value = get(db, txn_id, "value")
-                .await
-                .unwrap()
-                .parse::<u32>()
-                .unwrap();
-            assert_eq!(42, value);
-            if other_tasks_running > 0 {
-                counter.fetch_sub(1, Ordering::SeqCst);
-            }
-            abort(db, txn_id).await;
-        },
-        async {
-            let txn_id = open_transaction(db, None, None, None).await.transaction_id;
-            let value = get(db, txn_id, "value")
-                .await
-                .unwrap()
-                .parse::<u32>()
-                .unwrap();
-            assert_eq!(42, value);
-            let other_tasks_running = counter.fetch_add(1, Ordering::SeqCst);
-            get(db, txn_id, "spin20").await;
-            let value = get(db, txn_id, "value")
-                .await
-                .unwrap()
-                .parse::<u32>()
-                .unwrap();
-            assert_eq!(42, value);
-            if other_tasks_running > 0 {
-                counter.fetch_sub(1, Ordering::SeqCst);
-            }
-            abort(db, txn_id).await;
-        },
-    );
-    assert!(counter.into_inner() > 0);
+        // To verify that read transactions do overlap we start two parallel tasks that
+        // increment an same atomic counter when they begin. If when one begins the
+        // task sees the counter with value 0 then it decrements the counter when it exits.
+        // If when one begins and it sees the counter with value 1 then it does not decrement the
+        // counter when it exits. Execution is parallel if after both are finished the counter
+        // is > 0.
+        let counter = AtomicU32::new(0);
+        join!(
+            async {
+                let txn_id = open_transaction(db, None, None, None).await.transaction_id;
+                let value = get(db, txn_id, "value")
+                    .await
+                    .unwrap()
+                    .parse::<u32>()
+                    .unwrap();
+                assert_eq!(42, value);
+                // Note that we increment after the get() completes to ensure we really are
+                // inside of the transaction. One could imagine an implementation of open_transaction
+                // that returns before the transaction has actually started.
+                let other_tasks_running = counter.fetch_add(1, Ordering::SeqCst);
+                get(db, txn_id, "spin20").await; // Spins cpu *and yields* for ~20ms
+                let value = get(db, txn_id, "value")
+                    .await
+                    .unwrap()
+                    .parse::<u32>()
+                    .unwrap();
+                assert_eq!(42, value);
+                if other_tasks_running > 0 {
+                    counter.fetch_sub(1, Ordering::SeqCst);
+                }
+                abort(db, txn_id).await;
+            },
+            async {
+                let txn_id = open_transaction(db, None, None, None).await.transaction_id;
+                let value = get(db, txn_id, "value")
+                    .await
+                    .unwrap()
+                    .parse::<u32>()
+                    .unwrap();
+                assert_eq!(42, value);
+                let other_tasks_running = counter.fetch_add(1, Ordering::SeqCst);
+                get(db, txn_id, "spin20").await;
+                let value = get(db, txn_id, "value")
+                    .await
+                    .unwrap()
+                    .parse::<u32>()
+                    .unwrap();
+                assert_eq!(42, value);
+                if other_tasks_running > 0 {
+                    counter.fetch_sub(1, Ordering::SeqCst);
+                }
+                abort(db, txn_id).await;
+            },
+        );
+        assert!(counter.into_inner() > 0);
 
-    assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+        assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+    }
 }
 
 #[wasm_bindgen_test]
 async fn test_get_put_del() {
-    let db = &random_db();
+    for use_memstore in vec![true, false] {
+        let db = &random_db();
 
-    assert_eq!(
-        dispatch::<_, PutResponse>(
-            db,
-            "put",
-            PutRequest {
-                transaction_id: 42,
-                key: str!("unused"),
-                value: str!("unused"),
-            }
-        )
-        .await
-        .unwrap_err(),
-        format!("\"{}\" not open", db)
-    );
-    assert_eq!(dispatch::<_, String>(db, "open", "").await.unwrap(), "");
+        assert_eq!(
+            dispatch::<_, PutResponse>(
+                db,
+                "put",
+                PutRequest {
+                    transaction_id: 42,
+                    key: str!("unused"),
+                    value: str!("unused"),
+                }
+            )
+            .await
+            .unwrap_err(),
+            format!("\"{}\" not open", db)
+        );
+        assert_eq!(
+            dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+                .await
+                .unwrap(),
+            ""
+        );
 
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
+        let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
 
-    assert_eq!(get(db, txn_id, "Hello").await, None);
+        assert_eq!(get(db, txn_id, "Hello").await, None);
 
-    // Simple put then get test.
-    // TODO(nate): Resolve how to pass non-UTF-8 sequences through the API.
-    put(db, txn_id, "Hello", "世界").await;
-    assert_eq!(get(db, txn_id, "Hello").await.unwrap(), "世界");
-    commit(db, txn_id).await;
+        // Simple put then get test.
+        // TODO(nate): Resolve how to pass non-UTF-8 sequences through the API.
+        put(db, txn_id, "Hello", "世界").await;
+        assert_eq!(get(db, txn_id, "Hello").await.unwrap(), "世界");
+        commit(db, txn_id).await;
 
-    // Open new transaction, and verify write is persistent.
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
-    assert_eq!(get(db, txn_id, "Hello").await.unwrap(), "世界");
+        // Open new transaction, and verify write is persistent.
+        let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
+        assert_eq!(get(db, txn_id, "Hello").await.unwrap(), "世界");
 
-    // Verify functioning of non-ASCII keys.
-    assert_eq!(has(db, txn_id, "你好").await, false);
-    assert_eq!(get(db, txn_id, "你好").await, None);
-    put(db, txn_id, "你好", "world").await;
-    assert_eq!(has(db, txn_id, "你好").await, true);
-    assert_eq!(get(db, txn_id, "你好").await, Some("world".into()));
+        // Verify functioning of non-ASCII keys.
+        assert_eq!(has(db, txn_id, "你好").await, false);
+        assert_eq!(get(db, txn_id, "你好").await, None);
+        put(db, txn_id, "你好", "world").await;
+        assert_eq!(has(db, txn_id, "你好").await, true);
+        assert_eq!(get(db, txn_id, "你好").await, Some("world".into()));
 
-    commit(db, txn_id).await;
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
-    assert_eq!(has(db, txn_id, "你好").await, true);
-    assert_eq!(get(db, txn_id, "你好").await, Some("world".into()));
-    abort(db, txn_id).await;
+        commit(db, txn_id).await;
+        let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
+        assert_eq!(has(db, txn_id, "你好").await, true);
+        assert_eq!(get(db, txn_id, "你好").await, Some("world".into()));
+        abort(db, txn_id).await;
 
-    // Delete a key
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
-    assert_eq!(del(db, txn_id, "Hello").await, true);
-    assert_eq!(has(db, txn_id, "Hello").await, false);
-    assert_eq!(del(db, txn_id, "Hello").await, false);
-    commit(db, txn_id).await;
+        // Delete a key
+        let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
+        assert_eq!(del(db, txn_id, "Hello").await, true);
+        assert_eq!(has(db, txn_id, "Hello").await, false);
+        assert_eq!(del(db, txn_id, "Hello").await, false);
+        commit(db, txn_id).await;
 
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
-    assert_eq!(has(db, txn_id, "Hello").await, false);
-    abort(db, txn_id).await;
+        let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
+        assert_eq!(has(db, txn_id, "Hello").await, false);
+        abort(db, txn_id).await;
 
-    assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+        assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+    }
 }
 
 #[wasm_bindgen_test]
 async fn test_create_drop_index() {
-    let db = &random_db();
-    assert_eq!(dispatch::<_, String>(db, "open", "").await.unwrap(), "");
-
-    let transaction_id = open_index_transaction(db).await.transaction_id;
-    dispatch::<_, CreateIndexResponse>(
-        db,
-        "createIndex",
-        CreateIndexRequest {
-            transaction_id,
-            name: str!("idx1"),
-            key_prefix: str!("b"),
-            json_pointer: str!("/s"),
-        },
-    )
-    .await
-    .unwrap();
-    commit(db, transaction_id).await;
-
-    // Ensure we can't create an index of the same name with different definition.
-    let transaction_id = open_index_transaction(db).await.transaction_id;
-    let response = dispatch::<_, CreateIndexResponse>(
-        db,
-        "createIndex",
-        CreateIndexRequest {
-            transaction_id,
-            name: str!("idx1"),
-            key_prefix: str!("DIFFERENT"),
-            json_pointer: str!("/ALSO-DIFFERENT"),
-        },
-    )
-    .await
-    .unwrap_err();
-    assert_eq!("DBError(IndexExistsWithDifferentDefinition)", response);
-    abort(db, transaction_id).await;
-
-    // Ensure the index can be used: insert a value and ensure it scans.
-    let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
-    put(db, transaction_id, "boo", r#"{"s": "foo"}"#).await;
-    commit(db, transaction_id).await;
-    let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
-    let expected = vec![(str!("boo"), str!("foo"), str!(r#"{"s": "foo"}"#))];
-    {
-        let (receive, _cb, got) = new_test_scan_receiver();
-        scan(
-            db,
-            transaction_id,
-            "",
-            None,
-            Some(""),
-            false,
-            Some("idx1"),
-            receive,
-        )
-        .await;
-        assert_eq!(&expected, &*got.borrow());
-    }
-    abort(db, transaction_id).await;
-
-    // Check that drop works.
-    let transaction_id = open_index_transaction(db).await.transaction_id;
-    dispatch::<_, DropIndexResponse>(
-        db,
-        "dropIndex",
-        DropIndexRequest {
-            transaction_id,
-            name: str!("idx1"),
-        },
-    )
-    .await
-    .unwrap();
-    commit(db, transaction_id).await;
-
-    // Ensure the index cannot be used.
-    let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
-    {
-        let (receive, _cb, _got) = new_test_scan_receiver();
-        let scan_result: Result<ScanResponse, String> = dispatch_with_scan_receiver(
-            db,
-            "scan",
-            ScanRequest {
-                transaction_id,
-                opts: ScanOptions {
-                    prefix: None,
-                    start_secondary_key: None,
-                    start_key: None,
-                    start_exclusive: None,
-                    limit: None,
-                    index_name: Some(str!("idx1")),
-                },
-                receiver: None,
-            },
-            Some(receive),
-        )
-        .await;
+    for use_memstore in vec![true, false] {
+        let db = &random_db();
         assert_eq!(
-            "ScanError(UnknownIndexName(\"idx1\"))",
-            &scan_result.unwrap_err()
+            dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+                .await
+                .unwrap(),
+            ""
         );
+
+        let transaction_id = open_index_transaction(db).await.transaction_id;
+        dispatch::<_, CreateIndexResponse>(
+            db,
+            "createIndex",
+            CreateIndexRequest {
+                transaction_id,
+                name: str!("idx1"),
+                key_prefix: str!("b"),
+                json_pointer: str!("/s"),
+            },
+        )
+        .await
+        .unwrap();
+        commit(db, transaction_id).await;
+
+        // Ensure we can't create an index of the same name with different definition.
+        let transaction_id = open_index_transaction(db).await.transaction_id;
+        let response = dispatch::<_, CreateIndexResponse>(
+            db,
+            "createIndex",
+            CreateIndexRequest {
+                transaction_id,
+                name: str!("idx1"),
+                key_prefix: str!("DIFFERENT"),
+                json_pointer: str!("/ALSO-DIFFERENT"),
+            },
+        )
+        .await
+        .unwrap_err();
+        assert_eq!("DBError(IndexExistsWithDifferentDefinition)", response);
+        abort(db, transaction_id).await;
+
+        // Ensure the index can be used: insert a value and ensure it scans.
+        let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
+        put(db, transaction_id, "boo", r#"{"s": "foo"}"#).await;
+        commit(db, transaction_id).await;
+        let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
+        let expected = vec![(str!("boo"), str!("foo"), str!(r#"{"s": "foo"}"#))];
+        {
+            let (receive, _cb, got) = new_test_scan_receiver();
+            scan(
+                db,
+                transaction_id,
+                "",
+                None,
+                Some(""),
+                false,
+                Some("idx1"),
+                receive,
+            )
+            .await;
+            assert_eq!(&expected, &*got.borrow());
+        }
+        abort(db, transaction_id).await;
+
+        // Check that drop works.
+        let transaction_id = open_index_transaction(db).await.transaction_id;
+        dispatch::<_, DropIndexResponse>(
+            db,
+            "dropIndex",
+            DropIndexRequest {
+                transaction_id,
+                name: str!("idx1"),
+            },
+        )
+        .await
+        .unwrap();
+        commit(db, transaction_id).await;
+
+        // Ensure the index cannot be used.
+        let transaction_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
+        {
+            let (receive, _cb, _got) = new_test_scan_receiver();
+            let scan_result: Result<ScanResponse, String> = dispatch_with_scan_receiver(
+                db,
+                "scan",
+                ScanRequest {
+                    transaction_id,
+                    opts: ScanOptions {
+                        prefix: None,
+                        start_secondary_key: None,
+                        start_key: None,
+                        start_exclusive: None,
+                        limit: None,
+                        index_name: Some(str!("idx1")),
+                    },
+                    receiver: None,
+                },
+                Some(receive),
+            )
+            .await;
+            assert_eq!(
+                "ScanError(UnknownIndexName(\"idx1\"))",
+                &scan_result.unwrap_err()
+            );
+        }
+        abort(db, transaction_id).await;
+
+        // Check that dropping a non-existent index errors.
+        let transaction_id = open_index_transaction(db).await.transaction_id;
+        let result = dispatch::<_, DropIndexResponse>(
+            db,
+            "dropIndex",
+            DropIndexRequest {
+                transaction_id,
+                name: str!("idx1"),
+            },
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(str!("DBError(NoSuchIndexError(\"idx1\"))"), result);
+        abort(db, transaction_id).await;
+
+        assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
     }
-    abort(db, transaction_id).await;
-
-    // Check that dropping a non-existent index errors.
-    let transaction_id = open_index_transaction(db).await.transaction_id;
-    let result = dispatch::<_, DropIndexResponse>(
-        db,
-        "dropIndex",
-        DropIndexRequest {
-            transaction_id,
-            name: str!("idx1"),
-        },
-    )
-    .await
-    .unwrap_err();
-    assert_eq!(str!("DBError(NoSuchIndexError(\"idx1\"))"), result);
-    abort(db, transaction_id).await;
-
-    assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
 }
 
 // Note: db::scan() is unit tested alongside its implementation in db. These
@@ -638,42 +682,46 @@ async fn test_scan() {
         exclusive: bool,
         expected: Vec<(&str, &str, &str)>,
     ) {
-        let expected: Vec<(String, String, String)> = expected
-            .iter()
-            .map(|v| (str!(v.0), str!(v.1), str!(v.2)))
-            .collect();
+        for use_memstore in vec![true, false] {
+            let expected: Vec<(String, String, String)> = expected
+                .iter()
+                .map(|v| (str!(v.0), str!(v.1), str!(v.2)))
+                .collect();
 
-        let db = &random_db();
-        dispatch::<_, String>(db, "open", "").await.unwrap();
-        let mut txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-            .await
-            .transaction_id;
+            let db = &random_db();
+            dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+                .await
+                .unwrap();
+            let mut txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+                .await
+                .transaction_id;
 
-        for entry in entries {
-            put(db, txn_id, entry.0, entry.1).await;
+            for entry in &entries {
+                put(db, txn_id, entry.0, entry.1).await;
+            }
+
+            if !scan_in_write_txn {
+                commit(db, txn_id).await;
+                txn_id = open_transaction(db, None, None, None).await.transaction_id;
+            }
+
+            let (receive, _cb, got) = new_test_scan_receiver();
+            scan(
+                db,
+                txn_id,
+                prefix,
+                None,
+                Some(start_key),
+                exclusive,
+                None,
+                receive,
+            )
+            .await;
+            assert_eq!(&expected, &*got.borrow());
+
+            abort(db, txn_id).await;
+            dispatch::<_, String>(db, "close", "").await.unwrap();
         }
-
-        if !scan_in_write_txn {
-            commit(db, txn_id).await;
-            txn_id = open_transaction(db, None, None, None).await.transaction_id;
-        }
-
-        let (receive, _cb, got) = new_test_scan_receiver();
-        scan(
-            db,
-            txn_id,
-            prefix,
-            None,
-            Some(start_key),
-            exclusive,
-            None,
-            receive,
-        )
-        .await;
-        assert_eq!(&expected, &*got.borrow());
-
-        abort(db, txn_id).await;
-        dispatch::<_, String>(db, "close", "").await.unwrap();
     }
 
     // db is empty
@@ -791,70 +839,76 @@ async fn test_scan_with_index() {
         exclusive: bool,         // scan start_exclusive
         expected: Vec<(&str, &str, &str)>, // expected results of the scan
     ) {
-        let index_name = str!("idx1");
-        let expected: Vec<(String, String, String)> = expected
-            .iter()
-            .map(|v| (str!(v.0), str!(v.1), str!(v.2)))
-            .collect();
+        for use_memstore in vec![true, false] {
+            let index_name = str!("idx1");
+            let expected: Vec<(String, String, String)> = expected
+                .iter()
+                .map(|v| (str!(v.0), str!(v.1), str!(v.2)))
+                .collect();
 
-        let db = &random_db();
-        dispatch::<_, String>(db, "open", "").await.unwrap();
-        let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-            .await
-            .transaction_id;
-        for entry in entries {
-            put(db, txn_id, entry.0, entry.1).await;
-        }
-        commit(db, txn_id).await;
-
-        dispatch::<_, String>(db, "open", "").await.unwrap();
-        let txn_id = open_index_transaction(db).await.transaction_id;
-        dispatch::<_, CreateIndexResponse>(
-            db,
-            "createIndex",
-            CreateIndexRequest {
-                transaction_id: txn_id,
-                name: index_name.clone(),
-                key_prefix: key_prefix.into(),
-                json_pointer: json_pointer.into(),
-            },
-        )
-        .await
-        .unwrap();
-        commit(db, txn_id).await;
-
-        let mut txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-            .await
-            .transaction_id;
-        match op {
-            Op::None => {}
-            Op::Del(key) => {
-                del(db, txn_id, &key).await;
+            let db = &random_db();
+            dispatch::<OpenRequest, String>(db, "open", OpenRequest { use_memstore })
+                .await
+                .unwrap();
+            let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+                .await
+                .transaction_id;
+            for entry in &entries {
+                put(db, txn_id, entry.0, entry.1).await;
             }
-            Op::Put((key, val)) => put(db, txn_id, &key, &val).await,
-        }
-
-        if !scan_in_write_txn {
             commit(db, txn_id).await;
-            txn_id = open_transaction(db, None, None, None).await.transaction_id;
+
+            dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+                .await
+                .unwrap();
+            let txn_id = open_index_transaction(db).await.transaction_id;
+            dispatch::<_, CreateIndexResponse>(
+                db,
+                "createIndex",
+                CreateIndexRequest {
+                    transaction_id: txn_id,
+                    name: index_name.clone(),
+                    key_prefix: key_prefix.into(),
+                    json_pointer: json_pointer.into(),
+                },
+            )
+            .await
+            .unwrap();
+            commit(db, txn_id).await;
+
+            let mut txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+                .await
+                .transaction_id;
+            match &op {
+                Op::None => {}
+                Op::Del(key) => {
+                    del(db, txn_id, &key).await;
+                }
+                Op::Put((key, val)) => put(db, txn_id, &key, &val).await,
+            }
+
+            if !scan_in_write_txn {
+                commit(db, txn_id).await;
+                txn_id = open_transaction(db, None, None, None).await.transaction_id;
+            }
+
+            let (receive, _cb, got) = new_test_scan_receiver();
+            scan(
+                db,
+                txn_id,
+                prefix,
+                Some(start_secondary_key),
+                start_key,
+                exclusive,
+                Some(&index_name),
+                receive,
+            )
+            .await;
+            assert_eq!(&expected, &*got.borrow());
+
+            abort(db, txn_id).await;
+            dispatch::<_, String>(db, "close", "").await.unwrap();
         }
-
-        let (receive, _cb, got) = new_test_scan_receiver();
-        scan(
-            db,
-            txn_id,
-            prefix,
-            Some(start_secondary_key),
-            start_key,
-            exclusive,
-            Some(&index_name),
-            receive,
-        )
-        .await;
-        assert_eq!(&expected, &*got.borrow());
-
-        abort(db, txn_id).await;
-        dispatch::<_, String>(db, "close", "").await.unwrap();
     }
 
     // Scan an empty db
@@ -1237,44 +1291,62 @@ fn new_test_scan_receiver() -> (
 
 #[wasm_bindgen_test]
 async fn test_get_root() {
-    let db = &random_db();
-    assert_eq!(
-        format!(r#""{}" not open"#, db),
-        dispatch::<_, GetRootResponse>(db, "getRoot", &GetRootRequest { head_name: None })
-            .await
-            .unwrap_err()
-    );
+    for use_memstore in vec![true, false] {
+        let db = &random_db();
+        assert_eq!(
+            format!(r#""{}" not open"#, db),
+            dispatch::<_, GetRootResponse>(db, "getRoot", &GetRootRequest { head_name: None })
+                .await
+                .unwrap_err()
+        );
 
-    assert_eq!(dispatch::<_, String>(db, "open", "").await.unwrap(), "");
-    assert_eq!(
-        dispatch::<_, GetRootResponse>(db, "getRoot", &GetRootRequest { head_name: None })
+        assert_eq!(
+            dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+                .await
+                .unwrap(),
+            ""
+        );
+        assert_eq!(
+            dispatch::<_, GetRootResponse>(db, "getRoot", &GetRootRequest { head_name: None })
+                .await
+                .unwrap(),
+            GetRootResponse {
+                root: str!("3hjt1p4m1emdttgrii2p0o3te1kt8rhv"),
+            }
+        );
+        let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
             .await
-            .unwrap(),
-        GetRootResponse {
-            root: str!("3hjt1p4m1emdttgrii2p0o3te1kt8rhv"),
-        }
-    );
-    let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-        .await
-        .transaction_id;
-    put(db, txn_id, "foo", "bar").await;
-    let _ = commit(db, txn_id).await;
-    assert_eq!(
-        dispatch::<_, GetRootResponse>(db, "getRoot", GetRootRequest { head_name: None })
-            .await
-            .unwrap(),
-        GetRootResponse {
-            root: str!("8tnlpltjbt23hc0v8h3td7ssflsnot84"),
-        }
-    );
-    assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+            .transaction_id;
+        put(db, txn_id, "foo", "bar").await;
+        let _ = commit(db, txn_id).await;
+        assert_eq!(
+            dispatch::<_, GetRootResponse>(db, "getRoot", GetRootRequest { head_name: None })
+                .await
+                .unwrap(),
+            GetRootResponse {
+                root: str!("8tnlpltjbt23hc0v8h3td7ssflsnot84"),
+            }
+        );
+        assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+    }
 }
 
 #[wasm_bindgen_test]
 async fn test_set_log_level() {
     let level = log::max_level();
     let db = &random_db();
-    assert_eq!(dispatch::<_, String>(db, "open", "").await.unwrap(), "");
+    assert_eq!(
+        dispatch::<_, String>(
+            db,
+            "open",
+            OpenRequest {
+                use_memstore: false
+            }
+        )
+        .await
+        .unwrap(),
+        ""
+    );
 
     assert_ne!(log::LevelFilter::Error, level);
     dispatch::<_, SetLogLevelResponse>(

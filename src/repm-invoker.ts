@@ -66,6 +66,12 @@ export class REPMWasmInvoker {
   };
 }
 
+type OpenRequest = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  use_memstore: boolean;
+};
+type OpenResponse = '';
+
 type GetRequest = TransactionRequest & {
   key: string;
 };
@@ -194,6 +200,7 @@ type SetLogLevelRequest = {level: 'debug' | 'info' | 'error'};
 type SetLogLevelResponse = unknown;
 
 export type InvokeMap = {
+  open: [OpenRequest, OpenResponse];
   get: [GetRequest, GetResponse];
   has: [HasRequest, HasResponse];
   scan: [ScanRequest, ScanResponse];
@@ -214,7 +221,6 @@ export type InvokeMap = {
   setLogLevel: [SetLogLevelRequest, SetLogLevelResponse];
 };
 
-type OpenResponse = '';
 type CloseResponse = '';
 
 type GetRootResponse = {
@@ -222,7 +228,6 @@ type GetRootResponse = {
 };
 
 export type InvokeMapNoArgs = {
-  open: OpenResponse;
   close: CloseResponse;
   getRoot: GetRootResponse;
 };

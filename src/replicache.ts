@@ -123,7 +123,7 @@ export interface ReplicacheOptions {
    * Allows using an in memory store instead of IndexedDB. This is useful for
    * testing for example. Notice that when this is `true` no data is persisted
    * in Replicache and all the data that has not yet been synced when Replicache
-   * is [closed] or the page is unloaded is lost.
+   * is [[closed]] or the page is unloaded is lost.
    */
   useMemstore?: boolean;
 }

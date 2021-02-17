@@ -696,15 +696,21 @@ testWithBothStores('sync', async () => {
   expect(createCount).to.equal(3);
 });
 
-test('sync2', async () => {
+testWithBothStores('sync debouncing', async () => {
   rep = await replicacheForTesting('sync2');
 
   const spy = spyInvoke(rep);
 
   const s1 = rep.sync();
   const s2 = rep.sync();
+  const s3 = rep.sync();
+  const s4 = rep.sync();
   await s1;
   await s2;
+  await s3;
+  await s4;
+
+  await sleep(10);
 
   const calls = spy.args;
   const syncCalls = calls.filter(([rpc]) => rpc === 'beginSync').length;
@@ -1351,3 +1357,8 @@ testWithBothStores('isEmpty', async () => {
 
   await t(false);
 });
+function sleep(ms: number): Promise<void> {
+  return new Promise(res => {
+    setTimeout(() => res(), ms);
+  });
+}

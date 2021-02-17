@@ -538,10 +538,9 @@ export default class Replicache implements ReadTransaction {
     // Replay.
     console.group('Replaying');
     for (const mutation of replayMutations) {
-      const {original} = mutation;
       syncHead = await this._replay(
         syncHead,
-        original,
+        mutation.original,
         mutation.name,
         JSON.parse(mutation.args),
       );
@@ -595,7 +594,9 @@ export default class Replicache implements ReadTransaction {
 
     if (this._syncPromise !== null) {
       await this._syncPromise;
-      await this.sync();
+      // Call schedule instead of sync to debounce/dedupe multiple calls.
+      this._clearTimer();
+      this._scheduleSync(1);
       return;
     }
 

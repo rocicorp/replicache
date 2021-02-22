@@ -234,8 +234,9 @@ async function benchmarkWriteReadRoundTrip(bench, i) {
   const key = `k${i}`;
   const value = i;
   let {promise, resolve} = resolver();
-  rep.subscribe(tx => tx.get(key), {
+  const unsubscribe = rep.subscribe(tx => tx.get(key), {
     onData(res) {
+      // `resolve` binding needs to be looked up on every iteration
       resolve(res);
     },
   });
@@ -259,6 +260,7 @@ async function benchmarkWriteReadRoundTrip(bench, i) {
   }
 
   bench.stop();
+  unsubscribe();
 }
 
 /**

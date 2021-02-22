@@ -69,16 +69,6 @@ async function makeRep() {
   });
 }
 
-function makeLastRep() {
-  const name = `bench${counter - 1}`;
-  return new Replicache({
-    clientViewURL: '',
-    diffServerURL: '',
-    name,
-    syncInterval: null,
-  });
-}
-
 /**
  * @param {Replicache} rep
  * @param {{numKeys: number}}
@@ -120,7 +110,8 @@ async function benchmarkPopulate(bench, opts) {
 }
 
 /** @typedef {{
- *   setup: (body: () => Promise<void>) => void;
+ *   setup: (body: () => Promise<void> | void) => Promise<void>;
+ *   teardown: () => Promise<void> | void;
  *   name: string;
  *   size: number;
  *   reset: () => void;
@@ -131,15 +122,19 @@ async function benchmarkPopulate(bench, opts) {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 let Bench;
 
+/** @type {Replicache} */
+let rep;
+
 async function benchmarkReadTransaction(bench, opts) {
   await bench.setup(async () => {
     bench.name = `read tx ${valSize}x${opts.numKeys}`;
     bench.size = opts.numKeys * valSize;
-    const rep = await makeRep();
+    rep = await makeRep();
     await populate(rep, opts, makeRandomStrings(opts.numKeys));
-    await rep.close();
   });
-  const rep = makeLastRep();
+  bench.teardown = async () => {
+    await rep.close();
+  };
 
   await populate(rep, opts, makeRandomStrings(opts.numKeys));
   bench.reset();
@@ -157,7 +152,6 @@ async function benchmarkReadTransaction(bench, opts) {
     console.log(getCount, hasCount);
   });
   bench.stop();
-  await rep.close();
 }
 
 /**
@@ -168,11 +162,12 @@ async function benchmarkScan(bench, opts) {
   await bench.setup(async () => {
     bench.name = `scan ${valSize}x${opts.numKeys}`;
     bench.size = opts.numKeys * valSize;
-    const rep = await makeRep();
+    rep = await makeRep();
     await populate(rep, opts, makeRandomStrings(opts.numKeys));
-    await rep.close();
   });
-  const rep = makeLastRep();
+  bench.teardown = async () => {
+    await rep.close();
+  };
 
   bench.reset();
   await rep.query(async tx => {
@@ -185,7 +180,6 @@ async function benchmarkScan(bench, opts) {
     console.log(count);
   });
   bench.stop();
-  await rep.close();
 }
 
 /**
@@ -231,7 +225,12 @@ async function createIndex(bench, opts) {
  * @param {number} i
  */
 async function benchmarkWriteReadRoundTrip(bench, i) {
-  const rep = await makeRep();
+  await bench.setup(async () => {
+    rep = await makeRep();
+  });
+  bench.teardown = async () => {
+    await rep.close();
+  };
   const key = `k${i}`;
   const value = i;
   let {promise, resolve} = resolver();
@@ -260,7 +259,6 @@ async function benchmarkWriteReadRoundTrip(bench, i) {
   }
 
   bench.stop();
-  await rep.close();
 }
 
 /**
@@ -277,6 +275,8 @@ async function benchmark(fn) {
   let size = 0;
   let format = formatToMBPerSecond;
   let setupCalled = false;
+  /** @type {(() => Promise<void> | void) | undefined} */
+  let teardown;
   for (let i = 0; i < minRuns || sum < minTime; i++) {
     let t0 = Date.now();
     let t1 = 0;
@@ -321,6 +321,13 @@ async function benchmark(fn) {
             setupCalled = true;
           }
         },
+
+        /**
+         * @param {() => (Promise<void> | void) } f
+         */
+        set teardown(f) {
+          teardown = f;
+        },
       },
       i,
     );
@@ -330,6 +337,10 @@ async function benchmark(fn) {
     const dur = t1 - t0;
     times.push(dur);
     sum += dur;
+  }
+
+  if (teardown) {
+    await teardown();
   }
 
   console.log(sum);

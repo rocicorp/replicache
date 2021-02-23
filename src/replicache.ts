@@ -424,8 +424,8 @@ export default class Replicache implements ReadTransaction {
   }
 
   private async _sync(): Promise<void> {
-    await this._pull();
-    await this._push();
+    await this.pull();
+    await this.push();
   }
 
   protected async _maybeEndPull(
@@ -554,14 +554,14 @@ export default class Replicache implements ReadTransaction {
     this._online = online;
   }
 
-  private async _push(): Promise<void> {
-    await this._wrapInOnlineCheck(
-      () => this._pushInner(MAX_REAUTH_TRIES),
-      'Push',
-    );
+  /**
+   * Push pushes pending changes to the [[batchURL]].
+   */
+  async push(): Promise<void> {
+    await this._wrapInOnlineCheck(() => this._push(MAX_REAUTH_TRIES), 'Push');
   }
 
-  private async _pushInner(maxAuthTries: number): Promise<void> {
+  private async _push(maxAuthTries: number): Promise<void> {
     const pushResponse = await this._invoke('push', {
       batchPushURL: this._batchURL,
       clientViewURL: this._clientViewURL,
@@ -602,12 +602,16 @@ export default class Replicache implements ReadTransaction {
       if (dataLayerAuth != null) {
         this._dataLayerAuth = dataLayerAuth;
         // Try again now instead of waiting for another 5 seconds.
-        return await this._pushInner(maxAuthTries - 1);
+        return await this._push(maxAuthTries - 1);
       }
     }
   }
 
-  private async _pull(): Promise<void> {
+  /**
+   * Pull pulls changes from the [[clientViewURL]]. If there are any changes
+   * local changes will get replayed on top of the new server state.
+   */
+  async pull(): Promise<void> {
     await this._wrapInOnlineCheck(async () => {
       const beginPullResult = await this._beginPull(MAX_REAUTH_TRIES);
       // repc sends empty string for null pull.

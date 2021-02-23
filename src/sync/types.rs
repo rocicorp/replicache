@@ -17,8 +17,8 @@ pub struct BeginSyncRequest {
 }
 
 // If BeginSync did not pull new state then sync_head will be empty and the sync
-// is complete: the caller should not call MaybeEndSync. If sync_head is present
-// then it pulled new state and the caller should proceed to call MaybeEndSync.
+// is complete: the caller should not call maybeEndPull. If sync_head is present
+// then it pulled new state and the caller should proceed to call maybeEndPull.
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct BeginSyncResponse {
     #[serde(rename = "syncHead")]
@@ -70,7 +70,7 @@ pub struct ClientViewInfo {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct MaybeEndSyncRequest {
+pub struct MaybeEndPullRequest {
     #[serde(rename = "syncID")]
     pub sync_id: String,
     #[serde(rename = "syncHead")]
@@ -78,10 +78,10 @@ pub struct MaybeEndSyncRequest {
 }
 
 // If replay_mutations is empty then there are no pending mutations to replay
-// and sync is complete. If replay_mutations is not empty the returned mutations
-// should be replayed and MaybeEndSync invoked again.
+// and pull is complete. If replay_mutations is not empty the returned mutations
+// should be replayed and maybeEndPull invoked again.
 #[derive(Debug, Serialize)]
-pub struct MaybeEndSyncResponse {
+pub struct MaybeEndPullResponse {
     #[serde(rename = "replayMutations")]
     pub replay_mutations: Vec<ReplayMutation>,
     #[serde(rename = "syncHead")]
@@ -96,4 +96,41 @@ pub struct ReplayMutation {
     pub name: String,
     pub args: String,
     pub original: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BeginPullRequest {
+    #[serde(rename = "clientViewURL")]
+    pub client_view_url: String,
+    #[serde(rename = "dataLayerAuth")]
+    pub data_layer_auth: String,
+    #[serde(rename = "diffServerURL")]
+    pub diff_server_url: String,
+    #[serde(rename = "diffServerAuth")]
+    pub diff_server_auth: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BeginPullResponse {
+    #[serde(rename = "clientViewInfo")]
+    pub client_view_info: ClientViewInfo,
+    #[serde(rename = "syncHead")]
+    pub sync_head: String,
+    #[serde(rename = "syncID")]
+    pub sync_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PushRequest {
+    #[serde(rename = "batchPushURL")]
+    pub batch_push_url: String,
+    #[serde(rename = "dataLayerAuth")]
+    pub data_layer_auth: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PushResponse {
+    #[serde(rename = "batchPushInfo")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub batch_push_info: Option<BatchPushInfo>,
 }

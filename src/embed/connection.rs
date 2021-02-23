@@ -187,9 +187,12 @@ async fn execute<'a, 'b>(
         "openTransaction" => return to_js(do_open_transaction(ctx, from_js(data)?).await),
         "commitTransaction" => return to_js(do_commit(ctx, from_js(data)?).await),
         "closeTransaction" => return to_js(do_close(ctx, from_js(data)?).await),
-        "beginSync" => return to_js(do_begin_sync(ctx, from_js(data)?).await),
-        "maybeEndSync" => return to_js(do_maybe_end_sync(ctx, from_js(data)?).await),
         "setLogLevel" => return to_js(do_set_log_level(ctx, from_js(data)?).await),
+
+        "push" => return to_js(do_push(ctx, from_js(data)?).await),
+        "beginPull" => return to_js(do_begin_pull(ctx, from_js(data)?).await),
+        "maybeEndPull" => return to_js(do_maybe_end_pull(ctx, from_js(data)?).await),
+
         _ => (),
     };
 
@@ -634,37 +637,12 @@ async fn do_drop_index(
     Ok(DropIndexResponse {})
 }
 
-async fn do_begin_sync<'a, 'b>(
+async fn do_maybe_end_pull<'a, 'b>(
     ctx: Context<'a, 'b>,
-    req: sync::BeginSyncRequest,
-) -> Result<sync::BeginSyncResponse, sync::BeginSyncError> {
-    // TODO move client, puller, pusher up to process() or into a lazy static so we can share.
-    let fetch_client = fetch::client::Client::new();
-    let pusher = sync::push::FetchPusher::new(&fetch_client);
-    let puller = sync::FetchPuller::new(&fetch_client);
-    let sync_id = sync::sync_id::new(&ctx.client_id);
-    ctx.lc.add_context("sync_id", &sync_id);
-
-    let begin_sync_response = sync::begin_sync(
-        ctx.store,
-        ctx.lc.clone(),
-        &pusher,
-        &puller,
-        req,
-        ctx.client_id,
-        sync_id,
-    )
-    .await?;
-    Ok(begin_sync_response)
-}
-
-async fn do_maybe_end_sync<'a, 'b>(
-    ctx: Context<'a, 'b>,
-    req: sync::MaybeEndSyncRequest,
-) -> Result<sync::MaybeEndSyncResponse, sync::MaybeEndSyncError> {
+    req: sync::MaybeEndPullRequest,
+) -> Result<sync::MaybeEndPullResponse, sync::MaybeEndPullError> {
     ctx.lc.add_context("sync_id", &req.sync_id);
-    let maybe_end_sync_response = sync::maybe_end_sync(ctx.store, ctx.lc.clone(), req).await?;
-    Ok(maybe_end_sync_response)
+    sync::maybe_end_pull(ctx.store, ctx.lc.clone(), req).await
 }
 
 async fn do_set_log_level<'a, 'b>(
@@ -679,6 +657,63 @@ async fn do_set_log_level<'a, 'b>(
         _ => return Err(UnknownLogLevel(req.level.clone())),
     }
     Ok(SetLogLevelResponse {})
+}
+
+async fn do_push<'a, 'b>(
+    ctx: Context<'a, 'b>,
+    req: sync::PushRequest,
+) -> Result<sync::PushResponse, sync::PushError> {
+    // TODO move client, pusher up to process() or into a lazy static so we can share.
+    let fetch_client = fetch::client::Client::new();
+    let pusher = sync::push::FetchPusher::new(&fetch_client);
+    let sync_id = sync::sync_id::new(&ctx.client_id);
+    ctx.lc.add_context("sync_id", &sync_id);
+
+    let (_, batch_push_info) =
+        sync::push(&sync_id, ctx.store, ctx.lc, ctx.client_id, &pusher, req).await?;
+    Ok(sync::PushResponse { batch_push_info })
+}
+
+async fn do_begin_pull<'a, 'b>(
+    ctx: Context<'a, 'b>,
+    req: sync::BeginPullRequest,
+) -> Result<sync::BeginPullResponse, sync::BeginPullError> {
+    // TODO move client, pusher up to process() or into a lazy static so we can share.
+    let fetch_client = fetch::client::Client::new();
+    let puller = sync::FetchPuller::new(&fetch_client);
+    let sync_id = sync::sync_id::new(&ctx.client_id);
+    ctx.lc.add_context("sync_id", &sync_id);
+
+    let store = ctx.store;
+    let lc = ctx.lc;
+
+    use sync::BeginPullError::*;
+
+    let dag_read = store.read(lc.clone()).await.map_err(ReadError)?;
+    let main_head_hash = dag_read
+        .read()
+        .get_head(db::DEFAULT_HEAD_NAME)
+        .await
+        .map_err(GetHeadError)?
+        .ok_or(InternalNoMainHeadError)?;
+    let base_snapshot = db::Commit::base_snapshot(&main_head_hash, &dag_read.read())
+        .await
+        .map_err(NoBaseSnapshot)?;
+    // Close read transaction.
+    drop(dag_read);
+
+    let res = sync::begin_pull(
+        base_snapshot,
+        // base_checksum,
+        ctx.client_id,
+        req,
+        &puller,
+        sync_id,
+        store,
+        lc,
+    )
+    .await?;
+    Ok(res)
 }
 
 #[derive(Debug)]

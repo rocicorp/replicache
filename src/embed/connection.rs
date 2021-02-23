@@ -669,7 +669,7 @@ async fn do_push<'a, 'b>(
     let sync_id = sync::sync_id::new(&ctx.client_id);
     ctx.lc.add_context("sync_id", &sync_id);
 
-    let (_, batch_push_info) =
+    let batch_push_info =
         sync::push(&sync_id, ctx.store, ctx.lc, ctx.client_id, &pusher, req).await?;
     Ok(sync::PushResponse { batch_push_info })
 }
@@ -683,37 +683,7 @@ async fn do_begin_pull<'a, 'b>(
     let puller = sync::FetchPuller::new(&fetch_client);
     let sync_id = sync::sync_id::new(&ctx.client_id);
     ctx.lc.add_context("sync_id", &sync_id);
-
-    let store = ctx.store;
-    let lc = ctx.lc;
-
-    use sync::BeginPullError::*;
-
-    let dag_read = store.read(lc.clone()).await.map_err(ReadError)?;
-    let main_head_hash = dag_read
-        .read()
-        .get_head(db::DEFAULT_HEAD_NAME)
-        .await
-        .map_err(GetHeadError)?
-        .ok_or(InternalNoMainHeadError)?;
-    let base_snapshot = db::Commit::base_snapshot(&main_head_hash, &dag_read.read())
-        .await
-        .map_err(NoBaseSnapshot)?;
-    // Close read transaction.
-    drop(dag_read);
-
-    let res = sync::begin_pull(
-        base_snapshot,
-        // base_checksum,
-        ctx.client_id,
-        req,
-        &puller,
-        sync_id,
-        store,
-        lc,
-    )
-    .await?;
-    Ok(res)
+    sync::begin_pull(ctx.client_id, req, &puller, sync_id, ctx.store, ctx.lc).await
 }
 
 #[derive(Debug)]

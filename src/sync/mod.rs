@@ -28,60 +28,8 @@ pub use types::*;
 
 pub const SYNC_HEAD_NAME: &str = "sync";
 
-pub async fn begin_sync(
-    store: &dag::Store,
-    lc: LogContext,
-    pusher: &dyn push::Pusher,
-    puller: &dyn Puller,
-    begin_sync_req: BeginSyncRequest,
-    client_id: String,
-    sync_id: String,
-) -> Result<BeginSyncResponse, BeginSyncError> {
-    let (base_snapshot, batch_push_info) = push(
-        &sync_id,
-        store,
-        lc.clone(),
-        client_id.clone(),
-        pusher,
-        PushRequest {
-            batch_push_url: begin_sync_req.batch_push_url,
-            data_layer_auth: begin_sync_req.data_layer_auth.clone(),
-        },
-    )
-    .await
-    .map_err(BeginSyncError::PushError)?;
-
-    let BeginPullResponse {
-        client_view_info,
-        sync_head,
-        sync_id,
-    } = begin_pull(
-        base_snapshot,
-        client_id,
-        BeginPullRequest {
-            client_view_url: begin_sync_req.client_view_url,
-            data_layer_auth: begin_sync_req.data_layer_auth,
-            diff_server_url: begin_sync_req.diff_server_url,
-            diff_server_auth: begin_sync_req.diff_server_auth,
-        },
-        puller,
-        sync_id,
-        store,
-        lc,
-    )
-    .await
-    .map_err(BeginSyncError::BeginPullError)?;
-
-    Ok(BeginSyncResponse {
-        sync_info: SyncInfo {
-            sync_id,
-            batch_push_info,
-            client_view_info: Some(client_view_info),
-        },
-        sync_head,
-    })
-}
-
+/// Find pending commits between the base snapshot and the main head and push
+/// them to the data layer.
 pub async fn push(
     sync_id: &str,
     store: &dag::Store,
@@ -89,11 +37,9 @@ pub async fn push(
     client_id: String,
     pusher: &dyn push::Pusher,
     req: PushRequest,
-) -> Result<(Commit, Option<BatchPushInfo>), PushError> {
+) -> Result<Option<BatchPushInfo>, PushError> {
     use PushError::*;
 
-    // Push: find pending commits between the base snapshot and the main head
-    // and push them to the data layer.
     let dag_read = store.read(lc.clone()).await.map_err(ReadError)?;
     let main_head_hash = dag_read
         .read()
@@ -101,16 +47,14 @@ pub async fn push(
         .await
         .map_err(GetHeadError)?
         .ok_or(InternalNoMainHeadError)?;
-    let base_snapshot = Commit::base_snapshot(&main_head_hash, &dag_read.read())
-        .await
-        .map_err(NoBaseSnapshot)?;
     let mut pending = Commit::local_mutations(&main_head_hash, &dag_read.read())
         .await
         .map_err(InternalGetPendingCommitsError)?;
+    drop(dag_read); // Important! Don't hold the lock through an HTTP request!
+
     // Commit::pending gave us commits in head-first order; the bindings
     // want tail first (in mutation id order).
     pending.reverse();
-    drop(dag_read); // Important! Don't hold the lock through an HTTP request!
 
     let mut batch_push_info = None;
     if !pending.is_empty() {
@@ -154,11 +98,10 @@ pub async fn push(
         debug!(lc, "...Push complete in {}ms", push_timer.elapsed_ms());
     }
 
-    Ok((base_snapshot, batch_push_info))
+    Ok(batch_push_info)
 }
 
 pub async fn begin_pull(
-    base_snapshot: Commit,
     client_id: String,
     begin_pull_req: BeginPullRequest,
     puller: &dyn Puller,
@@ -174,6 +117,19 @@ pub async fn begin_pull(
         diff_server_url,
         diff_server_auth,
     } = begin_pull_req;
+
+    let dag_read = store.read(lc.clone()).await.map_err(ReadError)?;
+    let main_head_hash = dag_read
+        .read()
+        .get_head(db::DEFAULT_HEAD_NAME)
+        .await
+        .map_err(GetHeadError)?
+        .ok_or(InternalNoMainHeadError)?;
+    let base_snapshot = db::Commit::base_snapshot(&main_head_hash, &dag_read.read())
+        .await
+        .map_err(NoBaseSnapshot)?;
+    // Close read transaction.
+    drop(dag_read);
 
     // let base_checksum = base_snapshot.meta().checksum().to_string();
     let (base_last_mutation_id, base_state_id) =
@@ -329,14 +285,7 @@ pub enum PushError {
     InternalNoMainHeadError,
     InternalNonLocalPendingCommit,
     InternalTimerError(rlog::TimerError),
-    NoBaseSnapshot(db::BaseSnapshotError),
     ReadError(dag::Error),
-}
-
-#[derive(Debug)]
-pub enum BeginSyncError {
-    PushError(PushError),
-    BeginPullError(BeginPullError),
 }
 
 pub async fn maybe_end_pull(
@@ -584,6 +533,116 @@ mod tests {
     use std::clone::Clone;
     use str_macro::str;
     use tide::{Body, Response};
+
+    #[derive(Deserialize, Serialize)]
+    struct BeginSyncRequest {
+        #[serde(rename = "batchPushURL")]
+        pub batch_push_url: String,
+        #[serde(rename = "clientViewURL")]
+        pub client_view_url: String,
+        // data_layer_auth is used for push and for pull (as the client_view_auth).
+        #[serde(rename = "dataLayerAuth")]
+        pub data_layer_auth: String,
+        #[serde(rename = "diffServerURL")]
+        pub diff_server_url: String,
+        #[serde(rename = "diffServerAuth")]
+        pub diff_server_auth: String,
+    }
+
+    // If BeginSync did not pull new state then sync_head will be empty and the sync
+    // is complete: the caller should not call maybeEndPull. If sync_head is present
+    // then it pulled new state and the caller should proceed to call maybeEndPull.
+    #[derive(Debug, Default, Deserialize, Serialize)]
+    struct BeginSyncResponse {
+        #[serde(rename = "syncHead")]
+        pub sync_head: String,
+        #[serde(rename = "syncInfo")]
+        pub sync_info: SyncInfo,
+    }
+
+    #[derive(Debug, Default, Deserialize, Serialize)]
+    struct SyncInfo {
+        #[serde(rename = "syncID")]
+        pub sync_id: String,
+
+        // BatchPushInfo will be set if we attempted to push, ie if there were >0 pending commits.
+        // Its http_status_code will be 0 if the request was not sent, eg we couldn't create
+        // the request for some reason. It will be the status code returned by the server if
+        // the server returned 200 and the result parsed properly or if the server returned
+        // something other than 200.
+        //
+        // TODO the status code will be 0 if the server returned 200 but the result
+        // could not be parsed -- this is a bug we could fix by always returning the
+        // status code in the PushError. (The error_message will contain the error
+        // in this case however.)
+        #[serde(rename = "batchPushInfo")]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub batch_push_info: Option<BatchPushInfo>,
+        // ClientViewInfo will be set if the request to the diffserver completed with status 200
+        // and the diffserver attempted to request the client view from the data layer.
+        #[serde(rename = "clientViewInfo")]
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub client_view_info: Option<ClientViewInfo>,
+    }
+
+    #[derive(Debug)]
+    enum BeginSyncError {
+        PushError(PushError),
+        BeginPullError(BeginPullError),
+    }
+
+    async fn begin_sync(
+        store: &dag::Store,
+        lc: LogContext,
+        pusher: &dyn push::Pusher,
+        puller: &dyn Puller,
+        begin_sync_req: BeginSyncRequest,
+        client_id: String,
+        sync_id: String,
+    ) -> Result<BeginSyncResponse, BeginSyncError> {
+        let batch_push_info = push(
+            &sync_id,
+            store,
+            lc.clone(),
+            client_id.clone(),
+            pusher,
+            PushRequest {
+                batch_push_url: begin_sync_req.batch_push_url,
+                data_layer_auth: begin_sync_req.data_layer_auth.clone(),
+            },
+        )
+        .await
+        .map_err(BeginSyncError::PushError)?;
+
+        let BeginPullResponse {
+            client_view_info,
+            sync_head,
+            sync_id,
+        } = begin_pull(
+            client_id,
+            BeginPullRequest {
+                client_view_url: begin_sync_req.client_view_url,
+                data_layer_auth: begin_sync_req.data_layer_auth,
+                diff_server_url: begin_sync_req.diff_server_url,
+                diff_server_auth: begin_sync_req.diff_server_auth,
+            },
+            puller,
+            sync_id,
+            store,
+            lc,
+        )
+        .await
+        .map_err(BeginSyncError::BeginPullError)?;
+
+        Ok(BeginSyncResponse {
+            sync_info: SyncInfo {
+                sync_id,
+                batch_push_info,
+                client_view_info: Some(client_view_info),
+            },
+            sync_head,
+        })
+    }
 
     // TODO: we don't have a way to test overlapping syncs. Augmenting
     // FakePuller to land a snapshot during pull() doesn't work because

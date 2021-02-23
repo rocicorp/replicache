@@ -15,6 +15,8 @@ import fetchMock from 'fetch-mock/esm/client.js';
 import type {Invoke} from './repm-invoker.js';
 import type {ScanOptions} from './scan-options.js';
 
+fetchMock.config.overwriteRoutes = true;
+
 const {fail} = assert;
 
 let rep: ReplicacheTest | null = null;
@@ -691,6 +693,262 @@ testWithBothStores('sync', async () => {
   expect(createCount).to.equal(3);
 
   await rep?.sync();
+
+  expect(deleteCount).to.equal(4);
+  expect(createCount).to.equal(3);
+});
+
+testWithBothStores('push', async () => {
+  const batchURL = 'https://batch.com';
+
+  rep = await replicacheForTesting('push', {
+    batchURL,
+    dataLayerAuth: '1',
+  });
+
+  let createCount = 0;
+  let deleteCount = 0;
+
+  const createTodo = rep.register(
+    'createTodo',
+    async <A extends {id: number}>(tx: WriteTransaction, args: A) => {
+      createCount++;
+      await tx.put(`/todo/${args.id}`, args);
+    },
+  );
+
+  const deleteTodo = rep.register(
+    'deleteTodo',
+    async <A extends {id: number}>(tx: WriteTransaction, args: A) => {
+      deleteCount++;
+      await tx.del(`/todo/${args.id}`);
+    },
+  );
+
+  const id1 = 14323534;
+  const id2 = 22354345;
+
+  await deleteTodo({id: id1});
+  await deleteTodo({id: id2});
+
+  expect(deleteCount).to.equal(2);
+
+  fetchMock.postOnce(batchURL, {
+    mutationInfos: [
+      {id: 1, error: 'deleteTodo: todo not found'},
+      {id: 2, error: 'deleteTodo: todo not found'},
+    ],
+  });
+  await rep.push();
+  expect(deleteCount).to.equal(2);
+  const {mutations} = await fetchMock.lastCall().request.json();
+  expect(mutations).to.eql([
+    {id: 1, name: 'deleteTodo', args: {id: id1}},
+    {id: 2, name: 'deleteTodo', args: {id: id2}},
+  ]);
+
+  fetchMock.postOnce(batchURL, {
+    mutationInfos: [],
+  });
+  await rep.push();
+  {
+    const {mutations} = await fetchMock.lastCall().request.json();
+    expect(mutations).to.eql([
+      {id: 1, name: 'deleteTodo', args: {id: id1}},
+      {id: 2, name: 'deleteTodo', args: {id: id2}},
+    ]);
+  }
+
+  await createTodo({
+    id: id1,
+    text: 'Test',
+  });
+  expect(createCount).to.equal(1);
+  expect(((await rep?.get(`/todo/${id1}`)) as {text: string}).text).to.equal(
+    'Test',
+  );
+
+  fetchMock.postOnce(batchURL, {
+    mutationInfos: [{id: 3, error: 'mutation has already been processed'}],
+  });
+  await rep.push();
+  {
+    const {mutations} = await fetchMock.lastCall().request.json();
+    expect(mutations).to.eql([
+      {id: 1, name: 'deleteTodo', args: {id: id1}},
+      {id: 2, name: 'deleteTodo', args: {id: id2}},
+      {id: 3, name: 'createTodo', args: {id: id1, text: 'Test'}},
+    ]);
+  }
+
+  await createTodo({
+    id: id2,
+    text: 'Test 2',
+  });
+  expect(createCount).to.equal(2);
+  expect(((await rep?.get(`/todo/${id2}`)) as {text: string}).text).to.equal(
+    'Test 2',
+  );
+
+  // Clean up
+  await deleteTodo({id: id1});
+  await deleteTodo({id: id2});
+
+  expect(deleteCount).to.equal(4);
+  expect(createCount).to.equal(2);
+
+  fetchMock.postOnce(batchURL, {
+    mutationInfos: [],
+  });
+  await rep.push();
+  {
+    const {mutations} = await fetchMock.lastCall().request.json();
+    expect(mutations).to.eql([
+      {id: 1, name: 'deleteTodo', args: {id: id1}},
+      {id: 2, name: 'deleteTodo', args: {id: id2}},
+      {id: 3, name: 'createTodo', args: {id: id1, text: 'Test'}},
+      {id: 4, name: 'createTodo', args: {id: id2, text: 'Test 2'}},
+      {id: 5, name: 'deleteTodo', args: {id: id1}},
+      {id: 6, name: 'deleteTodo', args: {id: id2}},
+    ]);
+  }
+
+  expect(deleteCount).to.equal(4);
+  expect(createCount).to.equal(2);
+});
+
+testWithBothStores('pull', async () => {
+  const diffServerURL = 'https://diff.com/pull';
+
+  rep = await replicacheForTesting('pull', {
+    batchURL: '',
+    dataLayerAuth: '1',
+    diffServerAuth: '1',
+    diffServerURL,
+  });
+
+  let createCount = 0;
+  let deleteCount = 0;
+  let syncHead: string;
+  let beginPullResult: {
+    syncID: string;
+    syncHead: string;
+  };
+
+  const createTodo = rep.register(
+    'createTodo',
+    async <A extends {id: number}>(tx: WriteTransaction, args: A) => {
+      createCount++;
+      await tx.put(`/todo/${args.id}`, args);
+    },
+  );
+
+  const deleteTodo = rep.register(
+    'deleteTodo',
+    async <A extends {id: number}>(tx: WriteTransaction, args: A) => {
+      deleteCount++;
+      await tx.del(`/todo/${args.id}`);
+    },
+  );
+
+  const id1 = 14323534;
+  const id2 = 22354345;
+
+  await deleteTodo({id: id1});
+  await deleteTodo({id: id2});
+
+  expect(deleteCount).to.equal(2);
+
+  fetchMock.postOnce(diffServerURL, {
+    stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
+    lastMutationID: 2,
+    patch: [
+      {op: 'remove', path: '/'},
+      {
+        op: 'add',
+        path: '/~1list~11',
+        valueString: '{"id":1,"ownerUserID":1}',
+      },
+    ],
+    checksum: 'e45e820e',
+    clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+  });
+  await rep.pull();
+  expect(deleteCount).to.equal(2);
+
+  fetchMock.postOnce(diffServerURL, {
+    stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
+    lastMutationID: 2,
+    patch: [],
+    checksum: 'e45e820e',
+    clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+  });
+  beginPullResult = await rep.beginPull();
+  ({syncHead} = beginPullResult);
+  expect(syncHead).to.equal(emptyHash);
+  expect(deleteCount).to.equal(2);
+
+  await createTodo({
+    id: id1,
+    text: 'Test',
+  });
+  expect(createCount).to.equal(1);
+  expect(((await rep?.get(`/todo/${id1}`)) as {text: string}).text).to.equal(
+    'Test',
+  );
+
+  fetchMock.postOnce(diffServerURL, {
+    stateID: 'g42viqe19kjv8iaahbj8ccs2aiub0po8',
+    lastMutationID: 3,
+    patch: [
+      {
+        op: 'add',
+        path: '/~1todo~114323534',
+        valueString: '{"id":14323534,"text":"Test"}',
+      },
+    ],
+    checksum: '06496dea',
+    clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+  });
+  beginPullResult = await rep.beginPull();
+  ({syncHead} = beginPullResult);
+  expect(syncHead).not.to.equal(emptyHash);
+
+  await createTodo({
+    id: id2,
+    text: 'Test 2',
+  });
+  expect(createCount).to.equal(2);
+  expect(((await rep?.get(`/todo/${id2}`)) as {text: string}).text).to.equal(
+    'Test 2',
+  );
+
+  fetchMock.postOnce(diffServerURL, {
+    stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
+    lastMutationID: 3,
+    patch: [],
+    checksum: 'e45e820e',
+    clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+  });
+  await rep.maybeEndPull(beginPullResult);
+
+  expect(createCount).to.equal(3);
+
+  // Clean up
+  await deleteTodo({id: id1});
+  await deleteTodo({id: id2});
+
+  expect(deleteCount).to.equal(4);
+  expect(createCount).to.equal(3);
+
+  fetchMock.postOnce(diffServerURL, {
+    stateID: '4aqjcn91pronkc3s1uhpg8gichc1m6hv',
+    lastMutationID: 6,
+    patch: [{op: 'remove', path: '/~1todo~114323534'}],
+    checksum: 'e45e820e',
+    clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+  });
+  await rep.pull();
 
   expect(deleteCount).to.equal(4);
   expect(createCount).to.equal(3);

@@ -614,7 +614,7 @@ testWithBothStores('sync', async () => {
   let createCount = 0;
   let deleteCount = 0;
   let syncHead: string;
-  let beginSyncResult: {
+  let beginPullResult: {
     syncID: string;
     syncHead: string;
   };
@@ -646,8 +646,8 @@ testWithBothStores('sync', async () => {
   await rep?.sync();
   expect(deleteCount).to.equal(2);
 
-  beginSyncResult = await rep?.beginSync();
-  syncHead = beginSyncResult.syncHead;
+  beginPullResult = await rep?.beginPull();
+  ({syncHead} = beginPullResult);
   expect(syncHead).to.equal(emptyHash);
   expect(deleteCount).to.equal(2);
 
@@ -663,8 +663,8 @@ testWithBothStores('sync', async () => {
     'Test',
   );
 
-  beginSyncResult = await rep?.beginSync();
-  syncHead = beginSyncResult.syncHead;
+  beginPullResult = await rep?.beginPull();
+  ({syncHead} = beginPullResult);
   expect(syncHead).not.to.equal(emptyHash);
 
   await createTodo({
@@ -679,7 +679,7 @@ testWithBothStores('sync', async () => {
     'Test 2',
   );
 
-  await rep?.maybeEndSync(beginSyncResult);
+  await rep?.maybeEndPull(beginPullResult);
 
   expect(createCount).to.equal(3);
 
@@ -713,7 +713,7 @@ testWithBothStores('sync debouncing', async () => {
   await sleep(10);
 
   const calls = spy.args;
-  const syncCalls = calls.filter(([rpc]) => rpc === 'beginSync').length;
+  const syncCalls = calls.filter(([rpc]) => rpc === 'beginPull').length;
   expect(syncCalls).to.equal(2);
 });
 
@@ -742,7 +742,7 @@ testWithBothStores('reauth', async () => {
   const getDataLayerAuthFake = sinon.fake.returns(null);
   rep.getDataLayerAuth = getDataLayerAuthFake;
 
-  await rep.beginSync();
+  await rep.beginPull();
 
   expect(getDataLayerAuthFake.callCount).to.equal(1);
   expect(consoleErrorStub.firstCall.args[0]).to.equal(
@@ -754,7 +754,7 @@ testWithBothStores('reauth', async () => {
     const getDataLayerAuthFake = sinon.fake(() => 'boo');
     rep.getDataLayerAuth = getDataLayerAuthFake;
 
-    expect((await rep.beginSync()).syncHead).to.equal('');
+    expect((await rep.beginPull()).syncHead).to.equal('');
 
     expect(getDataLayerAuthFake.callCount).to.equal(8);
     expect(consoleInfoStub.firstCall.args[0]).to.equal(

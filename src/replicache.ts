@@ -16,7 +16,7 @@ import {
 import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
 
-type BeginSyncResult = {
+type BeginPullResult = {
   syncID: string;
   syncHead: string;
 };
@@ -424,110 +424,22 @@ export default class Replicache implements ReadTransaction {
   }
 
   private async _sync(): Promise<void> {
-    let online = true;
-
-    try {
-      const beginSyncResult = await this._beginSync(MAX_REAUTH_TRIES);
-
-      // repc sends empty string for null sync.
-      if (beginSyncResult.syncHead !== '') {
-        await this._maybeEndSync(beginSyncResult);
-      }
-    } catch (e) {
-      // The error paths of beginSync and maybeEndSync need to be reworked.
-      //
-      // We want to distinguish between:
-      // a) network requests failed -- we're offline basically
-      // b) sync was aborted because one's already in progress
-      // c) oh noes - something unexpected happened
-      //
-      // Right now, all of these come out as errors. We distinguish (b) with a
-      // hacky string search. (a) and (c) are not distinguishable currently
-      // because repc doesn't provide sufficient information, so we treat all
-      // errors that aren't (b) as (a).
-      if (e.toString().includes('JSLogInfo')) {
-        online = false;
-      }
-      console.info(`Sync returned: ${e}`);
-    }
-    this._online = online;
+    await this._pull();
+    await this._push();
   }
 
-  protected async _beginSync(maxAuthTries: number): Promise<BeginSyncResult> {
-    const beginSyncResult = await this._invoke('beginSync', {
-      batchPushURL: this._batchURL,
-      clientViewURL: this._clientViewURL,
-      diffServerURL: this._diffServerURL,
-      dataLayerAuth: this._dataLayerAuth,
-      diffServerAuth: this._diffServerAuth,
-    });
-
-    const {syncInfo, syncHead} = beginSyncResult;
-
-    let reauth = false;
-
-    function checkStatus(
-      data: {httpStatusCode: number; errorMessage: string},
-      serverName: string,
-      serverURL: string,
-    ) {
-      const {httpStatusCode, errorMessage} = data;
-      if (errorMessage || httpStatusCode >= 400) {
-        console.error(
-          `Got error response from ${serverName} server (${serverURL}): ${httpStatusCode}` +
-            (errorMessage ? `: ${errorMessage}` : ''),
-        );
-      }
-      if (httpStatusCode === httpStatusUnauthorized) {
-        reauth = true;
-      }
-    }
-
-    const {batchPushInfo, clientViewInfo, syncID} = syncInfo;
-    if (batchPushInfo) {
-      checkStatus(batchPushInfo, 'batch', this._batchURL);
-      const mutationInfos = batchPushInfo.batchPushResponse?.mutationInfos;
-      if (mutationInfos != null) {
-        for (const mutationInfo of mutationInfos) {
-          console.error(
-            `MutationInfo: ID: ${mutationInfo.id}, Error: ${mutationInfo.error}`,
-          );
-        }
-      }
-    }
-
-    if (clientViewInfo) {
-      checkStatus(clientViewInfo, 'client view', this._diffServerURL);
-    }
-
-    if (reauth && this.getDataLayerAuth) {
-      if (maxAuthTries === 0) {
-        console.info('Tried to reauthenticate too many times');
-        return {syncID, syncHead: ''};
-      }
-      const dataLayerAuth = await this.getDataLayerAuth();
-      if (dataLayerAuth != null) {
-        this._dataLayerAuth = dataLayerAuth;
-        // Try again now instead of waiting for another 5 seconds.
-        return await this._beginSync(maxAuthTries - 1);
-      }
-    }
-
-    return {syncID, syncHead};
-  }
-
-  protected async _maybeEndSync(
-    beginSyncResult: BeginSyncResult,
+  protected async _maybeEndPull(
+    beginPullResult: BeginPullResult,
   ): Promise<void> {
     if (this._closed) {
       return;
     }
 
-    let {syncHead} = beginSyncResult;
+    let {syncHead} = beginPullResult;
 
     const {replayMutations} = await this._invoke(
-      'maybeEndSync',
-      beginSyncResult,
+      'maybeEndPull',
+      beginPullResult,
     );
     if (!replayMutations || replayMutations.length === 0) {
       // All done.
@@ -547,8 +459,8 @@ export default class Replicache implements ReadTransaction {
     }
     console.groupEnd();
 
-    const {syncID} = beginSyncResult;
-    await this._maybeEndSync({syncID, syncHead});
+    const {syncID} = beginPullResult;
+    await this._maybeEndPull({syncID, syncHead});
   }
 
   private async _replay<A extends JSONValue>(
@@ -611,6 +523,129 @@ export default class Replicache implements ReadTransaction {
       this._fireOnSync(false);
       this._scheduleSync(this._syncInterval);
     }
+  }
+
+  private async _wrapInOnlineCheck(
+    f: () => Promise<void>,
+    name: string,
+  ): Promise<void> {
+    let online = true;
+
+    try {
+      await f();
+    } catch (e) {
+      // The error paths of beginPull and maybeEndPull need to be reworked.
+      //
+      // We want to distinguish between:
+      // a) network requests failed -- we're offline basically
+      // b) sync was aborted because one's already in progress
+      // c) oh noes - something unexpected happened
+      //
+      // Right now, all of these come out as errors. We distinguish (b) with a
+      // hacky string search. (a) and (c) are not distinguishable currently
+      // because repc doesn't provide sufficient information, so we treat all
+      // errors that aren't (b) as (a).
+      if (e.toString().includes('JSLogInfo')) {
+        online = false;
+      }
+      console.info(`${name} returned: ${e}`);
+    }
+
+    this._online = online;
+  }
+
+  private async _push(): Promise<void> {
+    await this._wrapInOnlineCheck(
+      () => this._pushInner(MAX_REAUTH_TRIES),
+      'Push',
+    );
+  }
+
+  private async _pushInner(maxAuthTries: number): Promise<void> {
+    const pushResponse = await this._invoke('push', {
+      batchPushURL: this._batchURL,
+      clientViewURL: this._clientViewURL,
+      diffServerURL: this._diffServerURL,
+      dataLayerAuth: this._dataLayerAuth,
+      diffServerAuth: this._diffServerAuth,
+    });
+
+    let reauth = false;
+
+    const {batchPushInfo, clientViewInfo} = pushResponse;
+
+    if (batchPushInfo) {
+      reauth = checkStatus(batchPushInfo, 'batch', this._batchURL);
+      const mutationInfos = batchPushInfo.batchPushResponse?.mutationInfos;
+      if (mutationInfos != null) {
+        for (const mutationInfo of mutationInfos) {
+          console.error(
+            `MutationInfo: ID: ${mutationInfo.id}, Error: ${mutationInfo.error}`,
+          );
+        }
+      }
+    }
+
+    if (clientViewInfo) {
+      // Don't change order here. We want the side effect
+      reauth =
+        checkStatus(clientViewInfo, 'client view', this._diffServerURL) ||
+        reauth;
+    }
+
+    if (reauth && this.getDataLayerAuth) {
+      if (maxAuthTries === 0) {
+        console.info('Tried to reauthenticate too many times');
+        return;
+      }
+      const dataLayerAuth = await this.getDataLayerAuth();
+      if (dataLayerAuth != null) {
+        this._dataLayerAuth = dataLayerAuth;
+        // Try again now instead of waiting for another 5 seconds.
+        return await this._pushInner(maxAuthTries - 1);
+      }
+    }
+  }
+
+  private async _pull(): Promise<void> {
+    await this._wrapInOnlineCheck(async () => {
+      const beginPullResult = await this._beginPull(MAX_REAUTH_TRIES);
+      // repc sends empty string for null pull.
+      if (beginPullResult.syncHead !== '') {
+        await this._maybeEndPull(beginPullResult);
+      }
+    }, 'Pull');
+  }
+
+  protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
+    const beginPullResponse = await this._invoke('beginPull', {
+      clientViewURL: this._clientViewURL,
+      dataLayerAuth: this._dataLayerAuth,
+      diffServerURL: this._diffServerURL,
+      diffServerAuth: this._diffServerAuth,
+    });
+    const {clientViewInfo, syncHead, syncID} = beginPullResponse;
+
+    let reauth = false;
+
+    if (clientViewInfo) {
+      reauth = checkStatus(clientViewInfo, 'client view', this._diffServerURL);
+    }
+
+    if (reauth && this.getDataLayerAuth) {
+      if (maxAuthTries === 0) {
+        console.info('Tried to reauthenticate too many times');
+        return {syncID, syncHead: ''};
+      }
+      const dataLayerAuth = await this.getDataLayerAuth();
+      if (dataLayerAuth != null) {
+        this._dataLayerAuth = dataLayerAuth;
+        // Try again now instead of waiting for another 5 seconds.
+        return await this._beginPull(maxAuthTries - 1);
+      }
+    }
+
+    return {syncID, syncHead};
   }
 
   private _fireOnSync(syncing: boolean): void {
@@ -843,6 +878,21 @@ export default class Replicache implements ReadTransaction {
   }
 }
 
+function checkStatus(
+  data: {httpStatusCode: number; errorMessage: string},
+  serverName: string,
+  serverURL: string,
+): boolean {
+  const {httpStatusCode, errorMessage} = data;
+  if (errorMessage || httpStatusCode >= 400) {
+    console.error(
+      `Got error response from ${serverName} server (${serverURL}): ${httpStatusCode}` +
+        (errorMessage ? `: ${errorMessage}` : ''),
+    );
+  }
+  return httpStatusCode === httpStatusUnauthorized;
+}
+
 export class ReplicacheTest extends Replicache {
   static async new({
     batchURL,
@@ -874,12 +924,12 @@ export class ReplicacheTest extends Replicache {
     return rep;
   }
 
-  beginSync(): Promise<BeginSyncResult> {
-    return super._beginSync(MAX_REAUTH_TRIES);
+  beginPull(): Promise<BeginPullResult> {
+    return super._beginPull(MAX_REAUTH_TRIES);
   }
 
-  maybeEndSync(beginSyncResult: BeginSyncResult): Promise<void> {
-    return super._maybeEndSync(beginSyncResult);
+  maybeEndPull(beginPullResult: BeginPullResult): Promise<void> {
+    return super._maybeEndPull(beginPullResult);
   }
 }
 

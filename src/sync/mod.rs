@@ -8,7 +8,6 @@ pub mod sync_id;
 pub mod test_helpers;
 mod types;
 
-use crate::checksum;
 use crate::checksum::Checksum;
 use crate::dag;
 use crate::db;
@@ -28,79 +27,6 @@ pub use types::*;
 
 pub const SYNC_HEAD_NAME: &str = "sync";
 
-/// Find pending commits between the base snapshot and the main head and push
-/// them to the data layer.
-pub async fn push(
-    sync_id: &str,
-    store: &dag::Store,
-    lc: LogContext,
-    client_id: String,
-    pusher: &dyn push::Pusher,
-    req: TryPushRequest,
-) -> Result<Option<BatchPushInfo>, TryPushError> {
-    use TryPushError::*;
-
-    let dag_read = store.read(lc.clone()).await.map_err(ReadError)?;
-    let main_head_hash = dag_read
-        .read()
-        .get_head(DEFAULT_HEAD_NAME)
-        .await
-        .map_err(GetHeadError)?
-        .ok_or(InternalNoMainHeadError)?;
-    let mut pending = Commit::local_mutations(&main_head_hash, &dag_read.read())
-        .await
-        .map_err(InternalGetPendingCommitsError)?;
-    drop(dag_read); // Important! Don't hold the lock through an HTTP request!
-
-    // Commit::pending gave us commits in head-first order; the bindings
-    // want tail first (in mutation id order).
-    pending.reverse();
-
-    let mut batch_push_info = None;
-    if !pending.is_empty() {
-        let mut push_mutations: Vec<push::Mutation> = Vec::new();
-        for commit in pending.iter() {
-            match commit.meta().typed() {
-                MetaTyped::Local(lm) => push_mutations.push(lm.into()),
-                _ => return Err(InternalNonLocalPendingCommit),
-            }
-        }
-        let push_req = push::BatchPushRequest {
-            client_id,
-            mutations: push_mutations,
-        };
-        debug!(lc, "Starting push...");
-        let push_timer = rlog::Timer::new().map_err(InternalTimerError)?;
-        let push_resp = pusher
-            .push(
-                &push_req,
-                &req.batch_push_url,
-                &req.data_layer_auth,
-                sync_id,
-            )
-            .await;
-        // Note: no map_err(). A failed push does not fail sync, but we
-        // do report it in BatchPushInfo.
-        batch_push_info = match push_resp {
-            Ok(_) => Some(BatchPushInfo {
-                http_status_code: 200,
-                error_message: str!(""),
-            }),
-            Err(push::PushError::FetchNotOk(status_code)) => Some(BatchPushInfo {
-                http_status_code: status_code.into(),
-                error_message: format!("{:?}", PullError::FetchNotOk(status_code)),
-            }),
-            Err(e) => Some(BatchPushInfo {
-                http_status_code: 0, // TODO we could return this properly in the PushError.
-                error_message: format!("{:?}", e),
-            }),
-        };
-        debug!(lc, "...Push complete in {}ms", push_timer.elapsed_ms());
-    }
-
-    Ok(batch_push_info)
-}
-
 pub async fn begin_pull(
     client_id: String,
     begin_pull_req: TryBeginPullRequest,
@@ -108,8 +34,8 @@ pub async fn begin_pull(
     sync_id: String,
     store: &dag::Store,
     lc: LogContext,
-) -> Result<TryBeginPullResponse, TryBeginPullError> {
-    use TryBeginPullError::*;
+) -> Result<TryBeginPullResponse, BeginTryPullError> {
+    use BeginTryPullError::*;
 
     let TryBeginPullRequest {
         client_view_url,
@@ -254,40 +180,6 @@ pub async fn begin_pull(
     })
 }
 
-#[derive(Debug)]
-pub enum TryBeginPullError {
-    CommitError(db::CommitError),
-    GetHeadError(dag::Error),
-    InternalGetChainError(db::WalkChainError),
-    InternalInvalidChainError,
-    InternalNoMainHeadError,
-    InternalProgrammerError(db::InternalProgrammerError),
-    InternalRebuildIndexError(db::CreateIndexError),
-    InternalTimerError(rlog::TimerError),
-    InvalidChecksum(checksum::ParseError),
-    LockError(dag::Error),
-    MainHeadDisappeared,
-    MissingStateID,
-    NoBaseSnapshot(db::BaseSnapshotError),
-    OverlappingSyncsJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
-    PatchFailed(patch::PatchError),
-    PullFailed(PullError),
-    ReadCommitError(db::ReadCommitError),
-    ReadError(dag::Error),
-    TimeTravelProhibited(String),
-    WrongChecksum(String),
-}
-
-#[derive(Debug)]
-pub enum TryPushError {
-    GetHeadError(dag::Error),
-    InternalGetPendingCommitsError(db::WalkChainError),
-    InternalNoMainHeadError,
-    InternalNonLocalPendingCommit,
-    InternalTimerError(rlog::TimerError),
-    ReadError(dag::Error),
-}
-
 pub async fn maybe_end_pull(
     store: &dag::Store,
     lc: LogContext,
@@ -386,26 +278,6 @@ pub async fn maybe_end_pull(
         sync_head: sync_head_hash.to_string(),
         replay_mutations: Vec::new(),
     })
-}
-
-#[derive(Debug)]
-pub enum MaybeEndTryPullError {
-    CommitError(dag::Error),
-    GetMainHeadError(dag::Error),
-    GetSyncHeadError(dag::Error),
-    InternalArgsUtf8Error(std::string::FromUtf8Error),
-    InternalProgrammerError(String),
-    LoadSyncHeadError(db::FromHashError),
-    MissingMainHead,
-    MissingSyncHead,
-    NoBaseSnapshot(db::BaseSnapshotError),
-    OpenWriteTxWriteError(dag::Error),
-    OverlappingSyncsJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
-    PendingError(db::WalkChainError),
-    SyncSnapshotWithNoBasis,
-    WriteDefaultHeadError(dag::Error),
-    WriteSyncHeadError(dag::Error),
-    WrongSyncHeadJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
 }
 
 #[derive(Debug, Default, PartialEq, Serialize)]
@@ -587,8 +459,8 @@ mod tests {
 
     #[derive(Debug)]
     enum BeginSyncError {
-        PushError(TryPushError),
-        BeginPullError(TryBeginPullError),
+        TryPushError(TryPushError),
+        BeginTryPullError(BeginTryPullError),
     }
 
     async fn begin_sync(
@@ -600,7 +472,7 @@ mod tests {
         client_id: String,
         sync_id: String,
     ) -> Result<BeginSyncResponse, BeginSyncError> {
-        let batch_push_info = push(
+        let batch_push_info = push::push(
             &sync_id,
             store,
             lc.clone(),
@@ -612,7 +484,7 @@ mod tests {
             },
         )
         .await
-        .map_err(BeginSyncError::PushError)?;
+        .map_err(BeginSyncError::TryPushError)?;
 
         let TryBeginPullResponse {
             client_view_info,
@@ -632,7 +504,7 @@ mod tests {
             lc,
         )
         .await
-        .map_err(BeginSyncError::BeginPullError)?;
+        .map_err(BeginSyncError::BeginTryPullError)?;
 
         Ok(BeginSyncResponse {
             sync_info: SyncInfo {

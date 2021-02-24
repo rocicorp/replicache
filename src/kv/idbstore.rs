@@ -157,14 +157,14 @@ impl Store for IdbStore {
     async fn read<'a>(&'a self, lc: LogContext) -> Result<Box<dyn Read + 'a>> {
         let db_guard = self.db.read().await;
         let tx = db_guard.transaction_with_str(OBJECT_STORE)?;
-        Ok(Box::new(ReadTransaction::new(db_guard, tx, lc)?))
+        Ok(Box::new(ReadTransaction::new(db_guard, tx, lc)))
     }
 
     async fn write<'a>(&'a self, lc: LogContext) -> Result<Box<dyn Write + 'a>> {
         let db_guard = self.db.write().await;
         let tx = db_guard
             .transaction_with_str_and_mode(OBJECT_STORE, web_sys::IdbTransactionMode::Readwrite)?;
-        Ok(Box::new(WriteTransaction::new(db_guard, tx, lc)?))
+        Ok(Box::new(WriteTransaction::new(db_guard, tx, lc)))
     }
 
     async fn close(&self) {
@@ -184,8 +184,8 @@ impl ReadTransaction<'_> {
         db: RwLockReadGuard<'_, IdbDatabase>,
         tx: IdbTransaction,
         lc: LogContext,
-    ) -> Result<ReadTransaction> {
-        Ok(ReadTransaction { _db: db, tx, lc })
+    ) -> ReadTransaction {
+        ReadTransaction { _db: db, tx, lc }
     }
 }
 
@@ -259,7 +259,7 @@ impl WriteTransaction<'_> {
         db: RwLockWriteGuard<'_, IdbDatabase>,
         tx: IdbTransaction,
         lc: LogContext,
-    ) -> Result<WriteTransaction> {
+    ) -> WriteTransaction {
         let mut wt = WriteTransaction {
             _db: db,
             tx,
@@ -282,7 +282,7 @@ impl WriteTransaction<'_> {
         tx.set_onerror(Some(callback.as_ref().unchecked_ref()));
         wt.callbacks.push(callback);
 
-        Ok(wt)
+        wt
     }
 
     fn tx_callback(&self, new_state: WriteState) -> Closure<dyn FnMut()> {

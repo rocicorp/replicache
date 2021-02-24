@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::default::Default;
 
+use crate::{checksum, dag, db, util::rlog};
+
+use super::{patch, PullError};
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BatchPushInfo {
     #[serde(rename = "httpStatusCode")]
@@ -82,4 +86,58 @@ pub struct TryPushResponse {
     #[serde(rename = "batchPushInfo")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_push_info: Option<BatchPushInfo>,
+}
+
+#[derive(Debug)]
+pub enum TryPushError {
+    GetHeadError(dag::Error),
+    InternalGetPendingCommitsError(db::WalkChainError),
+    InternalNoMainHeadError,
+    InternalNonLocalPendingCommit,
+    InternalTimerError(rlog::TimerError),
+    ReadError(dag::Error),
+}
+
+#[derive(Debug)]
+pub enum BeginTryPullError {
+    CommitError(db::CommitError),
+    GetHeadError(dag::Error),
+    InternalGetChainError(db::WalkChainError),
+    InternalInvalidChainError,
+    InternalNoMainHeadError,
+    InternalProgrammerError(db::InternalProgrammerError),
+    InternalRebuildIndexError(db::CreateIndexError),
+    InternalTimerError(rlog::TimerError),
+    InvalidChecksum(checksum::ParseError),
+    LockError(dag::Error),
+    MainHeadDisappeared,
+    MissingStateID,
+    NoBaseSnapshot(db::BaseSnapshotError),
+    OverlappingSyncsJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
+    PatchFailed(patch::PatchError),
+    PullFailed(PullError),
+    ReadCommitError(db::ReadCommitError),
+    ReadError(dag::Error),
+    TimeTravelProhibited(String),
+    WrongChecksum(String),
+}
+
+#[derive(Debug)]
+pub enum MaybeEndTryPullError {
+    CommitError(dag::Error),
+    GetMainHeadError(dag::Error),
+    GetSyncHeadError(dag::Error),
+    InternalArgsUtf8Error(std::string::FromUtf8Error),
+    InternalProgrammerError(String),
+    LoadSyncHeadError(db::FromHashError),
+    MissingMainHead,
+    MissingSyncHead,
+    NoBaseSnapshot(db::BaseSnapshotError),
+    OpenWriteTxWriteError(dag::Error),
+    OverlappingSyncsJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
+    PendingError(db::WalkChainError),
+    SyncSnapshotWithNoBasis,
+    WriteDefaultHeadError(dag::Error),
+    WriteSyncHeadError(dag::Error),
+    WrongSyncHeadJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
 }

@@ -229,6 +229,7 @@ impl Commit {
         Ok(())
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn validate_index_change_meta(_: commit_fb::IndexChangeMeta) -> Result<(), LoadError> {
         // Note: indexes are already validated for all commit types. Only additional
         // things to validate are:

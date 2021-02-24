@@ -1,8 +1,11 @@
-use crate::db;
-use crate::fetch;
 use crate::fetch::errors::FetchError;
+use crate::{dag, db, util::rlog::LogContext};
+use crate::{fetch, util::rlog};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use str_macro::str;
+
+use super::{BatchPushInfo, TryPushError, TryPushRequest};
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct BatchPushRequest {
@@ -114,6 +117,79 @@ pub enum PushError {
     InvalidRequest(http::Error),
     InvalidResponse(serde_json::error::Error),
     SerializePushError(serde_json::error::Error),
+}
+
+pub async fn push(
+    sync_id: &str,
+    store: &dag::Store,
+    lc: LogContext,
+    client_id: String,
+    pusher: &dyn Pusher,
+    req: TryPushRequest,
+) -> Result<Option<BatchPushInfo>, TryPushError> {
+    use TryPushError::*;
+
+    // Find pending commits between the base snapshot and the main head and push
+    // them to the data layer.
+    let dag_read = store.read(lc.clone()).await.map_err(ReadError)?;
+    let main_head_hash = dag_read
+        .read()
+        .get_head(db::DEFAULT_HEAD_NAME)
+        .await
+        .map_err(GetHeadError)?
+        .ok_or(InternalNoMainHeadError)?;
+    let mut pending = db::Commit::local_mutations(&main_head_hash, &dag_read.read())
+        .await
+        .map_err(InternalGetPendingCommitsError)?;
+    drop(dag_read); // Important! Don't hold the lock through an HTTP request!
+
+    // Commit::pending gave us commits in head-first order; the bindings
+    // want tail first (in mutation id order).
+    pending.reverse();
+
+    let mut batch_push_info = None;
+    if !pending.is_empty() {
+        let mut push_mutations: Vec<Mutation> = Vec::new();
+        for commit in pending.iter() {
+            match commit.meta().typed() {
+                db::MetaTyped::Local(lm) => push_mutations.push(lm.into()),
+                _ => return Err(InternalNonLocalPendingCommit),
+            }
+        }
+        let push_req = BatchPushRequest {
+            client_id,
+            mutations: push_mutations,
+        };
+        debug!(lc, "Starting push...");
+        let push_timer = rlog::Timer::new().map_err(InternalTimerError)?;
+        let push_resp = pusher
+            .push(
+                &push_req,
+                &req.batch_push_url,
+                &req.data_layer_auth,
+                sync_id,
+            )
+            .await;
+        // Note: no map_err(). A failed push does not fail sync, but we
+        // do report it in BatchPushInfo.
+        batch_push_info = match push_resp {
+            Ok(_) => Some(BatchPushInfo {
+                http_status_code: 200,
+                error_message: str!(""),
+            }),
+            Err(PushError::FetchNotOk(status_code)) => Some(BatchPushInfo {
+                http_status_code: status_code.into(),
+                error_message: format!("{:?}", PushError::FetchNotOk(status_code)),
+            }),
+            Err(e) => Some(BatchPushInfo {
+                http_status_code: 0, // TODO we could return this properly in the PushError.
+                error_message: format!("{:?}", e),
+            }),
+        };
+        debug!(lc, "...Push complete in {}ms", push_timer.elapsed_ms());
+    }
+
+    Ok(batch_push_info)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

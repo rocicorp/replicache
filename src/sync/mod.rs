@@ -119,13 +119,13 @@ mod tests {
         .await
         .map_err(BeginSyncError::TryPushError)?;
 
-        let TryBeginPullResponse {
+        let BeginTryPullResponse {
             client_view_info,
             sync_head,
             sync_id,
         } = begin_pull(
             client_id,
-            TryBeginPullRequest {
+            BeginTryPullRequest {
                 client_view_url: begin_sync_req.client_view_url,
                 data_layer_auth: begin_sync_req.data_layer_auth,
                 diff_server_url: begin_sync_req.diff_server_url,

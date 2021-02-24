@@ -19,15 +19,15 @@ use str_macro::str;
 
 pub async fn begin_pull(
     client_id: String,
-    begin_pull_req: TryBeginPullRequest,
+    begin_pull_req: BeginTryPullRequest,
     puller: &dyn Puller,
     sync_id: String,
     store: &dag::Store,
     lc: LogContext,
-) -> Result<TryBeginPullResponse, BeginTryPullError> {
+) -> Result<BeginTryPullResponse, BeginTryPullError> {
     use BeginTryPullError::*;
 
-    let TryBeginPullRequest {
+    let BeginTryPullRequest {
         client_view_url,
         data_layer_auth,
         diff_server_url,
@@ -74,7 +74,7 @@ pub async fn begin_pull(
         return Err(MissingStateID);
     } else if pull_resp.state_id == base_state_id {
         let sync_head = str!("");
-        return Ok(TryBeginPullResponse {
+        return Ok(BeginTryPullResponse {
             client_view_info: pull_resp.client_view_info,
             sync_head,
             sync_id,
@@ -151,7 +151,7 @@ pub async fn begin_pull(
 
     let commit_hash = db_write.commit(SYNC_HEAD_NAME).await.map_err(CommitError)?;
 
-    Ok(TryBeginPullResponse {
+    Ok(BeginTryPullResponse {
         client_view_info: pull_resp.client_view_info,
         sync_head: commit_hash,
         sync_id,

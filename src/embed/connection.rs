@@ -676,8 +676,8 @@ async fn do_try_push<'a, 'b>(
 
 async fn do_begin_try_pull<'a, 'b>(
     ctx: Context<'a, 'b>,
-    req: sync::TryBeginPullRequest,
-) -> Result<sync::TryBeginPullResponse, sync::BeginTryPullError> {
+    req: sync::BeginTryPullRequest,
+) -> Result<sync::BeginTryPullResponse, sync::BeginTryPullError> {
     // TODO move client, pusher up to process() or into a lazy static so we can share.
     let fetch_client = fetch::client::Client::new();
     let puller = sync::FetchPuller::new(&fetch_client);

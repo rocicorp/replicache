@@ -52,7 +52,7 @@ pub struct ReplayMutation {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct TryBeginPullRequest {
+pub struct BeginTryPullRequest {
     #[serde(rename = "clientViewURL")]
     pub client_view_url: String,
     #[serde(rename = "dataLayerAuth")]
@@ -64,7 +64,7 @@ pub struct TryBeginPullRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub struct TryBeginPullResponse {
+pub struct BeginTryPullResponse {
     #[serde(rename = "clientViewInfo")]
     pub client_view_info: ClientViewInfo,
     #[serde(rename = "syncHead")]

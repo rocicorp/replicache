@@ -4,7 +4,6 @@ use crate::dag;
 use crate::db;
 use crate::fetch;
 use crate::sync;
-use crate::sync::push::push;
 use crate::util::rlog;
 use crate::util::rlog::LogContext;
 use crate::util::to_debug;
@@ -666,11 +665,12 @@ async fn do_try_push<'a, 'b>(
 ) -> Result<sync::TryPushResponse, sync::TryPushError> {
     // TODO move client, pusher up to process() or into a lazy static so we can share.
     let fetch_client = fetch::client::Client::new();
-    let pusher = sync::push::FetchPusher::new(&fetch_client);
+    let pusher = sync::FetchPusher::new(&fetch_client);
     let sync_id = sync::sync_id::new(&ctx.client_id);
     ctx.lc.add_context("sync_id", &sync_id);
 
-    let batch_push_info = push(&sync_id, ctx.store, ctx.lc, ctx.client_id, &pusher, req).await?;
+    let batch_push_info =
+        sync::push(&sync_id, ctx.store, ctx.lc, ctx.client_id, &pusher, req).await?;
     Ok(sync::TryPushResponse { batch_push_info })
 }
 

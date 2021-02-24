@@ -2,6 +2,7 @@ use super::*;
 use crate::dag;
 use crate::db;
 use crate::db::test_helpers::*;
+use crate::db::{Commit, Whence};
 use crate::util::rlog;
 use str_macro::str;
 

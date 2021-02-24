@@ -23,8 +23,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: cargo rustc -- -D warnings
-    - run: cargo clippy -- -D warnings
     - run: cargo clippy --version
+    - run: cargo clippy -- -D warnings    
 
   tests:
     name: Cargo Test

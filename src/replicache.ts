@@ -438,7 +438,7 @@ export default class Replicache implements ReadTransaction {
     let {syncHead} = beginPullResult;
 
     const {replayMutations} = await this._invoke(
-      'maybeEndPull',
+      'maybeEndTryPull',
       beginPullResult,
     );
     if (!replayMutations || replayMutations.length === 0) {
@@ -562,7 +562,7 @@ export default class Replicache implements ReadTransaction {
   }
 
   private async _push(maxAuthTries: number): Promise<void> {
-    const pushResponse = await this._invoke('push', {
+    const pushResponse = await this._invoke('tryPush', {
       batchPushURL: this._batchURL,
       clientViewURL: this._clientViewURL,
       diffServerURL: this._diffServerURL,
@@ -622,7 +622,7 @@ export default class Replicache implements ReadTransaction {
   }
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
-    const beginPullResponse = await this._invoke('beginPull', {
+    const beginPullResponse = await this._invoke('beginTryPull', {
       clientViewURL: this._clientViewURL,
       dataLayerAuth: this._dataLayerAuth,
       diffServerURL: this._diffServerURL,

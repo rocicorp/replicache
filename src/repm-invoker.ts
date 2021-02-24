@@ -136,20 +136,20 @@ export type CommitTransactionResponse = {
   ref: string;
 };
 
-type BeginPullRequest = {
+type BeginTryPullRequest = {
   clientViewURL: string;
   dataLayerAuth: string;
   diffServerAuth: string;
   diffServerURL: string;
 };
 
-type BeginPullResponse = {
+type BeginTryPullResponse = {
   clientViewInfo: ClientViewInfo;
   syncHead: string;
   syncID: string;
 };
 
-export type PushRequest = {
+export type TryPushRequest = {
   batchPushURL: string;
   clientViewURL: string;
   dataLayerAuth: string;
@@ -157,7 +157,7 @@ export type PushRequest = {
   diffServerAuth: string;
 };
 
-export type PushResponse = {
+export type TryPushResponse = {
   syncID: string;
   batchPushInfo: BatchPushInfo;
   clientViewInfo: ClientViewInfo;
@@ -183,7 +183,7 @@ type ClientViewInfo = {
   errorMessage: string;
 };
 
-type MaybeEndPullRequest = {
+type MaybeEndTryPullRequest = {
   syncID?: string;
   syncHead?: string;
 };
@@ -198,7 +198,7 @@ type ReplayMutation = Mutation & {
   original: string;
 };
 
-type MaybeEndPullResponse = {
+type MaybeEndTryPullResponse = {
   replayMutations?: ReplayMutation[];
 };
 
@@ -236,9 +236,9 @@ export type InvokeMap = {
   closeTransaction: [CloseTransactionRequest, CloseTransactionResponse];
   commitTransaction: [CommitTransactionRequest, CommitTransactionResponse];
 
-  beginPull: [BeginPullRequest, BeginPullResponse];
-  maybeEndPull: [MaybeEndPullRequest, MaybeEndPullResponse];
-  push: [PushRequest, PushResponse];
+  beginTryPull: [BeginTryPullRequest, BeginTryPullResponse];
+  maybeEndTryPull: [MaybeEndTryPullRequest, MaybeEndTryPullResponse];
+  tryPush: [TryPushRequest, TryPushResponse];
 
   setLogLevel: [SetLogLevelRequest, SetLogLevelResponse];
 

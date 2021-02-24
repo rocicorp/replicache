@@ -971,7 +971,7 @@ testWithBothStores('sync debouncing', async () => {
   await sleep(10);
 
   const calls = spy.args;
-  const syncCalls = calls.filter(([rpc]) => rpc === 'beginPull').length;
+  const syncCalls = calls.filter(([rpc]) => rpc === 'beginTryPull').length;
   expect(syncCalls).to.equal(2);
 });
 

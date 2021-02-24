@@ -189,9 +189,9 @@ async fn execute<'a, 'b>(
         "closeTransaction" => return to_js(do_close(ctx, from_js(data)?).await),
         "setLogLevel" => return to_js(do_set_log_level(ctx, from_js(data)?).await),
 
-        "push" => return to_js(do_push(ctx, from_js(data)?).await),
-        "beginPull" => return to_js(do_begin_pull(ctx, from_js(data)?).await),
-        "maybeEndPull" => return to_js(do_maybe_end_pull(ctx, from_js(data)?).await),
+        "tryPush" => return to_js(do_try_push(ctx, from_js(data)?).await),
+        "beginTryPull" => return to_js(do_begin_try_pull(ctx, from_js(data)?).await),
+        "maybeEndTryPull" => return to_js(do_maybe_end_try_pull(ctx, from_js(data)?).await),
 
         _ => (),
     };
@@ -637,10 +637,10 @@ async fn do_drop_index(
     Ok(DropIndexResponse {})
 }
 
-async fn do_maybe_end_pull<'a, 'b>(
+async fn do_maybe_end_try_pull<'a, 'b>(
     ctx: Context<'a, 'b>,
-    req: sync::MaybeEndPullRequest,
-) -> Result<sync::MaybeEndPullResponse, sync::MaybeEndPullError> {
+    req: sync::MaybeEndTryPullRequest,
+) -> Result<sync::MaybeEndTryPullResponse, sync::MaybeEndTryPullError> {
     ctx.lc.add_context("sync_id", &req.sync_id);
     sync::maybe_end_pull(ctx.store, ctx.lc.clone(), req).await
 }
@@ -659,10 +659,10 @@ async fn do_set_log_level<'a, 'b>(
     Ok(SetLogLevelResponse {})
 }
 
-async fn do_push<'a, 'b>(
+async fn do_try_push<'a, 'b>(
     ctx: Context<'a, 'b>,
-    req: sync::PushRequest,
-) -> Result<sync::PushResponse, sync::PushError> {
+    req: sync::TryPushRequest,
+) -> Result<sync::TryPushResponse, sync::TryPushError> {
     // TODO move client, pusher up to process() or into a lazy static so we can share.
     let fetch_client = fetch::client::Client::new();
     let pusher = sync::push::FetchPusher::new(&fetch_client);
@@ -671,13 +671,13 @@ async fn do_push<'a, 'b>(
 
     let batch_push_info =
         sync::push(&sync_id, ctx.store, ctx.lc, ctx.client_id, &pusher, req).await?;
-    Ok(sync::PushResponse { batch_push_info })
+    Ok(sync::TryPushResponse { batch_push_info })
 }
 
-async fn do_begin_pull<'a, 'b>(
+async fn do_begin_try_pull<'a, 'b>(
     ctx: Context<'a, 'b>,
-    req: sync::BeginPullRequest,
-) -> Result<sync::BeginPullResponse, sync::BeginPullError> {
+    req: sync::TryBeginPullRequest,
+) -> Result<sync::TryBeginPullResponse, sync::TryBeginPullError> {
     // TODO move client, pusher up to process() or into a lazy static so we can share.
     let fetch_client = fetch::client::Client::new();
     let puller = sync::FetchPuller::new(&fetch_client);

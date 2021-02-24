@@ -19,7 +19,7 @@ pub struct ClientViewInfo {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct MaybeEndPullRequest {
+pub struct MaybeEndTryPullRequest {
     #[serde(rename = "syncID")]
     pub sync_id: String,
     #[serde(rename = "syncHead")]
@@ -30,7 +30,7 @@ pub struct MaybeEndPullRequest {
 // and pull is complete. If replay_mutations is not empty the returned mutations
 // should be replayed and maybeEndPull invoked again.
 #[derive(Debug, Serialize)]
-pub struct MaybeEndPullResponse {
+pub struct MaybeEndTryPullResponse {
     #[serde(rename = "replayMutations")]
     pub replay_mutations: Vec<ReplayMutation>,
     #[serde(rename = "syncHead")]
@@ -48,7 +48,7 @@ pub struct ReplayMutation {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct BeginPullRequest {
+pub struct TryBeginPullRequest {
     #[serde(rename = "clientViewURL")]
     pub client_view_url: String,
     #[serde(rename = "dataLayerAuth")]
@@ -60,7 +60,7 @@ pub struct BeginPullRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub struct BeginPullResponse {
+pub struct TryBeginPullResponse {
     #[serde(rename = "clientViewInfo")]
     pub client_view_info: ClientViewInfo,
     #[serde(rename = "syncHead")]
@@ -70,7 +70,7 @@ pub struct BeginPullResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PushRequest {
+pub struct TryPushRequest {
     #[serde(rename = "batchPushURL")]
     pub batch_push_url: String,
     #[serde(rename = "dataLayerAuth")]
@@ -78,7 +78,7 @@ pub struct PushRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub struct PushResponse {
+pub struct TryPushResponse {
     #[serde(rename = "batchPushInfo")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_push_info: Option<BatchPushInfo>,

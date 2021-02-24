@@ -36,9 +36,9 @@ pub async fn push(
     lc: LogContext,
     client_id: String,
     pusher: &dyn push::Pusher,
-    req: PushRequest,
-) -> Result<Option<BatchPushInfo>, PushError> {
-    use PushError::*;
+    req: TryPushRequest,
+) -> Result<Option<BatchPushInfo>, TryPushError> {
+    use TryPushError::*;
 
     let dag_read = store.read(lc.clone()).await.map_err(ReadError)?;
     let main_head_hash = dag_read
@@ -103,15 +103,15 @@ pub async fn push(
 
 pub async fn begin_pull(
     client_id: String,
-    begin_pull_req: BeginPullRequest,
+    begin_pull_req: TryBeginPullRequest,
     puller: &dyn Puller,
     sync_id: String,
     store: &dag::Store,
     lc: LogContext,
-) -> Result<BeginPullResponse, BeginPullError> {
-    use BeginPullError::*;
+) -> Result<TryBeginPullResponse, TryBeginPullError> {
+    use TryBeginPullError::*;
 
-    let BeginPullRequest {
+    let TryBeginPullRequest {
         client_view_url,
         data_layer_auth,
         diff_server_url,
@@ -163,7 +163,7 @@ pub async fn begin_pull(
         return Err(MissingStateID);
     } else if pull_resp.state_id == base_state_id {
         let sync_head = str!("");
-        return Ok(BeginPullResponse {
+        return Ok(TryBeginPullResponse {
             client_view_info: pull_resp.client_view_info,
             sync_head,
             sync_id,
@@ -247,7 +247,7 @@ pub async fn begin_pull(
 
     let commit_hash = db_write.commit(SYNC_HEAD_NAME).await.map_err(CommitError)?;
 
-    Ok(BeginPullResponse {
+    Ok(TryBeginPullResponse {
         client_view_info: pull_resp.client_view_info,
         sync_head: commit_hash,
         sync_id,
@@ -255,7 +255,7 @@ pub async fn begin_pull(
 }
 
 #[derive(Debug)]
-pub enum BeginPullError {
+pub enum TryBeginPullError {
     CommitError(db::CommitError),
     GetHeadError(dag::Error),
     InternalGetChainError(db::WalkChainError),
@@ -279,7 +279,7 @@ pub enum BeginPullError {
 }
 
 #[derive(Debug)]
-pub enum PushError {
+pub enum TryPushError {
     GetHeadError(dag::Error),
     InternalGetPendingCommitsError(db::WalkChainError),
     InternalNoMainHeadError,
@@ -291,9 +291,9 @@ pub enum PushError {
 pub async fn maybe_end_pull(
     store: &dag::Store,
     lc: LogContext,
-    maybe_end_pull_req: MaybeEndPullRequest,
-) -> Result<MaybeEndPullResponse, MaybeEndPullError> {
-    use MaybeEndPullError::*;
+    maybe_end_pull_req: MaybeEndTryPullRequest,
+) -> Result<MaybeEndTryPullResponse, MaybeEndTryPullError> {
+    use MaybeEndTryPullError::*;
 
     // Ensure sync head is what the caller thinks it is.
     let dag_write = store
@@ -364,7 +364,7 @@ pub async fn maybe_end_pull(
                 original: c.chunk().hash().to_string(),
             })
         }
-        return Ok(MaybeEndPullResponse {
+        return Ok(MaybeEndTryPullResponse {
             sync_head: sync_head_hash,
             replay_mutations,
         });
@@ -382,14 +382,14 @@ pub async fn maybe_end_pull(
         .await
         .map_err(WriteSyncHeadError)?;
     dag_write.commit().await.map_err(CommitError)?;
-    Ok(MaybeEndPullResponse {
+    Ok(MaybeEndTryPullResponse {
         sync_head: sync_head_hash.to_string(),
         replay_mutations: Vec::new(),
     })
 }
 
 #[derive(Debug)]
-pub enum MaybeEndPullError {
+pub enum MaybeEndTryPullError {
     CommitError(dag::Error),
     GetMainHeadError(dag::Error),
     GetSyncHeadError(dag::Error),
@@ -587,8 +587,8 @@ mod tests {
 
     #[derive(Debug)]
     enum BeginSyncError {
-        PushError(PushError),
-        BeginPullError(BeginPullError),
+        PushError(TryPushError),
+        BeginPullError(TryBeginPullError),
     }
 
     async fn begin_sync(
@@ -606,7 +606,7 @@ mod tests {
             lc.clone(),
             client_id.clone(),
             pusher,
-            PushRequest {
+            TryPushRequest {
                 batch_push_url: begin_sync_req.batch_push_url,
                 data_layer_auth: begin_sync_req.data_layer_auth.clone(),
             },
@@ -614,13 +614,13 @@ mod tests {
         .await
         .map_err(BeginSyncError::PushError)?;
 
-        let BeginPullResponse {
+        let TryBeginPullResponse {
             client_view_info,
             sync_head,
             sync_id,
         } = begin_pull(
             client_id,
-            BeginPullRequest {
+            TryBeginPullRequest {
                 client_view_url: begin_sync_req.client_view_url,
                 data_layer_auth: begin_sync_req.data_layer_auth,
                 diff_server_url: begin_sync_req.diff_server_url,
@@ -2119,7 +2119,7 @@ mod tests {
             }
             let sync_head = basis_hash;
 
-            let req = MaybeEndPullRequest {
+            let req = MaybeEndTryPullRequest {
                 sync_id: str!("sync_id"),
                 sync_head: sync_head.clone(),
             };

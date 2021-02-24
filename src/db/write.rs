@@ -1,10 +1,8 @@
 use super::{commit, index, read, scan, ReadCommitError, Whence};
-use crate::checksum::Checksum;
 use crate::dag;
 use crate::prolly;
 use crate::util::rlog;
 use std::collections::hash_map::HashMap;
-use std::str::FromStr;
 use str_macro::str;
 
 #[allow(dead_code)]
@@ -33,7 +31,6 @@ struct SnapshotMeta {
 pub struct Write<'a> {
     dag_write: dag::Write<'a>,
     map: prolly::Map,
-    checksum: Checksum,
     basis: Option<commit::Commit>,
     meta: Meta,
     indexes: HashMap<String, index::Index>,
@@ -51,7 +48,6 @@ pub async fn init_db(dag_write: dag::Write<'_>, head_name: &str) -> Result<Strin
     let w = Write {
         dag_write,
         map: prolly::Map::new(),
-        checksum: Checksum::new(),
         basis: None,
         meta: Meta::Snapshot(SnapshotMeta {
             last_mutation_id: 0,
@@ -71,16 +67,13 @@ impl<'a> Write<'a> {
         original_hash: Option<String>,
         dag_write: dag::Write<'a>,
     ) -> Result<Write<'a>, ReadCommitError> {
-        use ReadCommitError::*;
         let (_, basis, map) = read::read_commit(whence, &dag_write.read()).await?;
         let mutation_id = basis.next_mutation_id();
-        let checksum = Checksum::from_str(basis.meta().checksum()).map_err(InvalidChecksum)?;
         let indexes = read::read_indexes(&basis);
         Ok(Write {
             basis: basis.into(),
             dag_write,
             map,
-            checksum,
             meta: Meta::Local(LocalMeta {
                 mutator_name,
                 mutator_args,
@@ -98,14 +91,11 @@ impl<'a> Write<'a> {
         dag_write: dag::Write<'a>,
         indexes: HashMap<String, index::Index>,
     ) -> Result<Write<'a>, ReadCommitError> {
-        use ReadCommitError::*;
         let (_, basis, map) = read::read_commit(whence, &dag_write.read()).await?;
-        let checksum = Checksum::from_str(basis.meta().checksum()).map_err(InvalidChecksum)?;
         Ok(Write {
             basis: basis.into(),
             dag_write,
             map,
-            checksum,
             meta: Meta::Snapshot(SnapshotMeta {
                 last_mutation_id,
                 server_state_id,
@@ -118,16 +108,13 @@ impl<'a> Write<'a> {
         whence: Whence,
         dag_write: dag::Write<'a>,
     ) -> Result<Write<'a>, ReadCommitError> {
-        use ReadCommitError::*;
         let (_, basis, map) = read::read_commit(whence, &dag_write.read()).await?;
         let last_mutation_id = basis.mutation_id();
-        let checksum = Checksum::from_str(basis.meta().checksum()).map_err(InvalidChecksum)?;
         let indexes = read::read_indexes(&basis);
         Ok(Write {
             basis: basis.into(),
             dag_write,
             map,
-            checksum,
             meta: Meta::IndexChange(IndexChangeMeta { last_mutation_id }),
             indexes,
         })
@@ -158,7 +145,6 @@ impl<'a> Write<'a> {
 
         let old_val = self.map.get(&key);
         if let Some(old_val) = old_val {
-            self.checksum.remove(&key, &old_val);
             Self::update_indexes(
                 lc.clone(),
                 &self.indexes,
@@ -170,7 +156,6 @@ impl<'a> Write<'a> {
             .await
             .map_err(RemoveOldIndexEntriesError)?;
         }
-        self.checksum.add(&key, &val);
         Self::update_indexes(
             lc,
             &self.indexes,
@@ -196,7 +181,6 @@ impl<'a> Write<'a> {
         match old_val {
             None => {}
             Some(old_val) => {
-                self.checksum.remove(&key, &old_val);
                 Self::update_indexes(
                     lc,
                     &self.indexes,
@@ -255,7 +239,6 @@ impl<'a> Write<'a> {
             _ => return Err(NotAllowed),
         }
 
-        self.checksum = Checksum::new();
         self.map = prolly::Map::new();
         for (_, idx) in self.indexes.iter() {
             let mut guard = idx
@@ -266,10 +249,6 @@ impl<'a> Write<'a> {
             *guard = Some(prolly::Map::new());
         }
         Ok(())
-    }
-
-    pub fn checksum(&self) -> String {
-        self.checksum.to_string()
     }
 
     pub async fn create_index(
@@ -388,7 +367,6 @@ impl<'a> Write<'a> {
 
                 commit::Commit::new_local(
                     basis_hash.as_deref(),
-                    self.checksum,
                     *mutation_id,
                     mutator_name,
                     mutator_args.as_bytes(),
@@ -406,7 +384,6 @@ impl<'a> Write<'a> {
 
                 commit::Commit::new_snapshot(
                     basis_hash.as_deref(),
-                    self.checksum,
                     *last_mutation_id,
                     &server_state_id,
                     &value_hash,
@@ -428,7 +405,6 @@ impl<'a> Write<'a> {
 
                 commit::Commit::new_index_change(
                     basis_hash.as_deref(),
-                    self.checksum,
                     *last_mutation_id,
                     &value_hash,
                     &index_metas,
@@ -523,6 +499,8 @@ mod tests {
         )
         .await
         .unwrap();
+
+        // Put.
         let mut w = Write::new_local(
             Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
             str!("mutator_name"),
@@ -535,8 +513,13 @@ mod tests {
         w.put(rlog::LogContext::new(), b"foo".to_vec(), b"bar".to_vec())
             .await
             .unwrap();
+        // Assert we can read the same value from within this transaction.
+        let r = w.as_read();
+        let val = r.get(b"foo");
+        assert_eq!(Some(&(b"bar"[..])), val);
         w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
 
+        // As well as after it has committed.
         let w = Write::new_local(
             Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
             str!("mutator_name"),
@@ -549,6 +532,40 @@ mod tests {
         let r = w.as_read();
         let val = r.get(b"foo");
         assert_eq!(Some(&(b"bar"[..])), val);
+        drop(w);
+
+        // Del.
+        let mut w = Write::new_local(
+            Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+            str!("mutator_name"),
+            serde_json::Value::Array(vec![]).to_string(),
+            None,
+            ds.write(LogContext::new()).await.unwrap(),
+        )
+        .await
+        .unwrap();
+        w.del(rlog::LogContext::new(), b"foo".to_vec())
+            .await
+            .unwrap();
+        // Assert it is gone while still within this transaction.
+        let r = w.as_read();
+        let val = r.get(b"foo");
+        assert!(val.is_none());
+        w.commit(db::DEFAULT_HEAD_NAME).await.unwrap();
+
+        // As well as after it has committed.
+        let w = Write::new_local(
+            Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
+            str!("mutator_name"),
+            serde_json::Value::Null.to_string(),
+            None,
+            ds.write(LogContext::new()).await.unwrap(),
+        )
+        .await
+        .unwrap();
+        let r = w.as_read();
+        let val = r.get(b"foo");
+        assert!(val.is_none());
     }
 
     #[async_std::test]
@@ -658,45 +675,6 @@ mod tests {
     }
 
     #[async_std::test]
-    async fn test_put_del_replace_update_checksum() {
-        let lc = rlog::LogContext::new();
-        let ds = dag::Store::new(Box::new(MemStore::new()));
-        init_db(
-            ds.write(LogContext::new()).await.unwrap(),
-            db::DEFAULT_HEAD_NAME,
-        )
-        .await
-        .unwrap();
-        let mut w = Write::new_local(
-            Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
-            str!("mutator_name"),
-            serde_json::Value::Array(vec![]).to_string(),
-            None,
-            ds.write(LogContext::new()).await.unwrap(),
-        )
-        .await
-        .unwrap();
-
-        let mut exp_checksum = Checksum::new();
-        assert_eq!(exp_checksum, w.checksum);
-
-        exp_checksum.add(&[0], &[1]);
-        w.put(lc.clone(), vec![0], vec![1]).await.unwrap();
-        assert_eq!(exp_checksum, w.checksum);
-
-        // Ensure Write is calling Checksum.replace() if the key already exists.
-        exp_checksum.replace(&[0], &[1], &[2]);
-        w.put(lc.clone(), vec![0], vec![2]).await.unwrap();
-        assert_eq!(exp_checksum, w.checksum);
-
-        exp_checksum.remove(&[0], &[2]);
-        w.del(lc.clone(), vec![0]).await.unwrap();
-        assert_eq!(exp_checksum, w.checksum);
-
-        // clear()'s reset of checksum tested in test_clear
-    }
-
-    #[async_std::test]
     async fn test_clear() {
         let lc = rlog::LogContext::new();
         let ds = dag::Store::new(Box::new(MemStore::new()));
@@ -742,7 +720,6 @@ mod tests {
         w.put(lc.clone(), b"hot".to_vec(), b"\"dog\"".to_vec())
             .await
             .unwrap();
-        assert_ne!("00000000", w.checksum());
         assert_eq!(w.map.iter().count(), 2);
         assert_eq!(
             (&w.indexes["idx"])
@@ -755,7 +732,6 @@ mod tests {
             2
         );
         w.clear().await.unwrap();
-        assert_eq!("00000000", w.checksum());
         assert_eq!(w.map.iter().count(), 0);
         assert_eq!(
             (&w.indexes["idx"])
@@ -777,7 +753,6 @@ mod tests {
         .await
         .unwrap();
         let indexes = read::read_indexes(&c);
-        assert_eq!("00000000", c.meta().checksum());
         assert_eq!(0, m.iter().count());
         assert_eq!(
             (&indexes["idx"])

@@ -1,6 +1,5 @@
 use super::commit::{Commit, FromHashError};
 use super::index;
-use crate::checksum;
 use crate::dag;
 use crate::prolly;
 use std::collections::hash_map::HashMap;
@@ -23,7 +22,6 @@ pub struct OwnedRead<'a> {
 pub enum ReadCommitError {
     CommitFromHeadError(FromHashError),
     GetHeadError(dag::Error),
-    InvalidChecksum(checksum::ParseError),
     MapLoadError(prolly::LoadError),
     UnknownHead(String),
 }

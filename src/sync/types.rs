@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::default::Default;
 
-use crate::{checksum, dag, db, util::rlog};
+use crate::{dag, db, util::rlog};
 
 use super::{patch, PullError};
 
@@ -108,7 +108,6 @@ pub enum BeginTryPullError {
     InternalProgrammerError(db::InternalProgrammerError),
     InternalRebuildIndexError(db::CreateIndexError),
     InternalTimerError(rlog::TimerError),
-    InvalidChecksum(checksum::ParseError),
     LockError(dag::Error),
     MainHeadDisappeared,
     MissingStateID,
@@ -119,7 +118,6 @@ pub enum BeginTryPullError {
     ReadCommitError(db::ReadCommitError),
     ReadError(dag::Error),
     TimeTravelProhibited(String),
-    WrongChecksum(String),
 }
 
 #[derive(Debug)]

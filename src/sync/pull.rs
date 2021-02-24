@@ -3,7 +3,6 @@
 use super::patch;
 use super::types::*;
 use super::SYNC_HEAD_NAME;
-use crate::checksum::Checksum;
 use crate::dag;
 use crate::db;
 use crate::db::{Commit, MetaTyped, Whence, DEFAULT_HEAD_NAME};
@@ -16,7 +15,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::hash_map::HashMap;
 use std::default::Default;
 use std::fmt::Debug;
-use std::str::FromStr;
 use str_macro::str;
 
 pub async fn begin_pull(
@@ -49,18 +47,14 @@ pub async fn begin_pull(
     // Close read transaction.
     drop(dag_read);
 
-    // let base_checksum = base_snapshot.meta().checksum().to_string();
     let (base_last_mutation_id, base_state_id) =
         Commit::snapshot_meta_parts(&base_snapshot).map_err(InternalProgrammerError)?;
-
-    let base_checksum = base_snapshot.meta().checksum().to_string();
 
     let pull_req = PullRequest {
         client_view_auth: data_layer_auth,
         client_view_url,
         client_id,
         base_state_id: base_state_id.clone(),
-        checksum: base_checksum.clone(),
         last_mutation_id: base_snapshot.mutation_id(),
         version: 3,
     };
@@ -76,7 +70,6 @@ pub async fn begin_pull(
         pull_timer.elapsed_ms()
     );
 
-    let expected_checksum = Checksum::from_str(&pull_resp.checksum).map_err(InvalidChecksum)?;
     if pull_resp.state_id.is_empty() {
         return Err(MissingStateID);
     } else if pull_resp.state_id == base_state_id {
@@ -155,13 +148,6 @@ pub async fn begin_pull(
     patch::apply(&mut db_write, &pull_resp.patch)
         .await
         .map_err(PatchFailed)?;
-    if db_write.checksum() != expected_checksum.to_string().as_str() {
-        return Err(WrongChecksum(format!(
-            "expected {}, got {}",
-            expected_checksum,
-            db_write.checksum()
-        )));
-    }
 
     let commit_hash = db_write.commit(SYNC_HEAD_NAME).await.map_err(CommitError)?;
 
@@ -282,8 +268,6 @@ pub struct PullRequest {
     pub client_id: String,
     #[serde(rename = "baseStateID")]
     pub base_state_id: String,
-    #[serde(rename = "checksum")]
-    pub checksum: String,
     #[serde(rename = "lastMutationID")]
     pub last_mutation_id: u64,
 
@@ -299,9 +283,6 @@ pub struct PullResponse {
     #[allow(dead_code)]
     pub last_mutation_id: u64,
     pub patch: Vec<patch::Operation>,
-    #[serde(rename = "checksum")]
-    #[allow(dead_code)]
-    pub checksum: String,
     #[serde(rename = "clientViewInfo")]
     pub client_view_info: ClientViewInfo,
 }

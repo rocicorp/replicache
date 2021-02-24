@@ -427,9 +427,6 @@ pub mod commit {
             if let Some(x) = args.typed {
                 builder.add_typed(x);
             }
-            if let Some(x) = args.checksum {
-                builder.add_checksum(x);
-            }
             if let Some(x) = args.basis_hash {
                 builder.add_basis_hash(x);
             }
@@ -438,19 +435,13 @@ pub mod commit {
         }
 
         pub const VT_BASIS_HASH: flatbuffers::VOffsetT = 6;
-        pub const VT_CHECKSUM: flatbuffers::VOffsetT = 8;
-        pub const VT_TYPED_TYPE: flatbuffers::VOffsetT = 10;
-        pub const VT_TYPED: flatbuffers::VOffsetT = 12;
+        pub const VT_TYPED_TYPE: flatbuffers::VOffsetT = 8;
+        pub const VT_TYPED: flatbuffers::VOffsetT = 10;
 
         #[inline]
         pub fn basis_hash(&self) -> Option<&'a str> {
             self._tab
                 .get::<flatbuffers::ForwardsUOffset<&str>>(Meta::VT_BASIS_HASH, None)
-        }
-        #[inline]
-        pub fn checksum(&self) -> Option<&'a str> {
-            self._tab
-                .get::<flatbuffers::ForwardsUOffset<&str>>(Meta::VT_CHECKSUM, None)
         }
         #[inline]
         pub fn typed_type(&self) -> MetaTyped {
@@ -496,7 +487,6 @@ pub mod commit {
 
     pub struct MetaArgs<'a> {
         pub basis_hash: Option<flatbuffers::WIPOffset<&'a str>>,
-        pub checksum: Option<flatbuffers::WIPOffset<&'a str>>,
         pub typed_type: MetaTyped,
         pub typed: Option<flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>>,
     }
@@ -505,7 +495,6 @@ pub mod commit {
         fn default() -> Self {
             MetaArgs {
                 basis_hash: None,
-                checksum: None,
                 typed_type: MetaTyped::NONE,
                 typed: None,
             }
@@ -520,11 +509,6 @@ pub mod commit {
         pub fn add_basis_hash(&mut self, basis_hash: flatbuffers::WIPOffset<&'b str>) {
             self.fbb_
                 .push_slot_always::<flatbuffers::WIPOffset<_>>(Meta::VT_BASIS_HASH, basis_hash);
-        }
-        #[inline]
-        pub fn add_checksum(&mut self, checksum: flatbuffers::WIPOffset<&'b str>) {
-            self.fbb_
-                .push_slot_always::<flatbuffers::WIPOffset<_>>(Meta::VT_CHECKSUM, checksum);
         }
         #[inline]
         pub fn add_typed_type(&mut self, typed_type: MetaTyped) {

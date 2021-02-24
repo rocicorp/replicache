@@ -8,10 +8,8 @@ pub mod sync_id;
 #[cfg(test)]
 pub mod test_helpers;
 mod types;
-
 pub use pull::*;
 pub use push::*;
-
 pub use types::*;
 
 pub const SYNC_HEAD_NAME: &str = "sync";
@@ -31,9 +29,11 @@ mod tests {
     use crate::util::to_debug;
     use async_std::net::TcpListener;
     use async_trait::async_trait;
+    use itertools::Itertools;
     use serde::{Deserialize, Serialize};
     use serde_json::json;
     use std::clone::Clone;
+    use std::collections::HashMap;
     use std::default::Default;
     use std::fmt::Debug;
     use str_macro::str;
@@ -149,6 +149,18 @@ mod tests {
         })
     }
 
+    macro_rules! map(
+        { $($key:expr => $value:expr),+ } => {
+            {
+                let mut m = ::std::collections::HashMap::new();
+                $(
+                    m.insert($key, $value);
+                )+
+                m
+            }
+         };
+    );
+
     // TODO: we don't have a way to test overlapping syncs. Augmenting
     // FakePuller to land a snapshot during pull() doesn't work because
     // it requires access to the dag::Store which is not Send. We should
@@ -165,7 +177,6 @@ mod tests {
         let base_snapshot = &chain[1];
         let (base_last_mutation_id, base_server_state_id) =
             Commit::snapshot_meta_parts(base_snapshot).unwrap();
-        let base_checksum = base_snapshot.meta().checksum().to_string();
 
         let sync_id = str!("sync_id");
         let client_id = str!("test_client_id");
@@ -198,14 +209,14 @@ mod tests {
                     value_string: str!("\"value\""),
                 },
             ],
-            checksum: str!("f9ef007b"),
             client_view_info: good_client_view_info.clone(),
         };
+        let good_pull_resp_value_map = map!("/new" => "\"value\"");
 
-        struct ExpCommit {
+        struct ExpCommit<'a> {
             state_id: String,
             last_mutation_id: u64,
-            checksum: String,
+            value_map: HashMap<&'a str, &'a str>,
             indexes: Vec<String>,
         }
 
@@ -223,7 +234,7 @@ mod tests {
 
             // BeginPull expectations.
             pub exp_err: Option<&'a str>,
-            pub exp_new_sync_head: Option<ExpCommit>,
+            pub exp_new_sync_head: Option<ExpCommit<'a>>,
         }
         let cases: Vec<Case> = vec![
             Case {
@@ -236,7 +247,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -245,7 +255,7 @@ mod tests {
                 exp_new_sync_head: Some(ExpCommit {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 10,
-                    checksum: str!("f9ef007b"),
+                    value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string()],
                 }),
             },
@@ -268,7 +278,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -280,7 +289,7 @@ mod tests {
                 exp_new_sync_head: Some(ExpCommit {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 2,
-                    checksum: str!("f9ef007b"),
+                    value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string(), 4.to_string()],
                 }),
             },
@@ -303,7 +312,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -315,7 +323,7 @@ mod tests {
                 exp_new_sync_head: Some(ExpCommit {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 1,
-                    checksum: str!("f9ef007b"),
+                    value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string()],
                 }),
             },
@@ -346,7 +354,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -355,7 +362,7 @@ mod tests {
                 exp_new_sync_head: Some(ExpCommit {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 10,
-                    checksum: str!("f9ef007b"),
+                    value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string(), 4.to_string(), 6.to_string()],
                 }),
             },
@@ -386,7 +393,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -398,7 +404,7 @@ mod tests {
                 exp_new_sync_head: Some(ExpCommit {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 2,
-                    checksum: str!("f9ef007b"),
+                    value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string(), 4.to_string()],
                 }),
             },
@@ -429,7 +435,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -438,7 +443,7 @@ mod tests {
                 exp_new_sync_head: Some(ExpCommit {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 10,
-                    checksum: str!("f9ef007b"),
+                    value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string(), 4.to_string(), 6.to_string()],
                 }),
             },
@@ -457,7 +462,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -465,7 +469,6 @@ mod tests {
                     state_id: base_server_state_id.clone(),
                     last_mutation_id: base_last_mutation_id,
                     patch: vec![],
-                    checksum: base_checksum.clone(),
                     client_view_info: good_client_view_info.clone(),
                 }),
                 exp_err: None,
@@ -481,7 +484,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -502,7 +504,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -511,48 +512,6 @@ mod tests {
                     ..good_pull_resp.clone()
                 }),
                 exp_err: Some("MissingStateID"),
-                exp_new_sync_head: None,
-            },
-            Case {
-                name: "nop push, pulls new state w/no checksum -> beginpull errors",
-                num_pending_mutations: 0,
-                exp_push_req: None,
-                push_result: None,
-                exp_pull_req: PullRequest {
-                    client_view_auth: data_layer_auth.clone(),
-                    client_view_url: client_view_url.clone(),
-                    client_id: client_id.clone(),
-                    base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
-                    last_mutation_id: base_last_mutation_id,
-                    version: 3,
-                },
-                pull_result: Ok(PullResponse {
-                    checksum: str!(""),
-                    ..good_pull_resp.clone()
-                }),
-                exp_err: Some("InvalidChecksum"),
-                exp_new_sync_head: None,
-            },
-            Case {
-                name: "nop push, pulls new state w/bad checksum -> beginpull errors",
-                num_pending_mutations: 0,
-                exp_push_req: None,
-                push_result: None,
-                exp_pull_req: PullRequest {
-                    client_view_auth: data_layer_auth.clone(),
-                    client_view_url: client_view_url.clone(),
-                    client_id: client_id.clone(),
-                    base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
-                    last_mutation_id: base_last_mutation_id,
-                    version: 3,
-                },
-                pull_result: Ok(PullResponse {
-                    checksum: str!(12345678),
-                    ..good_pull_resp.clone()
-                }),
-                exp_err: Some("WrongChecksum"),
                 exp_new_sync_head: None,
             },
             Case {
@@ -565,7 +524,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -682,8 +640,88 @@ mod tests {
             };
             let owned_read = store.read(LogContext::new()).await.unwrap();
             let read = owned_read.read();
-            match &c.exp_new_sync_head {
-                None => {
+            if let Some(exp_sync_head) = &c.exp_new_sync_head {
+                let sync_head_hash = read.get_head(SYNC_HEAD_NAME).await.unwrap().unwrap();
+                let sync_head =
+                    Commit::from_chunk(read.get_chunk(&sync_head_hash).await.unwrap().unwrap())
+                        .unwrap();
+                let (got_last_mutation_id, got_server_state_id) =
+                    Commit::snapshot_meta_parts(&sync_head).unwrap();
+                assert_eq!(exp_sync_head.last_mutation_id, got_last_mutation_id);
+                assert_eq!(exp_sync_head.state_id, got_server_state_id);
+                // Check the value is what's expected.
+                let (_, _, map) = db::read_commit(
+                    db::Whence::Hash(sync_head.chunk().hash().to_string()),
+                    &read,
+                )
+                .await
+                .unwrap();
+                let mut got_value_map = map
+                    .iter()
+                    .map(|entry| (entry.key.to_vec(), entry.val.to_vec()))
+                    .collect::<Vec<(Vec<u8>, Vec<u8>)>>();
+                got_value_map.sort_by(|a, b| a.0.cmp(&b.0));
+                let exp_value_map = exp_sync_head
+                    .value_map
+                    .iter()
+                    .sorted()
+                    .map(|item| (item.0.as_bytes().to_vec(), item.1.as_bytes().to_vec()))
+                    .collect::<Vec<(Vec<u8>, Vec<u8>)>>();
+                assert_eq!(exp_value_map.len(), got_value_map.len());
+
+                // Check we have the expected index definitions.
+                let indexes: Vec<String> = sync_head
+                    .indexes()
+                    .iter()
+                    .map(|i| i.definition.name.clone())
+                    .collect();
+                assert_eq!(
+                    exp_sync_head.indexes.len(),
+                    indexes.len(),
+                    "{}: expected indexes {:?}, got {:?}",
+                    c.name,
+                    exp_sync_head.indexes,
+                    indexes
+                );
+                exp_sync_head
+                    .indexes
+                    .iter()
+                    .for_each(|i| assert!(indexes.contains(i)));
+
+                // Check that we *don't* have old indexed values. The indexes should
+                // have been rebuilt with a client view returned by the server that
+                // does not include local= values. The check for len > 1 is because
+                // the snapshot's index is not what we want; we want the first index
+                // change's index ("2").
+                if exp_sync_head.indexes.len() > 1 {
+                    let dag_read = store.read(LogContext::new()).await.unwrap();
+                    let read = db::OwnedRead::from_whence(
+                        db::Whence::Head(SYNC_HEAD_NAME.to_string()),
+                        dag_read,
+                    )
+                    .await
+                    .unwrap();
+                    read.as_read()
+                        .scan(
+                            db::ScanOptions {
+                                prefix: Some(str!("")),
+                                start_secondary_key: None,
+                                start_key: None,
+                                start_exclusive: None,
+                                limit: None,
+                                index_name: Some(str!("2")),
+                            },
+                            |sr: db::ScanResult<'_>| {
+                                assert!(false, "{}: expected no values, got {:?}", c.name, sr);
+                            },
+                        )
+                        .await
+                        .unwrap();
+                }
+
+                assert_eq!(&sync_head_hash, &got_resp.as_ref().unwrap().sync_head);
+            } else {
+                {
                     let got_head = read.get_head(SYNC_HEAD_NAME).await.unwrap();
                     assert!(
                         got_head.is_none(),
@@ -698,74 +736,6 @@ mod tests {
                     if c.exp_err.is_none() {
                         assert!(&got_resp.as_ref().unwrap().sync_head.is_empty());
                     }
-                }
-                Some(exp_sync_head) => {
-                    let sync_head_hash = read.get_head(SYNC_HEAD_NAME).await.unwrap().unwrap();
-                    let sync_head =
-                        Commit::from_chunk(read.get_chunk(&sync_head_hash).await.unwrap().unwrap())
-                            .unwrap();
-                    let (got_last_mutation_id, got_server_state_id) =
-                        Commit::snapshot_meta_parts(&sync_head).unwrap();
-                    assert_eq!(exp_sync_head.last_mutation_id, got_last_mutation_id);
-                    assert_eq!(exp_sync_head.state_id, got_server_state_id);
-                    assert_eq!(
-                        exp_sync_head.checksum,
-                        sync_head.meta().checksum().to_string().as_str(),
-                        "{}",
-                        c.name
-                    );
-
-                    // Check we have the expected index definitions.
-                    let indexes: Vec<String> = sync_head
-                        .indexes()
-                        .iter()
-                        .map(|i| i.definition.name.clone())
-                        .collect();
-                    assert_eq!(
-                        exp_sync_head.indexes.len(),
-                        indexes.len(),
-                        "{}: expected indexes {:?}, got {:?}",
-                        c.name,
-                        exp_sync_head.indexes,
-                        indexes
-                    );
-                    exp_sync_head
-                        .indexes
-                        .iter()
-                        .for_each(|i| assert!(indexes.contains(i)));
-
-                    // Check that we *don't* have old indexed values. The indexes should
-                    // have been rebuilt with a client view returned by the server that
-                    // does not include local= values. The check for len > 1 is because
-                    // the snapshot's index is not what we want; we want the first index
-                    // change's index ("2").
-                    if exp_sync_head.indexes.len() > 1 {
-                        let dag_read = store.read(LogContext::new()).await.unwrap();
-                        let read = db::OwnedRead::from_whence(
-                            db::Whence::Head(SYNC_HEAD_NAME.to_string()),
-                            dag_read,
-                        )
-                        .await
-                        .unwrap();
-                        read.as_read()
-                            .scan(
-                                db::ScanOptions {
-                                    prefix: Some(str!("")),
-                                    start_secondary_key: None,
-                                    start_key: None,
-                                    start_exclusive: None,
-                                    limit: None,
-                                    index_name: Some(str!("2")),
-                                },
-                                |sr: db::ScanResult<'_>| {
-                                    assert!(false, "{}: expected no values, got {:?}", c.name, sr);
-                                },
-                            )
-                            .await
-                            .unwrap();
-                    }
-
-                    assert_eq!(&sync_head_hash, &got_resp.as_ref().unwrap().sync_head);
                 }
             }
 
@@ -802,7 +772,6 @@ mod tests {
         let base_snapshot = &chain[1];
         let (base_last_mutation_id, base_server_state_id) =
             Commit::snapshot_meta_parts(base_snapshot).unwrap();
-        let base_checksum = base_snapshot.meta().checksum().to_string();
 
         let sync_id = str!("sync_id");
         let client_id = str!("test_client_id");
@@ -835,14 +804,14 @@ mod tests {
                     value_string: str!("\"value\""),
                 },
             ],
-            checksum: str!("f9ef007b"),
             client_view_info: good_client_view_info.clone(),
         };
+        let good_pull_resp_value_map = map!("/new" => "\"value\"");
 
-        struct ExpCommit {
+        struct ExpCommit<'a> {
             state_id: String,
             last_mutation_id: u64,
-            checksum: String,
+            value_map: HashMap<&'a str, &'a str>,
             indexes: Vec<String>,
         }
 
@@ -860,7 +829,7 @@ mod tests {
 
             // BeginPull expectations.
             pub exp_err: Option<&'a str>,
-            pub exp_new_sync_head: Option<ExpCommit>,
+            pub exp_new_sync_head: Option<ExpCommit<'a>>,
         }
         let cases: Vec<Case> = vec![
             Case {
@@ -873,7 +842,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -882,7 +850,7 @@ mod tests {
                 exp_new_sync_head: Some(ExpCommit {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 10,
-                    checksum: str!("f9ef007b"),
+                    value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string()],
                 }),
             },
@@ -905,7 +873,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -917,7 +884,7 @@ mod tests {
                 exp_new_sync_head: Some(ExpCommit {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 2,
-                    checksum: str!("f9ef007b"),
+                    value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string(), 4.to_string()],
                 }),
             },
@@ -940,7 +907,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -952,7 +918,7 @@ mod tests {
                 exp_new_sync_head: Some(ExpCommit {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 1,
-                    checksum: str!("f9ef007b"),
+                    value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string()],
                 }),
             },
@@ -983,7 +949,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -992,7 +957,7 @@ mod tests {
                 exp_new_sync_head: Some(ExpCommit {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 10,
-                    checksum: str!("f9ef007b"),
+                    value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string(), 4.to_string(), 6.to_string()],
                 }),
             },
@@ -1023,7 +988,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -1035,7 +999,7 @@ mod tests {
                 exp_new_sync_head: Some(ExpCommit {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 2,
-                    checksum: str!("f9ef007b"),
+                    value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string(), 4.to_string()],
                 }),
             },
@@ -1066,7 +1030,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -1075,7 +1038,7 @@ mod tests {
                 exp_new_sync_head: Some(ExpCommit {
                     state_id: str!("new_state_id"),
                     last_mutation_id: 10,
-                    checksum: str!("f9ef007b"),
+                    value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string(), 4.to_string(), 6.to_string()],
                 }),
             },
@@ -1094,7 +1057,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -1102,7 +1064,6 @@ mod tests {
                     state_id: base_server_state_id.clone(),
                     last_mutation_id: base_last_mutation_id,
                     patch: vec![],
-                    checksum: base_checksum.clone(),
                     client_view_info: good_client_view_info.clone(),
                 }),
                 exp_err: None,
@@ -1118,7 +1079,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -1139,7 +1099,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -1148,48 +1107,6 @@ mod tests {
                     ..good_pull_resp.clone()
                 }),
                 exp_err: Some("MissingStateID"),
-                exp_new_sync_head: None,
-            },
-            Case {
-                name: "nop push, pulls new state w/no checksum -> beginpull errors",
-                num_pending_mutations: 0,
-                exp_push_req: None,
-                push_result: None,
-                exp_pull_req: PullRequest {
-                    client_view_auth: data_layer_auth.clone(),
-                    client_view_url: client_view_url.clone(),
-                    client_id: client_id.clone(),
-                    base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
-                    last_mutation_id: base_last_mutation_id,
-                    version: 3,
-                },
-                pull_result: Ok(PullResponse {
-                    checksum: str!(""),
-                    ..good_pull_resp.clone()
-                }),
-                exp_err: Some("InvalidChecksum"),
-                exp_new_sync_head: None,
-            },
-            Case {
-                name: "nop push, pulls new state w/bad checksum -> beginpull errors",
-                num_pending_mutations: 0,
-                exp_push_req: None,
-                push_result: None,
-                exp_pull_req: PullRequest {
-                    client_view_auth: data_layer_auth.clone(),
-                    client_view_url: client_view_url.clone(),
-                    client_id: client_id.clone(),
-                    base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
-                    last_mutation_id: base_last_mutation_id,
-                    version: 3,
-                },
-                pull_result: Ok(PullResponse {
-                    checksum: str!(12345678),
-                    ..good_pull_resp.clone()
-                }),
-                exp_err: Some("WrongChecksum"),
                 exp_new_sync_head: None,
             },
             Case {
@@ -1202,7 +1119,6 @@ mod tests {
                     client_view_url: client_view_url.clone(),
                     client_id: client_id.clone(),
                     base_state_id: base_server_state_id.clone(),
-                    checksum: base_checksum.clone(),
                     last_mutation_id: base_last_mutation_id,
                     version: 3,
                 },
@@ -1345,12 +1261,25 @@ mod tests {
                         Commit::snapshot_meta_parts(&sync_head).unwrap();
                     assert_eq!(exp_sync_head.last_mutation_id, got_last_mutation_id);
                     assert_eq!(exp_sync_head.state_id, got_server_state_id);
-                    assert_eq!(
-                        exp_sync_head.checksum,
-                        sync_head.meta().checksum().to_string().as_str(),
-                        "{}",
-                        c.name
-                    );
+                    // Check the value is what's expected.
+                    let (_, _, map) = db::read_commit(
+                        db::Whence::Hash(sync_head.chunk().hash().to_string()),
+                        &read,
+                    )
+                    .await
+                    .unwrap();
+                    let mut got_value_map = map
+                        .iter()
+                        .map(|entry| (entry.key.to_vec(), entry.val.to_vec()))
+                        .collect::<Vec<(Vec<u8>, Vec<u8>)>>();
+                    got_value_map.sort_by(|a, b| a.0.cmp(&b.0));
+                    let exp_value_map = exp_sync_head
+                        .value_map
+                        .iter()
+                        .sorted()
+                        .map(|item| (item.0.as_bytes().to_vec(), item.1.as_bytes().to_vec()))
+                        .collect::<Vec<(Vec<u8>, Vec<u8>)>>();
+                    assert_eq!(exp_value_map.len(), got_value_map.len());
 
                     // Check we have the expected index definitions.
                     let indexes: Vec<String> = sync_head
@@ -1691,7 +1620,6 @@ mod tests {
                 client_view_url: str!("client-view-url"),
                 client_id: str!("client_id"),
                 base_state_id: str!("base-state-id"),
-                checksum: str!("00000000"),
                 last_mutation_id: 123,
                 version: 3,
             };
@@ -1713,7 +1641,7 @@ mod tests {
             Case {
                 name: "200",
                 resp_status: 200,
-                resp_body: r#"{"stateID": "1", "lastMutationID": 2, "checksum": "12345678", "patch": [{"op":"replace","path":"","valueString":"{}"}], "clientViewInfo": { "httpStatusCode": 200, "errorMessage": "" }}"#,
+                resp_body: r#"{"stateID": "1", "lastMutationID": 2, "patch": [{"op":"replace","path":"","valueString":"{}"}], "clientViewInfo": { "httpStatusCode": 200, "errorMessage": "" }}"#,
                 exp_err: None,
                 exp_resp: Some(PullResponse {
                     state_id: str!("1"),
@@ -1723,7 +1651,6 @@ mod tests {
                         path: str!(""),
                         value_string: str!("{}"),
                     }],
-                    checksum: str!("12345678"),
                     client_view_info: ClientViewInfo {
                         http_status_code: 200,
                         error_message: str!(""),

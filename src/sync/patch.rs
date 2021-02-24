@@ -105,7 +105,6 @@ mod tests {
             // Note: the test inserts "key" => "value" into the map prior to
             // calling apply() so we can check if top-level removes work.
             exp_map: Option<HashMap<&'a str, &'a str>>,
-            exp_checksum: Option<&'a str>,
         }
         let cases = [
             Case {
@@ -113,28 +112,24 @@ mod tests {
                 patch: vec![r#"{"op":"add","path":"/foo","valueString":"\"bar\""}"#],
                 exp_err: None,
                 exp_map: Some(map!("key" => "value", "foo" => "\"bar\"")),
-                exp_checksum: None,
             },
             Case {
                 name: "remove",
                 patch: vec![r#"{"op":"remove","path":"/key"}"#],
                 exp_err: None,
                 exp_map: Some(HashMap::new()),
-                exp_checksum: Some("00000000"),
             },
             Case {
                 name: "replace",
                 patch: vec![r#"{"op":"replace","path":"/key","valueString":"\"newvalue\""}"#],
                 exp_err: None,
                 exp_map: Some(map!("key" => "\"newvalue\"")),
-                exp_checksum: None,
             },
             Case {
                 name: "insert empty key",
                 patch: vec![r#"{"op":"add","path":"/","valueString":"\"empty\""}"#],
                 exp_err: None,
                 exp_map: Some(map!("key" => "value", "" => "\"empty\"")),
-                exp_checksum: None,
             },
             Case {
                 name: "insert/replace empty key",
@@ -144,7 +139,6 @@ mod tests {
                 ],
                 exp_err: None,
                 exp_map: Some(map!("key" => "value", "" => "\"changed\"")),
-                exp_checksum: None,
             },
             Case {
                 name: "insert/remove empty key",
@@ -154,7 +148,6 @@ mod tests {
                 ],
                 exp_err: None,
                 exp_map: Some(map!("key" => "value")),
-                exp_checksum: None,
             },
             // Remove once all the other layers no longer depend on this.
             Case {
@@ -162,7 +155,6 @@ mod tests {
                 patch: vec![r#"{"op":"replace","path":"","valueString":"{}"}"#],
                 exp_err: None,
                 exp_map: Some(HashMap::new()),
-                exp_checksum: Some("00000000"),
             },
             Case {
                 name: "compound ops",
@@ -175,45 +167,30 @@ mod tests {
                 exp_map: Some(map!("foo" => "\"bar\"",
                     "key" => "\"newvalue\"",
                     "baz" => "\"baz\"")),
-                exp_checksum: None,
             },
             Case {
                 name: "escape 1",
                 patch: vec![r#"{"op":"add","path":"/~1","valueString":"\"bar\""}"#],
                 exp_err: None,
                 exp_map: Some(map!("key" => "value", "/" => "\"bar\"")),
-                exp_checksum: None,
             },
             Case {
                 name: "escape 2",
                 patch: vec![r#"{"op":"add","path":"/~0","valueString":"\"bar\""}"#],
                 exp_err: None,
                 exp_map: Some(map!("key" => "value", "~" => "\"bar\"")),
-                exp_checksum: None,
             },
             Case {
                 name: "invalid op",
                 patch: vec![r#"{"op":"BOOM","path":"/key"}"#],
                 exp_err: Some("InvalidOp"),
                 exp_map: None,
-                exp_checksum: None,
             },
             Case {
                 name: "invalid path",
                 patch: vec![r#"{"op":"add","path":"BOOM", "stringValue": "true"}"#],
                 exp_err: Some("InvalidPath"),
                 exp_map: None,
-                exp_checksum: None,
-            },
-            Case {
-                name: "known checksum",
-                patch: vec![
-                    r#"{"op":"replace","path":"","valueString":"{}"}"#,
-                    r#"{"op":"add","path":"/new","valueString":"\"value\""}"#,
-                ],
-                exp_err: None,
-                exp_map: Some(map!("new" => "\"value\"")),
-                exp_checksum: Some("f9ef007b"),
             },
         ];
 
@@ -264,9 +241,6 @@ mod tests {
                         }
                     };
                 }
-            }
-            if let Some(sum) = c.exp_checksum {
-                assert_eq!(sum, db_write.checksum().as_str(), "{}", c.name);
             }
         }
     }

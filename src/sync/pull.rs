@@ -363,3 +363,131 @@ pub enum PullError {
     InvalidResponse(serde_json::error::Error),
     SerializeRequestError(serde_json::error::Error),
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(test)]
+mod tests {
+    use super::patch::Operation;
+    use super::*;
+    use crate::fetch;
+    use crate::util::to_debug;
+    use async_std::net::TcpListener;
+    use str_macro::str;
+    use tide::{Body, Response};
+
+    #[async_std::test]
+    async fn test_pull_http_part() {
+        lazy_static! {
+            static ref PULL_REQ: PullRequest = PullRequest {
+                client_view_auth: str!("client-view-auth"),
+                client_view_url: str!("client-view-url"),
+                client_id: str!("client_id"),
+                base_state_id: str!("base-state-id"),
+                last_mutation_id: 123,
+                version: 3,
+            };
+            // EXP_BODY must be 'static to be used in HTTP handler closure.
+            static ref EXP_BODY: String = serde_json::to_string(&*PULL_REQ).unwrap();
+        }
+        let diff_server_auth = "diff-server-auth";
+        let sync_id = "sync_id";
+        let path = "/pull";
+
+        struct Case<'a> {
+            pub name: &'a str,
+            pub resp_status: u16,
+            pub resp_body: &'a str,
+            pub exp_err: Option<&'a str>,
+            pub exp_resp: Option<PullResponse>,
+        }
+        let cases = [
+            Case {
+                name: "200",
+                resp_status: 200,
+                resp_body: r#"{"stateID": "1", "lastMutationID": 2, "patch": [{"op":"replace","path":"","valueString":"{}"}], "clientViewInfo": { "httpStatusCode": 200, "errorMessage": "" }}"#,
+                exp_err: None,
+                exp_resp: Some(PullResponse {
+                    state_id: str!("1"),
+                    last_mutation_id: 2,
+                    patch: vec![Operation {
+                        op: str!("replace"),
+                        path: str!(""),
+                        value_string: str!("{}"),
+                    }],
+                    client_view_info: ClientViewInfo {
+                        http_status_code: 200,
+                        error_message: str!(""),
+                    },
+                }),
+            },
+            Case {
+                name: "403",
+                resp_status: 403,
+                resp_body: "forbidden",
+                exp_err: Some("FetchNotOk(403)"),
+                exp_resp: None,
+            },
+            Case {
+                name: "invalid response",
+                resp_status: 200,
+                resp_body: r#"not json"#,
+                exp_err: Some("\"expected ident\", line: 1, column: 2"),
+                exp_resp: None,
+            },
+        ];
+
+        for c in cases.iter() {
+            let mut app = tide::new();
+
+            let status = c.resp_status;
+            let body = c.resp_body;
+            app.at(path)
+                .post(move |mut req: tide::Request<()>| async move {
+                    assert_eq!(
+                        req.header("Authorization").unwrap().as_str(),
+                        diff_server_auth
+                    );
+                    assert_eq!(
+                        req.header("Content-Type").unwrap().as_str(),
+                        "application/json"
+                    );
+                    assert_eq!(req.header("X-Replicache-SyncID").unwrap().as_str(), sync_id);
+                    assert_eq!(req.body_string().await?, *EXP_BODY);
+                    Ok(Response::builder(status).body(Body::from_string(body.to_string())))
+                });
+
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let addr = listener.local_addr().unwrap();
+            let handle = async_std::task::spawn_local(app.listen(listener));
+
+            let client = fetch::client::Client::new();
+            let puller = FetchPuller::new(&client);
+            let result = puller
+                .pull(
+                    &PULL_REQ,
+                    &format!("http://{}{}", addr, path),
+                    diff_server_auth,
+                    sync_id,
+                )
+                .await;
+
+            match &c.exp_err {
+                None => {
+                    let got_pull_resp = result.expect(c.name);
+                    assert_eq!(c.exp_resp.as_ref().unwrap(), &got_pull_resp);
+                }
+                Some(err_str) => {
+                    let got_err_str = to_debug(result.expect_err(c.name));
+                    assert!(
+                        got_err_str.contains(err_str),
+                        format!(
+                            "{}: '{}' does not contain '{}'",
+                            c.name, got_err_str, err_str
+                        )
+                    );
+                }
+            }
+            handle.cancel().await;
+        }
+    }
+}

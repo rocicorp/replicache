@@ -6,6 +6,7 @@ use crate::{dag, db, util::rlog};
 use super::{patch, PullError};
 
 #[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct BatchPushInfo {
     #[serde(rename = "httpStatusCode")]
     pub http_status_code: u16,

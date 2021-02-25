@@ -1,11 +1,10 @@
+use super::{BatchPushInfo, TryPushError, TryPushRequest};
 use crate::fetch::errors::FetchError;
 use crate::{dag, db, util::rlog::LogContext};
 use crate::{fetch, util::rlog};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use str_macro::str;
-
-use super::{BatchPushInfo, TryPushError, TryPushRequest};
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct BatchPushRequest {
@@ -195,9 +194,19 @@ pub async fn push(
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod tests {
+    use super::super::*;
     use super::*;
+    use crate::dag;
+    use crate::db;
+    use crate::db::test_helpers::*;
+    use crate::db::DEFAULT_HEAD_NAME;
+    use crate::fetch;
+    use crate::kv::memstore::MemStore;
+    use crate::util::rlog::LogContext;
     use crate::util::to_debug;
     use async_std::net::TcpListener;
+    use async_trait::async_trait;
+    use serde_json::json;
     use str_macro::str;
     use tide::{Body, Response};
 
@@ -307,6 +316,252 @@ mod tests {
                 }
             }
             handle.cancel().await;
+        }
+    }
+
+    pub struct FakePusher<'a> {
+        exp_push: bool,
+        exp_push_req: Option<&'a push::BatchPushRequest>,
+        exp_batch_push_url: &'a str,
+        exp_batch_push_auth: &'a str,
+        exp_sync_id: &'a str,
+
+        // We would like to write here:
+        //    result: Result<BatchPushResponse, PushError>,
+        // but pull takes &self so we can't move out of result if we did.
+        // Cloning and returning result would work except for that our error
+        // enums contain values that are not cloneable, eg http::Status and
+        // DeserializeErr. (Or, I guess we could make pull take &mut self as another
+        // solution, so long as all contained errors are Send. I think.)
+        resp: Option<push::BatchPushResponse>,
+        err: Option<String>,
+    }
+
+    #[async_trait(?Send)]
+    impl<'a> push::Pusher for FakePusher<'a> {
+        async fn push(
+            &self,
+            push_req: &push::BatchPushRequest,
+            batch_push_url: &str,
+            batch_push_auth: &str,
+            sync_id: &str,
+        ) -> Result<push::BatchPushResponse, push::PushError> {
+            assert!(self.exp_push);
+
+            if self.exp_push_req.is_some() {
+                assert_eq!(self.exp_push_req.unwrap(), push_req);
+                assert_eq!(self.exp_batch_push_url, batch_push_url);
+                assert_eq!(self.exp_batch_push_auth, batch_push_auth);
+                assert_eq!(self.exp_sync_id, sync_id);
+            }
+
+            match &self.err {
+                Some(s) => match s.as_str() {
+                    "FetchNotOk(500)" => Err(push::PushError::FetchNotOk(
+                        http::StatusCode::INTERNAL_SERVER_ERROR,
+                    )),
+                    _ => panic!("not implemented"),
+                },
+                None => {
+                    let r = self.resp.as_ref();
+                    Ok(r.unwrap().clone())
+                }
+            }
+        }
+    }
+
+    #[async_std::test]
+    async fn test_try_push() {
+        let store = dag::Store::new(Box::new(MemStore::new()));
+        let mut chain: Chain = vec![];
+        add_genesis(&mut chain, &store).await;
+        add_snapshot(&mut chain, &store, Some(vec![str!("foo"), str!("bar")])).await;
+        // chain[2] is an index change
+        add_index_change(&mut chain, &store).await;
+        let starting_num_commits = chain.len();
+
+        let sync_id = str!("sync_id");
+        let client_id = str!("test_client_id");
+        let data_layer_auth = str!("data_layer_auth");
+
+        // Push
+        let batch_push_url = str!("batch_push_url");
+
+        struct Case<'a> {
+            pub name: &'a str,
+
+            // Push expectations.
+            pub num_pending_mutations: u32,
+            pub exp_push_req: Option<push::BatchPushRequest>,
+            pub push_result: Option<Result<push::BatchPushResponse, String>>,
+            pub exp_batch_push_info: Option<BatchPushInfo>,
+        }
+        let cases: Vec<Case> = vec![
+            Case {
+                name: "0 pending",
+                num_pending_mutations: 0,
+                exp_push_req: None,
+                push_result: None,
+                exp_batch_push_info: None,
+            },
+            Case {
+                name: "1 pending",
+                num_pending_mutations: 1,
+                exp_push_req: Some(push::BatchPushRequest {
+                    client_id: client_id.clone(),
+                    mutations: vec![push::Mutation {
+                        id: 2,
+                        name: "mutator_name_3".to_string(),
+                        args: json!([3]),
+                    }],
+                }),
+                push_result: Some(Ok(push::BatchPushResponse {})),
+                exp_batch_push_info: Some(BatchPushInfo {
+                    http_status_code: 200,
+                    error_message: str!(""),
+                }),
+            },
+            Case {
+                name: "2 pending",
+                num_pending_mutations: 2,
+                exp_push_req: Some(push::BatchPushRequest {
+                    client_id: client_id.clone(),
+                    mutations: vec![
+                        // These mutations aren't actually added to the chain until the test
+                        // case runs, but we happen to know how they are created by the db
+                        // test helpers so we use that knowledge here.
+                        push::Mutation {
+                            id: 2,
+                            name: "mutator_name_3".to_string(),
+                            args: json!([3]),
+                        },
+                        push::Mutation {
+                            id: 3,
+                            name: "mutator_name_5".to_string(),
+                            args: json!([5]),
+                        },
+                    ],
+                }),
+                push_result: Some(Ok(push::BatchPushResponse {})),
+                exp_batch_push_info: Some(BatchPushInfo {
+                    http_status_code: 200,
+                    error_message: str!(""),
+                }),
+            },
+            Case {
+                name: "2 mutations to push, push errors",
+                num_pending_mutations: 2,
+                exp_push_req: Some(push::BatchPushRequest {
+                    client_id: client_id.clone(),
+                    mutations: vec![
+                        // These mutations aren't actually added to the chain until the test
+                        // case runs, but we happen to know how they are created by the db
+                        // test helpers so we use that knowledge here.
+                        push::Mutation {
+                            id: 2,
+                            name: "mutator_name_3".to_string(),
+                            args: json!([3]),
+                        },
+                        push::Mutation {
+                            id: 3,
+                            name: "mutator_name_5".to_string(),
+                            args: json!([5]),
+                        },
+                    ],
+                }),
+                push_result: Some(Err(str!("FetchNotOk(500)"))),
+                exp_batch_push_info: Some(BatchPushInfo {
+                    http_status_code: 500,
+                    error_message: str!("FetchNotOk(500)"),
+                }),
+            },
+        ];
+        for c in cases.iter() {
+            // Reset state of the store.
+            chain.truncate(starting_num_commits);
+            let w = store.write(LogContext::new()).await.unwrap();
+            w.set_head(
+                DEFAULT_HEAD_NAME,
+                Some(chain[chain.len() - 1].chunk().hash()),
+            )
+            .await
+            .unwrap();
+            w.set_head(SYNC_HEAD_NAME, None).await.unwrap();
+            w.commit().await.unwrap();
+            for _ in 0..c.num_pending_mutations {
+                add_local(&mut chain, &store).await;
+                add_index_change(&mut chain, &store).await;
+            }
+
+            // There was an index added after the snapshot, and one for each local commit.
+            // Here we scan to ensure that we get values when scanning using one of the
+            // indexes created. We do this because after calling begin_sync we check that
+            // the index no longer returns values, demonstrating that it was rebuilt.
+            if c.num_pending_mutations > 0 {
+                let dag_read = store.read(LogContext::new()).await.unwrap();
+                let read = db::OwnedRead::from_whence(
+                    db::Whence::Head(DEFAULT_HEAD_NAME.to_string()),
+                    dag_read,
+                )
+                .await
+                .unwrap();
+                use std::cell::RefCell;
+                let got = RefCell::new(false);
+
+                read.as_read()
+                    .scan(
+                        db::ScanOptions {
+                            prefix: Some(str!("")),
+                            start_secondary_key: None,
+                            start_key: None,
+                            start_exclusive: None,
+                            limit: None,
+                            index_name: Some(str!("2")),
+                        },
+                        |_: db::ScanResult<'_>| {
+                            *got.borrow_mut() = true;
+                        },
+                    )
+                    .await
+                    .unwrap();
+                assert!(*got.borrow(), "{}: expected values, got none", c.name);
+            }
+
+            // See explanation in FakePusher for why we do this dance with the push_result.
+            let (exp_push, push_resp, push_err) = match &c.push_result {
+                Some(Ok(resp)) => (true, Some(resp.clone()), None),
+                Some(Err(e)) => (true, None, Some(e.clone())),
+                None => (false, None, None),
+            };
+            let fake_pusher = FakePusher {
+                exp_push,
+                exp_push_req: c.exp_push_req.as_ref(),
+                exp_batch_push_url: &batch_push_url,
+                exp_batch_push_auth: &data_layer_auth,
+                exp_sync_id: &sync_id,
+                resp: push_resp,
+                err: push_err,
+            };
+
+            let lc = LogContext::new();
+            let pusher = &fake_pusher;
+            let client_id = str!("test_client_id");
+            let sync_id = sync_id.clone();
+            let batch_push_info = super::push(
+                &sync_id,
+                &store,
+                lc.clone(),
+                client_id.clone(),
+                pusher,
+                TryPushRequest {
+                    batch_push_url: batch_push_url.clone(),
+                    data_layer_auth: data_layer_auth.clone(),
+                },
+            )
+            .await
+            .unwrap();
+
+            assert_eq!(batch_push_info, c.exp_batch_push_info, "name: {}", c.name);
         }
     }
 }

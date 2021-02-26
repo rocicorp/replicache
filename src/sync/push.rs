@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use str_macro::str;
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-pub struct BatchPushRequest {
+pub struct PushRequest {
     #[serde(rename = "clientID")]
     pub client_id: String,
     pub mutations: Vec<Mutation>,
@@ -34,7 +34,7 @@ impl std::convert::From<db::LocalMeta<'_>> for Mutation {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct BatchPushResponse {
+pub struct PushResponse {
     // TODO: MutationInfos []MutationInfo `json:"mutationInfos,omitempty"`
 }
 
@@ -43,11 +43,11 @@ pub struct BatchPushResponse {
 pub trait Pusher {
     async fn push(
         &self,
-        push_req: &BatchPushRequest,
+        push_req: &PushRequest,
         push_url: &str,
         push_auth: &str,
         sync_id: &str,
-    ) -> Result<BatchPushResponse, PushError>;
+    ) -> Result<PushResponse, PushError>;
 }
 
 pub struct FetchPusher<'a> {
@@ -68,11 +68,11 @@ impl FetchPusher<'_> {
 impl Pusher for FetchPusher<'_> {
     async fn push(
         &self,
-        push_req: &BatchPushRequest,
+        push_req: &PushRequest,
         push_url: &str,
         push_auth: &str,
         sync_id: &str,
-    ) -> Result<BatchPushResponse, PushError> {
+    ) -> Result<PushResponse, PushError> {
         use PushError::*;
         let http_req = new_push_http_request(push_req, push_url, push_auth, sync_id)?;
         let http_resp: http::Response<String> = self
@@ -83,14 +83,14 @@ impl Pusher for FetchPusher<'_> {
         if http_resp.status() != http::StatusCode::OK {
             return Err(PushError::FetchNotOk(http_resp.status()));
         }
-        let push_resp: BatchPushResponse =
+        let push_resp: PushResponse =
             serde_json::from_str(&http_resp.body()).map_err(InvalidResponse)?;
         Ok(push_resp)
     }
 }
 
 fn new_push_http_request(
-    push_req: &BatchPushRequest,
+    push_req: &PushRequest,
     push_url: &str,
     push_auth: &str,
     sync_id: &str,
@@ -155,7 +155,7 @@ pub async fn push(
                 _ => return Err(InternalNonLocalPendingCommit),
             }
         }
-        let push_req = BatchPushRequest {
+        let push_req = PushRequest {
             client_id,
             mutations: push_mutations,
         };
@@ -213,7 +213,7 @@ mod tests {
     #[async_std::test]
     async fn test_push() {
         lazy_static! {
-            static ref PUSH_REQ: BatchPushRequest = BatchPushRequest {
+            static ref PUSH_REQ: PushRequest = PushRequest {
                 client_id: str!("client_id"),
                 mutations: vec![Mutation {
                     id: 1,
@@ -238,7 +238,7 @@ mod tests {
             pub resp_status: u16,
             pub resp_body: &'a str,
             pub exp_err: Option<&'a str>,
-            pub exp_resp: Option<BatchPushResponse>,
+            pub exp_resp: Option<PushResponse>,
         }
         let cases = [
             Case {
@@ -246,7 +246,7 @@ mod tests {
                 resp_status: 200,
                 resp_body: r#"{}"#,
                 exp_err: None,
-                exp_resp: Some(BatchPushResponse {}),
+                exp_resp: Some(PushResponse {}),
             },
             Case {
                 name: "403",
@@ -321,19 +321,19 @@ mod tests {
 
     pub struct FakePusher<'a> {
         exp_push: bool,
-        exp_push_req: Option<&'a push::BatchPushRequest>,
+        exp_push_req: Option<&'a push::PushRequest>,
         exp_push_url: &'a str,
         exp_push_auth: &'a str,
         exp_sync_id: &'a str,
 
         // We would like to write here:
-        //    result: Result<BatchPushResponse, PushError>,
+        //    result: Result<PushResponse, PushError>,
         // but pull takes &self so we can't move out of result if we did.
         // Cloning and returning result would work except for that our error
         // enums contain values that are not cloneable, eg http::Status and
         // DeserializeErr. (Or, I guess we could make pull take &mut self as another
         // solution, so long as all contained errors are Send. I think.)
-        resp: Option<push::BatchPushResponse>,
+        resp: Option<push::PushResponse>,
         err: Option<String>,
     }
 
@@ -341,11 +341,11 @@ mod tests {
     impl<'a> push::Pusher for FakePusher<'a> {
         async fn push(
             &self,
-            push_req: &push::BatchPushRequest,
+            push_req: &push::PushRequest,
             push_url: &str,
             push_auth: &str,
             sync_id: &str,
-        ) -> Result<push::BatchPushResponse, push::PushError> {
+        ) -> Result<push::PushResponse, push::PushError> {
             assert!(self.exp_push);
 
             if self.exp_push_req.is_some() {
@@ -392,8 +392,8 @@ mod tests {
 
             // Push expectations.
             pub num_pending_mutations: u32,
-            pub exp_push_req: Option<push::BatchPushRequest>,
-            pub push_result: Option<Result<push::BatchPushResponse, String>>,
+            pub exp_push_req: Option<push::PushRequest>,
+            pub push_result: Option<Result<push::PushResponse, String>>,
             pub exp_batch_push_info: Option<HttpRequestInfo>,
         }
         let cases: Vec<Case> = vec![
@@ -407,7 +407,7 @@ mod tests {
             Case {
                 name: "1 pending",
                 num_pending_mutations: 1,
-                exp_push_req: Some(push::BatchPushRequest {
+                exp_push_req: Some(push::PushRequest {
                     client_id: client_id.clone(),
                     mutations: vec![push::Mutation {
                         id: 2,
@@ -415,7 +415,7 @@ mod tests {
                         args: json!([3]),
                     }],
                 }),
-                push_result: Some(Ok(push::BatchPushResponse {})),
+                push_result: Some(Ok(push::PushResponse {})),
                 exp_batch_push_info: Some(HttpRequestInfo {
                     http_status_code: 200,
                     error_message: str!(""),
@@ -424,7 +424,7 @@ mod tests {
             Case {
                 name: "2 pending",
                 num_pending_mutations: 2,
-                exp_push_req: Some(push::BatchPushRequest {
+                exp_push_req: Some(push::PushRequest {
                     client_id: client_id.clone(),
                     mutations: vec![
                         // These mutations aren't actually added to the chain until the test
@@ -442,7 +442,7 @@ mod tests {
                         },
                     ],
                 }),
-                push_result: Some(Ok(push::BatchPushResponse {})),
+                push_result: Some(Ok(push::PushResponse {})),
                 exp_batch_push_info: Some(HttpRequestInfo {
                     http_status_code: 200,
                     error_message: str!(""),
@@ -451,7 +451,7 @@ mod tests {
             Case {
                 name: "2 mutations to push, push errors",
                 num_pending_mutations: 2,
-                exp_push_req: Some(push::BatchPushRequest {
+                exp_push_req: Some(push::PushRequest {
                     client_id: client_id.clone(),
                     mutations: vec![
                         // These mutations aren't actually added to the chain until the test

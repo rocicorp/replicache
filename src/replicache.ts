@@ -177,9 +177,8 @@ export default class Replicache implements ReadTransaction {
   onSync: ((syncing: boolean) => void) | null = null;
 
   /**
-   * This gets called when we get an HTTP unauthorized from the client view or
-   * the batch endpoint. Set this to a function that will ask your user to
-   * reauthenticate.
+   * This gets called when we get an HTTP unauthorized from the pull or push
+   * endpoint. Set this to a function that will ask your user to reauthenticate.
    */
   getDataLayerAuth:
     | (() => MaybePromise<string | null | undefined>)
@@ -564,33 +563,17 @@ export default class Replicache implements ReadTransaction {
   private async _push(maxAuthTries: number): Promise<void> {
     const pushResponse = await this._invoke('tryPush', {
       batchPushURL: this._batchURL,
-      clientViewURL: this._clientViewURL,
-      diffServerURL: this._diffServerURL,
       dataLayerAuth: this._dataLayerAuth,
-      diffServerAuth: this._diffServerAuth,
     });
 
     let reauth = false;
 
-    const {batchPushInfo, clientViewInfo} = pushResponse;
+    const {httpRequestInfo} = pushResponse;
 
-    if (batchPushInfo) {
-      reauth = checkStatus(batchPushInfo, 'batch', this._batchURL);
-      const mutationInfos = batchPushInfo.batchPushResponse?.mutationInfos;
-      if (mutationInfos != null) {
-        for (const mutationInfo of mutationInfos) {
-          console.error(
-            `MutationInfo: ID: ${mutationInfo.id}, Error: ${mutationInfo.error}`,
-          );
-        }
-      }
-    }
-
-    if (clientViewInfo) {
-      // Don't change order here. We want the side effect
-      reauth =
-        checkStatus(clientViewInfo, 'client view', this._diffServerURL) ||
-        reauth;
+    if (httpRequestInfo) {
+      reauth = checkStatus(httpRequestInfo, 'push', this._batchURL);
+      // mutationInfos support was never added to repc. We used to log all the
+      // errors here.
     }
 
     if (reauth && this.getDataLayerAuth) {
@@ -628,12 +611,12 @@ export default class Replicache implements ReadTransaction {
       diffServerURL: this._diffServerURL,
       diffServerAuth: this._diffServerAuth,
     });
-    const {clientViewInfo, syncHead, syncID} = beginPullResponse;
+    const {httpRequestInfo, syncHead, syncID} = beginPullResponse;
 
     let reauth = false;
 
-    if (clientViewInfo) {
-      reauth = checkStatus(clientViewInfo, 'client view', this._diffServerURL);
+    if (httpRequestInfo) {
+      reauth = checkStatus(httpRequestInfo, 'pull', this._diffServerURL);
     }
 
     if (reauth && this.getDataLayerAuth) {
@@ -884,13 +867,13 @@ export default class Replicache implements ReadTransaction {
 
 function checkStatus(
   data: {httpStatusCode: number; errorMessage: string},
-  serverName: string,
+  verb: string,
   serverURL: string,
 ): boolean {
   const {httpStatusCode, errorMessage} = data;
   if (errorMessage || httpStatusCode >= 400) {
     console.error(
-      `Got error response from ${serverName} server (${serverURL}): ${httpStatusCode}` +
+      `Got error response from server (${serverURL}) doing ${verb}: ${httpStatusCode}` +
         (errorMessage ? `: ${errorMessage}` : ''),
     );
   }

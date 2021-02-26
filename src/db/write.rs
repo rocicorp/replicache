@@ -25,7 +25,7 @@ struct LocalMeta {
 
 struct SnapshotMeta {
     last_mutation_id: u64,
-    server_state_id: String,
+    cookie: String,
 }
 
 pub struct Write<'a> {
@@ -51,7 +51,7 @@ pub async fn init_db(dag_write: dag::Write<'_>, head_name: &str) -> Result<Strin
         basis: None,
         meta: Meta::Snapshot(SnapshotMeta {
             last_mutation_id: 0,
-            server_state_id: str!(""),
+            cookie: str!(""),
         }),
         indexes: HashMap::new(),
     };
@@ -87,7 +87,7 @@ impl<'a> Write<'a> {
     pub async fn new_snapshot(
         whence: Whence,
         last_mutation_id: u64,
-        server_state_id: String,
+        cookie: String,
         dag_write: dag::Write<'a>,
         indexes: HashMap<String, index::Index>,
     ) -> Result<Write<'a>, ReadCommitError> {
@@ -98,7 +98,7 @@ impl<'a> Write<'a> {
             map,
             meta: Meta::Snapshot(SnapshotMeta {
                 last_mutation_id,
-                server_state_id,
+                cookie,
             }),
             indexes,
         })
@@ -379,13 +379,13 @@ impl<'a> Write<'a> {
             Meta::Snapshot(meta) => {
                 let SnapshotMeta {
                     last_mutation_id,
-                    server_state_id,
+                    cookie,
                 } = meta;
 
                 commit::Commit::new_snapshot(
                     basis_hash.as_deref(),
                     *last_mutation_id,
-                    &server_state_id,
+                    &cookie,
                     &value_hash,
                     &index_metas,
                 )
@@ -607,7 +607,7 @@ mod tests {
         let mut w = Write::new_snapshot(
             Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
             1,
-            str!("ssid"),
+            str!("cookie"),
             ds.write(LogContext::new()).await.unwrap(),
             HashMap::new(),
         )

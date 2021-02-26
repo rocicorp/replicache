@@ -35,12 +35,12 @@ pub async fn add_sync_snapshot<'a>(
     let mut sync_chain: Chain = vec![];
 
     // Add sync snapshot.
-    let ssid = format!("sync_server_state_id_{}", chain.len());
+    let cookie = format!("sync_cookie_{}", chain.len());
     let indexes = db::read_indexes(&chain[take_indexes_from]);
     let w = db::Write::new_snapshot(
         Whence::Hash(base_snapshot.chunk().hash().to_string()),
         base_snapshot.mutation_id(),
-        ssid,
+        cookie,
         store.write(lc.clone()).await.unwrap(),
         indexes,
     )

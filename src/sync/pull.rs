@@ -15,7 +15,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::hash_map::HashMap;
 use std::default::Default;
 use std::fmt::Debug;
-use str_macro::str;
 
 pub async fn begin_pull(
     client_id: String,
@@ -30,8 +29,6 @@ pub async fn begin_pull(
     let BeginTryPullRequest {
         pull_url,
         pull_auth,
-        diff_server_url,
-        diff_server_auth,
     } = begin_pull_req;
 
     let dag_read = store.read(lc.clone()).await.map_err(ReadError)?;
@@ -47,21 +44,19 @@ pub async fn begin_pull(
     // Close read transaction.
     drop(dag_read);
 
-    let (base_last_mutation_id, base_state_id) =
+    let (base_last_mutation_id, base_cookie) =
         Commit::snapshot_meta_parts(&base_snapshot).map_err(InternalProgrammerError)?;
 
     let pull_req = PullRequest {
-        pull_auth,
-        pull_url,
         client_id,
-        base_state_id: base_state_id.clone(),
+        cookie: base_cookie.clone(),
         last_mutation_id: base_snapshot.mutation_id(),
         version: 3,
     };
     debug!(lc, "Starting pull...");
     let pull_timer = rlog::Timer::new().map_err(InternalTimerError)?;
     let pull_resp = puller
-        .pull(&pull_req, &diff_server_url, &diff_server_auth, &sync_id)
+        .pull(&pull_req, &pull_url, &pull_auth, &sync_id)
         .await
         .map_err(PullFailed)?;
     debug!(
@@ -70,20 +65,13 @@ pub async fn begin_pull(
         pull_timer.elapsed_ms()
     );
 
-    if pull_resp.state_id.is_empty() {
-        return Err(MissingStateID);
-    } else if pull_resp.state_id == base_state_id {
-        let sync_head = str!("");
-        return Ok(BeginTryPullResponse {
-            http_request_info: pull_resp.http_request_info,
-            sync_head,
-            sync_id,
-        });
-    }
-    // Note: if last mutation ids are equal we don't reject it: the server could
+    // If last mutation ids are equal we don't reject it: the server could
     // have new state that didn't originate from the client.
     if pull_resp.last_mutation_id < base_last_mutation_id {
-        return Err(TimeTravelProhibited(format!("base state lastMutationID {} is > than client view lastMutationID {}; ignoring client view", base_last_mutation_id, pull_resp.last_mutation_id)));
+        return Err(TimeTravelProhibited(format!(
+            "base lastMutationID {} is > than client view lastMutationID {}; ignoring client view",
+            base_last_mutation_id, pull_resp.last_mutation_id
+        )));
     }
 
     // It is possible that another sync completed while we were pulling. Ensure
@@ -121,7 +109,7 @@ pub async fn begin_pull(
     let mut db_write = db::Write::new_snapshot(
         Whence::Hash(base_snapshot.chunk().hash().to_string()),
         pull_resp.last_mutation_id,
-        pull_resp.state_id.clone(),
+        pull_resp.cookie.clone(),
         dag_write,
         HashMap::new(), // Note: created with no indexes
     )
@@ -133,7 +121,6 @@ pub async fn begin_pull(
     //      only a small diff from what we want.
     for m in index_records.iter() {
         let def = &m.definition;
-        println!("Got {:?}\n", def);
         db_write
             .create_index(
                 lc.clone(),
@@ -258,31 +245,24 @@ pub async fn maybe_end_try_pull(
     })
 }
 
+// pull_versions
+// 0 (current): direct pull from data layer
 #[derive(Debug, Default, PartialEq, Serialize)]
 #[cfg_attr(test, derive(Clone))]
 pub struct PullRequest {
-    #[serde(rename = "pullAuth")]
-    pub pull_auth: String,
-    #[serde(rename = "pullURL")]
-    pub pull_url: String,
     #[serde(rename = "clientID")]
     pub client_id: String,
-    #[serde(rename = "baseStateID")]
-    pub base_state_id: String,
+    pub cookie: String,
     #[serde(rename = "lastMutationID")]
     pub last_mutation_id: u64,
-
     pub version: u32,
 }
 
 #[derive(Deserialize)]
 #[cfg_attr(test, derive(Clone, Debug, PartialEq))]
 pub struct PullResponse {
-    #[serde(rename = "stateID")]
-    #[allow(dead_code)]
-    pub state_id: String,
+    pub cookie: String,
     #[serde(rename = "lastMutationID")]
-    #[allow(dead_code)]
     pub last_mutation_id: u64,
     pub patch: Vec<patch::Operation>,
     #[serde(rename = "httpRequestInfo")]
@@ -295,8 +275,8 @@ pub trait Puller {
     async fn pull(
         &self,
         pull_req: &PullRequest,
-        diff_server_url: &str,
-        diff_server_auth: &str,
+        ur: &str,
+        auth: &str,
         sync_id: &str,
     ) -> Result<PullResponse, PullError>;
 }
@@ -316,12 +296,12 @@ impl Puller for FetchPuller<'_> {
     async fn pull(
         &self,
         pull_req: &PullRequest,
-        diff_server_url: &str,
-        diff_server_auth: &str,
+        url: &str,
+        auth: &str,
         sync_id: &str,
     ) -> Result<PullResponse, PullError> {
         use PullError::*;
-        let http_req = new_pull_http_request(pull_req, diff_server_url, diff_server_auth, sync_id)?;
+        let http_req = new_pull_http_request(pull_req, url, auth, sync_id)?;
         let http_resp: http::Response<String> = self
             .fetch_client
             .request(http_req)
@@ -339,8 +319,8 @@ impl Puller for FetchPuller<'_> {
 // Pulled into a helper fn because we use it integration tests.
 pub fn new_pull_http_request(
     pull_req: &PullRequest,
-    diff_server_url: &str,
-    diff_server_auth: &str,
+    url: &str,
+    auth: &str,
     sync_id: &str,
 ) -> Result<http::Request<String>, PullError> {
     use PullError::*;
@@ -348,9 +328,9 @@ pub fn new_pull_http_request(
     let builder = http::request::Builder::new();
     let http_req = builder
         .method("POST")
-        .uri(diff_server_url)
+        .uri(url)
         .header("Content-type", "application/json")
-        .header("Authorization", diff_server_auth)
+        .header("Authorization", auth)
         .header("X-Replicache-SyncID", sync_id)
         .body(body)
         .map_err(InvalidRequest)?;
@@ -395,17 +375,15 @@ mod tests {
     async fn test_pull_http_part() {
         lazy_static! {
             static ref PULL_REQ: PullRequest = PullRequest {
-                pull_auth: str!("pull-auth"),
-                pull_url: str!("pull-url"),
                 client_id: str!("client_id"),
-                base_state_id: str!("base-state-id"),
+                cookie: str!("cookie"),
                 last_mutation_id: 123,
                 version: 3,
             };
             // EXP_BODY must be 'static to be used in HTTP handler closure.
             static ref EXP_BODY: String = serde_json::to_string(&*PULL_REQ).unwrap();
         }
-        let diff_server_auth = "diff-server-auth";
+        let pull_auth = "pull-auth";
         let sync_id = "sync_id";
         let path = "/pull";
 
@@ -421,14 +399,14 @@ mod tests {
                 name: "200",
                 resp_status: 200,
                 resp_body: r#"{
-                    "stateID": "1",
+                    "cookie": "1",
                     "lastMutationID": 2,
                     "patch": [{"op":"replace","path":"","valueString":"{}"}],
                     "httpRequestInfo": { "httpStatusCode": 200, "errorMessage": "" }
                 }"#,
                 exp_err: None,
                 exp_resp: Some(PullResponse {
-                    state_id: str!("1"),
+                    cookie: str!("1"),
                     last_mutation_id: 2,
                     patch: vec![Operation {
                         op: str!("replace"),
@@ -464,10 +442,7 @@ mod tests {
             let body = c.resp_body;
             app.at(path)
                 .post(move |mut req: tide::Request<()>| async move {
-                    assert_eq!(
-                        req.header("Authorization").unwrap().as_str(),
-                        diff_server_auth
-                    );
+                    assert_eq!(req.header("Authorization").unwrap().as_str(), pull_auth);
                     assert_eq!(
                         req.header("Content-Type").unwrap().as_str(),
                         "application/json"
@@ -487,7 +462,7 @@ mod tests {
                 .pull(
                     &PULL_REQ,
                     &format!("http://{}{}", addr, path),
-                    diff_server_auth,
+                    pull_auth,
                     sync_id,
                 )
                 .await;
@@ -538,23 +513,20 @@ mod tests {
         add_index_change(&mut chain, &store).await;
         let starting_num_commits = chain.len();
         let base_snapshot = &chain[1];
-        let (base_last_mutation_id, base_server_state_id) =
+        let (base_last_mutation_id, base_cookie) =
             Commit::snapshot_meta_parts(base_snapshot).unwrap();
 
         let sync_id = str!("sync_id");
         let client_id = str!("test_client_id");
         let pull_auth = str!("pull_auth");
-
         let pull_url = str!("pull_url");
-        let diff_server_url = str!("diff_server_url");
-        let diff_server_auth = str!("diff_server_auth");
 
         let good_http_request_info = HttpRequestInfo {
             http_status_code: 200,
             error_message: str!(""),
         };
         let good_pull_resp = PullResponse {
-            state_id: str!("new_state_id"),
+            cookie: str!("new_cookie"),
             last_mutation_id: 10,
             patch: vec![
                 Operation {
@@ -573,7 +545,7 @@ mod tests {
         let good_pull_resp_value_map = map!("/new" => "\"value\"");
 
         struct ExpCommit<'a> {
-            state_id: String,
+            cookie: String,
             last_mutation_id: u64,
             value_map: HashMap<&'a str, &'a str>,
             indexes: Vec<String>,
@@ -581,23 +553,16 @@ mod tests {
 
         struct Case<'a> {
             pub name: &'a str,
-
-            // Push expectations.
             pub num_pending_mutations: u32,
-
-            // Pull expectations.
             pub pull_result: Result<PullResponse, String>,
-
             // BeginPull expectations.
             pub exp_err: Option<&'a str>,
             pub exp_new_sync_head: Option<ExpCommit<'a>>,
         }
 
         let exp_pull_req = PullRequest {
-            pull_auth: pull_auth.clone(),
-            pull_url: pull_url.clone(),
             client_id: client_id.clone(),
-            base_state_id: base_server_state_id.clone(),
+            cookie: base_cookie.clone(),
             last_mutation_id: base_last_mutation_id,
             version: 3,
         };
@@ -609,7 +574,7 @@ mod tests {
                 pull_result: Ok(good_pull_resp.clone()),
                 exp_err: None,
                 exp_new_sync_head: Some(ExpCommit {
-                    state_id: str!("new_state_id"),
+                    cookie: str!("new_cookie"),
                     last_mutation_id: 10,
                     value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string()],
@@ -624,7 +589,7 @@ mod tests {
                 }),
                 exp_err: None,
                 exp_new_sync_head: Some(ExpCommit {
-                    state_id: str!("new_state_id"),
+                    cookie: str!("new_cookie"),
                     last_mutation_id: 2,
                     value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string(), 4.to_string()],
@@ -639,7 +604,7 @@ mod tests {
                 }),
                 exp_err: None,
                 exp_new_sync_head: Some(ExpCommit {
-                    state_id: str!("new_state_id"),
+                    cookie: str!("new_cookie"),
                     last_mutation_id: 1,
                     value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string()],
@@ -651,7 +616,7 @@ mod tests {
                 pull_result: Ok(good_pull_resp.clone()),
                 exp_err: None,
                 exp_new_sync_head: Some(ExpCommit {
-                    state_id: str!("new_state_id"),
+                    cookie: str!("new_cookie"),
                     last_mutation_id: 10,
                     value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string(), 4.to_string(), 6.to_string()],
@@ -666,45 +631,32 @@ mod tests {
                 }),
                 exp_err: None,
                 exp_new_sync_head: Some(ExpCommit {
-                    state_id: str!("new_state_id"),
+                    cookie: str!("new_cookie"),
                     last_mutation_id: 2,
                     value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string(), 4.to_string()],
                 }),
             },
             Case {
-                name: "2 mutations to push, pulls new state -> beginpull succeeds w/synchead set",
-                num_pending_mutations: 2,
-                pull_result: Ok(good_pull_resp.clone()),
-                exp_err: None,
-                exp_new_sync_head: Some(ExpCommit {
-                    state_id: str!("new_state_id"),
-                    last_mutation_id: 10,
-                    value_map: good_pull_resp_value_map.clone(),
-                    indexes: vec![2.to_string(), 4.to_string(), 6.to_string()],
-                }),
-            },
-
-            // TODO: add test for same state id but later mutation id. Right now we treat
-            // it as a nop because the state id does not change, but probably we should treat
-            // it like success and complete the sync. Current behavior mirrors the (probably
-            // incorrect?) go behavior.
-            Case {
-                name: "nop push, pulls same state -> beginpull succeeds with no synchead",
+                name: "pulls different data with same cookie -> beginpull succeeds w/synchead set",
                 num_pending_mutations: 0,
                 pull_result: Ok(PullResponse {
-                    state_id: base_server_state_id.clone(),
+                    cookie: base_cookie.clone(),
                     last_mutation_id: base_last_mutation_id,
-                    patch: vec![],
+                    patch: good_pull_resp.patch.clone(),
                     http_request_info: good_http_request_info.clone(),
                 }),
                 exp_err: None,
-                exp_new_sync_head: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    cookie: base_cookie.clone(),
+                    last_mutation_id: base_last_mutation_id,
+                    value_map: good_pull_resp_value_map.clone(),
+                    indexes: vec![2.to_string()],
+                }),
             },
             Case {
-                name: "nop push, pulls new state w/lesser mutation id -> beginpull errors",
+                name: "pulls new state w/lesser mutation id -> beginpull errors",
                 num_pending_mutations: 0,
-
                 pull_result: Ok(PullResponse {
                     last_mutation_id: 0,
                     ..good_pull_resp.clone()
@@ -713,17 +665,7 @@ mod tests {
                 exp_new_sync_head: None,
             },
             Case {
-                name: "nop push, pulls new state w/empty state id -> beginpull errors",
-                num_pending_mutations: 0,
-                pull_result: Ok(PullResponse {
-                    state_id: str!(""),
-                    ..good_pull_resp.clone()
-                }),
-                exp_err: Some("MissingStateID"),
-                exp_new_sync_head: None,
-            },
-            Case {
-                name: "nop push, pull 500s -> beginpull errors",
+                name: "pull 500s -> beginpull errors",
                 num_pending_mutations: 0,
                 pull_result: Err(str!("FetchNotOk(500)")),
                 exp_err: Some("FetchNotOk(500)"),
@@ -788,8 +730,8 @@ mod tests {
             };
             let fake_puller = FakePuller {
                 exp_pull_req: &exp_pull_req.clone(),
-                exp_diff_server_url: &diff_server_url,
-                exp_diff_server_auth: &diff_server_auth,
+                exp_pull_url: &pull_url.clone(),
+                exp_pull_auth: &pull_auth.clone(),
                 exp_sync_id: &sync_id,
                 resp: pull_resp,
                 err: pull_err,
@@ -798,8 +740,6 @@ mod tests {
             let begin_try_pull_req = BeginTryPullRequest {
                 pull_url: pull_url.clone(),
                 pull_auth: pull_auth.clone(),
-                diff_server_url: diff_server_url.clone(),
-                diff_server_auth: diff_server_auth.clone(),
             };
 
             let result = begin_pull(
@@ -827,10 +767,10 @@ mod tests {
                 let sync_head =
                     Commit::from_chunk(read.get_chunk(&sync_head_hash).await.unwrap().unwrap())
                         .unwrap();
-                let (got_last_mutation_id, got_server_state_id) =
+                let (got_last_mutation_id, got_cookie) =
                     Commit::snapshot_meta_parts(&sync_head).unwrap();
                 assert_eq!(exp_sync_head.last_mutation_id, got_last_mutation_id);
-                assert_eq!(exp_sync_head.state_id, got_server_state_id);
+                assert_eq!(exp_sync_head.cookie, got_cookie);
                 // Check the value is what's expected.
                 let (_, _, map) = db::read_commit(
                     db::Whence::Hash(sync_head.chunk().hash().to_string()),
@@ -933,8 +873,8 @@ mod tests {
 
     pub struct FakePuller<'a> {
         exp_pull_req: &'a PullRequest,
-        exp_diff_server_url: &'a str,
-        exp_diff_server_auth: &'a str,
+        exp_pull_url: &'a str,
+        exp_pull_auth: &'a str,
         exp_sync_id: &'a str,
 
         // We would like to write here:
@@ -953,13 +893,13 @@ mod tests {
         async fn pull(
             &self,
             pull_req: &PullRequest,
-            diff_server_url: &str,
-            diff_server_auth: &str,
+            url: &str,
+            auth: &str,
             sync_id: &str,
         ) -> Result<PullResponse, PullError> {
             assert_eq!(self.exp_pull_req, pull_req);
-            assert_eq!(self.exp_diff_server_url, diff_server_url);
-            assert_eq!(self.exp_diff_server_auth, diff_server_auth);
+            assert_eq!(self.exp_pull_url, url);
+            assert_eq!(self.exp_pull_auth, auth);
             assert_eq!(self.exp_sync_id, sync_id);
 
             match &self.err {
@@ -1042,7 +982,7 @@ mod tests {
             let w = db::Write::new_snapshot(
                 db::Whence::Hash(chain[0].chunk().hash().to_string()),
                 0,
-                str!("sync_ssid"),
+                str!("sync_cookie"),
                 dag_write,
                 db::read_indexes(&chain[0]),
             )

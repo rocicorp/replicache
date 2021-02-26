@@ -93,11 +93,11 @@ pub async fn add_snapshot<'a>(
     map: Option<Vec<String>>,
 ) -> &'a mut Chain {
     assert!(chain.len() > 0);
-    let ssid = format!("server_state_id_{}", chain.len());
+    let cookie = format!("cookie_{}", chain.len());
     let mut w = Write::new_snapshot(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
         chain[chain.len() - 1].next_mutation_id(),
-        ssid,
+        cookie,
         store.write(LogContext::new()).await.unwrap(),
         HashMap::new(),
     )

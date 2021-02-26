@@ -201,7 +201,7 @@ mod tests {
             let mut db_write = db::Write::new_snapshot(
                 db::Whence::Hash(chain[0].chunk().hash().to_string()),
                 1,
-                str!("ssid"),
+                str!("cookie"),
                 dag_write,
                 db::read_indexes(&chain[0]),
             )

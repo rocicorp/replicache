@@ -48,12 +48,6 @@ pub struct BeginTryPullRequest {
     pub pull_url: String,
     #[serde(rename = "pullAuth")]
     pub pull_auth: String,
-    // TODO: Remove
-    #[serde(rename = "diffServerURL")]
-    pub diff_server_url: String,
-    // TODO: Remove
-    #[serde(rename = "diffServerAuth")]
-    pub diff_server_auth: String,
 }
 
 #[derive(Serialize)]
@@ -104,7 +98,6 @@ pub enum BeginTryPullError {
     InternalTimerError(rlog::TimerError),
     LockError(dag::Error),
     MainHeadDisappeared,
-    MissingStateID,
     NoBaseSnapshot(db::BaseSnapshotError),
     OverlappingSyncsJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
     PatchFailed(patch::PatchError),

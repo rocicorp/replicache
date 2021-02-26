@@ -70,14 +70,14 @@ impl Commit {
     pub fn new_snapshot(
         basis_hash: Option<&str>,
         last_mutation_id: u64,
-        server_state_id: &str,
+        cookie: &str,
         value_hash: &str,
         indexes: &[IndexRecord],
     ) -> Commit {
         let mut builder = FlatBufferBuilder::default();
         let snapshot_meta_args = &commit_fb::SnapshotMetaArgs {
             last_mutation_id,
-            server_state_id: builder.create_string(server_state_id).into(),
+            cookie: builder.create_string(cookie).into(),
         };
         let snapshot_meta = commit_fb::SnapshotMeta::create(&mut builder, snapshot_meta_args);
         Commit::new_impl(
@@ -243,9 +243,7 @@ impl Commit {
     fn validate_snapshot_meta(snapshot_meta: commit_fb::SnapshotMeta) -> Result<(), LoadError> {
         use LoadError::*;
         // zero is allowed for last_mutation_id (for the first snapshot)
-        snapshot_meta
-            .server_state_id()
-            .ok_or(MissingServerStateID)?;
+        snapshot_meta.cookie().ok_or(MissingCookie)?;
         Ok(())
     }
 
@@ -392,12 +390,10 @@ impl Commit {
         Ok(commits)
     }
 
-    // Parts are (last_mutation_id, server_state_id).
+    // Parts are (last_mutation_id, cookie).
     pub fn snapshot_meta_parts(c: &Commit) -> Result<(u64, String), InternalProgrammerError> {
         match c.meta().typed() {
-            MetaTyped::Snapshot(sm) => {
-                Ok((sm.last_mutation_id(), sm.server_state_id().to_string()))
-            }
+            MetaTyped::Snapshot(sm) => Ok((sm.last_mutation_id(), sm.cookie().to_string())),
             _ => Err(InternalProgrammerError::WrongType(str!(
                 "Snapshot meta expected"
             ))),
@@ -503,8 +499,8 @@ impl<'a> SnapshotMeta<'a> {
         self.fb.last_mutation_id()
     }
 
-    pub fn server_state_id(&self) -> &str {
-        self.fb.server_state_id().unwrap()
+    pub fn cookie(&self) -> &str {
+        self.fb.cookie().unwrap()
     }
 }
 
@@ -525,9 +521,9 @@ pub struct IndexDefinition {
 
 #[derive(Debug, PartialEq)]
 pub enum LoadError {
+    MissingCookie,
     MissingMutatorName,
     MissingMutatorArgsJSON,
-    MissingServerStateID,
     MissingTyped,
     MissingMeta,
     MissingValueHash,
@@ -825,7 +821,7 @@ mod tests {
                 &["", ""],
                 None,
             ),
-            Err(LoadError::MissingServerStateID),
+            Err(LoadError::MissingCookie),
         );
 
         for basis_hash in &[None, Some(""), Some("hash")] {
@@ -882,7 +878,7 @@ mod tests {
 
         let snapshot = Commit::from_chunk(make_commit(
             Some(Box::new(|b: &mut FlatBufferBuilder| {
-                make_snapshot_meta(b, 2, "server_state_id 2".into())
+                make_snapshot_meta(b, 2, "cookie 2".into())
             })),
             "basis_hash 2".into(),
             "value_hash 2".into(),
@@ -894,7 +890,7 @@ mod tests {
         match snapshot.meta().typed() {
             MetaTyped::Snapshot(sm) => {
                 assert_eq!(sm.last_mutation_id(), 2);
-                assert_eq!(sm.server_state_id(), "server_state_id 2");
+                assert_eq!(sm.cookie(), "cookie 2");
             }
             _ => assert!(false),
         }
@@ -1024,14 +1020,14 @@ mod tests {
     fn make_snapshot_meta(
         builder: &mut FlatBufferBuilder,
         last_mutation_id: u64,
-        server_state_id: Option<&str>,
+        cookie: Option<&str>,
     ) -> (
         commit_fb::MetaTyped,
         flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
     ) {
         let args = &commit_fb::SnapshotMetaArgs {
             last_mutation_id,
-            server_state_id: server_state_id.map(|s| builder.create_string(s)),
+            cookie: cookie.map(|s| builder.create_string(s)),
         };
         let snapshot_meta = commit_fb::SnapshotMeta::create(builder, args);
         (

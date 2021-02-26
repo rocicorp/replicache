@@ -327,14 +327,14 @@ pub mod commit {
         ) -> flatbuffers::WIPOffset<SnapshotMeta<'bldr>> {
             let mut builder = SnapshotMetaBuilder::new(_fbb);
             builder.add_last_mutation_id(args.last_mutation_id);
-            if let Some(x) = args.server_state_id {
-                builder.add_server_state_id(x);
+            if let Some(x) = args.cookie {
+                builder.add_cookie(x);
             }
             builder.finish()
         }
 
         pub const VT_LAST_MUTATION_ID: flatbuffers::VOffsetT = 4;
-        pub const VT_SERVER_STATE_ID: flatbuffers::VOffsetT = 6;
+        pub const VT_COOKIE: flatbuffers::VOffsetT = 6;
 
         #[inline]
         pub fn last_mutation_id(&self) -> u64 {
@@ -343,22 +343,22 @@ pub mod commit {
                 .unwrap()
         }
         #[inline]
-        pub fn server_state_id(&self) -> Option<&'a str> {
+        pub fn cookie(&self) -> Option<&'a str> {
             self._tab
-                .get::<flatbuffers::ForwardsUOffset<&str>>(SnapshotMeta::VT_SERVER_STATE_ID, None)
+                .get::<flatbuffers::ForwardsUOffset<&str>>(SnapshotMeta::VT_COOKIE, None)
         }
     }
 
     pub struct SnapshotMetaArgs<'a> {
         pub last_mutation_id: u64,
-        pub server_state_id: Option<flatbuffers::WIPOffset<&'a str>>,
+        pub cookie: Option<flatbuffers::WIPOffset<&'a str>>,
     }
     impl<'a> Default for SnapshotMetaArgs<'a> {
         #[inline]
         fn default() -> Self {
             SnapshotMetaArgs {
                 last_mutation_id: 0,
-                server_state_id: None,
+                cookie: None,
             }
         }
     }
@@ -373,11 +373,9 @@ pub mod commit {
                 .push_slot::<u64>(SnapshotMeta::VT_LAST_MUTATION_ID, last_mutation_id, 0);
         }
         #[inline]
-        pub fn add_server_state_id(&mut self, server_state_id: flatbuffers::WIPOffset<&'b str>) {
-            self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
-                SnapshotMeta::VT_SERVER_STATE_ID,
-                server_state_id,
-            );
+        pub fn add_cookie(&mut self, cookie: flatbuffers::WIPOffset<&'b str>) {
+            self.fbb_
+                .push_slot_always::<flatbuffers::WIPOffset<_>>(SnapshotMeta::VT_COOKIE, cookie);
         }
         #[inline]
         pub fn new(

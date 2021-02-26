@@ -158,7 +158,7 @@ pub async fn begin_pull(
     })
 }
 
-pub async fn maybe_end_pull(
+pub async fn maybe_end_try_pull(
     store: &dag::Store,
     lc: LogContext,
     maybe_end_pull_req: MaybeEndTryPullRequest,
@@ -366,7 +366,6 @@ pub enum PullError {
     SerializeRequestError(serde_json::error::Error),
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod tests {
     use super::super::*;
@@ -376,18 +375,22 @@ mod tests {
     use crate::db;
     use crate::db::test_helpers::*;
     use crate::db::{Commit, Whence, DEFAULT_HEAD_NAME};
+    #[cfg(not(target_arch = "wasm32"))]
     use crate::fetch;
     use crate::kv::memstore::MemStore;
     use crate::util::rlog::LogContext;
     use crate::util::to_debug;
+    #[cfg(not(target_arch = "wasm32"))]
     use async_std::net::TcpListener;
     use async_trait::async_trait;
     use itertools::Itertools;
     use std::clone::Clone;
     use std::collections::HashMap;
     use str_macro::str;
+    #[cfg(not(target_arch = "wasm32"))]
     use tide::{Body, Response};
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[async_std::test]
     async fn test_pull_http_part() {
         lazy_static! {
@@ -975,7 +978,7 @@ mod tests {
     }
 
     #[async_std::test]
-    async fn test_maybe_end_pull() {
+    async fn test_maybe_end_try_pull() {
         struct Case<'a> {
             pub name: &'a str,
             pub num_pending: usize,
@@ -1078,7 +1081,7 @@ mod tests {
                 sync_id: str!("sync_id"),
                 sync_head: sync_head.clone(),
             };
-            let result = maybe_end_pull(&store, LogContext::new(), req).await;
+            let result = maybe_end_try_pull(&store, LogContext::new(), req).await;
 
             match c.exp_err {
                 Some(e) => assert!(to_debug(result.unwrap_err()).contains(e)),

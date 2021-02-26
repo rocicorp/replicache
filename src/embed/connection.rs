@@ -642,7 +642,7 @@ async fn do_maybe_end_try_pull<'a, 'b>(
     req: sync::MaybeEndTryPullRequest,
 ) -> Result<sync::MaybeEndTryPullResponse, sync::MaybeEndTryPullError> {
     ctx.lc.add_context("sync_id", &req.sync_id);
-    sync::maybe_end_pull(ctx.store, ctx.lc.clone(), req).await
+    sync::maybe_end_try_pull(ctx.store, ctx.lc.clone(), req).await
 }
 
 async fn do_set_log_level<'a, 'b>(

@@ -669,9 +669,9 @@ async fn do_try_push<'a, 'b>(
     let sync_id = sync::sync_id::new(&ctx.client_id);
     ctx.lc.add_context("sync_id", &sync_id);
 
-    let batch_push_info =
+    let http_request_info =
         sync::push(&sync_id, ctx.store, ctx.lc, ctx.client_id, &pusher, req).await?;
-    Ok(sync::TryPushResponse { batch_push_info })
+    Ok(sync::TryPushResponse { http_request_info })
 }
 
 async fn do_begin_try_pull<'a, 'b>(

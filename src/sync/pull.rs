@@ -75,7 +75,7 @@ pub async fn begin_pull(
     } else if pull_resp.state_id == base_state_id {
         let sync_head = str!("");
         return Ok(BeginTryPullResponse {
-            client_view_info: pull_resp.client_view_info,
+            http_request_info: pull_resp.http_request_info,
             sync_head,
             sync_id,
         });
@@ -152,7 +152,7 @@ pub async fn begin_pull(
     let commit_hash = db_write.commit(SYNC_HEAD_NAME).await.map_err(CommitError)?;
 
     Ok(BeginTryPullResponse {
-        client_view_info: pull_resp.client_view_info,
+        http_request_info: pull_resp.http_request_info,
         sync_head: commit_hash,
         sync_id,
     })
@@ -275,7 +275,8 @@ pub struct PullRequest {
     pub version: u32,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+#[derive(Deserialize)]
+#[cfg_attr(test, derive(Clone, Debug, PartialEq))]
 pub struct PullResponse {
     #[serde(rename = "stateID")]
     #[allow(dead_code)]
@@ -284,8 +285,8 @@ pub struct PullResponse {
     #[allow(dead_code)]
     pub last_mutation_id: u64,
     pub patch: Vec<patch::Operation>,
-    #[serde(rename = "clientViewInfo")]
-    pub client_view_info: ClientViewInfo,
+    #[serde(rename = "httpRequestInfo")]
+    pub http_request_info: HttpRequestInfo,
 }
 
 // We define this trait so we can provide a fake implementation for testing.
@@ -416,7 +417,12 @@ mod tests {
             Case {
                 name: "200",
                 resp_status: 200,
-                resp_body: r#"{"stateID": "1", "lastMutationID": 2, "patch": [{"op":"replace","path":"","valueString":"{}"}], "clientViewInfo": { "httpStatusCode": 200, "errorMessage": "" }}"#,
+                resp_body: r#"{
+                    "stateID": "1",
+                    "lastMutationID": 2,
+                    "patch": [{"op":"replace","path":"","valueString":"{}"}],
+                    "httpRequestInfo": { "httpStatusCode": 200, "errorMessage": "" }
+                }"#,
                 exp_err: None,
                 exp_resp: Some(PullResponse {
                     state_id: str!("1"),
@@ -426,7 +432,7 @@ mod tests {
                         path: str!(""),
                         value_string: str!("{}"),
                     }],
-                    client_view_info: ClientViewInfo {
+                    http_request_info: HttpRequestInfo {
                         http_status_code: 200,
                         error_message: str!(""),
                     },
@@ -540,7 +546,7 @@ mod tests {
         let diff_server_url = str!("diff_server_url");
         let diff_server_auth = str!("diff_server_auth");
 
-        let good_client_view_info = ClientViewInfo {
+        let good_http_request_info = HttpRequestInfo {
             http_status_code: 200,
             error_message: str!(""),
         };
@@ -559,7 +565,7 @@ mod tests {
                     value_string: str!("\"value\""),
                 },
             ],
-            client_view_info: good_client_view_info.clone(),
+            http_request_info: good_http_request_info.clone(),
         };
         let good_pull_resp_value_map = map!("/new" => "\"value\"");
 
@@ -687,7 +693,7 @@ mod tests {
                     state_id: base_server_state_id.clone(),
                     last_mutation_id: base_last_mutation_id,
                     patch: vec![],
-                    client_view_info: good_client_view_info.clone(),
+                    http_request_info: good_http_request_info.clone(),
                 }),
                 exp_err: None,
                 exp_new_sync_head: None,
@@ -914,8 +920,8 @@ mod tests {
             if c.exp_err.is_none() {
                 if let Ok(pull_response) = &c.pull_result {
                     assert_eq!(
-                        pull_response.client_view_info,
-                        got_resp.unwrap().client_view_info
+                        pull_response.http_request_info,
+                        got_resp.unwrap().http_request_info
                     );
                 }
             }

@@ -1,22 +1,12 @@
 use serde::{Deserialize, Serialize};
-use std::default::Default;
 
 use crate::{dag, db, util::rlog};
 
 use super::{patch, PullError};
 
-#[derive(Debug, Deserialize, Serialize)]
-#[cfg_attr(test, derive(PartialEq))]
-pub struct BatchPushInfo {
-    #[serde(rename = "httpStatusCode")]
-    pub http_status_code: u16,
-    #[serde(rename = "errorMessage")]
-    pub error_message: String,
-    // TODO BatchPushResponse BatchPushResponse `json:"batchPushResponse"`
-}
-
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub struct ClientViewInfo {
+#[derive(Serialize, Deserialize)]
+#[cfg_attr(test, derive(Clone, Debug, PartialEq))]
+pub struct HttpRequestInfo {
     #[serde(rename = "httpStatusCode")]
     pub http_status_code: u16,
     #[serde(rename = "errorMessage")]
@@ -64,10 +54,11 @@ pub struct BeginTryPullRequest {
     pub diff_server_auth: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize)]
+#[cfg_attr(test, derive(Debug))]
 pub struct BeginTryPullResponse {
-    #[serde(rename = "clientViewInfo")]
-    pub client_view_info: ClientViewInfo,
+    #[serde(rename = "httpRequestInfo")]
+    pub http_request_info: HttpRequestInfo,
     #[serde(rename = "syncHead")]
     pub sync_head: String,
     #[serde(rename = "syncID")]
@@ -82,11 +73,11 @@ pub struct TryPushRequest {
     pub data_layer_auth: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize)]
 pub struct TryPushResponse {
-    #[serde(rename = "batchPushInfo")]
+    #[serde(rename = "httpRequestInfo")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub batch_push_info: Option<BatchPushInfo>,
+    pub http_request_info: Option<HttpRequestInfo>,
 }
 
 #[derive(Debug)]

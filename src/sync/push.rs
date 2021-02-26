@@ -1,4 +1,4 @@
-use super::{BatchPushInfo, TryPushError, TryPushRequest};
+use super::{HttpRequestInfo, TryPushError, TryPushRequest};
 use crate::fetch::errors::FetchError;
 use crate::{dag, db, util::rlog::LogContext};
 use crate::{fetch, util::rlog};
@@ -125,7 +125,7 @@ pub async fn push(
     client_id: String,
     pusher: &dyn Pusher,
     req: TryPushRequest,
-) -> Result<Option<BatchPushInfo>, TryPushError> {
+) -> Result<Option<HttpRequestInfo>, TryPushError> {
     use TryPushError::*;
 
     // Find pending commits between the base snapshot and the main head and push
@@ -170,17 +170,17 @@ pub async fn push(
             )
             .await;
         // Note: no map_err(). A failed push does not fail sync, but we
-        // do report it in BatchPushInfo.
+        // do report it in HttpRequestInfo.
         batch_push_info = match push_resp {
-            Ok(_) => Some(BatchPushInfo {
+            Ok(_) => Some(HttpRequestInfo {
                 http_status_code: 200,
                 error_message: str!(""),
             }),
-            Err(PushError::FetchNotOk(status_code)) => Some(BatchPushInfo {
+            Err(PushError::FetchNotOk(status_code)) => Some(HttpRequestInfo {
                 http_status_code: status_code.into(),
                 error_message: format!("{:?}", PushError::FetchNotOk(status_code)),
             }),
-            Err(e) => Some(BatchPushInfo {
+            Err(e) => Some(HttpRequestInfo {
                 http_status_code: 0, // TODO we could return this properly in the PushError.
                 error_message: format!("{:?}", e),
             }),
@@ -394,7 +394,7 @@ mod tests {
             pub num_pending_mutations: u32,
             pub exp_push_req: Option<push::BatchPushRequest>,
             pub push_result: Option<Result<push::BatchPushResponse, String>>,
-            pub exp_batch_push_info: Option<BatchPushInfo>,
+            pub exp_batch_push_info: Option<HttpRequestInfo>,
         }
         let cases: Vec<Case> = vec![
             Case {
@@ -416,7 +416,7 @@ mod tests {
                     }],
                 }),
                 push_result: Some(Ok(push::BatchPushResponse {})),
-                exp_batch_push_info: Some(BatchPushInfo {
+                exp_batch_push_info: Some(HttpRequestInfo {
                     http_status_code: 200,
                     error_message: str!(""),
                 }),
@@ -443,7 +443,7 @@ mod tests {
                     ],
                 }),
                 push_result: Some(Ok(push::BatchPushResponse {})),
-                exp_batch_push_info: Some(BatchPushInfo {
+                exp_batch_push_info: Some(HttpRequestInfo {
                     http_status_code: 200,
                     error_message: str!(""),
                 }),
@@ -470,7 +470,7 @@ mod tests {
                     ],
                 }),
                 push_result: Some(Err(str!("FetchNotOk(500)"))),
-                exp_batch_push_info: Some(BatchPushInfo {
+                exp_batch_push_info: Some(HttpRequestInfo {
                     http_status_code: 500,
                     error_message: str!("FetchNotOk(500)"),
                 }),

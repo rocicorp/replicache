@@ -28,8 +28,8 @@ pub async fn begin_pull(
     use BeginTryPullError::*;
 
     let BeginTryPullRequest {
-        client_view_url,
-        data_layer_auth,
+        pull_url,
+        pull_auth,
         diff_server_url,
         diff_server_auth,
     } = begin_pull_req;
@@ -51,8 +51,8 @@ pub async fn begin_pull(
         Commit::snapshot_meta_parts(&base_snapshot).map_err(InternalProgrammerError)?;
 
     let pull_req = PullRequest {
-        client_view_auth: data_layer_auth,
-        client_view_url,
+        pull_auth,
+        pull_url,
         client_id,
         base_state_id: base_state_id.clone(),
         last_mutation_id: base_snapshot.mutation_id(),
@@ -261,10 +261,10 @@ pub async fn maybe_end_try_pull(
 #[derive(Debug, Default, PartialEq, Serialize)]
 #[cfg_attr(test, derive(Clone))]
 pub struct PullRequest {
-    #[serde(rename = "clientViewAuth")]
-    pub client_view_auth: String,
-    #[serde(rename = "clientViewURL")]
-    pub client_view_url: String,
+    #[serde(rename = "pullAuth")]
+    pub pull_auth: String,
+    #[serde(rename = "pullURL")]
+    pub pull_url: String,
     #[serde(rename = "clientID")]
     pub client_id: String,
     #[serde(rename = "baseStateID")]
@@ -395,8 +395,8 @@ mod tests {
     async fn test_pull_http_part() {
         lazy_static! {
             static ref PULL_REQ: PullRequest = PullRequest {
-                client_view_auth: str!("client-view-auth"),
-                client_view_url: str!("client-view-url"),
+                pull_auth: str!("pull-auth"),
+                pull_url: str!("pull-url"),
                 client_id: str!("client_id"),
                 base_state_id: str!("base-state-id"),
                 last_mutation_id: 123,
@@ -543,9 +543,9 @@ mod tests {
 
         let sync_id = str!("sync_id");
         let client_id = str!("test_client_id");
-        let data_layer_auth = str!("data_layer_auth");
+        let pull_auth = str!("pull_auth");
 
-        let client_view_url = str!("client_view_url");
+        let pull_url = str!("pull_url");
         let diff_server_url = str!("diff_server_url");
         let diff_server_auth = str!("diff_server_auth");
 
@@ -594,8 +594,8 @@ mod tests {
         }
 
         let exp_pull_req = PullRequest {
-            client_view_auth: data_layer_auth.clone(),
-            client_view_url: client_view_url.clone(),
+            pull_auth: pull_auth.clone(),
+            pull_url: pull_url.clone(),
             client_id: client_id.clone(),
             base_state_id: base_server_state_id.clone(),
             last_mutation_id: base_last_mutation_id,
@@ -796,8 +796,8 @@ mod tests {
             };
 
             let begin_try_pull_req = BeginTryPullRequest {
-                client_view_url: client_view_url.clone(),
-                data_layer_auth: data_layer_auth.clone(),
+                pull_url: pull_url.clone(),
+                pull_auth: pull_auth.clone(),
                 diff_server_url: diff_server_url.clone(),
                 diff_server_auth: diff_server_auth.clone(),
             };

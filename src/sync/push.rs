@@ -44,8 +44,8 @@ pub trait Pusher {
     async fn push(
         &self,
         push_req: &BatchPushRequest,
-        batch_push_url: &str,
-        batch_push_auth: &str,
+        push_url: &str,
+        push_auth: &str,
         sync_id: &str,
     ) -> Result<BatchPushResponse, PushError>;
 }
@@ -69,12 +69,12 @@ impl Pusher for FetchPusher<'_> {
     async fn push(
         &self,
         push_req: &BatchPushRequest,
-        batch_push_url: &str,
-        batch_push_auth: &str,
+        push_url: &str,
+        push_auth: &str,
         sync_id: &str,
     ) -> Result<BatchPushResponse, PushError> {
         use PushError::*;
-        let http_req = new_push_http_request(push_req, batch_push_url, batch_push_auth, sync_id)?;
+        let http_req = new_push_http_request(push_req, push_url, push_auth, sync_id)?;
         let http_resp: http::Response<String> = self
             .fetch_client
             .request(http_req)
@@ -91,8 +91,8 @@ impl Pusher for FetchPusher<'_> {
 
 fn new_push_http_request(
     push_req: &BatchPushRequest,
-    batch_push_url: &str,
-    batch_push_auth: &str,
+    push_url: &str,
+    push_auth: &str,
     sync_id: &str,
 ) -> Result<http::Request<String>, PushError> {
     use PushError::*;
@@ -100,9 +100,9 @@ fn new_push_http_request(
     let builder = http::request::Builder::new();
     let http_req = builder
         .method("POST")
-        .uri(batch_push_url)
+        .uri(push_url)
         .header("Content-type", "application/json")
-        .header("Authorization", batch_push_auth)
+        .header("Authorization", push_auth)
         .header("X-Replicache-SyncID", sync_id)
         .body(body)
         .map_err(InvalidRequest)?;
@@ -162,12 +162,7 @@ pub async fn push(
         debug!(lc, "Starting push...");
         let push_timer = rlog::Timer::new().map_err(InternalTimerError)?;
         let push_resp = pusher
-            .push(
-                &push_req,
-                &req.batch_push_url,
-                &req.data_layer_auth,
-                sync_id,
-            )
+            .push(&push_req, &req.push_url, &req.push_auth, sync_id)
             .await;
         // Note: no map_err(). A failed push does not fail sync, but we
         // do report it in HttpRequestInfo.
@@ -322,8 +317,8 @@ mod tests {
     pub struct FakePusher<'a> {
         exp_push: bool,
         exp_push_req: Option<&'a push::BatchPushRequest>,
-        exp_batch_push_url: &'a str,
-        exp_batch_push_auth: &'a str,
+        exp_push_url: &'a str,
+        exp_push_auth: &'a str,
         exp_sync_id: &'a str,
 
         // We would like to write here:
@@ -342,16 +337,16 @@ mod tests {
         async fn push(
             &self,
             push_req: &push::BatchPushRequest,
-            batch_push_url: &str,
-            batch_push_auth: &str,
+            push_url: &str,
+            push_auth: &str,
             sync_id: &str,
         ) -> Result<push::BatchPushResponse, push::PushError> {
             assert!(self.exp_push);
 
             if self.exp_push_req.is_some() {
                 assert_eq!(self.exp_push_req.unwrap(), push_req);
-                assert_eq!(self.exp_batch_push_url, batch_push_url);
-                assert_eq!(self.exp_batch_push_auth, batch_push_auth);
+                assert_eq!(self.exp_push_url, push_url);
+                assert_eq!(self.exp_push_auth, push_auth);
                 assert_eq!(self.exp_sync_id, sync_id);
             }
 
@@ -382,10 +377,10 @@ mod tests {
 
         let sync_id = str!("sync_id");
         let client_id = str!("test_client_id");
-        let data_layer_auth = str!("data_layer_auth");
+        let push_auth = str!("push_auth");
 
         // Push
-        let batch_push_url = str!("batch_push_url");
+        let push_url = str!("push_url");
 
         struct Case<'a> {
             pub name: &'a str,
@@ -536,8 +531,8 @@ mod tests {
             let fake_pusher = FakePusher {
                 exp_push,
                 exp_push_req: c.exp_push_req.as_ref(),
-                exp_batch_push_url: &batch_push_url,
-                exp_batch_push_auth: &data_layer_auth,
+                exp_push_url: &push_url,
+                exp_push_auth: &push_auth,
                 exp_sync_id: &sync_id,
                 resp: push_resp,
                 err: push_err,
@@ -554,8 +549,8 @@ mod tests {
                 client_id.clone(),
                 pusher,
                 TryPushRequest {
-                    batch_push_url: batch_push_url.clone(),
-                    data_layer_auth: data_layer_auth.clone(),
+                    push_url: push_url.clone(),
+                    push_auth: push_auth.clone(),
                 },
             )
             .await

@@ -44,12 +44,14 @@ pub struct ReplayMutation {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BeginTryPullRequest {
-    #[serde(rename = "clientViewURL")]
-    pub client_view_url: String,
-    #[serde(rename = "dataLayerAuth")]
-    pub data_layer_auth: String,
+    #[serde(rename = "pullURL")]
+    pub pull_url: String,
+    #[serde(rename = "pullAuth")]
+    pub pull_auth: String,
+    // TODO: Remove
     #[serde(rename = "diffServerURL")]
     pub diff_server_url: String,
+    // TODO: Remove
     #[serde(rename = "diffServerAuth")]
     pub diff_server_auth: String,
 }
@@ -67,10 +69,10 @@ pub struct BeginTryPullResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TryPushRequest {
-    #[serde(rename = "batchPushURL")]
-    pub batch_push_url: String,
-    #[serde(rename = "dataLayerAuth")]
-    pub data_layer_auth: String,
+    #[serde(rename = "pushURL")]
+    pub push_url: String,
+    #[serde(rename = "pushAuth")]
+    pub push_auth: String,
 }
 
 #[derive(Serialize)]

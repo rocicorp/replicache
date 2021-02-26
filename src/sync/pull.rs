@@ -259,6 +259,7 @@ pub async fn maybe_end_pull(
 }
 
 #[derive(Debug, Default, PartialEq, Serialize)]
+#[cfg_attr(test, derive(Clone))]
 pub struct PullRequest {
     #[serde(rename = "clientViewAuth")]
     pub client_view_auth: String,
@@ -367,11 +368,22 @@ pub enum PullError {
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod tests {
+    use super::super::*;
     use super::patch::Operation;
     use super::*;
+    use crate::dag;
+    use crate::db;
+    use crate::db::test_helpers::*;
+    use crate::db::{Commit, Whence, DEFAULT_HEAD_NAME};
     use crate::fetch;
+    use crate::kv::memstore::MemStore;
+    use crate::util::rlog::LogContext;
     use crate::util::to_debug;
     use async_std::net::TcpListener;
+    use async_trait::async_trait;
+    use itertools::Itertools;
+    use std::clone::Clone;
+    use std::collections::HashMap;
     use str_macro::str;
     use tide::{Body, Response};
 
@@ -488,6 +500,630 @@ mod tests {
                 }
             }
             handle.cancel().await;
+        }
+    }
+
+    macro_rules! map(
+        { $($key:expr => $value:expr),+ } => {
+            {
+                let mut m = ::std::collections::HashMap::new();
+                $(
+                    m.insert($key, $value);
+                )+
+                m
+            }
+         };
+    );
+
+    // TODO: we don't have a way to test overlapping pulls. Augmenting
+    // FakePuller to land a snapshot during pull() doesn't work because
+    // it requires access to the dag::Store which is not Send. We should
+    // probably have a unit test for the predicate.
+    #[async_std::test]
+    async fn test_begin_try_pull() {
+        let store = dag::Store::new(Box::new(MemStore::new()));
+        let mut chain: Chain = vec![];
+        add_genesis(&mut chain, &store).await;
+        add_snapshot(&mut chain, &store, Some(vec![str!("foo"), str!("bar")])).await;
+        // chain[2] is an index change
+        add_index_change(&mut chain, &store).await;
+        let starting_num_commits = chain.len();
+        let base_snapshot = &chain[1];
+        let (base_last_mutation_id, base_server_state_id) =
+            Commit::snapshot_meta_parts(base_snapshot).unwrap();
+
+        let sync_id = str!("sync_id");
+        let client_id = str!("test_client_id");
+        let data_layer_auth = str!("data_layer_auth");
+
+        let client_view_url = str!("client_view_url");
+        let diff_server_url = str!("diff_server_url");
+        let diff_server_auth = str!("diff_server_auth");
+
+        let good_client_view_info = ClientViewInfo {
+            http_status_code: 200,
+            error_message: str!(""),
+        };
+        let good_pull_resp = PullResponse {
+            state_id: str!("new_state_id"),
+            last_mutation_id: 10,
+            patch: vec![
+                Operation {
+                    op: str!("replace"),
+                    path: str!(""),
+                    value_string: str!("{}"),
+                },
+                Operation {
+                    op: str!("add"),
+                    path: str!("/new"),
+                    value_string: str!("\"value\""),
+                },
+            ],
+            client_view_info: good_client_view_info.clone(),
+        };
+        let good_pull_resp_value_map = map!("/new" => "\"value\"");
+
+        struct ExpCommit<'a> {
+            state_id: String,
+            last_mutation_id: u64,
+            value_map: HashMap<&'a str, &'a str>,
+            indexes: Vec<String>,
+        }
+
+        struct Case<'a> {
+            pub name: &'a str,
+
+            // Push expectations.
+            pub num_pending_mutations: u32,
+
+            // Pull expectations.
+            pub pull_result: Result<PullResponse, String>,
+
+            // BeginPull expectations.
+            pub exp_err: Option<&'a str>,
+            pub exp_new_sync_head: Option<ExpCommit<'a>>,
+        }
+
+        let exp_pull_req = PullRequest {
+            client_view_auth: data_layer_auth.clone(),
+            client_view_url: client_view_url.clone(),
+            client_id: client_id.clone(),
+            base_state_id: base_server_state_id.clone(),
+            last_mutation_id: base_last_mutation_id,
+            version: 3,
+        };
+
+        let cases: Vec<Case> = vec![
+            Case {
+                name: "0 pending, pulls new state -> beginpull succeeds w/synchead set",
+                num_pending_mutations: 0,
+                pull_result: Ok(good_pull_resp.clone()),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    state_id: str!("new_state_id"),
+                    last_mutation_id: 10,
+                    value_map: good_pull_resp_value_map.clone(),
+                    indexes: vec![2.to_string()],
+                }),
+            },
+            Case {
+                name: "1 pending, 0 mutations to replay, pulls new state -> beginpull succeeds w/synchead set",
+                num_pending_mutations: 1,
+                pull_result: Ok(PullResponse {
+                    last_mutation_id: 2,
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    state_id: str!("new_state_id"),
+                    last_mutation_id: 2,
+                    value_map: good_pull_resp_value_map.clone(),
+                    indexes: vec![2.to_string(), 4.to_string()],
+                }),
+            },
+            Case {
+                name: "1 pending, 1 mutations to replay, pulls new state -> beginpull succeeds w/synchead set",
+                num_pending_mutations: 1,
+                pull_result: Ok(PullResponse {
+                    last_mutation_id: 1,
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    state_id: str!("new_state_id"),
+                    last_mutation_id: 1,
+                    value_map: good_pull_resp_value_map.clone(),
+                    indexes: vec![2.to_string()],
+                }),
+            },
+            Case {
+                name: "2 pending, 0 to replay, pulls new state -> beginpull succeeds w/synchead set",
+                num_pending_mutations: 2,
+                pull_result: Ok(good_pull_resp.clone()),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    state_id: str!("new_state_id"),
+                    last_mutation_id: 10,
+                    value_map: good_pull_resp_value_map.clone(),
+                    indexes: vec![2.to_string(), 4.to_string(), 6.to_string()],
+                }),
+            },
+            Case {
+                name: "2 pending, 1 to replay, pulls new state -> beginpull succeeds w/synchead set",
+                num_pending_mutations: 2,
+                pull_result: Ok(PullResponse {
+                    last_mutation_id: 2,
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    state_id: str!("new_state_id"),
+                    last_mutation_id: 2,
+                    value_map: good_pull_resp_value_map.clone(),
+                    indexes: vec![2.to_string(), 4.to_string()],
+                }),
+            },
+            Case {
+                name: "2 mutations to push, pulls new state -> beginpull succeeds w/synchead set",
+                num_pending_mutations: 2,
+                pull_result: Ok(good_pull_resp.clone()),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    state_id: str!("new_state_id"),
+                    last_mutation_id: 10,
+                    value_map: good_pull_resp_value_map.clone(),
+                    indexes: vec![2.to_string(), 4.to_string(), 6.to_string()],
+                }),
+            },
+
+            // TODO: add test for same state id but later mutation id. Right now we treat
+            // it as a nop because the state id does not change, but probably we should treat
+            // it like success and complete the sync. Current behavior mirrors the (probably
+            // incorrect?) go behavior.
+            Case {
+                name: "nop push, pulls same state -> beginpull succeeds with no synchead",
+                num_pending_mutations: 0,
+                pull_result: Ok(PullResponse {
+                    state_id: base_server_state_id.clone(),
+                    last_mutation_id: base_last_mutation_id,
+                    patch: vec![],
+                    client_view_info: good_client_view_info.clone(),
+                }),
+                exp_err: None,
+                exp_new_sync_head: None,
+            },
+            Case {
+                name: "nop push, pulls new state w/lesser mutation id -> beginpull errors",
+                num_pending_mutations: 0,
+
+                pull_result: Ok(PullResponse {
+                    last_mutation_id: 0,
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: Some("TimeTravel"),
+                exp_new_sync_head: None,
+            },
+            Case {
+                name: "nop push, pulls new state w/empty state id -> beginpull errors",
+                num_pending_mutations: 0,
+                pull_result: Ok(PullResponse {
+                    state_id: str!(""),
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: Some("MissingStateID"),
+                exp_new_sync_head: None,
+            },
+            Case {
+                name: "nop push, pull 500s -> beginpull errors",
+                num_pending_mutations: 0,
+                pull_result: Err(str!("FetchNotOk(500)")),
+                exp_err: Some("FetchNotOk(500)"),
+                exp_new_sync_head: None,
+            },
+        ];
+        for c in cases.iter() {
+            // Reset state of the store.
+            chain.truncate(starting_num_commits);
+            let w = store.write(LogContext::new()).await.unwrap();
+            w.set_head(
+                DEFAULT_HEAD_NAME,
+                Some(chain[chain.len() - 1].chunk().hash()),
+            )
+            .await
+            .unwrap();
+            w.set_head(SYNC_HEAD_NAME, None).await.unwrap();
+            w.commit().await.unwrap();
+            for _ in 0..c.num_pending_mutations {
+                add_local(&mut chain, &store).await;
+                add_index_change(&mut chain, &store).await;
+            }
+
+            // There was an index added after the snapshot, and one for each local commit.
+            // Here we scan to ensure that we get values when scanning using one of the
+            // indexes created. We do this because after calling begin_try_pull we check that
+            // the index no longer returns values, demonstrating that it was rebuilt.
+            if c.num_pending_mutations > 0 {
+                let dag_read = store.read(LogContext::new()).await.unwrap();
+                let read = db::OwnedRead::from_whence(
+                    db::Whence::Head(DEFAULT_HEAD_NAME.to_string()),
+                    dag_read,
+                )
+                .await
+                .unwrap();
+                use std::cell::RefCell;
+                let got = RefCell::new(false);
+
+                read.as_read()
+                    .scan(
+                        db::ScanOptions {
+                            prefix: Some(str!("")),
+                            start_secondary_key: None,
+                            start_key: None,
+                            start_exclusive: None,
+                            limit: None,
+                            index_name: Some(str!("2")),
+                        },
+                        |_: db::ScanResult<'_>| {
+                            *got.borrow_mut() = true;
+                        },
+                    )
+                    .await
+                    .unwrap();
+                assert!(*got.borrow(), "{}: expected values, got none", c.name);
+            }
+
+            // See explanation in FakePuller for why we do this dance with the pull_result.
+            let (pull_resp, pull_err) = match &c.pull_result {
+                Ok(resp) => (Some(resp.clone()), None),
+                Err(e) => (None, Some(e.clone())),
+            };
+            let fake_puller = FakePuller {
+                exp_pull_req: &exp_pull_req.clone(),
+                exp_diff_server_url: &diff_server_url,
+                exp_diff_server_auth: &diff_server_auth,
+                exp_sync_id: &sync_id,
+                resp: pull_resp,
+                err: pull_err,
+            };
+
+            let begin_try_pull_req = BeginTryPullRequest {
+                client_view_url: client_view_url.clone(),
+                data_layer_auth: data_layer_auth.clone(),
+                diff_server_url: diff_server_url.clone(),
+                diff_server_auth: diff_server_auth.clone(),
+            };
+
+            let result = begin_pull(
+                client_id.clone(),
+                begin_try_pull_req,
+                &fake_puller,
+                sync_id.clone(),
+                &store,
+                LogContext::new(),
+            )
+            .await;
+
+            let mut got_resp: Option<BeginTryPullResponse> = None;
+            match c.exp_err {
+                None => {
+                    assert!(result.is_ok(), format!("{}: {:?}", c.name, result));
+                    got_resp = Some(result.unwrap());
+                }
+                Some(e) => assert!(to_debug(result.unwrap_err()).contains(e)),
+            };
+            let owned_read = store.read(LogContext::new()).await.unwrap();
+            let read = owned_read.read();
+            if let Some(exp_sync_head) = &c.exp_new_sync_head {
+                let sync_head_hash = read.get_head(SYNC_HEAD_NAME).await.unwrap().unwrap();
+                let sync_head =
+                    Commit::from_chunk(read.get_chunk(&sync_head_hash).await.unwrap().unwrap())
+                        .unwrap();
+                let (got_last_mutation_id, got_server_state_id) =
+                    Commit::snapshot_meta_parts(&sync_head).unwrap();
+                assert_eq!(exp_sync_head.last_mutation_id, got_last_mutation_id);
+                assert_eq!(exp_sync_head.state_id, got_server_state_id);
+                // Check the value is what's expected.
+                let (_, _, map) = db::read_commit(
+                    db::Whence::Hash(sync_head.chunk().hash().to_string()),
+                    &read,
+                )
+                .await
+                .unwrap();
+                let mut got_value_map = map
+                    .iter()
+                    .map(|entry| (entry.key.to_vec(), entry.val.to_vec()))
+                    .collect::<Vec<(Vec<u8>, Vec<u8>)>>();
+                got_value_map.sort_by(|a, b| a.0.cmp(&b.0));
+                let exp_value_map = exp_sync_head
+                    .value_map
+                    .iter()
+                    .sorted()
+                    .map(|item| (item.0.as_bytes().to_vec(), item.1.as_bytes().to_vec()))
+                    .collect::<Vec<(Vec<u8>, Vec<u8>)>>();
+                assert_eq!(exp_value_map.len(), got_value_map.len());
+
+                // Check we have the expected index definitions.
+                let indexes: Vec<String> = sync_head
+                    .indexes()
+                    .iter()
+                    .map(|i| i.definition.name.clone())
+                    .collect();
+                assert_eq!(
+                    exp_sync_head.indexes.len(),
+                    indexes.len(),
+                    "{}: expected indexes {:?}, got {:?}",
+                    c.name,
+                    exp_sync_head.indexes,
+                    indexes
+                );
+                exp_sync_head
+                    .indexes
+                    .iter()
+                    .for_each(|i| assert!(indexes.contains(i)));
+
+                // Check that we *don't* have old indexed values. The indexes should
+                // have been rebuilt with a client view returned by the server that
+                // does not include local= values. The check for len > 1 is because
+                // the snapshot's index is not what we want; we want the first index
+                // change's index ("2").
+                if exp_sync_head.indexes.len() > 1 {
+                    let dag_read = store.read(LogContext::new()).await.unwrap();
+                    let read = db::OwnedRead::from_whence(
+                        db::Whence::Head(SYNC_HEAD_NAME.to_string()),
+                        dag_read,
+                    )
+                    .await
+                    .unwrap();
+                    read.as_read()
+                        .scan(
+                            db::ScanOptions {
+                                prefix: Some(str!("")),
+                                start_secondary_key: None,
+                                start_key: None,
+                                start_exclusive: None,
+                                limit: None,
+                                index_name: Some(str!("2")),
+                            },
+                            |sr: db::ScanResult<'_>| {
+                                assert!(false, "{}: expected no values, got {:?}", c.name, sr);
+                            },
+                        )
+                        .await
+                        .unwrap();
+                }
+
+                assert_eq!(&sync_head_hash, &got_resp.as_ref().unwrap().sync_head);
+            } else {
+                let got_head = read.get_head(SYNC_HEAD_NAME).await.unwrap();
+                assert!(
+                    got_head.is_none(),
+                    format!(
+                        "{}: expected head to be None, was {}",
+                        c.name,
+                        got_head.unwrap()
+                    )
+                );
+                // In a nop sync we except Beginpull to succeed but sync_head will
+                // be empty.
+                if c.exp_err.is_none() {
+                    assert!(&got_resp.as_ref().unwrap().sync_head.is_empty());
+                }
+            }
+
+            // Check that BeginTryPullResponse is filled like we would expect.
+            if c.exp_err.is_none() {
+                if let Ok(pull_response) = &c.pull_result {
+                    assert_eq!(
+                        pull_response.client_view_info,
+                        got_resp.unwrap().client_view_info
+                    );
+                }
+            }
+        }
+    }
+
+    pub struct FakePuller<'a> {
+        exp_pull_req: &'a PullRequest,
+        exp_diff_server_url: &'a str,
+        exp_diff_server_auth: &'a str,
+        exp_sync_id: &'a str,
+
+        // We would like to write here:
+        //    result: Result<PullResponse, PullError>,
+        // but pull takes &self so we can't move out of result if we did.
+        // Cloning and returning result would work except for that our error
+        // enums contain values that are not cloneable, eg http::Status and
+        // DeserializeErr. (Or, I guess we could make pull take &mut self as another
+        // solution, so long as all contained errors are Send. I think.)
+        resp: Option<PullResponse>,
+        err: Option<String>,
+    }
+
+    #[async_trait(?Send)]
+    impl<'a> Puller for FakePuller<'a> {
+        async fn pull(
+            &self,
+            pull_req: &PullRequest,
+            diff_server_url: &str,
+            diff_server_auth: &str,
+            sync_id: &str,
+        ) -> Result<PullResponse, PullError> {
+            assert_eq!(self.exp_pull_req, pull_req);
+            assert_eq!(self.exp_diff_server_url, diff_server_url);
+            assert_eq!(self.exp_diff_server_auth, diff_server_auth);
+            assert_eq!(self.exp_sync_id, sync_id);
+
+            match &self.err {
+                Some(s) => match s.as_str() {
+                    "FetchNotOk(500)" => Err(PullError::FetchNotOk(
+                        http::StatusCode::INTERNAL_SERVER_ERROR,
+                    )),
+                    _ => panic!("not implemented"),
+                },
+                None => {
+                    let r = self.resp.as_ref();
+                    Ok(r.unwrap().clone())
+                }
+            }
+        }
+    }
+
+    #[async_std::test]
+    async fn test_maybe_end_pull() {
+        struct Case<'a> {
+            pub name: &'a str,
+            pub num_pending: usize,
+            pub num_needing_replay: usize,
+            pub intervening_sync: bool,
+            pub exp_replay_ids: Vec<u64>,
+            pub exp_err: Option<&'a str>,
+        }
+        let cases = [
+            Case {
+                name: "nothing pending",
+                num_pending: 0,
+                num_needing_replay: 0,
+                intervening_sync: false,
+                exp_replay_ids: vec![],
+                exp_err: None,
+            },
+            Case {
+                name: "2 pending but nothing to replay",
+                num_pending: 2,
+                num_needing_replay: 0,
+                intervening_sync: false,
+                exp_replay_ids: vec![],
+                exp_err: None,
+            },
+            Case {
+                name: "3 pending, 2 to replay",
+                num_pending: 3,
+                num_needing_replay: 2,
+                intervening_sync: false,
+                exp_replay_ids: vec![2, 3],
+                exp_err: None,
+            },
+            Case {
+                name: "another sync landed during replay",
+                num_pending: 0,
+                num_needing_replay: 0,
+                intervening_sync: true,
+                exp_replay_ids: vec![],
+                exp_err: Some("OverlappingSyncsJSLogInfo"),
+            },
+        ];
+        for c in cases.iter() {
+            let store = dag::Store::new(Box::new(MemStore::new()));
+            let mut chain: Chain = vec![];
+            add_genesis(&mut chain, &store).await;
+            // Add pending commits to the main chain.
+            for _ in 0..c.num_pending {
+                add_local(&mut chain, &store).await;
+            }
+            let dag_write = store.write(LogContext::new()).await.unwrap();
+            dag_write
+                .set_head(
+                    db::DEFAULT_HEAD_NAME,
+                    Some(chain[chain.len() - 1].chunk().hash()),
+                )
+                .await
+                .unwrap();
+
+            // Add snapshot and replayed commits to the sync chain.
+            let w = db::Write::new_snapshot(
+                db::Whence::Hash(chain[0].chunk().hash().to_string()),
+                0,
+                str!("sync_ssid"),
+                dag_write,
+                db::read_indexes(&chain[0]),
+            )
+            .await
+            .unwrap();
+            let mut basis_hash = w.commit(SYNC_HEAD_NAME).await.unwrap();
+
+            if c.intervening_sync {
+                add_snapshot(&mut chain, &store, None).await;
+            }
+
+            for i in 0..c.num_pending - c.num_needing_replay {
+                let chain_index = i + 1; // chain[0] is genesis
+                let original = &chain[chain_index];
+                let (mutator_name, mutator_args) = match original.meta().typed() {
+                    db::MetaTyped::Local(lm) => (
+                        lm.mutator_name().to_string(),
+                        String::from_utf8(lm.mutator_args_json().to_vec()).unwrap(),
+                    ),
+                    _ => panic!("impossible"),
+                };
+                let w = db::Write::new_local(
+                    Whence::Hash(basis_hash),
+                    mutator_name,
+                    mutator_args,
+                    Some(original.chunk().hash().to_string()),
+                    store.write(LogContext::new()).await.unwrap(),
+                )
+                .await
+                .unwrap();
+                basis_hash = w.commit(SYNC_HEAD_NAME).await.unwrap();
+            }
+            let sync_head = basis_hash;
+
+            let req = MaybeEndTryPullRequest {
+                sync_id: str!("sync_id"),
+                sync_head: sync_head.clone(),
+            };
+            let result = maybe_end_pull(&store, LogContext::new(), req).await;
+
+            match c.exp_err {
+                Some(e) => assert!(to_debug(result.unwrap_err()).contains(e)),
+                None => {
+                    assert!(result.is_ok(), format!("{}: {:?}", c.name, result));
+                    let resp = result.unwrap();
+                    assert_eq!(sync_head, resp.sync_head);
+                    assert_eq!(
+                        c.exp_replay_ids.len(),
+                        resp.replay_mutations.len(),
+                        "{}: expected {:?}, got {:?}",
+                        c.name,
+                        c.exp_replay_ids,
+                        &resp.replay_mutations
+                    );
+                    for i in 0..c.exp_replay_ids.len() {
+                        let chain_idx = chain.len() - c.num_needing_replay + i;
+                        assert_eq!(c.exp_replay_ids[i], resp.replay_mutations[i].id);
+                        match chain[chain_idx].meta().typed() {
+                            db::MetaTyped::Local(lm) => {
+                                assert_eq!(
+                                    lm.mutator_name(),
+                                    resp.replay_mutations[i].name,
+                                    "{}: expected {:?}, got {:?}",
+                                    c.name,
+                                    lm.mutator_name(),
+                                    resp.replay_mutations[i].name
+                                );
+                                let got_args = &resp.replay_mutations[i].args;
+                                let exp_args =
+                                    String::from_utf8(lm.mutator_args_json().to_vec()).unwrap();
+                                assert_eq!(&exp_args, got_args);
+                            }
+                            _ => panic!("inconceivable"),
+                        };
+                    }
+
+                    // Check if we set the main head like we should have.
+                    if c.exp_replay_ids.len() == 0 {
+                        let owned_read = store.read(LogContext::new()).await.unwrap();
+                        let read = owned_read.read();
+                        assert_eq!(
+                            Some(sync_head),
+                            read.get_head(db::DEFAULT_HEAD_NAME).await.unwrap(),
+                            "{}",
+                            c.name
+                        );
+                        assert_eq!(None, read.get_head(SYNC_HEAD_NAME).await.unwrap());
+                    }
+                }
+            };
         }
     }
 }

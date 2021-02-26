@@ -186,7 +186,6 @@ pub async fn push(
     Ok(batch_push_info)
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[cfg(test)]
 mod tests {
     use super::super::*;
@@ -195,16 +194,22 @@ mod tests {
     use crate::db;
     use crate::db::test_helpers::*;
     use crate::db::DEFAULT_HEAD_NAME;
+    #[cfg(not(target_arch = "wasm32"))]
     use crate::fetch;
     use crate::kv::memstore::MemStore;
     use crate::util::rlog::LogContext;
+    #[cfg(not(target_arch = "wasm32"))]
     use crate::util::to_debug;
+    #[cfg(not(target_arch = "wasm32"))]
     use async_std::net::TcpListener;
+    #[cfg(not(target_arch = "wasm32"))]
     use async_trait::async_trait;
     use serde_json::json;
     use str_macro::str;
+    #[cfg(not(target_arch = "wasm32"))]
     use tide::{Body, Response};
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[async_std::test]
     async fn test_push() {
         lazy_static! {

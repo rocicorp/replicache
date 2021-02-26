@@ -36,42 +36,34 @@ const MAX_REAUTH_TRIES = 8;
  */
 export interface ReplicacheOptions {
   /**
-   * This is the URL to the server endpoint dealing with the batch updates. See
+   * This is the
+   * [authentication](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#authentication)
+   * token used when doing a [push
+   * ](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync).
+   */
+  pushAuth?: string;
+
+  /**
+   * This is the URL to the server endpoint dealing with the push updates. See
    * [Server Setup Upstream Sync](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync)
    * for more details.
    */
-  batchURL?: string;
-
-  /**
-   * The URL for the client view. This is used by the diff-server to compute
-   * diffs and to get a fresh view of the data that this client should see.
-   */
-  clientViewURL: string;
+  pushURL?: string;
 
   /**
    * This is the
    * [authentication](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#authentication)
-   * token used with the [upstream batch
-   * server](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync)
-   * as well as the [client
-   * view](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-1-downstream-sync).
+   * token used when doing a [pull
+   * ](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync).
    */
-  dataLayerAuth?: string;
+  pullAuth?: string;
 
   /**
-   * The diff server deals with computing the diffs in the downstream sync.
-   * This is the auth token for the [diff server](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-2-test-downstream-sync) if any.
+   * This is the URL to the server endpoint dealing with pull. See
+   * [Server Setup Upstream Sync](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync)
+   * for more details.
    */
-  diffServerAuth?: string;
-
-  /**
-   * The [diff
-   * server](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-2-test-downstream-sync)
-   * deals with computing the diffs in the downstream sync. This is the URL to
-   * talk to get the diffs as needed.
-   *
-   */
-  diffServerURL: string;
+  pullURL?: string;
 
   /**
    * The name of the Replicache database. This defaults to `"default"`.
@@ -129,11 +121,10 @@ export interface ReplicacheOptions {
 }
 
 export default class Replicache implements ReadTransaction {
-  private readonly _batchURL: string;
-  private readonly _clientViewURL: string;
-  private _dataLayerAuth: string;
-  private readonly _diffServerAuth: string;
-  private readonly _diffServerURL: string;
+  private _pullAuth: string;
+  private readonly _pullURL: string;
+  private _pushAuth: string;
+  private readonly _pushURL: string;
   private readonly _name: string;
   private readonly _repmInvoker: Invoker;
   private readonly _useMemstore: boolean;
@@ -177,33 +168,39 @@ export default class Replicache implements ReadTransaction {
   onSync: ((syncing: boolean) => void) | null = null;
 
   /**
-   * This gets called when we get an HTTP unauthorized from the pull or push
+   * This gets called when we get an HTTP unauthorized from the pull
    * endpoint. Set this to a function that will ask your user to reauthenticate.
    */
-  getDataLayerAuth:
+  getPullAuth:
+    | (() => MaybePromise<string | null | undefined>)
+    | null
+    | undefined = null;
+
+  /**
+   * This gets called when we get an HTTP unauthorized from the push
+   * endpoint. Set this to a function that will ask your user to reauthenticate.
+   */
+  getPushAuth:
     | (() => MaybePromise<string | null | undefined>)
     | null
     | undefined = null;
 
   constructor(options: ReplicacheOptions) {
     const {
-      batchURL = '',
-      clientViewURL,
-      dataLayerAuth = '',
-      diffServerAuth = '',
-      diffServerURL,
       name = 'default',
-      syncInterval = 60_000,
+      pullAuth = '',
+      pullURL = '',
+      pushAuth = '',
       pushDelay = 300,
-      wasmModule,
+      pushURL = '',
+      syncInterval = 60_000,
       useMemstore = false,
+      wasmModule,
     } = options;
-    this._batchURL = batchURL;
-    // Make clientViewURL absolute since we pass it to the diff server.
-    this._clientViewURL = new URL(clientViewURL, location.href).href;
-    this._dataLayerAuth = dataLayerAuth;
-    this._diffServerAuth = diffServerAuth;
-    this._diffServerURL = diffServerURL;
+    this._pullAuth = pullAuth;
+    this._pullURL = pullURL;
+    this._pushAuth = pushAuth;
+    this._pushURL = pushURL;
     this._name = name;
     this._repmInvoker = new REPMWasmInvoker(wasmModule);
     this._syncInterval = syncInterval;
@@ -562,8 +559,8 @@ export default class Replicache implements ReadTransaction {
 
   private async _push(maxAuthTries: number): Promise<void> {
     const pushResponse = await this._invoke('tryPush', {
-      batchPushURL: this._batchURL,
-      dataLayerAuth: this._dataLayerAuth,
+      pushURL: this._pushURL,
+      pushAuth: this._pushAuth,
     });
 
     let reauth = false;
@@ -571,19 +568,19 @@ export default class Replicache implements ReadTransaction {
     const {httpRequestInfo} = pushResponse;
 
     if (httpRequestInfo) {
-      reauth = checkStatus(httpRequestInfo, 'push', this._batchURL);
+      reauth = checkStatus(httpRequestInfo, 'push', this._pushURL);
       // mutationInfos support was never added to repc. We used to log all the
       // errors here.
     }
 
-    if (reauth && this.getDataLayerAuth) {
+    if (reauth && this.getPushAuth) {
       if (maxAuthTries === 0) {
         console.info('Tried to reauthenticate too many times');
         return;
       }
-      const dataLayerAuth = await this.getDataLayerAuth();
-      if (dataLayerAuth != null) {
-        this._dataLayerAuth = dataLayerAuth;
+      const pushAuth = await this.getPushAuth();
+      if (pushAuth != null) {
+        this._pushAuth = pushAuth;
         // Try again now instead of waiting for another 5 seconds.
         return await this._push(maxAuthTries - 1);
       }
@@ -606,27 +603,27 @@ export default class Replicache implements ReadTransaction {
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
     const beginPullResponse = await this._invoke('beginTryPull', {
-      clientViewURL: this._clientViewURL,
-      dataLayerAuth: this._dataLayerAuth,
-      diffServerURL: this._diffServerURL,
-      diffServerAuth: this._diffServerAuth,
+      pullAuth: this._pullAuth,
+      pullURL: this._pullURL,
+      diffServerAuth: this._pullAuth,
+      diffServerURL: this._pullURL,
     });
     const {httpRequestInfo, syncHead, syncID} = beginPullResponse;
 
     let reauth = false;
 
     if (httpRequestInfo) {
-      reauth = checkStatus(httpRequestInfo, 'pull', this._diffServerURL);
+      reauth = checkStatus(httpRequestInfo, 'pull', this._pullURL);
     }
 
-    if (reauth && this.getDataLayerAuth) {
+    if (reauth && this.getPullAuth) {
       if (maxAuthTries === 0) {
         console.info('Tried to reauthenticate too many times');
         return {syncID, syncHead: ''};
       }
-      const dataLayerAuth = await this.getDataLayerAuth();
-      if (dataLayerAuth != null) {
-        this._dataLayerAuth = dataLayerAuth;
+      const pullAuth = await this.getPullAuth();
+      if (pullAuth != null) {
+        this._pullAuth = pullAuth;
         // Try again now instead of waiting for another 5 seconds.
         return await this._beginPull(maxAuthTries - 1);
       }
@@ -882,29 +879,28 @@ function checkStatus(
 
 export class ReplicacheTest extends Replicache {
   static async new({
-    batchURL,
-    dataLayerAuth,
-    diffServerAuth,
-    diffServerURL,
     name = '',
+    pullAuth,
+    pullURL,
+    pushAuth,
+    pushURL,
     useMemstore = false,
   }: {
-    batchURL?: string;
-    dataLayerAuth?: string;
-    diffServerURL: string;
-    diffServerAuth?: string;
     name?: string;
+    pullAuth?: string;
+    pullURL?: string;
+    pushAuth?: string;
+    pushURL: string;
     useMemstore?: boolean;
   }): Promise<ReplicacheTest> {
     const rep = new ReplicacheTest({
-      batchURL,
-      clientViewURL: 'clientViewURL',
-      dataLayerAuth,
-      diffServerAuth,
-      diffServerURL,
       name,
-      syncInterval: null,
+      pullAuth,
+      pullURL,
+      pushAuth,
       pushDelay: 0,
+      pushURL,
+      syncInterval: null,
       useMemstore,
     });
     await rep._opened;

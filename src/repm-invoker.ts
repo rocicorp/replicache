@@ -137,10 +137,13 @@ export type CommitTransactionResponse = {
 };
 
 type BeginTryPullRequest = {
-  clientViewURL: string;
-  dataLayerAuth: string;
-  diffServerAuth: string;
+  pullURL: string;
+  pullAuth: string;
+
+  /** @deprecated */
   diffServerURL: string;
+  /** @deprecated */
+  diffServerAuth: string;
 };
 
 type BeginTryPullResponse = {
@@ -150,8 +153,8 @@ type BeginTryPullResponse = {
 };
 
 type TryPushRequest = {
-  batchPushURL: string;
-  dataLayerAuth: string;
+  pushURL: string;
+  pushAuth: string;
 };
 
 type TryPushResponse = {

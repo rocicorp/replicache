@@ -551,15 +551,13 @@ testWithBothStores('sync', async () => {
               valueString: '{"id":1,"ownerUserID":1}',
             },
           ],
-          checksum: 'e45e820e',
-          clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+          httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
         },
         {
           stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
           lastMutationID: 2,
           patch: [],
-          checksum: 'e45e820e',
-          clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+          httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
         },
         {
           stateID: 'g42viqe19kjv8iaahbj8ccs2aiub0po8',
@@ -572,22 +570,19 @@ testWithBothStores('sync', async () => {
                 '{"complete":false,"id":14323534,"listId":1,"order":10000,"text":"Test"}',
             },
           ],
-          checksum: 'bb35ac40',
-          clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+          httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
         },
         {
           stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
           lastMutationID: 2,
           patch: [],
-          checksum: 'e45e820e',
-          clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+          httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
         },
         {
           stateID: '4aqjcn91pronkc3s1uhpg8gichc1m6hv',
           lastMutationID: 6,
           patch: [{op: 'remove', path: '/~1todo~114323534'}],
-          checksum: 'e45e820e',
-          clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+          httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
         },
       ][pullCounter++],
   );
@@ -870,8 +865,7 @@ testWithBothStores('pull', async () => {
         valueString: '{"id":1,"ownerUserID":1}',
       },
     ],
-    checksum: 'e45e820e',
-    clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+    httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
   });
   await rep.pull();
   expect(deleteCount).to.equal(2);
@@ -880,8 +874,7 @@ testWithBothStores('pull', async () => {
     stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
     lastMutationID: 2,
     patch: [],
-    checksum: 'e45e820e',
-    clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+    httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
   });
   beginPullResult = await rep.beginPull();
   ({syncHead} = beginPullResult);
@@ -907,8 +900,7 @@ testWithBothStores('pull', async () => {
         valueString: '{"id":14323534,"text":"Test"}',
       },
     ],
-    checksum: '06496dea',
-    clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+    httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
   });
   beginPullResult = await rep.beginPull();
   ({syncHead} = beginPullResult);
@@ -927,8 +919,7 @@ testWithBothStores('pull', async () => {
     stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
     lastMutationID: 3,
     patch: [],
-    checksum: 'e45e820e',
-    clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+    httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
   });
   await rep.maybeEndPull(beginPullResult);
 
@@ -945,8 +936,7 @@ testWithBothStores('pull', async () => {
     stateID: '4aqjcn91pronkc3s1uhpg8gichc1m6hv',
     lastMutationID: 6,
     patch: [{op: 'remove', path: '/~1todo~114323534'}],
-    checksum: 'e45e820e',
-    clientViewInfo: {httpStatusCode: 200, errorMessage: ''},
+    httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
   });
   await rep.pull();
 
@@ -988,8 +978,7 @@ testWithBothStores('reauth', async () => {
     stateID: 'fq40kklle30lr20vpjiv0ios8hgipnut',
     lastMutationID: 0,
     patch: [{op: 'remove', path: '/'}],
-    checksum: '00000000',
-    clientViewInfo: {
+    httpRequestInfo: {
       httpStatusCode: httpStatusUnauthorized,
       errorMessage: 'xxx',
     },
@@ -1004,7 +993,7 @@ testWithBothStores('reauth', async () => {
 
   expect(getDataLayerAuthFake.callCount).to.equal(1);
   expect(consoleErrorStub.firstCall.args[0]).to.equal(
-    'Got error response from client view server (https://diff.com/pull): 401: xxx',
+    'Got error response from server (https://diff.com/pull) doing pull: 401: xxx',
   );
 
   {

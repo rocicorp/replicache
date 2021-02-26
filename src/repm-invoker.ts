@@ -144,48 +144,28 @@ type BeginTryPullRequest = {
 };
 
 type BeginTryPullResponse = {
-  clientViewInfo: ClientViewInfo;
+  httpRequestInfo: HTTPRequestInfo;
   syncHead: string;
   syncID: string;
 };
 
-export type TryPushRequest = {
+type TryPushRequest = {
   batchPushURL: string;
-  clientViewURL: string;
   dataLayerAuth: string;
-  diffServerURL: string;
-  diffServerAuth: string;
 };
 
-export type TryPushResponse = {
-  syncID: string;
-  batchPushInfo: BatchPushInfo;
-  clientViewInfo: ClientViewInfo;
+type TryPushResponse = {
+  httpRequestInfo?: HTTPRequestInfo;
 };
 
-type MutationInfo = {
-  id: number;
-  error: string;
-};
-
-type BatchPushResponse = {
-  mutationInfos?: MutationInfo[];
-};
-
-type BatchPushInfo = {
-  httpStatusCode: number;
-  errorMessage: string;
-  batchPushResponse: BatchPushResponse;
-};
-
-type ClientViewInfo = {
+type HTTPRequestInfo = {
   httpStatusCode: number;
   errorMessage: string;
 };
 
 type MaybeEndTryPullRequest = {
-  syncID?: string;
-  syncHead?: string;
+  syncID: string;
+  syncHead: string;
 };
 
 type Mutation = {
@@ -200,6 +180,7 @@ type ReplayMutation = Mutation & {
 
 type MaybeEndTryPullResponse = {
   replayMutations?: ReplayMutation[];
+  syncHead: string;
 };
 
 type SetLogLevelRequest = {level: 'debug' | 'info' | 'error'};

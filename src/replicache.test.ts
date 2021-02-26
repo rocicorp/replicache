@@ -36,25 +36,25 @@ let overrideUseMemstore = false;
 async function replicacheForTesting(
   name: string,
   {
-    diffServerURL = '',
-    dataLayerAuth = '',
-    diffServerAuth = '',
-    batchURL = '',
+    pullAuth = '',
+    pullURL = '',
+    pushAuth = '',
+    pushURL = '',
     useMemstore = overrideUseMemstore,
   }: {
-    diffServerURL?: string;
-    dataLayerAuth?: string;
-    diffServerAuth?: string;
-    batchURL?: string;
+    pullAuth?: string;
+    pullURL?: string;
+    pushAuth?: string;
+    pushURL?: string;
     useMemstore?: boolean;
   } = {},
 ): Promise<ReplicacheTest> {
   dbsToDrop.add(name);
   return await ReplicacheTest.new({
-    batchURL,
-    dataLayerAuth,
-    diffServerAuth,
-    diffServerURL,
+    pullAuth,
+    pullURL,
+    pushAuth,
+    pushURL,
     name,
     useMemstore,
   });
@@ -525,19 +525,19 @@ testWithBothStores('overlapping writes', async () => {
 });
 
 testWithBothStores('sync', async () => {
-  const diffServerURL = 'https://diff.com/pull';
-  const batchURL = 'https://batch.com';
+  const pullURL = 'https://diff.com/pull';
+  const pushURL = 'https://push.com';
 
   rep = await replicacheForTesting('sync', {
-    batchURL,
-    dataLayerAuth: '1',
-    diffServerAuth: '1',
-    diffServerURL,
+    pullAuth: '1',
+    pullURL,
+    pushAuth: '1',
+    pushURL,
   });
 
   let pullCounter = 0;
   fetchMock.post(
-    diffServerURL,
+    pullURL,
     () =>
       [
         {
@@ -587,9 +587,9 @@ testWithBothStores('sync', async () => {
       ][pullCounter++],
   );
 
-  let batchCounter = 0;
+  let pushCounter = 0;
   fetchMock.post(
-    batchURL,
+    pushURL,
     () =>
       [
         {
@@ -605,7 +605,7 @@ testWithBothStores('sync', async () => {
           ],
         },
         {mutationInfos: []},
-      ][batchCounter++],
+      ][pushCounter++],
   );
 
   let createCount = 0;
@@ -694,11 +694,11 @@ testWithBothStores('sync', async () => {
 });
 
 testWithBothStores('push', async () => {
-  const batchURL = 'https://batch.com';
+  const pushURL = 'https://push.com';
 
   rep = await replicacheForTesting('push', {
-    batchURL,
-    dataLayerAuth: '1',
+    pushAuth: '1',
+    pushURL,
   });
 
   let createCount = 0;
@@ -728,7 +728,7 @@ testWithBothStores('push', async () => {
 
   expect(deleteCount).to.equal(2);
 
-  fetchMock.postOnce(batchURL, {
+  fetchMock.postOnce(pushURL, {
     mutationInfos: [
       {id: 1, error: 'deleteTodo: todo not found'},
       {id: 2, error: 'deleteTodo: todo not found'},
@@ -742,7 +742,7 @@ testWithBothStores('push', async () => {
     {id: 2, name: 'deleteTodo', args: {id: id2}},
   ]);
 
-  fetchMock.postOnce(batchURL, {
+  fetchMock.postOnce(pushURL, {
     mutationInfos: [],
   });
   await rep.push();
@@ -763,7 +763,7 @@ testWithBothStores('push', async () => {
     'Test',
   );
 
-  fetchMock.postOnce(batchURL, {
+  fetchMock.postOnce(pushURL, {
     mutationInfos: [{id: 3, error: 'mutation has already been processed'}],
   });
   await rep.push();
@@ -792,7 +792,7 @@ testWithBothStores('push', async () => {
   expect(deleteCount).to.equal(4);
   expect(createCount).to.equal(2);
 
-  fetchMock.postOnce(batchURL, {
+  fetchMock.postOnce(pushURL, {
     mutationInfos: [],
   });
   await rep.push();
@@ -813,13 +813,11 @@ testWithBothStores('push', async () => {
 });
 
 testWithBothStores('pull', async () => {
-  const diffServerURL = 'https://diff.com/pull';
+  const pullURL = 'https://diff.com/pull';
 
   rep = await replicacheForTesting('pull', {
-    batchURL: '',
-    dataLayerAuth: '1',
-    diffServerAuth: '1',
-    diffServerURL,
+    pullAuth: '1',
+    pullURL,
   });
 
   let createCount = 0;
@@ -854,7 +852,7 @@ testWithBothStores('pull', async () => {
 
   expect(deleteCount).to.equal(2);
 
-  fetchMock.postOnce(diffServerURL, {
+  fetchMock.postOnce(pullURL, {
     stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
     lastMutationID: 2,
     patch: [
@@ -870,7 +868,7 @@ testWithBothStores('pull', async () => {
   await rep.pull();
   expect(deleteCount).to.equal(2);
 
-  fetchMock.postOnce(diffServerURL, {
+  fetchMock.postOnce(pullURL, {
     stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
     lastMutationID: 2,
     patch: [],
@@ -890,7 +888,7 @@ testWithBothStores('pull', async () => {
     'Test',
   );
 
-  fetchMock.postOnce(diffServerURL, {
+  fetchMock.postOnce(pullURL, {
     stateID: 'g42viqe19kjv8iaahbj8ccs2aiub0po8',
     lastMutationID: 3,
     patch: [
@@ -915,7 +913,7 @@ testWithBothStores('pull', async () => {
     'Test 2',
   );
 
-  fetchMock.postOnce(diffServerURL, {
+  fetchMock.postOnce(pullURL, {
     stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
     lastMutationID: 3,
     patch: [],
@@ -932,7 +930,7 @@ testWithBothStores('pull', async () => {
   expect(deleteCount).to.equal(4);
   expect(createCount).to.equal(3);
 
-  fetchMock.postOnce(diffServerURL, {
+  fetchMock.postOnce(pullURL, {
     stateID: '4aqjcn91pronkc3s1uhpg8gichc1m6hv',
     lastMutationID: 6,
     patch: [{op: 'remove', path: '/~1todo~114323534'}],
@@ -966,15 +964,14 @@ testWithBothStores('sync debouncing', async () => {
 });
 
 testWithBothStores('reauth', async () => {
-  const diffServerURL = 'https://diff.com/pull';
+  const pullURL = 'https://diff.com/pull';
 
   rep = await replicacheForTesting('reauth', {
-    diffServerURL,
-    diffServerAuth: '1',
-    dataLayerAuth: 'wrong',
+    pullURL,
+    pullAuth: 'wrong',
   });
 
-  fetchMock.post(diffServerURL, () => ({
+  fetchMock.post(pullURL, () => ({
     stateID: 'fq40kklle30lr20vpjiv0ios8hgipnut',
     lastMutationID: 0,
     patch: [{op: 'remove', path: '/'}],
@@ -986,24 +983,24 @@ testWithBothStores('reauth', async () => {
 
   const consoleErrorStub = sinon.stub(console, 'error');
 
-  const getDataLayerAuthFake = sinon.fake.returns(null);
-  rep.getDataLayerAuth = getDataLayerAuthFake;
+  const getPullAuthFake = sinon.fake.returns(null);
+  rep.getPullAuth = getPullAuthFake;
 
   await rep.beginPull();
 
-  expect(getDataLayerAuthFake.callCount).to.equal(1);
+  expect(getPullAuthFake.callCount).to.equal(1);
   expect(consoleErrorStub.firstCall.args[0]).to.equal(
     'Got error response from server (https://diff.com/pull) doing pull: 401: xxx',
   );
 
   {
     const consoleInfoStub = sinon.stub(console, 'info');
-    const getDataLayerAuthFake = sinon.fake(() => 'boo');
-    rep.getDataLayerAuth = getDataLayerAuthFake;
+    const getPullAuthFake = sinon.fake(() => 'boo');
+    rep.getPullAuth = getPullAuthFake;
 
     expect((await rep.beginPull()).syncHead).to.equal('');
 
-    expect(getDataLayerAuthFake.callCount).to.equal(8);
+    expect(getPullAuthFake.callCount).to.equal(8);
     expect(consoleInfoStub.firstCall.args[0]).to.equal(
       'Tried to reauthenticate too many times',
     );
@@ -1036,8 +1033,6 @@ testWithBothStores('closed tx', async () => {
 
 testWithBothStores('syncInterval in constructor', async () => {
   const rep = new Replicache({
-    clientViewURL: 'clientViewURL',
-    diffServerURL: 'diffServerURL',
     syncInterval: 12.34,
   });
   expect(rep.syncInterval).to.equal(12.34);

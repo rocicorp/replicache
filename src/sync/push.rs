@@ -6,11 +6,15 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use str_macro::str;
 
+const PUSH_VERSION: u32 = 0;
+
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct PushRequest {
     #[serde(rename = "clientID")]
     pub client_id: String,
     pub mutations: Vec<Mutation>,
+    #[serde(rename = "pullVersion")]
+    pub push_version: u32,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -158,6 +162,7 @@ pub async fn push(
         let push_req = PushRequest {
             client_id,
             mutations: push_mutations,
+            push_version: PUSH_VERSION,
         };
         debug!(lc, "Starting push...");
         let push_timer = rlog::Timer::new().map_err(InternalTimerError)?;
@@ -225,6 +230,7 @@ mod tests {
                     name: "some_other_mutator_name".to_string(),
                     args: serde_json::Value::Null,
                 }],
+                push_version: PUSH_VERSION,
             };
             // EXP_BODY must be 'static to be used in HTTP handler closure.
             static ref EXP_BODY: String = serde_json::to_string(&*PUSH_REQ).unwrap();
@@ -414,6 +420,7 @@ mod tests {
                         name: "mutator_name_3".to_string(),
                         args: json!([3]),
                     }],
+                    push_version: PUSH_VERSION,
                 }),
                 push_result: Some(Ok(push::PushResponse {})),
                 exp_batch_push_info: Some(HttpRequestInfo {
@@ -441,6 +448,7 @@ mod tests {
                             args: json!([5]),
                         },
                     ],
+                    push_version: PUSH_VERSION,
                 }),
                 push_result: Some(Ok(push::PushResponse {})),
                 exp_batch_push_info: Some(HttpRequestInfo {
@@ -468,6 +476,7 @@ mod tests {
                             args: json!([5]),
                         },
                     ],
+                    push_version: PUSH_VERSION,
                 }),
                 push_result: Some(Err(str!("FetchNotOk(500)"))),
                 exp_batch_push_info: Some(HttpRequestInfo {

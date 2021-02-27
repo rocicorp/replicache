@@ -16,6 +16,8 @@ use std::collections::hash_map::HashMap;
 use std::default::Default;
 use std::fmt::Debug;
 
+const PULL_VERSION: u32 = 0;
+
 pub async fn begin_pull(
     client_id: String,
     begin_pull_req: BeginTryPullRequest,
@@ -51,7 +53,7 @@ pub async fn begin_pull(
         client_id,
         cookie: base_cookie.clone(),
         last_mutation_id: base_snapshot.mutation_id(),
-        pull_version: 0,
+        pull_version: PULL_VERSION,
     };
     debug!(lc, "Starting pull...");
     let pull_timer = rlog::Timer::new().map_err(InternalTimerError)?;
@@ -255,6 +257,7 @@ pub struct PullRequest {
     pub cookie: String,
     #[serde(rename = "lastMutationID")]
     pub last_mutation_id: u64,
+    #[serde(rename = "pullVersion")]
     pub pull_version: u32,
 }
 
@@ -378,7 +381,7 @@ mod tests {
                 client_id: str!("client_id"),
                 cookie: str!("cookie"),
                 last_mutation_id: 123,
-                pull_version: 0,
+                pull_version: PULL_VERSION,
             };
             // EXP_BODY must be 'static to be used in HTTP handler closure.
             static ref EXP_BODY: String = serde_json::to_string(&*PULL_REQ).unwrap();
@@ -564,7 +567,7 @@ mod tests {
             client_id: client_id.clone(),
             cookie: base_cookie.clone(),
             last_mutation_id: base_last_mutation_id,
-            pull_version: 0,
+            pull_version: PULL_VERSION,
         };
 
         let cases: Vec<Case> = vec![

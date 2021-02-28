@@ -144,6 +144,7 @@ export default class Replicache implements ReadTransaction {
   private _syncInterval: number | null;
   // NodeJS has a non standard setTimeout function :'(
   protected _timerId: ReturnType<typeof setTimeout> | 0 = 0;
+  protected _pushTimerId: ReturnType<typeof setTimeout> | 0 = 0;
 
   /**
    * The delay between when a change is made to Replicache and when Replicache
@@ -257,6 +258,16 @@ export default class Replicache implements ReadTransaction {
   private _scheduleSync(interval: number | null): void {
     if (interval) {
       this._timerId = setTimeout(() => this.sync(), interval);
+    }
+  }
+
+  private _schedulePush(interval: number | null): void {
+    // We do not want to restart the push timer.
+    if (interval && this._pushTimerId !== 0) {
+      this._pushTimerId = setTimeout(() => {
+        this._pushTimerId = 0;
+        this.push();
+      }, interval);
     }
   }
 
@@ -605,8 +616,6 @@ export default class Replicache implements ReadTransaction {
     const beginPullResponse = await this._invoke('beginTryPull', {
       pullAuth: this._pullAuth,
       pullURL: this._pullURL,
-      diffServerAuth: this._pullAuth,
-      diffServerURL: this._pullURL,
     });
     const {httpRequestInfo, syncHead, syncID} = beginPullResponse;
 
@@ -845,8 +854,7 @@ export default class Replicache implements ReadTransaction {
       await this._checkChange(ref);
     }
 
-    this._clearTimer();
-    this._scheduleSync(this.pushDelay);
+    this._schedulePush(this.pushDelay);
 
     return {result, ref};
   }

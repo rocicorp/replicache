@@ -139,11 +139,6 @@ export type CommitTransactionResponse = {
 type BeginTryPullRequest = {
   pullURL: string;
   pullAuth: string;
-
-  /** @deprecated */
-  diffServerURL: string;
-  /** @deprecated */
-  diffServerAuth: string;
 };
 
 type BeginTryPullResponse = {

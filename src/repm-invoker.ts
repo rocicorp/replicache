@@ -23,7 +23,6 @@ export interface Invoke {
   <RPC extends keyof InvokeMap>(rpc: RPC, args: InvokeMap[RPC][0]): Promise<
     InvokeMap[RPC][1]
   >;
-  (rpc: string, args?: JSONValue): Promise<JSONValue>;
 }
 
 export interface REPMInvoke {
@@ -199,6 +198,20 @@ type SetLogLevelRequest = {level: 'debug' | 'info' | 'error'};
 
 type SetLogLevelResponse = unknown;
 
+type CreateIndexRequest = TransactionRequest & {
+  name: string;
+  keyPrefix: string;
+  jsonPointer: string;
+};
+
+type CreateIndexResponse = unknown;
+
+type DropIndexRequest = TransactionRequest & {
+  name: string;
+};
+
+type DropIndexResponse = unknown;
+
 export type InvokeMap = {
   open: [OpenRequest, OpenResponse];
   get: [GetRequest, GetResponse];
@@ -219,6 +232,9 @@ export type InvokeMap = {
   maybeEndSync: [MaybeEndSyncRequest, MaybeEndSyncResponse];
 
   setLogLevel: [SetLogLevelRequest, SetLogLevelResponse];
+
+  createIndex: [CreateIndexRequest, CreateIndexResponse];
+  dropIndex: [DropIndexRequest, DropIndexResponse];
 };
 
 type CloseResponse = '';

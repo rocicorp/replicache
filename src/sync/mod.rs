@@ -4,7 +4,7 @@ pub mod client_id;
 mod patch;
 mod pull;
 mod push;
-pub mod sync_id;
+pub mod request_id;
 #[cfg(test)]
 pub mod test_helpers;
 mod types;

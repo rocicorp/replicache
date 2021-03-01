@@ -50,7 +50,7 @@ pub trait Pusher {
         push_req: &PushRequest,
         push_url: &str,
         push_auth: &str,
-        sync_id: &str,
+        request_id: &str,
     ) -> Result<PushResponse, PushError>;
 }
 
@@ -75,10 +75,10 @@ impl Pusher for FetchPusher<'_> {
         push_req: &PushRequest,
         push_url: &str,
         push_auth: &str,
-        sync_id: &str,
+        request_id: &str,
     ) -> Result<PushResponse, PushError> {
         use PushError::*;
-        let http_req = new_push_http_request(push_req, push_url, push_auth, sync_id)?;
+        let http_req = new_push_http_request(push_req, push_url, push_auth, request_id)?;
         let http_resp: http::Response<String> = self
             .fetch_client
             .request(http_req)
@@ -97,7 +97,7 @@ fn new_push_http_request(
     push_req: &PushRequest,
     push_url: &str,
     push_auth: &str,
-    sync_id: &str,
+    request_id: &str,
 ) -> Result<http::Request<String>, PushError> {
     use PushError::*;
     let body = serde_json::to_string(push_req).map_err(SerializePushError)?;
@@ -107,7 +107,7 @@ fn new_push_http_request(
         .uri(push_url)
         .header("Content-type", "application/json")
         .header("Authorization", push_auth)
-        .header("X-Replicache-SyncID", sync_id)
+        .header("X-Replicache-RequestID", request_id)
         .body(body)
         .map_err(InvalidRequest)?;
     Ok(http_req)
@@ -123,7 +123,7 @@ pub enum PushError {
 }
 
 pub async fn push(
-    sync_id: &str,
+    request_id: &str,
     store: &dag::Store,
     lc: LogContext,
     client_id: String,
@@ -167,7 +167,7 @@ pub async fn push(
         debug!(lc, "Starting push...");
         let push_timer = rlog::Timer::new().map_err(InternalTimerError)?;
         let push_resp = pusher
-            .push(&push_req, &req.push_url, &req.push_auth, sync_id)
+            .push(&push_req, &req.push_url, &req.push_auth, request_id)
             .await;
         // Note: no map_err(). A failed push does not fail sync, but we
         // do report it in HttpRequestInfo.
@@ -236,7 +236,7 @@ mod tests {
             static ref EXP_BODY: String = serde_json::to_string(&*PUSH_REQ).unwrap();
         }
         let batch_push_auth = "batch-push-auth";
-        let sync_id = "TODO";
+        let request_id = "TODO";
         let path = "/push";
 
         struct Case<'a> {
@@ -285,7 +285,10 @@ mod tests {
                         req.header("Content-Type").unwrap().as_str(),
                         "application/json"
                     );
-                    assert_eq!(req.header("X-Replicache-SyncID").unwrap().as_str(), sync_id);
+                    assert_eq!(
+                        req.header("X-Replicache-RequestID").unwrap().as_str(),
+                        request_id
+                    );
                     assert_eq!(req.body_string().await?, *EXP_BODY);
                     Ok(Response::builder(status).body(Body::from_string(body.to_string())))
                 });
@@ -301,7 +304,7 @@ mod tests {
                     &PUSH_REQ,
                     &format!("http://{}{}", addr, path),
                     batch_push_auth,
-                    sync_id,
+                    request_id,
                 )
                 .await;
 
@@ -330,7 +333,7 @@ mod tests {
         exp_push_req: Option<&'a push::PushRequest>,
         exp_push_url: &'a str,
         exp_push_auth: &'a str,
-        exp_sync_id: &'a str,
+        exp_request_id: &'a str,
 
         // We would like to write here:
         //    result: Result<PushResponse, PushError>,
@@ -350,7 +353,7 @@ mod tests {
             push_req: &push::PushRequest,
             push_url: &str,
             push_auth: &str,
-            sync_id: &str,
+            request_id: &str,
         ) -> Result<push::PushResponse, push::PushError> {
             assert!(self.exp_push);
 
@@ -358,7 +361,7 @@ mod tests {
                 assert_eq!(self.exp_push_req.unwrap(), push_req);
                 assert_eq!(self.exp_push_url, push_url);
                 assert_eq!(self.exp_push_auth, push_auth);
-                assert_eq!(self.exp_sync_id, sync_id);
+                assert_eq!(self.exp_request_id, request_id);
             }
 
             match &self.err {
@@ -386,7 +389,7 @@ mod tests {
         add_index_change(&mut chain, &store).await;
         let starting_num_commits = chain.len();
 
-        let sync_id = str!("sync_id");
+        let request_id = str!("request_id");
         let client_id = str!("test_client_id");
         let push_auth = str!("push_auth");
 
@@ -547,7 +550,7 @@ mod tests {
                 exp_push_req: c.exp_push_req.as_ref(),
                 exp_push_url: &push_url,
                 exp_push_auth: &push_auth,
-                exp_sync_id: &sync_id,
+                exp_request_id: &request_id,
                 resp: push_resp,
                 err: push_err,
             };
@@ -555,9 +558,9 @@ mod tests {
             let lc = LogContext::new();
             let pusher = &fake_pusher;
             let client_id = str!("test_client_id");
-            let sync_id = sync_id.clone();
+            let request_id = request_id.clone();
             let batch_push_info = super::push(
-                &sync_id,
+                &request_id,
                 &store,
                 lc.clone(),
                 client_id.clone(),

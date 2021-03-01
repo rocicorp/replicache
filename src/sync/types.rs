@@ -15,8 +15,8 @@ pub struct HttpRequestInfo {
 
 #[derive(Deserialize, Serialize)]
 pub struct MaybeEndTryPullRequest {
-    #[serde(rename = "syncID")]
-    pub sync_id: String,
+    #[serde(rename = "requestID")]
+    pub request_id: String,
     #[serde(rename = "syncHead")]
     pub sync_head: String,
 }
@@ -57,8 +57,8 @@ pub struct BeginTryPullResponse {
     pub http_request_info: HttpRequestInfo,
     #[serde(rename = "syncHead")]
     pub sync_head: String,
-    #[serde(rename = "syncID")]
-    pub sync_id: String,
+    #[serde(rename = "requestID")]
+    pub request_id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

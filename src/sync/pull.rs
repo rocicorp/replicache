@@ -22,7 +22,7 @@ pub async fn begin_pull(
     client_id: String,
     begin_pull_req: BeginTryPullRequest,
     puller: &dyn Puller,
-    sync_id: String,
+    request_id: String,
     store: &dag::Store,
     lc: LogContext,
 ) -> Result<BeginTryPullResponse, BeginTryPullError> {
@@ -58,7 +58,7 @@ pub async fn begin_pull(
     debug!(lc, "Starting pull...");
     let pull_timer = rlog::Timer::new().map_err(InternalTimerError)?;
     let pull_resp = puller
-        .pull(&pull_req, &pull_url, &pull_auth, &sync_id)
+        .pull(&pull_req, &pull_url, &pull_auth, &request_id)
         .await
         .map_err(PullFailed)?;
     debug!(
@@ -143,7 +143,7 @@ pub async fn begin_pull(
     Ok(BeginTryPullResponse {
         http_request_info: pull_resp.http_request_info,
         sync_head: commit_hash,
-        sync_id,
+        request_id,
     })
 }
 
@@ -280,7 +280,7 @@ pub trait Puller {
         pull_req: &PullRequest,
         ur: &str,
         auth: &str,
-        sync_id: &str,
+        request_id: &str,
     ) -> Result<PullResponse, PullError>;
 }
 
@@ -301,10 +301,10 @@ impl Puller for FetchPuller<'_> {
         pull_req: &PullRequest,
         url: &str,
         auth: &str,
-        sync_id: &str,
+        request_id: &str,
     ) -> Result<PullResponse, PullError> {
         use PullError::*;
-        let http_req = new_pull_http_request(pull_req, url, auth, sync_id)?;
+        let http_req = new_pull_http_request(pull_req, url, auth, request_id)?;
         let http_resp: http::Response<String> = self
             .fetch_client
             .request(http_req)
@@ -324,7 +324,7 @@ pub fn new_pull_http_request(
     pull_req: &PullRequest,
     url: &str,
     auth: &str,
-    sync_id: &str,
+    request_id: &str,
 ) -> Result<http::Request<String>, PullError> {
     use PullError::*;
     let body = serde_json::to_string(pull_req).map_err(SerializeRequestError)?;
@@ -334,7 +334,7 @@ pub fn new_pull_http_request(
         .uri(url)
         .header("Content-type", "application/json")
         .header("Authorization", auth)
-        .header("X-Replicache-SyncID", sync_id)
+        .header("X-Replicache-RequestID", request_id)
         .body(body)
         .map_err(InvalidRequest)?;
     Ok(http_req)
@@ -387,7 +387,7 @@ mod tests {
             static ref EXP_BODY: String = serde_json::to_string(&*PULL_REQ).unwrap();
         }
         let pull_auth = "pull-auth";
-        let sync_id = "sync_id";
+        let request_id = "request_id";
         let path = "/pull";
 
         struct Case<'a> {
@@ -450,7 +450,10 @@ mod tests {
                         req.header("Content-Type").unwrap().as_str(),
                         "application/json"
                     );
-                    assert_eq!(req.header("X-Replicache-SyncID").unwrap().as_str(), sync_id);
+                    assert_eq!(
+                        req.header("X-Replicache-RequestID").unwrap().as_str(),
+                        request_id
+                    );
                     assert_eq!(req.body_string().await?, *EXP_BODY);
                     Ok(Response::builder(status).body(Body::from_string(body.to_string())))
                 });
@@ -466,7 +469,7 @@ mod tests {
                     &PULL_REQ,
                     &format!("http://{}{}", addr, path),
                     pull_auth,
-                    sync_id,
+                    request_id,
                 )
                 .await;
 
@@ -519,7 +522,7 @@ mod tests {
         let (base_last_mutation_id, base_cookie) =
             Commit::snapshot_meta_parts(base_snapshot).unwrap();
 
-        let sync_id = str!("sync_id");
+        let request_id = str!("request_id");
         let client_id = str!("test_client_id");
         let pull_auth = str!("pull_auth");
         let pull_url = str!("pull_url");
@@ -735,7 +738,7 @@ mod tests {
                 exp_pull_req: &exp_pull_req.clone(),
                 exp_pull_url: &pull_url.clone(),
                 exp_pull_auth: &pull_auth.clone(),
-                exp_sync_id: &sync_id,
+                exp_request_id: &request_id,
                 resp: pull_resp,
                 err: pull_err,
             };
@@ -749,7 +752,7 @@ mod tests {
                 client_id.clone(),
                 begin_try_pull_req,
                 &fake_puller,
-                sync_id.clone(),
+                request_id.clone(),
                 &store,
                 LogContext::new(),
             )
@@ -878,7 +881,7 @@ mod tests {
         exp_pull_req: &'a PullRequest,
         exp_pull_url: &'a str,
         exp_pull_auth: &'a str,
-        exp_sync_id: &'a str,
+        exp_request_id: &'a str,
 
         // We would like to write here:
         //    result: Result<PullResponse, PullError>,
@@ -898,12 +901,12 @@ mod tests {
             pull_req: &PullRequest,
             url: &str,
             auth: &str,
-            sync_id: &str,
+            request_id: &str,
         ) -> Result<PullResponse, PullError> {
             assert_eq!(self.exp_pull_req, pull_req);
             assert_eq!(self.exp_pull_url, url);
             assert_eq!(self.exp_pull_auth, auth);
-            assert_eq!(self.exp_sync_id, sync_id);
+            assert_eq!(self.exp_request_id, request_id);
 
             match &self.err {
                 Some(s) => match s.as_str() {
@@ -1021,7 +1024,7 @@ mod tests {
             let sync_head = basis_hash;
 
             let req = MaybeEndTryPullRequest {
-                sync_id: str!("sync_id"),
+                request_id: str!("request_id"),
                 sync_head: sync_head.clone(),
             };
             let result = maybe_end_try_pull(&store, LogContext::new(), req).await;

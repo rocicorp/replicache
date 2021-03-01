@@ -16,9 +16,9 @@ lazy_static! {
     static ref SYNC_COUNTERS: Mutex<HashMap<String, AtomicU32>> = Mutex::new(HashMap::new());
 }
 
-// new() returns a new syncid of the form <clientid>-<sessionid>-<sync count>.
+// new() returns a new request_id of the form <clientid>-<sessionid>-<sync count>.
 // The sync count enables one to find the sync following or preceeding a given
-// sync. The sessionid scopes the sync count, ensuring the syncid is
+// sync. The sessionid scopes the sync count, ensuring the request_id is
 // probabilistically unique across restarts (which is good enough).
 pub fn new(client_id: &str) -> String {
     let mut map = match SYNC_COUNTERS.lock() {

@@ -641,7 +641,7 @@ async fn do_maybe_end_try_pull<'a, 'b>(
     ctx: Context<'a, 'b>,
     req: sync::MaybeEndTryPullRequest,
 ) -> Result<sync::MaybeEndTryPullResponse, sync::MaybeEndTryPullError> {
-    ctx.lc.add_context("sync_id", &req.sync_id);
+    ctx.lc.add_context("request_id", &req.request_id);
     sync::maybe_end_try_pull(ctx.store, ctx.lc.clone(), req).await
 }
 
@@ -666,11 +666,11 @@ async fn do_try_push<'a, 'b>(
     // TODO move client, pusher up to process() or into a lazy static so we can share.
     let fetch_client = fetch::client::Client::new();
     let pusher = sync::FetchPusher::new(&fetch_client);
-    let sync_id = sync::sync_id::new(&ctx.client_id);
-    ctx.lc.add_context("sync_id", &sync_id);
+    let request_id = sync::request_id::new(&ctx.client_id);
+    ctx.lc.add_context("request_id", &request_id);
 
     let http_request_info =
-        sync::push(&sync_id, ctx.store, ctx.lc, ctx.client_id, &pusher, req).await?;
+        sync::push(&request_id, ctx.store, ctx.lc, ctx.client_id, &pusher, req).await?;
     Ok(sync::TryPushResponse { http_request_info })
 }
 
@@ -681,9 +681,9 @@ async fn do_begin_try_pull<'a, 'b>(
     // TODO move client, pusher up to process() or into a lazy static so we can share.
     let fetch_client = fetch::client::Client::new();
     let puller = sync::FetchPuller::new(&fetch_client);
-    let sync_id = sync::sync_id::new(&ctx.client_id);
-    ctx.lc.add_context("sync_id", &sync_id);
-    sync::begin_pull(ctx.client_id, req, &puller, sync_id, ctx.store, ctx.lc).await
+    let request_id = sync::request_id::new(&ctx.client_id);
+    ctx.lc.add_context("request_id", &request_id);
+    sync::begin_pull(ctx.client_id, req, &puller, request_id, ctx.store, ctx.lc).await
 }
 
 #[derive(Debug)]

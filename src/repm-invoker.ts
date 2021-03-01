@@ -144,7 +144,7 @@ type BeginTryPullRequest = {
 type BeginTryPullResponse = {
   httpRequestInfo: HTTPRequestInfo;
   syncHead: string;
-  syncID: string;
+  requestID: string;
 };
 
 type TryPushRequest = {
@@ -162,7 +162,7 @@ type HTTPRequestInfo = {
 };
 
 type MaybeEndTryPullRequest = {
-  syncID: string;
+  requestID: string;
   syncHead: string;
 };
 

@@ -17,7 +17,7 @@ import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
 
 type BeginPullResult = {
-  syncID: string;
+  requestID: string;
   syncHead: string;
 };
 
@@ -466,8 +466,8 @@ export default class Replicache implements ReadTransaction {
     }
     console.groupEnd();
 
-    const {syncID} = beginPullResult;
-    await this._maybeEndPull({syncID, syncHead});
+    const {requestID} = beginPullResult;
+    await this._maybeEndPull({requestID, syncHead});
   }
 
   private async _replay<A extends JSONValue>(
@@ -618,7 +618,7 @@ export default class Replicache implements ReadTransaction {
       pullAuth: this._pullAuth,
       pullURL: this._pullURL,
     });
-    const {httpRequestInfo, syncHead, syncID} = beginPullResponse;
+    const {httpRequestInfo, syncHead, requestID} = beginPullResponse;
 
     let reauth = false;
 
@@ -629,7 +629,7 @@ export default class Replicache implements ReadTransaction {
     if (reauth && this.getPullAuth) {
       if (maxAuthTries === 0) {
         console.info('Tried to reauthenticate too many times');
-        return {syncID, syncHead: ''};
+        return {requestID, syncHead: ''};
       }
       const pullAuth = await this.getPullAuth();
       if (pullAuth != null) {
@@ -639,7 +639,7 @@ export default class Replicache implements ReadTransaction {
       }
     }
 
-    return {syncID, syncHead};
+    return {requestID, syncHead};
   }
 
   private _fireOnSync(syncing: boolean): void {

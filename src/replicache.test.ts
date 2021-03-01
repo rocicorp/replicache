@@ -610,7 +610,7 @@ testWithBothStores('sync', async () => {
   let deleteCount = 0;
   let syncHead: string;
   let beginPullResult: {
-    syncID: string;
+    requestID: string;
     syncHead: string;
   };
 
@@ -822,7 +822,7 @@ testWithBothStores('pull', async () => {
   let deleteCount = 0;
   let syncHead: string;
   let beginPullResult: {
-    syncID: string;
+    requestID: string;
     syncHead: string;
   };
 

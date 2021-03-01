@@ -605,7 +605,8 @@ export default class Replicache implements ReadTransaction {
   async pull(): Promise<void> {
     await this._wrapInOnlineCheck(async () => {
       const beginPullResult = await this._beginPull(MAX_REAUTH_TRIES);
-      // repc sends empty string for null pull.
+      // TODO: repc never returns an empty syncHead... after
+      // https://github.com/rocicorp/repc/commit/ea9d372e128ec5f9734cb4dadfeb490536577a9a
       if (beginPullResult.syncHead !== '') {
         await this._maybeEndPull(beginPullResult);
       }

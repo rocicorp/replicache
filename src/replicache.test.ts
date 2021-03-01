@@ -68,8 +68,6 @@ async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
   }
 }
 
-const emptyHash = '';
-
 async function asyncIterableToArray<T>(it: AsyncIterable<T>) {
   const arr: T[] = [];
   for await (const v of it) {
@@ -541,7 +539,7 @@ testWithBothStores('sync', async () => {
     () =>
       [
         {
-          stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
+          cookie: '',
           lastMutationID: 2,
           patch: [
             {op: 'remove', path: '/'},
@@ -554,13 +552,13 @@ testWithBothStores('sync', async () => {
           httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
         },
         {
-          stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
+          cookie: '',
           lastMutationID: 2,
           patch: [],
           httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
         },
         {
-          stateID: 'g42viqe19kjv8iaahbj8ccs2aiub0po8',
+          cookie: '',
           lastMutationID: 3,
           patch: [
             {
@@ -573,13 +571,13 @@ testWithBothStores('sync', async () => {
           httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
         },
         {
-          stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
+          cookie: '',
           lastMutationID: 2,
           patch: [],
           httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
         },
         {
-          stateID: '4aqjcn91pronkc3s1uhpg8gichc1m6hv',
+          cookie: '',
           lastMutationID: 6,
           patch: [{op: 'remove', path: '/~1todo~114323534'}],
           httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
@@ -645,7 +643,7 @@ testWithBothStores('sync', async () => {
 
   beginPullResult = await rep?.beginPull();
   ({syncHead} = beginPullResult);
-  expect(syncHead).to.equal(emptyHash);
+  expect(syncHead).to.equal('tol8mn002re3ea3bht6hs30p91gl4gu4');
   expect(deleteCount).to.equal(2);
 
   await createTodo({
@@ -662,7 +660,7 @@ testWithBothStores('sync', async () => {
 
   beginPullResult = await rep?.beginPull();
   ({syncHead} = beginPullResult);
-  expect(syncHead).not.to.equal(emptyHash);
+  expect(syncHead).to.equal('90am66buo9pge00hb155vthmt32osl9r');
 
   await createTodo({
     id: id2,
@@ -853,7 +851,7 @@ testWithBothStores('pull', async () => {
   expect(deleteCount).to.equal(2);
 
   fetchMock.postOnce(pullURL, {
-    stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
+    cookie: '',
     lastMutationID: 2,
     patch: [
       {op: 'remove', path: '/'},
@@ -869,14 +867,14 @@ testWithBothStores('pull', async () => {
   expect(deleteCount).to.equal(2);
 
   fetchMock.postOnce(pullURL, {
-    stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
+    cookie: '',
     lastMutationID: 2,
     patch: [],
     httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
   });
   beginPullResult = await rep.beginPull();
   ({syncHead} = beginPullResult);
-  expect(syncHead).to.equal(emptyHash);
+  expect(syncHead).to.equal('tol8mn002re3ea3bht6hs30p91gl4gu4');
   expect(deleteCount).to.equal(2);
 
   await createTodo({
@@ -889,7 +887,7 @@ testWithBothStores('pull', async () => {
   );
 
   fetchMock.postOnce(pullURL, {
-    stateID: 'g42viqe19kjv8iaahbj8ccs2aiub0po8',
+    cookie: '',
     lastMutationID: 3,
     patch: [
       {
@@ -902,7 +900,8 @@ testWithBothStores('pull', async () => {
   });
   beginPullResult = await rep.beginPull();
   ({syncHead} = beginPullResult);
-  expect(syncHead).not.to.equal(emptyHash);
+  console.log(syncHead);
+  expect(syncHead).equal('7p3g46d50gikc520umlctli8e6f2bof2');
 
   await createTodo({
     id: id2,
@@ -914,7 +913,7 @@ testWithBothStores('pull', async () => {
   );
 
   fetchMock.postOnce(pullURL, {
-    stateID: '97dd36bqlpojn302g24hemq2o34v66qm',
+    cookie: '',
     lastMutationID: 3,
     patch: [],
     httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
@@ -931,7 +930,7 @@ testWithBothStores('pull', async () => {
   expect(createCount).to.equal(3);
 
   fetchMock.postOnce(pullURL, {
-    stateID: '4aqjcn91pronkc3s1uhpg8gichc1m6hv',
+    cookie: '',
     lastMutationID: 6,
     patch: [{op: 'remove', path: '/~1todo~114323534'}],
     httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
@@ -972,7 +971,7 @@ testWithBothStores('reauth', async () => {
   });
 
   fetchMock.post(pullURL, () => ({
-    stateID: 'fq40kklle30lr20vpjiv0ios8hgipnut',
+    cookie: '',
     lastMutationID: 0,
     patch: [{op: 'remove', path: '/'}],
     httpRequestInfo: {

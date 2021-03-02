@@ -68,6 +68,8 @@ async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
   }
 }
 
+const emptyHash = '';
+
 async function asyncIterableToArray<T>(it: AsyncIterable<T>) {
   const arr: T[] = [];
   for await (const v of it) {
@@ -643,7 +645,7 @@ testWithBothStores('sync', async () => {
 
   beginPullResult = await rep?.beginPull();
   ({syncHead} = beginPullResult);
-  expect(syncHead).to.equal('tol8mn002re3ea3bht6hs30p91gl4gu4');
+  expect(syncHead).to.equal(emptyHash);
   expect(deleteCount).to.equal(2);
 
   await createTodo({
@@ -874,7 +876,7 @@ testWithBothStores('pull', async () => {
   });
   beginPullResult = await rep.beginPull();
   ({syncHead} = beginPullResult);
-  expect(syncHead).to.equal('tol8mn002re3ea3bht6hs30p91gl4gu4');
+  expect(syncHead).to.equal(emptyHash);
   expect(deleteCount).to.equal(2);
 
   await createTodo({

@@ -431,8 +431,8 @@ export default class Replicache implements ReadTransaction {
   }
 
   private async _sync(): Promise<void> {
-    await this.pull();
     await this.push();
+    await this.pull();
   }
 
   protected async _maybeEndPull(

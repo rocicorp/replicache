@@ -394,7 +394,7 @@ mod tests {
 
     #[cfg(not(target_arch = "wasm32"))]
     #[async_std::test]
-    async fn test_pull_http_part() {
+    async fn test_fetch_puller() {
         lazy_static! {
             static ref PULL_REQ: PullRequest = PullRequest {
                 client_id: str!("client_id"),
@@ -540,7 +540,7 @@ mod tests {
         let base_snapshot = &chain[1];
         let (base_last_mutation_id, base_cookie) =
             Commit::snapshot_meta_parts(base_snapshot).unwrap();
-        let base_snapshot_value_map = map!("foo" => "\"bar\"");
+        let base_value_map = map!("foo" => "\"bar\"");
 
         let request_id = str!("request_id");
         let client_id = str!("test_client_id");
@@ -551,8 +551,13 @@ mod tests {
             http_status_code: 200,
             error_message: str!(""),
         };
+        // The good_pull_resp has a patch, a new cookie, and a new
+        // last_mutation_id. Tests can clone it and override those
+        // fields they wish to change. This minimizes test changes required
+        // when PullResponse changes.
+        let new_cookie = str!("new_cookie");
         let good_pull_resp = PullResponse {
-            cookie: str!("new_cookie"),
+            cookie: new_cookie.clone(),
             last_mutation_id: 10,
             patch: vec![
                 Operation {
@@ -600,8 +605,8 @@ mod tests {
                 pull_result: Ok(good_pull_resp.clone()),
                 exp_err: None,
                 exp_new_sync_head: Some(ExpCommit {
-                    cookie: str!("new_cookie"),
-                    last_mutation_id: 10,
+                    cookie: new_cookie.clone(),
+                    last_mutation_id: good_pull_resp.last_mutation_id,
                     value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string()],
                 }),
@@ -615,7 +620,7 @@ mod tests {
                 }),
                 exp_err: None,
                 exp_new_sync_head: Some(ExpCommit {
-                    cookie: str!("new_cookie"),
+                    cookie: new_cookie.clone(),
                     last_mutation_id: 2,
                     value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string(), 4.to_string()],
@@ -630,7 +635,7 @@ mod tests {
                 }),
                 exp_err: None,
                 exp_new_sync_head: Some(ExpCommit {
-                    cookie: str!("new_cookie"),
+                    cookie: new_cookie.clone(),
                     last_mutation_id: 1,
                     value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string()],
@@ -642,8 +647,8 @@ mod tests {
                 pull_result: Ok(good_pull_resp.clone()),
                 exp_err: None,
                 exp_new_sync_head: Some(ExpCommit {
-                    cookie: str!("new_cookie"),
-                    last_mutation_id: 10,
+                    cookie: new_cookie.clone(),
+                    last_mutation_id: good_pull_resp.last_mutation_id,
                     value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string(), 4.to_string(), 6.to_string()],
                 }),
@@ -657,7 +662,7 @@ mod tests {
                 }),
                 exp_err: None,
                 exp_new_sync_head: Some(ExpCommit {
-                    cookie: str!("new_cookie"),
+                    cookie: new_cookie.clone(),
                     last_mutation_id: 2,
                     value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string(), 4.to_string()],
@@ -706,7 +711,7 @@ mod tests {
                 exp_new_sync_head: Some(ExpCommit {
                     cookie: base_cookie.clone(),
                     last_mutation_id: base_last_mutation_id+1,
-                    value_map: base_snapshot_value_map.clone(),
+                    value_map: base_value_map.clone(),
                     indexes: vec![2.to_string()],
                 }),
             },
@@ -723,7 +728,7 @@ mod tests {
                 exp_new_sync_head: Some(ExpCommit {
                     cookie: str!("new_cookie"),
                     last_mutation_id: base_last_mutation_id,
-                    value_map: base_snapshot_value_map.clone(),
+                    value_map: base_value_map.clone(),
                     indexes: vec![2.to_string()],
                 }),
             },
@@ -768,7 +773,7 @@ mod tests {
                 exp_new_sync_head: Some(ExpCommit {
                     cookie: good_pull_resp.cookie.clone(),
                     last_mutation_id: good_pull_resp.last_mutation_id,
-                    value_map: base_snapshot_value_map.clone(),
+                    value_map: base_value_map.clone(),
                     indexes: vec![2.to_string()],
                 }),
             },

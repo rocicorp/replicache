@@ -216,7 +216,7 @@ mod tests {
 
     #[cfg(not(target_arch = "wasm32"))]
     #[async_std::test]
-    async fn test_push() {
+    async fn test_fetch_pusher() {
         lazy_static! {
             static ref PUSH_REQ: PushRequest = PushRequest {
                 client_id: str!("client_id"),

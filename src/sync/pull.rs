@@ -386,6 +386,7 @@ mod tests {
     use async_std::net::TcpListener;
     use async_trait::async_trait;
     use itertools::Itertools;
+    use serde_json::json;
     use std::clone::Clone;
     use std::collections::HashMap;
     use str_macro::str;
@@ -423,7 +424,7 @@ mod tests {
                 resp_body: r#"{
                     "cookie": "1",
                     "lastMutationID": 2,
-                    "patch": [{"op":"replace","path":"","valueString":"{}"}],
+                    "patch": [{"op":"replace","path":"","value":{}}],
                     "httpRequestInfo": { "httpStatusCode": 200, "errorMessage": "" }
                 }"#,
                 exp_err: None,
@@ -433,7 +434,7 @@ mod tests {
                     patch: vec![Operation {
                         op: str!("replace"),
                         path: str!(""),
-                        value_string: str!("{}"),
+                        value: json!({}),
                     }],
                     http_request_info: HttpRequestInfo {
                         http_status_code: 200,
@@ -563,12 +564,12 @@ mod tests {
                 Operation {
                     op: str!("replace"),
                     path: str!(""),
-                    value_string: str!("{}"),
+                    value: json!({}),
                 },
                 Operation {
                     op: str!("add"),
                     path: str!("/new"),
-                    value_string: str!("\"value\""),
+                    value: json!("value"),
                 },
             ],
             http_request_info: good_http_request_info.clone(),

@@ -1,6 +1,7 @@
 use crate::db;
 use crate::util::rlog;
 use serde::Deserialize;
+use serde_json::json;
 use std::default::Default;
 
 const OP_ADD: &str = "add";
@@ -11,19 +12,18 @@ const OP_REPLACE: &str = "replace";
 pub struct Operation {
     pub op: String,
     pub path: String,
-    #[serde(rename = "valueString")]
     #[serde(default)]
-    pub value_string: String,
+    pub value: serde_json::Value,
 }
 
 pub async fn apply(db_write: &mut db::Write<'_>, patch: &[Operation]) -> Result<(), PatchError> {
     use PatchError::*;
     for op in patch.iter() {
-        // Special case `{"op": "replace", "path": "", "valueString": "{}"}`
+        // Special case `{"op": "replace", "path": "", "value": {}}`
         // which means replace the root with a new map, in other words, clear
         // the map.
         if op.path.is_empty() {
-            if op.op == OP_REPLACE && op.value_string == "{}" {
+            if op.op == OP_REPLACE && op.value == json!({}) {
                 db_write.clear().await.map_err(ClearError)?;
                 continue;
             }
@@ -38,7 +38,7 @@ pub async fn apply(db_write: &mut db::Write<'_>, patch: &[Operation]) -> Result<
 
         match op.op.as_str() {
             OP_ADD | OP_REPLACE => {
-                let value = op.value_string.as_bytes().to_vec();
+                let value = serde_json::to_vec(&op.value).map_err(InvalidValue)?;
                 db_write
                     .put(rlog::LogContext::new(), key, value)
                     .await
@@ -67,6 +67,7 @@ pub enum PatchError {
     DelError(db::DelError),
     InvalidOp(String),
     InvalidPath(String),
+    InvalidValue(serde_json::Error),
     PutError(db::PutError),
 }
 
@@ -100,7 +101,7 @@ mod tests {
 
         struct Case<'a> {
             name: &'a str,
-            patch: Vec<&'a str>,
+            patch: Vec<serde_json::Value>,
             exp_err: Option<&'a str>,
             // Note: the test inserts "key" => "value" into the map prior to
             // calling apply() so we can check if top-level removes work.
@@ -109,33 +110,33 @@ mod tests {
         let cases = [
             Case {
                 name: "insert",
-                patch: vec![r#"{"op":"add","path":"/foo","valueString":"\"bar\""}"#],
+                patch: vec![json!({"op": "add", "path": "/foo", "value": "bar"})],
                 exp_err: None,
                 exp_map: Some(map!("key" => "value", "foo" => "\"bar\"")),
             },
             Case {
                 name: "remove",
-                patch: vec![r#"{"op":"remove","path":"/key"}"#],
+                patch: vec![json!({"op": "remove", "path": "/key"})],
                 exp_err: None,
                 exp_map: Some(HashMap::new()),
             },
             Case {
                 name: "replace",
-                patch: vec![r#"{"op":"replace","path":"/key","valueString":"\"newvalue\""}"#],
+                patch: vec![json!({"op": "replace", "path": "/key", "value": "newvalue"})],
                 exp_err: None,
                 exp_map: Some(map!("key" => "\"newvalue\"")),
             },
             Case {
                 name: "insert empty key",
-                patch: vec![r#"{"op":"add","path":"/","valueString":"\"empty\""}"#],
+                patch: vec![json!({"op": "add", "path": "/", "value": "empty"})],
                 exp_err: None,
                 exp_map: Some(map!("key" => "value", "" => "\"empty\"")),
             },
             Case {
                 name: "insert/replace empty key",
                 patch: vec![
-                    r#"{"op":"add","path":"/","valueString":"\"empty\""}"#,
-                    r#"{"op":"replace","path":"/","valueString":"\"changed\""}"#,
+                    json!({"op": "add", "path": "/", "value": "empty"}),
+                    json!({"op": "replace", "path": "/", "value": "changed"}),
                 ],
                 exp_err: None,
                 exp_map: Some(map!("key" => "value", "" => "\"changed\"")),
@@ -143,8 +144,8 @@ mod tests {
             Case {
                 name: "insert/remove empty key",
                 patch: vec![
-                    r#"{"op":"add","path":"/","valueString":"\"empty\""}"#,
-                    r#"{"op":"remove","path":"/"}"#,
+                    json!({"op": "add", "path": "/", "value": "empty"}),
+                    json!({"op": "remove", "path": "/"}),
                 ],
                 exp_err: None,
                 exp_map: Some(map!("key" => "value")),
@@ -152,16 +153,16 @@ mod tests {
             // Remove once all the other layers no longer depend on this.
             Case {
                 name: "top-level remove",
-                patch: vec![r#"{"op":"replace","path":"","valueString":"{}"}"#],
+                patch: vec![json!({"op": "replace", "path": "", "value": {}})],
                 exp_err: None,
                 exp_map: Some(HashMap::new()),
             },
             Case {
                 name: "compound ops",
                 patch: vec![
-                    r#"{"op":"add","path":"/foo","valueString":"\"bar\""}"#,
-                    r#"{"op":"replace","path":"/key","valueString":"\"newvalue\""}"#,
-                    r#"{"op":"add","path":"/baz","valueString":"\"baz\""}"#,
+                    json!({"op": "add", "path": "/foo", "value": "bar"}),
+                    json!({"op": "replace", "path": "/key", "value": "newvalue"}),
+                    json!({"op": "add", "path": "/baz", "value": "baz"}),
                 ],
                 exp_err: None,
                 exp_map: Some(map!("foo" => "\"bar\"",
@@ -170,25 +171,25 @@ mod tests {
             },
             Case {
                 name: "escape 1",
-                patch: vec![r#"{"op":"add","path":"/~1","valueString":"\"bar\""}"#],
+                patch: vec![json!({"op": "add", "path": "/~1", "value": "bar"})],
                 exp_err: None,
                 exp_map: Some(map!("key" => "value", "/" => "\"bar\"")),
             },
             Case {
                 name: "escape 2",
-                patch: vec![r#"{"op":"add","path":"/~0","valueString":"\"bar\""}"#],
+                patch: vec![json!({"op": "add", "path": "/~0", "value": "bar"})],
                 exp_err: None,
                 exp_map: Some(map!("key" => "value", "~" => "\"bar\"")),
             },
             Case {
                 name: "invalid op",
-                patch: vec![r#"{"op":"BOOM","path":"/key"}"#],
+                patch: vec![json!({"op": "BOOM", "path": "/key"})],
                 exp_err: Some("InvalidOp"),
                 exp_map: None,
             },
             Case {
                 name: "invalid path",
-                patch: vec![r#"{"op":"add","path":"BOOM", "stringValue": "true"}"#],
+                patch: vec![json!({"op": "add", "path": "BOOM", "value": true})],
                 exp_err: Some("InvalidPath"),
                 exp_map: None,
             },
@@ -217,8 +218,9 @@ mod tests {
                 .unwrap();
             let ops: Vec<Operation> = c
                 .patch
-                .iter()
-                .map(|o| serde_json::from_str(&o).unwrap())
+                .clone()
+                .into_iter()
+                .map(|v| serde_json::from_value(v).unwrap())
                 .collect();
             let result = apply(&mut db_write, &ops).await;
             match c.exp_err {

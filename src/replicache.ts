@@ -851,8 +851,8 @@ export default class Replicache implements ReadTransaction {
     }
     const {ref} = await tx.commit();
     if (!isReplay) {
-      await this._checkChange(ref);
       this._schedulePush(this.pushDelay);
+      await this._checkChange(ref);
     }
 
     return {result, ref};

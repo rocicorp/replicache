@@ -17,6 +17,8 @@ use std::default::Default;
 use std::fmt::Debug;
 use str_macro::str;
 
+// Pull Versions
+// 0 (current): direct pull from data layer
 const PULL_VERSION: u32 = 0;
 
 pub async fn begin_pull(
@@ -266,8 +268,6 @@ pub async fn maybe_end_try_pull(
     })
 }
 
-// pull_versions
-// 0 (current): direct pull from data layer
 #[derive(Debug, Default, PartialEq, Serialize)]
 #[cfg_attr(test, derive(Clone))]
 pub struct PullRequest {

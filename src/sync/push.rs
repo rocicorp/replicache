@@ -6,6 +6,8 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use str_macro::str;
 
+// Push Versions
+// 0 (current): direct push to data layer
 const PUSH_VERSION: u32 = 0;
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

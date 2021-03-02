@@ -53,7 +53,7 @@ pub trait Pusher {
         push_url: &str,
         push_auth: &str,
         request_id: &str,
-    ) -> Result<PushResponse, PushError>;
+    ) -> Result<(Option<PushResponse>, HttpRequestInfo), PushError>;
 }
 
 pub struct FetchPusher<'a> {
@@ -78,7 +78,7 @@ impl Pusher for FetchPusher<'_> {
         push_url: &str,
         push_auth: &str,
         request_id: &str,
-    ) -> Result<PushResponse, PushError> {
+    ) -> Result<(Option<PushResponse>, HttpRequestInfo), PushError> {
         use PushError::*;
         let http_req = new_push_http_request(push_req, push_url, push_auth, request_id)?;
         let http_resp: http::Response<String> = self
@@ -86,12 +86,21 @@ impl Pusher for FetchPusher<'_> {
             .request(http_req)
             .await
             .map_err(FetchFailed)?;
-        if http_resp.status() != http::StatusCode::OK {
-            return Err(PushError::FetchNotOk(http_resp.status()));
-        }
-        let push_resp: PushResponse =
-            serde_json::from_str(&http_resp.body()).map_err(InvalidResponse)?;
-        Ok(push_resp)
+        let ok = http_resp.status() == http::StatusCode::OK;
+        let http_request_info = HttpRequestInfo {
+            http_status_code: http_resp.status().into(),
+            error_message: if ok {
+                str!("")
+            } else {
+                http_resp.body().into()
+            },
+        };
+        let push_resp = if ok {
+            serde_json::from_str(&http_resp.body()).map_err(InvalidResponse)?
+        } else {
+            None
+        };
+        Ok((push_resp, http_request_info))
     }
 }
 
@@ -118,7 +127,6 @@ fn new_push_http_request(
 #[derive(Debug)]
 pub enum PushError {
     FetchFailed(FetchError),
-    FetchNotOk(http::StatusCode),
     InvalidRequest(http::Error),
     InvalidResponse(serde_json::error::Error),
     SerializePushError(serde_json::error::Error),
@@ -152,7 +160,7 @@ pub async fn push(
     // want tail first (in mutation id order).
     pending.reverse();
 
-    let mut batch_push_info = None;
+    let mut http_request_info: Option<HttpRequestInfo> = None;
     if !pending.is_empty() {
         let mut push_mutations: Vec<Mutation> = Vec::new();
         for commit in pending.iter() {
@@ -168,29 +176,16 @@ pub async fn push(
         };
         debug!(lc, "Starting push...");
         let push_timer = rlog::Timer::new().map_err(InternalTimerError)?;
-        let push_resp = pusher
+        let (_push_resp, req_info) = pusher
             .push(&push_req, &req.push_url, &req.push_auth, request_id)
-            .await;
-        // Note: no map_err(). A failed push does not fail sync, but we
-        // do report it in HttpRequestInfo.
-        batch_push_info = match push_resp {
-            Ok(_) => Some(HttpRequestInfo {
-                http_status_code: 200,
-                error_message: str!(""),
-            }),
-            Err(PushError::FetchNotOk(status_code)) => Some(HttpRequestInfo {
-                http_status_code: status_code.into(),
-                error_message: format!("{:?}", PushError::FetchNotOk(status_code)),
-            }),
-            Err(e) => Some(HttpRequestInfo {
-                http_status_code: 0, // TODO we could return this properly in the PushError.
-                error_message: format!("{:?}", e),
-            }),
-        };
+            .await
+            .map_err(PushFailed)?;
+        http_request_info = Some(req_info);
+
         debug!(lc, "...Push complete in {}ms", push_timer.elapsed_ms());
     }
 
-    Ok(batch_push_info)
+    Ok(http_request_info)
 }
 
 #[cfg(test)]
@@ -241,12 +236,18 @@ mod tests {
         let request_id = "TODO";
         let path = "/push";
 
+        let good_http_request_info = HttpRequestInfo {
+            http_status_code: http::StatusCode::OK.into(),
+            error_message: str!(""),
+        };
+
         struct Case<'a> {
             pub name: &'a str,
             pub resp_status: u16,
             pub resp_body: &'a str,
             pub exp_err: Option<&'a str>,
             pub exp_resp: Option<PushResponse>,
+            pub exp_http_request_info: HttpRequestInfo,
         }
         let cases = [
             Case {
@@ -255,13 +256,18 @@ mod tests {
                 resp_body: r#"{}"#,
                 exp_err: None,
                 exp_resp: Some(PushResponse {}),
+                exp_http_request_info: good_http_request_info.clone(),
             },
             Case {
                 name: "403",
                 resp_status: 403,
                 resp_body: "forbidden",
-                exp_err: Some("FetchNotOk(403)"),
+                exp_err: None,
                 exp_resp: None,
+                exp_http_request_info: HttpRequestInfo {
+                    http_status_code: http::StatusCode::FORBIDDEN.into(),
+                    error_message: str!("forbidden"),
+                },
             },
             Case {
                 name: "invalid response",
@@ -269,6 +275,8 @@ mod tests {
                 resp_body: r#"not json"#,
                 exp_err: Some("\"expected ident\", line: 1, column: 2"),
                 exp_resp: None,
+                // Not used when there was an error
+                exp_http_request_info: good_http_request_info.clone(),
             },
         ];
 
@@ -310,10 +318,14 @@ mod tests {
                 )
                 .await;
 
+            if let Ok(result) = &result {
+                assert_eq!(result.0, c.exp_resp, "{}", c.name);
+            }
+
             match &c.exp_err {
                 None => {
-                    let got_push_resp = result.expect(c.name);
-                    assert_eq!(c.exp_resp.as_ref().unwrap(), &got_push_resp);
+                    let got_push_resp = result.expect(c.name).0;
+                    assert_eq!(c.exp_resp, got_push_resp);
                 }
                 Some(err_str) => {
                     let got_err_str = to_debug(result.expect_err(c.name));
@@ -356,7 +368,7 @@ mod tests {
             push_url: &str,
             push_auth: &str,
             request_id: &str,
-        ) -> Result<push::PushResponse, push::PushError> {
+        ) -> Result<(Option<push::PushResponse>, HttpRequestInfo), push::PushError> {
             assert!(self.exp_push);
 
             if self.exp_push_req.is_some() {
@@ -366,18 +378,21 @@ mod tests {
                 assert_eq!(self.exp_request_id, request_id);
             }
 
-            match &self.err {
+            let http_request_info = match &self.err {
                 Some(s) => match s.as_str() {
-                    "FetchNotOk(500)" => Err(push::PushError::FetchNotOk(
-                        http::StatusCode::INTERNAL_SERVER_ERROR,
-                    )),
+                    "FetchNotOk(500)" => HttpRequestInfo {
+                        http_status_code: http::StatusCode::INTERNAL_SERVER_ERROR.into(),
+                        error_message: str!("Fetch not OK"),
+                    },
                     _ => panic!("not implemented"),
                 },
-                None => {
-                    let r = self.resp.as_ref();
-                    Ok(r.unwrap().clone())
-                }
-            }
+                None => HttpRequestInfo {
+                    http_status_code: http::StatusCode::OK.into(),
+                    error_message: str!(""),
+                },
+            };
+
+            Ok((self.resp.clone(), http_request_info))
         }
     }
 
@@ -486,7 +501,7 @@ mod tests {
                 push_result: Some(Err(str!("FetchNotOk(500)"))),
                 exp_batch_push_info: Some(HttpRequestInfo {
                     http_status_code: 500,
-                    error_message: str!("FetchNotOk(500)"),
+                    error_message: str!("Fetch not OK"),
                 }),
             },
         ];

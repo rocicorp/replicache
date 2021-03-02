@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::hash_map::HashMap;
 use std::default::Default;
 use std::fmt::Debug;
+use str_macro::str;
 
 const PULL_VERSION: u32 = 0;
 
@@ -67,15 +68,6 @@ pub async fn begin_pull(
         pull_timer.elapsed_ms()
     );
 
-    // If last mutation ids are equal we don't reject it: the server could
-    // have new state that didn't originate from the client.
-    if pull_resp.last_mutation_id < base_last_mutation_id {
-        return Err(TimeTravelProhibited(format!(
-            "base lastMutationID {} is > than client view lastMutationID {}; ignoring client view",
-            base_last_mutation_id, pull_resp.last_mutation_id
-        )));
-    }
-
     // It is possible that another sync completed while we were pulling. Ensure
     // that is not the case by re-checking the base snapshot.
     let dag_write = store.write(lc.clone()).await.map_err(LockError)?;
@@ -93,6 +85,33 @@ pub async fn begin_pull(
             .map_err(NoBaseSnapshot)?;
     if base_snapshot.chunk().hash() != base_snapshot_post_pull.chunk().hash() {
         return Err(OverlappingSyncsJSLogInfo);
+    }
+
+    // If other entities (eg, other clients) are modifying the client view
+    // the client view can change but the last_mutation_id stays the same.
+    // So be careful here to reject only a lesser last_mutation_id.
+    if pull_resp.last_mutation_id < base_last_mutation_id {
+        return Err(TimeTravelProhibited(format!(
+            "base lastMutationID {} is > than client view lastMutationID {}; ignoring client view",
+            base_last_mutation_id, pull_resp.last_mutation_id
+        )));
+    }
+
+    // If there is no patch and the lmid and cookie don't change, it's a nop.
+    // Otherwise, we will write a new commit, including for the case of just
+    // a cookie change.
+    if pull_resp.patch.is_empty()
+        && pull_resp.last_mutation_id == base_last_mutation_id
+        && pull_resp.cookie == base_cookie
+    {
+        let sync_head = str!("");
+        return Ok(BeginTryPullResponse {
+            // TODO(arv) this should be replaced by whatever mechanism we have,
+            // possibly just hard-coding 200 here?
+            http_request_info: pull_resp.http_request_info,
+            sync_head,
+            request_id,
+        });
     }
 
     // We are going to need to rebuild the indexes. We want to take the definitions from
@@ -514,13 +533,14 @@ mod tests {
         let store = dag::Store::new(Box::new(MemStore::new()));
         let mut chain: Chain = vec![];
         add_genesis(&mut chain, &store).await;
-        add_snapshot(&mut chain, &store, Some(vec![str!("foo"), str!("bar")])).await;
+        add_snapshot(&mut chain, &store, Some(vec![str!("foo"), str!("\"bar\"")])).await;
         // chain[2] is an index change
         add_index_change(&mut chain, &store).await;
         let starting_num_commits = chain.len();
         let base_snapshot = &chain[1];
         let (base_last_mutation_id, base_cookie) =
             Commit::snapshot_meta_parts(base_snapshot).unwrap();
+        let base_snapshot_value_map = map!("foo" => "\"bar\"");
 
         let request_id = str!("request_id");
         let client_id = str!("test_client_id");
@@ -643,19 +663,125 @@ mod tests {
                     indexes: vec![2.to_string(), 4.to_string()],
                 }),
             },
+            // The patch, last_mutation_id, and cookie determine whether we write a new
+            // Commit. Here we run through the different combinations.
             Case {
-                name: "pulls different data with same cookie -> beginpull succeeds w/synchead set",
+                name: "no patch, same lmid, same cookie -> beginpull succeeds w/no synchead",
                 num_pending_mutations: 0,
                 pull_result: Ok(PullResponse {
-                    cookie: base_cookie.clone(),
                     last_mutation_id: base_last_mutation_id,
-                    patch: good_pull_resp.patch.clone(),
-                    http_request_info: good_http_request_info.clone(),
+                    cookie: base_cookie.clone(),
+                    patch: vec![],
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: None,
+                exp_new_sync_head: None,
+            },
+            Case {
+                name: "new patch, same lmid, same cookie -> beginpull succeeds w/synchead set",
+                num_pending_mutations: 0,
+                pull_result: Ok(PullResponse {
+                    last_mutation_id: base_last_mutation_id,
+                    cookie: base_cookie.clone(),
+                    ..good_pull_resp.clone()
                 }),
                 exp_err: None,
                 exp_new_sync_head: Some(ExpCommit {
                     cookie: base_cookie.clone(),
                     last_mutation_id: base_last_mutation_id,
+                    value_map: good_pull_resp_value_map.clone(),
+                    indexes: vec![2.to_string()],
+                }),
+            },
+            Case {
+                name: "no patch, new lmid, same cookie -> beginpull succeeds w/synchead set",
+                num_pending_mutations: 0,
+                pull_result: Ok(PullResponse {
+                    last_mutation_id: base_last_mutation_id+1,
+                    cookie: base_cookie.clone(),
+                    patch: vec![],
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    cookie: base_cookie.clone(),
+                    last_mutation_id: base_last_mutation_id+1,
+                    value_map: base_snapshot_value_map.clone(),
+                    indexes: vec![2.to_string()],
+                }),
+            },
+            Case {
+                name: "no patch, same lmid, new cookie -> beginpull succeeds w/synchead set",
+                num_pending_mutations: 0,
+                pull_result: Ok(PullResponse {
+                    last_mutation_id: base_last_mutation_id,
+                    cookie: str!("new_cookie"),
+                    patch: vec![],
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    cookie: str!("new_cookie"),
+                    last_mutation_id: base_last_mutation_id,
+                    value_map: base_snapshot_value_map.clone(),
+                    indexes: vec![2.to_string()],
+                }),
+            },
+            Case {
+                name: "new patch, new lmid, same cookie -> beginpull succeeds w/synchead set",
+                num_pending_mutations: 0,
+                pull_result: Ok(PullResponse {
+                    cookie: base_cookie.clone(),
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    cookie: base_cookie.clone(),
+                    last_mutation_id: good_pull_resp.last_mutation_id,
+                    value_map: good_pull_resp_value_map.clone(),
+                    indexes: vec![2.to_string()],
+                }),
+            },
+            Case {
+                name: "new patch, same lmid, new cookie -> beginpull succeeds w/synchead set",
+                num_pending_mutations: 0,
+                pull_result: Ok(PullResponse {
+                    last_mutation_id: base_last_mutation_id,
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    cookie: good_pull_resp.cookie.clone(),
+                    last_mutation_id: base_last_mutation_id,
+                    value_map: good_pull_resp_value_map.clone(),
+                    indexes: vec![2.to_string()],
+                }),
+            },
+            Case {
+                name: "no patch, new lmid, new cookie -> beginpull succeeds w/synchead set",
+                num_pending_mutations: 0,
+                pull_result: Ok(PullResponse {
+                    patch: vec![],
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    cookie: good_pull_resp.cookie.clone(),
+                    last_mutation_id: good_pull_resp.last_mutation_id,
+                    value_map: base_snapshot_value_map.clone(),
+                    indexes: vec![2.to_string()],
+                }),
+            },
+            Case {
+                name: "new patch, new lmid, new cookie -> beginpull succeeds w/synchead set",
+                num_pending_mutations: 0,
+                pull_result: Ok(PullResponse {
+                    ..good_pull_resp.clone()
+                }),
+                exp_err: None,
+                exp_new_sync_head: Some(ExpCommit {
+                    cookie: good_pull_resp.cookie.clone(),
+                    last_mutation_id: good_pull_resp.last_mutation_id,
                     value_map: good_pull_resp_value_map.clone(),
                     indexes: vec![2.to_string()],
                 }),

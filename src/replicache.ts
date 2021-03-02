@@ -575,7 +575,7 @@ export default class Replicache implements ReadTransaction {
       invokeArgs: {
         rebaseOpts: {basis, original},
       },
-      shouldCheckChange: false,
+      isReplay: true,
     });
     return res.ref;
   }
@@ -790,8 +790,7 @@ export default class Replicache implements ReadTransaction {
     );
 
     return async (args?: Args): Promise<Return> =>
-      (await this._mutate(name, mutatorImpl, args, {shouldCheckChange: true}))
-        .result;
+      (await this._mutate(name, mutatorImpl, args, {isReplay: false})).result;
   }
 
   private async _mutate<R extends JSONValue | void, A extends JSONValue>(
@@ -800,8 +799,8 @@ export default class Replicache implements ReadTransaction {
     args: A | undefined,
     {
       invokeArgs,
-      shouldCheckChange,
-    }: {invokeArgs?: OpenTransactionRequest; shouldCheckChange: boolean},
+      isReplay,
+    }: {invokeArgs?: OpenTransactionRequest; isReplay: boolean},
   ): Promise<{result: R; ref: string}> {
     let actualInvokeArgs: OpenTransactionRequest = {
       args: args !== undefined ? JSON.stringify(args) : 'null',
@@ -822,12 +821,11 @@ export default class Replicache implements ReadTransaction {
       throw ex;
     }
     const {ref} = await tx.commit();
-    if (shouldCheckChange) {
+    if (!isReplay) {
       await this._checkChange(ref);
+      this._clearTimer();
+      this._scheduleSync(this.pushDelay);
     }
-
-    this._clearTimer();
-    this._scheduleSync(this.pushDelay);
 
     return {result, ref};
   }

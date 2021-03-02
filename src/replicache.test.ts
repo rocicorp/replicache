@@ -39,12 +39,14 @@ async function replicacheForTesting(
     pullAuth = '',
     pullURL = '',
     pushAuth = '',
+    pushDelay,
     pushURL = '',
     useMemstore = overrideUseMemstore,
   }: {
     pullAuth?: string;
     pullURL?: string;
     pushAuth?: string;
+    pushDelay?: number;
     pushURL?: string;
     useMemstore?: boolean;
   } = {},
@@ -54,6 +56,7 @@ async function replicacheForTesting(
     pullAuth,
     pullURL,
     pushAuth,
+    pushDelay,
     pushURL,
     name,
     useMemstore,
@@ -810,6 +813,39 @@ testWithBothStores('push', async () => {
 
   expect(deleteCount).to.equal(4);
   expect(createCount).to.equal(2);
+});
+
+testWithBothStores('push delay', async () => {
+  const pushURL = 'https://push.com';
+
+  rep = await replicacheForTesting('push', {
+    pushAuth: '1',
+    pushURL,
+    pushDelay: 1,
+  });
+
+  const createTodo = rep.register(
+    'createTodo',
+    async <A extends {id: number}>(tx: WriteTransaction, args: A) => {
+      await tx.put(`/todo/${args.id}`, args);
+    },
+  );
+
+  const id1 = 14323534;
+
+  fetchMock.postOnce(pushURL, {
+    mutationInfos: [],
+  });
+
+  expect(fetchMock.calls()).to.have.length(0);
+
+  await createTodo({id: id1});
+
+  expect(fetchMock.calls()).to.have.length(0);
+
+  await sleep(1);
+
+  expect(fetchMock.calls()).to.have.length(1);
 });
 
 testWithBothStores('pull', async () => {

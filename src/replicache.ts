@@ -263,7 +263,7 @@ export default class Replicache implements ReadTransaction {
 
   private _schedulePush(interval: number | null): void {
     // We do not want to restart the push timer.
-    if (interval && this._pushTimerId !== 0) {
+    if (interval && this._pushTimerId === 0) {
       this._pushTimerId = setTimeout(() => {
         this._pushTimerId = 0;
         this.push();
@@ -892,6 +892,7 @@ export class ReplicacheTest extends Replicache {
     pullAuth,
     pullURL,
     pushAuth,
+    pushDelay = 0,
     pushURL,
     useMemstore = false,
   }: {
@@ -899,6 +900,7 @@ export class ReplicacheTest extends Replicache {
     pullAuth?: string;
     pullURL?: string;
     pushAuth?: string;
+    pushDelay?: number;
     pushURL: string;
     useMemstore?: boolean;
   }): Promise<ReplicacheTest> {
@@ -907,7 +909,7 @@ export class ReplicacheTest extends Replicache {
       pullAuth,
       pullURL,
       pushAuth,
-      pushDelay: 0,
+      pushDelay,
       pushURL,
       syncInterval: null,
       useMemstore,

@@ -843,7 +843,7 @@ testWithBothStores('push delay', async () => {
 
   expect(fetchMock.calls()).to.have.length(0);
 
-  await sleep(2);
+  await sleep(5);
 
   expect(fetchMock.calls()).to.have.length(1);
 });

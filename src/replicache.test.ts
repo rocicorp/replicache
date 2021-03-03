@@ -1008,15 +1008,7 @@ testWithBothStores('reauth', async () => {
     pullAuth: 'wrong',
   });
 
-  fetchMock.post(pullURL, () => ({
-    cookie: '',
-    lastMutationID: 0,
-    patch: [{op: 'remove', path: '/'}],
-    httpRequestInfo: {
-      httpStatusCode: httpStatusUnauthorized,
-      errorMessage: 'xxx',
-    },
-  }));
+  fetchMock.post(pullURL, {body: 'xxx', status: httpStatusUnauthorized});
 
   const consoleErrorStub = sinon.stub(console, 'error');
 

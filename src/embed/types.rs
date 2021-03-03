@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct OpenRequest {
+    #[serde(rename = "useMemstore")]
     pub use_memstore: bool,
 }
 

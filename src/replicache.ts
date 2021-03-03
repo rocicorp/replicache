@@ -561,7 +561,7 @@ export default class Replicache implements ReadTransaction {
   }
 
   /**
-   * Push pushes pending changes to the [[batchURL]].
+   * Push pushes pending changes to the [[pushURL]].
    */
   async push(): Promise<void> {
     await this._wrapInOnlineCheck(() => this._push(MAX_REAUTH_TRIES), 'Push');
@@ -598,7 +598,7 @@ export default class Replicache implements ReadTransaction {
   }
 
   /**
-   * Pull pulls changes from the [[clientViewURL]]. If there are any changes
+   * Pull pulls changes from the [[pullURL]]. If there are any changes
    * local changes will get replayed on top of the new server state.
    */
   async pull(): Promise<void> {

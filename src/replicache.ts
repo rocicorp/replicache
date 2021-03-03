@@ -143,7 +143,7 @@ export default class Replicache implements ReadTransaction {
   >();
   private _syncInterval: number | null;
   // NodeJS has a non standard setTimeout function :'(
-  protected _timerId: ReturnType<typeof setTimeout> | 0 = 0;
+  protected _syncTimerId: ReturnType<typeof setTimeout> | 0 = 0;
   protected _pushTimerId: ReturnType<typeof setTimeout> | 0 = 0;
 
   /**
@@ -256,24 +256,29 @@ export default class Replicache implements ReadTransaction {
 
   private _scheduleSync(interval: number | null): void {
     if (interval) {
-      this._timerId = setTimeout(() => this.sync(), interval);
+      this._syncTimerId = setTimeout(() => this.sync(), interval);
     }
   }
 
-  private _schedulePush(interval: number | null): void {
+  private _schedulePush(delay: number | null): void {
     // We do not want to restart the push timer.
-    if (interval && this._pushTimerId === 0) {
+    //
+    // To make multiuser collab feel as live as possible, we need events to be
+    // sent very soon after they are generated. Even if a new event comes in, we
+    // do *not* delay the initial one from being sent. Any new events that gets
+    // in before the timer elapses will get sent too, but we do not delay the
+    // train from leaving.
+    if (delay && this._pushTimerId === 0) {
       this._pushTimerId = setTimeout(() => {
-        this._pushTimerId = 0;
         this.push();
-      }, interval);
+      }, delay);
     }
   }
 
   private _clearTimer() {
-    if (this._timerId !== 0) {
-      clearTimeout(this._timerId);
-      this._timerId = 0;
+    if (this._syncTimerId !== 0) {
+      clearTimeout(this._syncTimerId);
+      this._syncTimerId = 0;
     }
   }
 
@@ -562,8 +567,16 @@ export default class Replicache implements ReadTransaction {
 
   /**
    * Push pushes pending changes to the [[pushURL]].
+   *
+   * You do not usually need to manually call push. If [[pushDelay]] is non-zero
+   * (which it is by default) pushes happen automatically shortly after
+   * mutations.
    */
   async push(): Promise<void> {
+    if (this._pushTimerId) {
+      clearTimeout(this._pushTimerId);
+      this._pushTimerId = 0;
+    }
     await this._wrapInOnlineCheck(() => this._push(MAX_REAUTH_TRIES), 'Push');
   }
 
@@ -579,9 +592,10 @@ export default class Replicache implements ReadTransaction {
 
     if (httpRequestInfo) {
       reauth = checkStatus(httpRequestInfo, 'push', this._pushURL);
-      // mutationInfos support was never added to repc. We used to log all the
-      // errors here.
     }
+
+    // TODO: Add back support for mutationInfos? We used to log all the errors
+    // here.
 
     if (reauth && this.getPushAuth) {
       if (maxAuthTries === 0) {

@@ -136,48 +136,34 @@ export type CommitTransactionResponse = {
   ref: string;
 };
 
-type BeginSyncRequest = {
-  batchPushURL: string;
-  clientViewURL: string;
-  dataLayerAuth: string;
-  diffServerURL: string;
-  diffServerAuth: string;
+type BeginTryPullRequest = {
+  pullURL: string;
+  pullAuth: string;
 };
 
-type MutationInfo = {
-  id: number;
-  error: string;
-};
-
-type BatchPushResponse = {
-  mutationInfos?: MutationInfo[];
-};
-
-type BatchPushInfo = {
-  httpStatusCode: number;
-  errorMessage: string;
-  batchPushResponse: BatchPushResponse;
-};
-
-type ClientViewInfo = {
-  httpStatusCode: number;
-  errorMessage: string;
-};
-
-type SyncInfo = {
-  syncID: string;
-  batchPushInfo?: BatchPushInfo;
-  clientViewInfo: ClientViewInfo;
-};
-
-export type BeginSyncResponse = {
+type BeginTryPullResponse = {
+  httpRequestInfo: HTTPRequestInfo;
   syncHead: string;
-  syncInfo: SyncInfo;
+  requestID: string;
 };
 
-type MaybeEndSyncRequest = {
-  syncID?: string;
-  syncHead?: string;
+type TryPushRequest = {
+  pushURL: string;
+  pushAuth: string;
+};
+
+type TryPushResponse = {
+  httpRequestInfo?: HTTPRequestInfo;
+};
+
+type HTTPRequestInfo = {
+  httpStatusCode: number;
+  errorMessage: string;
+};
+
+type MaybeEndTryPullRequest = {
+  requestID: string;
+  syncHead: string;
 };
 
 type Mutation = {
@@ -190,8 +176,9 @@ type ReplayMutation = Mutation & {
   original: string;
 };
 
-type MaybeEndSyncResponse = {
+type MaybeEndTryPullResponse = {
   replayMutations?: ReplayMutation[];
+  syncHead: string;
 };
 
 type SetLogLevelRequest = {level: 'debug' | 'info' | 'error'};
@@ -228,8 +215,9 @@ export type InvokeMap = {
   closeTransaction: [CloseTransactionRequest, CloseTransactionResponse];
   commitTransaction: [CommitTransactionRequest, CommitTransactionResponse];
 
-  beginSync: [BeginSyncRequest, BeginSyncResponse];
-  maybeEndSync: [MaybeEndSyncRequest, MaybeEndSyncResponse];
+  beginTryPull: [BeginTryPullRequest, BeginTryPullResponse];
+  maybeEndTryPull: [MaybeEndTryPullRequest, MaybeEndTryPullResponse];
+  tryPush: [TryPushRequest, TryPushResponse];
 
   setLogLevel: [SetLogLevelRequest, SetLogLevelResponse];
 

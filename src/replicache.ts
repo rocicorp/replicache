@@ -16,8 +16,8 @@ import {
 import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
 
-type BeginSyncResult = {
-  syncID: string;
+type BeginPullResult = {
+  requestID: string;
   syncHead: string;
 };
 
@@ -36,42 +36,34 @@ const MAX_REAUTH_TRIES = 8;
  */
 export interface ReplicacheOptions {
   /**
-   * This is the URL to the server endpoint dealing with the batch updates. See
+   * This is the
+   * [authentication](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#authentication)
+   * token used when doing a [push
+   * ](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync).
+   */
+  pushAuth?: string;
+
+  /**
+   * This is the URL to the server endpoint dealing with the push updates. See
    * [Server Setup Upstream Sync](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync)
    * for more details.
    */
-  batchURL?: string;
-
-  /**
-   * The URL for the client view. This is used by the diff-server to compute
-   * diffs and to get a fresh view of the data that this client should see.
-   */
-  clientViewURL: string;
+  pushURL?: string;
 
   /**
    * This is the
    * [authentication](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#authentication)
-   * token used with the [upstream batch
-   * server](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync)
-   * as well as the [client
-   * view](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-1-downstream-sync).
+   * token used when doing a [pull
+   * ](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync).
    */
-  dataLayerAuth?: string;
+  pullAuth?: string;
 
   /**
-   * The diff server deals with computing the diffs in the downstream sync.
-   * This is the auth token for the [diff server](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-2-test-downstream-sync) if any.
+   * This is the URL to the server endpoint dealing with pull. See
+   * [Server Setup Upstream Sync](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync)
+   * for more details.
    */
-  diffServerAuth?: string;
-
-  /**
-   * The [diff
-   * server](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-2-test-downstream-sync)
-   * deals with computing the diffs in the downstream sync. This is the URL to
-   * talk to get the diffs as needed.
-   *
-   */
-  diffServerURL: string;
+  pullURL?: string;
 
   /**
    * The name of the Replicache database. This defaults to `"default"`.
@@ -129,11 +121,10 @@ export interface ReplicacheOptions {
 }
 
 export default class Replicache implements ReadTransaction {
-  private readonly _batchURL: string;
-  private readonly _clientViewURL: string;
-  private _dataLayerAuth: string;
-  private readonly _diffServerAuth: string;
-  private readonly _diffServerURL: string;
+  private _pullAuth: string;
+  private readonly _pullURL: string;
+  private _pushAuth: string;
+  private readonly _pushURL: string;
   private readonly _name: string;
   private readonly _repmInvoker: Invoker;
   private readonly _useMemstore: boolean;
@@ -152,7 +143,8 @@ export default class Replicache implements ReadTransaction {
   >();
   private _syncInterval: number | null;
   // NodeJS has a non standard setTimeout function :'(
-  protected _timerId: ReturnType<typeof setTimeout> | 0 = 0;
+  protected _syncTimerId: ReturnType<typeof setTimeout> | 0 = 0;
+  protected _pushTimerId: ReturnType<typeof setTimeout> | 0 = 0;
 
   /**
    * The delay between when a change is made to Replicache and when Replicache
@@ -177,34 +169,39 @@ export default class Replicache implements ReadTransaction {
   onSync: ((syncing: boolean) => void) | null = null;
 
   /**
-   * This gets called when we get an HTTP unauthorized from the client view or
-   * the batch endpoint. Set this to a function that will ask your user to
-   * reauthenticate.
+   * This gets called when we get an HTTP unauthorized from the pull
+   * endpoint. Set this to a function that will ask your user to reauthenticate.
    */
-  getDataLayerAuth:
+  getPullAuth:
+    | (() => MaybePromise<string | null | undefined>)
+    | null
+    | undefined = null;
+
+  /**
+   * This gets called when we get an HTTP unauthorized from the push
+   * endpoint. Set this to a function that will ask your user to reauthenticate.
+   */
+  getPushAuth:
     | (() => MaybePromise<string | null | undefined>)
     | null
     | undefined = null;
 
   constructor(options: ReplicacheOptions) {
     const {
-      batchURL = '',
-      clientViewURL,
-      dataLayerAuth = '',
-      diffServerAuth = '',
-      diffServerURL,
       name = 'default',
-      syncInterval = 60_000,
+      pullAuth = '',
+      pullURL = '',
+      pushAuth = '',
       pushDelay = 300,
-      wasmModule,
+      pushURL = '',
+      syncInterval = 60_000,
       useMemstore = false,
+      wasmModule,
     } = options;
-    this._batchURL = batchURL;
-    // Make clientViewURL absolute since we pass it to the diff server.
-    this._clientViewURL = new URL(clientViewURL, location.href).href;
-    this._dataLayerAuth = dataLayerAuth;
-    this._diffServerAuth = diffServerAuth;
-    this._diffServerURL = diffServerURL;
+    this._pullAuth = pullAuth;
+    this._pullURL = pullURL;
+    this._pushAuth = pushAuth;
+    this._pushURL = pushURL;
     this._name = name;
     this._repmInvoker = new REPMWasmInvoker(wasmModule);
     this._syncInterval = syncInterval;
@@ -215,8 +212,7 @@ export default class Replicache implements ReadTransaction {
 
   private async _open(): Promise<void> {
     this._opened = this._repmInvoker.invoke(this._name, 'open', {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      use_memstore: this._useMemstore,
+      useMemstore: this._useMemstore,
     });
     this._setRoot(this._getRoot());
     await this._root;
@@ -260,14 +256,29 @@ export default class Replicache implements ReadTransaction {
 
   private _scheduleSync(interval: number | null): void {
     if (interval) {
-      this._timerId = setTimeout(() => this.sync(), interval);
+      this._syncTimerId = setTimeout(() => this.sync(), interval);
+    }
+  }
+
+  private _schedulePush(delay: number | null): void {
+    // We do not want to restart the push timer.
+    //
+    // To make multiuser collab feel as live as possible, we need events to be
+    // sent very soon after they are generated. Even if a new event comes in, we
+    // do *not* delay the initial one from being sent. Any new events that gets
+    // in before the timer elapses will get sent too, but we do not delay the
+    // train from leaving.
+    if (delay && this._pushTimerId === 0) {
+      this._pushTimerId = setTimeout(() => {
+        this.push();
+      }, delay);
     }
   }
 
   private _clearTimer() {
-    if (this._timerId !== 0) {
-      clearTimeout(this._timerId);
-      this._timerId = 0;
+    if (this._syncTimerId !== 0) {
+      clearTimeout(this._syncTimerId);
+      this._syncTimerId = 0;
     }
   }
 
@@ -424,110 +435,22 @@ export default class Replicache implements ReadTransaction {
   }
 
   private async _sync(): Promise<void> {
-    let online = true;
-
-    try {
-      const beginSyncResult = await this._beginSync(MAX_REAUTH_TRIES);
-
-      // repc sends empty string for null sync.
-      if (beginSyncResult.syncHead !== '') {
-        await this._maybeEndSync(beginSyncResult);
-      }
-    } catch (e) {
-      // The error paths of beginSync and maybeEndSync need to be reworked.
-      //
-      // We want to distinguish between:
-      // a) network requests failed -- we're offline basically
-      // b) sync was aborted because one's already in progress
-      // c) oh noes - something unexpected happened
-      //
-      // Right now, all of these come out as errors. We distinguish (b) with a
-      // hacky string search. (a) and (c) are not distinguishable currently
-      // because repc doesn't provide sufficient information, so we treat all
-      // errors that aren't (b) as (a).
-      if (e.toString().includes('JSLogInfo')) {
-        online = false;
-      }
-      console.info(`Sync returned: ${e}`);
-    }
-    this._online = online;
+    await this.push();
+    await this.pull();
   }
 
-  protected async _beginSync(maxAuthTries: number): Promise<BeginSyncResult> {
-    const beginSyncResult = await this._invoke('beginSync', {
-      batchPushURL: this._batchURL,
-      clientViewURL: this._clientViewURL,
-      diffServerURL: this._diffServerURL,
-      dataLayerAuth: this._dataLayerAuth,
-      diffServerAuth: this._diffServerAuth,
-    });
-
-    const {syncInfo, syncHead} = beginSyncResult;
-
-    let reauth = false;
-
-    function checkStatus(
-      data: {httpStatusCode: number; errorMessage: string},
-      serverName: string,
-      serverURL: string,
-    ) {
-      const {httpStatusCode, errorMessage} = data;
-      if (errorMessage || httpStatusCode >= 400) {
-        console.error(
-          `Got error response from ${serverName} server (${serverURL}): ${httpStatusCode}` +
-            (errorMessage ? `: ${errorMessage}` : ''),
-        );
-      }
-      if (httpStatusCode === httpStatusUnauthorized) {
-        reauth = true;
-      }
-    }
-
-    const {batchPushInfo, clientViewInfo, syncID} = syncInfo;
-    if (batchPushInfo) {
-      checkStatus(batchPushInfo, 'batch', this._batchURL);
-      const mutationInfos = batchPushInfo.batchPushResponse?.mutationInfos;
-      if (mutationInfos != null) {
-        for (const mutationInfo of mutationInfos) {
-          console.error(
-            `MutationInfo: ID: ${mutationInfo.id}, Error: ${mutationInfo.error}`,
-          );
-        }
-      }
-    }
-
-    if (clientViewInfo) {
-      checkStatus(clientViewInfo, 'client view', this._diffServerURL);
-    }
-
-    if (reauth && this.getDataLayerAuth) {
-      if (maxAuthTries === 0) {
-        console.info('Tried to reauthenticate too many times');
-        return {syncID, syncHead: ''};
-      }
-      const dataLayerAuth = await this.getDataLayerAuth();
-      if (dataLayerAuth != null) {
-        this._dataLayerAuth = dataLayerAuth;
-        // Try again now instead of waiting for another 5 seconds.
-        return await this._beginSync(maxAuthTries - 1);
-      }
-    }
-
-    return {syncID, syncHead};
-  }
-
-  protected async _maybeEndSync(
-    beginSyncResult: BeginSyncResult,
+  protected async _maybeEndPull(
+    beginPullResult: BeginPullResult,
   ): Promise<void> {
     if (this._closed) {
       return;
     }
 
-    let {syncHead} = beginSyncResult;
+    let {syncHead} = beginPullResult;
 
     const {replayMutations} = await this._invoke(
-      'maybeEndSync',
-      beginSyncResult,
+      'maybeEndTryPull',
+      beginPullResult,
     );
     if (!replayMutations || replayMutations.length === 0) {
       // All done.
@@ -547,8 +470,8 @@ export default class Replicache implements ReadTransaction {
     }
     console.groupEnd();
 
-    const {syncID} = beginSyncResult;
-    await this._maybeEndSync({syncID, syncHead});
+    const {requestID} = beginPullResult;
+    await this._maybeEndPull({requestID, syncHead});
   }
 
   private async _replay<A extends JSONValue>(
@@ -611,6 +534,123 @@ export default class Replicache implements ReadTransaction {
       this._fireOnSync(false);
       this._scheduleSync(this._syncInterval);
     }
+  }
+
+  private async _wrapInOnlineCheck(
+    f: () => Promise<void>,
+    name: string,
+  ): Promise<void> {
+    let online = true;
+
+    try {
+      await f();
+    } catch (e) {
+      // The error paths of beginPull and maybeEndPull need to be reworked.
+      //
+      // We want to distinguish between:
+      // a) network requests failed -- we're offline basically
+      // b) sync was aborted because one's already in progress
+      // c) oh noes - something unexpected happened
+      //
+      // Right now, all of these come out as errors. We distinguish (b) with a
+      // hacky string search. (a) and (c) are not distinguishable currently
+      // because repc doesn't provide sufficient information, so we treat all
+      // errors that aren't (b) as (a).
+      if (e.toString().includes('JSLogInfo')) {
+        online = false;
+      }
+      console.info(`${name} returned: ${e}`);
+    }
+
+    this._online = online;
+  }
+
+  /**
+   * Push pushes pending changes to the [[pushURL]].
+   *
+   * You do not usually need to manually call push. If [[pushDelay]] is non-zero
+   * (which it is by default) pushes happen automatically shortly after
+   * mutations.
+   */
+  async push(): Promise<void> {
+    if (this._pushTimerId) {
+      clearTimeout(this._pushTimerId);
+      this._pushTimerId = 0;
+    }
+    await this._wrapInOnlineCheck(() => this._push(MAX_REAUTH_TRIES), 'Push');
+  }
+
+  private async _push(maxAuthTries: number): Promise<void> {
+    const pushResponse = await this._invoke('tryPush', {
+      pushURL: this._pushURL,
+      pushAuth: this._pushAuth,
+    });
+
+    let reauth = false;
+
+    const {httpRequestInfo} = pushResponse;
+
+    if (httpRequestInfo) {
+      reauth = checkStatus(httpRequestInfo, 'push', this._pushURL);
+    }
+
+    // TODO: Add back support for mutationInfos? We used to log all the errors
+    // here.
+
+    if (reauth && this.getPushAuth) {
+      if (maxAuthTries === 0) {
+        console.info('Tried to reauthenticate too many times');
+        return;
+      }
+      const pushAuth = await this.getPushAuth();
+      if (pushAuth != null) {
+        this._pushAuth = pushAuth;
+        // Try again now instead of waiting for next push.
+        return await this._push(maxAuthTries - 1);
+      }
+    }
+  }
+
+  /**
+   * Pull pulls changes from the [[pullURL]]. If there are any changes
+   * local changes will get replayed on top of the new server state.
+   */
+  async pull(): Promise<void> {
+    await this._wrapInOnlineCheck(async () => {
+      const beginPullResult = await this._beginPull(MAX_REAUTH_TRIES);
+      if (beginPullResult.syncHead !== '') {
+        await this._maybeEndPull(beginPullResult);
+      }
+    }, 'Pull');
+  }
+
+  protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
+    const beginPullResponse = await this._invoke('beginTryPull', {
+      pullAuth: this._pullAuth,
+      pullURL: this._pullURL,
+    });
+    const {httpRequestInfo, syncHead, requestID} = beginPullResponse;
+
+    let reauth = false;
+
+    if (httpRequestInfo) {
+      reauth = checkStatus(httpRequestInfo, 'pull', this._pullURL);
+    }
+
+    if (reauth && this.getPullAuth) {
+      if (maxAuthTries === 0) {
+        console.info('Tried to reauthenticate too many times');
+        return {requestID, syncHead: ''};
+      }
+      const pullAuth = await this.getPullAuth();
+      if (pullAuth != null) {
+        this._pullAuth = pullAuth;
+        // Try again now instead of waiting for next pull.
+        return await this._beginPull(maxAuthTries - 1);
+      }
+    }
+
+    return {requestID, syncHead};
   }
 
   private _fireOnSync(syncing: boolean): void {
@@ -822,9 +862,8 @@ export default class Replicache implements ReadTransaction {
     }
     const {ref} = await tx.commit();
     if (!isReplay) {
+      this._schedulePush(this.pushDelay);
       await this._checkChange(ref);
-      this._clearTimer();
-      this._scheduleSync(this.pushDelay);
     }
 
     return {result, ref};
@@ -843,43 +882,59 @@ export default class Replicache implements ReadTransaction {
   }
 }
 
+function checkStatus(
+  data: {httpStatusCode: number; errorMessage: string},
+  verb: string,
+  serverURL: string,
+): boolean {
+  const {httpStatusCode, errorMessage} = data;
+  if (errorMessage || httpStatusCode >= 400) {
+    console.error(
+      `Got error response from server (${serverURL}) doing ${verb}: ${httpStatusCode}` +
+        (errorMessage ? `: ${errorMessage}` : ''),
+    );
+  }
+  return httpStatusCode === httpStatusUnauthorized;
+}
+
 export class ReplicacheTest extends Replicache {
   static async new({
-    batchURL,
-    dataLayerAuth,
-    diffServerAuth,
-    diffServerURL,
     name = '',
+    pullAuth,
+    pullURL,
+    pushAuth,
+    pushDelay = 0,
+    pushURL,
     useMemstore = false,
   }: {
-    batchURL?: string;
-    dataLayerAuth?: string;
-    diffServerURL: string;
-    diffServerAuth?: string;
     name?: string;
+    pullAuth?: string;
+    pullURL?: string;
+    pushAuth?: string;
+    pushDelay?: number;
+    pushURL: string;
     useMemstore?: boolean;
   }): Promise<ReplicacheTest> {
     const rep = new ReplicacheTest({
-      batchURL,
-      clientViewURL: 'clientViewURL',
-      dataLayerAuth,
-      diffServerAuth,
-      diffServerURL,
       name,
+      pullAuth,
+      pullURL,
+      pushAuth,
+      pushDelay,
+      pushURL,
       syncInterval: null,
-      pushDelay: 0,
       useMemstore,
     });
     await rep._opened;
     return rep;
   }
 
-  beginSync(): Promise<BeginSyncResult> {
-    return super._beginSync(MAX_REAUTH_TRIES);
+  beginPull(): Promise<BeginPullResult> {
+    return super._beginPull(MAX_REAUTH_TRIES);
   }
 
-  maybeEndSync(beginSyncResult: BeginSyncResult): Promise<void> {
-    return super._maybeEndSync(beginSyncResult);
+  maybeEndPull(beginPullResult: BeginPullResult): Promise<void> {
+    return super._maybeEndPull(beginPullResult);
   }
 }
 

@@ -62,8 +62,6 @@ async function makeRep() {
   const name = `bench${counter++}`;
   await deleteDatabase(name);
   return new Replicache({
-    clientViewURL: '',
-    diffServerURL: '',
     name,
     syncInterval: null,
   });

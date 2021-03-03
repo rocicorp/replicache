@@ -461,17 +461,13 @@ mod tests {
                 resp_body: r#"{
                     "cookie": "1",
                     "lastMutationID": 2,
-                    "patch": [{"op":"replace","path":"","value":{}}]
+                    "patch": [{"op":"clear"}]
                 }"#,
                 exp_err: None,
                 exp_resp: Some(PullResponse {
                     cookie: json!("1"),
                     last_mutation_id: 2,
-                    patch: vec![Operation {
-                        op: str!("replace"),
-                        path: str!(""),
-                        value: json!({}),
-                    }],
+                    patch: vec![Operation::Clear],
                 }),
                 exp_http_request_info: good_http_request_info.clone(),
             },
@@ -604,14 +600,9 @@ mod tests {
             cookie: new_cookie.clone(),
             last_mutation_id: 10,
             patch: vec![
-                Operation {
-                    op: str!("replace"),
-                    path: str!(""),
-                    value: json!({}),
-                },
-                Operation {
-                    op: str!("add"),
-                    path: str!("/new"),
+                Operation::Clear,
+                Operation::Put {
+                    key: str!("new"),
                     value: json!("value"),
                 },
             ],

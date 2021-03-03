@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{dag, db, util::rlog};
 
-use super::{patch, PullError};
+use super::{patch, PullError, PushError};
 
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(test, derive(Clone, Debug, PartialEq))]
@@ -83,6 +83,7 @@ pub enum TryPushError {
     InternalNoMainHeadError,
     InternalNonLocalPendingCommit,
     InternalTimerError(rlog::TimerError),
+    PushFailed(PushError),
     ReadError(dag::Error),
 }
 

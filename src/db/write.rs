@@ -88,7 +88,6 @@ impl<'a> Write<'a> {
         whence: Whence,
         last_mutation_id: u64,
         cookie: serde_json::Value,
-        //fritz
         dag_write: dag::Write<'a>,
         indexes: HashMap<String, index::Index>,
     ) -> Result<Write<'a>, ReadCommitError> {

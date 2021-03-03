@@ -235,7 +235,7 @@ impl Commit {
         local_meta.mutator_name().ok_or(MissingMutatorName)?;
         local_meta
             .mutator_args_json()
-            .ok_or(MissingMutatorArgsJSON)?;
+            .ok_or(MissingMutatorArgsJson)?;
         // original_hash is optional
         Ok(())
     }
@@ -245,7 +245,7 @@ impl Commit {
         // zero is allowed for last_mutation_id (for the first snapshot)
         let cookie_json_bytes = snapshot_meta.cookie_json().ok_or(MissingCookie)?;
         let _: serde_json::Value = serde_json::from_slice(cookie_json_bytes)
-            .map_err(|e| InvalidCookieJSON(e.to_string()))?;
+            .map_err(|e| InvalidCookieJson(e.to_string()))?;
         Ok(())
     }
 
@@ -400,7 +400,7 @@ impl Commit {
         match c.meta().typed() {
             MetaTyped::Snapshot(sm) => Ok((
                 sm.last_mutation_id(),
-                serde_json::from_slice(sm.cookie_json()).map_err(InvalidCookieJSON)?,
+                serde_json::from_slice(sm.cookie_json()).map_err(InvalidCookieJson)?,
             )),
             _ => Err(WrongType(str!("Snapshot meta expected"))),
         }
@@ -527,10 +527,10 @@ pub struct IndexDefinition {
 
 #[derive(Debug, PartialEq)]
 pub enum LoadError {
-    InvalidCookieJSON(String),
+    InvalidCookieJson(String),
     MissingCookie,
     MissingMutatorName,
-    MissingMutatorArgsJSON,
+    MissingMutatorArgsJson,
     MissingTyped,
     MissingMeta,
     MissingValueHash,
@@ -562,7 +562,7 @@ pub enum FromHashError {
 
 #[derive(Debug)]
 pub enum InternalProgrammerError {
-    InvalidCookieJSON(serde_json::error::Error),
+    InvalidCookieJson(serde_json::error::Error),
     WrongType(String),
 }
 
@@ -766,7 +766,7 @@ mod tests {
                 &["", ""],
                 None,
             ),
-            Err(LoadError::MissingMutatorArgsJSON),
+            Err(LoadError::MissingMutatorArgsJson),
         );
         for basis_hash in &[None, Some(""), Some("hash")] {
             test(

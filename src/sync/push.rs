@@ -72,6 +72,10 @@ impl FetchPusher<'_> {
 // fetch(url, headers, req: Req) -> Result<Resp, JsonFetchError>.
 #[async_trait(?Send)]
 impl Pusher for FetchPusher<'_> {
+    // A failed HTTP response (non 200) is not an error. In that case we get
+    // `None` for the `PushResponse`. We get errors for a few non HTTP related
+    // reasons such as if we fail to create a Request object, the call to fetch
+    // fails or the response is not the expected JSON format.
     async fn push(
         &self,
         push_req: &PushRequest,

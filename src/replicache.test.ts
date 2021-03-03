@@ -547,45 +547,45 @@ testWithBothStores('sync', async () => {
           cookie: '',
           lastMutationID: 2,
           patch: [
-            {op: 'remove', path: '/'},
+            {op: 'del', key: ''},
             {
-              op: 'add',
-              path: '/~1list~11',
-              valueString: '{"id":1,"ownerUserID":1}',
+              op: 'put',
+              key: '/list/1',
+              value: {id: 1, ownerUserID: 1},
             },
           ],
-          httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
         },
         {
           cookie: '',
           lastMutationID: 2,
           patch: [],
-          httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
         },
         {
           cookie: '',
           lastMutationID: 3,
           patch: [
             {
-              op: 'add',
-              path: '/~1todo~114323534',
-              valueString:
-                '{"complete":false,"id":14323534,"listId":1,"order":10000,"text":"Test"}',
+              op: 'put',
+              key: '/todo/14323534',
+              value: {
+                complete: false,
+                id: 14323534,
+                listId: 1,
+                order: 10000,
+                text: 'Test',
+              },
             },
           ],
-          httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
         },
         {
           cookie: '',
           lastMutationID: 2,
           patch: [],
-          httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
         },
         {
           cookie: '',
           lastMutationID: 6,
-          patch: [{op: 'remove', path: '/~1todo~114323534'}],
-          httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
+          patch: [{op: 'del', key: '/todo/14323534'}],
         },
       ][pullCounter++],
   );
@@ -665,7 +665,7 @@ testWithBothStores('sync', async () => {
 
   beginPullResult = await rep?.beginPull();
   ({syncHead} = beginPullResult);
-  expect(syncHead).to.equal('90am66buo9pge00hb155vthmt32osl9r');
+  expect(syncHead).to.equal('8l24ki5c56irag4pklvg6u0qmd9ugc9v');
 
   await createTodo({
     id: id2,
@@ -892,14 +892,13 @@ testWithBothStores('pull', async () => {
     cookie: '',
     lastMutationID: 2,
     patch: [
-      {op: 'remove', path: '/'},
+      {op: 'del', key: ''},
       {
-        op: 'add',
-        path: '/~1list~11',
-        valueString: '{"id":1,"ownerUserID":1}',
+        op: 'put',
+        key: '/list/1',
+        value: {id: 1, ownerUserID: 1},
       },
     ],
-    httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
   });
   await rep.pull();
   expect(deleteCount).to.equal(2);
@@ -908,7 +907,6 @@ testWithBothStores('pull', async () => {
     cookie: '',
     lastMutationID: 2,
     patch: [],
-    httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
   });
   beginPullResult = await rep.beginPull();
   ({syncHead} = beginPullResult);
@@ -929,17 +927,16 @@ testWithBothStores('pull', async () => {
     lastMutationID: 3,
     patch: [
       {
-        op: 'add',
-        path: '/~1todo~114323534',
-        valueString: '{"id":14323534,"text":"Test"}',
+        op: 'put',
+        key: '/todo/14323534',
+        value: {id: 14323534, text: 'Test'},
       },
     ],
-    httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
   });
   beginPullResult = await rep.beginPull();
   ({syncHead} = beginPullResult);
   console.log(syncHead);
-  expect(syncHead).equal('7p3g46d50gikc520umlctli8e6f2bof2');
+  expect(syncHead).equal('vadlsm00t0h5n05204h6srdjama32lft');
 
   await createTodo({
     id: id2,
@@ -954,7 +951,6 @@ testWithBothStores('pull', async () => {
     cookie: '',
     lastMutationID: 3,
     patch: [],
-    httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
   });
   await rep.maybeEndPull(beginPullResult);
 
@@ -970,8 +966,7 @@ testWithBothStores('pull', async () => {
   fetchMock.postOnce(pullURL, {
     cookie: '',
     lastMutationID: 6,
-    patch: [{op: 'remove', path: '/~1todo~114323534'}],
-    httpRequestInfo: {httpStatusCode: 200, errorMessage: ''},
+    patch: [{op: 'del', key: '/todo/14323534'}],
   });
   await rep.pull();
 

@@ -212,8 +212,7 @@ export default class Replicache implements ReadTransaction {
 
   private async _open(): Promise<void> {
     this._opened = this._repmInvoker.invoke(this._name, 'open', {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      use_memstore: this._useMemstore,
+      useMemstore: this._useMemstore,
     });
     this._setRoot(this._getRoot());
     await this._root;

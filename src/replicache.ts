@@ -591,7 +591,7 @@ export default class Replicache implements ReadTransaction {
       const pushAuth = await this.getPushAuth();
       if (pushAuth != null) {
         this._pushAuth = pushAuth;
-        // Try again now instead of waiting for another 5 seconds.
+        // Try again now instead of waiting for next push.
         return await this._push(maxAuthTries - 1);
       }
     }
@@ -604,8 +604,6 @@ export default class Replicache implements ReadTransaction {
   async pull(): Promise<void> {
     await this._wrapInOnlineCheck(async () => {
       const beginPullResult = await this._beginPull(MAX_REAUTH_TRIES);
-      // TODO: repc never returns an empty syncHead... after
-      // https://github.com/rocicorp/repc/commit/ea9d372e128ec5f9734cb4dadfeb490536577a9a
       if (beginPullResult.syncHead !== '') {
         await this._maybeEndPull(beginPullResult);
       }
@@ -633,7 +631,7 @@ export default class Replicache implements ReadTransaction {
       const pullAuth = await this.getPullAuth();
       if (pullAuth != null) {
         this._pullAuth = pullAuth;
-        // Try again now instead of waiting for another 5 seconds.
+        // Try again now instead of waiting for next pull.
         return await this._beginPull(maxAuthTries - 1);
       }
     }

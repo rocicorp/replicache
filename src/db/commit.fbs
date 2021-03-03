@@ -22,7 +22,7 @@ table LocalMeta {
 // Commit metadata specific to snapshot commits.
 table SnapshotMeta {
     last_mutation_id: ulong;
-    cookie: string;
+    cookie_json: [ubyte];
 }
 
 // Commit metadata specific to the type of commit.

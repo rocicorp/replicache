@@ -93,7 +93,7 @@ pub async fn add_snapshot<'a>(
     map: Option<Vec<String>>,
 ) -> &'a mut Chain {
     assert!(chain.len() > 0);
-    let cookie = format!("cookie_{}", chain.len());
+    let cookie = serde_json::json!(format!("cookie_{}", chain.len()));
     let mut w = Write::new_snapshot(
         Whence::Head(str!(db::DEFAULT_HEAD_NAME)),
         chain[chain.len() - 1].next_mutation_id(),

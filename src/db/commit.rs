@@ -70,14 +70,14 @@ impl Commit {
     pub fn new_snapshot(
         basis_hash: Option<&str>,
         last_mutation_id: u64,
-        cookie: &str,
+        cookie_json: &[u8],
         value_hash: &str,
         indexes: &[IndexRecord],
     ) -> Commit {
         let mut builder = FlatBufferBuilder::default();
         let snapshot_meta_args = &commit_fb::SnapshotMetaArgs {
             last_mutation_id,
-            cookie: builder.create_string(cookie).into(),
+            cookie_json: builder.create_vector(cookie_json).into(),
         };
         let snapshot_meta = commit_fb::SnapshotMeta::create(&mut builder, snapshot_meta_args);
         Commit::new_impl(
@@ -243,7 +243,9 @@ impl Commit {
     fn validate_snapshot_meta(snapshot_meta: commit_fb::SnapshotMeta) -> Result<(), LoadError> {
         use LoadError::*;
         // zero is allowed for last_mutation_id (for the first snapshot)
-        snapshot_meta.cookie().ok_or(MissingCookie)?;
+        let cookie_json_bytes = snapshot_meta.cookie_json().ok_or(MissingCookie)?;
+        let _: serde_json::Value = serde_json::from_slice(cookie_json_bytes)
+            .map_err(|e| InvalidCookieJSON(e.to_string()))?;
         Ok(())
     }
 
@@ -391,12 +393,16 @@ impl Commit {
     }
 
     // Parts are (last_mutation_id, cookie).
-    pub fn snapshot_meta_parts(c: &Commit) -> Result<(u64, String), InternalProgrammerError> {
+    pub fn snapshot_meta_parts(
+        c: &Commit,
+    ) -> Result<(u64, serde_json::Value), InternalProgrammerError> {
+        use InternalProgrammerError::*;
         match c.meta().typed() {
-            MetaTyped::Snapshot(sm) => Ok((sm.last_mutation_id(), sm.cookie().to_string())),
-            _ => Err(InternalProgrammerError::WrongType(str!(
-                "Snapshot meta expected"
-            ))),
+            MetaTyped::Snapshot(sm) => Ok((
+                sm.last_mutation_id(),
+                serde_json::from_slice(sm.cookie_json()).map_err(InvalidCookieJSON)?,
+            )),
+            _ => Err(WrongType(str!("Snapshot meta expected"))),
         }
     }
 }
@@ -499,8 +505,8 @@ impl<'a> SnapshotMeta<'a> {
         self.fb.last_mutation_id()
     }
 
-    pub fn cookie(&self) -> &str {
-        self.fb.cookie().unwrap()
+    pub fn cookie_json(&self) -> &[u8] {
+        self.fb.cookie_json().unwrap()
     }
 }
 
@@ -521,6 +527,7 @@ pub struct IndexDefinition {
 
 #[derive(Debug, PartialEq)]
 pub enum LoadError {
+    InvalidCookieJSON(String),
     MissingCookie,
     MissingMutatorName,
     MissingMutatorArgsJSON,
@@ -555,6 +562,7 @@ pub enum FromHashError {
 
 #[derive(Debug)]
 pub enum InternalProgrammerError {
+    InvalidCookieJSON(serde_json::error::Error),
     WrongType(String),
 }
 
@@ -565,6 +573,7 @@ mod tests {
     use crate::dag::Chunk;
     use crate::kv::memstore::MemStore;
     use crate::util::rlog::LogContext;
+    use serde_json::json;
 
     #[async_std::test]
     async fn test_base_snapshot() {
@@ -797,18 +806,26 @@ mod tests {
             ),
             Err(LoadError::MissingValueHash),
         );
+        let cookie = json!({"foo": "bar"});
+        let cookie_bytes = serde_json::to_vec(&cookie).unwrap();
         for basis_hash in &[None, Some(""), Some("hash")] {
             test(
                 make_commit(
                     Some(Box::new(|b: &mut FlatBufferBuilder| {
-                        make_snapshot_meta(b, 0, "".into())
+                        make_snapshot_meta(b, 0, Some(b"{\"foo\":\"bar\"}"))
                     })),
                     *basis_hash,
                     "".into(),
                     &[""],
                     None,
                 ),
-                Ok(Commit::new_snapshot(*basis_hash, 0, "", "", &vec![])),
+                Ok(Commit::new_snapshot(
+                    *basis_hash,
+                    0,
+                    &cookie_bytes,
+                    "",
+                    &vec![],
+                )),
             );
         }
         test(
@@ -878,7 +895,7 @@ mod tests {
 
         let snapshot = Commit::from_chunk(make_commit(
             Some(Box::new(|b: &mut FlatBufferBuilder| {
-                make_snapshot_meta(b, 2, "cookie 2".into())
+                make_snapshot_meta(b, 2, Some(&serde_json::to_vec(&json!("cookie 2")).unwrap()))
             })),
             "basis_hash 2".into(),
             "value_hash 2".into(),
@@ -890,7 +907,10 @@ mod tests {
         match snapshot.meta().typed() {
             MetaTyped::Snapshot(sm) => {
                 assert_eq!(sm.last_mutation_id(), 2);
-                assert_eq!(sm.cookie(), "cookie 2");
+                assert_eq!(
+                    sm.cookie_json(),
+                    &(serde_json::to_vec(&json!("cookie 2")).unwrap())[..]
+                );
             }
             _ => assert!(false),
         }
@@ -1020,14 +1040,14 @@ mod tests {
     fn make_snapshot_meta(
         builder: &mut FlatBufferBuilder,
         last_mutation_id: u64,
-        cookie: Option<&str>,
+        cookie_json: Option<&[u8]>,
     ) -> (
         commit_fb::MetaTyped,
         flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>,
     ) {
         let args = &commit_fb::SnapshotMetaArgs {
             last_mutation_id,
-            cookie: cookie.map(|s| builder.create_string(s)),
+            cookie_json: cookie_json.map(|s| builder.create_vector(s)),
         };
         let snapshot_meta = commit_fb::SnapshotMeta::create(builder, args);
         (

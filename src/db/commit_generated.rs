@@ -327,14 +327,14 @@ pub mod commit {
         ) -> flatbuffers::WIPOffset<SnapshotMeta<'bldr>> {
             let mut builder = SnapshotMetaBuilder::new(_fbb);
             builder.add_last_mutation_id(args.last_mutation_id);
-            if let Some(x) = args.cookie {
-                builder.add_cookie(x);
+            if let Some(x) = args.cookie_json {
+                builder.add_cookie_json(x);
             }
             builder.finish()
         }
 
         pub const VT_LAST_MUTATION_ID: flatbuffers::VOffsetT = 4;
-        pub const VT_COOKIE: flatbuffers::VOffsetT = 6;
+        pub const VT_COOKIE_JSON: flatbuffers::VOffsetT = 6;
 
         #[inline]
         pub fn last_mutation_id(&self) -> u64 {
@@ -343,22 +343,26 @@ pub mod commit {
                 .unwrap()
         }
         #[inline]
-        pub fn cookie(&self) -> Option<&'a str> {
+        pub fn cookie_json(&self) -> Option<&'a [u8]> {
             self._tab
-                .get::<flatbuffers::ForwardsUOffset<&str>>(SnapshotMeta::VT_COOKIE, None)
+                .get::<flatbuffers::ForwardsUOffset<flatbuffers::Vector<'a, u8>>>(
+                    SnapshotMeta::VT_COOKIE_JSON,
+                    None,
+                )
+                .map(|v| v.safe_slice())
         }
     }
 
     pub struct SnapshotMetaArgs<'a> {
         pub last_mutation_id: u64,
-        pub cookie: Option<flatbuffers::WIPOffset<&'a str>>,
+        pub cookie_json: Option<flatbuffers::WIPOffset<flatbuffers::Vector<'a, u8>>>,
     }
     impl<'a> Default for SnapshotMetaArgs<'a> {
         #[inline]
         fn default() -> Self {
             SnapshotMetaArgs {
                 last_mutation_id: 0,
-                cookie: None,
+                cookie_json: None,
             }
         }
     }
@@ -373,9 +377,14 @@ pub mod commit {
                 .push_slot::<u64>(SnapshotMeta::VT_LAST_MUTATION_ID, last_mutation_id, 0);
         }
         #[inline]
-        pub fn add_cookie(&mut self, cookie: flatbuffers::WIPOffset<&'b str>) {
-            self.fbb_
-                .push_slot_always::<flatbuffers::WIPOffset<_>>(SnapshotMeta::VT_COOKIE, cookie);
+        pub fn add_cookie_json(
+            &mut self,
+            cookie_json: flatbuffers::WIPOffset<flatbuffers::Vector<'b, u8>>,
+        ) {
+            self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(
+                SnapshotMeta::VT_COOKIE_JSON,
+                cookie_json,
+            );
         }
         #[inline]
         pub fn new(

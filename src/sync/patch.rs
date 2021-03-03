@@ -81,7 +81,6 @@ mod tests {
     use crate::util::rlog::LogContext;
     use crate::util::to_debug;
     use std::collections::HashMap;
-    use str_macro::str;
 
     macro_rules! map(
         { $($key:expr => $value:expr),+ } => {
@@ -202,7 +201,7 @@ mod tests {
             let mut db_write = db::Write::new_snapshot(
                 db::Whence::Hash(chain[0].chunk().hash().to_string()),
                 1,
-                str!("cookie"),
+                json!("cookie"),
                 dag_write,
                 db::read_indexes(&chain[0]),
             )

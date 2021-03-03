@@ -35,7 +35,7 @@ pub async fn add_sync_snapshot<'a>(
     let mut sync_chain: Chain = vec![];
 
     // Add sync snapshot.
-    let cookie = format!("sync_cookie_{}", chain.len());
+    let cookie = serde_json::json!(format!("sync_cookie_{}", chain.len()));
     let indexes = db::read_indexes(&chain[take_indexes_from]);
     let w = db::Write::new_snapshot(
         Whence::Hash(base_snapshot.chunk().hash().to_string()),

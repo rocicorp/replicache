@@ -273,7 +273,8 @@ pub async fn maybe_end_try_pull(
 pub struct PullRequest {
     #[serde(rename = "clientID")]
     pub client_id: String,
-    pub cookie: String,
+    #[serde(default)]
+    pub cookie: serde_json::Value,
     #[serde(rename = "lastMutationID")]
     pub last_mutation_id: u64,
     #[serde(rename = "pullVersion")]
@@ -283,7 +284,8 @@ pub struct PullRequest {
 #[derive(Deserialize)]
 #[cfg_attr(test, derive(Clone, Debug, PartialEq))]
 pub struct PullResponse {
-    pub cookie: String,
+    #[serde(default)]
+    pub cookie: serde_json::Value,
     #[serde(rename = "lastMutationID")]
     pub last_mutation_id: u64,
     pub patch: Vec<patch::Operation>,
@@ -399,7 +401,7 @@ mod tests {
         lazy_static! {
             static ref PULL_REQ: PullRequest = PullRequest {
                 client_id: str!("client_id"),
-                cookie: str!("cookie"),
+                cookie: json!("cookie"),
                 last_mutation_id: 123,
                 pull_version: PULL_VERSION,
             };
@@ -429,7 +431,7 @@ mod tests {
                 }"#,
                 exp_err: None,
                 exp_resp: Some(PullResponse {
-                    cookie: str!("1"),
+                    cookie: json!("1"),
                     last_mutation_id: 2,
                     patch: vec![Operation {
                         op: str!("replace"),
@@ -556,7 +558,7 @@ mod tests {
         // last_mutation_id. Tests can clone it and override those
         // fields they wish to change. This minimizes test changes required
         // when PullResponse changes.
-        let new_cookie = str!("new_cookie");
+        let new_cookie = json!("new_cookie");
         let good_pull_resp = PullResponse {
             cookie: new_cookie.clone(),
             last_mutation_id: 10,
@@ -577,7 +579,7 @@ mod tests {
         let good_pull_resp_value_map = map!("/new" => "\"value\"");
 
         struct ExpCommit<'a> {
-            cookie: String,
+            cookie: serde_json::Value,
             last_mutation_id: u64,
             value_map: HashMap<&'a str, &'a str>,
             indexes: Vec<String>,
@@ -721,13 +723,13 @@ mod tests {
                 num_pending_mutations: 0,
                 pull_result: Ok(PullResponse {
                     last_mutation_id: base_last_mutation_id,
-                    cookie: str!("new_cookie"),
+                    cookie: json!("new_cookie"),
                     patch: vec![],
                     ..good_pull_resp.clone()
                 }),
                 exp_err: None,
                 exp_new_sync_head: Some(ExpCommit {
-                    cookie: str!("new_cookie"),
+                    cookie: json!("new_cookie"),
                     last_mutation_id: base_last_mutation_id,
                     value_map: base_value_map.clone(),
                     indexes: vec![2.to_string()],
@@ -1120,7 +1122,7 @@ mod tests {
             let w = db::Write::new_snapshot(
                 db::Whence::Hash(chain[0].chunk().hash().to_string()),
                 0,
-                str!("sync_cookie"),
+                json!("sync_cookie"),
                 dag_write,
                 db::read_indexes(&chain[0]),
             )

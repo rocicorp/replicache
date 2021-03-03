@@ -96,6 +96,7 @@ pub enum BeginTryPullError {
     InternalProgrammerError(db::InternalProgrammerError),
     InternalRebuildIndexError(db::CreateIndexError),
     InternalTimerError(rlog::TimerError),
+    InvalidBaseSnapshotCookie(serde_json::error::Error),
     LockError(dag::Error),
     MainHeadDisappeared,
     NoBaseSnapshot(db::BaseSnapshotError),

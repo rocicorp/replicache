@@ -13,18 +13,19 @@ lazy_static! {
             randoms[0], randoms[1], randoms[2], randoms[3]
         )
     };
-    static ref SYNC_COUNTERS: Mutex<HashMap<String, AtomicU32>> = Mutex::new(HashMap::new());
+    static ref REQUEST_COUNTERS: Mutex<HashMap<String, AtomicU32>> = Mutex::new(HashMap::new());
 }
 
-// new() returns a new request_id of the form <clientid>-<sessionid>-<sync count>.
-// The sync count enables one to find the sync following or preceeding a given
-// sync. The sessionid scopes the sync count, ensuring the request_id is
-// probabilistically unique across restarts (which is good enough).
+// new() returns a new request_id of the form <clientid>-<sessionid>-<request
+// count>. The request count enables one to find the request following or
+// preceeding a given request. The sessionid scopes the request count, ensuring
+// the request_id is probabilistically unique across restarts (which is good
+// enough).
 pub fn new(client_id: &str) -> String {
-    let mut map = match SYNC_COUNTERS.lock() {
+    let mut map = match REQUEST_COUNTERS.lock() {
         Err(e) => {
-            error!("", "error getting sync count: {:?}", e);
-            return str!("busted-sync-counter");
+            error!("", "error getting request count: {:?}", e);
+            return str!("busted-request-counter");
         }
         Ok(m) => m,
     };

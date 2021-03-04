@@ -935,7 +935,6 @@ testWithBothStores('pull', async () => {
   });
   beginPullResult = await rep.beginPull();
   ({syncHead} = beginPullResult);
-  console.log(syncHead);
   expect(syncHead).equal('vadlsm00t0h5n05204h6srdjama32lft');
 
   await createTodo({
@@ -1623,6 +1622,73 @@ testWithBothStores('isEmpty', async () => {
 
   await t(false);
 });
+
+testWithBothStores('onSync', async () => {
+  const pullURL = 'https://pull.com/pull';
+  const pushURL = 'https://push.com/push';
+
+  rep = await replicacheForTesting('onSync', {pullURL, pushURL, pushDelay: 1});
+  const add = rep.register('add-data', addData);
+
+  const onSync = sinon.fake();
+  rep.onSync = onSync;
+
+  expect(onSync.callCount).to.eq(0);
+
+  fetchMock.postOnce(pullURL, {
+    cookie: '',
+    lastMutationID: 2,
+    patch: [],
+  });
+  await rep.pull();
+  expect(onSync.callCount).to.eq(2);
+  expect(onSync.getCall(0).args[0]).to.be.true;
+  expect(onSync.getCall(1).args[0]).to.be.false;
+
+  onSync.resetHistory();
+  fetchMock.postOnce(pushURL, {});
+  await rep.push();
+  expect(onSync.callCount).to.eq(2);
+  expect(onSync.getCall(0).args[0]).to.be.true;
+  expect(onSync.getCall(1).args[0]).to.be.false;
+
+  fetchMock.postOnce(pushURL, {});
+  onSync.resetHistory();
+  await add({a: 'a'});
+  await sleep(5);
+  expect(onSync.callCount).to.eq(2);
+  expect(onSync.getCall(0).args[0]).to.be.true;
+  expect(onSync.getCall(1).args[0]).to.be.false;
+
+  {
+    // Try with reauth
+    const consoleErrorStub = sinon.stub(console, 'error');
+    fetchMock.postOnce(pushURL, {body: 'xxx', status: httpStatusUnauthorized});
+    onSync.resetHistory();
+    rep.getPushAuth = () => {
+      // Next time it is going to be fine
+      fetchMock.postOnce({url: pushURL, headers: {authorization: 'ok'}}, {});
+      return 'ok';
+    };
+    await rep.push();
+    expect(consoleErrorStub.firstCall.args[0]).to.equal(
+      'Got error response from server (https://push.com/push) doing push: 401: xxx',
+    );
+
+    expect(onSync.callCount).to.eq(4);
+    expect(onSync.getCall(0).args[0]).to.be.true;
+    expect(onSync.getCall(1).args[0]).to.be.false;
+    expect(onSync.getCall(2).args[0]).to.be.true;
+    expect(onSync.getCall(3).args[0]).to.be.false;
+  }
+
+  rep.onSync = null;
+  onSync.resetHistory();
+  fetchMock.postOnce(pushURL, {});
+  await rep.push();
+  expect(onSync.callCount).to.eq(0);
+});
+
 function sleep(ms: number): Promise<void> {
   return new Promise(res => {
     setTimeout(() => res(), ms);

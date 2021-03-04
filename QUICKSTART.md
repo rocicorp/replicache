@@ -61,19 +61,17 @@ import Replicache from 'replicache';
 import {useSubscribe} from 'replicache-react-util';
 
 const rep = new Replicache({
-  // The URL your Client View from above is running at.
-  clientViewURL: 'http://localhost:3001/replicache-client-view',
+  // The URL to pull from.
+  pullURL: 'http://localhost:1234/pull',
 
-  // Auth token required for your Client View endpoint, if any.
-  dataLayerAuth: '<authtoken>',
+  // Auth token required for your pull endpoint, if any.
+  pullAuth: '<authtoken>',
 
-  // The URL your Diff Server from above is running at, defaults to
-  // localhost:7001.
-  diffServerURL: 'http://localhost:7001/pull',
+  // The URL to push changes to
+  pushURL: 'http://localhost:1234/push',
 
-  // Auth Token to use for the Diff Server. For development, always
-  // use 'sandbox'.
-  diffServerAuth: 'sandbox',
+  // Auth token required for your pull endpoint, if any.
+  pushAuth: '<authtoken>',
 
   // Path to where Replicache wasm module can be found.
   // Only needed if you use webpack 4.
@@ -109,19 +107,17 @@ ReactDOM.render(React.createElement(MyApp), elm);
   import Replicache from './node_modules/replicache/out/replicache.dev.js';
 
   const rep = new Replicache({
-    // The URL your Client View from above is running at.
-    clientViewURL: 'http://localhost:3001/replicache-client-view',
+    // The URL to pull from.
+    pullURL: 'http://localhost:1234/pull',
 
-    // Auth token for your Client View, if any.
-    dataLayerAuth: '<authtoken>',
+    // Auth token required for your pull endpoint, if any.
+    pullAuth: '<authtoken>',
 
-    // The URL your Diff Server from above is running at, defaults to
-    // localhost:7001.
-    diffServerURL: 'http://localhost:7001/pull',
+    // The URL to push changes to
+    pushURL: 'http://localhost:1234/push',
 
-    // Auth Token to use for the Diff Server. For development, always
-    // use 'sandbox'.
-    diffServerAuth: 'sandbox',
+    // Auth token required for your pull endpoint, if any.
+    pushAuth: '<authtoken>',
   });
 
   rep.subscribe(async tx => await tx.scanAll(), {

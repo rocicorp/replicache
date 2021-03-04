@@ -1,3 +1,0 @@
-#!/usr/bin/env node
-console.error('diff-server: Failed to install correctly');
-process.exit(1);

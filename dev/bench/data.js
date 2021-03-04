@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1614888460535,
+  "lastUpdate": 1614889805373,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -14870,6 +14870,114 @@ window.BENCHMARK_DATA = {
             "range": "±0.0%",
             "unit": "op/s",
             "extra": "11 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a00fef353d6dae2b3f88983ab8cef136e97c3984",
+          "message": "preserveSymlinks in tsconfig (#297)\n\nI was seeing red squigglies",
+          "timestamp": "2021-03-04T12:27:02-08:00",
+          "tree_id": "6977818abfd16d18588337892999936b0388b24a",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/a00fef353d6dae2b3f88983ab8cef136e97c3984"
+        },
+        "date": 1614889804697,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.91,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.83,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "10 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.7,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.02,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 5.64,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "12 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 5.74,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 20.35,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "41 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 20.01,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 38.46,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "76 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 90.91,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "163 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 19.23,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "39 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 4.12,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "9 samples"
           }
         ]
       }

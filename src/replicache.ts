@@ -771,7 +771,7 @@ export default class Replicache implements ReadTransaction {
    *
    * ## Server application
    *
-   * During sync, a description of each mutation is sent to the server's [batch
+   * During sync, a description of each mutation is sent to the server's [push
    * endpoint](https://github.com/rocicorp/replicache/blob/master/README.md#step-5-upstream-sync)
    * where it is applied. Once the mutation has been applied successfully, as
    * indicated by the [client

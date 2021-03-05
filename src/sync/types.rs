@@ -48,6 +48,8 @@ pub struct BeginTryPullRequest {
     pub pull_url: String,
     #[serde(rename = "pullAuth")]
     pub pull_auth: String,
+    #[serde(rename = "schemaVersion")]
+    pub schema_version: String,
 }
 
 #[derive(Serialize)]

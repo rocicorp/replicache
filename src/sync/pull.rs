@@ -34,6 +34,7 @@ pub async fn begin_pull(
     let BeginTryPullRequest {
         pull_url,
         pull_auth,
+        schema_version,
     } = begin_pull_req;
 
     let dag_read = store.read(lc.clone()).await.map_err(ReadError)?;
@@ -57,6 +58,7 @@ pub async fn begin_pull(
         cookie: base_cookie.clone(),
         last_mutation_id: base_snapshot.mutation_id(),
         pull_version: PULL_VERSION,
+        schema_version,
     };
     debug!(lc, "Starting pull...");
     let pull_timer = rlog::Timer::new().map_err(InternalTimerError)?;
@@ -298,6 +300,11 @@ pub struct PullRequest {
     pub last_mutation_id: u64,
     #[serde(rename = "pullVersion")]
     pub pull_version: u32,
+    // schema_version can optionally be used by the customer's app
+    // to indicate to the data layer what format of Client View the
+    // app understands.
+    #[serde(rename = "schemaVersion")]
+    pub schema_version: String,
 }
 
 #[derive(Deserialize)]
@@ -433,6 +440,7 @@ mod tests {
                 cookie: json!("cookie"),
                 last_mutation_id: 123,
                 pull_version: PULL_VERSION,
+                schema_version: str!("")
             };
             // EXP_BODY must be 'static to be used in HTTP handler closure.
             static ref EXP_BODY: String = serde_json::to_string(&*PULL_REQ).unwrap();
@@ -586,6 +594,7 @@ mod tests {
         let client_id = str!("test_client_id");
         let pull_auth = str!("pull_auth");
         let pull_url = str!("pull_url");
+        let schema_version = str!("schema_version");
 
         let good_http_request_info = HttpRequestInfo {
             http_status_code: http::StatusCode::OK.into(),
@@ -630,6 +639,7 @@ mod tests {
             cookie: base_cookie.clone(),
             last_mutation_id: base_last_mutation_id,
             pull_version: PULL_VERSION,
+            schema_version: schema_version.clone(),
         };
 
         let cases: Vec<Case> = vec![
@@ -972,6 +982,7 @@ mod tests {
             let begin_try_pull_req = BeginTryPullRequest {
                 pull_url: pull_url.clone(),
                 pull_auth: pull_auth.clone(),
+                schema_version: schema_version.clone(),
             };
 
             let result = begin_pull(

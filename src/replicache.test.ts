@@ -14,6 +14,7 @@ import type {SinonSpy} from 'sinon';
 import fetchMock from 'fetch-mock/esm/client.js';
 import type {Invoke} from './repm-invoker.js';
 import type {ScanOptions} from './scan-options.js';
+import {resolver} from './resolver.js';
 
 fetchMock.config.overwriteRoutes = true;
 
@@ -30,6 +31,12 @@ console.warn = (...args: Parameters<Console['warn']>) => {
   }
 };
 console.log = console.info = console.group = console.groupEnd = () => void 0;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(res => {
+    setTimeout(() => res(), ms);
+  });
+}
 
 let overrideUseMemstore = false;
 
@@ -1689,8 +1696,118 @@ testWithBothStores('onSync', async () => {
   expect(onSync.callCount).to.eq(0);
 });
 
-function sleep(ms: number): Promise<void> {
-  return new Promise(res => {
-    setTimeout(() => res(), ms);
+test('push timing', async () => {
+  const pushURL = 'https://push.com/push';
+  const pushDelay = 5;
+
+  rep = await replicacheForTesting('push-timing', {
+    pushURL,
+    pushDelay,
+    useMemstore: true,
   });
-}
+  const spy = spyInvoke(rep);
+
+  const add = rep.register('add-data', addData);
+
+  fetchMock.post(pushURL, {});
+  await rep.push();
+
+  const tryPushCalls = () =>
+    spy.args.filter(([rpc]) => rpc === 'tryPush').length;
+
+  expect(tryPushCalls()).to.eq(1);
+
+  spy.resetHistory();
+
+  // This will schedule push in pushDelay ms
+  await add({a: 1});
+  await add({b: 2});
+  await add({c: 3});
+  await add({d: 4});
+
+  expect(tryPushCalls()).to.eq(0);
+
+  await sleep(pushDelay * 2);
+
+  expect(tryPushCalls()).to.eq(1);
+  spy.resetHistory();
+
+  const p1 = rep.push();
+  const p2 = rep.push();
+  const p3 = rep.push();
+
+  expect(tryPushCalls()).to.eq(1);
+
+  await p1;
+  expect(tryPushCalls()).to.eq(2);
+  await p2;
+  expect(tryPushCalls()).to.eq(2);
+  await p3;
+  expect(tryPushCalls()).to.eq(2);
+});
+
+testWithBothStores('push and pull concurrently', async () => {
+  const pushURL = 'https://push.com/push';
+  const pullURL = 'https://pull.com/pull';
+
+  rep = await replicacheForTesting('concurrently', {
+    pullURL,
+    pushURL,
+    useMemstore: true,
+  });
+  const spy = spyInvoke(rep);
+
+  const add = rep.register('add-data', addData);
+
+  let {promise: promisePush, resolve: resolvePush} = resolver();
+
+  const reqs: string[] = [];
+
+  fetchMock.post(pushURL, async () => {
+    await promisePush;
+    reqs.push(pushURL);
+    return {};
+  });
+  fetchMock.post(pullURL, () => {
+    reqs.push(pullURL);
+    return [];
+  });
+
+  await add({a: 0});
+  spy.resetHistory();
+
+  const pushP1 = rep.push();
+  const pullP1 = rep.pull();
+  const pushP2 = rep.push();
+  const pushP3 = rep.push();
+
+  const rpcs = () => spy.args.map(a => a[0]);
+
+  // Only one push at a time but we want push and pull to be concurrent.
+  expect(rpcs()).to.eql(['tryPush', 'beginTryPull']);
+
+  resolvePush();
+
+  await pushP1;
+  ({promise: promisePush, resolve: resolvePush} = resolver());
+
+  expect(reqs).to.eql([pullURL, pushURL]);
+
+  await pullP1;
+
+  expect(reqs).to.eql([pullURL, pushURL]);
+  resolvePush();
+  await pushP2;
+
+  expect(reqs).to.eql([pullURL, pushURL, pushURL]);
+  expect(rpcs()).to.eql(['tryPush', 'beginTryPull', 'tryPush']);
+
+  await pushP3;
+
+  expect(reqs).to.eql([pullURL, pushURL, pushURL]);
+  expect(rpcs()).to.eql(['tryPush', 'beginTryPull', 'tryPush']);
+  // await pushP2;
+
+  // expect(reqs()).to.eql([pushURL, pullURL, pushURL]);
+  // expect(rpcs()).to.eql(['tryPush', 'beginTryPull', 'tryPush']);
+});

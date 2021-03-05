@@ -15,6 +15,7 @@ import {
 } from './transactions.js';
 import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
+import {resolver} from './resolver.js';
 
 type BeginPullResult = {
   requestID: string;
@@ -137,7 +138,17 @@ export default class Replicache implements ReadTransaction {
     string,
     (tx: WriteTransaction, args?: JSONValue) => MaybePromise<void | JSONValue>
   >();
-  private _syncCounter = 0;
+
+  // Number of pushes/pulls at the moment.
+  private _pushCounter = 0;
+  private _pullCounter = 0;
+
+  private _pushResolver: (() => void) | null = null;
+  private _pushPromise: Promise<void> | null = null;
+
+  private _pullResolver: (() => void) | null = null;
+  private _pullPromise: Promise<void> | null = null;
+
   private _syncPromise: Promise<void> | null = null;
   private readonly _subscriptions = new Set<
     Subscription<JSONValue | undefined, unknown>
@@ -193,7 +204,7 @@ export default class Replicache implements ReadTransaction {
       pullAuth = '',
       pullURL = '',
       pushAuth = '',
-      pushDelay = 300,
+      pushDelay = 10,
       pushURL = '',
       syncInterval = 60_000,
       useMemstore = false,
@@ -283,6 +294,13 @@ export default class Replicache implements ReadTransaction {
     }
   }
 
+  private _clearPushTimer() {
+    if (this._pushTimerId !== 0) {
+      clearTimeout(this._pushTimerId);
+      this._pushTimerId = 0;
+    }
+  }
+
   /**
    * Closes this Replicache instance.
    *
@@ -293,6 +311,7 @@ export default class Replicache implements ReadTransaction {
     const p = this._invoke('close');
 
     this._clearTimer();
+    this._clearPushTimer();
     window.removeEventListener('storage', this._onStorage);
 
     // Clear subscriptions
@@ -572,23 +591,51 @@ export default class Replicache implements ReadTransaction {
    * mutations.
    */
   async push(): Promise<void> {
-    if (this._pushTimerId) {
-      clearTimeout(this._pushTimerId);
-      this._pushTimerId = 0;
-    }
+    this._clearPushTimer();
     await this._wrapInOnlineCheck(() => this._push(MAX_REAUTH_TRIES), 'Push');
   }
 
   private async _push(maxAuthTries: number): Promise<void> {
+    // Is there already a push in flight?
+    if (this._pushCounter > 0) {
+      // Here we create a promise/resolve pair that will resolve when the
+      // current push is done.
+      //
+      // This whole dance is to collapse incoming calls to push during an in
+      // flight push so that they only cause a single actual push RPC. We also want
+      // the call to push to resolve at the right time.
+      //
+      // - push() is called. Lets call this "pushA"
+      // - pushA is being sent over wire
+      // - push() is called again. Lets call this "pushB"
+      // - push() is called again. Lets call this "pushC"
+      // - pushA comes back and is resolved
+      // - puhsB is being sent over wire
+      // - pushB resolve comes back and is resolved
+      // - pushC resolves
+
+      if (!this._pushResolver) {
+        const {promise, resolve} = resolver();
+        this._pushResolver = resolve;
+        this._pushPromise = (async () => {
+          await promise;
+          this._pushResolver = null;
+          await this._push(maxAuthTries);
+        })();
+      }
+      await this._pushPromise;
+      return;
+    }
+
     let pushResponse;
     try {
-      this._changeSyncCounter(1);
+      this._changeSyncCounters(1, 0);
       pushResponse = await this._invoke('tryPush', {
         pushURL: this._pushURL,
         pushAuth: this._pushAuth,
       });
     } finally {
-      this._changeSyncCounter(-1);
+      this._changeSyncCounters(-1, 0);
     }
 
     const {httpRequestInfo} = pushResponse;
@@ -612,6 +659,10 @@ export default class Replicache implements ReadTransaction {
         }
       }
     }
+
+    if (this._pushResolver) {
+      this._pushResolver();
+    }
   }
 
   /**
@@ -619,17 +670,54 @@ export default class Replicache implements ReadTransaction {
    * local changes will get replayed on top of the new server state.
    */
   async pull(): Promise<void> {
-    await this._wrapInOnlineCheck(async () => {
-      try {
-        this._changeSyncCounter(1);
-        const beginPullResult = await this._beginPull(MAX_REAUTH_TRIES);
-        if (beginPullResult.syncHead !== '') {
-          await this._maybeEndPull(beginPullResult);
-        }
-      } finally {
-        this._changeSyncCounter(-1);
+    await this._wrapInOnlineCheck(() => this._pull(), 'Pull');
+  }
+
+  private async _pull(): Promise<void> {
+    // Is there already a pull in flight?
+    if (this._pullCounter > 0) {
+      // Here we create a promise/resolve pair that will resolve when the
+      // current pull is done.
+      //
+      // This whole dance is to collapse incoming calls to pull during an in
+      // flight pull so that they only cause a single actual pull RPC. We also want
+      // the call to pull to resolve at the right time.
+      //
+      // - pull() is called. Lets call this "pullA"
+      // - pullA is being sent over wire
+      // - pull() is called again. Lets call this "pullB"
+      // - pull() is called again. Lets call this "pullC"
+      // - pullA comes back and is resolved
+      // - puhsB is being sent over wire
+      // - pullB resolve comes back and is resolved
+      // - pullC resolves
+
+      if (!this._pullResolver) {
+        const {promise, resolve} = resolver<void>();
+        this._pullResolver = resolve;
+        this._pullPromise = (async () => {
+          await promise;
+          this._pullResolver = null;
+          await this._pull();
+        })();
       }
-    }, 'Pull');
+      await this._pullPromise;
+      return;
+    }
+
+    try {
+      this._changeSyncCounters(0, 1);
+      const beginPullResult = await this._beginPull(MAX_REAUTH_TRIES);
+      if (beginPullResult.syncHead !== '') {
+        await this._maybeEndPull(beginPullResult);
+      }
+    } finally {
+      this._changeSyncCounters(0, -1);
+    }
+
+    if (this._pullResolver) {
+      this._pullResolver();
+    }
   }
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
@@ -650,10 +738,10 @@ export default class Replicache implements ReadTransaction {
       let pullAuth;
       try {
         // Don't want to say we are syncing when we are waiting for auth
-        this._changeSyncCounter(-1);
+        this._changeSyncCounters(0, -1);
         pullAuth = await this.getPullAuth();
       } finally {
-        this._changeSyncCounter(1);
+        this._changeSyncCounters(0, 1);
       }
       if (pullAuth != null) {
         this._pullAuth = pullAuth;
@@ -665,10 +753,15 @@ export default class Replicache implements ReadTransaction {
     return {requestID, syncHead};
   }
 
-  private _changeSyncCounter(delta: 1 | -1) {
-    this._syncCounter += delta;
-    if ((delta === 1 && this._syncCounter === 1) || this._syncCounter === 0) {
-      const syncing = this._syncCounter > 0;
+  private _changeSyncCounters(pushDelta: 0, pullDelta: 1 | -1): void;
+  private _changeSyncCounters(pushDelta: 1 | -1, pullDelta: 0): void;
+  private _changeSyncCounters(pushDelta: number, pullDelta: number): void {
+    this._pushCounter += pushDelta;
+    this._pullCounter += pullDelta;
+    const delta = pushDelta + pullDelta;
+    const counter = this._pushCounter + this._pullCounter;
+    if ((delta === 1 && counter === 1) || counter === 0) {
+      const syncing = counter > 0;
       Promise.resolve().then(() => this.onSync?.(syncing));
     }
   }

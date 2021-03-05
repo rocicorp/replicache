@@ -35,7 +35,6 @@ The docs at [js.replicache.dev](https://js.replicache.dev) are generated manuall
 git push origin <commitish>:stable
 ```
 
-
 # Performance Monitoring
 
 We continuously track performance across a variety of benchmarks. Results here:

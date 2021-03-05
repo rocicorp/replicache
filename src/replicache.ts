@@ -137,6 +137,7 @@ export default class Replicache implements ReadTransaction {
     string,
     (tx: WriteTransaction, args?: JSONValue) => MaybePromise<void | JSONValue>
   >();
+  private _syncCounter = 0;
   private _syncPromise: Promise<void> | null = null;
   private readonly _subscriptions = new Set<
     Subscription<JSONValue | undefined, unknown>
@@ -524,14 +525,12 @@ export default class Replicache implements ReadTransaction {
     }
 
     this._clearTimer();
-    this._fireOnSync(true);
 
     try {
       this._syncPromise = this._sync();
       await this._syncPromise;
     } finally {
       this._syncPromise = null;
-      this._fireOnSync(false);
       this._scheduleSync(this._syncInterval);
     }
   }
@@ -581,32 +580,36 @@ export default class Replicache implements ReadTransaction {
   }
 
   private async _push(maxAuthTries: number): Promise<void> {
-    const pushResponse = await this._invoke('tryPush', {
-      pushURL: this._pushURL,
-      pushAuth: this._pushAuth,
-    });
-
-    let reauth = false;
+    let pushResponse;
+    try {
+      this._changeSyncCounter(1);
+      pushResponse = await this._invoke('tryPush', {
+        pushURL: this._pushURL,
+        pushAuth: this._pushAuth,
+      });
+    } finally {
+      this._changeSyncCounter(-1);
+    }
 
     const {httpRequestInfo} = pushResponse;
 
     if (httpRequestInfo) {
-      reauth = checkStatus(httpRequestInfo, 'push', this._pushURL);
-    }
+      const reauth = checkStatus(httpRequestInfo, 'push', this._pushURL);
 
-    // TODO: Add back support for mutationInfos? We used to log all the errors
-    // here.
+      // TODO: Add back support for mutationInfos? We used to log all the errors
+      // here.
 
-    if (reauth && this.getPushAuth) {
-      if (maxAuthTries === 0) {
-        console.info('Tried to reauthenticate too many times');
-        return;
-      }
-      const pushAuth = await this.getPushAuth();
-      if (pushAuth != null) {
-        this._pushAuth = pushAuth;
-        // Try again now instead of waiting for next push.
-        return await this._push(maxAuthTries - 1);
+      if (reauth && this.getPushAuth) {
+        if (maxAuthTries === 0) {
+          console.info('Tried to reauthenticate too many times');
+          return;
+        }
+        const pushAuth = await this.getPushAuth();
+        if (pushAuth != null) {
+          this._pushAuth = pushAuth;
+          // Try again now instead of waiting for next push.
+          return await this._push(maxAuthTries - 1);
+        }
       }
     }
   }
@@ -617,9 +620,14 @@ export default class Replicache implements ReadTransaction {
    */
   async pull(): Promise<void> {
     await this._wrapInOnlineCheck(async () => {
-      const beginPullResult = await this._beginPull(MAX_REAUTH_TRIES);
-      if (beginPullResult.syncHead !== '') {
-        await this._maybeEndPull(beginPullResult);
+      try {
+        this._changeSyncCounter(1);
+        const beginPullResult = await this._beginPull(MAX_REAUTH_TRIES);
+        if (beginPullResult.syncHead !== '') {
+          await this._maybeEndPull(beginPullResult);
+        }
+      } finally {
+        this._changeSyncCounter(-1);
       }
     }, 'Pull');
   }
@@ -629,20 +637,24 @@ export default class Replicache implements ReadTransaction {
       pullAuth: this._pullAuth,
       pullURL: this._pullURL,
     });
+
     const {httpRequestInfo, syncHead, requestID} = beginPullResponse;
 
-    let reauth = false;
-
-    if (httpRequestInfo) {
-      reauth = checkStatus(httpRequestInfo, 'pull', this._pullURL);
-    }
-
+    const reauth = checkStatus(httpRequestInfo, 'pull', this._pullURL);
     if (reauth && this.getPullAuth) {
       if (maxAuthTries === 0) {
         console.info('Tried to reauthenticate too many times');
         return {requestID, syncHead: ''};
       }
-      const pullAuth = await this.getPullAuth();
+
+      let pullAuth;
+      try {
+        // Don't want to say we are syncing when we are waiting for auth
+        this._changeSyncCounter(-1);
+        pullAuth = await this.getPullAuth();
+      } finally {
+        this._changeSyncCounter(1);
+      }
       if (pullAuth != null) {
         this._pullAuth = pullAuth;
         // Try again now instead of waiting for next pull.
@@ -653,8 +665,12 @@ export default class Replicache implements ReadTransaction {
     return {requestID, syncHead};
   }
 
-  private _fireOnSync(syncing: boolean): void {
-    Promise.resolve().then(() => this.onSync?.(syncing));
+  private _changeSyncCounter(delta: 1 | -1) {
+    this._syncCounter += delta;
+    if ((delta === 1 && this._syncCounter === 1) || this._syncCounter === 0) {
+      const syncing = this._syncCounter > 0;
+      Promise.resolve().then(() => this.onSync?.(syncing));
+    }
   }
 
   private async _fireOnChange(): Promise<void> {

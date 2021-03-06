@@ -1696,7 +1696,7 @@ testWithBothStores('onSync', async () => {
   expect(onSync.callCount).to.eq(0);
 });
 
-test('push timing', async () => {
+testWithBothStores('push timing', async () => {
   const pushURL = 'https://push.com/push';
   const pushDelay = 5;
 
@@ -1781,6 +1781,12 @@ testWithBothStores('push and pull concurrently', async () => {
   const pushP2 = rep.push();
   const pushP3 = rep.push();
 
+  const resolveOrder: string[] = [];
+  pushP1.then(() => resolveOrder.push('pushP1'));
+  pullP1.then(() => resolveOrder.push('pullP1'));
+  pushP2.then(() => resolveOrder.push('pushP2'));
+  pushP3.then(() => resolveOrder.push('pushP3'));
+
   const rpcs = () => spy.args.map(a => a[0]);
 
   // Only one push at a time but we want push and pull to be concurrent.
@@ -1806,8 +1812,8 @@ testWithBothStores('push and pull concurrently', async () => {
 
   expect(reqs).to.eql([pullURL, pushURL, pushURL]);
   expect(rpcs()).to.eql(['tryPush', 'beginTryPull', 'tryPush']);
-  // await pushP2;
 
-  // expect(reqs()).to.eql([pushURL, pullURL, pushURL]);
-  // expect(rpcs()).to.eql(['tryPush', 'beginTryPull', 'tryPush']);
+  // pull resolves first because it is not waiting for any promise in its
+  // fetchMock.
+  expect(resolveOrder).to.eql(['pullP1', 'pushP1', 'pushP2', 'pushP3']);
 });

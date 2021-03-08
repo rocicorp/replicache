@@ -79,8 +79,9 @@ export interface ReplicacheOptions {
   name?: string;
 
   /**
-   * The schema version of the data understood by this application. This allows
-   * your backend to know what format to return in the pull requests.
+   * The schema version of the data understood by this application. This enables
+   * versioning of mutators (in the push direction) and the client view (in the
+   * pull direction).
    */
   schemaVersion?: string;
 
@@ -642,6 +643,7 @@ export default class Replicache implements ReadTransaction {
       pushResponse = await this._invoke('tryPush', {
         pushURL: this._pushURL,
         pushAuth: this._pushAuth,
+        schemaVersion: this._schemaVersion,
       });
     } finally {
       this._changeSyncCounters(-1, 0);

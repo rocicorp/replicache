@@ -1821,11 +1821,11 @@ test('push and pull concurrently', async () => {
   expect(resolveOrder).to.eql(['pullP1', 'pushP1', 'pushP2', 'pushP3']);
 });
 
-test('schemaVersion', async () => {
+test('schemaVersion pull', async () => {
   const pullURL = 'https://pull.com/pull';
-  const schemaVersion = 'testing';
+  const schemaVersion = 'testing-pull';
 
-  rep = await replicacheForTesting('schemaVersion', {
+  rep = await replicacheForTesting('schema-version-pull', {
     pullURL,
     schemaVersion,
   });
@@ -1833,6 +1833,26 @@ test('schemaVersion', async () => {
   fetchMock.post(pullURL, {});
 
   await rep.pull();
+
+  const req = await fetchMock.lastCall().request.json();
+  expect(req.schemaVersion).to.eql(schemaVersion);
+  console.log(fetchMock.lastCall());
+});
+
+test('schemaVersion push', async () => {
+  const pushURL = 'https://push.com/push';
+  const schemaVersion = 'testing-push';
+
+  rep = await replicacheForTesting('schema-version-push', {
+    pushURL,
+    schemaVersion,
+  });
+
+  const add = rep.register('add-data', addData);
+  await add({a: 1});
+
+  fetchMock.post(pushURL, {});
+  await rep.push();
 
   const req = await fetchMock.lastCall().request.json();
   expect(req.schemaVersion).to.eql(schemaVersion);

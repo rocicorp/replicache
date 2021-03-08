@@ -151,6 +151,7 @@ type BeginTryPullResponse = {
 type TryPushRequest = {
   pushURL: string;
   pushAuth: string;
+  schemaVersion: string;
 };
 
 type TryPushResponse = {

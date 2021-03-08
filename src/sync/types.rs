@@ -69,6 +69,8 @@ pub struct TryPushRequest {
     pub push_url: String,
     #[serde(rename = "pushAuth")]
     pub push_auth: String,
+    #[serde(rename = "schemaVersion")]
+    pub schema_version: String,
 }
 
 #[derive(Serialize)]

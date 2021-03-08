@@ -15,8 +15,13 @@ pub struct PushRequest {
     #[serde(rename = "clientID")]
     pub client_id: String,
     pub mutations: Vec<Mutation>,
-    #[serde(rename = "pullVersion")]
+    #[serde(rename = "pushVersion")]
     pub push_version: u32,
+    // schema_version can optionally be used to specify to the push endpoint
+    // version information about the mutators the app is using (e.g., format
+    // of mutator args).
+    #[serde(rename = "schemaVersion")]
+    pub schema_version: String,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -177,6 +182,7 @@ pub async fn push(
             client_id,
             mutations: push_mutations,
             push_version: PUSH_VERSION,
+            schema_version: req.schema_version,
         };
         debug!(lc, "Starting push...");
         let push_timer = rlog::Timer::new().map_err(InternalTimerError)?;
@@ -232,6 +238,7 @@ mod tests {
                     args: serde_json::Value::Null,
                 }],
                 push_version: PUSH_VERSION,
+                schema_version: str!("schema_version")
             };
             // EXP_BODY must be 'static to be used in HTTP handler closure.
             static ref EXP_BODY: String = serde_json::to_string(&*PUSH_REQ).unwrap();
@@ -416,6 +423,7 @@ mod tests {
 
         // Push
         let push_url = str!("push_url");
+        let push_schema_version = str!("push_schema_version");
 
         struct Case<'a> {
             pub name: &'a str,
@@ -445,6 +453,7 @@ mod tests {
                         args: json!([3]),
                     }],
                     push_version: PUSH_VERSION,
+                    schema_version: push_schema_version.clone(),
                 }),
                 push_result: Some(Ok(push::PushResponse {})),
                 exp_batch_push_info: Some(HttpRequestInfo {
@@ -473,6 +482,7 @@ mod tests {
                         },
                     ],
                     push_version: PUSH_VERSION,
+                    schema_version: push_schema_version.clone(),
                 }),
                 push_result: Some(Ok(push::PushResponse {})),
                 exp_batch_push_info: Some(HttpRequestInfo {
@@ -501,6 +511,7 @@ mod tests {
                         },
                     ],
                     push_version: PUSH_VERSION,
+                    schema_version: push_schema_version.clone(),
                 }),
                 push_result: Some(Err(str!("FetchNotOk(500)"))),
                 exp_batch_push_info: Some(HttpRequestInfo {
@@ -589,6 +600,7 @@ mod tests {
                 TryPushRequest {
                     push_url: push_url.clone(),
                     push_auth: push_auth.clone(),
+                    schema_version: push_schema_version.clone(),
                 },
             )
             .await

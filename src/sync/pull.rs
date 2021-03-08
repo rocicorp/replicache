@@ -11,6 +11,7 @@ use crate::fetch::errors::FetchError;
 use crate::util::rlog;
 use crate::util::rlog::LogContext;
 use async_trait::async_trait;
+use log::log_enabled;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::HashMap;
 use std::default::Default;
@@ -283,21 +284,23 @@ pub async fn maybe_end_try_pull(
         .await
         .map_err(WriteSyncHeadError)?;
     dag_write.commit().await.map_err(CommitError)?;
-    let (old_last_mutation_id, old_cookie) = Commit::snapshot_meta_parts(&main_snapshot)
-        .map_err(|e| InternalProgrammerError(format!("{:?}", e)))?;
-    let (new_last_mutation_id, new_cookie) = Commit::snapshot_meta_parts(&sync_snapshot)
-        .map_err(|e| InternalProgrammerError(format!("{:?}", e)))?;
-    debug!(
-        lc.clone(),
-        "Successfully pulled new snapshot w/last_mutation_id={} (prev. {}),
+    if log_enabled!(log::Level::Debug) {
+        let (old_last_mutation_id, old_cookie) = Commit::snapshot_meta_parts(&main_snapshot)
+            .map_err(|e| InternalProgrammerError(format!("{:?}", e)))?;
+        let (new_last_mutation_id, new_cookie) = Commit::snapshot_meta_parts(&sync_snapshot)
+            .map_err(|e| InternalProgrammerError(format!("{:?}", e)))?;
+        debug!(
+            lc.clone(),
+            "Successfully pulled new snapshot w/last_mutation_id={} (prev. {}),
         cookie={} (prev. {}), and value_hash={} (prev. {}).",
-        new_last_mutation_id,
-        old_last_mutation_id,
-        new_cookie,
-        old_cookie,
-        sync_head.value_hash(),
-        main_snapshot.value_hash()
-    );
+            new_last_mutation_id,
+            old_last_mutation_id,
+            new_cookie,
+            old_cookie,
+            sync_head.value_hash(),
+            main_snapshot.value_hash()
+        );
+    }
     Ok(MaybeEndTryPullResponse {
         sync_head: sync_head_hash.to_string(),
         replay_mutations: Vec::new(),

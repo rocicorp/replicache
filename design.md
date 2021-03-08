@@ -33,19 +33,19 @@ belief they don't need to be exceptionally painful. Replicache makes conflict re
 
 # System Overview
 
-Replicache is an embedded cache that runs inside a mobile app and synchronizes with some existing web service. In this document, we refer to the entire existing server-side stack as the *Data Layer*. The Data Layer could be as simple as a document database or could be a massive distributed system -- Replicache doesn't care.
+Replicache is a cache that runs inside the browser and synchronizes with a web service. The web service typically already exists when Replicache is added and it could be as simple as a document database or could be a massive distributed system -- Replicache doesn't care. In this document, we refer to the web service as the *Data Layer*. An application uses an instance of the *Replicache Client* to read from and write to the local cache, and the client synchronizes with the data layer in the background.
 
 ![Diagram](./diagram.png)
 
 ## Data Model
 
-Replicache synchronizes updates to per-user *state* across an arbitrary number of clients. The state is a sorted map of key/value pairs. Keys are strings, values are JSON. The canonical state fetched from the server is also known as the *Client View*. 
+Replicache synchronizes updates to per-user *state* across an arbitrary number of Replicache clients. The state is a sorted map of key/value pairs. Keys are strings, values are JSON. The canonical state fetched from the data layer is known as the *Client View*: the client's view of the user's data in the data layer. 
 
 ## The Big Picture
 
-The Replicache Client maintains a local cache of the user's state against which the application runs read and write transactions (often referred to as *mutations*). Both read and write transactions run immediately against the local state and mutations are additionally queued as *pending* application on the server. Periodically the client *syncs*: pushing pending mutations to the Data Layer, then pulling updated state from it. Mutations flow upstream, state changes flow downstream.
+The Replicache Client maintains a local cache of the user's state against which the application runs read and write transactions (often referred to as *mutations*). Both read and write transactions run immediately against the local state and mutations are additionally queued as *pending* application on the server. In the background the client *syncs*, pushing pending mutations to the Data Layer, and pulling updated state from it. Mutations flow upstream in push and state changes flow downstream in pull.
 
-A key feature that makes Replicache flexible and easy to adopt is that Replicache does not take ownership of the data. The Data Layer owns the data, is the source of truth, and requires only minimal changes. Processes that Replicache knows nothing about can mutate state in the Data Layer and Replicache Clients will converge on the Data Layer's canonical state and correctly apply client changes on top of it.
+A key feature that makes Replicache flexible and easy to adopt is that Replicache does not take ownership of the data on the server. The Data Layer owns the data, is the source of truth, and typically requires only a few small changes to work with Replicache. Processes that Replicache knows nothing about can mutate state in the Data Layer and Replicache Clients will converge on the Data Layer's canonical state and correctly apply client changes on top of it.
 
 # Detailed Design
 
@@ -55,20 +55,26 @@ The Replicache Client maintains:
 
 * The ClientID, a unique identifier for this client
 * The LastMutationID. Write transactions originating on a client are uniquely identified and ordered by an ordinal which increases sequentially. This ordinal serves as an idempotency token for the Data Layer, and is used to determine which transactions the server has applied.
-* A versioned, transactional, deterministically iterable key/value store that keeps the user's state
-  * Versioned meaning that we can go back to any previous version 
-  * Versioned also meaning that we can _fork_ from a version, apply many transactions, then reveal this new version atomically (like git branch and merge)
+* The Cookie returned along with the Client View in the most recent pull. The cookie is returned to the data layer in the next pull to be used to compute a diff from the state the client has to that which the server has.
+* A persistent, versioned, transactional, deterministically iterable key/value store that keeps the user's state
+  * Persistent meaning that the state of the store persists across browser sessions
+  * Versioned meaning that we can go back to any previous version and can _fork_ from a version, apply transactions to it, and atomically reveal the new version (like git branch and merge)
   * Transactional meaning that we can read and write many keys atomically
-  
-Additionally, in memory, user code provides a mapping of named *mutators*. A mutator is just a function that implements a write transaction, a local mutation operation.
+
+The client-side of the application using Replicache provides:
+* Mutators: A *mutator* is a named function that implements a write transaction. The application invokes mutators to do its work, and they read from and write to the local cache.
+
+The server-side (data layer) of the application provides:
+* The Push endpoint: the push endpoint accepts pending mutation invocations from the client and applies them to the canonical state on the server. The push endpoint has a server-side implementaiton of each client-side mutator.
+* The Pull endpoint: the pull endpoint returns the latest state to the client, typically in the form of a patch to the data the client already has.
 
 ### Commits
 
-Each version of the user's state is represented as a _commit_ which has an immutable view of the user's state.
+Within the Replicache client, each version of the user's state is represented as a _commit_ which has an immutable view of the user's state.
 
 Commits come in two flavors, those from the client and those from the server:
-* *Local commits* represent a change made by a mutation executing locally against the client's cache. The set of local commits that are not yet known to be applied in the Data Layer are known as *pending* commits. Local commits include the *mutator name* and *arguments* that caused them, so that the mutator may be replayed later on top of new snapshot commits from the server if necessary.
-* *Snapshot commits* represent a state update received from the server. They carry a cookie*, which the Data Layer can used to calculate the delta for the next pull.
+* *Local commits* represent a change made by a mutator executing locally against the client's cache. The set of local commits that are not yet known to be applied in the Data Layer are known as *pending* commits. Local commits include the *mutator name* and *arguments* that caused them, so that the mutator may be replayed later on top of new snapshot commits from the server if necessary.
+* *Snapshot commits* represent a state update pulled from the server. They carry a *cookie*, which the Data Layer can used to calculate the delta for the next pull.
 
 ### API Sketch
 
@@ -111,10 +117,10 @@ interface WriteTransaction extends ReadTransaction {
 
 ## Data Layer
 
-The Data Layer is a standard REST/GraphQL web service. In order to integrate Replicache the Data Layer must:
+We expect the data layer to typically be a familiar REST/GraphQL web service, but it could be anything that provides transactional storage. In order to integrate Replicache, the Data Layer must:
 1. maintain a mapping from ClientID to LastMutationID (used by Push and Pull)
-1. implement an interface to fetch updates to a user's Client View, along with the user's LastMutationID (used by Pull)
-1. implement an interface to execute a batch of upstream transactions (used in Push)
+1. implement the Pull endpoint from which the client fetches a user's Client View and its LastMutationID
+1. implement the Push endpoint which executes a batch of mutators pushed upstream by the client
 
 ### Generality
 
@@ -122,24 +128,24 @@ As mentioned, the Data Layer could be a simple document database or a complicate
 
 # Data Flow
 
-Data flows from the client up to the Data Layer, and back down from the Data Layer to the Client. Mutations flow upstream while state updates flow downstream. Any of these processes can stop or stall indefinitely without affecting correctness.
+Data flows from the client up to the Data Layer, and back down from the Data Layer to the Client. Mutations are pushed upstream while state updates are pulled downstream. Either of these processes can stop or stall indefinitely without affecting correctness.
 
-The client tracks state changes in a git-like fashion. The Replicache Client has a *master* branch of commits and keeps a *head* commit pointer representing the current state of the local key-value database. Transactions run serially against the state in the head commit. The head commmit can change in two ways:
-1. write transactions: when the app runs a transaction that changes the database, the change goes into a pending commit on top of the current head. This new pending commit becomes the new head.
-1. sync: when a new state update is pulled from the server Replicache will:
+The client tracks state changes in a git-like fashion. The Replicache Client has a *main* branch of commits and keeps a *head* commit pointer representing the current state of the local key-value database. Transactions run against the state in the head commit. The head commmit can change in two ways:
+1. write transactions (mutations): when the app runs a mutator that changes the database, the change goes into a pending commit on top of the current head. This new pending commit becomes the new head.
+1. pull: when a new state update is pulled from the server Replicache will:
    1. fork a new branch (the *sync branch*) from the most recent snapshot
-   1. add a new snapshot with the latest state update to this sync branch; the branch now has state identical to the server
-   1. compute the set of mutations to replay on the sync branch by filtering all pending commits on master that have already been applied by the server. That is, find all pending commits on master whose MutationID is greater than the LastMutationID of the new snapshot.
-   1. for each mutation to replay in order, (re)apply it on the sync branch; this extends the sync branch with a pending commit for each mutation not yet seen by the server
-   1. make the sync branch master by setting head of master to the head of the sync branch
+   1. add a new snapshot with the new state update to the sync branch; the branch now has state identical to the server
+   1. compute the set of mutations to replay on the sync branch by filtering all pending commits on main that have already been applied by the server. That is, find all pending commits on main whose MutationID is greater than the LastMutationID of the new snapshot.
+   1. for each mutation to replay, in order, apply it on the sync branch; this extends the sync branch with a pending commit for each mutation not yet seen by the server
+   1. make the sync branch main by setting head of main to the head of the sync branch
 
-## Sync
+## Syncing
 
-In order to sync, the client first calls Push on the Data Layer, passing all its pending mutations. The Data Layer executes the pending mutations serially. When the Data Layer executes a mutation it sets the client's LastMutationID to match as part of the same transaction. If a MutationID is less than or equal to the client's LastMutationID or more than one more, the mutation is ignored. 
+There are two parts to sync: push and pull. 
 
-The client then calls Pull on the Data Layer, passing the cookie from its most recent Snapshot (as found in the most recent Snapshot commit). The Data Layer computes and returns a delta to the Client View using the cookie, and the LastMutationID for this client.
+To push, the client invokes the Data Layer's Push endpoint, passing all its pending mutations. The Data Layer executes the pending mutations serially. When the Data Layer executes a mutation it sets the client's LastMutationID to match the mutation's ID as part of the same transaction. If a MutationID is less than or equal to the client's LastMutationID or more than one more, the mutation is ignored. 
 
-The client applies the delta from Pull as described above: it forks from the previous snapshot commit, applies any local mutations that are still pending (those with mutation ids greater than the LastMutationID indicated in the state update), and reveals the new state by setting head of master to the end of the new branch. The client can now forget about all pending mutations that have been confirmed, that is, all pending mutations with MutationIDs than or equal to the LastMutationID of the most recent state.
+To pull, the Data Layer's Pull endpoint is invoked by the client, passing the cookie from its most recent Snapshot (as found in the most recent Snapshot commit). The Data Layer computes and returns a delta to the Client View using the cookie, and the LastMutationID for this client. The client applies the delta from Pull as described above: it forks from the previous snapshot commit, applies any local mutations that are still pending (those with mutation ids greater than the LastMutationID indicated along with the client view patch), and reveals the new state by setting head of main to the end of the new branch. The client can now forget about all pending mutations that have been confirmed, that is, all pending mutations with MutationIDs less than or equal to the LastMutationID of the most recent snapshot.
 
 ## Mutations outside the client
 

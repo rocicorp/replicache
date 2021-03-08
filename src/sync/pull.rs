@@ -283,6 +283,21 @@ pub async fn maybe_end_try_pull(
         .await
         .map_err(WriteSyncHeadError)?;
     dag_write.commit().await.map_err(CommitError)?;
+    let (old_last_mutation_id, old_cookie) = Commit::snapshot_meta_parts(&main_snapshot)
+        .map_err(|e| InternalProgrammerError(format!("{:?}", e)))?;
+    let (new_last_mutation_id, new_cookie) = Commit::snapshot_meta_parts(&sync_snapshot)
+        .map_err(|e| InternalProgrammerError(format!("{:?}", e)))?;
+    debug!(
+        lc.clone(),
+        "Successfully pulled new snapshot w/last_mutation_id={} (prev. {}),
+        cookie={} (prev. {}), and value_hash={} (prev. {}).",
+        new_last_mutation_id,
+        old_last_mutation_id,
+        new_cookie,
+        old_cookie,
+        sync_head.value_hash(),
+        main_snapshot.value_hash()
+    );
     Ok(MaybeEndTryPullResponse {
         sync_head: sync_head_hash.to_string(),
         replay_mutations: Vec::new(),

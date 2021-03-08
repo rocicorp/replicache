@@ -48,6 +48,7 @@ async function replicacheForTesting(
     pushAuth = '',
     pushDelay,
     pushURL = '',
+    schemaVersion = '',
     useMemstore = overrideUseMemstore,
   }: {
     pullAuth?: string;
@@ -55,6 +56,7 @@ async function replicacheForTesting(
     pushAuth?: string;
     pushDelay?: number;
     pushURL?: string;
+    schemaVersion?: string;
     useMemstore?: boolean;
   } = {},
 ): Promise<ReplicacheTest> {
@@ -66,6 +68,7 @@ async function replicacheForTesting(
     pushDelay,
     pushURL,
     name,
+    schemaVersion,
     useMemstore,
   });
 }
@@ -1746,7 +1749,7 @@ testWithBothStores('push timing', async () => {
   expect(tryPushCalls()).to.eq(2);
 });
 
-testWithBothStores('push and pull concurrently', async () => {
+test('push and pull concurrently', async () => {
   const pushURL = 'https://push.com/push';
   const pullURL = 'https://pull.com/pull';
 
@@ -1816,4 +1819,42 @@ testWithBothStores('push and pull concurrently', async () => {
   // pull resolves first because it is not waiting for any promise in its
   // fetchMock.
   expect(resolveOrder).to.eql(['pullP1', 'pushP1', 'pushP2', 'pushP3']);
+});
+
+test('schemaVersion pull', async () => {
+  const pullURL = 'https://pull.com/pull';
+  const schemaVersion = 'testing-pull';
+
+  rep = await replicacheForTesting('schema-version-pull', {
+    pullURL,
+    schemaVersion,
+  });
+
+  fetchMock.post(pullURL, {});
+
+  await rep.pull();
+
+  const req = await fetchMock.lastCall().request.json();
+  expect(req.schemaVersion).to.eql(schemaVersion);
+  console.log(fetchMock.lastCall());
+});
+
+test('schemaVersion push', async () => {
+  const pushURL = 'https://push.com/push';
+  const schemaVersion = 'testing-push';
+
+  rep = await replicacheForTesting('schema-version-push', {
+    pushURL,
+    schemaVersion,
+  });
+
+  const add = rep.register('add-data', addData);
+  await add({a: 1});
+
+  fetchMock.post(pushURL, {});
+  await rep.push();
+
+  const req = await fetchMock.lastCall().request.json();
+  expect(req.schemaVersion).to.eql(schemaVersion);
+  console.log(fetchMock.lastCall());
 });

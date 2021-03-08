@@ -79,6 +79,13 @@ export interface ReplicacheOptions {
   name?: string;
 
   /**
+   * The schema version of the data understood by this application. This enables
+   * versioning of mutators (in the push direction) and the client view (in the
+   * pull direction).
+   */
+  schemaVersion?: string;
+
+  /**
    * The duration between each [[sync]]. Set this to `null` to prevent syncing
    * in the background.
    */
@@ -129,6 +136,7 @@ export default class Replicache implements ReadTransaction {
   private readonly _name: string;
   private readonly _repmInvoker: Invoker;
   private readonly _useMemstore: boolean;
+  private readonly _schemaVersion: string = '';
 
   private _closed = false;
   private _online = true;
@@ -206,6 +214,7 @@ export default class Replicache implements ReadTransaction {
       pushAuth = '',
       pushDelay = 10,
       pushURL = '',
+      schemaVersion = '',
       syncInterval = 60_000,
       useMemstore = false,
       wasmModule,
@@ -216,6 +225,7 @@ export default class Replicache implements ReadTransaction {
     this._pushURL = pushURL;
     this._name = name;
     this._repmInvoker = new REPMWasmInvoker(wasmModule);
+    this._schemaVersion = schemaVersion;
     this._syncInterval = syncInterval;
     this.pushDelay = pushDelay;
     this._useMemstore = useMemstore;
@@ -633,6 +643,7 @@ export default class Replicache implements ReadTransaction {
       pushResponse = await this._invoke('tryPush', {
         pushURL: this._pushURL,
         pushAuth: this._pushAuth,
+        schemaVersion: this._schemaVersion,
       });
     } finally {
       this._changeSyncCounters(-1, 0);
@@ -724,6 +735,7 @@ export default class Replicache implements ReadTransaction {
     const beginPullResponse = await this._invoke('beginTryPull', {
       pullAuth: this._pullAuth,
       pullURL: this._pullURL,
+      schemaVersion: this._schemaVersion,
     });
 
     const {httpRequestInfo, syncHead, requestID} = beginPullResponse;
@@ -1014,6 +1026,7 @@ export class ReplicacheTest extends Replicache {
     pushAuth,
     pushDelay = 0,
     pushURL,
+    schemaVersion,
     useMemstore = false,
   }: {
     name?: string;
@@ -1022,6 +1035,7 @@ export class ReplicacheTest extends Replicache {
     pushAuth?: string;
     pushDelay?: number;
     pushURL: string;
+    schemaVersion?: string;
     useMemstore?: boolean;
   }): Promise<ReplicacheTest> {
     const rep = new ReplicacheTest({
@@ -1031,6 +1045,7 @@ export class ReplicacheTest extends Replicache {
       pushAuth,
       pushDelay,
       pushURL,
+      schemaVersion,
       syncInterval: null,
       useMemstore,
     });

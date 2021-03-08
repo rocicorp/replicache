@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1614971198299,
+  "lastUpdate": 1615232168453,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -15191,6 +15191,114 @@ window.BENCHMARK_DATA = {
           {
             "name": "create index 1024x5000",
             "value": 4.9,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "10 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bdc383af228545b8570a914a6b664d39bf650542",
+          "message": "Make sure we only send one push at the time (#299)\n\nWe allow push and pulls to be sent at the same time but if there are\r\nmultiple calls to push/pull then the first pull/push needs to finish\r\nbefore we send another pull/push.\r\n\r\nIf there are multiple pull/push calls during an existing pull/push these\r\ngets collapsed into a single pull/push.\r\n\r\nTowards #294",
+          "timestamp": "2021-03-08T11:33:21-08:00",
+          "tree_id": "3629707989b74d2039e6872eee1aeba2e47e2c3f",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/bdc383af228545b8570a914a6b664d39bf650542"
+        },
+        "date": 1615232167851,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.61,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 5.49,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "12 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 3.11,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.19,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.78,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "14 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.79,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 23.25,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "47 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 21.8,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 41.67,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "82 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 29.41,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "98 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 20.41,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "40 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 4.63,
             "range": "±0.0%",
             "unit": "op/s",
             "extra": "10 samples"

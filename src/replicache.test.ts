@@ -1836,6 +1836,5 @@ test('schemaVersion', async () => {
 
   const req = await fetchMock.lastCall().request.json();
   expect(req.schemaVersion).to.eql(schemaVersion);
-  debugger;
   console.log(fetchMock.lastCall());
 });

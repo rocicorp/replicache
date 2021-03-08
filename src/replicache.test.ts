@@ -850,7 +850,7 @@ testWithBothStores('push delay', async () => {
 
   expect(fetchMock.calls()).to.have.length(0);
 
-  await sleep(5);
+  await sleep(25);
 
   expect(fetchMock.calls()).to.have.length(1);
 });
@@ -1727,7 +1727,7 @@ testWithBothStores('push timing', async () => {
 
   expect(tryPushCalls()).to.eq(0);
 
-  await sleep(pushDelay * 5);
+  await sleep(pushDelay * 10);
 
   expect(tryPushCalls()).to.eq(1);
   spy.resetHistory();

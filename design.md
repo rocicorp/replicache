@@ -82,7 +82,12 @@ This API sketch is in TypeScript, for JavaScript bindings. A similar API would e
 
 ```ts
 class Replicache implements ReadTransaction {
-  constructor(batchURL: string, dataLayerAuth: string, diffServerAuth: string, diffServerURL: string);
+  constructor({
+    pushURL: string,
+    pushAuth: string,
+    pullURL: string,
+    pullAuth: string,
+  });
 
   // Registers a mutator, which is used to make changes to the data.
   register<Return, Args>(name: string, mutatorImpl: MutatorImpl<Return, Args>): Mutator<Return, Args>;
@@ -93,7 +98,7 @@ class Replicache implements ReadTransaction {
 };
 
 // A Replicache "mutator" function is just a normal JS function that accepts any JSON value, makes changes
-// to Replicache, and returns and JSON value. Users can invoke mutators themselves, via the return type
+// to Replicache, and returns a JSON value. Users can invoke mutators themselves, via the return value
 // from register(). Also Replicache will itself invoke these functions during sync as part of conflict
 // resolution.
 type MutatorImpl<Return extends JSONValue | void, Args extends JSONValue> = (

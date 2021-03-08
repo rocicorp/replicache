@@ -139,6 +139,7 @@ export type CommitTransactionResponse = {
 type BeginTryPullRequest = {
   pullURL: string;
   pullAuth: string;
+  schemaVersion: string;
 };
 
 type BeginTryPullResponse = {

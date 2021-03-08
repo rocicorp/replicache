@@ -1662,7 +1662,7 @@ testWithBothStores('onSync', async () => {
   fetchMock.postOnce(pushURL, {});
   onSync.resetHistory();
   await add({a: 'a'});
-  await sleep(5);
+  await sleep(25);
   expect(onSync.callCount).to.eq(2);
   expect(onSync.getCall(0).args[0]).to.be.true;
   expect(onSync.getCall(1).args[0]).to.be.false;

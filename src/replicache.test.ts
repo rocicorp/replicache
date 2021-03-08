@@ -997,7 +997,7 @@ testWithBothStores('sync debouncing', async () => {
   await sleep(10);
 
   const calls = spy.args;
-  const syncCalls = calls.filter(([rpc]) => rpc === 'beginTryPull').length;
+  const syncCalls = calls.filter(([rpc]) => rpc === 'tryPush').length;
   expect(syncCalls).to.equal(2);
 });
 
@@ -1727,7 +1727,7 @@ testWithBothStores('push timing', async () => {
 
   expect(tryPushCalls()).to.eq(0);
 
-  await sleep(pushDelay * 2);
+  await sleep(pushDelay * 5);
 
   expect(tryPushCalls()).to.eq(1);
   spy.resetHistory();

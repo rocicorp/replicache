@@ -30,7 +30,7 @@ pub async fn apply(db_write: &mut db::Write<'_>, patch: &[Operation]) -> Result<
                     .map_err(PutError)?;
             }
             Operation::Del { key } => {
-                // Should we error if we try to remove a key that doesn't exist?
+                // Note it is not an error to del a key that does not exist.
                 let key = key.as_bytes().to_vec();
                 db_write
                     .del(rlog::LogContext::new(), key)
@@ -134,9 +134,8 @@ mod tests {
                 exp_err: None,
                 exp_map: Some(map!("key" => "value")),
             },
-            // Remove once all the other layers no longer depend on this.
             Case {
-                name: "top-level remove",
+                name: "top-level clear",
                 patch: json!([{"op": "clear"}]),
                 exp_err: None,
                 exp_map: Some(HashMap::new()),
@@ -195,6 +194,12 @@ mod tests {
                 exp_err: Some("missing field `key`"),
                 exp_map: None,
             },
+            Case {
+                name: "make sure we do not apply parts of the patch",
+                patch: json!([{"op": "put", "key": "k", "value": 42}, {"op": "del"}]),
+                exp_err: Some("missing field `key`"),
+                exp_map: Some(map!("key" => "value")),
+            },
         ];
 
         for c in cases.iter() {
@@ -220,7 +225,6 @@ mod tests {
                 .unwrap();
 
             let ops = serde_json::from_value::<Vec<Operation>>(c.patch.clone());
-            println!("{:?}", ops);
             match ops {
                 Err(e) => {
                     // JSON error
@@ -229,27 +233,23 @@ mod tests {
                 }
                 Ok(ops) => {
                     let result = apply(&mut db_write, &ops).await;
-                    match c.exp_err {
-                        Some(err_str) => assert!(to_debug(result.unwrap_err()).contains(err_str)),
-                        None => {
-                            match c.exp_map.as_ref() {
-                                None => panic!("expected a map"),
-                                Some(map) => {
-                                    for (k, v) in map {
-                                        assert_eq!(
-                                            Some(v.as_bytes()),
-                                            db_write.as_read().get(k.as_bytes()),
-                                            "{}",
-                                            c.name
-                                        );
-                                    }
-                                    if map.len() == 0 {
-                                        assert!(!db_write.as_read().has("key".as_bytes()));
-                                    }
-                                }
-                            };
-                        }
+                    if let Some(err_str) = c.exp_err {
+                        assert!(to_debug(result.unwrap_err()).contains(err_str));
                     }
+                }
+            }
+
+            if let Some(map) = c.exp_map.as_ref() {
+                for (k, v) in map {
+                    assert_eq!(
+                        Some(v.as_bytes()),
+                        db_write.as_read().get(k.as_bytes()),
+                        "{}",
+                        c.name
+                    );
+                }
+                if map.len() == 0 {
+                    assert!(!db_write.as_read().has("key".as_bytes()));
                 }
             }
         }

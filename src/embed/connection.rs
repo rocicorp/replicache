@@ -186,7 +186,7 @@ async fn execute<'a, 'b>(
         }
         "openTransaction" => return to_js(do_open_transaction(ctx, from_js(data)?).await),
         "commitTransaction" => return to_js(do_commit(ctx, from_js(data)?).await),
-        "closeTransaction" => return to_js(do_close(ctx, from_js(data)?).await),
+        "closeTransaction" => return to_js(do_close_transaction(ctx, from_js(data)?).await),
         "setLogLevel" => return to_js(do_set_log_level(ctx, from_js(data)?).await),
 
         "tryPush" => return to_js(do_try_push(ctx, from_js(data)?).await),
@@ -444,7 +444,7 @@ async fn do_commit<'a, 'b>(
     Ok(CommitTransactionResponse { hash })
 }
 
-async fn do_close<'a, 'b>(
+async fn do_close_transaction<'a, 'b>(
     ctx: Context<'a, 'b>,
     request: CloseTransactionRequest,
 ) -> Result<CloseTransactionResponse, CloseTransactionError> {

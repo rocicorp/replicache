@@ -113,7 +113,11 @@ async fn do_open(conns: &mut ConnMap, req: &Request) -> Response {
         return Err("db_name must be non-empty".into());
     }
     if conns.contains_key(&req.db_name[..]) {
-        return Ok("".into());
+        return Err(format!(
+            "Database \"{}\" has already been opened. Please close it before opening it again",
+            req.db_name
+        )
+        .into());
     }
 
     let open_req = serde_wasm_bindgen::from_value::<OpenRequest>(req.data.clone())
@@ -141,11 +145,11 @@ async fn do_open(conns: &mut ConnMap, req: &Request) -> Response {
     spawn_local(connection::process(
         dag::Store::new(kv),
         rx,
-        client_id,
+        client_id.clone(),
         req.lc.clone(),
     ));
     conns.insert(req.db_name.clone(), tx);
-    Ok("".into())
+    Ok(client_id.into())
 }
 
 async fn do_close(conns: &mut ConnMap, req: &Request) -> Response {

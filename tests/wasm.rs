@@ -2,6 +2,7 @@
 
 use futures::join;
 use rand::Rng;
+use regex::Regex;
 use replicache_client::db::ScanOptions;
 use replicache_client::sync;
 use replicache_client::util::rlog;
@@ -200,6 +201,12 @@ async fn abort(db_name: &str, transaction_id: u32) {
     .unwrap();
 }
 
+fn is_valid_client_id(s: &str) -> bool {
+    let re = Regex::new(r"^[0-9:A-z]{8}-[0-9:A-z]{4}-4[0-9:A-z]{3}-[0-9:A-z]{4}-[0-9:A-z]{12}$")
+        .unwrap();
+    re.is_match(s)
+}
+
 #[wasm_bindgen_test]
 async fn test_open_close() {
     for use_memstore in vec![true, false] {
@@ -216,11 +223,13 @@ async fn test_open_close() {
                 .unwrap_err(),
             "db_name must be non-empty"
         );
-        assert_eq!(
-            dispatch::<_, String>("db", "open", &open_req)
-                .await
-                .unwrap(),
-            ""
+        let client_id = dispatch::<_, String>("db", "open", &open_req)
+            .await
+            .unwrap();
+        assert!(
+            is_valid_client_id(&client_id),
+            "client_id \"{}\" does not look like a UUID",
+            client_id
         );
         assert_eq!(
             dispatch::<_, String>("", "debug", "open_dbs")
@@ -228,11 +237,13 @@ async fn test_open_close() {
                 .unwrap(),
             "[\"db\"]"
         );
-        assert_eq!(
-            dispatch::<_, String>("db2", "open", &open_req)
-                .await
-                .unwrap(),
-            ""
+        let client_id = dispatch::<_, String>("db2", "open", &open_req)
+            .await
+            .unwrap();
+        assert!(
+            is_valid_client_id(&client_id),
+            "client_id \"{}\" does not look like a UUID",
+            client_id
         );
         assert_eq!(
             dispatch::<_, String>("", "debug", "open_dbs")
@@ -265,11 +276,13 @@ async fn test_concurrency_within_a_read_tx() {
         let performance = global_property::<web_sys::Performance>("performance")
             .expect("performance should be available");
 
-        assert_eq!(
-            dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
-                .await
-                .unwrap(),
-            ""
+        let client_id = dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+            .await
+            .unwrap();
+        assert!(
+            is_valid_client_id(&client_id),
+            "client_id \"{}\" does not look like a UUID",
+            client_id
         );
         let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
             .await
@@ -477,11 +490,13 @@ async fn test_get_put_del() {
             .unwrap_err(),
             format!("\"{}\" not open", db)
         );
-        assert_eq!(
-            dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
-                .await
-                .unwrap(),
-            ""
+        let client_id = dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+            .await
+            .unwrap();
+        assert!(
+            is_valid_client_id(&client_id),
+            "client_id \"{}\" does not look like a UUID",
+            client_id
         );
 
         let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
@@ -540,11 +555,13 @@ async fn test_get_put_del() {
 async fn test_create_drop_index() {
     for use_memstore in vec![true, false] {
         let db = &random_db();
-        assert_eq!(
-            dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
-                .await
-                .unwrap(),
-            ""
+        let client_id = dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+            .await
+            .unwrap();
+        assert!(
+            is_valid_client_id(&client_id),
+            "client_id \"{}\" does not look like a UUID",
+            client_id
         );
 
         let transaction_id = open_index_transaction(db).await.transaction_id;
@@ -839,76 +856,87 @@ async fn test_scan_with_index() {
         exclusive: bool,         // scan start_exclusive
         expected: Vec<(&str, &str, &str)>, // expected results of the scan
     ) {
-        for use_memstore in vec![true, false] {
-            let index_name = str!("idx1");
-            let expected: Vec<(String, String, String)> = expected
-                .iter()
-                .map(|v| (str!(v.0), str!(v.1), str!(v.2)))
-                .collect();
+        let index_name = str!("idx1");
+        let expected: Vec<(String, String, String)> = expected
+            .iter()
+            .map(|v| (str!(v.0), str!(v.1), str!(v.2)))
+            .collect();
 
-            let db = &random_db();
-            dispatch::<OpenRequest, String>(db, "open", OpenRequest { use_memstore })
-                .await
-                .unwrap();
-            let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-                .await
-                .transaction_id;
-            for entry in &entries {
-                put(db, txn_id, entry.0, entry.1).await;
-            }
-            commit(db, txn_id).await;
-
-            dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
-                .await
-                .unwrap();
-            let txn_id = open_index_transaction(db).await.transaction_id;
-            dispatch::<_, CreateIndexResponse>(
-                db,
-                "createIndex",
-                CreateIndexRequest {
-                    transaction_id: txn_id,
-                    name: index_name.clone(),
-                    key_prefix: key_prefix.into(),
-                    json_pointer: json_pointer.into(),
-                },
-            )
+        let db = &random_db();
+        dispatch::<OpenRequest, String>(
+            db,
+            "open",
+            OpenRequest {
+                use_memstore: false,
+            },
+        )
+        .await
+        .unwrap();
+        let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
             .await
-            .unwrap();
-            commit(db, txn_id).await;
-
-            let mut txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
-                .await
-                .transaction_id;
-            match &op {
-                Op::None => {}
-                Op::Del(key) => {
-                    del(db, txn_id, &key).await;
-                }
-                Op::Put((key, val)) => put(db, txn_id, &key, &val).await,
-            }
-
-            if !scan_in_write_txn {
-                commit(db, txn_id).await;
-                txn_id = open_transaction(db, None, None, None).await.transaction_id;
-            }
-
-            let (receive, _cb, got) = new_test_scan_receiver();
-            scan(
-                db,
-                txn_id,
-                prefix,
-                Some(start_secondary_key),
-                start_key,
-                exclusive,
-                Some(&index_name),
-                receive,
-            )
-            .await;
-            assert_eq!(&expected, &*got.borrow());
-
-            abort(db, txn_id).await;
-            dispatch::<_, String>(db, "close", "").await.unwrap();
+            .transaction_id;
+        for entry in &entries {
+            put(db, txn_id, entry.0, entry.1).await;
         }
+        commit(db, txn_id).await;
+        dispatch::<_, String>(db, "close", "").await.unwrap();
+
+        dispatch::<_, String>(
+            db,
+            "open",
+            OpenRequest {
+                use_memstore: false,
+            },
+        )
+        .await
+        .unwrap();
+        let txn_id = open_index_transaction(db).await.transaction_id;
+        dispatch::<_, CreateIndexResponse>(
+            db,
+            "createIndex",
+            CreateIndexRequest {
+                transaction_id: txn_id,
+                name: index_name.clone(),
+                key_prefix: key_prefix.into(),
+                json_pointer: json_pointer.into(),
+            },
+        )
+        .await
+        .unwrap();
+        commit(db, txn_id).await;
+
+        let mut txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
+            .await
+            .transaction_id;
+        match &op {
+            Op::None => {}
+            Op::Del(key) => {
+                del(db, txn_id, &key).await;
+            }
+            Op::Put((key, val)) => put(db, txn_id, &key, &val).await,
+        }
+
+        if !scan_in_write_txn {
+            commit(db, txn_id).await;
+            txn_id = open_transaction(db, None, None, None).await.transaction_id;
+        }
+
+        let (receive, _cb, got) = new_test_scan_receiver();
+        scan(
+            db,
+            txn_id,
+            prefix,
+            Some(start_secondary_key),
+            start_key,
+            exclusive,
+            Some(&index_name),
+            receive,
+        )
+        .await;
+        assert_eq!(&expected, &*got.borrow());
+
+        abort(db, txn_id).await;
+        dispatch::<_, String>(db, "close", "").await.unwrap();
     }
 
     // Scan an empty db
@@ -1300,11 +1328,13 @@ async fn test_get_root() {
                 .unwrap_err()
         );
 
-        assert_eq!(
-            dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
-                .await
-                .unwrap(),
-            ""
+        let client_id = dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+            .await
+            .unwrap();
+        assert!(
+            is_valid_client_id(&client_id),
+            "client_id \"{}\" does not look like a UUID",
+            client_id
         );
         assert_eq!(
             dispatch::<_, GetRootResponse>(db, "getRoot", &GetRootRequest { head_name: None })
@@ -1335,17 +1365,19 @@ async fn test_get_root() {
 async fn test_set_log_level() {
     let level = log::max_level();
     let db = &random_db();
-    assert_eq!(
-        dispatch::<_, String>(
-            db,
-            "open",
-            OpenRequest {
-                use_memstore: false
-            }
-        )
-        .await
-        .unwrap(),
-        ""
+    let client_id = dispatch::<_, String>(
+        db,
+        "open",
+        OpenRequest {
+            use_memstore: false,
+        },
+    )
+    .await
+    .unwrap();
+    assert!(
+        is_valid_client_id(&client_id),
+        "client_id \"{}\" does not look like a UUID",
+        client_id
     );
 
     assert_ne!(log::LevelFilter::Error, level);

@@ -1863,17 +1863,17 @@ test('clientID', async () => {
   const re = /^[0-9:A-z]{8}-[0-9:A-z]{4}-4[0-9:A-z]{3}-[0-9:A-z]{4}-[0-9:A-z]{12}$/;
 
   rep = await replicacheForTesting('clientID');
-  const clientID = await rep.clientID();
+  const clientID = await rep.clientID;
   expect(clientID).to.match(re);
   await rep.close();
 
   rep2 = await replicacheForTesting('clientID2');
-  const clientID2 = await rep2.clientID();
+  const clientID2 = await rep2.clientID;
   expect(clientID2).to.match(re);
   expect(clientID2).to.not.equal(clientID);
 
   rep = await replicacheForTesting('clientID');
-  const clientID3 = await rep.clientID();
+  const clientID3 = await rep.clientID;
   expect(clientID3).to.match(re);
   expect(clientID3).to.equal(clientID);
 });

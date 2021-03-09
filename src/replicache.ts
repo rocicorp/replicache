@@ -252,8 +252,8 @@ export default class Replicache implements ReadTransaction {
    * sessions (unless [[useMemstore]] is true in which case it is reset every
    * time a new Replicache instance is created).
    */
-  async clientID(): Promise<string> {
-    return await this._openResponse;
+  get clientID(): Promise<string> {
+    return this._openResponse;
   }
 
   /**

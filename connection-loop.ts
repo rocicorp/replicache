@@ -15,6 +15,7 @@ const PUSH_DELAY = 10;
 class Replicache {
   private _pendingPushResolver = resolver<void>();
   private _currentPushResolver = resolver<void>();
+  private _closed = false;
 
   async push() {
     this._pendingPushResolver.resolve();
@@ -24,24 +25,33 @@ class Replicache {
     await this._currentPushResolver.promise;
   }
 
-  async connectionLoop() {
+  async connectionPushLoop() {
     const durations: Durations = [];
     let delay = MIN_DELAY;
     let lastConnectionErrored = false;
     console.log('Starting connection loop');
-    for (;;) {
-      // SHould be while (!closed)?
+
+    while (!this._closed) {
       console.log('Waiting for a push');
       await this._pendingPushResolver.promise;
-      this._currentPushResolver = resolver();
+
+      // This resolvers is used to make the individual calls to push have the
+      // correct "duration".
+      const currentPushResolver = resolver();
+      this._currentPushResolver = currentPushResolver;
+      currentPushResolver.promise.catch(() => 0);
+
       await sleep(PUSH_DELAY);
+
+      // This resolver is used to wait for incoming push calls.
       this._pendingPushResolver = resolver();
 
       if (pushCounter >= MAX_CONNECTIONS) {
         console.log('Too many pushes. Waiting until one finishes');
-        await waitUntilAvailableConnections();
+        await waitUntilAvailableConnection();
       }
-      if (pushCounter > 0 || lastConnectionErrored) {
+
+      if (lastConnectionErrored || pushCounter > 0) {
         if (lastConnectionErrored) {
           console.log('Last connection errored. Sleeping for', delay, 'ms');
         } else {
@@ -59,18 +69,19 @@ class Replicache {
       pushCounter++;
       (async () => {
         const start = Date.now();
+        let err;
         try {
           await invokePush();
-          lastConnectionErrored = false;
-        } catch {
-          lastConnectionErrored = true;
+        } catch (e) {
+          err = e;
         }
         const stop = Date.now();
+        lastConnectionErrored = err !== undefined;
         delay = computeDelayAndUpdateDurations(
           delay,
           start,
           stop,
-          !lastConnectionErrored,
+          !err,
           durations,
         );
         console.log(
@@ -80,83 +91,74 @@ class Replicache {
           delay,
         );
         pushCounter--;
-        wakeUpWaitingPushes();
-        this._currentPushResolver.resolve();
+        wakeUpWaitingPush();
+        if (lastConnectionErrored) {
+          currentPushResolver.reject(err);
+        } else {
+          currentPushResolver.resolve();
+        }
       })();
     }
   }
 }
 
-class CancelToken {
-  readonly promise: Promise<void>;
-  readonly cancel: () => void;
-  constructor() {
-    ({promise: this.promise, resolve: this.cancel} = resolver());
-  }
-}
-
-function sleep(ms: number, cancelPromise?: Promise<unknown>) {
-  let id: ReturnType<typeof setTimeout> | 0 = 0;
-  let reject: (message: Error) => void;
-  const promise = new Promise<void>((resolve, rej) => {
-    reject = rej;
-    id = setTimeout(() => {
-      id = 0;
-      resolve();
-    }, ms);
+function sleep(ms: number) {
+  return new Promise<void>(resolve => {
+    setTimeout(() => resolve(), ms);
   });
-
-  if (cancelPromise) {
-    cancelPromise.then(() => {
-      if (id) {
-        clearTimeout(id);
-        reject(new Error('sleep cancelled'));
-      }
-    });
-  }
-  return promise;
 }
 
 let shouldError = 0;
+shouldError = 0;
+
+let pushID = 0;
 
 async function invokePush() {
-  console.log('push ->', new Date());
+  const id = pushID++;
+  const e = Math.random() < shouldError;
+  console.log(`push ${id} ->`, new Date());
   await sleep(100 + Math.random() * 100);
-  if (Math.random() < shouldError) {
+
+  if (e) {
     await sleep(1000);
-    console.log('<- push ERROR', new Date());
+    console.log(`<- push ${id} ERROR`, new Date());
     throw new Error('Intentional error');
   }
-  console.log('<- push', new Date());
+  console.log(`<- push ${id}`, new Date());
 }
 
-const waitingConnectionResolvers: Set<() => void> = new Set();
+let waitingConnectionResolve: (() => void) | undefined;
 
-function wakeUpWaitingPushes() {
-  if (waitingConnectionResolvers.size > 0) {
-    console.log('wakeUpWaitingPushes', waitingConnectionResolvers.size);
-  }
-  for (const resolve of waitingConnectionResolvers) {
-    waitingConnectionResolvers.delete(resolve);
+function wakeUpWaitingPush() {
+  if (waitingConnectionResolve) {
+    console.log('wakeUpWaitingPush');
+    const resolve = waitingConnectionResolve;
+    waitingConnectionResolve = undefined;
     resolve();
   }
 }
 
-function waitUntilAvailableConnections() {
+function waitUntilAvailableConnection() {
   const {promise, resolve} = resolver();
-  waitingConnectionResolvers.add(resolve);
+  console.assert(!waitingConnectionResolve);
+  waitingConnectionResolve = resolve;
   return promise;
 }
 
-export function resolver<R = void>(): {
+interface Resolver<R = void, E = unknown> {
   promise: Promise<R>;
   resolve: (res: R) => void;
-} {
+  reject: (err: E) => void;
+}
+
+export function resolver<R = void, E = unknown>(): Resolver<R, E> {
   let resolve!: (res: R) => void;
-  const promise = new Promise<R>(res => {
+  let reject!: (err: E) => void;
+  const promise = new Promise<R>((res, rej) => {
     resolve = res;
+    reject = rej;
   });
-  return {promise, resolve};
+  return {promise, resolve, reject};
 }
 
 function computeDelayAndUpdateDurations(
@@ -196,67 +198,89 @@ function computeDelayAndUpdateDurations(
 //   ]),
 // );
 
-// setTimeout(() => 0, 3000);
-
 const rep = new Replicache();
-rep.connectionLoop();
+rep.connectionPushLoop();
 
 // sample calls to push
 
-// Sync calls all get collapsed
-rep.push();
-rep.push();
-rep.push();
+const ps = new Set();
 
-await sleep(1_000);
+function push() {
+  const p = rep.push();
+  ps.add(p);
+  return p;
+}
+
+async function waitForAll() {
+  await Promise.allSettled(ps);
+  ps.clear();
+}
+
+// Sync calls all get collapsed
+push();
+push();
+push();
+
+await waitForAll();
 
 console.log('\nTesting pushDelay');
 
-for (let i = 0; i < 5; i++) {
-  rep.push();
+for (let i = 0; i < 10; i++) {
+  push();
   const start = performance.now();
   await sleep(0); // Browsers clamp at 4ms? deno at 2?
   console.log('slept for', performance.now() - start, 'ms');
 }
 
-await sleep(1_000);
+await waitForAll();
 
 console.log('\nTesting longer sequence of pushes');
 for (let i = 0; i < 50; i++) {
   await sleep(10 + 50 * Math.random());
-  rep.push();
+  push();
 }
 
-await sleep(1_000);
+await waitForAll();
+
 console.log('\nTesting with errors sequence of pushes');
 
 for (let i = 0; i < 20; i++) {
   await sleep(10 + 50 * Math.random());
-  rep.push();
+  push();
 }
+
+await waitForAll();
 shouldError = 1;
+
 for (let i = 0; i < 20; i++) {
-  await sleep(10 + 50 * Math.random());
-  rep.push();
+  await sleep(100 + 50 * Math.random());
+  push().catch(err => console.error(err));
 }
+
+await waitForAll();
 shouldError = 0;
+
 for (let i = 0; i < 50; i++) {
   await sleep(10 + 50 * Math.random());
-  rep.push();
+  push();
 }
 
-await sleep(1_000);
-console.log('\nTest ordering');
-rep.push().then(() => console.log('A'));
-rep.push().then(() => console.log('B'));
-rep.push().then(() => console.log('C'));
+await waitForAll();
 
-await sleep(1_000);
+console.log('\nTest ordering');
+push().then(() => console.log('A'));
+push().then(() => console.log('B'));
+push().then(() => console.log('C'));
+
+await waitForAll();
+
 console.log('\nTest error again');
 
 shouldError = 1;
 
-for (let i = 0; i < 50; i++) {
+for (let i = 0; i < 10; i++) {
   await sleep(500 + 1000 * Math.random());
-  rep.push();
+  push().catch(() => 1);
 }
+
+await waitForAll();

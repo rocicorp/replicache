@@ -12,43 +12,54 @@ type Durations = Duration[];
 
 const PUSH_DELAY = 10;
 
-class Replicache {
-  private _pendingPushResolver = resolver<void>();
-  private _currentPushResolver = resolver<void>();
-  private _closed = false;
+interface ConnectionLoopDelegate {
+  closed(): boolean;
+  invokeExecute(): Promise<void>;
+}
 
-  async push() {
-    this._pendingPushResolver.resolve();
+class ConnectionLoop {
+  private _pendingResolver = resolver<void>();
+  private _currentResolver = resolver<void>();
+
+  private readonly _delegate: ConnectionLoopDelegate;
+
+  constructor(delegate: ConnectionLoopDelegate) {
+    this._delegate = delegate;
+    this.run();
+  }
+
+  async execute() {
+    this._pendingResolver.resolve();
     // await a promise to allow the currentPushResolver to be created inside the
     // connection loop.
     await Promise.resolve(0);
-    await this._currentPushResolver.promise;
+    await this._currentResolver.promise;
   }
 
-  async connectionPushLoop() {
+  async run() {
     const durations: Durations = [];
     let delay = MIN_DELAY;
     let lastConnectionErrored = false;
     console.log('Starting connection loop');
 
-    while (!this._closed) {
+    while (!this._delegate.closed()) {
       console.log('Waiting for a push');
-      await this._pendingPushResolver.promise;
+      await this._pendingResolver.promise;
 
       // This resolvers is used to make the individual calls to push have the
       // correct "duration".
-      const currentPushResolver = resolver();
-      this._currentPushResolver = currentPushResolver;
-      currentPushResolver.promise.catch(() => 0);
+      const currentResolver = resolver();
+      this._currentResolver = currentResolver;
+      currentResolver.promise.catch(() => 0);
 
       await sleep(PUSH_DELAY);
 
       // This resolver is used to wait for incoming push calls.
-      this._pendingPushResolver = resolver();
+      this._pendingResolver = resolver();
 
       if (pushCounter >= MAX_CONNECTIONS) {
         console.log('Too many pushes. Waiting until one finishes');
-        await waitUntilAvailableConnection();
+        await this._waitUntilAvailableConnection();
       }
 
       if (lastConnectionErrored || pushCounter > 0) {
@@ -69,9 +80,9 @@ class Replicache {
       pushCounter++;
       (async () => {
         const start = Date.now();
-        let err;
+        let err: unknown;
         try {
-          await invokePush();
+          await this._delegate.invokeExecute();
         } catch (e) {
           err = e;
         }
@@ -91,14 +102,46 @@ class Replicache {
           delay,
         );
         pushCounter--;
-        wakeUpWaitingPush();
+        this._wakeUpWaitingPush();
         if (lastConnectionErrored) {
-          currentPushResolver.reject(err);
+          currentResolver.reject(err);
+          // Keep trying
+          this._pendingResolver.resolve();
         } else {
-          currentPushResolver.resolve();
+          currentResolver.resolve();
         }
       })();
     }
+  }
+
+  private _waitingConnectionResolve: (() => void) | undefined = undefined;
+
+  private _wakeUpWaitingPush() {
+    if (this._waitingConnectionResolve) {
+      console.log('wakeUpWaitingPush');
+      const resolve = this._waitingConnectionResolve;
+      this._waitingConnectionResolve = undefined;
+      resolve();
+    }
+  }
+
+  private _waitUntilAvailableConnection() {
+    const {promise, resolve} = resolver();
+    console.assert(!this._waitingConnectionResolve);
+    this._waitingConnectionResolve = resolve;
+    return promise;
+  }
+}
+
+class Replicache {
+  private _closed = false;
+  private _connectionLoop: ConnectionLoop = new ConnectionLoop({
+    closed: () => this._closed,
+    invokeExecute: () => invokePush(),
+  });
+
+  async push() {
+    return this._connectionLoop.execute();
   }
 }
 
@@ -125,24 +168,6 @@ async function invokePush() {
     throw new Error('Intentional error');
   }
   console.log(`<- push ${id}`, new Date());
-}
-
-let waitingConnectionResolve: (() => void) | undefined;
-
-function wakeUpWaitingPush() {
-  if (waitingConnectionResolve) {
-    console.log('wakeUpWaitingPush');
-    const resolve = waitingConnectionResolve;
-    waitingConnectionResolve = undefined;
-    resolve();
-  }
-}
-
-function waitUntilAvailableConnection() {
-  const {promise, resolve} = resolver();
-  console.assert(!waitingConnectionResolve);
-  waitingConnectionResolve = resolve;
-  return promise;
 }
 
 interface Resolver<R = void, E = unknown> {
@@ -182,14 +207,22 @@ function computeDelayAndUpdateDurations(
     return MIN_DELAY;
   }
 
-  const okDurations = durations.filter(({ok}) => ok);
-  const average =
-    okDurations.reduce((p, c) => p + c.stop - c.start, 0) / okDurations.length;
-
+  const med = median(durations);
   if (durations.length > CONNECTION_MEMORY_COUNT) {
     durations.shift();
   }
-  return average / MAX_CONNECTIONS;
+  return (med / MAX_CONNECTIONS) | 0;
+}
+
+function median(durations: Durations) {
+  const a = durations.filter(({ok}) => ok).map(({start, stop}) => stop - start);
+  a.sort();
+  const {length} = a;
+  const half = length >> 1;
+  if (length % 2 === 1) {
+    return a[half];
+  }
+  return (a[half - 1] + a[half]) / 2;
 }
 
 // console.log(
@@ -199,7 +232,6 @@ function computeDelayAndUpdateDurations(
 // );
 
 const rep = new Replicache();
-rep.connectionPushLoop();
 
 // sample calls to push
 
@@ -282,5 +314,17 @@ for (let i = 0; i < 10; i++) {
   await sleep(500 + 1000 * Math.random());
   push().catch(() => 1);
 }
+
+await waitForAll();
+
+shouldError = 1;
+push().catch(() => 0);
+await waitForAll();
+
+await sleep(5_000);
+
+shouldError = 0;
+
+await sleep(5_000);
 
 await waitForAll();

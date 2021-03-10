@@ -6,6 +6,7 @@ import {
   OpenTransactionRequest,
   REPMWasmInvoker,
   InitInput,
+  OpenResponse,
 } from './repm-invoker.js';
 import {
   CreateIndexDefinition,
@@ -140,7 +141,7 @@ export default class Replicache implements ReadTransaction {
 
   private _closed = false;
   private _online = true;
-  protected _opened: Promise<unknown> | null = null;
+  protected _openResponse!: Promise<OpenResponse>;
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
@@ -233,7 +234,7 @@ export default class Replicache implements ReadTransaction {
   }
 
   private async _open(): Promise<void> {
-    this._opened = this._repmInvoker.invoke(this._name, 'open', {
+    this._openResponse = this._repmInvoker.invoke(this._name, 'open', {
       useMemstore: this._useMemstore,
     });
     this._setRoot(this._getRoot());
@@ -242,6 +243,17 @@ export default class Replicache implements ReadTransaction {
       await this.sync();
     }
     window.addEventListener('storage', this._onStorage);
+  }
+
+  /**
+   * The client ID for this instance of Replicache. Each web browser and
+   * instance of Replicache gets a unique client ID keyed by the
+   * {@link ReplicacheOptions.name | name}. This is persisted locally between
+   * sessions (unless [[useMemstore]] is true in which case it is reset every
+   * time a new Replicache instance is created).
+   */
+  get clientID(): Promise<string> {
+    return this._openResponse;
   }
 
   /**
@@ -372,7 +384,7 @@ export default class Replicache implements ReadTransaction {
     rpc: string,
     args?: JSONValue,
   ): Promise<JSONValue> => {
-    await this._opened;
+    await this._openResponse;
     return await this._repmInvoker.invoke(this._name, rpc, args);
   };
 
@@ -1049,7 +1061,7 @@ export class ReplicacheTest extends Replicache {
       syncInterval: null,
       useMemstore,
     });
-    await rep._opened;
+    await rep._openResponse;
     return rep;
   }
 

@@ -66,10 +66,9 @@ export class REPMWasmInvoker {
 }
 
 type OpenRequest = {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  use_memstore: boolean;
+  useMemstore: boolean;
 };
-type OpenResponse = '';
+export type OpenResponse = string;
 
 type GetRequest = TransactionRequest & {
   key: string;

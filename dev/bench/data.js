@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1615582089727,
+  "lastUpdate": 1615584444507,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -16055,6 +16055,114 @@ window.BENCHMARK_DATA = {
           {
             "name": "create index 1024x5000",
             "value": 4.1,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "9 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f39519f0e2b23e05d7fbf877325879de4978ac51",
+          "message": "Update JSDoc and md (#308)\n\nTo remove references to sample/ and make sure we point at the correct md\r\nfiles from the jsdocs.",
+          "timestamp": "2021-03-12T21:24:21Z",
+          "tree_id": "9a7c6fe2caa029effbe42b2ef3733badd525078a",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/f39519f0e2b23e05d7fbf877325879de4978ac51"
+        },
+        "date": 1615584443918,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.31,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 5.25,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "11 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.92,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.18,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.34,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "13 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.43,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 22.19,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "45 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 20.18,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 43.48,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "87 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 43.48,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "88 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 20.83,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "41 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 4.5,
             "range": "±0.0%",
             "unit": "op/s",
             "extra": "9 samples"

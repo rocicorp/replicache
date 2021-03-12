@@ -39,30 +39,31 @@ const MAX_REAUTH_TRIES = 8;
 export interface ReplicacheOptions {
   /**
    * This is the
-   * [authentication](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#authentication)
+   * [authentication](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#authentication)
    * token used when doing a [push
-   * ](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync).
+   * ](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync).
    */
   pushAuth?: string;
 
   /**
    * This is the URL to the server endpoint dealing with the push updates. See
-   * [Server Setup Upstream Sync](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync)
+   * [Server Setup Upstream Sync](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync)
    * for more details.
    */
   pushURL?: string;
 
   /**
    * This is the
-   * [authentication](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#authentication)
+   * [authentication](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#authentication)
    * token used when doing a [pull
-   * ](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync).
+   * ](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync).
    */
   pullAuth?: string;
 
   /**
-   * This is the URL to the server endpoint dealing with pull. See
-   * [Server Setup Upstream Sync](https://github.com/rocicorp/replicache/blob/master/SERVER_SETUP.md#step-4-upstream-sync)
+   * This is the URL to the server endpoint dealing with pull. See [Server Setup
+   * Downstream
+   * Sync](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-1-downstream-sync)
    * for more details.
    */
   pullURL?: string;
@@ -73,9 +74,7 @@ export interface ReplicacheOptions {
    * You can use multiple Replicache instances as long as the names are unique.
    *
    * Using different names for different users allows you to switch users even
-   * when you are offline. See
-   * [sample/redo](https://github.com/rocicorp/replicache-sdk-js/blob/main/sample/redo/src/login.tsx)
-   * for inspiration on how to do this.
+   * when you are offline.
    */
   name?: string;
 
@@ -190,8 +189,9 @@ export default class Replicache implements ReadTransaction {
   onSync: ((syncing: boolean) => void) | null = null;
 
   /**
-   * This gets called when we get an HTTP unauthorized from the pull
-   * endpoint. Set this to a function that will ask your user to reauthenticate.
+   * This gets called when we get an HTTP unauthorized (410) response from the
+   * pull endpoint. Set this to a function that will ask your user to
+   * reauthenticate.
    */
   getPullAuth:
     | (() => MaybePromise<string | null | undefined>)
@@ -199,7 +199,7 @@ export default class Replicache implements ReadTransaction {
     | undefined = null;
 
   /**
-   * This gets called when we get an HTTP unauthorized from the push
+   * This gets called when we get an HTTP unauthorized (410) response from the push
    * endpoint. Set this to a function that will ask your user to reauthenticate.
    */
   getPushAuth:
@@ -451,7 +451,7 @@ export default class Replicache implements ReadTransaction {
    *
    * If the named index already exists with the same definition this returns success
    * immediately. If the named index already exists, but with a different definition
-   * an error is returned.
+   * an error is thrown.
    */
   async createIndex(def: CreateIndexDefinition): Promise<void> {
     await this._indexOp(tx => tx.createIndex(def));
@@ -549,8 +549,9 @@ export default class Replicache implements ReadTransaction {
    * Synchronizes this cache with the server. New local mutations are sent to
    * the server, and the latest server state is applied to the cache. Any local
    * mutations not included in the new server state are replayed. See the
-   * Replicache design document for more information on sync:
-   * https://github.com/rocicorp/replicache/blob/master/design.md
+   * [Replicache design
+   * document](https://github.com/rocicorp/replicache/blob/main/design.md) for
+   * more information on sync.
    */
   async sync(): Promise<void> {
     if (this._closed) {
@@ -905,21 +906,21 @@ export default class Replicache implements ReadTransaction {
    * ## Server application
    *
    * During sync, a description of each mutation is sent to the server's [push
-   * endpoint](https://github.com/rocicorp/replicache/blob/master/README.md#step-5-upstream-sync)
+   * endpoint](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-5-upstream-sync)
    * where it is applied. Once the mutation has been applied successfully, as
    * indicated by the [client
-   * view](https://github.com/rocicorp/replicache/blob/master/README.md#step-2-downstream-sync)'s
+   * view](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-1-downstream-sync)'s
    * `lastMutationId` field, the local version of the mutation is removed. See
    * the [design
-   * doc](https://github.com/rocicorp/replicache/blob/master/design.md) for
+   * doc](https://github.com/rocicorp/replicache/blob/main/design.md) for
    * additional details on the sync protocol.
    *
    * ## Transactionality
    *
    * Mutators are atomic: all their changes are applied together, or none are.
    * Throwing an exception aborts the transaction. Otherwise, it is committed.
-   * As with [query] and [subscribe] all reads will see a consistent view of
-   * the cache while they run.
+   * As with [[query]] and [[subscribe]] all reads will see a consistent view of the
+   * cache while they run.
    *
    * ## Example
    *

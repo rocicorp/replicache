@@ -218,5 +218,4 @@ off in web inspector or slowing it down.
 
 That's it! You've built a fully-functioning Replicache-powered app against your own backend. What will you do next?
 
-- [Check out a full React-based todo sample](https://github.com/rocicorp/replicache-sdk-js/tree/main/sample/redo)
 - [Browse the full JS documentation](https://replicache-sdk-js.now.sh/)

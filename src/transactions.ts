@@ -9,8 +9,9 @@ import {ScanResult} from './scan-iterator.js';
 import {throwIfClosed} from './transaction-closed-error.js';
 
 /**
- * ReadTransactions are used with [[default.query|Replicache.query]] and allows read operations
- * on the database.
+ * ReadTransactions are used with [[default.query|Replicache.query]] and
+ * [[default.subscribe|Replicache.subscribe]] and allows read operations on the
+ * database.
  */
 export interface ReadTransaction {
   /**
@@ -192,7 +193,7 @@ export interface IndexTransaction extends ReadTransaction {
    *
    * If the named index already exists with the same definition this returns
    * success immediately. If the named index already exists, but with a
-   * different definition an error is returned.
+   * different definition an error is thrown.
    */
   createIndex(def: CreateIndexDefinition): Promise<void>;
 
@@ -217,7 +218,7 @@ export interface CreateIndexDefinition {
   keyPrefix?: string;
 
   /**
-   * A [JSON Ponter](https://tools.ietf.org/html/rfc6901) pointing at the sub
+   * A [JSON Pointer](https://tools.ietf.org/html/rfc6901) pointing at the sub
    * value inside each value to index over.
    *
    * For example, one might index over users' ages like so:

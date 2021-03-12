@@ -168,7 +168,7 @@ testWithBothStores('put, get, has, del inside tx', async () => {
       await tx.put(key, value);
       expect(await tx.has(key)).to.equal(true);
       const v = await tx.get(key);
-      expect(v).to.eql(value);
+      expect(v).to.deep.equal(value);
 
       expect(await tx.del(key)).to.equal(true);
       expect(await tx.has(key)).to.be.false;
@@ -200,25 +200,25 @@ async function testScanResult<K, V>(
   }
 
   await rep.query(async tx => {
-    expect(await asyncIterableToArray(tx.scan(options).entries())).to.eql(
-      entries,
-    );
+    expect(
+      await asyncIterableToArray(tx.scan(options).entries()),
+    ).to.deep.equal(entries);
   });
 
   await rep.query(async tx => {
-    expect(await asyncIterableToArray(tx.scan(options))).to.eql(
+    expect(await asyncIterableToArray(tx.scan(options))).to.deep.equal(
       entries.map(([, v]) => v),
     );
   });
 
   await rep.query(async tx => {
-    expect(await asyncIterableToArray(tx.scan(options).values())).to.eql(
+    expect(await asyncIterableToArray(tx.scan(options).values())).to.deep.equal(
       entries.map(([, v]) => v),
     );
   });
 
   await rep.query(async tx => {
-    expect(await asyncIterableToArray(tx.scan(options).keys())).to.eql(
+    expect(await asyncIterableToArray(tx.scan(options).keys())).to.deep.equal(
       entries.map(([k]) => k),
     );
   });
@@ -361,18 +361,18 @@ testWithBothStores('subscribe', async () => {
 
   const add = rep.register('add-data', addData);
   await add({'a/0': 0});
-  expect(log).to.eql([['a/0', 0]]);
+  expect(log).to.deep.equal([['a/0', 0]]);
   expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
 
   // The body returns the same JSON value in the following case.
   log.length = 0;
   await add({'a/0': 0});
-  expect(log).to.eql([]);
+  expect(log).to.deep.equal([]);
   expect(queryCallCount).to.equal(3);
 
   log.length = 0;
   await add({'a/1': 1});
-  expect(log).to.eql([
+  expect(log).to.deep.equal([
     ['a/0', 0],
     ['a/1', 1],
   ]);
@@ -381,7 +381,7 @@ testWithBothStores('subscribe', async () => {
   log.length = 0;
   log.length = 0;
   await add({'a/1': 11});
-  expect(log).to.eql([
+  expect(log).to.deep.equal([
     ['a/0', 0],
     ['a/1', 11],
   ]);
@@ -410,7 +410,7 @@ testWithBothStores('subscribe close', async () => {
   const add = rep.register('add-data', addData);
   await add({k: 0});
   await Promise.resolve();
-  expect(log).to.eql([undefined, 0]);
+  expect(log).to.deep.equal([undefined, 0]);
 
   let done = false;
 
@@ -750,7 +750,7 @@ testWithBothStores('push', async () => {
   await rep.push();
   expect(deleteCount).to.equal(2);
   const {mutations} = await fetchMock.lastCall().request.json();
-  expect(mutations).to.eql([
+  expect(mutations).to.deep.equal([
     {id: 1, name: 'deleteTodo', args: {id: id1}},
     {id: 2, name: 'deleteTodo', args: {id: id2}},
   ]);
@@ -761,7 +761,7 @@ testWithBothStores('push', async () => {
   await rep.push();
   {
     const {mutations} = await fetchMock.lastCall().request.json();
-    expect(mutations).to.eql([
+    expect(mutations).to.deep.equal([
       {id: 1, name: 'deleteTodo', args: {id: id1}},
       {id: 2, name: 'deleteTodo', args: {id: id2}},
     ]);
@@ -782,7 +782,7 @@ testWithBothStores('push', async () => {
   await rep.push();
   {
     const {mutations} = await fetchMock.lastCall().request.json();
-    expect(mutations).to.eql([
+    expect(mutations).to.deep.equal([
       {id: 1, name: 'deleteTodo', args: {id: id1}},
       {id: 2, name: 'deleteTodo', args: {id: id2}},
       {id: 3, name: 'createTodo', args: {id: id1, text: 'Test'}},
@@ -811,7 +811,7 @@ testWithBothStores('push', async () => {
   await rep.push();
   {
     const {mutations} = await fetchMock.lastCall().request.json();
-    expect(mutations).to.eql([
+    expect(mutations).to.deep.equal([
       {id: 1, name: 'deleteTodo', args: {id: id1}},
       {id: 2, name: 'deleteTodo', args: {id: id2}},
       {id: 3, name: 'createTodo', args: {id: id1, text: 'Test'}},
@@ -1083,10 +1083,10 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
   const spy = spyInvoke(rep);
   spy.resetHistory();
 
-  function expectCalls(log: JSONValue[]) {
-    expect(log).to.eql(log);
+  function expectCalls(l: JSONValue[]) {
+    expect(l).to.deep.equal(log);
     const rpcs = spy.args.map(([rpc]) => rpc);
-    expect(rpcs).to.eql(['openTransaction', 'scan', 'closeTransaction']);
+    expect(rpcs).to.deep.equal(['openTransaction', 'scan', 'closeTransaction']);
   }
 
   const it = rep.scan();
@@ -1793,32 +1793,32 @@ test('push and pull concurrently', async () => {
   const rpcs = () => spy.args.map(a => a[0]);
 
   // Only one push at a time but we want push and pull to be concurrent.
-  expect(rpcs()).to.eql(['tryPush', 'beginTryPull']);
+  expect(rpcs()).to.deep.equal(['tryPush', 'beginTryPull']);
 
   resolvePush();
 
   await pushP1;
   ({promise: promisePush, resolve: resolvePush} = resolver());
 
-  expect(reqs).to.eql([pullURL, pushURL]);
+  expect(reqs).to.deep.equal([pullURL, pushURL]);
 
   await pullP1;
 
-  expect(reqs).to.eql([pullURL, pushURL]);
+  expect(reqs).to.deep.equal([pullURL, pushURL]);
   resolvePush();
   await pushP2;
 
-  expect(reqs).to.eql([pullURL, pushURL, pushURL]);
-  expect(rpcs()).to.eql(['tryPush', 'beginTryPull', 'tryPush']);
+  expect(reqs).to.deep.equal([pullURL, pushURL, pushURL]);
+  expect(rpcs()).to.deep.equal(['tryPush', 'beginTryPull', 'tryPush']);
 
   await pushP3;
 
-  expect(reqs).to.eql([pullURL, pushURL, pushURL]);
-  expect(rpcs()).to.eql(['tryPush', 'beginTryPull', 'tryPush']);
+  expect(reqs).to.deep.equal([pullURL, pushURL, pushURL]);
+  expect(rpcs()).to.deep.equal(['tryPush', 'beginTryPull', 'tryPush']);
 
   // pull resolves first because it is not waiting for any promise in its
   // fetchMock.
-  expect(resolveOrder).to.eql(['pullP1', 'pushP1', 'pushP2', 'pushP3']);
+  expect(resolveOrder).to.deep.equal(['pullP1', 'pushP1', 'pushP2', 'pushP3']);
 });
 
 test('schemaVersion pull', async () => {
@@ -1835,7 +1835,7 @@ test('schemaVersion pull', async () => {
   await rep.pull();
 
   const req = await fetchMock.lastCall().request.json();
-  expect(req.schemaVersion).to.eql(schemaVersion);
+  expect(req.schemaVersion).to.deep.equal(schemaVersion);
   console.log(fetchMock.lastCall());
 });
 
@@ -1855,6 +1855,25 @@ test('schemaVersion push', async () => {
   await rep.push();
 
   const req = await fetchMock.lastCall().request.json();
-  expect(req.schemaVersion).to.eql(schemaVersion);
+  expect(req.schemaVersion).to.deep.equal(schemaVersion);
   console.log(fetchMock.lastCall());
+});
+
+test('clientID', async () => {
+  const re = /^[0-9:A-z]{8}-[0-9:A-z]{4}-4[0-9:A-z]{3}-[0-9:A-z]{4}-[0-9:A-z]{12}$/;
+
+  rep = await replicacheForTesting('clientID');
+  const clientID = await rep.clientID;
+  expect(clientID).to.match(re);
+  await rep.close();
+
+  rep2 = await replicacheForTesting('clientID2');
+  const clientID2 = await rep2.clientID;
+  expect(clientID2).to.match(re);
+  expect(clientID2).to.not.equal(clientID);
+
+  rep = await replicacheForTesting('clientID');
+  const clientID3 = await rep.clientID;
+  expect(clientID3).to.match(re);
+  expect(clientID3).to.equal(clientID);
 });

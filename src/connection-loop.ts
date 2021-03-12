@@ -73,7 +73,9 @@ export class ConnectionLoop {
       // Don't let this rejected promise escape.
       currentResolver.promise.catch(() => 0);
 
-      await sleep(debounceDelay);
+      if (debounceDelay) {
+        await sleep(debounceDelay);
+      }
 
       // This resolver is used to wait for incoming push calls.
       this._pendingResolver = resolver();

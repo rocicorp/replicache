@@ -17,6 +17,7 @@ export interface ConnectionLoopDelegate {
   debounceDelay?: number;
   maxConnections?: number;
   printTime(): string;
+  watchdogTimer?: number;
 }
 
 export class ConnectionLoop {
@@ -44,14 +45,26 @@ export class ConnectionLoop {
     const durations: Durations = [];
     let delay = MIN_DELAY;
     let lastConnectionErrored = false;
-    const debounceDelay = this._delegate.debounceDelay ?? DEBOUNCE_DELAY;
-    const maxConnections = this._delegate.maxConnections ?? MAX_CONNECTIONS;
+    const delegate = this._delegate;
+    const {
+      debounceDelay = DEBOUNCE_DELAY,
+      maxConnections = MAX_CONNECTIONS,
+      watchdogTimer,
+    } = delegate;
 
-    console.log('Starting connection loop', this._delegate.printTime());
+    console.log('Starting connection loop', delegate.printTime());
 
-    while (!this._delegate.closed()) {
-      console.log('Waiting for a push', this._delegate.printTime());
-      await this._pendingResolver.promise;
+    while (!delegate.closed()) {
+      console.log('Waiting for a push', delegate.printTime());
+
+      if (watchdogTimer) {
+        await Promise.race([
+          this._pendingResolver.promise,
+          sleep(watchdogTimer),
+        ]);
+      } else {
+        await this._pendingResolver.promise;
+      }
 
       // This resolvers is used to make the individual calls to push have the
       // correct "duration".
@@ -68,7 +81,7 @@ export class ConnectionLoop {
       if (lastConnectionErrored || this._pushCounter >= maxConnections) {
         console.log(
           'Too many pushes. Waiting until one finishes',
-          this._delegate.printTime(),
+          delegate.printTime(),
         );
         await this._waitUntilAvailableConnection();
       }
@@ -79,7 +92,7 @@ export class ConnectionLoop {
             'Last connection errored. Sleeping for',
             delay,
             'ms',
-            this._delegate.printTime(),
+            delegate.printTime(),
           );
         } else {
           console.log(
@@ -88,7 +101,7 @@ export class ConnectionLoop {
             '). Sleeping for',
             delay,
             'ms',
-            this._delegate.printTime(),
+            delegate.printTime(),
           );
         }
 
@@ -117,7 +130,7 @@ export class ConnectionLoop {
         let err: unknown;
         try {
           this._lastSendTime = start;
-          await this._delegate.invokeExecute();
+          await delegate.invokeExecute();
         } catch (e) {
           err = e;
         }

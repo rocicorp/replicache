@@ -434,3 +434,64 @@ test('resolve order', async () => {
   expect(plog).to.deep.equal(['A', 'B', 'C', 'D', 'E', 'F']);
   expect(log).to.deep.equal(['s0:10', 's1:50', 'f0:60', 'f1:100']);
 });
+
+test('watchdog timer', async () => {
+  const debounceDelay = 10;
+  const requestTime = 100;
+  const watchdogTimer = 1000;
+  createLoop({
+    debounceDelay,
+    requestTime,
+    watchdogTimer,
+  });
+
+  await clock.tickAsync(watchdogTimer);
+
+  expect(log).to.deep.equal([]);
+
+  await clock.tickAsync(debounceDelay);
+
+  expect(log).to.deep.equal(['s0:1010']);
+
+  await clock.tickAsync(requestTime);
+  expect(log).to.deep.equal(['s0:1010', 'f0:1110']);
+
+  await clock.tickAsync(watchdogTimer);
+
+  expect(log).to.deep.equal(['s0:1010', 'f0:1110', 's1:2020']);
+
+  await clock.tickAsync(requestTime);
+
+  expect(log).to.deep.equal(['s0:1010', 'f0:1110', 's1:2020', 'f1:2120']);
+});
+
+test('watchdog timer again', async () => {
+  const debounceDelay = 10;
+  const requestTime = 100;
+  const watchdogTimer = 1000;
+  createLoop({
+    debounceDelay,
+    requestTime,
+    watchdogTimer,
+  });
+
+  await clock.tickAsync(500);
+  execute();
+
+  expect(log).to.deep.equal([]);
+
+  await clock.tickAsync(debounceDelay);
+
+  expect(log).to.deep.equal(['s0:510']);
+
+  await clock.tickAsync(requestTime);
+  expect(log).to.deep.equal(['s0:510', 'f0:610']);
+
+  await clock.tickAsync(watchdogTimer);
+
+  expect(log).to.deep.equal(['s0:510', 'f0:610', 's1:1520']);
+
+  await clock.tickAsync(requestTime);
+
+  expect(log).to.deep.equal(['s0:510', 'f0:610', 's1:1520', 'f1:1620']);
+});

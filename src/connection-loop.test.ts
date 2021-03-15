@@ -48,6 +48,7 @@ function createLoop(
 
   const Reset = '\x1b[0m';
   const FgMagenta = '\x1b[35m';
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   currentTime = () => `[time: ${FgMagenta}${Date.now() - start}${Reset}]`;
 
   const delegate: ConnectionLoopDelegate = {
@@ -71,7 +72,7 @@ function createLoop(
 test('basic sequential by awaiting', async () => {
   const requestTime = 200;
   const debounceDelay = 3;
-  loop = createLoop({requestTime, debounceDelay});
+  loop = createLoop({requestTime, debounceDelay: () => debounceDelay});
 
   let p = loop.send();
   await clock.runAllAsync();
@@ -103,7 +104,7 @@ test('debounce', async () => {
   const requestTime = 50;
   createLoop({
     requestTime,
-    debounceDelay,
+    debounceDelay: () => debounceDelay,
   });
 
   send();
@@ -135,7 +136,7 @@ test('sync calls collapsed', async () => {
   const requestTime = 50;
   createLoop({
     requestTime,
-    debounceDelay,
+    debounceDelay: () => debounceDelay,
   });
 
   send();
@@ -167,8 +168,8 @@ test('concurrent connections', async () => {
 
   createLoop({
     requestTime,
-    debounceDelay,
-    maxConnections,
+    debounceDelay: () => debounceDelay,
+    maxConnections: () => maxConnections,
   });
 
   send();
@@ -247,8 +248,8 @@ test('maxConnections 1', async () => {
 
   createLoop({
     requestTime,
-    debounceDelay,
-    maxConnections,
+    debounceDelay: () => debounceDelay,
+    maxConnections: () => maxConnections,
   });
 
   send();
@@ -293,8 +294,8 @@ test('Adjust delay', async () => {
       i = (i + 1) % requestTimes.length;
       return t;
     },
-    debounceDelay,
-    maxConnections,
+    debounceDelay: () => debounceDelay,
+    maxConnections: () => maxConnections,
   });
 
   // reset
@@ -362,9 +363,9 @@ test('error', async () => {
       requestCount++;
       return e;
     },
-    debounceDelay,
+    debounceDelay: () => debounceDelay,
     requestTime,
-    maxConnections,
+    maxConnections: () => maxConnections,
   });
 
   // reset
@@ -461,9 +462,9 @@ test('watchdog timer', async () => {
   const requestTime = 100;
   const watchdogTimer = 1000;
   createLoop({
-    debounceDelay,
-    requestTime,
+    debounceDelay: () => debounceDelay,
     watchdogTimer: () => watchdogTimer,
+    requestTime,
   });
 
   await clock.tickAsync(watchdogTimer);
@@ -491,9 +492,9 @@ test('watchdog timer again', async () => {
   const requestTime = 100;
   const watchdogTimer = 1000;
   createLoop({
-    debounceDelay,
-    requestTime,
+    debounceDelay: () => debounceDelay,
     watchdogTimer: () => watchdogTimer,
+    requestTime,
   });
 
   await clock.tickAsync(500);

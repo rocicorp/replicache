@@ -12,12 +12,11 @@ type SendRecord = {duration: number; ok: boolean};
 
 export interface ConnectionLoopDelegate {
   invokeSend(): unknown;
-  debounceDelay?: number;
-  maxConnections?: number;
+  debounceDelay?(): number;
+  maxConnections?(): number;
   watchdogTimer?(): number;
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  log?: (...args: any[]) => void;
+  log?(...args: any[]): void;
 }
 
 export class ConnectionLoop {
@@ -84,8 +83,8 @@ export class ConnectionLoop {
     let lastSendTime = 0;
     const delegate = this._delegate;
     const {
-      debounceDelay = DEBOUNCE_DELAY,
-      maxConnections = MAX_CONNECTIONS,
+      debounceDelay = () => DEBOUNCE_DELAY,
+      maxConnections = () => MAX_CONNECTIONS,
       watchdogTimer,
       log,
     } = delegate;
@@ -109,12 +108,12 @@ export class ConnectionLoop {
       }
       await Promise.race(races);
 
-      await sleep(debounceDelay);
+      await sleep(debounceDelay());
 
       // This resolver is used to wait for incoming push calls.
       this._pendingResolver = resolver();
 
-      if (this._counter >= maxConnections) {
+      if (this._counter >= maxConnections()) {
         log?.('Too many pushes. Waiting until one finishes...');
         await this._waitUntilAvailableConnection();
         log?.('...finished');
@@ -123,7 +122,7 @@ export class ConnectionLoop {
       if (this._counter > 0) {
         delay = computeDelayAndUpdateDurations(
           delay,
-          maxConnections,
+          maxConnections(),
           sendRecords,
         );
         log?.(

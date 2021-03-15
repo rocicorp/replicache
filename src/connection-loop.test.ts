@@ -15,7 +15,6 @@ teardown(function () {
 });
 
 let loop: ConnectionLoop | undefined;
-let currentTime: () => string;
 
 const ps = new Set();
 
@@ -44,12 +43,12 @@ function createLoop(
 ): ConnectionLoop {
   log.length = 0;
   counter = 0;
-  const start = Date.now();
 
-  const Reset = '\x1b[0m';
-  const FgMagenta = '\x1b[35m';
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  currentTime = () => `[time: ${FgMagenta}${Date.now() - start}${Reset}]`;
+  // Uncomment these and log below for logging...
+  // const start = Date.now();
+  // const Reset = '\x1b[0m';
+  // const FgMagenta = '\x1b[35m';
+  // const currentTime = () => `[time: ${FgMagenta}${Date.now() - start}${Reset}]`;
 
   const delegate: ConnectionLoopDelegate = {
     async invokeSend() {

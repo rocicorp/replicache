@@ -56,9 +56,6 @@ export class ConnectionLoop {
   // competed without using the onSync API.
   private _currentResolver = resolver<void>();
 
-  // The number of active connections.
-  private _counter = 0;
-
   private readonly _delegate: ConnectionLoopDelegate;
   private _closed = false;
 
@@ -81,6 +78,9 @@ export class ConnectionLoop {
     let delay = MIN_DELAY;
     let recoverResolver = resolver();
     let lastSendTime = 0;
+
+    // The number of active connections.
+    let counter = 0;
     const delegate = this._delegate;
     const {
       debounceDelay = () => DEBOUNCE_DELAY,
@@ -92,7 +92,11 @@ export class ConnectionLoop {
     log?.('Starting connection loop');
 
     while (!this._closed) {
-      log?.('Waiting for a send');
+      log?.(
+        didLastSendRequestFail(sendRecords)
+          ? 'Last request failed. Trying again'
+          : 'Waiting for a send',
+      );
 
       // The current resolver is used to make the individual calls to exeute
       // have the correct "duration".
@@ -113,13 +117,15 @@ export class ConnectionLoop {
       // This resolver is used to wait for incoming push calls.
       this._pendingResolver = resolver();
 
-      if (this._counter >= maxConnections()) {
+      if (counter >= maxConnections()) {
         log?.('Too many pushes. Waiting until one finishes...');
         await this._waitUntilAvailableConnection();
         log?.('...finished');
       }
 
-      if (this._counter > 0) {
+      // We need to delay the next request even if there are no active requests
+      // in case of error.
+      if (counter > 0 || didLastSendRequestFail(sendRecords)) {
         delay = computeDelayAndUpdateDurations(
           delay,
           maxConnections(),
@@ -129,7 +135,7 @@ export class ConnectionLoop {
           didLastSendRequestFail(sendRecords)
             ? 'Last connection errored. Sleeping for'
             : 'More than one outstanding connection (' +
-                this._counter +
+                counter +
                 '). Sleeping for',
           delay,
           'ms',
@@ -144,7 +150,7 @@ export class ConnectionLoop {
         }
       }
 
-      this._counter++;
+      counter++;
       (async () => {
         const start = Date.now();
         let err: unknown;
@@ -159,7 +165,7 @@ export class ConnectionLoop {
           recoverResolver.resolve();
           recoverResolver = resolver();
         }
-        this._counter--;
+        counter--;
         this._connectionAvailable();
         if (err) {
           currentResolver.reject(err);

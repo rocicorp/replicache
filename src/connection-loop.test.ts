@@ -61,7 +61,7 @@ function createLoop(
         throw Error('Intentional error');
       }
     },
-    log: (...args) => console.log(...args, currentTime()),
+    // log: (...args) => console.log(...args, currentTime()),
     ...partialDelegate,
   };
 
@@ -463,7 +463,7 @@ test('watchdog timer', async () => {
   createLoop({
     debounceDelay,
     requestTime,
-    watchdogTimer,
+    watchdogTimer: () => watchdogTimer,
   });
 
   await clock.tickAsync(watchdogTimer);
@@ -493,7 +493,7 @@ test('watchdog timer again', async () => {
   createLoop({
     debounceDelay,
     requestTime,
-    watchdogTimer,
+    watchdogTimer: () => watchdogTimer,
   });
 
   await clock.tickAsync(500);

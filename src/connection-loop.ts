@@ -14,7 +14,8 @@ export interface ConnectionLoopDelegate {
   invokeSend(): unknown;
   debounceDelay?: number;
   maxConnections?: number;
-  watchdogTimer?: number;
+  watchdogTimer?(): number;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   log?: (...args: any[]) => void;
 }
@@ -104,7 +105,7 @@ export class ConnectionLoop {
       // Wait until send is called or until the watchdog timer fires.
       const races = [this._pendingResolver.promise];
       if (watchdogTimer) {
-        races.push(sleep(watchdogTimer));
+        races.push(sleep(watchdogTimer()));
       }
       await Promise.race(races);
 

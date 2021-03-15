@@ -8,153 +8,160 @@ const MAX_DELAY = 60_000;
 
 const MAX_CONNECTIONS = 3;
 
-type Duration = {duration: number; ok: boolean};
-type Durations = Duration[];
+type SendRecord = {duration: number; ok: boolean};
 
 export interface ConnectionLoopDelegate {
-  closed(): boolean;
-  invokeExecute(): unknown;
+  invokeSend(): unknown;
   debounceDelay?: number;
   maxConnections?: number;
-  printTime(): string;
   watchdogTimer?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  log?: (...args: any[]) => void;
 }
 
 export class ConnectionLoop {
+  // ConnectionLoop runs a loop sending network requests (either pushes or
+  // pulls) to the server. Our goal, generally, is to send requests as fast as
+  // we can, but to adjust in case of slowness, network errors, etc. We will
+  // send requests in parallel if the server supports it. We also debounce
+  // pushes since they frequently happen in series very near to one another
+  // (e.g., during drag'n drops).
+  //
+  // The loop flows through the following states forever, until it is closed:
+  //
+  // Pending: Wait for event or watchdog
+  //          |
+  //          v
+  // Debounce: Wait for more events (we debounce pushes)
+  //          |
+  //          v
+  // Wait for available connection (we limit number of parallel requests
+  // allowed)
+  //          |
+  //          v
+  // Wait to send (if requests are taking too long, we will slow down)
+  //          |
+  //          v
+  // Send (asynchronously, wrt the loop)
+  //          |
+  //          v
+  // Back to the pending!
+
+  // Controls whether the next iteration of the loop will wait at the pending
+  // state.
   private _pendingResolver = resolver<void>();
+
+  // Controls when send() will return. This is purely a convenience to callers
+  // who might want to know when the related push/pull operation actually
+  // competed without using the onSync API.
   private _currentResolver = resolver<void>();
-  private _pushCounter = 0;
+
+  // The number of active connections.
+  private _counter = 0;
 
   private readonly _delegate: ConnectionLoopDelegate;
-  private _lastSendTime = 0;
+  private _closed = false;
 
   constructor(delegate: ConnectionLoopDelegate) {
     this._delegate = delegate;
     this.run();
   }
 
-  async execute(): Promise<void> {
+  close(): void {
+    this._closed = true;
+  }
+
+  async send(): Promise<void> {
     this._pendingResolver.resolve();
-    // await a promise to allow the currentPushResolver to be created inside the
-    // connection loop.
-    await Promise.resolve(0);
     await this._currentResolver.promise;
   }
 
   async run(): Promise<void> {
-    const durations: Durations = [];
+    const sendRecords: SendRecord[] = [];
     let delay = MIN_DELAY;
-    let lastConnectionErrored = false;
+    let recoverResolver = resolver();
+    let lastSendTime = 0;
     const delegate = this._delegate;
     const {
       debounceDelay = DEBOUNCE_DELAY,
       maxConnections = MAX_CONNECTIONS,
       watchdogTimer,
+      log,
     } = delegate;
 
-    console.log('Starting connection loop', delegate.printTime());
+    log?.('Starting connection loop');
 
-    while (!delegate.closed()) {
-      console.log('Waiting for a push', delegate.printTime());
+    while (!this._closed) {
+      log?.('Waiting for a send');
 
-      if (watchdogTimer) {
-        await Promise.race([
-          this._pendingResolver.promise,
-          sleep(watchdogTimer),
-        ]);
-      } else {
-        await this._pendingResolver.promise;
-      }
-
-      // This resolvers is used to make the individual calls to push have the
-      // correct "duration".
+      // The current resolver is used to make the individual calls to exeute
+      // have the correct "duration".
       const currentResolver = resolver();
       this._currentResolver = currentResolver;
       // Don't let this rejected promise escape.
       currentResolver.promise.catch(() => 0);
 
-      if (debounceDelay) {
-        await sleep(debounceDelay);
+      // Wait until send is called or until the watchdog timer fires.
+      const races = [this._pendingResolver.promise];
+      if (watchdogTimer) {
+        races.push(sleep(watchdogTimer));
       }
+      await Promise.race(races);
+
+      await sleep(debounceDelay);
 
       // This resolver is used to wait for incoming push calls.
       this._pendingResolver = resolver();
 
-      if (lastConnectionErrored || this._pushCounter >= maxConnections) {
-        console.log(
-          'Too many pushes. Waiting until one finishes',
-          delegate.printTime(),
-        );
+      if (this._counter >= maxConnections) {
+        log?.('Too many pushes. Waiting until one finishes...');
         await this._waitUntilAvailableConnection();
+        log?.('...finished');
       }
 
-      if (lastConnectionErrored || this._pushCounter > 0) {
-        if (lastConnectionErrored) {
-          console.log(
-            'Last connection errored. Sleeping for',
-            delay,
-            'ms',
-            delegate.printTime(),
-          );
-        } else {
-          console.log(
-            'More than one outstanding connection (',
-            this._pushCounter,
-            '). Sleeping for',
-            delay,
-            'ms',
-            delegate.printTime(),
-          );
-        }
+      if (this._counter > 0) {
+        delay = computeDelayAndUpdateDurations(
+          delay,
+          maxConnections,
+          sendRecords,
+        );
+        log?.(
+          didLastSendRequestFail(sendRecords)
+            ? 'Last connection errored. Sleeping for'
+            : 'More than one outstanding connection (' +
+                this._counter +
+                '). Sleeping for',
+          delay,
+          'ms',
+        );
 
-        if (lastConnectionErrored) {
-          await sleep(delay);
-        } else {
-          const timeSinceLastSend = Date.now() - this._lastSendTime;
-
-          console.log(
-            'XXX',
-            delay,
-            timeSinceLastSend,
-            delay > timeSinceLastSend,
-            delay - timeSinceLastSend,
-          );
-
-          if (delay > timeSinceLastSend) {
-            await sleep(delay - timeSinceLastSend);
-          }
+        const timeSinceLastSend = Date.now() - lastSendTime;
+        if (delay > timeSinceLastSend) {
+          await Promise.race([
+            sleep(delay - timeSinceLastSend),
+            recoverResolver.promise,
+          ]);
         }
       }
 
-      this._pushCounter++;
+      this._counter++;
       (async () => {
         const start = Date.now();
         let err: unknown;
         try {
-          this._lastSendTime = start;
-          await delegate.invokeExecute();
+          lastSendTime = start;
+          await delegate.invokeSend();
         } catch (e) {
           err = e;
         }
-        const stop = Date.now();
-        lastConnectionErrored = err !== undefined;
-        delay = computeDelayAndUpdateDurations(
-          delay,
-          stop - start,
-          !err,
-          maxConnections,
-          durations,
-        );
-        console.log(
-          'Last connection took',
-          stop - start,
-          'ms. New delay is ',
-          delay,
-          this._delegate.printTime(),
-        );
-        this._pushCounter--;
-        this._wakeUpWaitingPush();
-        if (lastConnectionErrored) {
+        sendRecords.push({duration: Date.now() - start, ok: !err});
+        if (recovered(sendRecords)) {
+          recoverResolver.resolve();
+          recoverResolver = resolver();
+        }
+        this._counter--;
+        this._connectionAvailable();
+        if (err) {
           currentResolver.reject(err);
           // Keep trying
           this._pendingResolver.resolve();
@@ -167,9 +174,8 @@ export class ConnectionLoop {
 
   private _waitingConnectionResolve: (() => void) | undefined = undefined;
 
-  private _wakeUpWaitingPush() {
+  private _connectionAvailable() {
     if (this._waitingConnectionResolve) {
-      console.log('wakeUpWaitingPush');
       const resolve = this._waitingConnectionResolve;
       this._waitingConnectionResolve = undefined;
       resolve();
@@ -178,7 +184,6 @@ export class ConnectionLoop {
 
   private _waitUntilAvailableConnection() {
     const {promise, resolve} = resolver();
-    console.assert(!this._waitingConnectionResolve);
     this._waitingConnectionResolve = resolve;
     return promise;
   }
@@ -189,41 +194,62 @@ const CONNECTION_MEMORY_COUNT = 9;
 
 function computeDelayAndUpdateDurations(
   delay: number,
-  duration: number,
-  ok: boolean,
   maxConnections: number,
-  durations: Durations,
+  sendRecords: SendRecord[],
 ): number {
-  const last: Duration | undefined = durations[durations.length - 1];
-  if (ok) {
-    durations.push({duration, ok});
+  const {length} = sendRecords;
+  if (length === 0) {
+    return delay;
   }
-  if (durations.length === 1) {
-    return (duration / maxConnections) | 0;
-  }
+
+  const {duration, ok} = sendRecords[sendRecords.length - 1];
+
   if (!ok) {
     return Math.min(MAX_DELAY, delay * 2);
   }
 
-  if (!last.ok) {
+  if (length === 1) {
+    return (duration / maxConnections) | 0;
+  }
+
+  // length > 1
+  const previous: SendRecord = sendRecords[sendRecords.length - 2];
+
+  // Prune
+  if (sendRecords.length > CONNECTION_MEMORY_COUNT) {
+    sendRecords.shift();
+  }
+
+  if (ok && !previous.ok) {
     // Recovered
     return MIN_DELAY;
   }
 
-  const med = median(durations);
-  if (durations.length > CONNECTION_MEMORY_COUNT) {
-    durations.shift();
-  }
+  const med = median(
+    sendRecords.filter(({ok}) => ok).map(({duration}) => duration),
+  );
+
   return (med / maxConnections) | 0;
 }
 
-function median(durations: Durations) {
-  const a = durations.filter(({ok}) => ok).map(({duration}) => duration);
-  a.sort();
-  const {length} = a;
+function median(values: number[]) {
+  values.sort();
+  const {length} = values;
   const half = length >> 1;
   if (length % 2 === 1) {
-    return a[half];
+    return values[half];
   }
-  return (a[half - 1] + a[half]) / 2;
+  return (values[half - 1] + values[half]) / 2;
+}
+
+function didLastSendRequestFail(sendRecords: SendRecord[]) {
+  return sendRecords.length > 0 && !sendRecords[sendRecords.length - 1].ok;
+}
+
+function recovered(sendRecords: SendRecord[]) {
+  return (
+    sendRecords.length > 1 &&
+    !sendRecords[sendRecords.length - 2].ok &&
+    sendRecords[sendRecords.length - 1].ok
+  );
 }

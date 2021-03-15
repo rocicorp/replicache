@@ -1,6 +1,13 @@
+/**
+ * Creates a promise that resolves after [[ms]] milliseconds. Note that if you
+ * pass in `0` no `setTimeout` is used and the promise resolves immediately. In
+ * other words no macro task is used in that case.
+ */
 export function sleep(ms: number): Promise<void> {
-  // TODO: Consider making this a noop if 0? Right now, passing 0 cause the
-  // promise to resolve in the next task (macro not micro).
+  if (ms === 0) {
+    return Promise.resolve();
+  }
+
   return new Promise<void>(resolve => {
     setTimeout(() => resolve(), ms);
   });

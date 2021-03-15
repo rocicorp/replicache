@@ -15,6 +15,7 @@ import fetchMock from 'fetch-mock/esm/client.js';
 import type {Invoke} from './repm-invoker.js';
 import type {ScanOptions} from './scan-options.js';
 import {resolver} from './resolver.js';
+import {sleep} from './sleep.js';
 
 fetchMock.config.overwriteRoutes = true;
 
@@ -31,12 +32,6 @@ console.warn = (...args: Parameters<Console['warn']>) => {
   }
 };
 console.log = console.info = console.group = console.groupEnd = () => void 0;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(res => {
-    setTimeout(() => res(), ms);
-  });
-}
 
 let overrideUseMemstore = false;
 

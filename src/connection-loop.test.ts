@@ -10,15 +10,20 @@ setup(function () {
 
 teardown(function () {
   clock.restore();
+  loop?.close();
+  loop = undefined;
 });
 
-let loop: ConnectionLoop;
-let printTime: () => string;
+let loop: ConnectionLoop | undefined;
+let currentTime: () => string;
 
 const ps = new Set();
 
-function execute() {
-  const p = loop?.execute();
+function send() {
+  if (!loop) {
+    throw new Error();
+  }
+  const p = loop.send();
   ps.add(p);
   return p;
 }
@@ -36,68 +41,52 @@ function createLoop(
     requestTime: number;
     shouldError?: boolean;
   } = {requestTime: 90},
-) {
+): ConnectionLoop {
   log.length = 0;
   counter = 0;
   const start = Date.now();
 
   const Reset = '\x1b[0m';
   const FgMagenta = '\x1b[35m';
-  printTime = () => `[time: ${FgMagenta}${Date.now() - start}${Reset}]`;
+  currentTime = () => `[time: ${FgMagenta}${Date.now() - start}${Reset}]`;
 
   const delegate: ConnectionLoopDelegate = {
-    closed: () => false,
-    invokeExecute: async () => {
+    async invokeSend() {
       const c = counter++;
       const {requestTime = 90, shouldError = false} = partialDelegate;
-      const logTimes = true;
-      console.log(
-        'Starting request',
-        c,
-        'expected time',
-        requestTime,
-        printTime(),
-      );
-      log.push('s' + c + (logTimes ? ':' + Date.now() : ''));
+      log.push(`s${c}:${Date.now()}`);
       await sleep(requestTime);
-      if (shouldError) {
-        log.push('e' + c + (logTimes ? ':' + Date.now() : ''));
-      } else {
-        log.push('f' + c + (logTimes ? ':' + Date.now() : ''));
-      }
-      console.log('Stopping request', c, printTime());
+      log.push(`${shouldError ? 'e' : 'f'}${c}:${Date.now()}`);
       if (shouldError) {
         throw Error('Intentional error');
       }
     },
-    printTime,
+    log: (...args) => console.log(...args, currentTime()),
     ...partialDelegate,
   };
 
-  loop = new ConnectionLoop(delegate);
+  return (loop = new ConnectionLoop(delegate));
 }
 
 test('basic sequential by awaiting', async () => {
   const requestTime = 200;
   const debounceDelay = 3;
-  createLoop({requestTime, debounceDelay});
+  loop = createLoop({requestTime, debounceDelay});
 
-  let p = loop.execute();
+  let p = loop.send();
   await clock.runAllAsync();
   await p;
   expect(Date.now()).to.equal(requestTime + debounceDelay);
 
   expect(log).to.deep.equal(['s0:3', 'f0:203']);
 
-  p = loop.execute();
+  p = loop.send();
   await clock.runAllAsync();
   await p;
-  expect(Date.now()).to.equal(2 * (requestTime + debounceDelay));
 
-  p = loop.execute();
+  p = loop.send();
   await clock.runAllAsync();
   await p;
-  expect(Date.now()).to.equal(3 * (requestTime + debounceDelay));
 
   expect(log).to.deep.equal([
     's0:3',
@@ -109,22 +98,51 @@ test('basic sequential by awaiting', async () => {
   ]);
 });
 
-test('sync calls collapsed', async () => {
-  let closed = false;
-
-  const debounceDelay = 5;
+test('debounce', async () => {
+  const debounceDelay = 50;
   const requestTime = 50;
   createLoop({
-    closed: () => closed,
     requestTime,
     debounceDelay,
   });
 
-  execute();
+  send();
   expect(log).to.deep.equal([]);
-  execute();
+  await clock.tickAsync(20);
+  send();
   expect(log).to.deep.equal([]);
-  execute();
+
+  await clock.tickAsync(20);
+  send();
+  expect(log).to.deep.equal([]);
+
+  await clock.tickAsync(20);
+  send();
+  expect(log).to.deep.equal(['s0:50']);
+
+  await clock.tickAsync(40);
+  expect(log).to.deep.equal(['s0:50', 'f0:100']);
+
+  await clock.runAllAsync();
+
+  expect(log).to.deep.equal(['s0:50', 'f0:100', 's1:110', 'f1:160']);
+
+  await waitForAll();
+});
+
+test('sync calls collapsed', async () => {
+  const debounceDelay = 5;
+  const requestTime = 50;
+  createLoop({
+    requestTime,
+    debounceDelay,
+  });
+
+  send();
+  expect(log).to.deep.equal([]);
+  send();
+  expect(log).to.deep.equal([]);
+  send();
   expect(log).to.deep.equal([]);
 
   await clock.tickAsync(debounceDelay);
@@ -138,7 +156,6 @@ test('sync calls collapsed', async () => {
   expect(log).to.deep.equal(['s0:5', 'f0:55']);
 
   await waitForAll();
-  closed = true;
 });
 
 test('concurrent connections', async () => {
@@ -154,13 +171,13 @@ test('concurrent connections', async () => {
     maxConnections,
   });
 
-  execute();
+  send();
 
   await clock.runToLastAsync();
   expect(Date.now()).to.equal(debounceDelay);
 
   expect(log).to.deep.equal(['s0:5']);
-  execute();
+  send();
   expect(log).to.deep.equal(['s0:5']);
 
   await clock.tickAsync(minDelay);
@@ -168,13 +185,13 @@ test('concurrent connections', async () => {
 
   expect(log).to.deep.equal(['s0:5', 's1:35']);
 
-  execute();
+  send();
   await clock.tickAsync(minDelay);
   expect(Date.now()).to.equal(debounceDelay + 2 * minDelay);
 
   expect(log).to.deep.equal(['s0:5', 's1:35', 's2:65']);
 
-  execute();
+  send();
   await clock.tickAsync(minDelay);
   expect(Date.now()).to.equal(debounceDelay + 3 * minDelay);
 
@@ -234,17 +251,17 @@ test('maxConnections 1', async () => {
     maxConnections,
   });
 
-  execute();
+  send();
   await clock.runToLastAsync();
 
   expect(log).to.deep.equal(['s0:5']);
 
-  execute();
+  send();
   await clock.tickAsync(requestTime);
 
   expect(log).to.deep.equal(['s0:5', 'f0:95', 's1:95']);
 
-  execute();
+  send();
   await clock.tickAsync(requestTime);
 
   expect(log).to.deep.equal(['s0:5', 'f0:95', 's1:95', 'f1:185', 's2:185']);
@@ -284,33 +301,33 @@ test('Adjust delay', async () => {
   i = 0;
 
   // 0
-  execute();
+  send();
   await clock.runToLastAsync();
 
   // 1
-  execute();
+  send();
   await clock.tickAsync(30);
 
   // 2
-  execute();
+  send();
   await clock.tickAsync(30);
 
   // 3
-  execute();
+  send();
   await clock.tickAsync(50);
 
   expect(log).to.deep.equal(['s0:5', 's1:35', 's2:65', 'f0:105', 's3:105']);
 
   // 4
-  execute();
+  send();
   await clock.tickAsync(50);
 
   // 5
-  execute();
+  send();
   await clock.tickAsync(50);
 
   // 6
-  execute();
+  send();
   await clock.tickAsync(50);
 
   await clock.runAllAsync();
@@ -337,12 +354,12 @@ test('error', async () => {
   const debounceDelay = 5;
   const maxConnections = 3;
   const requestTime = 90;
-  let i = 0;
+  let requestCount = 0;
 
   createLoop({
     get shouldError() {
-      const e = i > 2 && i < 17;
-      i++;
+      const e = requestCount > 4 && requestCount < 17;
+      requestCount++;
       return e;
     },
     debounceDelay,
@@ -351,17 +368,19 @@ test('error', async () => {
   });
 
   // reset
-  i = 0;
+  requestCount = 0;
 
-  for (let i = 0; i < 25; i++) {
-    execute().catch(() => 0);
+  while (requestCount < 10) {
+    send().catch(() => 0);
     await clock.tickAsync(30);
   }
 
-  await clock.tickAsync(302375 - requestTime - Date.now());
+  // 61685 is when the first success after a bunch of errors. Schedule a send
+  // before this request comes back.
+  await clock.tickAsync(61685 - 30 - Date.now());
 
-  for (let i = 0; i < 5; i++) {
-    execute();
+  while (requestCount < 22) {
+    send();
     await clock.tickAsync(30);
   }
 
@@ -377,39 +396,41 @@ test('error', async () => {
     's4:125',
     'f2:155',
     's5:155',
-    'e3:185',
-    'e4:215',
+    'f3:185',
+    's6:185',
+    'f4:215',
+    's7:215',
     'e5:245',
-    's6:335',
-    'e6:425',
-    's7:905',
-    'e7:995',
-    's8:1955',
-    'e8:2045',
-    's9:3965',
-    'e9:4055',
-    's10:7895',
-    'e10:7985',
-    's11:15665',
-    'e11:15755',
-    's12:31115',
-    'e12:31205',
-    's13:61925',
-    'e13:62015',
-    's14:122015',
-    'e14:122105',
-    's15:182105',
-    'e15:182195',
-    's16:242195',
-    'e16:242285',
-    's17:302285',
-    'f17:302375', // first success
-    's18:302375', // now we go back to 3 concurrent connections
-    's19:302405',
-    's20:302435',
-    'f18:302465',
-    'f19:302495',
-    'f20:302525',
+    'e6:275',
+    's8:275',
+    'e7:305',
+    'e8:365',
+    's9:395',
+    'e9:485',
+    's10:635',
+    'e10:725',
+    's11:1115',
+    'e11:1205',
+    's12:2075',
+    'e12:2165',
+    's13:3995',
+    'e13:4085',
+    's14:7835',
+    'e14:7925',
+    's15:15515',
+    'e15:15605',
+    's16:30875',
+    'e16:30965',
+    's17:61595',
+    'f17:61685', // first success
+    's18:61685', // now we go back to 3 concurrent connections
+    's19:61715',
+    's20:61745',
+    'f18:61775',
+    's21:61775',
+    'f19:61805',
+    'f20:61835',
+    'f21:61865',
   ]);
 });
 
@@ -419,15 +440,15 @@ test('resolve order', async () => {
   });
 
   const plog: string[] = [];
-  execute().then(() => plog.push('A'));
-  execute().then(() => plog.push('B'));
-  execute().then(() => plog.push('C'));
+  send().then(() => plog.push('A'));
+  send().then(() => plog.push('B'));
+  send().then(() => plog.push('C'));
 
   await clock.tickAsync(40);
 
-  execute().then(() => plog.push('D'));
-  execute().then(() => plog.push('E'));
-  execute().then(() => plog.push('F'));
+  send().then(() => plog.push('D'));
+  send().then(() => plog.push('E'));
+  send().then(() => plog.push('F'));
 
   await clock.runAllAsync();
 
@@ -476,7 +497,7 @@ test('watchdog timer again', async () => {
   });
 
   await clock.tickAsync(500);
-  execute();
+  send();
 
   expect(log).to.deep.equal([]);
 

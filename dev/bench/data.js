@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1615584444507,
+  "lastUpdate": 1615865922954,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -16163,6 +16163,114 @@ window.BENCHMARK_DATA = {
           {
             "name": "create index 1024x5000",
             "value": 4.5,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "9 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f9283a7dfea83dfde47848ae71fa732de4bbb882",
+          "message": "Introduce a ConnectionLoop class with a delegate (#307)\n\nThis adds a new class, `ConnectionLoop` which is basically a run/game/dispatch loop. It runs forever but it is an async loop so it waits for state changes to continue.\r\n\r\nIt is factored in such a way that it can be used for both pull and push.\r\n\r\nThis has pretty extensive tests using fake timers which \"easily\" allows us to ensure we wait for 60s after a lot of failures etc.\r\n\r\nTowards #294",
+          "timestamp": "2021-03-15T20:34:54-07:00",
+          "tree_id": "b5d9db4c9c5898e4d23a3f31bc4ad956f11d4706",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/f9283a7dfea83dfde47848ae71fa732de4bbb882"
+        },
+        "date": 1615865922336,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.09,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 5.09,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "11 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.8,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.16,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 5.99,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "11 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.11,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 21.23,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "43 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 20.01,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 52.63,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "103 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 22.22,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "103 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 19.61,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "39 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 4.33,
             "range": "±0.0%",
             "unit": "op/s",
             "extra": "9 samples"

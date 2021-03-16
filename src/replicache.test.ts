@@ -31,7 +31,7 @@ async function replicacheForTesting(
     pullAuth = '',
     pullURL = 'https://pull.com/?name=' + name,
     pushAuth = '',
-    pushDelay,
+    pushDelay = 60_000, // Large to prevent interfering
     pushURL = 'https://push.com/?name=' + name,
     schemaVersion = '',
     useMemstore = overrideUseMemstore,

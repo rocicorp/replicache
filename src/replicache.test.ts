@@ -533,6 +533,7 @@ testWithBothStores('push', async () => {
   rep = await replicacheForTesting('push', {
     pushAuth: '1',
     pushURL,
+    pushDelay: 10,
   });
 
   let createCount = 0;
@@ -1559,6 +1560,7 @@ test('push and pull concurrently', async () => {
     pullURL,
     pushURL,
     useMemstore: true,
+    pushDelay: 5,
   });
   const spy = spyInvoke(rep);
 
@@ -1627,6 +1629,7 @@ test('schemaVersion push', async () => {
   rep = await replicacheForTesting('schema-version-push', {
     pushURL,
     schemaVersion,
+    pushDelay: 1,
   });
 
   const add = rep.register('add-data', addData);

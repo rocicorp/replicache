@@ -13,8 +13,8 @@ type SendRecord = {duration: number; ok: boolean};
 export interface ConnectionLoopDelegate {
   invokeSend(): unknown;
   debounceDelay?(): number;
-  maxConnections?(): number;
-  watchdogTimer?(): number;
+  maxConnections?: number;
+  watchdogTimer?(): number | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   log?(...args: any[]): void;
 }
@@ -69,6 +69,7 @@ export class ConnectionLoop {
   }
 
   async send(): Promise<void> {
+    this._delegate.log?.('send');
     this._pendingResolver.resolve();
     await this._currentResolver.promise;
   }
@@ -84,7 +85,7 @@ export class ConnectionLoop {
     const delegate = this._delegate;
     const {
       debounceDelay = () => DEBOUNCE_DELAY,
-      maxConnections = () => MAX_CONNECTIONS,
+      maxConnections = MAX_CONNECTIONS,
       watchdogTimer,
       log,
     } = delegate;
@@ -107,19 +108,25 @@ export class ConnectionLoop {
 
       // Wait until send is called or until the watchdog timer fires.
       const races = [this._pendingResolver.promise];
-      if (watchdogTimer) {
-        races.push(sleep(watchdogTimer()));
+      const t = watchdogTimer?.();
+      if (t != null) {
+        races.push(sleep(t));
       }
       await Promise.race(races);
+      if (this._closed) break;
 
+      log?.('Waiting for debounce');
       await sleep(debounceDelay());
+      if (this._closed) break;
+      log?.('debounced');
 
       // This resolver is used to wait for incoming push calls.
       this._pendingResolver = resolver();
 
-      if (counter >= maxConnections()) {
+      if (counter >= maxConnections) {
         log?.('Too many pushes. Waiting until one finishes...');
         await this._waitUntilAvailableConnection();
+        if (this._closed) break;
         log?.('...finished');
       }
 
@@ -128,7 +135,7 @@ export class ConnectionLoop {
       if (counter > 0 || didLastSendRequestFail(sendRecords)) {
         delay = computeDelayAndUpdateDurations(
           delay,
-          maxConnections(),
+          maxConnections,
           sendRecords,
         );
         log?.(
@@ -147,6 +154,7 @@ export class ConnectionLoop {
             sleep(delay - timeSinceLastSend),
             recoverResolver.promise,
           ]);
+          if (this._closed) break;
         }
       }
 
@@ -156,10 +164,17 @@ export class ConnectionLoop {
         let err: unknown;
         try {
           lastSendTime = start;
+          log?.('Sending request');
           await delegate.invokeSend();
         } catch (e) {
+          log?.('Send failed', e);
           err = e;
         }
+        if (this._closed) {
+          log?.('Closed after invokeSend');
+          return;
+        }
+        log?.('Request done', {duration: Date.now() - start, ok: !err});
         sendRecords.push({duration: Date.now() - start, ok: !err});
         if (recovered(sendRecords)) {
           recoverResolver.resolve();

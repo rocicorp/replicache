@@ -168,7 +168,7 @@ test('concurrent connections', async () => {
   createLoop({
     requestTime,
     debounceDelay: () => debounceDelay,
-    maxConnections: () => maxConnections,
+    maxConnections,
   });
 
   send();
@@ -248,7 +248,7 @@ test('maxConnections 1', async () => {
   createLoop({
     requestTime,
     debounceDelay: () => debounceDelay,
-    maxConnections: () => maxConnections,
+    maxConnections,
   });
 
   send();
@@ -294,7 +294,7 @@ test('Adjust delay', async () => {
       return t;
     },
     debounceDelay: () => debounceDelay,
-    maxConnections: () => maxConnections,
+    maxConnections,
   });
 
   // reset
@@ -364,7 +364,7 @@ test('error', async () => {
     },
     debounceDelay: () => debounceDelay,
     requestTime,
-    maxConnections: () => maxConnections,
+    maxConnections,
   });
 
   // reset

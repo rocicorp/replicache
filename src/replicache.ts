@@ -352,7 +352,7 @@ export class Replicache implements ReadTransaction {
     } else {
       // Also set an item in localStorage so that we can synchronize multiple
       // windows/tabs.
-      localStorage[storageKeyName(this._name)] = await r;
+      localStorage[storageKeyName(this._name)] = r;
     }
   }
 

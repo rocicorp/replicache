@@ -147,7 +147,7 @@ Replicache polls your Client View on a timer and updates the UI automatically.
 Notes:
 
 - In production, you can use our hosted Diff Server instead of a local one. See [Create Hosted Diff Server Account](https://github.com/rocicorp/replicache/blob/stable/SERVER_SETUP.md#if-your-client-view-is-publicly-accessible) for details.
-- You can adjust the frequency of the polling using the [syncInterval](https://js.replicache.dev/interfaces/replicacheoptions.html#syncinterval) property. However, polling is typically only used for development. In production, we recommend using a [WebSocket poke](TODO) to tell the client when to sync.
+- You can adjust the frequency of the polling using the [pullInterval](https://js.replicache.dev/interfaces/replicacheoptions.html#pullinterval) property. However, polling is typically only used for development. In production, we recommend using a [WebSocket poke](TODO) to tell the client when to pull.
 
 ## 🏎 Batch Endpoint
 

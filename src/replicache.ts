@@ -16,7 +16,7 @@ import {
 } from './transactions.js';
 import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
-import {resolver} from './resolver.js';
+import {ConnectionLoop} from './connection-loop.js';
 
 type BeginPullResult = {
   requestID: string;
@@ -86,10 +86,10 @@ export interface ReplicacheOptions {
   schemaVersion?: string;
 
   /**
-   * The duration between each [[sync]]. Set this to `null` to prevent syncing
+   * The duration between each [[pull]]. Set this to `null` to prevent pulling
    * in the background.
    */
-  syncInterval?: number | null;
+  pullInterval?: number | null;
 
   /**
    * The delay between when a change is made to Replicache and when Replicache
@@ -151,20 +151,19 @@ export default class Replicache implements ReadTransaction {
   private _pushCounter = 0;
   private _pullCounter = 0;
 
-  private _pushResolver: (() => void) | null = null;
-  private _pushPromise: Promise<void> | null = null;
+  private _pullConnectionLoop: ConnectionLoop;
+  private _pushConnectionLoop: ConnectionLoop;
 
-  private _pullResolver: (() => void) | null = null;
-  private _pullPromise: Promise<void> | null = null;
-
-  private _syncPromise: Promise<void> | null = null;
   private readonly _subscriptions = new Set<
     Subscription<JSONValue | undefined, unknown>
   >();
-  private _syncInterval: number | null;
-  // NodeJS has a non standard setTimeout function :'(
-  protected _syncTimerId: ReturnType<typeof setTimeout> | 0 = 0;
-  protected _pushTimerId: ReturnType<typeof setTimeout> | 0 = 0;
+
+  /**
+   * The duration between each periodic [[pull]]. Setting this to `null`
+   * disables periodic pull completely. Pull will still happen if you call
+   * [[pull]] manually.
+   */
+  pullInterval: number | null;
 
   /**
    * The delay between when a change is made to Replicache and when Replicache
@@ -216,7 +215,7 @@ export default class Replicache implements ReadTransaction {
       pushDelay = 10,
       pushURL = '',
       schemaVersion = '',
-      syncInterval = 60_000,
+      pullInterval = 60_000,
       useMemstore = false,
       wasmModule,
     } = options;
@@ -227,9 +226,22 @@ export default class Replicache implements ReadTransaction {
     this._name = name;
     this._repmInvoker = new REPMWasmInvoker(wasmModule);
     this._schemaVersion = schemaVersion;
-    this._syncInterval = syncInterval;
+    this.pullInterval = pullInterval;
     this.pushDelay = pushDelay;
     this._useMemstore = useMemstore;
+
+    this._pullConnectionLoop = new ConnectionLoop({
+      invokeSend: () => this._pull(),
+      watchdogTimer: () => this.pullInterval,
+      debounceDelay: () => 0,
+      maxConnections: 1,
+    });
+    this._pushConnectionLoop = new ConnectionLoop({
+      invokeSend: () => this._push(MAX_REAUTH_TRIES),
+      debounceDelay: () => this.pushDelay,
+      maxConnections: 1,
+    });
+
     this._open();
   }
 
@@ -239,9 +251,6 @@ export default class Replicache implements ReadTransaction {
     });
     this._setRoot(this._getRoot());
     await this._root;
-    if (this._syncInterval !== null) {
-      await this.sync();
-    }
     window.addEventListener('storage', this._onStorage);
   }
 
@@ -276,54 +285,6 @@ export default class Replicache implements ReadTransaction {
   }
 
   /**
-   * The duration between each periodic [[sync]]. Setting this to `null` disables periodic sync completely.
-   * Sync will still happen if you call [[sync]] manually, and after writes (see [[pushDelay]]).
-   */
-  get syncInterval(): number | null {
-    return this._syncInterval;
-  }
-  set syncInterval(duration: number | null) {
-    this._clearTimer();
-    this._syncInterval = duration;
-    this._scheduleSync(this._syncInterval);
-  }
-
-  private _scheduleSync(interval: number | null): void {
-    if (interval) {
-      this._syncTimerId = setTimeout(() => this.sync(), interval);
-    }
-  }
-
-  private _schedulePush(delay: number | null): void {
-    // We do not want to restart the push timer.
-    //
-    // To make multiuser collab feel as live as possible, we need events to be
-    // sent very soon after they are generated. Even if a new event comes in, we
-    // do *not* delay the initial one from being sent. Any new events that gets
-    // in before the timer elapses will get sent too, but we do not delay the
-    // train from leaving.
-    if (delay && this._pushTimerId === 0) {
-      this._pushTimerId = setTimeout(() => {
-        this.push();
-      }, delay);
-    }
-  }
-
-  private _clearTimer() {
-    if (this._syncTimerId !== 0) {
-      clearTimeout(this._syncTimerId);
-      this._syncTimerId = 0;
-    }
-  }
-
-  private _clearPushTimer() {
-    if (this._pushTimerId !== 0) {
-      clearTimeout(this._pushTimerId);
-      this._pushTimerId = 0;
-    }
-  }
-
-  /**
    * Closes this Replicache instance.
    *
    * When closed all subscriptions end and no more read or writes are allowed.
@@ -332,8 +293,9 @@ export default class Replicache implements ReadTransaction {
     this._closed = true;
     const p = this._invoke('close');
 
-    this._clearTimer();
-    this._clearPushTimer();
+    this._pullConnectionLoop.close();
+    this._pushConnectionLoop.close();
+
     window.removeEventListener('storage', this._onStorage);
 
     // Clear subscriptions
@@ -476,11 +438,6 @@ export default class Replicache implements ReadTransaction {
     }
   }
 
-  private async _sync(): Promise<void> {
-    await this.push();
-    await this.pull();
-  }
-
   protected async _maybeEndPull(
     beginPullResult: BeginPullResult,
   ): Promise<void> {
@@ -545,36 +502,18 @@ export default class Replicache implements ReadTransaction {
     return res.ref;
   }
 
-  /**
-   * Synchronizes this cache with the server. New local mutations are sent to
-   * the server, and the latest server state is applied to the cache. Any local
-   * mutations not included in the new server state are replayed. See the
-   * [Replicache design
-   * document](https://github.com/rocicorp/replicache/blob/main/design.md) for
-   * more information on sync.
-   */
-  async sync(): Promise<void> {
-    if (this._closed) {
-      return;
-    }
-
-    if (this._syncPromise !== null) {
-      await this._syncPromise;
-      // Call schedule instead of sync to debounce/dedupe multiple calls.
-      this._clearTimer();
-      this._scheduleSync(1);
-      return;
-    }
-
-    this._clearTimer();
-
-    try {
-      this._syncPromise = this._sync();
-      await this._syncPromise;
-    } finally {
-      this._syncPromise = null;
-      this._scheduleSync(this._syncInterval);
-    }
+  private async _pull() {
+    await this._wrapInOnlineCheck(async () => {
+      try {
+        this._changeSyncCounters(0, 1);
+        const beginPullResult = await this._beginPull(MAX_REAUTH_TRIES);
+        if (beginPullResult.syncHead !== '') {
+          await this._maybeEndPull(beginPullResult);
+        }
+      } finally {
+        this._changeSyncCounters(0, -1);
+      }
+    }, 'Pull');
   }
 
   private async _wrapInOnlineCheck(
@@ -606,6 +545,44 @@ export default class Replicache implements ReadTransaction {
     this._online = online;
   }
 
+  private async _push(maxAuthTries: number): Promise<void> {
+    await this._wrapInOnlineCheck(async () => {
+      let pushResponse;
+      try {
+        this._changeSyncCounters(1, 0);
+        pushResponse = await this._invoke('tryPush', {
+          pushURL: this._pushURL,
+          pushAuth: this._pushAuth,
+          schemaVersion: this._schemaVersion,
+        });
+      } finally {
+        this._changeSyncCounters(-1, 0);
+      }
+
+      const {httpRequestInfo} = pushResponse;
+
+      if (httpRequestInfo) {
+        const reauth = checkStatus(httpRequestInfo, 'push', this._pushURL);
+
+        // TODO: Add back support for mutationInfos? We used to log all the errors
+        // here.
+
+        if (reauth && this.getPushAuth) {
+          if (maxAuthTries === 0) {
+            console.info('Tried to reauthenticate too many times');
+            return;
+          }
+          const pushAuth = await this.getPushAuth();
+          if (pushAuth != null) {
+            this._pushAuth = pushAuth;
+            // Try again now instead of waiting for next push.
+            return await this._push(maxAuthTries - 1);
+          }
+        }
+      }
+    }, 'Push');
+  }
+
   /**
    * Push pushes pending changes to the [[pushURL]].
    *
@@ -614,79 +591,7 @@ export default class Replicache implements ReadTransaction {
    * mutations.
    */
   async push(): Promise<void> {
-    this._clearPushTimer();
-    await this._wrapInOnlineCheck(() => this._push(MAX_REAUTH_TRIES), 'Push');
-  }
-
-  private async _push(maxAuthTries: number): Promise<void> {
-    // Is there already a push in flight?
-    if (this._pushCounter > 0) {
-      // Here we create a promise/resolve pair that will resolve when the
-      // current push is done.
-      //
-      // This whole dance is to collapse incoming calls to push during an in
-      // flight push so that they only cause a single actual push RPC. We also want
-      // the call to push to resolve at the right time.
-      //
-      // - push() is called. Lets call this "pushA"
-      // - pushA is being sent over wire
-      // - push() is called again. Lets call this "pushB"
-      // - push() is called again. Lets call this "pushC"
-      // - pushA comes back and is resolved
-      // - puhsB is being sent over wire
-      // - pushB resolve comes back and is resolved
-      // - pushC resolves
-
-      if (!this._pushResolver) {
-        const {promise, resolve} = resolver();
-        this._pushResolver = resolve;
-        this._pushPromise = (async () => {
-          await promise;
-          this._pushResolver = null;
-          await this._push(maxAuthTries);
-        })();
-      }
-      await this._pushPromise;
-      return;
-    }
-
-    let pushResponse;
-    try {
-      this._changeSyncCounters(1, 0);
-      pushResponse = await this._invoke('tryPush', {
-        pushURL: this._pushURL,
-        pushAuth: this._pushAuth,
-        schemaVersion: this._schemaVersion,
-      });
-    } finally {
-      this._changeSyncCounters(-1, 0);
-    }
-
-    const {httpRequestInfo} = pushResponse;
-
-    if (httpRequestInfo) {
-      const reauth = checkStatus(httpRequestInfo, 'push', this._pushURL);
-
-      // TODO: Add back support for mutationInfos? We used to log all the errors
-      // here.
-
-      if (reauth && this.getPushAuth) {
-        if (maxAuthTries === 0) {
-          console.info('Tried to reauthenticate too many times');
-          return;
-        }
-        const pushAuth = await this.getPushAuth();
-        if (pushAuth != null) {
-          this._pushAuth = pushAuth;
-          // Try again now instead of waiting for next push.
-          return await this._push(maxAuthTries - 1);
-        }
-      }
-    }
-
-    if (this._pushResolver) {
-      this._pushResolver();
-    }
+    await this._pushConnectionLoop.send();
   }
 
   /**
@@ -694,54 +599,7 @@ export default class Replicache implements ReadTransaction {
    * local changes will get replayed on top of the new server state.
    */
   async pull(): Promise<void> {
-    await this._wrapInOnlineCheck(() => this._pull(), 'Pull');
-  }
-
-  private async _pull(): Promise<void> {
-    // Is there already a pull in flight?
-    if (this._pullCounter > 0) {
-      // Here we create a promise/resolve pair that will resolve when the
-      // current pull is done.
-      //
-      // This whole dance is to collapse incoming calls to pull during an in
-      // flight pull so that they only cause a single actual pull RPC. We also want
-      // the call to pull to resolve at the right time.
-      //
-      // - pull() is called. Lets call this "pullA"
-      // - pullA is being sent over wire
-      // - pull() is called again. Lets call this "pullB"
-      // - pull() is called again. Lets call this "pullC"
-      // - pullA comes back and is resolved
-      // - puhsB is being sent over wire
-      // - pullB resolve comes back and is resolved
-      // - pullC resolves
-
-      if (!this._pullResolver) {
-        const {promise, resolve} = resolver<void>();
-        this._pullResolver = resolve;
-        this._pullPromise = (async () => {
-          await promise;
-          this._pullResolver = null;
-          await this._pull();
-        })();
-      }
-      await this._pullPromise;
-      return;
-    }
-
-    try {
-      this._changeSyncCounters(0, 1);
-      const beginPullResult = await this._beginPull(MAX_REAUTH_TRIES);
-      if (beginPullResult.syncHead !== '') {
-        await this._maybeEndPull(beginPullResult);
-      }
-    } finally {
-      this._changeSyncCounters(0, -1);
-    }
-
-    if (this._pullResolver) {
-      this._pullResolver();
-    }
+    await this._pullConnectionLoop.send();
   }
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
@@ -996,7 +854,7 @@ export default class Replicache implements ReadTransaction {
     }
     const {ref} = await tx.commit();
     if (!isReplay) {
-      this._schedulePush(this.pushDelay);
+      this._pushConnectionLoop.send();
       await this._checkChange(ref);
     }
 
@@ -1037,7 +895,7 @@ export class ReplicacheTest extends Replicache {
     pullAuth,
     pullURL,
     pushAuth,
-    pushDelay = 0,
+    pushDelay,
     pushURL,
     schemaVersion,
     useMemstore = false,
@@ -1059,7 +917,7 @@ export class ReplicacheTest extends Replicache {
       pushDelay,
       pushURL,
       schemaVersion,
-      syncInterval: null,
+      pullInterval: null,
       useMemstore,
     });
     await rep._openResponse;

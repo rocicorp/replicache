@@ -14,7 +14,6 @@ import type {SinonSpy} from 'sinon';
 import fetchMock from 'fetch-mock/esm/client.js';
 import type {Invoke} from './repm-invoker.js';
 import type {ScanOptions} from './scan-options.js';
-import {resolver} from './resolver.js';
 import {sleep} from './sleep.js';
 
 fetchMock.config.overwriteRoutes = true;
@@ -24,25 +23,16 @@ const {fail} = assert;
 let rep: ReplicacheTest | null = null;
 let rep2: ReplicacheTest | null = null;
 
-// Silence console. Too much noise!
-const {warn} = console;
-console.warn = (...args: Parameters<Console['warn']>) => {
-  if (args[0] !== 'Connection loop recv failed: The channel is empty.') {
-    warn.apply(console, args);
-  }
-};
-console.log = console.info = console.group = console.groupEnd = () => void 0;
-
 let overrideUseMemstore = false;
 
 async function replicacheForTesting(
   name: string,
   {
     pullAuth = '',
-    pullURL = '',
+    pullURL = 'https://pull.com/?name=' + name,
     pushAuth = '',
-    pushDelay,
-    pushURL = '',
+    pushDelay = 60_000, // Large to prevent interfering
+    pushURL = 'https://push.com/?name=' + name,
     schemaVersion = '',
     useMemstore = overrideUseMemstore,
   }: {
@@ -56,7 +46,7 @@ async function replicacheForTesting(
   } = {},
 ): Promise<ReplicacheTest> {
   dbsToDrop.add(name);
-  return await ReplicacheTest.new({
+  const rep = await ReplicacheTest.new({
     pullAuth,
     pullURL,
     pushAuth,
@@ -66,6 +56,9 @@ async function replicacheForTesting(
     schemaVersion,
     useMemstore,
   });
+  fetchMock.post(pullURL, {lastMutationID: 0, patch: []});
+  fetchMock.post(pushURL, {});
+  return rep;
 }
 
 const dbsToDrop = new Set<string>();
@@ -499,12 +492,11 @@ testWithBothStores('overlapping writes', async () => {
     }
   }
 
-  function timerWait(dur: number) {
-    return new Promise(res => setTimeout(res, dur));
-  }
-
+  const pushURL = 'https://push.com';
   // writes wait on writes
-  rep = await replicacheForTesting('conflict');
+  rep = await replicacheForTesting('conflict', {pushURL});
+  fetchMock.post(pushURL, {});
+
   const mut = rep.register(
     'wait-then-return',
     async <T extends JSONValue>(
@@ -518,7 +510,7 @@ testWithBothStores('overlapping writes', async () => {
 
   let resA = mut({duration: 250, ret: 'a'});
   // create a gap to make sure resA starts first (our rwlock isn't fair).
-  await timerWait(100);
+  await sleep(100);
   let resB = mut({duration: 0, ret: 'b'});
   // race them, a should complete first, indicating that b waited
   expect(await Promise.race([resA, resB])).to.equal('a');
@@ -527,178 +519,12 @@ testWithBothStores('overlapping writes', async () => {
 
   // reads wait on writes
   resA = mut({duration: 250, ret: 'a'});
-  await timerWait(100);
+  await sleep(100);
   resB = rep.query(() => 'b');
   expect(await Promise.race([resA, resB])).to.equal('a');
-});
 
-testWithBothStores('sync', async () => {
-  const pullURL = 'https://diff.com/pull';
-  const pushURL = 'https://push.com';
-
-  rep = await replicacheForTesting('sync', {
-    pullAuth: '1',
-    pullURL,
-    pushAuth: '1',
-    pushURL,
-  });
-
-  let pullCounter = 0;
-  fetchMock.post(
-    pullURL,
-    () =>
-      [
-        {
-          cookie: '',
-          lastMutationID: 2,
-          patch: [
-            {op: 'del', key: ''},
-            {
-              op: 'put',
-              key: '/list/1',
-              value: {id: 1, ownerUserID: 1},
-            },
-          ],
-        },
-        {
-          cookie: '',
-          lastMutationID: 2,
-          patch: [],
-        },
-        {
-          cookie: '',
-          lastMutationID: 3,
-          patch: [
-            {
-              op: 'put',
-              key: '/todo/14323534',
-              value: {
-                complete: false,
-                id: 14323534,
-                listId: 1,
-                order: 10000,
-                text: 'Test',
-              },
-            },
-          ],
-        },
-        {
-          cookie: '',
-          lastMutationID: 2,
-          patch: [],
-        },
-        {
-          cookie: '',
-          lastMutationID: 6,
-          patch: [{op: 'del', key: '/todo/14323534'}],
-        },
-      ][pullCounter++],
-  );
-
-  let pushCounter = 0;
-  fetchMock.post(
-    pushURL,
-    () =>
-      [
-        {
-          mutationInfos: [
-            {id: 1, error: 'deleteTodo: todo not found'},
-            {id: 2, error: 'deleteTodo: todo not found'},
-          ],
-        },
-        {mutationInfos: []},
-        {
-          mutationInfos: [
-            {id: 3, error: 'mutation has already been processed'},
-          ],
-        },
-        {mutationInfos: []},
-      ][pushCounter++],
-  );
-
-  let createCount = 0;
-  let deleteCount = 0;
-  let syncHead: string;
-  let beginPullResult: {
-    requestID: string;
-    syncHead: string;
-  };
-
-  const createTodo = rep.register(
-    'createTodo',
-    async <A extends {id: number}>(tx: WriteTransaction, args: A) => {
-      createCount++;
-      await tx.put(`/todo/${args.id}`, args);
-    },
-  );
-
-  const deleteTodo = rep.register(
-    'deleteTodo',
-    async <A extends {id: number}>(tx: WriteTransaction, args: A) => {
-      deleteCount++;
-      await tx.del(`/todo/${args.id}`);
-    },
-  );
-
-  const id1 = 14323534;
-  const id2 = 22354345;
-
-  await deleteTodo({id: id1});
-  await deleteTodo({id: id2});
-
-  expect(deleteCount).to.equal(2);
-
-  await rep?.sync();
-  expect(deleteCount).to.equal(2);
-
-  beginPullResult = await rep?.beginPull();
-  ({syncHead} = beginPullResult);
-  expect(syncHead).to.equal(emptyHash);
-  expect(deleteCount).to.equal(2);
-
-  await createTodo({
-    id: id1,
-    listId: 1,
-    text: 'Test',
-    complete: false,
-    order: 10000,
-  });
-  expect(createCount).to.equal(1);
-  expect(((await rep?.get(`/todo/${id1}`)) as {text: string}).text).to.equal(
-    'Test',
-  );
-
-  beginPullResult = await rep?.beginPull();
-  ({syncHead} = beginPullResult);
-  expect(syncHead).to.equal('8l24ki5c56irag4pklvg6u0qmd9ugc9v');
-
-  await createTodo({
-    id: id2,
-    listId: 1,
-    text: 'Test 2',
-    complete: false,
-    order: 20000,
-  });
-  expect(createCount).to.equal(2);
-  expect(((await rep?.get(`/todo/${id2}`)) as {text: string}).text).to.equal(
-    'Test 2',
-  );
-
-  await rep?.maybeEndPull(beginPullResult);
-
-  expect(createCount).to.equal(3);
-
-  // Clean up
-  await deleteTodo({id: id1});
-  await deleteTodo({id: id2});
-
-  expect(deleteCount).to.equal(4);
-  expect(createCount).to.equal(3);
-
-  await rep?.sync();
-
-  expect(deleteCount).to.equal(4);
-  expect(createCount).to.equal(3);
+  await resA;
+  await resB;
 });
 
 testWithBothStores('push', async () => {
@@ -707,6 +533,7 @@ testWithBothStores('push', async () => {
   rep = await replicacheForTesting('push', {
     pushAuth: '1',
     pushURL,
+    pushDelay: 10,
   });
 
   let createCount = 0;
@@ -978,27 +805,6 @@ testWithBothStores('pull', async () => {
   expect(createCount).to.equal(3);
 });
 
-testWithBothStores('sync debouncing', async () => {
-  rep = await replicacheForTesting('sync2');
-
-  const spy = spyInvoke(rep);
-
-  const s1 = rep.sync();
-  const s2 = rep.sync();
-  const s3 = rep.sync();
-  const s4 = rep.sync();
-  await s1;
-  await s2;
-  await s3;
-  await s4;
-
-  await sleep(10);
-
-  const calls = spy.args;
-  const syncCalls = calls.filter(([rpc]) => rpc === 'tryPush').length;
-  expect(syncCalls).to.equal(2);
-});
-
 testWithBothStores('reauth', async () => {
   const pullURL = 'https://diff.com/pull';
 
@@ -1059,11 +865,11 @@ testWithBothStores('closed tx', async () => {
   await expectAsyncFuncToThrow(() => wtx?.del('w'), TransactionClosedError);
 });
 
-testWithBothStores('syncInterval in constructor', async () => {
+testWithBothStores('pullInterval in constructor', async () => {
   const rep = new Replicache({
-    syncInterval: 12.34,
+    pullInterval: 12.34,
   });
-  expect(rep.syncInterval).to.equal(12.34);
+  expect(rep.pullInterval).to.equal(12.34);
   await rep.close();
 });
 
@@ -1404,6 +1210,8 @@ test.skip('mutator optional args [type checking only]', async () => {
 });
 
 testWithBothStores('setLogLevel', async () => {
+  sinon.stub(console, 'log'); // Silence log
+
   // Just testing that no errors are thrown
   rep = await replicacheForTesting('set-log-level');
   await rep.setVerboseWasmLogging(true);
@@ -1725,7 +1533,7 @@ testWithBothStores('push timing', async () => {
 
   expect(tryPushCalls()).to.eq(0);
 
-  await sleep(pushDelay * 10);
+  await sleep(pushDelay + 10);
 
   expect(tryPushCalls()).to.eq(1);
   spy.resetHistory();
@@ -1734,14 +1542,14 @@ testWithBothStores('push timing', async () => {
   const p2 = rep.push();
   const p3 = rep.push();
 
-  expect(tryPushCalls()).to.eq(1);
+  expect(tryPushCalls()).to.eq(0);
 
   await p1;
-  expect(tryPushCalls()).to.eq(2);
+  expect(tryPushCalls()).to.eq(1);
   await p2;
-  expect(tryPushCalls()).to.eq(2);
+  expect(tryPushCalls()).to.eq(1);
   await p3;
-  expect(tryPushCalls()).to.eq(2);
+  expect(tryPushCalls()).to.eq(1);
 });
 
 test('push and pull concurrently', async () => {
@@ -1752,23 +1560,21 @@ test('push and pull concurrently', async () => {
     pullURL,
     pushURL,
     useMemstore: true,
+    pushDelay: 5,
   });
   const spy = spyInvoke(rep);
 
   const add = rep.register('add-data', addData);
 
-  let {promise: promisePush, resolve: resolvePush} = resolver();
-
   const reqs: string[] = [];
 
   fetchMock.post(pushURL, async () => {
-    await promisePush;
     reqs.push(pushURL);
     return {};
   });
   fetchMock.post(pullURL, () => {
     reqs.push(pullURL);
-    return [];
+    return {lastMutationID: 0, patch: []};
   });
 
   await add({a: 0});
@@ -1776,62 +1582,44 @@ test('push and pull concurrently', async () => {
 
   const pushP1 = rep.push();
   const pullP1 = rep.pull();
-  const pushP2 = rep.push();
-  const pushP3 = rep.push();
 
   const resolveOrder: string[] = [];
   pushP1.then(() => resolveOrder.push('pushP1'));
   pullP1.then(() => resolveOrder.push('pullP1'));
-  pushP2.then(() => resolveOrder.push('pushP2'));
-  pushP3.then(() => resolveOrder.push('pushP3'));
+
+  await sleep(10);
 
   const rpcs = () => spy.args.map(a => a[0]);
 
   // Only one push at a time but we want push and pull to be concurrent.
-  expect(rpcs()).to.deep.equal(['tryPush', 'beginTryPull']);
-
-  resolvePush();
+  expect(rpcs()).to.deep.equal(['beginTryPull', 'tryPush']);
 
   await pushP1;
-  ({promise: promisePush, resolve: resolvePush} = resolver());
 
   expect(reqs).to.deep.equal([pullURL, pushURL]);
 
   await pullP1;
 
   expect(reqs).to.deep.equal([pullURL, pushURL]);
-  resolvePush();
-  await pushP2;
 
-  expect(reqs).to.deep.equal([pullURL, pushURL, pushURL]);
-  expect(rpcs()).to.deep.equal(['tryPush', 'beginTryPull', 'tryPush']);
-
-  await pushP3;
-
-  expect(reqs).to.deep.equal([pullURL, pushURL, pushURL]);
-  expect(rpcs()).to.deep.equal(['tryPush', 'beginTryPull', 'tryPush']);
+  expect(rpcs()).to.deep.equal(['beginTryPull', 'tryPush']);
 
   // pull resolves first because it is not waiting for any promise in its
   // fetchMock.
-  expect(resolveOrder).to.deep.equal(['pullP1', 'pushP1', 'pushP2', 'pushP3']);
+  expect(resolveOrder).to.deep.equal(['pullP1', 'pushP1']);
 });
 
 test('schemaVersion pull', async () => {
-  const pullURL = 'https://pull.com/pull';
   const schemaVersion = 'testing-pull';
 
   rep = await replicacheForTesting('schema-version-pull', {
-    pullURL,
     schemaVersion,
   });
-
-  fetchMock.post(pullURL, {});
 
   await rep.pull();
 
   const req = await fetchMock.lastCall().request.json();
   expect(req.schemaVersion).to.deep.equal(schemaVersion);
-  console.log(fetchMock.lastCall());
 });
 
 test('schemaVersion push', async () => {
@@ -1841,6 +1629,7 @@ test('schemaVersion push', async () => {
   rep = await replicacheForTesting('schema-version-push', {
     pushURL,
     schemaVersion,
+    pushDelay: 1,
   });
 
   const add = rep.register('add-data', addData);
@@ -1851,7 +1640,6 @@ test('schemaVersion push', async () => {
 
   const req = await fetchMock.lastCall().request.json();
   expect(req.schemaVersion).to.deep.equal(schemaVersion);
-  console.log(fetchMock.lastCall());
 });
 
 test('clientID', async () => {

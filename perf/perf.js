@@ -63,7 +63,7 @@ async function makeRep() {
   await deleteDatabase(name);
   return new Replicache({
     name,
-    syncInterval: null,
+    pullInterval: null,
   });
 }
 

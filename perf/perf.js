@@ -278,15 +278,15 @@ async function benchmark(fn) {
   /** @type {(() => Promise<void> | void) | undefined} */
   let teardown;
   for (let i = 0; i < minRuns || sum < minTime; i++) {
-    let t0 = Date.now();
+    let t0 = performance.now();
     let t1 = 0;
     await fn(
       {
         reset() {
-          t0 = Date.now();
+          t0 = performance.now();
         },
         stop() {
-          t1 = Date.now();
+          t1 = performance.now();
         },
         /**
          * @param {string} n
@@ -332,7 +332,7 @@ async function benchmark(fn) {
       i,
     );
     if (t1 == 0) {
-      t1 = Date.now();
+      t1 = performance.now();
     }
     const dur = t1 - t0;
     times.push(dur);

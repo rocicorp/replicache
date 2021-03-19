@@ -284,7 +284,7 @@ async fn do_open_transaction<'a, 'b>(
             } = req;
             let mutator_args = mutator_args.ok_or(ArgsRequired)?;
 
-            let lock_timer = rlog::Timer::new().map_err(InternalTimerError)?;
+            let lock_timer = rlog::Timer::new();
             debug!(ctx.lc, "Waiting for write lock...");
             let dag_write = ctx
                 .store
@@ -336,7 +336,7 @@ async fn do_open_index_transaction<'a, 'b>(
 ) -> Result<OpenIndexTransactionResponse, OpenTransactionError> {
     use OpenTransactionError::*;
 
-    let lock_timer = rlog::Timer::new().map_err(InternalTimerError)?;
+    let lock_timer = rlog::Timer::new();
     debug!(ctx.lc, "Waiting for write lock...");
     let dag_write = ctx
         .store
@@ -501,14 +501,12 @@ async fn do_get(read: db::Read<'_>, req: GetRequest) -> Result<GetResponse, Stri
         match req.key[4..].parse::<u64>() {
             Ok(ms) => {
                 use crate::util::uuid;
-                use crate::util::wasm::global_property;
+                use crate::util::wasm::performance_now;
                 use async_std::task;
                 use rand::seq::SliceRandom;
                 use rand::thread_rng;
 
-                let performance = global_property::<web_sys::Performance>("performance")
-                    .expect("performance should be available");
-                let start = performance.now() as u64;
+                let start = performance_now();
 
                 loop {
                     // Give other futures a chance to run. This is essential to testing
@@ -528,7 +526,7 @@ async fn do_get(read: db::Read<'_>, req: GetRequest) -> Result<GetResponse, Stri
                             v.shuffle(&mut thread_rng());
                         }
                     }
-                    let elapsed_ms = performance.now() as u64 - start;
+                    let elapsed_ms = (performance_now() - start) as u64;
                     if elapsed_ms >= ms {
                         break;
                     }
@@ -704,7 +702,6 @@ enum OpenTransactionError {
     InconsistentMutationId(String),
     InconsistentMutator(String),
     InternalProgrammerError(String),
-    InternalTimerError(rlog::TimerError),
     NoSuchBasis(db::ReadCommitError),
     NoSuchOriginal(db::ReadCommitError),
     WrongSyncHeadJSLogInfo(String), // "JSLogInfo" is a signal to bindings to not log this alarmingly.

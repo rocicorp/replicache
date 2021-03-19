@@ -83,7 +83,7 @@ pub async fn dispatch(db_name: String, rpc: String, data: JsValue) -> Response {
     lc.add_context("rpc", &rpc);
     lc.add_context("db", &db_name);
     debug!(lc, "-> data={:?}", &data);
-    let timer = rlog::Timer::new().map_err(to_debug)?;
+    let timer = rlog::Timer::new();
 
     let (tx, rx) = channel::<Response>(1);
     let request = Request {

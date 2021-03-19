@@ -69,7 +69,7 @@ features = [
     "IdbTransaction",
     "IdbTransactionMode",
     "IdbVersionChangeEvent",
-    "Performance",
+    "Performance", # only needed for crates/bench
     "Request",
     "RequestInit",
     "RequestMode",

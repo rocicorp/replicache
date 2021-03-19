@@ -185,7 +185,7 @@ pub async fn push(
             schema_version: req.schema_version,
         };
         debug!(lc, "Starting push...");
-        let push_timer = rlog::Timer::new().map_err(InternalTimerError)?;
+        let push_timer = rlog::Timer::new();
         let (_push_resp, req_info) = pusher
             .push(&push_req, &req.push_url, &req.push_auth, request_id)
             .await

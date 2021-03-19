@@ -1,30 +1,25 @@
 extern crate web_sys;
-use super::super::wasm::global_property;
-use super::errors::TimerError;
+use super::super::wasm::performance_now;
 
 pub struct Timer {
-    start_ms: u64,
-    performance: web_sys::Performance,
+    start_ms: f64,
+}
+
+impl Default for Timer {
+    fn default() -> Self {
+        Timer::new()
+    }
 }
 
 impl Timer {
-    pub fn new() -> Result<Timer, TimerError> {
-        // We could use console::time_with_label here if we wanted.
-        let performance = get_performance()?;
-        let start_ms = performance.now() as u64;
-        Ok(Timer {
-            start_ms,
-            performance,
-        })
+    pub fn new() -> Timer {
+        // Consider using Date.now() since we do not use the fractions anyway
+        Timer {
+            start_ms: performance_now(),
+        }
     }
 
     pub fn elapsed_ms(self) -> u64 {
-        let end_ms = self.performance.now() as u64;
-        end_ms - self.start_ms
+        (performance_now() - self.start_ms) as u64
     }
-}
-
-fn get_performance() -> Result<web_sys::Performance, TimerError> {
-    use TimerError::*;
-    global_property("performance").map_err(|_| NoPerformanceTimer)
 }

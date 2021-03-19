@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{dag, db, util::rlog};
+use crate::{dag, db};
 
 use super::{patch, PullError, PushError};
 
@@ -86,7 +86,6 @@ pub enum TryPushError {
     InternalGetPendingCommitsError(db::WalkChainError),
     InternalNoMainHeadError,
     InternalNonLocalPendingCommit,
-    InternalTimerError(rlog::TimerError),
     PushFailed(PushError),
     ReadError(dag::Error),
 }
@@ -100,7 +99,6 @@ pub enum BeginTryPullError {
     InternalNoMainHeadError,
     InternalProgrammerError(db::InternalProgrammerError),
     InternalRebuildIndexError(db::CreateIndexError),
-    InternalTimerError(rlog::TimerError),
     InvalidBaseSnapshotCookie(serde_json::error::Error),
     LockError(dag::Error),
     MainHeadDisappeared,

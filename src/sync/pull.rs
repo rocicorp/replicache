@@ -62,7 +62,7 @@ pub async fn begin_pull(
         schema_version,
     };
     debug!(lc, "Starting pull...");
-    let pull_timer = rlog::Timer::new().map_err(InternalTimerError)?;
+    let pull_timer = rlog::Timer::new();
     let (pull_resp, http_request_info) = puller
         .pull(&pull_req, &pull_url, &pull_auth, &request_id)
         .await

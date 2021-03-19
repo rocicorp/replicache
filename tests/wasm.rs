@@ -4,11 +4,12 @@ use futures::join;
 use rand::Rng;
 use regex::Regex;
 use replicache_client::db::ScanOptions;
+use replicache_client::embed::types::*;
 use replicache_client::sync;
 use replicache_client::util::rlog;
 use replicache_client::util::to_debug;
+use replicache_client::util::wasm::performance_now;
 use replicache_client::wasm;
-use replicache_client::{embed::types::*, util::wasm::global_property};
 #[allow(unused_imports)]
 use replicache_client::{fetch, util::uuid::make_random_numbers};
 use serde::de::DeserializeOwned;
@@ -273,8 +274,6 @@ async fn test_open_close() {
 async fn test_concurrency_within_a_read_tx() {
     for use_memstore in vec![true, false] {
         let db = &random_db();
-        let performance = global_property::<web_sys::Performance>("performance")
-            .expect("performance should be available");
 
         let client_id = dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
             .await
@@ -287,7 +286,7 @@ async fn test_concurrency_within_a_read_tx() {
         let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
             .await
             .transaction_id;
-        let now_ms = performance.now();
+        let now_ms = performance_now();
         join!(
             async {
                 // Note: could use atomic counters if we wanted, see
@@ -298,7 +297,7 @@ async fn test_concurrency_within_a_read_tx() {
                 get(db, txn_id, "sleep100").await;
             }
         );
-        let elapsed_ms = performance.now() - now_ms;
+        let elapsed_ms = performance_now() - now_ms;
         abort(db, txn_id).await;
         assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
         assert_eq!(elapsed_ms >= 100., true);
@@ -1410,7 +1409,7 @@ async fn test_set_log_level() {
 
 #[wasm_bindgen_test]
 fn test_browser_timer() {
-    let timer = rlog::Timer::new().unwrap();
+    let timer = rlog::Timer::new();
     // Sleep is a PITA so we'll leave it at "it doesn't error".
     timer.elapsed_ms();
 }

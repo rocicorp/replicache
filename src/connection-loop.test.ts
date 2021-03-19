@@ -371,7 +371,7 @@ test('error', async () => {
   requestCount = 0;
 
   while (requestCount < 10) {
-    send().catch(() => 0);
+    send();
     await clock.tickAsync(30);
   }
 
@@ -432,28 +432,6 @@ test('error', async () => {
     'f20:61835',
     'f21:61865',
   ]);
-});
-
-test('resolve order', async () => {
-  createLoop({
-    requestTime: 50,
-  });
-
-  const plog: string[] = [];
-  send().then(() => plog.push('A'));
-  send().then(() => plog.push('B'));
-  send().then(() => plog.push('C'));
-
-  await clock.tickAsync(40);
-
-  send().then(() => plog.push('D'));
-  send().then(() => plog.push('E'));
-  send().then(() => plog.push('F'));
-
-  await clock.runAllAsync();
-
-  expect(plog).to.deep.equal(['A', 'B', 'C', 'D', 'E', 'F']);
-  expect(log).to.deep.equal(['s0:10', 's1:50', 'f0:60', 'f1:100']);
 });
 
 test('watchdog timer', async () => {

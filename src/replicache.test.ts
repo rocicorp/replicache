@@ -14,7 +14,23 @@ import type {SinonSpy} from 'sinon';
 import fetchMock from 'fetch-mock/esm/client.js';
 import type {Invoke} from './repm-invoker.js';
 import type {ScanOptions} from './scan-options.js';
-import {sleep} from './sleep.js';
+
+import {SinonFakeTimers, useFakeTimers} from 'sinon';
+
+let clock: SinonFakeTimers;
+setup(function () {
+  clock = useFakeTimers(0);
+});
+
+teardown(function () {
+  clock.restore();
+});
+
+async function tickAFewTimes(n = 10, time = 10) {
+  for (let i = 0; i < n; i++) {
+    await clock.tickAsync(time);
+  }
+}
 
 fetchMock.config.overwriteRoutes = true;
 
@@ -510,7 +526,7 @@ testWithBothStores('overlapping writes', async () => {
 
   let resA = mut({duration: 250, ret: 'a'});
   // create a gap to make sure resA starts first (our rwlock isn't fair).
-  await sleep(100);
+  await clock.tickAsync(100);
   let resB = mut({duration: 0, ret: 'b'});
   // race them, a should complete first, indicating that b waited
   expect(await Promise.race([resA, resB])).to.equal('a');
@@ -519,11 +535,14 @@ testWithBothStores('overlapping writes', async () => {
 
   // reads wait on writes
   resA = mut({duration: 250, ret: 'a'});
-  await sleep(100);
+  await clock.tickAsync(100);
   resB = rep.query(() => 'b');
+  await tickAFewTimes();
   expect(await Promise.race([resA, resB])).to.equal('a');
 
+  await tickAFewTimes();
   await resA;
+  await tickAFewTimes();
   await resB;
 });
 
@@ -569,7 +588,8 @@ testWithBothStores('push', async () => {
       {id: 2, error: 'deleteTodo: todo not found'},
     ],
   });
-  await rep.push();
+  rep.push();
+  await tickAFewTimes();
   expect(deleteCount).to.equal(2);
   const {mutations} = await fetchMock.lastCall().request.json();
   expect(mutations).to.deep.equal([
@@ -580,7 +600,8 @@ testWithBothStores('push', async () => {
   fetchMock.postOnce(pushURL, {
     mutationInfos: [],
   });
-  await rep.push();
+  rep.push();
+  await tickAFewTimes();
   {
     const {mutations} = await fetchMock.lastCall().request.json();
     expect(mutations).to.deep.equal([
@@ -601,7 +622,8 @@ testWithBothStores('push', async () => {
   fetchMock.postOnce(pushURL, {
     mutationInfos: [{id: 3, error: 'mutation has already been processed'}],
   });
-  await rep.push();
+  rep.push();
+  await tickAFewTimes();
   {
     const {mutations} = await fetchMock.lastCall().request.json();
     expect(mutations).to.deep.equal([
@@ -630,7 +652,8 @@ testWithBothStores('push', async () => {
   fetchMock.postOnce(pushURL, {
     mutationInfos: [],
   });
-  await rep.push();
+  rep.push();
+  await tickAFewTimes();
   {
     const {mutations} = await fetchMock.lastCall().request.json();
     expect(mutations).to.deep.equal([
@@ -675,7 +698,7 @@ testWithBothStores('push delay', async () => {
 
   expect(fetchMock.calls()).to.have.length(0);
 
-  await sleep(25);
+  await tickAFewTimes();
 
   expect(fetchMock.calls()).to.have.length(1);
 });
@@ -732,7 +755,8 @@ testWithBothStores('pull', async () => {
       },
     ],
   });
-  await rep.pull();
+  rep.pull();
+  await tickAFewTimes();
   expect(deleteCount).to.equal(2);
 
   fetchMock.postOnce(pullURL, {
@@ -799,7 +823,8 @@ testWithBothStores('pull', async () => {
     lastMutationID: 6,
     patch: [{op: 'del', key: '/todo/14323534'}],
   });
-  await rep.pull();
+  rep.pull();
+  await tickAFewTimes();
 
   expect(deleteCount).to.equal(4);
   expect(createCount).to.equal(3);
@@ -1440,7 +1465,7 @@ testWithBothStores('onSync', async () => {
   const pullURL = 'https://pull.com/pull';
   const pushURL = 'https://push.com/push';
 
-  rep = await replicacheForTesting('onSync', {pullURL, pushURL, pushDelay: 1});
+  rep = await replicacheForTesting('onSync', {pullURL, pushURL, pushDelay: 5});
   const add = rep.register('add-data', addData);
 
   const onSync = sinon.fake();
@@ -1453,14 +1478,18 @@ testWithBothStores('onSync', async () => {
     lastMutationID: 2,
     patch: [],
   });
-  await rep.pull();
+  rep.pull();
+  await tickAFewTimes(10);
+
   expect(onSync.callCount).to.eq(2);
   expect(onSync.getCall(0).args[0]).to.be.true;
   expect(onSync.getCall(1).args[0]).to.be.false;
 
   onSync.resetHistory();
   fetchMock.postOnce(pushURL, {});
-  await rep.push();
+  rep.push();
+  await tickAFewTimes();
+
   expect(onSync.callCount).to.eq(2);
   expect(onSync.getCall(0).args[0]).to.be.true;
   expect(onSync.getCall(1).args[0]).to.be.false;
@@ -1468,7 +1497,7 @@ testWithBothStores('onSync', async () => {
   fetchMock.postOnce(pushURL, {});
   onSync.resetHistory();
   await add({a: 'a'});
-  await sleep(25);
+  await tickAFewTimes();
   expect(onSync.callCount).to.eq(2);
   expect(onSync.getCall(0).args[0]).to.be.true;
   expect(onSync.getCall(1).args[0]).to.be.false;
@@ -1483,7 +1512,11 @@ testWithBothStores('onSync', async () => {
       fetchMock.postOnce({url: pushURL, headers: {authorization: 'ok'}}, {});
       return 'ok';
     };
-    await rep.push();
+
+    rep.push();
+    for (let i = 0; i < 5; i++) {
+      await clock.tickAsync(10);
+    }
     expect(consoleErrorStub.firstCall.args[0]).to.equal(
       'Got error response from server (https://push.com/push) doing push: 401: xxx',
     );
@@ -1516,7 +1549,8 @@ testWithBothStores('push timing', async () => {
   const add = rep.register('add-data', addData);
 
   fetchMock.post(pushURL, {});
-  await rep.push();
+  rep.push();
+  await tickAFewTimes();
 
   const tryPushCalls = () =>
     spy.args.filter(([rpc]) => rpc === 'tryPush').length;
@@ -1533,7 +1567,7 @@ testWithBothStores('push timing', async () => {
 
   expect(tryPushCalls()).to.eq(0);
 
-  await sleep(pushDelay + 10);
+  await clock.tickAsync(pushDelay + 10);
 
   expect(tryPushCalls()).to.eq(1);
   spy.resetHistory();
@@ -1544,10 +1578,13 @@ testWithBothStores('push timing', async () => {
 
   expect(tryPushCalls()).to.eq(0);
 
+  await tickAFewTimes();
   await p1;
   expect(tryPushCalls()).to.eq(1);
+  await tickAFewTimes();
   await p2;
   expect(tryPushCalls()).to.eq(1);
+  await tickAFewTimes();
   await p3;
   expect(tryPushCalls()).to.eq(1);
 });
@@ -1583,30 +1620,24 @@ test('push and pull concurrently', async () => {
   const pushP1 = rep.push();
   const pullP1 = rep.pull();
 
-  const resolveOrder: string[] = [];
-  pushP1.then(() => resolveOrder.push('pushP1'));
-  pullP1.then(() => resolveOrder.push('pullP1'));
-
-  await sleep(10);
+  await clock.tickAsync(10);
 
   const rpcs = () => spy.args.map(a => a[0]);
 
   // Only one push at a time but we want push and pull to be concurrent.
   expect(rpcs()).to.deep.equal(['beginTryPull', 'tryPush']);
 
+  await tickAFewTimes();
   await pushP1;
 
   expect(reqs).to.deep.equal([pullURL, pushURL]);
 
+  await tickAFewTimes();
   await pullP1;
 
   expect(reqs).to.deep.equal([pullURL, pushURL]);
 
   expect(rpcs()).to.deep.equal(['beginTryPull', 'tryPush']);
-
-  // pull resolves first because it is not waiting for any promise in its
-  // fetchMock.
-  expect(resolveOrder).to.deep.equal(['pullP1', 'pushP1']);
 });
 
 test('schemaVersion pull', async () => {
@@ -1616,7 +1647,8 @@ test('schemaVersion pull', async () => {
     schemaVersion,
   });
 
-  await rep.pull();
+  rep.pull();
+  await tickAFewTimes();
 
   const req = await fetchMock.lastCall().request.json();
   expect(req.schemaVersion).to.deep.equal(schemaVersion);
@@ -1636,7 +1668,8 @@ test('schemaVersion push', async () => {
   await add({a: 1});
 
   fetchMock.post(pushURL, {});
-  await rep.push();
+  rep.push();
+  await tickAFewTimes();
 
   const req = await fetchMock.lastCall().request.json();
   expect(req.schemaVersion).to.deep.equal(schemaVersion);

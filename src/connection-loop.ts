@@ -51,11 +51,6 @@ export class ConnectionLoop {
   // state.
   private _pendingResolver = resolver<void>();
 
-  // Controls when send() will return. This is purely a convenience to callers
-  // who might want to know when the related push/pull operation actually
-  // competed without using the onSync API.
-  private _currentResolver = resolver<void>();
-
   private readonly _delegate: ConnectionLoopDelegate;
   private _closed = false;
 
@@ -68,10 +63,9 @@ export class ConnectionLoop {
     this._closed = true;
   }
 
-  async send(): Promise<void> {
+  send(): void {
     this._delegate.log?.('send');
     this._pendingResolver.resolve();
-    await this._currentResolver.promise;
   }
 
   async run(): Promise<void> {
@@ -98,13 +92,6 @@ export class ConnectionLoop {
           ? 'Last request failed. Trying again'
           : 'Waiting for a send',
       );
-
-      // The current resolver is used to make the individual calls to exeute
-      // have the correct "duration".
-      const currentResolver = resolver();
-      this._currentResolver = currentResolver;
-      // Don't let this rejected promise escape.
-      currentResolver.promise.catch(() => 0);
 
       // Wait until send is called or until the watchdog timer fires.
       const races = [this._pendingResolver.promise];
@@ -183,11 +170,8 @@ export class ConnectionLoop {
         counter--;
         this._connectionAvailable();
         if (err) {
-          currentResolver.reject(err);
           // Keep trying
           this._pendingResolver.resolve();
-        } else {
-          currentResolver.resolve();
         }
       })();
     }

@@ -590,16 +590,16 @@ export default class Replicache implements ReadTransaction {
    * (which it is by default) pushes happen automatically shortly after
    * mutations.
    */
-  async push(): Promise<void> {
-    await this._pushConnectionLoop.send();
+  push(): void {
+    this._pushConnectionLoop.send();
   }
 
   /**
    * Pull pulls changes from the [[pullURL]]. If there are any changes
    * local changes will get replayed on top of the new server state.
    */
-  async pull(): Promise<void> {
-    await this._pullConnectionLoop.send();
+  pull(): void {
+    this._pullConnectionLoop.send();
   }
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {

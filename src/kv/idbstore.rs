@@ -9,8 +9,24 @@ use futures::channel::oneshot;
 use futures::future::join_all;
 use std::collections::HashMap;
 use wasm_bindgen::closure::Closure;
+use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{IdbDatabase, IdbFactory, IdbTransaction};
+use web_sys::{IdbDatabase, IdbFactory, IdbObjectStore, IdbTransaction};
+
+#[wasm_bindgen(module = "/src/kv/idbstore.js")]
+extern "C" {
+    #[wasm_bindgen(catch, js_name = writeTransaction)]
+    fn write_transaction(idb: &IdbDatabase) -> std::result::Result<IdbTransaction, JsValue>;
+
+    #[wasm_bindgen(catch, js_name = readTransaction)]
+    fn read_transaction(idb: &IdbDatabase) -> std::result::Result<IdbTransaction, JsValue>;
+
+    #[wasm_bindgen(catch, js_name = createObjectStore)]
+    fn create_object_store(idb: &IdbDatabase) -> std::result::Result<IdbObjectStore, JsValue>;
+
+    #[wasm_bindgen(catch, js_name = objectStore)]
+    fn object_store(tx: &IdbTransaction) -> std::result::Result<IdbObjectStore, JsValue>;
+}
 
 impl From<String> for StoreError {
     fn from(err: String) -> StoreError {
@@ -48,7 +64,7 @@ pub struct IdbStore {
     //
     // Note:
     // - per https://www.w3.org/TR/IndexedDB-2/#transaction-lifetime-concept
-    //      read transacitons can be executed concurrently with readwrite txs
+    //      read transactions can be executed concurrently with readwrite txs
     //      if the read tx is snapshot isolated and started before the readwrite tx.
     //      Browsers however do not do this.
     // - idb v1 api allowed read txs to be re-ordered before write txs, meaning
@@ -80,8 +96,6 @@ pub struct IdbStore {
     db: RwLock<IdbDatabase>,
 }
 
-const OBJECT_STORE: &str = "chunks";
-
 impl IdbStore {
     pub async fn new(name: &str) -> Result<IdbStore> {
         let lc = LogContext::new();
@@ -101,7 +115,7 @@ impl IdbStore {
 
             let db = web_sys::IdbDatabase::unchecked_from_js(result);
 
-            if let Err(e) = db.create_object_store(OBJECT_STORE) {
+            if let Err(e) = create_object_store(&db) {
                 error!(closure_lc, "Create object store failed: {:?}", e);
             }
         });
@@ -156,14 +170,13 @@ impl IdbStore {
 impl Store for IdbStore {
     async fn read<'a>(&'a self, lc: LogContext) -> Result<Box<dyn Read + 'a>> {
         let db_guard = self.db.read().await;
-        let tx = db_guard.transaction_with_str(OBJECT_STORE)?;
+        let tx = read_transaction(&db_guard)?;
         Ok(Box::new(ReadTransaction::new(db_guard, tx, lc)))
     }
 
     async fn write<'a>(&'a self, lc: LogContext) -> Result<Box<dyn Write + 'a>> {
         let db_guard = self.db.write().await;
-        let tx = db_guard
-            .transaction_with_str_and_mode(OBJECT_STORE, web_sys::IdbTransactionMode::Readwrite)?;
+        let tx = write_transaction(&db_guard)?;
         Ok(Box::new(WriteTransaction::new(db_guard, tx, lc)))
     }
 
@@ -201,7 +214,7 @@ impl Read for ReadTransaction<'_> {
 }
 
 async fn has_impl(tx: &IdbTransaction, key: &str, lc: LogContext) -> Result<bool> {
-    let request = tx.object_store(OBJECT_STORE)?.count_with_key(&key.into())?;
+    let request = object_store(tx)?.count_with_key(&key.into())?;
     let (callback, receiver) = IdbStore::oneshot_callback(lc.clone());
     request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
     request.set_onerror(Some(callback.as_ref().unchecked_ref()));
@@ -218,7 +231,7 @@ async fn has_impl(tx: &IdbTransaction, key: &str, lc: LogContext) -> Result<bool
 }
 
 async fn get_impl(tx: &IdbTransaction, key: &str, lc: LogContext) -> Result<Option<Vec<u8>>> {
-    let request = tx.object_store(OBJECT_STORE)?.get(&key.into())?;
+    let request = object_store(tx)?.get(&key.into())?;
     let (callback, receiver) = IdbStore::oneshot_callback(lc);
     request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
     request.set_onerror(Some(callback.as_ref().unchecked_ref()));
@@ -348,7 +361,7 @@ impl Write for WriteTransaction<'_> {
             return Ok(());
         }
 
-        let store = self.tx.object_store(OBJECT_STORE)?;
+        let store = object_store(&self.tx)?;
         let mut callbacks = Vec::with_capacity(pending.len());
         let mut requests: Vec<oneshot::Receiver<()>> = Vec::with_capacity(pending.len());
         for (key, value) in pending.iter() {

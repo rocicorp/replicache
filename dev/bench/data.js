@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1615865922954,
+  "lastUpdate": 1616175565906,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -16271,6 +16271,114 @@ window.BENCHMARK_DATA = {
           {
             "name": "create index 1024x5000",
             "value": 4.33,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "9 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "608c75531226c7c42c41d9aff506d0ebdc531b12",
+          "message": "Use the ConnectionLoop for push and pull (#309)\n\n* Use the ConnectionLoop for push and pull\r\n\r\nBreaking change! This removes `sync` and renames `syncInterval` to\r\n`pullInterval`.\r\n\r\nFixes #294",
+          "timestamp": "2021-03-19T10:36:24-07:00",
+          "tree_id": "c28c43edec4b9d8cf4128f26f4df252ab7e44fca",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/608c75531226c7c42c41d9aff506d0ebdc531b12"
+        },
+        "date": 1616175564813,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.06,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.93,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "10 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.69,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.97,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 5.64,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "12 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 5.74,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 20.35,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "42 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 18.64,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 50,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "98 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 35.71,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "78 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 18.52,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "37 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 4.08,
             "range": "±0.0%",
             "unit": "op/s",
             "extra": "9 samples"

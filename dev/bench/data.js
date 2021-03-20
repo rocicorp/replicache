@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1616190203668,
+  "lastUpdate": 1616277039164,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -16598,6 +16598,114 @@ window.BENCHMARK_DATA = {
             "range": "±0.0%",
             "unit": "op/s",
             "extra": "9 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f74f6191c78ffb0f7fea3ff05a76c0a065dcbe8f",
+          "message": "Use an enum for RPC instead of strings (#249)\n\nStrings are slow for JS <-> Rust",
+          "timestamp": "2021-03-20T14:47:39-07:00",
+          "tree_id": "0c4b111bdb08dee5d0b530078fa8e9928151c2d0",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/f74f6191c78ffb0f7fea3ff05a76c0a065dcbe8f"
+        },
+        "date": 1616277037291,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.93,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 5.48,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "12 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 3.44,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 0.47,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.84,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "14 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.95,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 24.12,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "49 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 21.75,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "10 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 47.53,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "95 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 36.52,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "77 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 22.12,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "45 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 5,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "10 samples"
           }
         ]
       }

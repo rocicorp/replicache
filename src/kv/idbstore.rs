@@ -1,7 +1,6 @@
 use crate::kv::{Read, Result, Store, StoreError, Write};
 use crate::util::rlog::LogContext;
 use crate::util::to_debug;
-use crate::util::wasm::global_property;
 use async_std::sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use async_std::task;
 use async_trait::async_trait;
@@ -11,18 +10,27 @@ use std::collections::HashMap;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{IdbDatabase, IdbFactory, IdbObjectStore, IdbTransaction};
+use web_sys::{IdbDatabase, IdbObjectStore, IdbOpenDbRequest, IdbTransaction};
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(catch, js_name = open, js_namespace = indexedDB)]
+    fn open_database(name: &str) -> std::result::Result<IdbOpenDbRequest, JsValue>;
+
+    #[wasm_bindgen(catch, js_name = deleteDatabase, js_namespace = indexedDB)]
+    fn delete_database(name: &str) -> std::result::Result<IdbOpenDbRequest, JsValue>;
+}
 
 #[wasm_bindgen(module = "/src/kv/idbstore.js")]
 extern "C" {
-    #[wasm_bindgen(catch, js_name = writeTransaction)]
-    fn write_transaction(idb: &IdbDatabase) -> std::result::Result<IdbTransaction, JsValue>;
+    #[wasm_bindgen(catch, js_name = createObjectStore)]
+    fn create_object_store(idb: &IdbDatabase) -> std::result::Result<IdbObjectStore, JsValue>;
 
     #[wasm_bindgen(catch, js_name = readTransaction)]
     fn read_transaction(idb: &IdbDatabase) -> std::result::Result<IdbTransaction, JsValue>;
 
-    #[wasm_bindgen(catch, js_name = createObjectStore)]
-    fn create_object_store(idb: &IdbDatabase) -> std::result::Result<IdbObjectStore, JsValue>;
+    #[wasm_bindgen(catch, js_name = writeTransaction)]
+    fn write_transaction(idb: &IdbDatabase) -> std::result::Result<IdbTransaction, JsValue>;
 
     #[wasm_bindgen(catch, js_name = objectStore)]
     fn object_store(tx: &IdbTransaction) -> std::result::Result<IdbObjectStore, JsValue>;
@@ -99,8 +107,7 @@ pub struct IdbStore {
 impl IdbStore {
     pub async fn new(name: &str) -> Result<IdbStore> {
         let lc = LogContext::new();
-        let factory: IdbFactory = global_property("indexedDB")?;
-        let request = factory.open(name)?;
+        let request = open_database(name)?;
         let (callback, receiver) = IdbStore::oneshot_callback(lc.clone());
         let request_copy = request.clone();
         let closure_lc = lc.clone();
@@ -138,8 +145,7 @@ impl IdbStore {
     }
 
     pub async fn drop_store(name: &str, lc: LogContext) -> Result<()> {
-        let factory: IdbFactory = global_property("indexedDB")?;
-        let request = factory.delete_database(name)?;
+        let request = delete_database(name)?;
         let (callback, receiver) = IdbStore::oneshot_callback(lc);
         request.set_onsuccess(Some(callback.as_ref().unchecked_ref()));
         request.set_onerror(Some(callback.as_ref().unchecked_ref()));

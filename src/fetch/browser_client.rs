@@ -2,13 +2,20 @@ use crate::fetch::errors::FetchError;
 use crate::fetch::errors::FetchError::*;
 use crate::fetch::timeout::with_timeout;
 use crate::util::to_debug;
-use js_sys::{Function, Promise, Reflect};
+use js_sys::Promise;
 use std::convert::TryFrom;
 use std::time::Duration;
+use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{RequestInit, RequestMode};
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(catch, js_name = fetch)]
+    fn js_fetch(req: &web_sys::Request) -> std::result::Result<Promise, JsValue>;
+}
 
 // js makes request() map_err calls nicer by converting opaque JsValue errors
 // into js_sys::Error's and debug-printing their content.
@@ -108,17 +115,5 @@ impl Client {
 
 /// Like window().fetch_with_request but works in workers and main thread.
 fn fetch_with_request(req: &web_sys::Request) -> Result<Promise, FetchError> {
-    use FetchError::*;
-
-    let global = js_sys::global();
-    let key = JsValue::from_str("fetch");
-    let js_fetch: Function = Reflect::get(&global, &key)
-        .map_err(NoFetch)?
-        .dyn_into()
-        .map_err(NoFetch)?;
-    js_fetch
-        .call1(&JsValue::undefined(), req)
-        .map_err(FetchFailed)?
-        .dyn_into()
-        .map_err(FetchFailed)
+    js_fetch(req).map_err(FetchError::FetchFailed)
 }

@@ -1,7 +1,11 @@
-#[cfg(target_arch = "wasm32")]
-use super::wasm::global_property;
 use std::char;
 use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(catch, js_name = getRandomValues, js_namespace = crypto)]
+    fn get_random_values(arr: &mut [u8]) -> std::result::Result<(), JsValue>;
+}
 
 #[derive(Debug)]
 pub enum UuidError {
@@ -16,12 +20,7 @@ pub fn uuid() -> Result<String, UuidError> {
 
 #[cfg(target_arch = "wasm32")]
 pub fn make_random_numbers(numbers: &mut [u8]) -> Result<(), UuidError> {
-    use UuidError::*;
-    global_property::<web_sys::Crypto>("crypto")
-        .map_err(NoCryptoGetRandomValues)?
-        .get_random_values_with_u8_array(numbers)
-        .map_err(NoCryptoGetRandomValues)?;
-    Ok(())
+    get_random_values(numbers).map_err(UuidError::NoCryptoGetRandomValues)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

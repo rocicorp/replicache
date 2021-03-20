@@ -41,19 +41,3 @@ module: {
   ]
 }
 ```
-
-## Specify the path to the wasm module in Replicache constructor
-
-When you instantiate Replicache, you need to tell it where the Wasm module is, since webpack is not bundling it for us:
-
-```js
-const rep = new Replicache({
-  ...
-
-  // Only needed if replicache.wasm is not a sibling to the location the JS
-  // is loading from.
-  wasmModule: '/node_modules/replicache/out/replicache.wasm',
-});
-```
-
-If you know how to teach webpack 4 to properly bundle the wasm module, please let us know 😀.

@@ -7,6 +7,7 @@ import {
   REPMWasmInvoker,
   InitInput,
   OpenResponse,
+  RPC,
 } from './repm-invoker.js';
 import {
   CreateIndexDefinition,
@@ -246,7 +247,7 @@ export default class Replicache implements ReadTransaction {
   }
 
   private async _open(): Promise<void> {
-    this._openResponse = this._repmInvoker.invoke(this._name, 'open', {
+    this._openResponse = this._repmInvoker.invoke(this._name, RPC.Open, {
       useMemstore: this._useMemstore,
     });
     this._setRoot(this._getRoot());
@@ -291,7 +292,7 @@ export default class Replicache implements ReadTransaction {
    */
   async close(): Promise<void> {
     this._closed = true;
-    const p = this._invoke('close');
+    const p = this._invoke(RPC.Close);
 
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
@@ -311,7 +312,7 @@ export default class Replicache implements ReadTransaction {
     if (this._closed) {
       return undefined;
     }
-    const res = await this._invoke('getRoot');
+    const res = await this._invoke(RPC.GetRoot);
     return res.root;
   }
 
@@ -343,7 +344,7 @@ export default class Replicache implements ReadTransaction {
   }
 
   private _invoke: Invoke = async (
-    rpc: string,
+    rpc: RPC,
     args?: JSONValue,
   ): Promise<JSONValue> => {
     await this._openResponse;
@@ -448,7 +449,7 @@ export default class Replicache implements ReadTransaction {
     let {syncHead} = beginPullResult;
 
     const {replayMutations} = await this._invoke(
-      'maybeEndTryPull',
+      RPC.MaybeEndTryPull,
       beginPullResult,
     );
     if (!replayMutations || replayMutations.length === 0) {
@@ -550,7 +551,7 @@ export default class Replicache implements ReadTransaction {
       let pushResponse;
       try {
         this._changeSyncCounters(1, 0);
-        pushResponse = await this._invoke('tryPush', {
+        pushResponse = await this._invoke(RPC.TryPush, {
           pushURL: this._pushURL,
           pushAuth: this._pushAuth,
           schemaVersion: this._schemaVersion,
@@ -603,7 +604,7 @@ export default class Replicache implements ReadTransaction {
   }
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
-    const beginPullResponse = await this._invoke('beginTryPull', {
+    const beginPullResponse = await this._invoke(RPC.BeginTryPull, {
       pullAuth: this._pullAuth,
       pullURL: this._pullURL,
       schemaVersion: this._schemaVersion,
@@ -870,7 +871,7 @@ export default class Replicache implements ReadTransaction {
    * Inspector you also need to change the console log level to `Verbose`.
    */
   async setVerboseWasmLogging(verbose: boolean): Promise<void> {
-    await this._invoke('setLogLevel', {level: verbose ? 'debug' : 'info'});
+    await this._invoke(RPC.SetLogLevel, {level: verbose ? 'debug' : 'info'});
   }
 }
 

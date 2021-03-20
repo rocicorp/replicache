@@ -12,7 +12,7 @@ import type {SinonSpy} from 'sinon';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 import fetchMock from 'fetch-mock/esm/client.js';
-import type {Invoke} from './repm-invoker.js';
+import {Invoke, RPC} from './repm-invoker.js';
 import type {ScanOptions} from './scan-options.js';
 
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
@@ -912,7 +912,11 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
   function expectCalls(l: JSONValue[]) {
     expect(l).to.deep.equal(log);
     const rpcs = spy.args.map(([rpc]) => rpc);
-    expect(rpcs).to.deep.equal(['openTransaction', 'scan', 'closeTransaction']);
+    expect(rpcs).to.deep.equal([
+      RPC.OpenTransaction,
+      RPC.Scan,
+      RPC.CloseTransaction,
+    ]);
   }
 
   const it = rep.scan();
@@ -1553,7 +1557,7 @@ testWithBothStores('push timing', async () => {
   await tickAFewTimes();
 
   const tryPushCalls = () =>
-    spy.args.filter(([rpc]) => rpc === 'tryPush').length;
+    spy.args.filter(([rpc]) => rpc === RPC.TryPush).length;
 
   expect(tryPushCalls()).to.eq(1);
 
@@ -1625,7 +1629,7 @@ test('push and pull concurrently', async () => {
   const rpcs = () => spy.args.map(a => a[0]);
 
   // Only one push at a time but we want push and pull to be concurrent.
-  expect(rpcs()).to.deep.equal(['beginTryPull', 'tryPush']);
+  expect(rpcs()).to.deep.equal([RPC.BeginTryPull, RPC.TryPush]);
 
   await tickAFewTimes();
   await pushP1;
@@ -1637,7 +1641,7 @@ test('push and pull concurrently', async () => {
 
   expect(reqs).to.deep.equal([pullURL, pushURL]);
 
-  expect(rpcs()).to.deep.equal(['beginTryPull', 'tryPush']);
+  expect(rpcs()).to.deep.equal([RPC.BeginTryPull, RPC.TryPush]);
 });
 
 test('schemaVersion pull', async () => {

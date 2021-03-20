@@ -12,4 +12,5 @@ mod connection;
 mod dispatch;
 
 pub mod types;
+pub use connection::Rpc;
 pub use dispatch::dispatch;

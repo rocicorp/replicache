@@ -3,13 +3,13 @@
 use futures::join;
 use rand::Rng;
 use regex::Regex;
-use replicache_client::db::ScanOptions;
 use replicache_client::embed::types::*;
 use replicache_client::sync;
 use replicache_client::util::rlog;
 use replicache_client::util::to_debug;
 use replicache_client::util::wasm::performance_now;
 use replicache_client::wasm;
+use replicache_client::{db::ScanOptions, embed::Rpc};
 #[allow(unused_imports)]
 use replicache_client::{fetch, util::uuid::make_random_numbers};
 use serde::de::DeserializeOwned;
@@ -35,7 +35,7 @@ fn random_db() -> String {
 }
 
 // TODO: Can we deserialize back to the original enum?
-async fn dispatch<Request, Response>(db: &str, rpc: &str, req: Request) -> Result<Response, String>
+async fn dispatch<Request, Response>(db: &str, rpc: Rpc, req: Request) -> Result<Response, String>
 where
     Request: Serialize,
     Response: DeserializeOwned,
@@ -45,7 +45,7 @@ where
 
 async fn dispatch_with_scan_receiver<Request, Response>(
     db: &str,
-    rpc: &str,
+    rpc: Rpc,
     req: Request,
     scan_receiver: Option<js_sys::Function>,
 ) -> Result<Response, String>
@@ -60,7 +60,7 @@ where
         let receiver_jsvalue: JsValue = scan_receiver.into();
         js_sys::Reflect::set(&req, &JsValue::from_str("receiver"), &receiver_jsvalue).unwrap();
     }
-    let resp = wasm::dispatch(db.to_string(), rpc.to_string(), req).await;
+    let resp = wasm::dispatch(db.to_string(), rpc as u8, req).await;
     resp.map(|v| serde_wasm_bindgen::from_value(v).unwrap())
         .map_err(|e| serde_wasm_bindgen::from_value(e).unwrap())
 }
@@ -73,7 +73,7 @@ async fn open_transaction(
 ) -> OpenTransactionResponse {
     dispatch(
         db_name,
-        "openTransaction",
+        Rpc::OpenTransaction,
         &OpenTransactionRequest {
             name: fn_name,
             args: Some(serde_json::to_string(&args).unwrap()),
@@ -87,7 +87,7 @@ async fn open_transaction(
 async fn open_index_transaction(db_name: &str) -> OpenIndexTransactionResponse {
     dispatch(
         db_name,
-        "openIndexTransaction",
+        Rpc::OpenIndexTransaction,
         &OpenIndexTransactionRequest {},
     )
     .await
@@ -97,7 +97,7 @@ async fn open_index_transaction(db_name: &str) -> OpenIndexTransactionResponse {
 async fn put(db_name: &str, transaction_id: u32, key: &str, value: &str) {
     let _: PutResponse = dispatch(
         db_name,
-        "put",
+        Rpc::Put,
         &PutRequest {
             transaction_id,
             key: key.to_string(),
@@ -111,7 +111,7 @@ async fn put(db_name: &str, transaction_id: u32, key: &str, value: &str) {
 async fn has(db_name: &str, txn_id: u32, key: &str) -> bool {
     let response: HasResponse = dispatch(
         db_name,
-        "has",
+        Rpc::Has,
         &HasRequest {
             transaction_id: txn_id,
             key: key.to_string(),
@@ -125,7 +125,7 @@ async fn has(db_name: &str, txn_id: u32, key: &str) -> bool {
 async fn get(db_name: &str, txn_id: u32, key: &str) -> Option<String> {
     let response: GetResponse = dispatch(
         db_name,
-        "get",
+        Rpc::Get,
         &GetRequest {
             transaction_id: txn_id,
             key: key.to_string(),
@@ -149,7 +149,7 @@ async fn scan(
 ) -> ScanResponse {
     dispatch_with_scan_receiver(
         db_name,
-        "scan",
+        Rpc::Scan,
         ScanRequest {
             transaction_id: txn_id,
             opts: ScanOptions {
@@ -171,7 +171,7 @@ async fn scan(
 async fn del(db_name: &str, txn_id: u32, key: &str) -> bool {
     let response: DelResponse = dispatch(
         db_name,
-        "del",
+        Rpc::Del,
         &DelRequest {
             transaction_id: txn_id,
             key: key.to_string(),
@@ -185,7 +185,7 @@ async fn del(db_name: &str, txn_id: u32, key: &str) -> bool {
 async fn commit(db_name: &str, transaction_id: u32) -> CommitTransactionResponse {
     dispatch(
         db_name,
-        "commitTransaction",
+        Rpc::CommitTransaction,
         &CommitTransactionRequest { transaction_id },
     )
     .await
@@ -195,7 +195,7 @@ async fn commit(db_name: &str, transaction_id: u32) -> CommitTransactionResponse
 async fn abort(db_name: &str, transaction_id: u32) {
     let _: CloseTransactionResponse = dispatch(
         db_name,
-        "closeTransaction",
+        Rpc::CloseTransaction,
         &CloseTransactionRequest { transaction_id },
     )
     .await
@@ -213,18 +213,18 @@ async fn test_open_close() {
     for use_memstore in vec![true, false] {
         let open_req = OpenRequest { use_memstore };
         assert_eq!(
-            dispatch::<_, String>("", "debug", "open_dbs")
+            dispatch::<_, String>("", Rpc::Debug, "open_dbs")
                 .await
                 .unwrap(),
             "[]",
         );
         assert_eq!(
-            dispatch::<_, String>("", "open", &open_req)
+            dispatch::<_, String>("", Rpc::Open, &open_req)
                 .await
                 .unwrap_err(),
             "db_name must be non-empty"
         );
-        let client_id = dispatch::<_, String>("db", "open", &open_req)
+        let client_id = dispatch::<_, String>("db", Rpc::Open, &open_req)
             .await
             .unwrap();
         assert!(
@@ -233,12 +233,12 @@ async fn test_open_close() {
             client_id
         );
         assert_eq!(
-            dispatch::<_, String>("", "debug", "open_dbs")
+            dispatch::<_, String>("", Rpc::Debug, "open_dbs")
                 .await
                 .unwrap(),
             "[\"db\"]"
         );
-        let client_id = dispatch::<_, String>("db2", "open", &open_req)
+        let client_id = dispatch::<_, String>("db2", Rpc::Open, &open_req)
             .await
             .unwrap();
         assert!(
@@ -247,22 +247,31 @@ async fn test_open_close() {
             client_id
         );
         assert_eq!(
-            dispatch::<_, String>("", "debug", "open_dbs")
+            dispatch::<_, String>("", Rpc::Debug, "open_dbs")
                 .await
                 .unwrap(),
             "[\"db\", \"db2\"]",
         );
-        assert_eq!(dispatch::<_, String>("db", "close", "").await.unwrap(), "");
-        assert_eq!(dispatch::<_, String>("db", "close", "").await.unwrap(), "");
         assert_eq!(
-            dispatch::<_, String>("", "debug", "open_dbs")
+            dispatch::<_, String>("db", Rpc::Close, "").await.unwrap(),
+            ""
+        );
+        assert_eq!(
+            dispatch::<_, String>("db", Rpc::Close, "").await.unwrap(),
+            ""
+        );
+        assert_eq!(
+            dispatch::<_, String>("", Rpc::Debug, "open_dbs")
                 .await
                 .unwrap(),
             "[\"db2\"]"
         );
-        assert_eq!(dispatch::<_, String>("db2", "close", "").await.unwrap(), "");
         assert_eq!(
-            dispatch::<_, String>("", "debug", "open_dbs")
+            dispatch::<_, String>("db2", Rpc::Close, "").await.unwrap(),
+            ""
+        );
+        assert_eq!(
+            dispatch::<_, String>("", Rpc::Debug, "open_dbs")
                 .await
                 .unwrap(),
             "[]",
@@ -275,7 +284,7 @@ async fn test_concurrency_within_a_read_tx() {
     for use_memstore in vec![true, false] {
         let db = &random_db();
 
-        let client_id = dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+        let client_id = dispatch::<_, String>(db, Rpc::Open, OpenRequest { use_memstore })
             .await
             .unwrap();
         assert!(
@@ -299,7 +308,7 @@ async fn test_concurrency_within_a_read_tx() {
         );
         let elapsed_ms = performance_now() - now_ms;
         abort(db, txn_id).await;
-        assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+        assert_eq!(dispatch::<_, String>(db, Rpc::Close, "").await.unwrap(), "");
         assert_eq!(elapsed_ms >= 100., true);
         assert_eq!(elapsed_ms < 200., true);
     }
@@ -312,7 +321,7 @@ async fn test_write_txs_dont_run_concurrently() {
     for use_memstore in vec![true, false] {
         let db = &random_db();
 
-        dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+        dispatch::<_, String>(db, Rpc::Open, OpenRequest { use_memstore })
             .await
             .unwrap();
         let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
@@ -392,7 +401,7 @@ async fn test_write_txs_dont_run_concurrently() {
         );
         abort(db, txn_id).await;
 
-        assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+        assert_eq!(dispatch::<_, String>(db, Rpc::Close, "").await.unwrap(), "");
     }
 }
 
@@ -401,7 +410,7 @@ async fn test_read_txs_do_run_concurrently() {
     for use_memstore in vec![true, false] {
         let db = &random_db();
 
-        dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+        dispatch::<_, String>(db, Rpc::Open, OpenRequest { use_memstore })
             .await
             .unwrap();
         let txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
@@ -466,7 +475,7 @@ async fn test_read_txs_do_run_concurrently() {
         );
         assert!(counter.into_inner() > 0);
 
-        assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+        assert_eq!(dispatch::<_, String>(db, Rpc::Close, "").await.unwrap(), "");
     }
 }
 
@@ -478,7 +487,7 @@ async fn test_get_put_del() {
         assert_eq!(
             dispatch::<_, PutResponse>(
                 db,
-                "put",
+                Rpc::Put,
                 PutRequest {
                     transaction_id: 42,
                     key: str!("unused"),
@@ -489,7 +498,7 @@ async fn test_get_put_del() {
             .unwrap_err(),
             format!("\"{}\" not open", db)
         );
-        let client_id = dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+        let client_id = dispatch::<_, String>(db, Rpc::Open, OpenRequest { use_memstore })
             .await
             .unwrap();
         assert!(
@@ -546,7 +555,7 @@ async fn test_get_put_del() {
         assert_eq!(has(db, txn_id, "Hello").await, false);
         abort(db, txn_id).await;
 
-        assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+        assert_eq!(dispatch::<_, String>(db, Rpc::Close, "").await.unwrap(), "");
     }
 }
 
@@ -554,7 +563,7 @@ async fn test_get_put_del() {
 async fn test_create_drop_index() {
     for use_memstore in vec![true, false] {
         let db = &random_db();
-        let client_id = dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+        let client_id = dispatch::<_, String>(db, Rpc::Open, OpenRequest { use_memstore })
             .await
             .unwrap();
         assert!(
@@ -566,7 +575,7 @@ async fn test_create_drop_index() {
         let transaction_id = open_index_transaction(db).await.transaction_id;
         dispatch::<_, CreateIndexResponse>(
             db,
-            "createIndex",
+            Rpc::CreateIndex,
             CreateIndexRequest {
                 transaction_id,
                 name: str!("idx1"),
@@ -582,7 +591,7 @@ async fn test_create_drop_index() {
         let transaction_id = open_index_transaction(db).await.transaction_id;
         let response = dispatch::<_, CreateIndexResponse>(
             db,
-            "createIndex",
+            Rpc::CreateIndex,
             CreateIndexRequest {
                 transaction_id,
                 name: str!("idx1"),
@@ -626,7 +635,7 @@ async fn test_create_drop_index() {
         let transaction_id = open_index_transaction(db).await.transaction_id;
         dispatch::<_, DropIndexResponse>(
             db,
-            "dropIndex",
+            Rpc::DropIndex,
             DropIndexRequest {
                 transaction_id,
                 name: str!("idx1"),
@@ -644,7 +653,7 @@ async fn test_create_drop_index() {
             let (receive, _cb, _got) = new_test_scan_receiver();
             let scan_result: Result<ScanResponse, String> = dispatch_with_scan_receiver(
                 db,
-                "scan",
+                Rpc::Scan,
                 ScanRequest {
                     transaction_id,
                     opts: ScanOptions {
@@ -671,7 +680,7 @@ async fn test_create_drop_index() {
         let transaction_id = open_index_transaction(db).await.transaction_id;
         let result = dispatch::<_, DropIndexResponse>(
             db,
-            "dropIndex",
+            Rpc::DropIndex,
             DropIndexRequest {
                 transaction_id,
                 name: str!("idx1"),
@@ -682,7 +691,7 @@ async fn test_create_drop_index() {
         assert_eq!(str!("DBError(NoSuchIndexError(\"idx1\"))"), result);
         abort(db, transaction_id).await;
 
-        assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+        assert_eq!(dispatch::<_, String>(db, Rpc::Close, "").await.unwrap(), "");
     }
 }
 
@@ -705,7 +714,7 @@ async fn test_scan() {
                 .collect();
 
             let db = &random_db();
-            dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+            dispatch::<_, String>(db, Rpc::Open, OpenRequest { use_memstore })
                 .await
                 .unwrap();
             let mut txn_id = open_transaction(db, "foo".to_string().into(), Some(json!([])), None)
@@ -736,7 +745,7 @@ async fn test_scan() {
             assert_eq!(&expected, &*got.borrow());
 
             abort(db, txn_id).await;
-            dispatch::<_, String>(db, "close", "").await.unwrap();
+            dispatch::<_, String>(db, Rpc::Close, "").await.unwrap();
         }
     }
 
@@ -864,7 +873,7 @@ async fn test_scan_with_index() {
         let db = &random_db();
         dispatch::<OpenRequest, String>(
             db,
-            "open",
+            Rpc::Open,
             OpenRequest {
                 use_memstore: false,
             },
@@ -878,11 +887,11 @@ async fn test_scan_with_index() {
             put(db, txn_id, entry.0, entry.1).await;
         }
         commit(db, txn_id).await;
-        dispatch::<_, String>(db, "close", "").await.unwrap();
+        dispatch::<_, String>(db, Rpc::Close, "").await.unwrap();
 
         dispatch::<_, String>(
             db,
-            "open",
+            Rpc::Open,
             OpenRequest {
                 use_memstore: false,
             },
@@ -892,7 +901,7 @@ async fn test_scan_with_index() {
         let txn_id = open_index_transaction(db).await.transaction_id;
         dispatch::<_, CreateIndexResponse>(
             db,
-            "createIndex",
+            Rpc::CreateIndex,
             CreateIndexRequest {
                 transaction_id: txn_id,
                 name: index_name.clone(),
@@ -935,7 +944,7 @@ async fn test_scan_with_index() {
         assert_eq!(&expected, &*got.borrow());
 
         abort(db, txn_id).await;
-        dispatch::<_, String>(db, "close", "").await.unwrap();
+        dispatch::<_, String>(db, Rpc::Close, "").await.unwrap();
     }
 
     // Scan an empty db
@@ -1322,12 +1331,12 @@ async fn test_get_root() {
         let db = &random_db();
         assert_eq!(
             format!(r#""{}" not open"#, db),
-            dispatch::<_, GetRootResponse>(db, "getRoot", &GetRootRequest { head_name: None })
+            dispatch::<_, GetRootResponse>(db, Rpc::GetRoot, &GetRootRequest { head_name: None })
                 .await
                 .unwrap_err()
         );
 
-        let client_id = dispatch::<_, String>(db, "open", OpenRequest { use_memstore })
+        let client_id = dispatch::<_, String>(db, Rpc::Open, OpenRequest { use_memstore })
             .await
             .unwrap();
         assert!(
@@ -1336,7 +1345,7 @@ async fn test_get_root() {
             client_id
         );
         assert_eq!(
-            dispatch::<_, GetRootResponse>(db, "getRoot", &GetRootRequest { head_name: None })
+            dispatch::<_, GetRootResponse>(db, Rpc::GetRoot, &GetRootRequest { head_name: None })
                 .await
                 .unwrap(),
             GetRootResponse {
@@ -1349,14 +1358,14 @@ async fn test_get_root() {
         put(db, txn_id, "foo", "bar").await;
         let _ = commit(db, txn_id).await;
         assert_eq!(
-            dispatch::<_, GetRootResponse>(db, "getRoot", GetRootRequest { head_name: None })
+            dispatch::<_, GetRootResponse>(db, Rpc::GetRoot, GetRootRequest { head_name: None })
                 .await
                 .unwrap(),
             GetRootResponse {
                 root: str!("jle0ntqmldmrl88v7niv5i5qpqq0h1b1"),
             }
         );
-        assert_eq!(dispatch::<_, String>(db, "close", "").await.unwrap(), "");
+        assert_eq!(dispatch::<_, String>(db, Rpc::Close, "").await.unwrap(), "");
     }
 }
 
@@ -1366,7 +1375,7 @@ async fn test_set_log_level() {
     let db = &random_db();
     let client_id = dispatch::<_, String>(
         db,
-        "open",
+        Rpc::Open,
         OpenRequest {
             use_memstore: false,
         },
@@ -1382,7 +1391,7 @@ async fn test_set_log_level() {
     assert_ne!(log::LevelFilter::Error, level);
     dispatch::<_, SetLogLevelResponse>(
         db,
-        "setLogLevel",
+        Rpc::SetLogLevel,
         SetLogLevelRequest {
             level: str!("error"),
         },
@@ -1393,7 +1402,7 @@ async fn test_set_log_level() {
 
     let response = dispatch::<_, SetLogLevelResponse>(
         db,
-        "setLogLevel",
+        Rpc::SetLogLevel,
         SetLogLevelRequest {
             level: str!("BOOM"),
         },
@@ -1404,7 +1413,7 @@ async fn test_set_log_level() {
     assert_eq!(log::LevelFilter::Error, log::max_level());
 
     log::set_max_level(level);
-    dispatch::<_, String>(db, "close", "").await.unwrap();
+    dispatch::<_, String>(db, Rpc::Close, "").await.unwrap();
 }
 
 #[wasm_bindgen_test]

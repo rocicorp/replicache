@@ -12,6 +12,7 @@ use async_std::sync::{Receiver, RecvError, RwLock};
 use futures::stream::futures_unordered::FuturesUnordered;
 use js_sys::{Function, Reflect, Uint8Array};
 use std::collections::HashMap;
+use std::mem;
 use std::sync::atomic::{AtomicU32, Ordering};
 use wasm_bindgen::{JsCast, JsValue};
 
@@ -79,7 +80,7 @@ async fn connection_future<'a, 'b>(
         Some(v) => v,
     };
 
-    if req.rpc == "close" {
+    if req.rpc == Rpc::Close {
         ctx.store.close().await;
         req.response.send(Ok("".into())).await;
         return UnorderedResult::Stop();
@@ -167,31 +168,63 @@ enum ExecuteError {
     TransactionNotFound(u32),
     TransactionIdRequired,
     TransactionIsReadOnly(u32),
-    UnknownRPC(String),
+    UnknownRpc(Rpc),
+}
+#[repr(u8)]
+#[derive(Debug, PartialEq)]
+pub enum Rpc {
+    BeginTryPull = 1,
+    Close = 2,
+    CloseTransaction = 3,
+    CommitTransaction = 4,
+    CreateIndex = 5,
+    Debug = 6,
+    Del = 7,
+    DropIndex = 8,
+    Get = 9,
+    GetRoot = 10,
+    Has = 11,
+    MaybeEndTryPull = 12,
+    Open = 13,
+    OpenIndexTransaction = 14,
+    OpenTransaction = 15,
+    Put = 16,
+    Scan = 17,
+    SetLogLevel = 18,
+    TryPush = 19,
 }
 
+impl Rpc {
+    pub fn from_u8(n: u8) -> Option<Rpc> {
+        if n >= Self::BeginTryPull as u8 && n <= Self::TryPush as u8 {
+            Some(unsafe { mem::transmute(n) })
+        } else {
+            None
+        }
+    }
+}
 async fn execute<'a, 'b>(
     ctx: Context<'a, 'b>,
-    rpc: String,
+    rpc: Rpc,
     data: JsValue,
     lc: LogContext,
 ) -> Result<JsValue, JsValue> {
     use ExecuteError::*;
 
     // transaction-less
-    match rpc.as_str() {
-        "getRoot" => return to_js(do_get_root(ctx, from_js(data)?).await),
-        "openIndexTransaction" => {
+    match rpc {
+        Rpc::GetRoot => return to_js(do_get_root(ctx, from_js(data)?).await),
+        Rpc::OpenIndexTransaction => {
             return to_js(do_open_index_transaction(ctx, from_js(data)?).await)
         }
-        "openTransaction" => return to_js(do_open_transaction(ctx, from_js(data)?).await),
-        "commitTransaction" => return to_js(do_commit(ctx, from_js(data)?).await),
-        "closeTransaction" => return to_js(do_close_transaction(ctx, from_js(data)?).await),
-        "setLogLevel" => return to_js(do_set_log_level(ctx, from_js(data)?).await),
+        Rpc::OpenTransaction => return to_js(do_open_transaction(ctx, from_js(data)?).await),
+        Rpc::CommitTransaction => return to_js(do_commit(ctx, from_js(data)?).await),
+        Rpc::CloseTransaction => return to_js(do_close_transaction(ctx, from_js(data)?).await),
+        Rpc::SetLogLevel => return to_js(do_set_log_level(ctx, from_js(data)?).await),
 
-        "tryPush" => return to_js(do_try_push(ctx, from_js(data)?).await),
-        "beginTryPull" => return to_js(do_begin_try_pull(ctx, from_js(data)?).await),
-        "maybeEndTryPull" => return to_js(do_maybe_end_try_pull(ctx, from_js(data)?).await),
+        Rpc::TryPush => return to_js(do_try_push(ctx, from_js(data)?).await),
+        Rpc::BeginTryPull => return to_js(do_begin_try_pull(ctx, from_js(data)?).await),
+        Rpc::MaybeEndTryPull => return to_js(do_maybe_end_try_pull(ctx, from_js(data)?).await),
 
         _ => (),
     };
@@ -210,10 +243,10 @@ async fn execute<'a, 'b>(
         .ok_or(TransactionNotFound(txn_id))
         .map_err(to_debug)?;
 
-    match rpc.as_str() {
-        "has" => return to_js(do_has(txn.read().await.as_read(), from_js(data)?).await),
-        "get" => return to_js(do_get(txn.read().await.as_read(), from_js(data)?).await),
-        "scan" => {
+    match rpc {
+        Rpc::Has => return to_js(do_has(txn.read().await.as_read(), from_js(data)?).await),
+        Rpc::Get => return to_js(do_get(txn.read().await.as_read(), from_js(data)?).await),
+        Rpc::Scan => {
             return to_js(
                 do_scan(
                     txn.read().await.as_read(),
@@ -234,15 +267,15 @@ async fn execute<'a, 'b>(
         Transaction::Read(_) => Err(to_debug(TransactionIsReadOnly(txn_id))),
     }?;
 
-    match rpc.as_str() {
-        "put" => return to_js(do_put(lc, write, from_js(data)?).await),
-        "del" => return to_js(do_del(lc, write, from_js(data)?).await),
-        "createIndex" => return to_js(do_create_index(lc.clone(), write, from_js(data)?).await),
-        "dropIndex" => return to_js(do_drop_index(write, from_js(data)?).await),
+    match rpc {
+        Rpc::Put => return to_js(do_put(lc, write, from_js(data)?).await),
+        Rpc::Del => return to_js(do_del(lc, write, from_js(data)?).await),
+        Rpc::CreateIndex => return to_js(do_create_index(lc.clone(), write, from_js(data)?).await),
+        Rpc::DropIndex => return to_js(do_drop_index(write, from_js(data)?).await),
         _ => (),
     }
 
-    Err(JsValue::from_str(&to_debug(UnknownRPC(rpc))))
+    Err(JsValue::from_str(&to_debug(UnknownRpc(rpc))))
 }
 
 #[derive(Debug)]

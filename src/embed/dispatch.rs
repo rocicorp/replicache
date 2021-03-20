@@ -1,4 +1,5 @@
 use super::types::OpenRequest;
+use super::Rpc;
 use crate::dag;
 use crate::embed::connection;
 use crate::kv::idbstore::IdbStore;
@@ -21,7 +22,7 @@ lazy_static! {
 pub struct Request {
     pub lc: LogContext,
     db_name: String,
-    pub rpc: String,
+    pub rpc: Rpc,
     pub data: JsValue,
     pub response: Sender<Response>,
 }
@@ -52,10 +53,10 @@ async fn dispatch_loop(rx: Receiver<Request>) {
             }
         };
 
-        let response = match req.rpc.as_str() {
-            "open" => Some(do_open(&mut conns, &req).await),
-            "close" => Some(do_close(&mut conns, &req).await),
-            "debug" => Some(do_debug(&conns, &req).await),
+        let response = match req.rpc {
+            Rpc::Open => Some(do_open(&mut conns, &req).await),
+            Rpc::Close => Some(do_close(&mut conns, &req).await),
+            Rpc::Debug => Some(do_debug(&conns, &req).await),
             _ => None,
         };
         if let Some(response) = response {
@@ -76,11 +77,11 @@ async fn dispatch_loop(rx: Receiver<Request>) {
     }
 }
 
-pub async fn dispatch(db_name: String, rpc: String, data: JsValue) -> Response {
+pub async fn dispatch(db_name: String, rpc: Rpc, data: JsValue) -> Response {
     let lc = LogContext::new();
     let rpc_id = RPC_COUNTER.fetch_add(1, Ordering::Relaxed).to_string();
     lc.add_context("rpc_id", rpc_id.as_str());
-    lc.add_context("rpc", &rpc);
+    lc.add_context("rpc", &format!("{:?}", rpc));
     lc.add_context("db", &db_name);
     debug!(lc, "-> data={:?}", &data);
     let timer = rlog::Timer::new();
@@ -89,7 +90,7 @@ pub async fn dispatch(db_name: String, rpc: String, data: JsValue) -> Response {
     let request = Request {
         lc: lc.clone(),
         db_name: db_name.clone(),
-        rpc: rpc.clone(),
+        rpc,
         data,
         response: tx,
     };
@@ -161,7 +162,7 @@ async fn do_close(conns: &mut ConnMap, req: &Request) -> Response {
     tx.send(Request {
         lc: req.lc.clone(),
         db_name: req.db_name.clone(),
-        rpc: "close".into(),
+        rpc: Rpc::Close,
         data: "".into(),
         response: tx2,
     })

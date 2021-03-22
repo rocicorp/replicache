@@ -238,7 +238,7 @@ export class Replicache implements ReadTransaction {
       maxConnections: 1,
     });
     this._pushConnectionLoop = new ConnectionLoop({
-      invokeSend: () => this._push(MAX_REAUTH_TRIES),
+      invokeSend: () => this._invokePush(MAX_REAUTH_TRIES),
       debounceDelay: () => this.pushDelay,
       maxConnections: 1,
     });
@@ -546,7 +546,7 @@ export class Replicache implements ReadTransaction {
     this._online = online;
   }
 
-  private async _push(maxAuthTries: number): Promise<void> {
+  private async _invokePush(maxAuthTries: number): Promise<void> {
     await this._wrapInOnlineCheck(async () => {
       let pushResponse;
       try {
@@ -577,7 +577,7 @@ export class Replicache implements ReadTransaction {
           if (pushAuth != null) {
             this._pushAuth = pushAuth;
             // Try again now instead of waiting for next push.
-            return await this._push(maxAuthTries - 1);
+            return await this._invokePush(maxAuthTries - 1);
           }
         }
       }
@@ -591,7 +591,7 @@ export class Replicache implements ReadTransaction {
    * (which it is by default) pushes happen automatically shortly after
    * mutations.
    */
-  push(): void {
+  protected _push(): void {
     this._pushConnectionLoop.send();
   }
 
@@ -931,6 +931,10 @@ export class ReplicacheTest extends Replicache {
 
   maybeEndPull(beginPullResult: BeginPullResult): Promise<void> {
     return super._maybeEndPull(beginPullResult);
+  }
+
+  push(): void {
+    super._push();
   }
 }
 

@@ -1,4 +1,4 @@
-export {default} from './replicache.js';
+export {Replicache} from './replicache.js';
 export {TransactionClosedError} from './transaction-closed-error.js';
 
 export type {ReplicacheOptions, MaybePromise} from './replicache.js';

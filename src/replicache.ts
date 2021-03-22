@@ -35,7 +35,7 @@ const storageKeyName = (name: string) => `/replicache/root/${name}`;
 const MAX_REAUTH_TRIES = 8;
 
 /**
- * The options passed to [[default|Replicache]].
+ * The options passed to [[Replicache]].
  */
 export interface ReplicacheOptions {
   /**
@@ -129,7 +129,7 @@ export interface ReplicacheOptions {
   useMemstore?: boolean;
 }
 
-export default class Replicache implements ReadTransaction {
+export class Replicache implements ReadTransaction {
   private _pullAuth: string;
   private readonly _pullURL: string;
   private _pushAuth: string;

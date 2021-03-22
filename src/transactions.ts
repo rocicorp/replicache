@@ -10,8 +10,8 @@ import {ScanResult} from './scan-iterator.js';
 import {throwIfClosed} from './transaction-closed-error.js';
 
 /**
- * ReadTransactions are used with [[default.query|Replicache.query]] and
- * [[default.subscribe|Replicache.subscribe]] and allows read operations on the
+ * ReadTransactions are used with [[Replicache.query]] and
+ * [[Replicache.subscribe]] and allows read operations on the
  * database.
  */
 export interface ReadTransaction {
@@ -141,7 +141,7 @@ export class ReadTransactionImpl implements ReadTransaction {
 
 /**
  * WriteTransactions are used with
- * [[default.register|Replicache.register]] and allows read and write
+ * [[Replicache.register]] and allows read and write
  * operations on the database.
  */
 export interface WriteTransaction extends ReadTransaction {
@@ -206,7 +206,7 @@ export interface IndexTransaction extends ReadTransaction {
 
 /**
  * The definition of an index. This is used with
- * [[default.createIndex|createIndex]] when creating indexes.
+ * [[Replicache.createIndex|createIndex]] when creating indexes.
  */
 export interface CreateIndexDefinition {
   /** The name of the index. This is used when you [[ReadTransaction.scan|scan]] over an index. */

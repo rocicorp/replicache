@@ -1,4 +1,4 @@
-import type {Invoke, ScanRequest} from './repm-invoker.js';
+import {Invoke, RPC, ScanRequest} from './repm-invoker.js';
 import type {JSONValue} from './json.js';
 import {throwIfClosed} from './transaction-closed-error.js';
 import {ScanOptions, toRPC} from './scan-options.js';
@@ -133,7 +133,7 @@ async function load<V>(
     receiver,
   };
 
-  await invoke('scan', args);
+  await invoke(RPC.Scan, args);
 
   return items;
 }

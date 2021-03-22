@@ -1,8 +1,9 @@
 import type {JSONValue} from './json.js';
-import type {
+import {
   Invoke,
   OpenTransactionRequest,
   CommitTransactionResponse,
+  RPC,
 } from './repm-invoker.js';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
 import {ScanResult} from './scan-iterator.js';
@@ -55,8 +56,8 @@ export class ReadTransactionImpl implements ReadTransaction {
   protected readonly _invoke: Invoke;
   protected _closed = false;
   protected readonly _openTransactionName:
-    | 'openTransaction'
-    | 'openIndexTransaction' = 'openTransaction';
+    | RPC.OpenTransaction
+    | RPC.OpenIndexTransaction = RPC.OpenTransaction;
 
   constructor(invoke: Invoke) {
     this._invoke = invoke;
@@ -64,7 +65,7 @@ export class ReadTransactionImpl implements ReadTransaction {
 
   async get(key: string): Promise<JSONValue | undefined> {
     throwIfClosed(this);
-    const result = await this._invoke('get', {
+    const result = await this._invoke(RPC.Get, {
       transactionId: this._transactionId,
       key,
     });
@@ -76,7 +77,7 @@ export class ReadTransactionImpl implements ReadTransaction {
 
   async has(key: string): Promise<boolean> {
     throwIfClosed(this);
-    const result = await this._invoke('has', {
+    const result = await this._invoke(RPC.Has, {
       transactionId: this._transactionId,
       key,
     });
@@ -87,7 +88,7 @@ export class ReadTransactionImpl implements ReadTransaction {
     throwIfClosed(this);
 
     let empty = true;
-    await this._invoke('scan', {
+    await this._invoke(RPC.Scan, {
       transactionId: this._transactionId,
       opts: {limit: 1},
       receiver: () => (empty = false),
@@ -129,7 +130,7 @@ export class ReadTransactionImpl implements ReadTransaction {
   async close(): Promise<void> {
     try {
       this._closed = true;
-      await this._invoke('closeTransaction', {
+      await this._invoke(RPC.CloseTransaction, {
         transactionId: this._transactionId,
       });
     } catch (ex) {
@@ -162,7 +163,7 @@ export class WriteTransactionImpl
   implements WriteTransaction {
   async put(key: string, value: JSONValue): Promise<void> {
     throwIfClosed(this);
-    await this._invoke('put', {
+    await this._invoke(RPC.Put, {
       transactionId: this.id,
       key,
       value: JSON.stringify(value),
@@ -171,7 +172,7 @@ export class WriteTransactionImpl
 
   async del(key: string): Promise<boolean> {
     throwIfClosed(this);
-    const result = await this._invoke('del', {
+    const result = await this._invoke(RPC.Del, {
       transactionId: this.id,
       key,
     });
@@ -180,7 +181,7 @@ export class WriteTransactionImpl
 
   async commit(): Promise<CommitTransactionResponse> {
     this._closed = true;
-    return await this._invoke('commitTransaction', {
+    return await this._invoke(RPC.CommitTransaction, {
       transactionId: this.id,
     });
   }
@@ -230,11 +231,11 @@ export interface CreateIndexDefinition {
 export class IndexTransactionImpl
   extends ReadTransactionImpl
   implements IndexTransaction {
-  protected readonly _openTransactionName = 'openIndexTransaction';
+  protected readonly _openTransactionName = RPC.OpenIndexTransaction;
 
   async createIndex(options: CreateIndexDefinition): Promise<void> {
     throwIfClosed(this);
-    await this._invoke('createIndex', {
+    await this._invoke(RPC.CreateIndex, {
       transactionId: this.id,
       name: options.name,
       keyPrefix: options.keyPrefix || '',
@@ -244,7 +245,7 @@ export class IndexTransactionImpl
 
   async dropIndex(name: string): Promise<void> {
     throwIfClosed(this);
-    await this._invoke('dropIndex', {
+    await this._invoke(RPC.DropIndex, {
       transactionId: this.id,
       name,
     });
@@ -252,7 +253,7 @@ export class IndexTransactionImpl
 
   async commit(): Promise<CommitTransactionResponse> {
     this._closed = true;
-    return await this._invoke('commitTransaction', {
+    return await this._invoke(RPC.CommitTransaction, {
       transactionId: this.id,
     });
   }

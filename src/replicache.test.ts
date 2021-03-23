@@ -1465,7 +1465,7 @@ testWithBothStores('isEmpty', async () => {
   await t(false);
 });
 
-testWithBothStores('onSync', async () => {
+test.only('onSync', async () => {
   const pullURL = 'https://pull.com/pull';
   const pushURL = 'https://push.com/push';
 
@@ -1483,7 +1483,7 @@ testWithBothStores('onSync', async () => {
     patch: [],
   });
   rep.pull();
-  await tickAFewTimes(10);
+  await tickAFewTimes(15);
 
   expect(onSync.callCount).to.eq(2);
   expect(onSync.getCall(0).args[0]).to.be.true;

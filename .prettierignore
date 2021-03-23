@@ -1,2 +1,6 @@
-out/
+cjs/
+index.d.ts
+index.js
+dev.js
+dev.d.ts
 src/wasm/

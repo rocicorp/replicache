@@ -1,5 +1,5 @@
 import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
-import Replicache, {TransactionClosedError} from './mod.js';
+import {Replicache, TransactionClosedError} from './mod.js';
 
 import type {ReadTransaction, WriteTransaction} from './mod.js';
 import {deepEqual, JSONValue} from './json.js';

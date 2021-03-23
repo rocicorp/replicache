@@ -57,7 +57,7 @@ Now let's add a user interface to render the synced data.
 ```js
 import React from 'react';
 import ReactDOM from 'react-dom';
-import Replicache from 'replicache';
+import {Replicache} from 'replicache';
 import {useSubscribe} from 'replicache-react-util';
 
 const rep = new Replicache({
@@ -104,7 +104,7 @@ ReactDOM.render(React.createElement(MyApp), elm);
 
 ```html
 <script type="module">
-  import Replicache from './node_modules/replicache/out/replicache.dev.js';
+  import {Replicache} from './node_modules/replicache/out/replicache.dev.js';
 
   const rep = new Replicache({
     // The URL to pull from.

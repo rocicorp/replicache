@@ -17,6 +17,7 @@ jobs:
           node-version: 14.x
       - uses: microsoft/playwright-github-action@v1
       - run: npm ci
+      - run: npm run get-repc
       - run: npm run build --if-present
       - run: npm run check-format
       - run: npm run lint

@@ -8,12 +8,14 @@ import copy from 'rollup-plugin-copy';
 const dev = !!process.env.DEV;
 const part = dev ? '.dev' : '';
 const variant = dev ? 'debug' : 'release';
+const format = process.env.CJS ? 'cjs' : 'es';
+const dir = process.env.CJS ? 'cjs' : '.';
 
 export default {
   input: 'src/mod.ts',
   output: {
-    file: `out/replicache${part}.js`,
-    format: 'esm',
+    file: `./${dir}/${dev ? 'dev' : 'index'}.js`,
+    format,
   },
   plugins: [
     // When building dev version use wasm/debug/ instead of wasm/relese/
@@ -26,9 +28,9 @@ export default {
       ],
     }),
 
-    // Use replicache.wasm in same directory as out/replicache.js
+    // Use replicache.wasm in same directory as index.js
     replace({
-      ['./wasm/release/replicache_client_bg.wasm']: `'./replicache${part}.wasm'`,
+      ['./wasm/release/replicache_client_bg.wasm']: `'./${dir}/replicache${part}.wasm'`,
       delimiters: [`'`, `'`],
       include: 'src/repm-invoker.ts',
     }),
@@ -40,8 +42,8 @@ export default {
       targets: [
         {
           src: `src/wasm/${variant}/replicache_client_bg.wasm`,
-          dest: `out`,
-          rename: `replicache${part}.wasm`,
+          dest: `./`,
+          rename: `${dir}/replicache${part}.wasm`,
         },
       ],
     }),

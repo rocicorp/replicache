@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1616527263461,
+  "lastUpdate": 1616625612020,
   "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
   "entries": {
     "Benchmark": [
@@ -16922,6 +16922,114 @@ window.BENCHMARK_DATA = {
             "range": "±0.0%",
             "unit": "op/s",
             "extra": "11 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ba88bd862cd04793f37ff6f2ace63edc57a06f3c",
+          "message": "Generate CommonJS files (#327)\n\nOur npm package is now a CJS package :'(\r\n\r\nWe still include the ESM file in the npm package but we do not tell npm\r\nabout it. You can use it by importing \"replicache/out/replicache.mjs\"\r\nfor now.",
+          "timestamp": "2021-03-24T15:37:14-07:00",
+          "tree_id": "5f3ffdf7fe49abd59527a8e3e788878ef40d9ca4",
+          "url": "https://github.com/rocicorp/replicache-sdk-js/commit/ba88bd862cd04793f37ff6f2ace63edc57a06f3c"
+        },
+        "date": 1616625610967,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.34,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 5,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "10 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 3.07,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.16,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "13 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.22,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 20.22,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "41 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 19.96,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 57,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "107 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 30.77,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "82 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 20.17,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "36 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 4.35,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "9 samples"
           }
         ]
       }

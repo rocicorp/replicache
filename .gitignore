@@ -3,10 +3,4 @@ node_modules
 .DS_Store
 src/wasm
 docs
-index.d.ts
-index.js
-dev.js
-dev.d.ts
-replicache.wasm
-replicache.dev.wasm
-cjs
+out

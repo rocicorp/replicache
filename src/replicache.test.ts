@@ -1465,7 +1465,7 @@ testWithBothStores('isEmpty', async () => {
   await t(false);
 });
 
-test.only('onSync', async () => {
+testWithBothStores('onSync', async () => {
   const pullURL = 'https://pull.com/pull';
   const pushURL = 'https://push.com/push';
 

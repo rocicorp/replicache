@@ -1483,7 +1483,7 @@ testWithBothStores('onSync', async () => {
     patch: [],
   });
   rep.pull();
-  await tickAFewTimes(10);
+  await tickAFewTimes(15);
 
   expect(onSync.callCount).to.eq(2);
   expect(onSync.getCall(0).args[0]).to.be.true;

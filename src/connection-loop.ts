@@ -11,7 +11,7 @@ const MAX_CONNECTIONS = 3;
 type SendRecord = {duration: number; ok: boolean};
 
 export interface ConnectionLoopDelegate {
-  invokeSend(): unknown;
+  invokeSend(): Promise<boolean>;
   debounceDelay?(): number;
   maxConnections?: number;
   watchdogTimer?(): number | null;
@@ -148,28 +148,29 @@ export class ConnectionLoop {
       counter++;
       (async () => {
         const start = Date.now();
-        let err: unknown;
+        let ok: boolean;
         try {
           lastSendTime = start;
           log?.('Sending request');
-          await delegate.invokeSend();
+          ok = await delegate.invokeSend();
+          log?.('Send returned', ok);
         } catch (e) {
           log?.('Send failed', e);
-          err = e;
+          ok = false;
         }
         if (this._closed) {
           log?.('Closed after invokeSend');
           return;
         }
-        log?.('Request done', {duration: Date.now() - start, ok: !err});
-        sendRecords.push({duration: Date.now() - start, ok: !err});
+        log?.('Request done', {duration: Date.now() - start, ok});
+        sendRecords.push({duration: Date.now() - start, ok});
         if (recovered(sendRecords)) {
           recoverResolver.resolve();
           recoverResolver = resolver();
         }
         counter--;
         this._connectionAvailable();
-        if (err) {
+        if (!ok) {
           // Keep trying
           this._pendingResolver.resolve();
         }

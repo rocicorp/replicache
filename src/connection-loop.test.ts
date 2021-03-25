@@ -38,7 +38,7 @@ const log: string[] = [];
 function createLoop(
   partialDelegate: Partial<ConnectionLoopDelegate> & {
     requestTime: number;
-    shouldError?: boolean;
+    invokeResult?: boolean | 'throw';
   } = {requestTime: 90},
 ): ConnectionLoop {
   log.length = 0;
@@ -53,13 +53,14 @@ function createLoop(
   const delegate: ConnectionLoopDelegate = {
     async invokeSend() {
       const c = counter++;
-      const {requestTime = 90, shouldError = false} = partialDelegate;
+      const {requestTime = 90, invokeResult = true} = partialDelegate;
       log.push(`s${c}:${Date.now()}`);
       await sleep(requestTime);
-      log.push(`${shouldError ? 'e' : 'f'}${c}:${Date.now()}`);
-      if (shouldError) {
+      log.push(`${invokeResult !== true ? 'e' : 'f'}${c}:${Date.now()}`);
+      if (invokeResult === 'throw') {
         throw Error('Intentional error');
       }
+      return invokeResult;
     },
     // log: (...args) => console.log(...args, currentTime()),
     ...partialDelegate,
@@ -350,89 +351,91 @@ test('Adjust delay', async () => {
   await waitForAll();
 });
 
-test('error', async () => {
-  const debounceDelay = 5;
-  const maxConnections = 3;
-  const requestTime = 90;
-  let requestCount = 0;
+for (const errorKind of [false, 'throw'] as const) {
+  test(`error {errorKind: ${errorKind}}`, async () => {
+    const debounceDelay = 5;
+    const maxConnections = 3;
+    const requestTime = 90;
+    let requestCount = 0;
 
-  createLoop({
-    get shouldError() {
-      const e = requestCount > 4 && requestCount < 17;
-      requestCount++;
-      return e;
-    },
-    debounceDelay: () => debounceDelay,
-    requestTime,
-    maxConnections,
+    createLoop({
+      get invokeResult() {
+        const shouldFail = requestCount > 4 && requestCount < 17;
+        requestCount++;
+        return shouldFail ? errorKind : true;
+      },
+      debounceDelay: () => debounceDelay,
+      requestTime,
+      maxConnections,
+    });
+
+    // reset
+    requestCount = 0;
+
+    while (requestCount < 10) {
+      send();
+      await clock.tickAsync(30);
+    }
+
+    // 61685 is when the first success after a bunch of errors. Schedule a send
+    // before this request comes back.
+    await clock.tickAsync(61685 - 30 - Date.now());
+
+    while (requestCount < 22) {
+      send();
+      await clock.tickAsync(30);
+    }
+
+    await clock.runAllAsync();
+
+    expect(log).to.deep.equal([
+      's0:5',
+      's1:35',
+      's2:65',
+      'f0:95',
+      's3:95',
+      'f1:125',
+      's4:125',
+      'f2:155',
+      's5:155',
+      'f3:185',
+      's6:185',
+      'f4:215',
+      's7:215',
+      'e5:245',
+      'e6:275',
+      's8:275',
+      'e7:305',
+      'e8:365',
+      's9:395',
+      'e9:485',
+      's10:635',
+      'e10:725',
+      's11:1115',
+      'e11:1205',
+      's12:2075',
+      'e12:2165',
+      's13:3995',
+      'e13:4085',
+      's14:7835',
+      'e14:7925',
+      's15:15515',
+      'e15:15605',
+      's16:30875',
+      'e16:30965',
+      's17:61595',
+      'f17:61685', // first success
+      's18:61685', // now we go back to 3 concurrent connections
+      's19:61715',
+      's20:61745',
+      'f18:61775',
+      's21:61775',
+      'f19:61805',
+      'f20:61835',
+      'f21:61865',
+    ]);
   });
-
-  // reset
-  requestCount = 0;
-
-  while (requestCount < 10) {
-    send();
-    await clock.tickAsync(30);
-  }
-
-  // 61685 is when the first success after a bunch of errors. Schedule a send
-  // before this request comes back.
-  await clock.tickAsync(61685 - 30 - Date.now());
-
-  while (requestCount < 22) {
-    send();
-    await clock.tickAsync(30);
-  }
-
-  await clock.runAllAsync();
-
-  expect(log).to.deep.equal([
-    's0:5',
-    's1:35',
-    's2:65',
-    'f0:95',
-    's3:95',
-    'f1:125',
-    's4:125',
-    'f2:155',
-    's5:155',
-    'f3:185',
-    's6:185',
-    'f4:215',
-    's7:215',
-    'e5:245',
-    'e6:275',
-    's8:275',
-    'e7:305',
-    'e8:365',
-    's9:395',
-    'e9:485',
-    's10:635',
-    'e10:725',
-    's11:1115',
-    'e11:1205',
-    's12:2075',
-    'e12:2165',
-    's13:3995',
-    'e13:4085',
-    's14:7835',
-    'e14:7925',
-    's15:15515',
-    'e15:15605',
-    's16:30875',
-    'e16:30965',
-    's17:61595',
-    'f17:61685', // first success
-    's18:61685', // now we go back to 3 concurrent connections
-    's19:61715',
-    's20:61745',
-    'f18:61775',
-    's21:61775',
-    'f19:61805',
-    'f20:61835',
-    'f21:61865',
-  ]);
-});
+}
 
 test('watchdog timer', async () => {
   const debounceDelay = 10;

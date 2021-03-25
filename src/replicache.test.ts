@@ -717,6 +717,7 @@ testWithBothStores('pull', async () => {
   let beginPullResult: {
     requestID: string;
     syncHead: string;
+    ok: boolean;
   };
 
   const createTodo = rep.register(
@@ -864,6 +865,80 @@ testWithBothStores('reauth', async () => {
       'Tried to reauthenticate too many times',
     );
   }
+});
+
+testWithBothStores('HTTP status pull', async () => {
+  const pullURL = 'https://diff.com/pull';
+
+  rep = await replicacheForTesting('http-status-pull', {
+    pullURL,
+  });
+
+  let okCalled = false;
+  let i = 0;
+  fetchMock.post(pullURL, () => {
+    switch (i++) {
+      case 0:
+        return {body: 'internal error', status: 500};
+      case 1:
+        return {body: 'not found', status: 404};
+      default:
+        okCalled = true;
+        return {body: {lastMutationID: 0, patch: []}, status: 200};
+    }
+  });
+
+  const consoleErrorStub = sinon.stub(console, 'error');
+
+  rep.pull();
+
+  await tickAFewTimes(20, 10);
+
+  expect(consoleErrorStub.getCalls().map(o => o.args[0])).to.deep.equal([
+    'Got error response from server (https://diff.com/pull) doing pull: 500: internal error',
+    'Got error response from server (https://diff.com/pull) doing pull: 404: not found',
+  ]);
+
+  expect(okCalled).to.equal(true);
+});
+
+testWithBothStores('HTTP status push', async () => {
+  const pushURL = 'https://diff.com/push';
+
+  rep = await replicacheForTesting('http-status-push', {
+    pushURL,
+    pushDelay: 1,
+  });
+  const add = rep.register('add-data', addData);
+
+  let okCalled = false;
+  let i = 0;
+  fetchMock.post(pushURL, () => {
+    switch (i++) {
+      case 0:
+        return {body: 'internal error', status: 500};
+      case 1:
+        return {body: 'not found', status: 404};
+      default:
+        okCalled = true;
+        return {body: {}, status: 200};
+    }
+  });
+
+  const consoleErrorStub = sinon.stub(console, 'error');
+
+  await add({
+    a: 0,
+  });
+
+  await tickAFewTimes(20, 10);
+
+  expect(consoleErrorStub.getCalls().map(o => o.args[0])).to.deep.equal([
+    'Got error response from server (https://diff.com/push) doing push: 500: internal error',
+    'Got error response from server (https://diff.com/push) doing push: 404: not found',
+  ]);
+
+  expect(okCalled).to.equal(true);
 });
 
 testWithBothStores('closed tx', async () => {

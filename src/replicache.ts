@@ -22,6 +22,7 @@ import {ConnectionLoop} from './connection-loop.js';
 type BeginPullResult = {
   requestID: string;
   syncHead: string;
+  ok: boolean;
 };
 
 export const httpStatusUnauthorized = 401;
@@ -232,7 +233,7 @@ export class Replicache implements ReadTransaction {
     this._useMemstore = useMemstore;
 
     this._pullConnectionLoop = new ConnectionLoop({
-      invokeSend: () => this._pull(),
+      invokeSend: () => this._invokePull(),
       watchdogTimer: () => this.pullInterval,
       debounceDelay: () => 0,
       maxConnections: 1,
@@ -470,8 +471,7 @@ export class Replicache implements ReadTransaction {
     }
     console.groupEnd();
 
-    const {requestID} = beginPullResult;
-    await this._maybeEndPull({requestID, syncHead});
+    await this._maybeEndPull({...beginPullResult, syncHead});
   }
 
   private async _replay<A extends JSONValue>(
@@ -503,28 +503,32 @@ export class Replicache implements ReadTransaction {
     return res.ref;
   }
 
-  private async _pull() {
-    await this._wrapInOnlineCheck(async () => {
+  private async _invokePull(): Promise<boolean> {
+    return await this._wrapInOnlineCheck(async () => {
       try {
         this._changeSyncCounters(0, 1);
         const beginPullResult = await this._beginPull(MAX_REAUTH_TRIES);
+        if (!beginPullResult.ok) {
+          return false;
+        }
         if (beginPullResult.syncHead !== '') {
           await this._maybeEndPull(beginPullResult);
         }
       } finally {
         this._changeSyncCounters(0, -1);
       }
+      return true;
     }, 'Pull');
   }
 
   private async _wrapInOnlineCheck(
-    f: () => Promise<void>,
+    f: () => Promise<boolean>,
     name: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     let online = true;
 
     try {
-      await f();
+      return await f();
     } catch (e) {
       // The error paths of beginPull and maybeEndPull need to be reworked.
       //
@@ -541,13 +545,14 @@ export class Replicache implements ReadTransaction {
         online = false;
       }
       console.info(`${name} returned: ${e}`);
+      return false;
+    } finally {
+      this._online = online;
     }
-
-    this._online = online;
   }
 
-  private async _invokePush(maxAuthTries: number): Promise<void> {
-    await this._wrapInOnlineCheck(async () => {
+  private async _invokePush(maxAuthTries: number): Promise<boolean> {
+    return await this._wrapInOnlineCheck(async () => {
       let pushResponse;
       try {
         this._changeSyncCounters(1, 0);
@@ -571,7 +576,7 @@ export class Replicache implements ReadTransaction {
         if (reauth && this.getPushAuth) {
           if (maxAuthTries === 0) {
             console.info('Tried to reauthenticate too many times');
-            return;
+            return false;
           }
           const pushAuth = await this.getPushAuth();
           if (pushAuth != null) {
@@ -580,7 +585,13 @@ export class Replicache implements ReadTransaction {
             return await this._invokePush(maxAuthTries - 1);
           }
         }
+
+        return httpRequestInfo.httpStatusCode === 200;
       }
+
+      // No httpRequestInfo means we didn't do a push because there were no
+      // pending mutations.
+      return true;
     }, 'Push');
   }
 
@@ -616,7 +627,7 @@ export class Replicache implements ReadTransaction {
     if (reauth && this.getPullAuth) {
       if (maxAuthTries === 0) {
         console.info('Tried to reauthenticate too many times');
-        return {requestID, syncHead: ''};
+        return {requestID, syncHead: '', ok: false};
       }
 
       let pullAuth;
@@ -634,7 +645,7 @@ export class Replicache implements ReadTransaction {
       }
     }
 
-    return {requestID, syncHead};
+    return {requestID, syncHead, ok: httpRequestInfo.httpStatusCode === 200};
   }
 
   private _changeSyncCounters(pushDelta: 0, pullDelta: 1 | -1): void;

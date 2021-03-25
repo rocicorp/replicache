@@ -117,7 +117,7 @@ cp node_modules/replicache/out/*.wasm public/
 
 The next step is to use the data in the Client View to render your UI.
 
-Thd model is that your UI is a [pure function](https://en.wikipedia.org/wiki/Pure_function) of the data in Replicache. There is no separate in-memory state. Everything\* goes in Replicache.
+The model is that your UI is a [pure function](https://en.wikipedia.org/wiki/Pure_function) of the data in Replicache. There is no separate in-memory state. Everything\* goes in Replicache.
 
 Whenver the data in Replicache changes — either due to local mutations or syncing with the server — subscriptions will fire, and your UI components re-render. Easy.
 
@@ -242,7 +242,7 @@ Next up: Local mutations. Because read-only apps are not all that useful.
 
 With Replicache, you implement mutations once on the client-side (sometimes called _speculative_ or _optimistic_ mutations), and then again on the server (called _authoritative_ mutations).
 
-_Note:_ The two implementations need not match exactly. Replicache replaces the result of a speculative change completely with the result of the corresponding authoritative change, once it's known. This is useful because it means the speculative implementation can frequently be pretty simple, not taking it account security, complex business logic edge cases, etc. Also, if you happen to be running JavaScript on the server, you can of course share mutation code extensively between client and server.
+_Note:_ The two implementations need not match exactly. Replicache replaces the result of a speculative change completely with the result of the corresponding authoritative change, once it's known. This is useful because it means the speculative implementation can frequently be pretty simple, not taking into account security, complex business logic edge cases, etc. Also, if you happen to be running JavaScript on the server, you can of course share mutation code extensively between client and server.
 
 First, let's register a _mutator_ that speculatively creates a message. In `index.js`, replace the `registerMutators` function with:
 
@@ -299,7 +299,7 @@ Replicache automatically batches mutations and sends them to the `replicache-pus
 
 Each mutation is identified with a `mutationID` which is a per-client incrementing integer. The server must store this value transactionally when applying the mutation, and return it later in `replicache-pull`. This is what allows Replicache to know when speculative mutations can be discarded.
 
-For this demo, we're using Supabase, a very nice hosted Postgres database with a snazzy name. But you can use any datastore as long as it can transactionally update the `lastMutationID`. See [Backend Requirements](TODO) for precise details of what your backend needs to support Replicache.
+For this demo, we're using [Supabase](https://supabase.io), a very nice hosted Postgres database with a snazzy name. But you can use any datastore as long as it can transactionally update the `lastMutationID`. See [Backend Requirements](TODO) for precise details of what your backend needs to support Replicache.
 
 Head over to [Supabase](https://supabase.io) and create a free account and an empty database. Then add Supabase's Postgres connection string to your environment. You can get it from your Supabase project by clicking on ⚙️ (Gear/Cog) > Database > Connection String.
 
@@ -310,7 +310,7 @@ export REPLICHAT_DB_CONNECTION_STRING=<your connnection string>
 Then, install the Postgres client library:
 
 ```bash
-npm add pg-promise
+npm install pg-promise
 ```
 
 Create a new file `db.js` with this code:
@@ -560,10 +560,10 @@ export NEXT_PUBLIC_REPLICHAT_PUSHER_SECRET=<secret>
 export NEXT_PUBLIC_REPLICHAT_PUSHER_CLUSTER=<cluster>
 ```
 
-The install the client and server Pusher libs:
+Then install the client and server Pusher libs:
 
 ```js
-npm add pusher pusher-js
+npm install pusher pusher-js
 ```
 
 Import the library into `pages/api/replicache-push.js`:
@@ -604,10 +604,10 @@ function listen(rep) {
   console.log('listening');
   // Listen for pokes, and pull whenever we get one.
   Pusher.logToConsole = true;
-  var pusher = new Pusher(process.env.NEXT_PUBLIC_REPLICHAT_PUSHER_KEY, {
+  const pusher = new Pusher(process.env.NEXT_PUBLIC_REPLICHAT_PUSHER_KEY, {
     cluster: process.env.NEXT_PUBLIC_REPLICHAT_PUSHER_CLUSTER,
   });
-  var channel = pusher.subscribe('default');
+  const channel = pusher.subscribe('default');
   channel.bind('poke', () => {
     console.log('got poked');
     rep.pull();

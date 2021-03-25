@@ -5,7 +5,7 @@
 No question it's slower than serving only the changes.
 
 However, it's also dramatically easier to implement. Tracking the precise per-client changes is a huge project and architectural change for most existing systems.
-It's also easy to get wrong. If you get it wrong, it's difficult to *know* that it's wrong - the clients just end up with the wrong state.
+It's also easy to get wrong. If you get it wrong, it's difficult to _know_ that it's wrong - the clients just end up with the wrong state.
 
 Serving the entire client view is, in contrast, much closer to how existing application stacks typically work. It's stateless. You can change the schema of your
 client view at any time and it just works.

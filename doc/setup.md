@@ -2,7 +2,10 @@
 
 This document walks you through setting up a very simple chat app with Replicache step-by-step.
 
-(todo: gif)
+<p align="center">
+  <img src="./setup/sync.webp" width="650">
+</p>
+
 
 You can follow the steps exactly to end up with our chat app, or use them as guide to build your own Replicache-enabled app.
 
@@ -102,7 +105,11 @@ Early in development, it's easiest to just return a patch that replaces the enti
 
 **Note:** Replicache forks and versions the cache internally, much like Git. You don't have to worry about local pending changes being clobbered by remote changes. Replicache ensures pending changes always supercede remote ones. Also, Replicache is a _transactional_ key/value store. So although the changes are applied one-by-one, they appear to the user (and your application's code) all at once because they're applied within the same transaction.
 
-Start your app with `npm run dev`, and navigate to [http://localhost:3000/api/replicache-pull](http://localhost:3000/api/replicache-pull) to ensure it's working.
+Start your app with `npm run dev`, and navigate to [http://localhost:3000/api/replicache-pull](http://localhost:3000/api/replicache-pull) to ensure it's working:
+
+<p align="center">
+  <img src="./setup/replicache-pull.webp">
+</p>
 
 ## Step 2: Install Replicache and the React Utils
 
@@ -232,7 +239,9 @@ function listen(rep) {
 
 Then restart your server and navigate to [http://localhost:3000/](http://localhost:3000). You should see that we're rendering data from Replicache!
 
-TODO: Movie
+<p align="center">
+  <img src="./setup/static-ui.webp" width="650">
+</p>
 
 This might not seem that exciting yet, but notice that if you change `replicache-pull` temporarily to return 500 (or remove it, or cause any other error, or just make it really slow), the page still renders instantly.
 
@@ -291,7 +300,9 @@ _Note:_ Careful readers may be wondering what happens with the order field durin
 
 Restart the server and you should now be able to make changes!
 
-TODO: Movie
+<p align="center">
+  <img src="./setup/local-mutation.webp" width="650">
+</p>
 
 Notice that even though we're not saving anything to the server yet, the mutations are saved locally across sessions, and it even works across tabs. Whee!
 
@@ -361,7 +372,9 @@ export default async (_, res) => {
 
 Start up your server again and navigate to [http://localhost:3000/api/init](http://localhost:3000/api/init). You should see the text "OK" after a few moments. Then if you go to your Supabase UI, you should see the new tables.
 
-TODO: gif
+<p align="center">
+  <img src="./setup/schema-init.webp" width="650">
+</p>
 
 ## Step 6: Remote Mutations
 
@@ -469,7 +482,9 @@ _Note:_ In the code sample above, we updated a special `version` column in the m
 
 Restart the server, navigate to [http://localhost:3000/](http://localhost:3000/) and make some changes. You should now see changes getting saved in Supabase. Niiiice.
 
-_TODO: Video_
+<p align="center">
+  <img src="./setup/remote-mutation.webp" width="650">
+</p>
 
 But we don't see the change propagating to other browsers yet. What gives?
 
@@ -535,7 +550,9 @@ export default async (req, res) => {
 
 Voila. We're now round-tripping browsers and devices!
 
-TODO: Video
+<p align="center">
+  <img src="./setup/manual-sync.webp" width="650">
+</p>
 
 Also notice that if we go offline for awhile, make some changes, then come back online, the mutations get sent when possible.
 
@@ -619,7 +636,9 @@ function listen(rep) {
 
 Restart the app, and make a change, and you should see it propagate live between browsers:
 
-_TODO: Video_
+<p align="center">
+  <img src="./setup/sync.webp" width="650">
+</p>
 
 ## Conclusion
 

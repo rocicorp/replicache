@@ -1,6 +1,6 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1616699466622,
-  "repoUrl": "https://github.com/rocicorp/replicache-sdk-js",
+  "lastUpdate": 1616700208057,
+  "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
       {
@@ -17675,6 +17675,114 @@ window.BENCHMARK_DATA = {
           {
             "name": "create index 1024x5000",
             "value": 5.35,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "11 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c242d896aceb0f2c7080b4599913d2bb76ddef4a",
+          "message": "Update README.md",
+          "timestamp": "2021-03-25T09:20:23-10:00",
+          "tree_id": "7565ad5867862672994ffea2affbb8a17e3fe3a3",
+          "url": "https://github.com/rocicorp/replicache/commit/c242d896aceb0f2c7080b4599913d2bb76ddef4a"
+        },
+        "date": 1616700206930,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.69,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 5.71,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "11 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 1.98,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.54,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.9,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "14 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.98,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 22.88,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "44 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 21.26,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 53.36,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "80 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 37.15,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "75 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 21.98,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "44 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 5.19,
             "range": "±0.0%",
             "unit": "op/s",
             "extra": "11 samples"

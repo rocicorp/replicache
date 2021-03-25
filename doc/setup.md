@@ -14,9 +14,9 @@ You can follow the steps exactly to end up with our chat app, or use them as gui
 
 Replicache is a persistent key/value store that lives inside your web app. Use it as your app's state, in place of things like MobX, Redux, Recoil, Apollo, etc.
 
-You don't need REST or GraphQL APIs when you use Replicache, either. Instead, Replicache continuously synchronizes with your server in the background using two special endpoints: `replicache-push` and `replicache-pull`.
+You don't need REST or GraphQL APIs when you use Replicache either. Instead, Replicache continuously synchronizes with your server in the background using two special endpoints: `replicache-push` and `replicache-pull`.
 
-To learn more about the big picture of Replicache, see [the design document](TODO).
+To learn more about the big picture of Replicache, see [the design document](./design.md).
 
 We will be building this particular sample app using [Next.js](https://nextjs.org/), [Supabase](https://supabase.io/), and [Pusher.js](https://pusher.com/) because they are great and work nicely with Replicache. But you can use pretty much any frontend and backend stack you want — just apply these steps to your situation, or [contact us](https://replicache.dev/#contact) for help.
 
@@ -47,7 +47,7 @@ Since we're trying to build a chat app, a simple list of messages might be a goo
 
 (A real app would likely separate out the user entities, but this is good enough for our purposes.)
 
-**Note:** A quick word on IDs: Unlike with classic client/server apps, Replicache apps can't rely the server to assign unique IDs to data items. That's because the client is going to be working with the data long before it reaches the server, and the client and server need a way to refer to items consistently. Therefore, Replicache requires that clients assign IDs. Browsers have [cryptographically strong random sources](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues) now, so there's no real downside to this. If you think this might block your usage of Replicache, [reach out](https://replicache.dev/#contact) — we'd like to learn more.
+**Note:** A quick word on IDs: Unlike with classic client/server apps, Replicache apps can't rely the server to assign unique IDs. That's because the client is going to be working with data long before it reaches the server, and the client and server need a consistent way to refer to items. Therefore, Replicache requires that clients assign IDs. Browsers have [cryptographically strong random sources](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues) now, so there's no real downside to this. If you think this might block your usage of Replicache, [reach out](https://replicache.dev/#contact) — we'd like to learn more.
 
 Now that we know what our schema will look like, let's serve it.
 

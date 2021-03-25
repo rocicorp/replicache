@@ -8,7 +8,9 @@ You can follow the steps exactly to end up with our chat app, or use them as gui
 
 ## Architectural Overview
 
-(todo: image)
+<p align="center">
+  <img src="./diagram.png" width="650">
+</p>
 
 Replicache is a persistent key/value store that lives inside your web app. Use it as your app's state, in place of things like MobX, Redux, Recoil, Apollo, etc.
 

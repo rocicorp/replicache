@@ -17,7 +17,7 @@ import (
 var (
 	app     = kingpin.New("bump", "Bump changes the version of a Replicache library and updates all required files.")
 	rootDir = app.Flag("root", "Path to the root of the library repository").Required().ExistingDir()
-	library = app.Arg("library", "The library to bump").Required().Enum("repc", "replicache-sdk-js")
+	library = app.Arg("library", "The library to bump").Required().Enum("repc", "replicache")
 	version = app.Arg("version", "Version to update to.").Required().String()
 )
 
@@ -65,7 +65,7 @@ func impl() error {
 		if err != nil {
 			return err
 		}
-	} else if *library == "replicache-sdk-js" {
+	} else if *library == "replicache" {
 		err = updatePackageJSON(path.Join(*rootDir, "package.json"), v.String())
 		if err != nil {
 			return err

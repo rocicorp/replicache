@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1616709213046,
+  "lastUpdate": 1616709808261,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -18326,6 +18326,114 @@ window.BENCHMARK_DATA = {
             "range": "±0.0%",
             "unit": "op/s",
             "extra": "10 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1fbd4734b51c8595dcea97896e8fd35f3d544522",
+          "message": "Treat non 200 status as an error (#337)\n\nNow ConnectionLoop invokeSend needs to return `Promise<boolean>`. If it\r\nreturns `false` or throws then the send is considered a failure and will\r\nget retried.\r\n\r\nMake _invokePush and _invokePull look at the httpStatusCode and use that\r\nto compute the return value.\r\n\r\nFixes #332",
+          "timestamp": "2021-03-25T15:00:22-07:00",
+          "tree_id": "b320be4b6015742d8653df6f9dfcaf76f4978202",
+          "url": "https://github.com/rocicorp/replicache/commit/1fbd4734b51c8595dcea97896e8fd35f3d544522"
+        },
+        "date": 1616709807135,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.74,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "10 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 5.81,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "12 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 3.43,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.61,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 7.16,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "15 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 7.32,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 24.42,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "50 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 23.18,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "10 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 53.09,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "103 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 130.12,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "215 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 22.72,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "45 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 5.16,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "11 samples"
           }
         ]
       }

@@ -108,7 +108,7 @@ Early in development, it's easiest to just return a patch that replaces the enti
 Start your app with `npm run dev`, and navigate to [http://localhost:3000/api/replicache-pull](http://localhost:3000/api/replicache-pull) to ensure it's working:
 
 <p align="center">
-  <img src="./setup/replicache-pull.webp">
+  <img src="./setup/replicache-pull.webp" width="650">
 </p>
 
 ## Step 2: Install Replicache and the React Utils

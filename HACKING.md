@@ -18,7 +18,7 @@ The build script copies to a new directory, so you need to re-run `npm run build
 
 ```
 go get github.com/rocicorp/repc/tool/bump
-bump --root=. replicache-sdk-js <semver>
+bump --root=. replicache <semver>
 # push to github and merge
 # pull merged commit
 git tag v<semver>

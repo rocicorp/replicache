@@ -145,7 +145,7 @@ export default function Home() {
       wasmModule: '/replicache.dev.wasm',
     });
     registerMutators(rep);
-    // TODO: https://github.com/rocicorp/replicache-sdk-js/issues/328
+    // TODO: https://github.com/rocicorp/replicache/issues/328
     rep.pull();
     listen(rep);
     setRep(rep);
@@ -248,7 +248,7 @@ First, let's register a _mutator_ that speculatively creates a message. In `inde
 
 ```js
 function registerMutators(rep) {
-  // TODO: https://github.com/rocicorp/replicache-sdk-js/issues/329
+  // TODO: https://github.com/rocicorp/replicache/issues/329
   rep.createMessage = rep.register(
     'createMessage',
     (tx, {id, from, content, order}) => {

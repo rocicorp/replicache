@@ -245,6 +245,8 @@ export class Replicache implements ReadTransaction {
     });
 
     this._open();
+    this.pull();
+    this._push();
   }
 
   private async _open(): Promise<void> {
@@ -902,40 +904,6 @@ function checkStatus(
 }
 
 export class ReplicacheTest extends Replicache {
-  static async new({
-    name = '',
-    pullAuth,
-    pullURL,
-    pushAuth,
-    pushDelay,
-    pushURL,
-    schemaVersion,
-    useMemstore = false,
-  }: {
-    name?: string;
-    pullAuth?: string;
-    pullURL?: string;
-    pushAuth?: string;
-    pushDelay?: number;
-    pushURL: string;
-    schemaVersion?: string;
-    useMemstore?: boolean;
-  }): Promise<ReplicacheTest> {
-    const rep = new ReplicacheTest({
-      name,
-      pullAuth,
-      pullURL,
-      pushAuth,
-      pushDelay,
-      pushURL,
-      schemaVersion,
-      pullInterval: null,
-      useMemstore,
-    });
-    await rep._openResponse;
-    return rep;
-  }
-
   beginPull(): Promise<BeginPullResult> {
     return super._beginPull(MAX_REAUTH_TRIES);
   }

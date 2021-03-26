@@ -169,7 +169,7 @@ function Chat({rep}) {
     async tx => {
       // Note: Replicache also supports secondary indexes, which can be used
       // with scan. See:
-      // https://replicache-sdk-js.now.sh/classes/replicache.html#createindex
+      // https://js.replicachedev/classes/replicache.html#createindex
       const list = await tx.scanAll({prefix: 'message/'});
       list.sort(([, {order: a}], [, {order: b}]) => a - b);
       return list;

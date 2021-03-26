@@ -1,4 +1,5 @@
 import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
+import type {ReplicacheOptions} from './replicache.js';
 import {Replicache, TransactionClosedError} from './mod.js';
 
 import type {ReadTransaction, WriteTransaction} from './mod.js';
@@ -44,25 +45,17 @@ let overrideUseMemstore = false;
 async function replicacheForTesting(
   name: string,
   {
-    pullAuth = '',
+    pullAuth,
     pullURL = 'https://pull.com/?name=' + name,
-    pushAuth = '',
+    pushAuth,
     pushDelay = 60_000, // Large to prevent interfering
     pushURL = 'https://push.com/?name=' + name,
-    schemaVersion = '',
+    schemaVersion,
     useMemstore = overrideUseMemstore,
-  }: {
-    pullAuth?: string;
-    pullURL?: string;
-    pushAuth?: string;
-    pushDelay?: number;
-    pushURL?: string;
-    schemaVersion?: string;
-    useMemstore?: boolean;
-  } = {},
+  }: ReplicacheOptions = {},
 ): Promise<ReplicacheTest> {
   dbsToDrop.add(name);
-  const rep = await ReplicacheTest.new({
+  const rep = new ReplicacheTest({
     pullAuth,
     pullURL,
     pushAuth,
@@ -74,6 +67,7 @@ async function replicacheForTesting(
   });
   fetchMock.post(pullURL, {lastMutationID: 0, patch: []});
   fetchMock.post(pushURL, {});
+  await tickAFewTimes();
   return rep;
 }
 
@@ -687,6 +681,9 @@ testWithBothStores('push delay', async () => {
   );
 
   const id1 = 14323534;
+
+  await tickAFewTimes();
+  fetchMock.reset();
 
   fetchMock.postOnce(pushURL, {
     mutationInfos: [],

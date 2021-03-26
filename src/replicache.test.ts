@@ -1574,9 +1574,8 @@ testWithBothStores('onSync', async () => {
     };
 
     await add({c: 'c'});
-    for (let i = 0; i < 5; i++) {
-      await clock.tickAsync(10);
-    }
+    await tickAFewTimes(6);
+
     expect(consoleErrorStub.firstCall.args[0]).to.equal(
       'Got error response from server (https://push.com/push) doing push: 401: xxx',
     );

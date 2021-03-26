@@ -30,7 +30,7 @@ You only need [Node.js](https://nodejs.org/en/), version 10.13 or higher to get 
 
 The easiest way to start a Replicache project is to design your Client View schema and start serving it. That way, you'll have data to work with when you go to build the UI in the next step.
 
-Since we're trying to build a chat app, a simple list of messages might be a good starting point for our schema:
+Recall that the Client View is the string-key-JSON-value map returned by your server and used by your app. Since we're trying to build a chat app, a simple list of messages might be a good starting point for our schema:
 
 ```json
 {
@@ -70,6 +70,7 @@ export default async (req, res) => {
     // We will discuss these two fields in later steps.
     lastMutationID: 0,
     cookie: null,
+    // This patch is discussed immediately below.
     patch: [
       {op: 'clear'},
       {
@@ -98,11 +99,11 @@ export default async (req, res) => {
 
 You'll notice the JSON we're serving is a little different than our idealized schema above.
 
-The response from `replicache-pull` is actually a _patch_ — a series of changes that have happened on the server, and need to be applied to the client. Replicache applies them one-by-one, in-order. See [Pull Endpoint](TODO) for more details.
+The response from `replicache-pull` is actually a _patch_ — a series of changes to be applied to the map the client currently has, as a result of changes that have happened on the server. Replicache applies the patch operations one-by-one, in-order, to its existing map. See [Pull Endpoint](TODO) for more details.
 
 Early in development, it's easiest to just return a patch that replaces the entire state with new values, which is what we've done here. Later in this tutorial we will improve this to return only what has changed.
 
-**Note:** Replicache forks and versions the cache internally, much like Git. You don't have to worry about local pending changes being clobbered by remote changes. Replicache ensures pending changes always supercede remote ones. Also, Replicache is a _transactional_ key/value store. So although the changes are applied one-by-one, they appear to the user (and your application's code) all at once because they're applied within the same transaction.
+**Note:** Replicache forks and versions the cache internally, much like Git. You don't have to worry about changes made by the app to the client's map between pulls being clobbered by remote changes via patch. Replicache has a mechanism ensuring that local pending (unpushed) changes are always applied on top of server-provided changes (see [Local Mutations](#step-4-local-mutations)). Also, Replicache is a _transactional_ key/value store. So although the changes are applied one-by-one, they are revealed to your app (and thus to the user) all at once because they're applied within a single transaction.
 
 Start your app with `npm run dev`, and navigate to [http://localhost:3000/api/replicache-pull](http://localhost:3000/api/replicache-pull) to ensure it's working:
 
@@ -166,6 +167,9 @@ function Chat({rep}) {
   const messages = useSubscribe(
     rep,
     async tx => {
+      // Note: Replicache also supports secondary indexes, which can be used
+      // with scan. See:
+      // https://replicache-sdk-js.now.sh/classes/replicache.html#createindex
       const list = await tx.scanAll({prefix: 'message/'});
       list.sort(([, {order: a}], [, {order: b}]) => a - b);
       return list;
@@ -244,7 +248,7 @@ Then restart your server and navigate to [http://localhost:3000/](http://localho
 
 This might not seem that exciting yet, but notice that if you change `replicache-pull` temporarily to return 500 (or remove it, or cause any other error, or just make it really slow), the page still renders instantly.
 
-That's because we're rendering the data from local storage on startup, not waiting for the server! Woo.
+That's because we're rendering the data from the local cache on startup, not waiting for the server! Woo.
 
 ## Step 4: Local Mutations
 
@@ -272,6 +276,8 @@ function registerMutators(rep) {
 }
 ```
 
+This creates a mutator named "createMessage". When invoked, the implementation is run within a transaction (`tx`) and it `put`s the new message into the local map.
+
 Now let's invoke the mutator when the user types a message. Replace the content of `onSubmit` so that it invokes the mutator:
 
 ```js
@@ -291,7 +297,9 @@ const onSubmit = e => {
 };
 ```
 
-It's important to remember that Replicache will frequently re-run mutations during sync against different versions of the cache. Thus a mutator's behavior should not depend on anything other than its parameters and the cache itself (it should be a pure function of its parameters, including `tx`).
+Previously we mentioned that Replicache has a mechanism that ensures that local, speculative changes are always applied on top of changes from the server. The way this works is that when Replicache pulls and applies changes from the server, any mutator invocations that have not yet been confirmed by the server are _replayed_ on top of the new server state. This is much like a git rebase, and the effects of the patch-and-replay are revealed atomically to your app.
+
+An important consequence of the fact that Replicache will re-run mutations during sync against new versions of the cache is that a mutator's behavior should not depend on anything other than its parameters and the cache itself (it should be a pure function of its parameters, including `tx`).
 
 For example here, we pass the generated unique ID _into_ the mutator as a param, rather than creating it inside the implementation. This may be counter-intuitive at first, but it make sense when you remember that Replicache is going to replay this transaction during sync, and we don't want the ID to change!
 
@@ -309,7 +317,7 @@ Notice that even though we're not saving anything to the server yet, the mutatio
 
 Replicache automatically batches mutations and sends them to the `replicache-push` endpoint periodically. Implementing the push handler is not much different than implementing a REST or GraphQL endpoint, with one key difference.
 
-Each mutation is identified with a `mutationID` which is a per-client incrementing integer. The server must store this value transactionally when applying the mutation, and return it later in `replicache-pull`. This is what allows Replicache to know when speculative mutations can be discarded.
+Each mutation is identified with a `mutationID` which is a per-client incrementing integer. The server must store this value transactionally when applying the mutation, and return it later in `replicache-pull`. This is what allows Replicache to know when speculative mutations have been confirmed by the server and thus no longer need to be replayed (and in fact can be discarded).
 
 For this demo, we're using [Supabase](https://supabase.io), a very nice hosted Postgres database with a snazzy name. But you can use any datastore as long as it can transactionally update the `lastMutationID`. See [Backend Requirements](TODO) for precise details of what your backend needs to support Replicache.
 
@@ -561,7 +569,7 @@ The only thing left is to make it live — we obviously don't want the user to h
 
 ## Step 8: Poke
 
-Many realtime systems use WebSockets to push live updates to clients. This has performance benefits, but comes at a steep operational cost. WebSocket-based services are much more complex to scale because they have to keep state in memory for each connected client.
+Many realtime systems use WebSockets to push live updates to clients. This has performance benefits, but comes at a steep operational cost. WebSocket-based services are more complex to scale because they have to keep state in memory for each connected client.
 
 Replicache instead uses WebSockets only to hint the client that it should pull again. No data is sent over the socket. This enables developers to build their realtime web applications in the standard stateless request/response style. You can even build Replicache-enabled apps serverlessly (as we are here with Next.js)! We have found that we can get most of the performace back with HTTP/2, anyway.
 
@@ -648,3 +656,7 @@ We've setup a simple realtime offline-enabled chat application against a vanilla
 It's a little bit more work than an all-in-one system like Firebase, but you can implement it directly against your own stack without reliance on a giant third-party system.
 
 This particular application is trivial, but the techniques generalize to much more complex systems. For example, see [Replidraw](https://replidraw.vercel.app) our realtime collaborative graphics editor.
+
+## Feedback
+
+We would love to have your feedback about this setup guide: was it easy to follow, is there anything that's unclear, suggestions for improvements, etc. Please feel free to [contact us](https://replicache.dev/#contact) with your feedback!

@@ -582,7 +582,6 @@ testWithBothStores('push', async () => {
       {id: 2, error: 'deleteTodo: todo not found'},
     ],
   });
-  rep.push();
   await tickAFewTimes();
   expect(deleteCount).to.equal(2);
   const {mutations} = await fetchMock.lastCall().request.json();
@@ -590,19 +589,6 @@ testWithBothStores('push', async () => {
     {id: 1, name: 'deleteTodo', args: {id: id1}},
     {id: 2, name: 'deleteTodo', args: {id: id2}},
   ]);
-
-  fetchMock.postOnce(pushURL, {
-    mutationInfos: [],
-  });
-  rep.push();
-  await tickAFewTimes();
-  {
-    const {mutations} = await fetchMock.lastCall().request.json();
-    expect(mutations).to.deep.equal([
-      {id: 1, name: 'deleteTodo', args: {id: id1}},
-      {id: 2, name: 'deleteTodo', args: {id: id2}},
-    ]);
-  }
 
   await createTodo({
     id: id1,
@@ -616,7 +602,6 @@ testWithBothStores('push', async () => {
   fetchMock.postOnce(pushURL, {
     mutationInfos: [{id: 3, error: 'mutation has already been processed'}],
   });
-  rep.push();
   await tickAFewTimes();
   {
     const {mutations} = await fetchMock.lastCall().request.json();
@@ -646,7 +631,6 @@ testWithBothStores('push', async () => {
   fetchMock.postOnce(pushURL, {
     mutationInfos: [],
   });
-  rep.push();
   await tickAFewTimes();
   {
     const {mutations} = await fetchMock.lastCall().request.json();
@@ -1563,7 +1547,7 @@ testWithBothStores('onSync', async () => {
 
   onSync.resetHistory();
   fetchMock.postOnce(pushURL, {});
-  rep.push();
+  await add({a: 'a'});
   await tickAFewTimes();
 
   expect(onSync.callCount).to.eq(2);
@@ -1572,7 +1556,7 @@ testWithBothStores('onSync', async () => {
 
   fetchMock.postOnce(pushURL, {});
   onSync.resetHistory();
-  await add({a: 'a'});
+  await add({b: 'b'});
   await tickAFewTimes();
   expect(onSync.callCount).to.eq(2);
   expect(onSync.getCall(0).args[0]).to.be.true;
@@ -1589,10 +1573,9 @@ testWithBothStores('onSync', async () => {
       return 'ok';
     };
 
-    rep.push();
-    for (let i = 0; i < 5; i++) {
-      await clock.tickAsync(10);
-    }
+    await add({c: 'c'});
+    await tickAFewTimes(6);
+
     expect(consoleErrorStub.firstCall.args[0]).to.equal(
       'Got error response from server (https://push.com/push) doing push: 401: xxx',
     );
@@ -1607,7 +1590,6 @@ testWithBothStores('onSync', async () => {
   rep.onSync = null;
   onSync.resetHistory();
   fetchMock.postOnce(pushURL, {});
-  await rep.push();
   expect(onSync.callCount).to.eq(0);
 });
 
@@ -1625,7 +1607,7 @@ testWithBothStores('push timing', async () => {
   const add = rep.register('add-data', addData);
 
   fetchMock.post(pushURL, {});
-  rep.push();
+  await add({a: 0});
   await tickAFewTimes();
 
   const tryPushCalls = () =>
@@ -1648,9 +1630,9 @@ testWithBothStores('push timing', async () => {
   expect(tryPushCalls()).to.eq(1);
   spy.resetHistory();
 
-  const p1 = rep.push();
-  const p2 = rep.push();
-  const p3 = rep.push();
+  const p1 = add({e: 5});
+  const p2 = add({f: 6});
+  const p3 = add({g: 7});
 
   expect(tryPushCalls()).to.eq(0);
 
@@ -1673,7 +1655,7 @@ test('push and pull concurrently', async () => {
     pullURL,
     pushURL,
     useMemstore: true,
-    pushDelay: 5,
+    pushDelay: 10,
   });
   const spy = spyInvoke(rep);
 
@@ -1693,7 +1675,7 @@ test('push and pull concurrently', async () => {
   await add({a: 0});
   spy.resetHistory();
 
-  const pushP1 = rep.push();
+  await add({b: 1});
   const pullP1 = rep.pull();
 
   await clock.tickAsync(10);
@@ -1701,10 +1683,17 @@ test('push and pull concurrently', async () => {
   const rpcs = () => spy.args.map(a => a[0]);
 
   // Only one push at a time but we want push and pull to be concurrent.
-  expect(rpcs()).to.deep.equal([RPC.BeginTryPull, RPC.TryPush]);
+  expect(rpcs().map(x => RPC[x])).to.deep.equal([
+    'OpenTransaction',
+    'Put',
+    'CommitTransaction',
+    'OpenTransaction',
+    'CloseTransaction',
+    'BeginTryPull',
+    'TryPush',
+  ]);
 
   await tickAFewTimes();
-  await pushP1;
 
   expect(reqs).to.deep.equal([pullURL, pushURL]);
 
@@ -1713,7 +1702,15 @@ test('push and pull concurrently', async () => {
 
   expect(reqs).to.deep.equal([pullURL, pushURL]);
 
-  expect(rpcs()).to.deep.equal([RPC.BeginTryPull, RPC.TryPush]);
+  expect(rpcs().map(x => RPC[x])).to.deep.equal([
+    'OpenTransaction',
+    'Put',
+    'CommitTransaction',
+    'OpenTransaction',
+    'CloseTransaction',
+    'BeginTryPull',
+    'TryPush',
+  ]);
 });
 
 test('schemaVersion pull', async () => {
@@ -1744,7 +1741,6 @@ test('schemaVersion push', async () => {
   await add({a: 1});
 
   fetchMock.post(pushURL, {});
-  rep.push();
   await tickAFewTimes();
 
   const req = await fetchMock.lastCall().request.json();

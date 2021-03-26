@@ -6,7 +6,6 @@ This document walks you through setting up a very simple chat app with Replicach
   <img src="./setup/sync.webp" width="650">
 </p>
 
-
 You can follow the steps exactly to end up with our chat app, or use them as guide to build your own Replicache-enabled app.
 
 ## Architectural Overview

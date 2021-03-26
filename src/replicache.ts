@@ -142,7 +142,7 @@ export class Replicache implements ReadTransaction {
 
   private _closed = false;
   private _online = true;
-  protected _openResponse!: Promise<OpenResponse>;
+  private _openResponse!: Promise<OpenResponse>;
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
@@ -244,9 +244,10 @@ export class Replicache implements ReadTransaction {
       maxConnections: 1,
     });
 
-    this._open();
-    this.pull();
-    this._push();
+    this._open().then(() => {
+      this.pull();
+      this._push();
+    });
   }
 
   private async _open(): Promise<void> {
@@ -604,7 +605,7 @@ export class Replicache implements ReadTransaction {
    * (which it is by default) pushes happen automatically shortly after
    * mutations.
    */
-  protected _push(): void {
+  private _push(): void {
     this._pushConnectionLoop.send();
   }
 
@@ -910,10 +911,6 @@ export class ReplicacheTest extends Replicache {
 
   maybeEndPull(beginPullResult: BeginPullResult): Promise<void> {
     return super._maybeEndPull(beginPullResult);
-  }
-
-  push(): void {
-    super._push();
   }
 }
 

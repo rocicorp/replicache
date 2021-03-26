@@ -18,6 +18,8 @@ import {
 import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
 import {ConnectionLoop} from './connection-loop.js';
+import {getLogger} from './logger.js';
+import type {Logger, LogLevel} from './logger.js';
 
 type BeginPullResult = {
   requestID: string;
@@ -128,6 +130,11 @@ export interface ReplicacheOptions {
    * is [[closed]] or the page is unloaded is lost.
    */
   useMemstore?: boolean;
+
+  /**
+   * Sets the amount of logging shown.
+   */
+  logLevel?: LogLevel;
 }
 
 export class Replicache implements ReadTransaction {
@@ -142,6 +149,8 @@ export class Replicache implements ReadTransaction {
 
   private _closed = false;
   private _online = true;
+  private readonly _logLevel: LogLevel;
+  private readonly _logger: Logger;
   private _openResponse!: Promise<OpenResponse>;
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
@@ -213,6 +222,7 @@ export class Replicache implements ReadTransaction {
   constructor(options: ReplicacheOptions) {
     const {
       name = 'default',
+      logLevel = 'info',
       pullAuth = '',
       pullURL = '',
       pushAuth = '',
@@ -239,14 +249,22 @@ export class Replicache implements ReadTransaction {
       watchdogTimer: () => this.pullInterval,
       debounceDelay: () => 0,
       maxConnections: 1,
+      ...getLogger(['PULL'], logLevel),
     });
     this._pushConnectionLoop = new ConnectionLoop({
       invokeSend: () => this._invokePush(MAX_REAUTH_TRIES),
       debounceDelay: () => this.pushDelay,
       maxConnections: 1,
+      ...getLogger(['PUSH'], logLevel),
     });
 
-    this._open().then(() => {
+    this._logLevel = logLevel;
+    this._logger = getLogger([], logLevel);
+
+    this._open().then(async () => {
+      // TODO: Make log level an arg to open and scope the log level to a db
+      // connection.
+      await this._invoke(RPC.SetLogLevel, {level: this._logLevel});
       this.pull();
       this._push();
     });
@@ -490,7 +508,7 @@ export class Replicache implements ReadTransaction {
     }
 
     // Replay.
-    console.group('Replaying');
+    this._logger.debug ?? console.group('Replaying');
     for (const mutation of replayMutations) {
       syncHead = await this._replay(
         syncHead,
@@ -499,7 +517,7 @@ export class Replicache implements ReadTransaction {
         JSON.parse(mutation.args),
       );
     }
-    console.groupEnd();
+    this._logger.debug ?? console.groupEnd();
 
     await this._maybeEndPull({...beginPullResult, syncHead});
   }
@@ -519,7 +537,7 @@ export class Replicache implements ReadTransaction {
       // least sync can move forward. Note that the server-side mutation will
       // still get sent. This doesn't remove the queued local mutation, it just
       // removes its visible effects.
-      console.error(`Unknown mutator ${name}`);
+      this._logger.error?.(`Unknown mutator ${name}`);
       mutatorImpl = async () => {
         // no op
       };
@@ -574,7 +592,7 @@ export class Replicache implements ReadTransaction {
       if (e.toString().includes('JSLogInfo')) {
         online = false;
       }
-      console.info(`${name} returned: ${e}`);
+      this._logger.info?.(`${name} returned: ${e}`);
       return false;
     } finally {
       this._online = online;
@@ -598,14 +616,19 @@ export class Replicache implements ReadTransaction {
       const {httpRequestInfo} = pushResponse;
 
       if (httpRequestInfo) {
-        const reauth = checkStatus(httpRequestInfo, 'push', this._pushURL);
+        const reauth = checkStatus(
+          httpRequestInfo,
+          'push',
+          this._pushURL,
+          this._logger,
+        );
 
         // TODO: Add back support for mutationInfos? We used to log all the errors
         // here.
 
         if (reauth && this.getPushAuth) {
           if (maxAuthTries === 0) {
-            console.info('Tried to reauthenticate too many times');
+            this._logger.info?.('Tried to reauthenticate too many times');
             return false;
           }
           const pushAuth = await this.getPushAuth();
@@ -653,10 +676,15 @@ export class Replicache implements ReadTransaction {
 
     const {httpRequestInfo, syncHead, requestID} = beginPullResponse;
 
-    const reauth = checkStatus(httpRequestInfo, 'pull', this._pullURL);
+    const reauth = checkStatus(
+      httpRequestInfo,
+      'pull',
+      this._pullURL,
+      this._logger,
+    );
     if (reauth && this.getPullAuth) {
       if (maxAuthTries === 0) {
-        console.info('Tried to reauthenticate too many times');
+        this._logger.info?.('Tried to reauthenticate too many times');
         return {requestID, syncHead: '', ok: false};
       }
 
@@ -910,9 +938,11 @@ export class Replicache implements ReadTransaction {
    *
    * If you want to see the verbose logging from Replicache in Devtools/Web
    * Inspector you also need to change the console log level to `Verbose`.
+   * @deprecated
    */
-  async setVerboseWasmLogging(verbose: boolean): Promise<void> {
-    await this._invoke(RPC.SetLogLevel, {level: verbose ? 'debug' : 'info'});
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async setVerboseWasmLogging(): Promise<void> {
+    // deprecated
   }
 }
 
@@ -920,10 +950,11 @@ function checkStatus(
   data: {httpStatusCode: number; errorMessage: string},
   verb: string,
   serverURL: string,
+  logger: Logger,
 ): boolean {
   const {httpStatusCode, errorMessage} = data;
   if (errorMessage || httpStatusCode >= 400) {
-    console.error(
+    logger.error?.(
       `Got error response from server (${serverURL}) doing ${verb}: ${httpStatusCode}` +
         (errorMessage ? `: ${errorMessage}` : ''),
     );

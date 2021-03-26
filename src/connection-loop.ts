@@ -1,3 +1,4 @@
+import type {Logger} from './logger.js';
 import {resolver} from './resolver.js';
 import {sleep} from './sleep.js';
 
@@ -10,13 +11,11 @@ const MAX_CONNECTIONS = 3;
 
 type SendRecord = {duration: number; ok: boolean};
 
-export interface ConnectionLoopDelegate {
+export interface ConnectionLoopDelegate extends Logger {
   invokeSend(): Promise<boolean>;
   debounceDelay?(): number;
   maxConnections?: number;
   watchdogTimer?(): number | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  log?(...args: any[]): void;
 }
 
 export class ConnectionLoop {
@@ -64,7 +63,7 @@ export class ConnectionLoop {
   }
 
   send(): void {
-    this._delegate.log?.('send');
+    this._delegate.debug?.('send');
     this._pendingResolver.resolve();
   }
 
@@ -81,13 +80,14 @@ export class ConnectionLoop {
       debounceDelay = () => DEBOUNCE_DELAY,
       maxConnections = MAX_CONNECTIONS,
       watchdogTimer,
-      log,
+      debug,
+      info,
     } = delegate;
 
-    log?.('Starting connection loop');
+    debug?.('Starting connection loop');
 
     while (!this._closed) {
-      log?.(
+      debug?.(
         didLastSendRequestFail(sendRecords)
           ? 'Last request failed. Trying again'
           : 'Waiting for a send',
@@ -102,19 +102,19 @@ export class ConnectionLoop {
       await Promise.race(races);
       if (this._closed) break;
 
-      log?.('Waiting for debounce');
+      debug?.('Waiting for debounce');
       await sleep(debounceDelay());
       if (this._closed) break;
-      log?.('debounced');
+      debug?.('debounced');
 
       // This resolver is used to wait for incoming push calls.
       this._pendingResolver = resolver();
 
       if (counter >= maxConnections) {
-        log?.('Too many pushes. Waiting until one finishes...');
+        debug?.('Too many pushes. Waiting until one finishes...');
         await this._waitUntilAvailableConnection();
         if (this._closed) break;
-        log?.('...finished');
+        debug?.('...finished');
       }
 
       // We need to delay the next request even if there are no active requests
@@ -125,7 +125,7 @@ export class ConnectionLoop {
           maxConnections,
           sendRecords,
         );
-        log?.(
+        debug?.(
           didLastSendRequestFail(sendRecords)
             ? 'Last connection errored. Sleeping for'
             : 'More than one outstanding connection (' +
@@ -151,18 +151,18 @@ export class ConnectionLoop {
         let ok: boolean;
         try {
           lastSendTime = start;
-          log?.('Sending request');
+          debug?.('Sending request');
           ok = await delegate.invokeSend();
-          log?.('Send returned', ok);
+          debug?.('Send returned', ok);
         } catch (e) {
-          log?.('Send failed', e);
+          info?.('Send failed', e);
           ok = false;
         }
         if (this._closed) {
-          log?.('Closed after invokeSend');
+          debug?.('Closed after invokeSend');
           return;
         }
-        log?.('Request done', {duration: Date.now() - start, ok});
+        debug?.('Request done', {duration: Date.now() - start, ok});
         sendRecords.push({duration: Date.now() - start, ok});
         if (recovered(sendRecords)) {
           recoverResolver.resolve();

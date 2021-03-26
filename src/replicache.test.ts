@@ -45,25 +45,21 @@ let overrideUseMemstore = false;
 async function replicacheForTesting(
   name: string,
   {
-    pullAuth,
     pullURL = 'https://pull.com/?name=' + name,
-    pushAuth,
     pushDelay = 60_000, // Large to prevent interfering
     pushURL = 'https://push.com/?name=' + name,
-    schemaVersion,
     useMemstore = overrideUseMemstore,
+    ...rest
   }: ReplicacheOptions = {},
 ): Promise<ReplicacheTest> {
   dbsToDrop.add(name);
   const rep = new ReplicacheTest({
-    pullAuth,
     pullURL,
-    pushAuth,
     pushDelay,
     pushURL,
     name,
-    schemaVersion,
     useMemstore,
+    ...rest,
   });
   fetchMock.post(pullURL, {lastMutationID: 0, patch: []});
   fetchMock.post(pushURL, {});
@@ -835,7 +831,7 @@ testWithBothStores('reauth', async () => {
   );
 
   {
-    const consoleInfoStub = sinon.stub(console, 'info');
+    const consoleInfoStub = sinon.stub(console, 'log');
     const getPullAuthFake = sinon.fake(() => 'boo');
     rep.getPullAuth = getPullAuthFake;
 
@@ -1294,13 +1290,49 @@ test.skip('mutator optional args [type checking only]', async () => {
   console.log(mut5);
 });
 
-testWithBothStores('setLogLevel', async () => {
-  sinon.stub(console, 'log'); // Silence log
+testWithBothStores('logLevel', async () => {
+  const info = sinon.stub(console, 'log');
+  const debug = sinon.stub(console, 'debug');
 
-  // Just testing that no errors are thrown
-  rep = await replicacheForTesting('set-log-level');
-  await rep.setVerboseWasmLogging(true);
-  await rep.setVerboseWasmLogging(false);
+  // Just testing that we get some output
+  rep = await replicacheForTesting('log-level', {logLevel: 'error'});
+  await rep.query(() => 42);
+  expect(info.callCount).to.equal(0);
+  await rep.close();
+
+  info.reset();
+  debug.reset();
+  await tickAFewTimes(10, 100);
+
+  rep = await replicacheForTesting('log-level', {logLevel: 'info'});
+  await rep.query(() => 42);
+  expect(info.callCount).to.equal(0);
+  expect(debug.callCount).to.equal(0);
+  await rep.close();
+
+  info.reset();
+  debug.reset();
+  await tickAFewTimes(10, 100);
+
+  rep = await replicacheForTesting('log-level', {logLevel: 'debug'});
+  await rep.query(() => 42);
+  expect(info.callCount).to.be.greaterThan(0);
+  expect(debug.callCount).to.be.greaterThan(0);
+
+  expect(
+    info.getCalls().some(call => call.firstArg.includes('OpenTransaction')),
+  ).to.equal(true);
+  expect(
+    debug.getCalls().some(call => call.firstArg.includes('PULL')),
+  ).to.equal(true);
+  expect(
+    debug.getCalls().some(call => call.firstArg.includes('PUSH')),
+  ).to.equal(true);
+
+  await rep.close();
+
+  // Restoring since we are not yet scoped to a Replicache db instance.
+  rep = await replicacheForTesting('log-level', {logLevel: 'info'});
 });
 
 test('JSON deep equal', () => {

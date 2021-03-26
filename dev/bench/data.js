@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1616793971762,
+  "lastUpdate": 1616795075388,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -19291,6 +19291,114 @@ window.BENCHMARK_DATA = {
             "range": "±0.0%",
             "unit": "op/s",
             "extra": "42 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 4.66,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "10 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "007252e954eea57104237051df764165fdf5db64",
+          "message": "Do not expose push to ReplicacheTest (#342)\n\nThe goal is to get rid of `beginPull` and `maybeEndPull` from\r\nReplicacheTest too and instead test these at a higher level using purely\r\npublic API.",
+          "timestamp": "2021-03-26T14:41:09-07:00",
+          "tree_id": "960f05787998731a72ac7b6b1c853bdf3b848eeb",
+          "url": "https://github.com/rocicorp/replicache/commit/007252e954eea57104237051df764165fdf5db64"
+        },
+        "date": 1616795071456,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.07,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.97,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "10 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 3.05,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.31,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.01,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "13 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.24,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 22.95,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "46 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 21.14,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 47.38,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "94 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 120.26,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "200 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 21.33,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "43 samples"
           },
           {
             "name": "create index 1024x5000",

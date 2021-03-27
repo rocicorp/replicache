@@ -340,9 +340,7 @@ import * as pgInit from 'pg-promise';
 
 const pgp = pgInit({/* initialization options */});
 
-const db = pgp(process.env.REPLICHAT_DB_CONNECTION_STRING);
-
-export db;
+export const db = pgp(process.env.REPLICHAT_DB_CONNECTION_STRING);
 ```
 
 And another new file `pages/api/init.js` that initializes the schema:

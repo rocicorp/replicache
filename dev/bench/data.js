@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1617058881902,
+  "lastUpdate": 1617067325038,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -19730,6 +19730,114 @@ window.BENCHMARK_DATA = {
             "range": "±0.0%",
             "unit": "op/s",
             "extra": "11 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "f7af1eefc4e94b535c00fbc87a29c5540caca1fb",
+          "message": "Handle storage events correctly with memstore and other edge cases.\n\nFixes #345.",
+          "timestamp": "2021-03-29T15:18:47-10:00",
+          "tree_id": "9c3925647a1825b444a5fad1cdc5cf96f563b94a",
+          "url": "https://github.com/rocicorp/replicache/commit/f7af1eefc4e94b535c00fbc87a29c5540caca1fb"
+        },
+        "date": 1617067324340,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.97,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.7,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.77,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.03,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.05,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "13 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.43,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 21.16,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "43 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 20.5,
+            "range": "±0.0%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 45.8,
+            "range": "±0.0%",
+            "unit": "tx/s",
+            "extra": "59 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 113.12,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "177 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 21.12,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "42 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 4.7,
+            "range": "±0.0%",
+            "unit": "op/s",
+            "extra": "10 samples"
           }
         ]
       }

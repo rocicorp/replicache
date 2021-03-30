@@ -258,15 +258,16 @@ export class Replicache implements ReadTransaction {
     });
     if (hasBroadcastChannel) {
       this._broadcastChannel = new BroadcastChannel(storageKeyName(this._name));
-      this._broadcastChannel.onmessage = e => {
-        this._checkChange(e.data);
-      };
+      this._broadcastChannel.onmessage = () => this._onStorage();
     } else {
-      window.addEventListener('storage', this._onStorage);
+      window.addEventListener('storage', (e: StorageEvent) => {
+        if (e.key === storageKeyName(this._name)) {
+          this._onStorage();
+        }
+      });
     }
     this._setRoot(this._getRoot());
     await this._root;
-    window.addEventListener('storage', this._onStorage);
   }
 
   /**
@@ -358,11 +359,12 @@ export class Replicache implements ReadTransaction {
 
   // Callback for when window.onstorage fires which happens when a different tab
   // changes the db.
-  private _onStorage = (e: StorageEvent): void => {
-    if (e.key === storageKeyName(this._name)) {
-      this._checkChange(e.newValue as string);
-    }
-  };
+  private async _onStorage() {
+    // Cannot just use the value from the other tab, because it can be behind us.
+    // Also, in the case of memstore, it will have a totally different, unrelated
+    // hash chain.
+    this._checkChange(await this._getRoot());
+  }
 
   private async _checkChange(root: string | undefined): Promise<void> {
     const currentRoot = await this._root; // instantaneous except maybe first time

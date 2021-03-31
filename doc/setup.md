@@ -49,7 +49,7 @@ Recall that the Client View is the string-key-JSON-value map returned by your se
 
 (A real app would likely separate out the user entities, but this is good enough for our purposes.)
 
-**Note:** A quick word on IDs: Unlike with classic client/server apps, Replicache apps can't rely the server to assign unique IDs. That's because the client is going to be working with data long before it reaches the server, and the client and server need a consistent way to refer to items. Therefore, Replicache requires that clients assign IDs. Browsers have [cryptographically strong random sources](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues) now, so there's no real downside to this. If you think this might block your usage of Replicache, [reach out](https://replicache.dev/#contact) — we'd like to learn more.
+**Note:** A quick word on IDs: Unlike with classic client/server apps, Replicache apps can't rely on the server to assign unique IDs. That's because the client is going to be working with data long before it reaches the server, and the client and server need a consistent way to refer to items. Therefore, Replicache requires that clients assign IDs. Browsers have [cryptographically strong random sources](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues) now, so there's no real downside to this. If you think this might block your usage of Replicache, [reach out](https://replicache.dev/#contact) — we'd like to learn more.
 
 Now that we know what our schema will look like, let's serve it.
 

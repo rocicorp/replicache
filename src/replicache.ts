@@ -132,7 +132,10 @@ export interface ReplicacheOptions {
   useMemstore?: boolean;
 
   /**
-   * Sets the amount of logging shown.
+   * Determines how much logging to do. When this is set to `'debug'`,
+   * Replicache will also log `'info'` and `'error'` messages. When set to
+   * `'info'` we log `'info'` and `'error'` but not `'debug'`. When set to
+   * `'error'` we only log `'error'` messages.
    */
   logLevel?: LogLevel;
 }

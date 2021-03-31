@@ -17,3 +17,4 @@ export type {
   ScanOptions,
 } from './scan-options.js';
 export type {InitInput} from './repm-invoker.js';
+export type {LogLevel} from './logger.js';

@@ -81,7 +81,6 @@ export class ConnectionLoop {
       maxConnections = MAX_CONNECTIONS,
       watchdogTimer,
       debug,
-      info,
     } = delegate;
 
     debug?.('Starting connection loop');
@@ -155,7 +154,7 @@ export class ConnectionLoop {
           ok = await delegate.invokeSend();
           debug?.('Send returned', ok);
         } catch (e) {
-          info?.('Send failed', e);
+          debug?.('Send failed', e);
           ok = false;
         }
         if (this._closed) {

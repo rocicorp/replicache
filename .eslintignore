@@ -3,3 +3,4 @@ coverage
 out
 tool
 bin
+src/wasm

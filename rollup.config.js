@@ -21,6 +21,7 @@ export default {
       ['./wasm/release/replicache_client_bg.wasm']: `'./replicache.wasm'`,
       delimiters: [`'`, `'`],
       include: 'src/repm-invoker.ts',
+      preventAssignment: true,
     }),
 
     typescript(),

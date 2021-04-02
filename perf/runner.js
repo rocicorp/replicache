@@ -1,8 +1,6 @@
-// @ts-check
-
 /* eslint-env node, es2020 */
 
-import playwright from 'playwright';
+import * as playwright from 'playwright';
 import {startDevServer} from '@web/dev-server';
 import getPort from 'get-port';
 import * as os from 'os';
@@ -43,11 +41,11 @@ async function main() {
   }
 
   for (;;) {
-    const testResult = await page.evaluate('nextTest()');
+    const testResult = await page.evaluate('nextTest(["replicache"])');
     if (testResult === null) {
       break;
     }
-    logLine(formatAsBenchmarkJS(testResult));
+    logLine(testResult);
   }
 
   logLine('Done!');
@@ -70,15 +68,7 @@ function logLine(s) {
   process.stdout.write(s + '\n');
 }
 
-// TODO(arv): Use BenchmarkJS instead of our custom runner?
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function formatAsBenchmarkJS({name, value, median, runs}) {
-  // Example:
-  //   fib(20) x 11,465 ops/sec ±1.12% (91 runs sampled)
-  //   createObjectBuffer with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)
-  return `${name} x ${value} ±0.0% (${runs} runs sampled)`;
-}
-
+/** @param {number} n */
 function wait(n) {
   return new Promise(resolve => setTimeout(resolve, n));
 }

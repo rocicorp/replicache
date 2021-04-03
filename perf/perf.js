@@ -1,332 +1,58 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-check
-
-/* eslint-env browser, es2020 */
-
-import {Replicache} from '../out/replicache.mjs';
-
-console.assert = console.debug = console.error = console.info = console.log = console.warn = () =>
-  void 0;
-
-const valSize = 1024;
+import {
+  benchmarkCreateIndex,
+  benchmarkPopulate,
+  benchmarkReadTransaction,
+  benchmarkScan,
+  benchmarkSingleByteWrite,
+  benchmarkWriteReadRoundTrip,
+} from './replicache.js';
+import {benchmarkIDBRead, benchmarkIDBWrite} from './idb.js';
 
 /**
- * @template R
- * @returns {{promise: Promise<R>, resolve: (res: R) => void}}
- */
-function resolver() {
-  let resolve;
-  const promise = new Promise(res => {
-    resolve = res;
-  });
-  return {promise, resolve};
-}
-
-/**
- * @param {number} len
- */
-function randomString(len) {
-  const arr = new Uint8Array(len);
-  crypto.getRandomValues(arr);
-  for (let i = 0; i < len; i++) {
-    // Don't allow \0 in the string because these values are used as secondary
-    // keys when building indexes and we do not allow \0 there so it slows down
-    // the benchmark.
-    if (arr[i] === 0) {
-      arr[i] = 1;
-    }
-  }
-  return new TextDecoder('ascii').decode(arr);
-}
-
-/**
- * @param {number} length
- */
-function makeRandomStrings(length) {
-  return Array.from({length}, () => randomString(valSize));
-}
-
-/**
- * @param {string} name
- */
-function deleteDatabase(name) {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.deleteDatabase(name);
-    req.onsuccess = resolve;
-    req.onerror = req.onblocked = req.onupgradeneeded = reject;
-  });
-}
-
-let counter = 0;
-async function makeRep() {
-  const name = `bench${counter++}`;
-  await deleteDatabase(name);
-  return new Replicache({
-    name,
-    pullInterval: null,
-  });
-}
-
-/**
- * @param {Replicache} rep
- * @param {{numKeys: number}}
- * @param {string[]} randomStrings
- */
-async function populate(rep, {numKeys}, randomStrings) {
-  const set = rep.register('populate', async tx => {
-    for (let i = 0; i < numKeys; i++) {
-      await tx.put(`key${i}`, randomStrings[i]);
-    }
-  });
-  await set();
-}
-
-/**
- * @param {Bench} bench
- * @param {{numKeys: number; clean: boolean; indexes?: number;}} opts
- */
-async function benchmarkPopulate(bench, opts) {
-  const rep = await makeRep();
-  if (!opts.clean) {
-    await populate(rep, opts, makeRandomStrings(opts.numKeys));
-  }
-  for (let i = 0; i < opts.indexes || 0; i++) {
-    await rep.createIndex({
-      name: `idx${i}`,
-      jsonPointer: '',
-    });
-  }
-  const randomStrings = makeRandomStrings(opts.numKeys);
-  bench.reset();
-  bench.name = `populate ${valSize}x${opts.numKeys} (${
-    opts.clean ? 'clean' : 'dirty'
-  }, ${`indexes: ${opts.indexes || 0}`})`;
-  bench.size = opts.numKeys * valSize;
-  await populate(rep, opts, randomStrings);
-  bench.stop();
-  await rep.close();
-}
-
-/** @typedef {{
- *   setup: (body: () => Promise<void> | void) => Promise<void>;
- *   teardown: () => Promise<void> | void;
+ * @typedef {{
  *   name: string;
- *   size: number;
+ *   group: string;
+ *   byteSize?: number;
+ *   setup?: () => Promise<void> | void;
+ *   teardown?: () => Promise<void> | void;
+ *   run: (b: Bencher, i: number) => Promise<void> | void;
+ * }} Benchmark
+ *
+ * @typedef {{
  *   reset: () => void;
  *   stop: () => void;
- *   formatter: (size: number, timeMS: number) => string;
- * }}
+ * }} Bencher
+ *
+ * @typedef {"benchmarkJS"|"replicache"} OutputFormat
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-let Bench;
-
-/** @type {Replicache} */
-let rep;
-
-async function benchmarkReadTransaction(bench, opts) {
-  await bench.setup(async () => {
-    bench.name = `read tx ${valSize}x${opts.numKeys}`;
-    bench.size = opts.numKeys * valSize;
-    rep = await makeRep();
-    await populate(rep, opts, makeRandomStrings(opts.numKeys));
-  });
-  bench.teardown = async () => {
-    await rep.close();
-  };
-
-  await populate(rep, opts, makeRandomStrings(opts.numKeys));
-  bench.reset();
-  await rep.query(async tx => {
-    let getCount = 0;
-    let hasCount = false;
-    for (let i = 0; i < opts.numKeys; i++) {
-      // use the values to be confident we're not optimizing away.
-      // @ts-ignore
-      getCount += (await tx.get(`key${i}`)).length;
-      // @ts-ignore
-      hasCount = (await tx.has(`key${i}`)) === true ? 1 : 0;
-    }
-
-    console.log(getCount, hasCount);
-  });
-  bench.stop();
-}
 
 /**
- * @param {Bench} bench
- * @param {{numKeys: number;}} opts
+ * @param {Benchmark} benchmark
+ * @param {OutputFormat} format
  */
-async function benchmarkScan(bench, opts) {
-  await bench.setup(async () => {
-    bench.name = `scan ${valSize}x${opts.numKeys}`;
-    bench.size = opts.numKeys * valSize;
-    rep = await makeRep();
-    await populate(rep, opts, makeRandomStrings(opts.numKeys));
-  });
-  bench.teardown = async () => {
-    await rep.close();
-  };
-
-  bench.reset();
-  await rep.query(async tx => {
-    let count = 0;
-    for await (const value of tx.scan()) {
-      // use the value to be confident we're not optimizing away.
-      // @ts-ignore
-      count += value.length;
-    }
-    console.log(count);
-  });
-  bench.stop();
-}
-
-/**
- * @param {Bench} bench
- * @param {number} i
- */
-async function benchmarkSingleByteWrite(bench, i) {
-  const rep = await makeRep();
-  const write = rep.register('write', tx => tx.put('k', i % 10));
-  bench.name = 'write single byte';
-  bench.size = 1;
-  bench.formatter = formatTxPerSecond;
-  bench.reset();
-
-  await write();
-
-  bench.stop();
-  await rep.close();
-}
-
-/**
- * @param {Bench} bench
- * @param {{numKeys: number;}} opts
- */
-async function createIndex(bench, opts) {
-  const rep = await makeRep();
-  await populate(rep, opts, makeRandomStrings(opts.numKeys));
-  bench.name = `create index ${valSize}x${opts.numKeys}`;
-  bench.size = 1;
-  bench.formatter = formatOpPerSecond;
-  bench.reset();
-  await rep.createIndex({
-    name: `idx`,
-    jsonPointer: '',
-  });
-
-  bench.stop();
-  await rep.close();
-}
-
-/**
- * @param {Bench} bench
- * @param {number} i
- */
-async function benchmarkWriteReadRoundTrip(bench, i) {
-  await bench.setup(async () => {
-    rep = await makeRep();
-  });
-  bench.teardown = async () => {
-    await rep.close();
-  };
-  const key = `k${i}`;
-  const value = i;
-  let {promise, resolve} = resolver();
-  const unsubscribe = rep.subscribe(tx => tx.get(key), {
-    onData(res) {
-      // `resolve` binding needs to be looked up on every iteration
-      resolve(res);
-    },
-  });
-  // onData is called once when calling subscribe
-  await promise;
-
-  const write = rep.register('write', tx => tx.put(key, value));
-  bench.name = 'roundtrip write/subscribe/get';
-  bench.size = 1;
-  bench.formatter = formatOpPerSecond;
-  bench.reset();
-
-  // reset these.
-  ({promise, resolve} = resolver());
-
-  await write();
-
-  const res = await promise;
-  if (res !== value) {
-    throw new Error();
-  }
-
-  bench.stop();
-  unsubscribe();
-}
-
-/**
- * @param {(bench: Bench, i: number) => void | Promise<void>} fn
- */
-async function benchmark(fn) {
+async function runBenchmark(benchmark, format) {
   // Execute fn at least this many runs.
   const minRuns = 5;
   // Execute fn at least for this long.
-  const minTime = 2000;
+  const minTime = 500;
+  /** @type number[] */
   const times = [];
   let sum = 0;
-  let name = String(fn);
-  let size = 0;
-  let format = formatToMBPerSecond;
-  let setupCalled = false;
-  /** @type {(() => Promise<void> | void) | undefined} */
-  let teardown;
+
+  if (benchmark.setup) {
+    await benchmark.setup();
+  }
+
   for (let i = 0; i < minRuns || sum < minTime; i++) {
     let t0 = performance.now();
     let t1 = 0;
-    await fn(
+    await benchmark.run(
       {
         reset() {
           t0 = performance.now();
         },
         stop() {
           t1 = performance.now();
-        },
-        /**
-         * @param {string} n
-         */
-        set name(n) {
-          name = n;
-        },
-        /**
-         * @param {number} s
-         */
-        set size(s) {
-          size = s;
-        },
-        /**
-         * @return {number} s
-         */
-        get size() {
-          return size;
-        },
-        /**
-         * @param {(size: number, timeMS: number) => string} f
-         */
-        set formatter(f) {
-          format = f;
-        },
-        /**
-         * @param {() => void | Promise<void>} f
-         */
-        async setup(f) {
-          if (!setupCalled) {
-            await f();
-            setupCalled = true;
-          }
-        },
-
-        /**
-         * @param {() => (Promise<void> | void) } f
-         */
-        set teardown(f) {
-          teardown = f;
         },
       },
       i,
@@ -339,19 +65,47 @@ async function benchmark(fn) {
     sum += dur;
   }
 
-  if (teardown) {
-    await teardown();
+  if (benchmark.teardown) {
+    await benchmark.teardown();
   }
 
-  console.log(sum);
-
-  times.sort();
+  times.sort((a, b) => a - b);
   const runs = times.length;
 
-  const median = times[Math.floor(runs / 2)];
-  const value = format(size, median);
+  const median = 0.5;
+  const medianTime = times[Math.floor(runs * median)];
+  const bytesPerSecond = benchmark.byteSize
+    ? `${formatToMBPerSecond(benchmark.byteSize, medianTime)} `
+    : '';
 
-  return {name, value, median, runs};
+  if (format == 'replicache') {
+    const ptiles = [median, 0.75, 0.9, 0.95];
+    return `${benchmark.name} ${ptiles
+      .map(p => String(p * 100))
+      .join('/')}%=${ptiles.map(p =>
+      times[Math.floor(runs * p)].toFixed(2),
+    )}ms/op ${bytesPerSecond}(${runs} runs sampled)`;
+  } else {
+    const variance =
+      Math.max(medianTime - times[0], times[times.length - 1] - medianTime) /
+      medianTime;
+    return formatAsBenchmarkJS({
+      name: benchmark.name,
+      value: bytesPerSecond || `${((runs / sum) * 1000).toFixed(2)} ops/sec `,
+      variance: `${(variance * 100).toFixed(1)}%`,
+      runs,
+    });
+  }
+}
+
+/**
+ * @param {{name: string; value: string; variance: string; runs: number}} opts
+ */
+function formatAsBenchmarkJS({name, value, variance, runs}) {
+  // Example:
+  //   fib(20) x 11,465 ops/sec ±1.12% (91 runs sampled)
+  //   createObjectBuffer with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)
+  return `${name} x ${value}±${variance} (${runs} runs sampled)`;
 }
 
 /**
@@ -363,39 +117,92 @@ function formatToMBPerSecond(size, timeMS) {
   return (bytes / 2 ** 20).toFixed(2) + ' MB/s';
 }
 
-/**
- * @param {string} x
- * @return {(size: number, timeMS: number) => string}
- */
-function makeFormatXPerSecond(x) {
-  return (size, timeMS) => `${((size / timeMS) * 1000).toFixed(2)} ${x}/s`;
-}
-
-const formatTxPerSecond = makeFormatXPerSecond('tx');
-const formatOpPerSecond = makeFormatXPerSecond('op');
-
 const benchmarks = [
-  bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true}),
-  bench => benchmarkPopulate(bench, {numKeys: 1000, clean: false}),
-  bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true, indexes: 1}),
-  bench => benchmarkPopulate(bench, {numKeys: 1000, clean: true, indexes: 2}),
-  bench => benchmarkReadTransaction(bench, {numKeys: 1000}),
-  bench => benchmarkReadTransaction(bench, {numKeys: 5000}),
-  bench => benchmarkScan(bench, {numKeys: 1000}),
-  bench => benchmarkScan(bench, {numKeys: 5000}),
-  benchmarkSingleByteWrite,
-  benchmarkWriteReadRoundTrip,
-  bench => createIndex(bench, {numKeys: 1000}),
-  bench => createIndex(bench, {numKeys: 5000}),
+  benchmarkPopulate({numKeys: 1000, clean: true}),
+  benchmarkPopulate({numKeys: 1000, clean: false}),
+  benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1}),
+  benchmarkPopulate({numKeys: 1000, clean: true, indexes: 2}),
+  benchmarkReadTransaction({numKeys: 1000}),
+  benchmarkReadTransaction({numKeys: 5000}),
+  benchmarkScan({numKeys: 1000}),
+  benchmarkScan({numKeys: 5000}),
+  benchmarkSingleByteWrite(),
+  benchmarkWriteReadRoundTrip(),
+  benchmarkCreateIndex({numKeys: 1000}),
+  benchmarkCreateIndex({numKeys: 5000}),
 ];
 
+for (let b of [benchmarkIDBRead, benchmarkIDBWrite]) {
+  for (let numKeys of [1, 10, 100, 1000]) {
+    const dataTypes = /** @type {import('./data').RandomDataType[]} */ (
+      /** @type unknown */ (['string', 'object', 'arraybuffer'])
+    );
+    for (let dataType of dataTypes) {
+      const kb = 1024;
+      const mb = kb * kb;
+      const sizes = [
+        kb,
+        32 * kb,
+        // Note: on blink, as of 4/2/2021, there's a cliff at 64kb
+        mb,
+        10 * mb,
+        100 * mb,
+      ];
+      const group = dataType == 'arraybuffer' ? 'idb' : 'idb-extras';
+      for (let valSize of sizes) {
+        if (valSize > 10 * mb) {
+          if (numKeys > 1) {
+            continue;
+          }
+        } else if (valSize >= mb) {
+          if (numKeys > 10) {
+            continue;
+          }
+        }
+
+        benchmarks.push(b({group, dataType, numKeys, valSize}));
+      }
+    }
+  }
+}
+
 let current = 0;
-async function nextTest() {
-  if (current < benchmarks.length) {
-    return await benchmark(benchmarks[current++]);
+
+/**
+ * @param {string[]} groups
+ * @param {OutputFormat} format
+ */
+async function nextTest(groups, format) {
+  while (current < benchmarks.length) {
+    const b = benchmarks[current++];
+    if (groups.indexOf(b.group) > -1) {
+      try {
+        return await runBenchmark(b, format);
+      } catch (e) {
+        return `${b.name}: Error: ${e.toString()}`;
+      }
+    }
   }
   return null;
 }
 
 // @ts-ignore
 window.nextTest = nextTest;
+// @ts-ignore
+window.benchmarks = benchmarks;
+
+// @ts-ignore
+window.runAll = async function (groups) {
+  current = 0;
+  const out = /** @type {HTMLPreElement} */ (
+    /** @type {unknown} */ document.getElementById('out')
+  );
+  for (;;) {
+    const r = await nextTest(groups, 'replicache');
+    if (r == null) {
+      break;
+    }
+    out.textContent += r + '\n';
+  }
+  out.textContent += 'Done!\n';
+};

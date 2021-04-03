@@ -115,17 +115,17 @@ pub async fn process(store: dag::Store, rx: Receiver<Request>, client_id: String
         None,
     ));
     while let Some(value) = futures.next().await {
-        if recv {
-            futures.push(connection_future(
-                &rx,
-                Context::new(&store, &txns, client_id.clone(), LogContext::new()),
-                None,
-            ));
-        }
         match value {
             UnorderedResult::Request(value) => match value {
                 Err(why) => info!(lc, "Connection loop recv failed: {}", why),
                 Ok(req) => {
+                    if recv {
+                        futures.push(connection_future(
+                            &rx,
+                            Context::new(&store, &txns, client_id.clone(), LogContext::new()),
+                            None,
+                        ));
+                    }
                     futures.push(connection_future(
                         &rx,
                         Context::new(&store, &txns, client_id.clone(), req.lc.clone()),

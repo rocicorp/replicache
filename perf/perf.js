@@ -22,7 +22,7 @@ import {benchmarkIDBRead, benchmarkIDBWrite} from './idb.js';
  *   reset: () => void;
  *   stop: () => void;
  * }} Bencher
- * 
+ *
  * @typedef {"benchmarkJS"|"replicache"} OutputFormat
  */
 
@@ -78,7 +78,7 @@ async function runBenchmark(benchmark, format) {
     ? `${formatToMBPerSecond(benchmark.byteSize, medianTime)} `
     : '';
 
-  if (format == "replicache") {
+  if (format == 'replicache') {
     const ptiles = [median, 0.75, 0.9, 0.95];
     return `${benchmark.name} ${ptiles
       .map(p => String(p * 100))
@@ -86,12 +86,14 @@ async function runBenchmark(benchmark, format) {
       times[Math.floor(runs * p)].toFixed(2),
     )}ms/op ${bytesPerSecond}(${runs} runs sampled)`;
   } else {
-    const variance = Math.max(medianTime - times[0], times[times.length - 1] - medianTime) / medianTime;
+    const variance =
+      Math.max(medianTime - times[0], times[times.length - 1] - medianTime) /
+      medianTime;
     return formatAsBenchmarkJS({
       name: benchmark.name,
-      value: bytesPerSecond || `${(runs / sum * 1000).toFixed(2)} ops/sec `,
+      value: bytesPerSecond || `${((runs / sum) * 1000).toFixed(2)} ops/sec `,
       variance: `${(variance * 100).toFixed(1)}%`,
-      runs
+      runs,
     });
   }
 }
@@ -196,7 +198,7 @@ window.runAll = async function (groups) {
     /** @type {unknown} */ document.getElementById('out')
   );
   for (;;) {
-    const r = await nextTest(groups, "replicache");
+    const r = await nextTest(groups, 'replicache');
     if (r == null) {
       break;
     }

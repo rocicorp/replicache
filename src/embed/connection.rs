@@ -109,28 +109,28 @@ pub async fn process(store: dag::Store, rx: Receiver<Request>, client_id: String
     let mut futures = FuturesUnordered::new();
     let mut recv = true;
 
-    futures.push(connection_future(
+    futures.push(Box::pin(connection_future(
         &rx,
         Context::new(&store, &txns, client_id.clone(), LogContext::new()),
         None,
-    ));
+    )));
     while let Some(value) = futures.next().await {
         match value {
             UnorderedResult::Request(value) => match value {
                 Err(why) => info!(lc, "Connection loop recv failed: {}", why),
                 Ok(req) => {
                     if recv {
-                        futures.push(connection_future(
+                        futures.push(Box::pin(connection_future(
                             &rx,
                             Context::new(&store, &txns, client_id.clone(), LogContext::new()),
                             None,
-                        ));
+                        )));
                     }
-                    futures.push(connection_future(
+                    futures.push(Box::pin(connection_future(
                         &rx,
                         Context::new(&store, &txns, client_id.clone(), req.lc.clone()),
                         Some(req),
-                    ));
+                    )));
                 }
             },
             UnorderedResult::Stop() => recv = false,

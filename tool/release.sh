@@ -29,18 +29,13 @@ fi
     # https://github.com/rust-lang/cargo/issues/6659.
     #
     # So hack hack hack for now.
+    cp Cargo.toml Cargo.toml.bak
     perl -pi -e's/crate-type = .*/crate-type = ["cdylib"]/' Cargo.toml
 
     rm repc.zip
     rm -rf pkg
-    wasm-pack build --profiling -t web -- --no-default-features
-    brotli -f pkg/replicache_client.js pkg/replicache_client_bg.wasm
-    mv pkg debug
-    wasm-pack build --release -t web -- --no-default-features
-    brotli -f pkg/replicache_client.js pkg/replicache_client_bg.wasm
-    mv pkg release
-    mkdir pkg
-    mv debug release pkg/
+    wasm-pack build --profiling --target web --out-dir pkg/debug -- --no-default-features
+    wasm-pack build --release --target web --out-dir pkg/release -- --no-default-features
     zip -r pkg pkg
     mv pkg.zip repc.zip
 

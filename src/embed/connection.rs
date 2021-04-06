@@ -203,6 +203,7 @@ impl Rpc {
         }
     }
 }
+
 async fn execute<'a, 'b>(
     ctx: Context<'a, 'b>,
     rpc: Rpc,

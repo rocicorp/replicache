@@ -6,7 +6,6 @@ export type {
   MaybePromise,
   MutatorImpl,
   MutatorDefs,
-  MutatorReturn,
 } from './replicache.js';
 export type {
   CreateIndexDefinition,

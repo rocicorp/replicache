@@ -1870,11 +1870,12 @@ test.skip('mut [type checking only]', async () => {
         console.log(tx, x);
       },
 
-      // This should be flagged as an error but I need to use `any` for the arg since I need bivariance an TS uses covariant here.
-      // @ts-expect-error
-      i: (tx: WriteTransaction, d: Date) => {
-        console.log(tx, d);
-      },
+      // // This should be flagged as an error but I need to use `any` for the
+      // // arg since I need covariance and TS uses contravariance here.
+      // // @ts-expect-error XXX
+      // i: (tx: WriteTransaction, d: Date) =>
+      // {console.log(tx, d);
+      // },
     },
   });
 

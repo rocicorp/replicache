@@ -37,8 +37,7 @@ fetchMock.config.overwriteRoutes = true;
 
 const {fail} = assert;
 
-let rep: ReplicacheTest | null = null;
-let rep2: ReplicacheTest | null = null;
+const reps: Set<ReplicacheTest> = new Set();
 
 let overrideUseMemstore = false;
 
@@ -61,6 +60,7 @@ async function replicacheForTesting(
     useMemstore,
     ...rest,
   });
+  reps.add(rep);
   fetchMock.post(pullURL, {lastMutationID: 0, patch: []});
   fetchMock.post(pushURL, {});
   await tickAFewTimes();
@@ -97,13 +97,11 @@ teardown(async () => {
   fetchMock.restore();
   sinon.restore();
 
-  if (rep !== null && !rep.closed) {
-    await rep.close();
-    rep = null;
-  }
-  if (rep2 !== null && !rep2.closed) {
-    await rep2.close();
-    rep2 = null;
+  for (const rep of reps) {
+    if (!rep.closed) {
+      await rep.close();
+    }
+    reps.delete(rep);
   }
 
   for (const name of dbsToDrop) {
@@ -140,7 +138,7 @@ function testWithBothStores(name: string, func: () => Promise<void>) {
 }
 
 testWithBothStores('get, has, scan on empty db', async () => {
-  rep = await replicacheForTesting('test2');
+  const rep = await replicacheForTesting('test2');
   async function t(tx: ReadTransaction) {
     expect(await tx.get('key')).to.equal(undefined);
     expect(await tx.has('key')).to.be.false;
@@ -153,7 +151,7 @@ testWithBothStores('get, has, scan on empty db', async () => {
 });
 
 testWithBothStores('put, get, has, del inside tx', async () => {
-  rep = await replicacheForTesting('test3');
+  const rep = await replicacheForTesting('test3');
   const mut = rep.register(
     'mut',
     async (tx: WriteTransaction, args: {key: string; value: JSONValue}) => {
@@ -185,14 +183,10 @@ testWithBothStores('put, get, has, del inside tx', async () => {
 });
 
 async function testScanResult<K, V>(
+  rep: Replicache,
   options: ScanOptions | undefined,
   entries: [K, V][],
 ) {
-  if (!rep) {
-    fail();
-    return;
-  }
-
   await rep.query(async tx => {
     expect(
       await asyncIterableToArray(tx.scan(options).entries()),
@@ -219,7 +213,7 @@ async function testScanResult<K, V>(
 }
 
 testWithBothStores('scan', async () => {
-  rep = await replicacheForTesting('test4');
+  const rep = await replicacheForTesting('test4');
   const add = rep.register('add-data', addData);
   await add({
     'a/0': 0,
@@ -233,7 +227,7 @@ testWithBothStores('scan', async () => {
     'c/0': 8,
   });
 
-  await testScanResult(undefined, [
+  await testScanResult(rep, undefined, [
     ['a/0', 0],
     ['a/1', 1],
     ['a/2', 2],
@@ -245,7 +239,7 @@ testWithBothStores('scan', async () => {
     ['c/0', 8],
   ]);
 
-  await testScanResult({prefix: 'a'}, [
+  await testScanResult(rep, {prefix: 'a'}, [
     ['a/0', 0],
     ['a/1', 1],
     ['a/2', 2],
@@ -253,15 +247,16 @@ testWithBothStores('scan', async () => {
     ['a/4', 4],
   ]);
 
-  await testScanResult({prefix: 'b'}, [
+  await testScanResult(rep, {prefix: 'b'}, [
     ['b/0', 5],
     ['b/1', 6],
     ['b/2', 7],
   ]);
 
-  await testScanResult({prefix: 'c/'}, [['c/0', 8]]);
+  await testScanResult(rep, {prefix: 'c/'}, [['c/0', 8]]);
 
   await testScanResult(
+    rep,
     {
       start: {key: 'b/1', exclusive: false},
     },
@@ -273,6 +268,7 @@ testWithBothStores('scan', async () => {
   );
 
   await testScanResult(
+    rep,
     {
       start: {key: 'b/1'},
     },
@@ -284,6 +280,7 @@ testWithBothStores('scan', async () => {
   );
 
   await testScanResult(
+    rep,
     {
       start: {key: 'b/1', exclusive: true},
     },
@@ -294,6 +291,7 @@ testWithBothStores('scan', async () => {
   );
 
   await testScanResult(
+    rep,
     {
       limit: 3,
     },
@@ -305,6 +303,7 @@ testWithBothStores('scan', async () => {
   );
 
   await testScanResult(
+    rep,
     {
       limit: 10,
       prefix: 'a/',
@@ -319,6 +318,7 @@ testWithBothStores('scan', async () => {
   );
 
   await testScanResult(
+    rep,
     {
       limit: 1,
       prefix: 'b/',
@@ -330,7 +330,7 @@ testWithBothStores('scan', async () => {
 testWithBothStores('subscribe', async () => {
   const log: [string, JSONValue][] = [];
 
-  rep = await replicacheForTesting('subscribe');
+  const rep = await replicacheForTesting('subscribe');
   let queryCallCount = 0;
   const cancel = rep.subscribe(
     async (tx: ReadTransaction) => {
@@ -390,7 +390,7 @@ testWithBothStores('subscribe', async () => {
 });
 
 testWithBothStores('subscribe close', async () => {
-  rep = await replicacheForTesting('subscribe-close');
+  const rep = await replicacheForTesting('subscribe-close');
 
   const log: (JSONValue | undefined)[] = [];
 
@@ -434,7 +434,7 @@ testWithBothStores('name', async () => {
 });
 
 testWithBothStores('register with error', async () => {
-  rep = await replicacheForTesting('regerr');
+  const rep = await replicacheForTesting('regerr');
 
   const doErr = rep.register(
     'err',
@@ -452,7 +452,7 @@ testWithBothStores('register with error', async () => {
 });
 
 testWithBothStores('subscribe with error', async () => {
-  rep = await replicacheForTesting('suberr');
+  const rep = await replicacheForTesting('suberr');
 
   const add = rep.register('add-data', addData);
 
@@ -500,7 +500,7 @@ testWithBothStores('overlapping writes', async () => {
 
   const pushURL = 'https://push.com';
   // writes wait on writes
-  rep = await replicacheForTesting('conflict', {pushURL});
+  const rep = await replicacheForTesting('conflict', {pushURL});
   fetchMock.post(pushURL, {});
 
   const mut = rep.register(
@@ -539,7 +539,7 @@ testWithBothStores('overlapping writes', async () => {
 testWithBothStores('push', async () => {
   const pushURL = 'https://push.com';
 
-  rep = await replicacheForTesting('push', {
+  const rep = await replicacheForTesting('push', {
     pushAuth: '1',
     pushURL,
     pushDelay: 10,
@@ -647,7 +647,7 @@ testWithBothStores('push', async () => {
 testWithBothStores('push delay', async () => {
   const pushURL = 'https://push.com';
 
-  rep = await replicacheForTesting('push', {
+  const rep = await replicacheForTesting('push', {
     pushAuth: '1',
     pushURL,
     pushDelay: 1,
@@ -683,7 +683,7 @@ testWithBothStores('push delay', async () => {
 testWithBothStores('pull', async () => {
   const pullURL = 'https://diff.com/pull';
 
-  rep = await replicacheForTesting('pull', {
+  const rep = await replicacheForTesting('pull', {
     pullAuth: '1',
     pullURL,
   });
@@ -811,7 +811,7 @@ testWithBothStores('pull', async () => {
 testWithBothStores('reauth', async () => {
   const pullURL = 'https://diff.com/pull';
 
-  rep = await replicacheForTesting('reauth', {
+  const rep = await replicacheForTesting('reauth', {
     pullURL,
     pullAuth: 'wrong',
   });
@@ -847,7 +847,7 @@ testWithBothStores('reauth', async () => {
 testWithBothStores('HTTP status pull', async () => {
   const pullURL = 'https://diff.com/pull';
 
-  rep = await replicacheForTesting('http-status-pull', {
+  const rep = await replicacheForTesting('http-status-pull', {
     pullURL,
   });
 
@@ -882,7 +882,7 @@ testWithBothStores('HTTP status pull', async () => {
 testWithBothStores('HTTP status push', async () => {
   const pushURL = 'https://diff.com/push';
 
-  rep = await replicacheForTesting('http-status-push', {
+  const rep = await replicacheForTesting('http-status-push', {
     pushURL,
     pushDelay: 1,
   });
@@ -919,7 +919,7 @@ testWithBothStores('HTTP status push', async () => {
 });
 
 testWithBothStores('closed tx', async () => {
-  rep = await replicacheForTesting('reauth');
+  const rep = await replicacheForTesting('reauth');
 
   let rtx: ReadTransaction;
   await rep.query(tx => (rtx = tx));
@@ -943,7 +943,7 @@ testWithBothStores('closed tx', async () => {
 });
 
 testWithBothStores('pullInterval in constructor', async () => {
-  const rep = new Replicache({
+  const rep = await replicacheForTesting('pullInterval', {
     pullInterval: 12.34,
   });
   expect(rep.pullInterval).to.equal(12.34);
@@ -951,7 +951,7 @@ testWithBothStores('pullInterval in constructor', async () => {
 });
 
 testWithBothStores('closeTransaction after rep.scan', async () => {
-  rep = await replicacheForTesting('test5');
+  const rep = await replicacheForTesting('test5');
   const add = rep.register('add-data', addData);
   await add({
     'a/0': 0,
@@ -1046,7 +1046,7 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
 });
 
 testWithBothStores('index', async () => {
-  rep = await replicacheForTesting('test-index');
+  const rep = await replicacheForTesting('test-index');
 
   const add = rep.register('add-data', addData);
   await add({
@@ -1063,7 +1063,7 @@ testWithBothStores('index', async () => {
   });
   await rep.createIndex({name: 'aIndex', jsonPointer: '/a'});
 
-  await testScanResult({indexName: 'aIndex'}, [
+  await testScanResult(rep, {indexName: 'aIndex'}, [
     [['0', 'a/0'], {a: '0'}],
     [['1', 'a/1'], {a: '1'}],
     [['2', 'a/2'], {a: '2'}],
@@ -1074,7 +1074,7 @@ testWithBothStores('index', async () => {
   await expectPromiseToReject(rep.scanAll({indexName: 'aIndex'}));
 
   await rep.createIndex({name: 'aIndex', jsonPointer: '/a'});
-  await testScanResult({indexName: 'aIndex'}, [
+  await testScanResult(rep, {indexName: 'aIndex'}, [
     [['0', 'a/0'], {a: '0'}],
     [['1', 'a/1'], {a: '1'}],
     [['2', 'a/2'], {a: '2'}],
@@ -1085,18 +1085,18 @@ testWithBothStores('index', async () => {
   await expectPromiseToReject(rep.scanAll({indexName: 'aIndex'}));
 
   await rep.createIndex({name: 'bc', keyPrefix: 'c/', jsonPointer: '/bc'});
-  await testScanResult({indexName: 'bc'}, [[['8', 'c/0'], {bc: '8'}]]);
+  await testScanResult(rep, {indexName: 'bc'}, [[['8', 'c/0'], {bc: '8'}]]);
   await add({
     'c/1': {bc: '88'},
   });
-  await testScanResult({indexName: 'bc'}, [
+  await testScanResult(rep, {indexName: 'bc'}, [
     [['8', 'c/0'], {bc: '8'}],
     [['88', 'c/1'], {bc: '88'}],
   ]);
   await rep.dropIndex('bc');
 
   await rep.createIndex({name: 'dIndex', jsonPointer: '/d/e/f'});
-  await testScanResult({indexName: 'dIndex'}, [
+  await testScanResult(rep, {indexName: 'dIndex'}, [
     [['9', 'd/0'], {d: {e: {f: '9'}}}],
   ]);
   await rep.dropIndex('dIndex');
@@ -1105,12 +1105,14 @@ testWithBothStores('index', async () => {
     'e/0': {'': ''},
   });
   await rep.createIndex({name: 'emptyKeyIndex', jsonPointer: '/'});
-  await testScanResult({indexName: 'emptyKeyIndex'}, [[['', 'e/0'], {'': ''}]]);
+  await testScanResult(rep, {indexName: 'emptyKeyIndex'}, [
+    [['', 'e/0'], {'': ''}],
+  ]);
   await rep.dropIndex('emptyKeyIndex');
 });
 
 testWithBothStores('index array', async () => {
-  rep = await replicacheForTesting('test-index');
+  const rep = await replicacheForTesting('test-index');
 
   const add = rep.register('add-data', addData);
   await add({
@@ -1126,7 +1128,7 @@ testWithBothStores('index array', async () => {
   });
 
   await rep.createIndex({name: 'aIndex', jsonPointer: '/a'});
-  await testScanResult({indexName: 'aIndex'}, [
+  await testScanResult(rep, {indexName: 'aIndex'}, [
     [['0', 'a/1'], {a: ['0']}],
     [['1', 'a/2'], {a: ['1', '2']}],
     [['2', 'a/2'], {a: ['1', '2']}],
@@ -1137,7 +1139,7 @@ testWithBothStores('index array', async () => {
 });
 
 testWithBothStores('index scan start', async () => {
-  rep = await replicacheForTesting('test-index-scan');
+  const rep = await replicacheForTesting('test-index-scan');
 
   const add = rep.register('add-data', addData);
   await add({
@@ -1157,12 +1159,13 @@ testWithBothStores('index scan start', async () => {
     | string
     | [string, string?]
   )[]) {
-    await testScanResult({indexName: 'bIndex', start: {key}}, [
+    await testScanResult(rep, {indexName: 'bIndex', start: {key}}, [
       [['a6', 'b/1'], {b: 'a6'}],
       [['b7', 'b/2'], {b: 'b7'}],
       [['b8', 'b/3'], {b: 'b8'}],
     ]);
     await testScanResult(
+      rep,
       {indexName: 'bIndex', start: {key, exclusive: false}},
       [
         [['a6', 'b/1'], {b: 'a6'}],
@@ -1177,6 +1180,7 @@ testWithBothStores('index scan start', async () => {
     | [string, string?]
   )[]) {
     await testScanResult(
+      rep,
       {indexName: 'bIndex', start: {key, exclusive: false}},
       [
         [['a6', 'b/1'], {b: 'a6'}],
@@ -1185,6 +1189,7 @@ testWithBothStores('index scan start', async () => {
       ],
     );
     await testScanResult(
+      rep,
       {indexName: 'bIndex', start: {key: ['a6', ''], exclusive: true}},
       [
         [['a6', 'b/1'], {b: 'a6'}],
@@ -1198,17 +1203,26 @@ testWithBothStores('index scan start', async () => {
     | string
     | [string, string?]
   )[]) {
-    await testScanResult({indexName: 'bIndex', start: {key, exclusive: true}}, [
-      [['b7', 'b/2'], {b: 'b7'}],
-      [['b8', 'b/3'], {b: 'b8'}],
-    ]);
+    await testScanResult(
+      rep,
+      {indexName: 'bIndex', start: {key, exclusive: true}},
+      [
+        [['b7', 'b/2'], {b: 'b7'}],
+        [['b8', 'b/3'], {b: 'b8'}],
+      ],
+    );
   }
 
-  await testScanResult({indexName: 'bIndex', start: {key: ['b7', 'b/2']}}, [
-    [['b7', 'b/2'], {b: 'b7'}],
-    [['b8', 'b/3'], {b: 'b8'}],
-  ]);
   await testScanResult(
+    rep,
+    {indexName: 'bIndex', start: {key: ['b7', 'b/2']}},
+    [
+      [['b7', 'b/2'], {b: 'b7'}],
+      [['b8', 'b/3'], {b: 'b8'}],
+    ],
+  );
+  await testScanResult(
+    rep,
     {indexName: 'bIndex', start: {key: ['b7', 'b/2'], exclusive: false}},
     [
       [['b7', 'b/2'], {b: 'b7'}],
@@ -1216,15 +1230,21 @@ testWithBothStores('index scan start', async () => {
     ],
   );
   await testScanResult(
+    rep,
     {indexName: 'bIndex', start: {key: ['b7', 'b/2'], exclusive: true}},
     [[['b8', 'b/3'], {b: 'b8'}]],
   );
 
-  await testScanResult({indexName: 'bIndex', start: {key: ['a6', 'b/2']}}, [
-    [['b7', 'b/2'], {b: 'b7'}],
-    [['b8', 'b/3'], {b: 'b8'}],
-  ]);
   await testScanResult(
+    rep,
+    {indexName: 'bIndex', start: {key: ['a6', 'b/2']}},
+    [
+      [['b7', 'b/2'], {b: 'b7'}],
+      [['b8', 'b/3'], {b: 'b8'}],
+    ],
+  );
+  await testScanResult(
+    rep,
     {indexName: 'bIndex', start: {key: ['a6', 'b/2'], exclusive: false}},
     [
       [['b7', 'b/2'], {b: 'b7'}],
@@ -1232,6 +1252,7 @@ testWithBothStores('index scan start', async () => {
     ],
   );
   await testScanResult(
+    rep,
     {indexName: 'bIndex', start: {key: ['a6', 'b/2'], exclusive: true}},
     [
       [['b7', 'b/2'], {b: 'b7'}],
@@ -1244,7 +1265,7 @@ testWithBothStores('index scan start', async () => {
 
 // Only used for type checking
 test.skip('mutator optional args [type checking only]', async () => {
-  rep = await replicacheForTesting('test-types');
+  const rep = await replicacheForTesting('test-types');
 
   const mut = rep.register('mut', async (tx: WriteTransaction, x: number) => {
     console.log(tx);
@@ -1295,7 +1316,7 @@ testWithBothStores('logLevel', async () => {
   const debug = sinon.stub(console, 'debug');
 
   // Just testing that we get some output
-  rep = await replicacheForTesting('log-level', {logLevel: 'error'});
+  let rep = await replicacheForTesting('log-level', {logLevel: 'error'});
   await rep.query(() => 42);
   expect(info.callCount).to.equal(0);
   await rep.close();
@@ -1388,7 +1409,7 @@ test('JSON deep equal', () => {
 
 // Only used for type checking
 test.skip('Test partial JSONObject [type checking only]', async () => {
-  rep = await replicacheForTesting('test-types');
+  const rep = await replicacheForTesting('test-types');
 
   type Todo = {id: number; text: string};
 
@@ -1411,7 +1432,7 @@ test.skip('Test partial JSONObject [type checking only]', async () => {
 
 // Only used for type checking
 test.skip('Test register param [type checking only]', async () => {
-  rep = await replicacheForTesting('test-types');
+  const rep = await replicacheForTesting('test-types');
 
   const mut: () => Promise<void> = rep.register(
     'mut',
@@ -1459,7 +1480,7 @@ test.skip('Test register param [type checking only]', async () => {
 
 // Only used for type checking
 test.skip('Key type for scans [type checking only]', async () => {
-  rep = await replicacheForTesting('test-types');
+  const rep = await replicacheForTesting('test-types');
 
   for await (const k of rep.scan({indexName: 'n'}).keys()) {
     // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
@@ -1501,12 +1522,11 @@ test.skip('Key type for scans [type checking only]', async () => {
 });
 
 test('mem store', async () => {
-  rep = await replicacheForTesting('mem', {useMemstore: true});
+  let rep = await replicacheForTesting('mem', {useMemstore: true});
   const add = rep.register('addData', addData);
   await add({a: 42});
   expect(await rep.query(tx => tx.get('a'))).to.equal(42);
   await rep.close();
-  rep = null;
 
   // Open again and test that we lost the data
   rep = await replicacheForTesting('mem', {useMemstore: true});
@@ -1514,7 +1534,7 @@ test('mem store', async () => {
 });
 
 testWithBothStores('isEmpty', async () => {
-  rep = await replicacheForTesting('test-is-empty');
+  const rep = await replicacheForTesting('test-is-empty');
   const add = rep.register('add-data', addData);
   const del = rep.register('del', (tx: WriteTransaction, key: string) =>
     tx.del(key),
@@ -1557,7 +1577,11 @@ testWithBothStores('onSync', async () => {
   const pullURL = 'https://pull.com/pull';
   const pushURL = 'https://push.com/push';
 
-  rep = await replicacheForTesting('onSync', {pullURL, pushURL, pushDelay: 5});
+  const rep = await replicacheForTesting('onSync', {
+    pullURL,
+    pushURL,
+    pushDelay: 5,
+  });
   const add = rep.register('add-data', addData);
 
   const onSync = sinon.fake();
@@ -1629,7 +1653,7 @@ testWithBothStores('push timing', async () => {
   const pushURL = 'https://push.com/push';
   const pushDelay = 5;
 
-  rep = await replicacheForTesting('push-timing', {
+  const rep = await replicacheForTesting('push-timing', {
     pushURL,
     pushDelay,
     useMemstore: true,
@@ -1683,7 +1707,7 @@ test('push and pull concurrently', async () => {
   const pushURL = 'https://push.com/push';
   const pullURL = 'https://pull.com/pull';
 
-  rep = await replicacheForTesting('concurrently', {
+  const rep = await replicacheForTesting('concurrently', {
     pullURL,
     pushURL,
     useMemstore: true,
@@ -1748,7 +1772,7 @@ test('push and pull concurrently', async () => {
 test('schemaVersion pull', async () => {
   const schemaVersion = 'testing-pull';
 
-  rep = await replicacheForTesting('schema-version-pull', {
+  const rep = await replicacheForTesting('schema-version-pull', {
     schemaVersion,
   });
 
@@ -1763,7 +1787,7 @@ test('schemaVersion push', async () => {
   const pushURL = 'https://push.com/push';
   const schemaVersion = 'testing-push';
 
-  rep = await replicacheForTesting('schema-version-push', {
+  const rep = await replicacheForTesting('schema-version-push', {
     pushURL,
     schemaVersion,
     pushDelay: 1,
@@ -1782,12 +1806,12 @@ test('schemaVersion push', async () => {
 test('clientID', async () => {
   const re = /^[0-9:A-z]{8}-[0-9:A-z]{4}-4[0-9:A-z]{3}-[0-9:A-z]{4}-[0-9:A-z]{12}$/;
 
-  rep = await replicacheForTesting('clientID');
+  let rep = await replicacheForTesting('clientID');
   const clientID = await rep.clientID;
   expect(clientID).to.match(re);
   await rep.close();
 
-  rep2 = await replicacheForTesting('clientID2');
+  const rep2 = await replicacheForTesting('clientID2');
   const clientID2 = await rep2.clientID;
   expect(clientID2).to.match(re);
   expect(clientID2).to.not.equal(clientID);

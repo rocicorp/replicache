@@ -1,4 +1,8 @@
-import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
+import {
+  ReplicacheTest,
+  httpStatusUnauthorized,
+  MutatorDefs,
+} from './replicache.js';
 import type {ReplicacheOptions} from './replicache.js';
 import {Replicache, TransactionClosedError} from './mod.js';
 
@@ -41,7 +45,8 @@ const reps: Set<ReplicacheTest> = new Set();
 
 let overrideUseMemstore = false;
 
-async function replicacheForTesting(
+// eslint-disable-next-line @typescript-eslint/ban-types
+async function replicacheForTesting<MD extends MutatorDefs = {}>(
   name: string,
   {
     pullURL = 'https://pull.com/?name=' + name,
@@ -49,10 +54,10 @@ async function replicacheForTesting(
     pushURL = 'https://push.com/?name=' + name,
     useMemstore = overrideUseMemstore,
     ...rest
-  }: ReplicacheOptions = {},
-): Promise<ReplicacheTest> {
+  }: ReplicacheOptions<MD> = {},
+): Promise<ReplicacheTest<MD>> {
   dbsToDrop.add(name);
-  const rep = new ReplicacheTest({
+  const rep = new ReplicacheTest<MD>({
     pullURL,
     pushDelay,
     pushURL,
@@ -151,21 +156,26 @@ testWithBothStores('get, has, scan on empty db', async () => {
 });
 
 testWithBothStores('put, get, has, del inside tx', async () => {
-  const rep = await replicacheForTesting('test3');
-  const mut = rep.register(
-    'mut',
-    async (tx: WriteTransaction, args: {key: string; value: JSONValue}) => {
-      const key = args['key'];
-      const value = args['value'];
-      await tx.put(key, value);
-      expect(await tx.has(key)).to.equal(true);
-      const v = await tx.get(key);
-      expect(v).to.deep.equal(value);
+  const rep = await replicacheForTesting('test3', {
+    mut: {
+      testMut: async (
+        tx: WriteTransaction,
+        args: {key: string; value: JSONValue},
+      ) => {
+        const key = args['key'];
+        const value = args['value'];
+        await tx.put(key, value);
+        expect(await tx.has(key)).to.equal(true);
+        const v = await tx.get(key);
+        expect(v).to.deep.equal(value);
 
-      expect(await tx.del(key)).to.equal(true);
-      expect(await tx.has(key)).to.be.false;
+        expect(await tx.del(key)).to.equal(true);
+        expect(await tx.has(key)).to.be.false;
+      },
     },
-  );
+  });
+
+  const {testMut} = rep.mut;
 
   for (const [key, value] of Object.entries({
     a: true,
@@ -178,7 +188,7 @@ testWithBothStores('put, get, has, del inside tx', async () => {
     h: {h1: true},
     i: [0, 1],
   })) {
-    await mut({key, value: value as JSONValue});
+    await testMut({key, value: value as JSONValue});
   }
 });
 
@@ -1820,4 +1830,95 @@ test('clientID', async () => {
   const clientID3 = await rep.clientID;
   expect(clientID3).to.match(re);
   expect(clientID3).to.equal(clientID);
+});
+
+// Only used for type checking
+test.skip('mut [type checking only]', async () => {
+  const rep = new Replicache({
+    mut: {
+      a: (tx: WriteTransaction) => {
+        console.log(tx);
+        return 42;
+      },
+      b: (tx: WriteTransaction, x: number) => {
+        console.log(tx, x);
+        return 'hi';
+      },
+
+      // Return void
+      c: (tx: WriteTransaction) => {
+        console.log(tx);
+      },
+      d: (tx: WriteTransaction, x: number) => {
+        console.log(tx, x);
+      },
+
+      e: async (tx: WriteTransaction) => {
+        console.log(tx);
+        return 42;
+      },
+      f: async (tx: WriteTransaction, x: number) => {
+        console.log(tx, x);
+        return 'hi';
+      },
+
+      // Return void
+      g: async (tx: WriteTransaction) => {
+        console.log(tx);
+      },
+      h: async (tx: WriteTransaction, x: number) => {
+        console.log(tx, x);
+      },
+    },
+  });
+
+  rep.mut.a() as Promise<number>;
+  rep.mut.b(4) as Promise<string>;
+
+  rep.mut.c() as Promise<void>;
+  rep.mut.d(2) as Promise<void>;
+
+  rep.mut.e() as Promise<number>;
+  rep.mut.f(4) as Promise<string>;
+
+  rep.mut.g() as Promise<void>;
+  rep.mut.h(2) as Promise<void>;
+
+  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
+  rep.mut.b();
+  //@ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
+  rep.mut.b(null);
+
+  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
+  rep.mut.d();
+  //@ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
+  rep.mut.d(null);
+
+  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
+  rep.mut.f();
+  //@ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
+  rep.mut.f(null);
+
+  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
+  rep.mut.h();
+  // @ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
+  rep.mut.h(null);
+
+  {
+    const rep = new Replicache({mut: {}});
+    // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
+    rep.mut.abc(43);
+  }
+
+  {
+    const rep = new Replicache({});
+    // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
+    rep.mut.abc(1, 2, 3);
+  }
+
+  {
+    const rep = new Replicache();
+    // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
+    rep.mut.abc(1, 2, 3);
+  }
 });

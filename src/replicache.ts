@@ -31,6 +31,8 @@ export const httpStatusUnauthorized = 401;
 
 export type MaybePromise<T> = T | Promise<T>;
 
+type ToPromise<P> = P extends Promise<unknown> ? P : Promise<P>;
+
 /** The key name to use in localStorage when synchronizing changes. */
 const storageKeyName = (name: string) => `/replicache/root/${name}`;
 
@@ -38,9 +40,27 @@ const storageKeyName = (name: string) => `/replicache/root/${name}`;
 const MAX_REAUTH_TRIES = 8;
 
 /**
+ * The type used when implementing mutators.
+ */
+export type MutatorImpl<
+  Args extends JSONValue,
+  Return extends JSONValue | void
+> = (tx: WriteTransaction, args?: Args) => MaybePromise<Return>;
+
+/**
+ * The type used to describe the mutator definitions passed into [[Replicache]]
+ * constructor as part of the [[ReplicacheOptions]].
+ */
+export type MutatorDefs = {
+  // Not sure how to not use any here...
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: MutatorImpl<any, JSONValue | void>;
+};
+
+/**
  * The options passed to [[Replicache]].
  */
-export interface ReplicacheOptions {
+export interface ReplicacheOptions<MD extends MutatorDefs> {
   /**
    * This is the
    * [authentication](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#authentication)
@@ -138,9 +158,17 @@ export interface ReplicacheOptions {
    * `'error'` we only log `'error'` messages.
    */
   logLevel?: LogLevel;
+
+  /**
+   * An object as a map defining the mutators. These gets registered at startup
+   * of [[Replicache]].
+   */
+  mut?: MD;
 }
 
-export class Replicache implements ReadTransaction {
+// eslint-disable-next-line @typescript-eslint/ban-types
+export class Replicache<MD extends MutatorDefs = {}>
+  implements ReadTransaction {
   private _pullAuth: string;
   private readonly _pullURL: string;
   private _pushAuth: string;
@@ -158,8 +186,13 @@ export class Replicache implements ReadTransaction {
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
-    (tx: WriteTransaction, args?: JSONValue) => MaybePromise<void | JSONValue>
+    (tx: WriteTransaction, args?: JSONValue) => MutatorReturn
   >();
+
+  /**
+   * The mutators that was registered in the constructor.
+   */
+  readonly mut: MakeMutators<MD>;
 
   // Number of pushes/pulls at the moment.
   private _pushCounter = 0;
@@ -222,7 +255,7 @@ export class Replicache implements ReadTransaction {
     | null
     | undefined = null;
 
-  constructor(options: ReplicacheOptions) {
+  constructor(options: ReplicacheOptions<MD> = {}) {
     const {
       name = 'default',
       logLevel = 'info',
@@ -235,6 +268,7 @@ export class Replicache implements ReadTransaction {
       pullInterval = 60_000,
       useMemstore = false,
       wasmModule,
+      mut = {} as MD,
     } = options;
     this._pullAuth = pullAuth;
     this._pullURL = pullURL;
@@ -263,6 +297,8 @@ export class Replicache implements ReadTransaction {
 
     this._logLevel = logLevel;
     this._logger = getLogger([], logLevel);
+
+    this.mut = this._registerMutators(mut);
 
     this._open().then(async () => {
       // TODO: Make log level an arg to open and scope the log level to a db
@@ -873,6 +909,8 @@ export class Replicache implements ReadTransaction {
    * ```ts
    * await createTodo({id: 1234, title: 'Make things work offline', complete: true});
    * ```
+   *
+   * @deprecated Use [[ReplicacheOptions.mut]] instead.
    */
   register<Return extends JSONValue | void>(
     name: string,
@@ -894,8 +932,36 @@ export class Replicache implements ReadTransaction {
       ) => Promise<void | JSONValue>,
     );
 
+    return this._register(name, mutatorImpl);
+  }
+
+  private _register<Return extends JSONValue | void, Args extends JSONValue>(
+    name: string,
+    mutatorImpl: (tx: WriteTransaction, args?: Args) => MaybePromise<Return>,
+  ): (args?: Args) => Promise<Return> {
+    this._mutatorRegistry.set(
+      name,
+      mutatorImpl as (
+        tx: WriteTransaction,
+        args: JSONValue | undefined,
+      ) => Promise<void | JSONValue>,
+    );
+
     return async (args?: Args): Promise<Return> =>
       (await this._mutate(name, mutatorImpl, args, {isReplay: false})).result;
+  }
+
+  private _registerMutators<
+    M extends {
+      [key: string]: (tx: WriteTransaction, args?: JSONValue) => MutatorReturn;
+    }
+  >(regs: M): MakeMutators<M> {
+    type Mut = MakeMutators<M>;
+    const rv: Partial<Mut> = Object.create(null);
+    for (const k in regs) {
+      rv[k] = this._register(k, regs[k]) as MakeMutator<M[typeof k]>;
+    }
+    return rv as Mut;
   }
 
   private async _mutate<R extends JSONValue | void, A extends JSONValue>(
@@ -965,7 +1031,10 @@ function checkStatus(
   return httpStatusCode === httpStatusUnauthorized;
 }
 
-export class ReplicacheTest extends Replicache {
+export class ReplicacheTest<
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  MD extends MutatorDefs = {}
+> extends Replicache<MD> {
   beginPull(): Promise<BeginPullResult> {
     return super._beginPull(MAX_REAUTH_TRIES);
   }
@@ -984,3 +1053,16 @@ type Subscription<R extends JSONValue | undefined, E> = {
 };
 
 const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';
+
+/** The return type of a [[Mutator]]. */
+export type MutatorReturn = MaybePromise<JSONValue | void>;
+
+type MakeMutator<
+  F extends (tx: WriteTransaction, ...args: JSONValue[]) => MutatorReturn
+> = F extends (tx: WriteTransaction, ...args: infer Args) => infer Ret
+  ? (...args: Args) => ToPromise<Ret>
+  : never;
+
+type MakeMutators<T extends MutatorDefs> = {
+  readonly [P in keyof T]: MakeMutator<T[P]>;
+};

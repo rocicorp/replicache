@@ -43,8 +43,10 @@ const MAX_REAUTH_TRIES = 8;
  * The type used when implementing mutators.
  */
 export type MutatorImpl<
-  Args extends JSONValue,
-  Return extends JSONValue | void
+  // Not sure how to not use any here...
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Args extends JSONValue = any,
+  Return extends JSONValue | void = JSONValue | void
 > = (tx: WriteTransaction, args?: Args) => MaybePromise<Return>;
 
 /**
@@ -52,9 +54,7 @@ export type MutatorImpl<
  * constructor as part of the [[ReplicacheOptions]].
  */
 export type MutatorDefs = {
-  // Not sure how to not use any here...
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: MutatorImpl<any, JSONValue | void>;
+  [key: string]: MutatorImpl;
 };
 
 /**

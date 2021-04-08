@@ -87,8 +87,11 @@ lto = true
 opt-level = 3
 panic = "abort"
 
+# It would be nice to use wasm-opt, but there are no prebuilt binaries for m1:
+# https://github.com/rustwasm/wasm-pack/issues/913
+# So we just run it separately in ./tool/release.sh.
+# Developers must manually build/install wasm-opt, which can be done on macs with Homebrew.
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = ["-Oz"]
-
+wasm-opt = false
 [package.metadata.wasm-pack.profile.profiling]
-wasm-opt = ["-Oz", "-g"]
+wasm-opt = false

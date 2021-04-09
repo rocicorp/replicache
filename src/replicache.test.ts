@@ -1,4 +1,8 @@
-import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
+import {
+  ReplicacheTest,
+  httpStatusUnauthorized,
+  MutatorDefs,
+} from './replicache.js';
 import type {ReplicacheOptions} from './replicache.js';
 import {Replicache, TransactionClosedError} from './mod.js';
 
@@ -41,7 +45,8 @@ const reps: Set<ReplicacheTest> = new Set();
 
 let overrideUseMemstore = false;
 
-async function replicacheForTesting(
+// eslint-disable-next-line @typescript-eslint/ban-types
+async function replicacheForTesting<MD extends MutatorDefs = {}>(
   name: string,
   {
     pullURL = 'https://pull.com/?name=' + name,
@@ -49,10 +54,10 @@ async function replicacheForTesting(
     pushURL = 'https://push.com/?name=' + name,
     useMemstore = overrideUseMemstore,
     ...rest
-  }: ReplicacheOptions = {},
-): Promise<ReplicacheTest> {
+  }: ReplicacheOptions<MD> = {},
+): Promise<ReplicacheTest<MD>> {
   dbsToDrop.add(name);
-  const rep = new ReplicacheTest({
+  const rep = new ReplicacheTest<MD>({
     pullURL,
     pushDelay,
     pushURL,
@@ -151,21 +156,26 @@ testWithBothStores('get, has, scan on empty db', async () => {
 });
 
 testWithBothStores('put, get, has, del inside tx', async () => {
-  const rep = await replicacheForTesting('test3');
-  const mut = rep.register(
-    'mut',
-    async (tx: WriteTransaction, args: {key: string; value: JSONValue}) => {
-      const key = args['key'];
-      const value = args['value'];
-      await tx.put(key, value);
-      expect(await tx.has(key)).to.equal(true);
-      const v = await tx.get(key);
-      expect(v).to.deep.equal(value);
+  const rep = await replicacheForTesting('test3', {
+    mutators: {
+      testMut: async (
+        tx: WriteTransaction,
+        args: {key: string; value: JSONValue},
+      ) => {
+        const key = args['key'];
+        const value = args['value'];
+        await tx.put(key, value);
+        expect(await tx.has(key)).to.equal(true);
+        const v = await tx.get(key);
+        expect(v).to.deep.equal(value);
 
-      expect(await tx.del(key)).to.equal(true);
-      expect(await tx.has(key)).to.be.false;
+        expect(await tx.del(key)).to.equal(true);
+        expect(await tx.has(key)).to.be.false;
+      },
     },
-  );
+  });
+
+  const {testMut} = rep.mutate;
 
   for (const [key, value] of Object.entries({
     a: true,
@@ -178,7 +188,7 @@ testWithBothStores('put, get, has, del inside tx', async () => {
     h: {h1: true},
     i: [0, 1],
   })) {
-    await mut({key, value: value as JSONValue});
+    await testMut({key, value: value as JSONValue});
   }
 });
 
@@ -213,8 +223,12 @@ async function testScanResult<K, V>(
 }
 
 testWithBothStores('scan', async () => {
-  const rep = await replicacheForTesting('test4');
-  const add = rep.register('add-data', addData);
+  const rep = await replicacheForTesting('test4', {
+    mutators: {
+      addData,
+    },
+  });
+  const add = rep.mutate.addData;
   await add({
     'a/0': 0,
     'a/1': 1,
@@ -330,7 +344,11 @@ testWithBothStores('scan', async () => {
 testWithBothStores('subscribe', async () => {
   const log: [string, JSONValue][] = [];
 
-  const rep = await replicacheForTesting('subscribe');
+  const rep = await replicacheForTesting('subscribe', {
+    mutators: {
+      addData,
+    },
+  });
   let queryCallCount = 0;
   const cancel = rep.subscribe(
     async (tx: ReadTransaction) => {
@@ -353,7 +371,7 @@ testWithBothStores('subscribe', async () => {
   expect(log).to.have.length(0);
   expect(queryCallCount).to.equal(0);
 
-  const add = rep.register('add-data', addData);
+  const add = rep.mutate.addData;
   await add({'a/0': 0});
   expect(log).to.deep.equal([['a/0', 0]]);
   expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
@@ -390,7 +408,9 @@ testWithBothStores('subscribe', async () => {
 });
 
 testWithBothStores('subscribe close', async () => {
-  const rep = await replicacheForTesting('subscribe-close');
+  const rep = await replicacheForTesting('subscribe-close', {
+    mutators: {addData},
+  });
 
   const log: (JSONValue | undefined)[] = [];
 
@@ -401,7 +421,7 @@ testWithBothStores('subscribe close', async () => {
 
   expect(log).to.have.length(0);
 
-  const add = rep.register('add-data', addData);
+  const add = rep.mutate.addData;
   await add({k: 0});
   await Promise.resolve();
   expect(log).to.deep.equal([undefined, 0]);
@@ -414,11 +434,11 @@ testWithBothStores('subscribe close', async () => {
 });
 
 testWithBothStores('name', async () => {
-  const repA = await replicacheForTesting('a');
-  const repB = await replicacheForTesting('b');
+  const repA = await replicacheForTesting('a', {mutators: {addData}});
+  const repB = await replicacheForTesting('b', {mutators: {addData}});
 
-  const addA = repA.register('add-data', addData);
-  const addB = repB.register('add-data', addData);
+  const addA = repA.mutate.addData;
+  const addB = repB.mutate.addData;
 
   await addA({key: 'A'});
   await addB({key: 'B'});
@@ -434,14 +454,15 @@ testWithBothStores('name', async () => {
 });
 
 testWithBothStores('register with error', async () => {
-  const rep = await replicacheForTesting('regerr');
-
-  const doErr = rep.register(
-    'err',
-    async (_: WriteTransaction, args: number) => {
-      throw args;
+  const rep = await replicacheForTesting('regerr', {
+    mutators: {
+      err: async (_: WriteTransaction, args: number) => {
+        throw args;
+      },
     },
-  );
+  });
+
+  const doErr = rep.mutate.err;
 
   try {
     await doErr(42);
@@ -452,9 +473,9 @@ testWithBothStores('register with error', async () => {
 });
 
 testWithBothStores('subscribe with error', async () => {
-  const rep = await replicacheForTesting('suberr');
+  const rep = await replicacheForTesting('suberr', {mutators: {addData}});
 
-  const add = rep.register('add-data', addData);
+  const add = rep.mutate.addData;
 
   let gottenValue = 0;
   let error;
@@ -500,19 +521,21 @@ testWithBothStores('overlapping writes', async () => {
 
   const pushURL = 'https://push.com';
   // writes wait on writes
-  const rep = await replicacheForTesting('conflict', {pushURL});
+  const rep = await replicacheForTesting('conflict', {
+    pushURL,
+    mutators: {
+      'wait-then-return': async <T extends JSONValue>(
+        tx: ReadTransaction,
+        {duration, ret}: {duration: number; ret: T},
+      ) => {
+        await dbWait(tx, duration);
+        return ret;
+      },
+    },
+  });
   fetchMock.post(pushURL, {});
 
-  const mut = rep.register(
-    'wait-then-return',
-    async <T extends JSONValue>(
-      tx: ReadTransaction,
-      {duration, ret}: {duration: number; ret: T},
-    ) => {
-      await dbWait(tx, duration);
-      return ret;
-    },
-  );
+  const mut = rep.mutate['wait-then-return'];
 
   let resA = mut({duration: 250, ret: 'a'});
   // create a gap to make sure resA starts first (our rwlock isn't fair).
@@ -543,26 +566,28 @@ testWithBothStores('push', async () => {
     pushAuth: '1',
     pushURL,
     pushDelay: 10,
+    mutators: {
+      createTodo: async <A extends {id: number}>(
+        tx: WriteTransaction,
+        args: A,
+      ) => {
+        createCount++;
+        await tx.put(`/todo/${args.id}`, args);
+      },
+      deleteTodo: async <A extends {id: number}>(
+        tx: WriteTransaction,
+        args: A,
+      ) => {
+        deleteCount++;
+        await tx.del(`/todo/${args.id}`);
+      },
+    },
   });
 
   let createCount = 0;
   let deleteCount = 0;
 
-  const createTodo = rep.register(
-    'createTodo',
-    async <A extends {id: number}>(tx: WriteTransaction, args: A) => {
-      createCount++;
-      await tx.put(`/todo/${args.id}`, args);
-    },
-  );
-
-  const deleteTodo = rep.register(
-    'deleteTodo',
-    async <A extends {id: number}>(tx: WriteTransaction, args: A) => {
-      deleteCount++;
-      await tx.del(`/todo/${args.id}`);
-    },
-  );
+  const {createTodo, deleteTodo} = rep.mutate;
 
   const id1 = 14323534;
   const id2 = 22354345;
@@ -651,14 +676,17 @@ testWithBothStores('push delay', async () => {
     pushAuth: '1',
     pushURL,
     pushDelay: 1,
+    mutators: {
+      createTodo: async <A extends {id: number}>(
+        tx: WriteTransaction,
+        args: A,
+      ) => {
+        await tx.put(`/todo/${args.id}`, args);
+      },
+    },
   });
 
-  const createTodo = rep.register(
-    'createTodo',
-    async <A extends {id: number}>(tx: WriteTransaction, args: A) => {
-      await tx.put(`/todo/${args.id}`, args);
-    },
-  );
+  const {createTodo} = rep.mutate;
 
   const id1 = 14323534;
 
@@ -686,6 +714,22 @@ testWithBothStores('pull', async () => {
   const rep = await replicacheForTesting('pull', {
     pullAuth: '1',
     pullURL,
+    mutators: {
+      createTodo: async <A extends {id: number}>(
+        tx: WriteTransaction,
+        args: A,
+      ) => {
+        createCount++;
+        await tx.put(`/todo/${args.id}`, args);
+      },
+      deleteTodo: async <A extends {id: number}>(
+        tx: WriteTransaction,
+        args: A,
+      ) => {
+        deleteCount++;
+        await tx.del(`/todo/${args.id}`);
+      },
+    },
   });
 
   let createCount = 0;
@@ -697,21 +741,7 @@ testWithBothStores('pull', async () => {
     ok: boolean;
   };
 
-  const createTodo = rep.register(
-    'createTodo',
-    async <A extends {id: number}>(tx: WriteTransaction, args: A) => {
-      createCount++;
-      await tx.put(`/todo/${args.id}`, args);
-    },
-  );
-
-  const deleteTodo = rep.register(
-    'deleteTodo',
-    async <A extends {id: number}>(tx: WriteTransaction, args: A) => {
-      deleteCount++;
-      await tx.del(`/todo/${args.id}`);
-    },
-  );
+  const {createTodo, deleteTodo} = rep.mutate;
 
   const id1 = 14323534;
   const id2 = 22354345;
@@ -885,8 +915,9 @@ testWithBothStores('HTTP status push', async () => {
   const rep = await replicacheForTesting('http-status-push', {
     pushURL,
     pushDelay: 1,
+    mutators: {addData},
   });
-  const add = rep.register('add-data', addData);
+  const add = rep.mutate.addData;
 
   let okCalled = false;
   let i = 0;
@@ -919,7 +950,13 @@ testWithBothStores('HTTP status push', async () => {
 });
 
 testWithBothStores('closed tx', async () => {
-  const rep = await replicacheForTesting('reauth');
+  const rep = await replicacheForTesting('reauth', {
+    mutators: {
+      mut: async tx => {
+        wtx = tx;
+      },
+    },
+  });
 
   let rtx: ReadTransaction;
   await rep.query(tx => (rtx = tx));
@@ -932,11 +969,8 @@ testWithBothStores('closed tx', async () => {
   );
 
   let wtx: WriteTransaction | undefined;
-  const mut = rep.register('mut', async tx => {
-    wtx = tx;
-  });
 
-  await mut();
+  await rep.mutate.mut();
   expect(wtx).to.not.be.undefined;
   await expectAsyncFuncToThrow(() => wtx?.put('z', 1), TransactionClosedError);
   await expectAsyncFuncToThrow(() => wtx?.del('w'), TransactionClosedError);
@@ -951,8 +985,8 @@ testWithBothStores('pullInterval in constructor', async () => {
 });
 
 testWithBothStores('closeTransaction after rep.scan', async () => {
-  const rep = await replicacheForTesting('test5');
-  const add = rep.register('add-data', addData);
+  const rep = await replicacheForTesting('test5', {mutators: {addData}});
+  const add = rep.mutate.addData;
   await add({
     'a/0': 0,
     'a/1': 1,
@@ -1046,9 +1080,9 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
 });
 
 testWithBothStores('index', async () => {
-  const rep = await replicacheForTesting('test-index');
+  const rep = await replicacheForTesting('test-index', {mutators: {addData}});
 
-  const add = rep.register('add-data', addData);
+  const add = rep.mutate.addData;
   await add({
     'a/0': {a: '0'},
     'a/1': {a: '1'},
@@ -1112,9 +1146,9 @@ testWithBothStores('index', async () => {
 });
 
 testWithBothStores('index array', async () => {
-  const rep = await replicacheForTesting('test-index');
+  const rep = await replicacheForTesting('test-index', {mutators: {addData}});
 
-  const add = rep.register('add-data', addData);
+  const add = rep.mutate.addData;
   await add({
     'a/0': {a: []},
     'a/1': {a: ['0']},
@@ -1139,9 +1173,11 @@ testWithBothStores('index array', async () => {
 });
 
 testWithBothStores('index scan start', async () => {
-  const rep = await replicacheForTesting('test-index-scan');
+  const rep = await replicacheForTesting('test-index-scan', {
+    mutators: {addData},
+  });
 
-  const add = rep.register('add-data', addData);
+  const add = rep.mutate.addData;
   await add({
     'a/1': {a: '0'},
     'b/0': {b: 'a5'},
@@ -1265,25 +1301,32 @@ testWithBothStores('index scan start', async () => {
 
 // Only used for type checking
 test.skip('mutator optional args [type checking only]', async () => {
-  const rep = await replicacheForTesting('test-types');
-
-  const mut = rep.register('mut', async (tx: WriteTransaction, x: number) => {
-    console.log(tx);
-    return x;
+  const rep = await replicacheForTesting('test-types', {
+    mutators: {
+      mut: async (tx: WriteTransaction, x: number) => {
+        console.log(tx);
+        return x;
+      },
+      mut2: (tx: WriteTransaction, x: string) => {
+        console.log(tx);
+        return x;
+      },
+      mut3: tx => {
+        console.log(tx);
+      },
+      mut4: async tx => {
+        console.log(tx);
+      },
+    },
   });
+
+  const {mut, mut2, mut3, mut4} = rep.mutate;
   const res: number = await mut(42);
   console.log(res);
 
-  const mut2 = rep.register('mut', (tx: WriteTransaction, x: string) => {
-    console.log(tx);
-    return x;
-  });
   const res2: string = await mut2('s');
   console.log(res2);
 
-  const mut3 = rep.register('mut2', tx => {
-    console.log(tx);
-  });
   await mut3();
   //  @ts-expect-error: Expected 0 arguments, but got 1.ts(2554)
   await mut3(42);
@@ -1291,9 +1334,6 @@ test.skip('mutator optional args [type checking only]', async () => {
   const res3: number = await mut3();
   console.log(res3);
 
-  const mut4 = rep.register('mut2', async tx => {
-    console.log(tx);
-  });
   await mut4();
   //  @ts-expect-error: Expected 0 arguments, but got 1.ts(2554)
   await mut4(42);
@@ -1301,14 +1341,16 @@ test.skip('mutator optional args [type checking only]', async () => {
   const res4: number = await mut4();
   console.log(res4);
 
-  // @ts-expect-error: Types of parameters 'x' and 'args' are incompatible.
-  //   Type 'JSONValue' is not assignable to type 'Date'.
-  //     Type 'null' is not assignable to type 'Date'.ts(2769)
-  const mut5 = rep.register('mut3', (tx: WriteTransaction, x: Date) => {
-    console.log(tx);
-    return x;
-  });
-  console.log(mut5);
+  // This should be an error!
+  // await replicacheForTesting('test-types-2', {
+  //   mutators: {
+  //     // @ts-expect-error symbol is not a JSONValue
+  //     mut5: (tx: WriteTransaction, x: symbol) => {
+  //       console.log(tx, x);
+  //       return 42;
+  //     },
+  //   },
+  // });
 });
 
 testWithBothStores('logLevel', async () => {
@@ -1409,17 +1451,18 @@ test('JSON deep equal', () => {
 
 // Only used for type checking
 test.skip('Test partial JSONObject [type checking only]', async () => {
-  const rep = await replicacheForTesting('test-types');
+  const rep = await replicacheForTesting('test-types', {
+    mutators: {
+      mut: async (tx: WriteTransaction, todo: Partial<Todo>) => {
+        console.log(tx);
+        return todo;
+      },
+    },
+  });
 
   type Todo = {id: number; text: string};
 
-  const mut = rep.register(
-    'mut',
-    async (tx: WriteTransaction, todo: Partial<Todo>) => {
-      console.log(tx);
-      return todo;
-    },
-  );
+  const {mut} = rep.mutate;
   await mut({});
   await mut({id: 42});
   await mut({text: 'abc'});
@@ -1432,50 +1475,48 @@ test.skip('Test partial JSONObject [type checking only]', async () => {
 
 // Only used for type checking
 test.skip('Test register param [type checking only]', async () => {
-  const rep = await replicacheForTesting('test-types');
-
-  const mut: () => Promise<void> = rep.register(
-    'mut',
-    async (tx: WriteTransaction) => {
-      console.log(tx);
+  const rep = await replicacheForTesting('test-types', {
+    mutators: {
+      mut: async (tx: WriteTransaction) => {
+        console.log(tx);
+      },
+      mut2: async (tx: WriteTransaction, x: string) => {
+        console.log(tx, x);
+      },
+      mut3: async (tx: WriteTransaction, x: string) => {
+        console.log(tx, x);
+      },
+      mut4: async (tx: WriteTransaction) => {
+        console.log(tx);
+      },
     },
-  );
+  });
+
+  const mut: () => Promise<void> = rep.mutate.mut;
   console.log(mut);
 
   // @ts-expect-error Type 'number' is not assignable to type 'string'.ts(2322)
-  const mut2: (x: number) => Promise<void> = rep.register(
-    'mut2',
-    async (tx: WriteTransaction, x: string) => {
-      console.log(tx, x);
-    },
-  );
+  const mut2: (x: number) => Promise<void> = rep.mutate.mut2;
   console.log(mut2);
 
   // @ts-expect-error Type '(args: string) => Promise<void>' is not assignable to type '() => Promise<void>'.ts(2322)
-  const mut3: () => Promise<void> = rep.register(
-    'mut3',
-    async (tx: WriteTransaction, x: string) => {
-      console.log(tx, x);
-    },
-  );
+  const mut3: () => Promise<void> = rep.mutate.mut3;
   console.log(mut3);
 
   // This is fine according to the rules of JS/TS
-  const mut4: (x: number) => Promise<void> = rep.register(
-    'mut4',
-    async (tx: WriteTransaction) => {
-      console.log(tx);
-    },
-  );
+  const mut4: (x: number) => Promise<void> = rep.mutate.mut4;
   console.log(mut4);
 
-  rep.register(
-    'mut5',
-    // @ts-expect-error ts(2345)
-    async (tx: WriteTransaction, a: string, b: number) => {
-      console.log(tx, a, b);
+  await replicacheForTesting('test-types', {
+    mutators: {
+      // @ts-expect-error Type '(tx: WriteTransaction, a: string, b: number) =>
+      //   Promise<void>' is not assignable to type '(tx: WriteTransaction,
+      //   args?: any) => MaybePromise<void | JSONValue>'.ts(2322)
+      mut5: async (tx: WriteTransaction, a: string, b: number) => {
+        console.log(tx, a, b);
+      },
     },
-  );
+  });
 });
 
 // Only used for type checking
@@ -1522,8 +1563,11 @@ test.skip('Key type for scans [type checking only]', async () => {
 });
 
 test('mem store', async () => {
-  let rep = await replicacheForTesting('mem', {useMemstore: true});
-  const add = rep.register('addData', addData);
+  let rep = await replicacheForTesting('mem', {
+    mutators: {addData},
+    useMemstore: true,
+  });
+  const add = rep.mutate.addData;
   await add({a: 42});
   expect(await rep.query(tx => tx.get('a'))).to.equal(42);
   await rep.close();
@@ -1534,11 +1578,25 @@ test('mem store', async () => {
 });
 
 testWithBothStores('isEmpty', async () => {
-  const rep = await replicacheForTesting('test-is-empty');
-  const add = rep.register('add-data', addData);
-  const del = rep.register('del', (tx: WriteTransaction, key: string) =>
-    tx.del(key),
-  );
+  const rep = await replicacheForTesting('test-is-empty', {
+    mutators: {
+      addData,
+      del: (tx: WriteTransaction, key: string) => tx.del(key),
+      mut: async tx => {
+        expect(await tx.isEmpty()).to.eq(false);
+
+        tx.del('c');
+        expect(await tx.isEmpty()).to.eq(false);
+
+        tx.del('a');
+        expect(await tx.isEmpty()).to.eq(true);
+
+        tx.put('d', 4);
+        expect(await tx.isEmpty()).to.eq(false);
+      },
+    },
+  });
+  const {addData: add, del, mut} = rep.mutate;
 
   async function t(expected: boolean) {
     expect(await rep?.query(tx => tx.isEmpty())).to.eq(expected);
@@ -1556,18 +1614,6 @@ testWithBothStores('isEmpty', async () => {
   await del('b');
   await t(false);
 
-  const mut = rep.register('mut', async tx => {
-    expect(await tx.isEmpty()).to.eq(false);
-
-    tx.del('c');
-    expect(await tx.isEmpty()).to.eq(false);
-
-    tx.del('a');
-    expect(await tx.isEmpty()).to.eq(true);
-
-    tx.put('d', 4);
-    expect(await tx.isEmpty()).to.eq(false);
-  });
   await mut();
 
   await t(false);
@@ -1581,8 +1627,9 @@ testWithBothStores('onSync', async () => {
     pullURL,
     pushURL,
     pushDelay: 5,
+    mutators: {addData},
   });
-  const add = rep.register('add-data', addData);
+  const add = rep.mutate.addData;
 
   const onSync = sinon.fake();
   rep.onSync = onSync;
@@ -1657,10 +1704,11 @@ testWithBothStores('push timing', async () => {
     pushURL,
     pushDelay,
     useMemstore: true,
+    mutators: {addData},
   });
   const spy = spyInvoke(rep);
 
-  const add = rep.register('add-data', addData);
+  const add = rep.mutate.addData;
 
   fetchMock.post(pushURL, {});
   await add({a: 0});
@@ -1712,10 +1760,11 @@ test('push and pull concurrently', async () => {
     pushURL,
     useMemstore: true,
     pushDelay: 10,
+    mutators: {addData},
   });
   const spy = spyInvoke(rep);
 
-  const add = rep.register('add-data', addData);
+  const add = rep.mutate.addData;
 
   const reqs: string[] = [];
 
@@ -1791,9 +1840,10 @@ test('schemaVersion push', async () => {
     pushURL,
     schemaVersion,
     pushDelay: 1,
+    mutators: {addData},
   });
 
-  const add = rep.register('add-data', addData);
+  const add = rep.mutate.addData;
   await add({a: 1});
 
   fetchMock.post(pushURL, {});
@@ -1820,4 +1870,102 @@ test('clientID', async () => {
   const clientID3 = await rep.clientID;
   expect(clientID3).to.match(re);
   expect(clientID3).to.equal(clientID);
+});
+
+// Only used for type checking
+test.skip('mut [type checking only]', async () => {
+  const rep = new Replicache({
+    mutators: {
+      a: (tx: WriteTransaction) => {
+        console.log(tx);
+        return 42;
+      },
+      b: (tx: WriteTransaction, x: number) => {
+        console.log(tx, x);
+        return 'hi';
+      },
+
+      // Return void
+      c: (tx: WriteTransaction) => {
+        console.log(tx);
+      },
+      d: (tx: WriteTransaction, x: number) => {
+        console.log(tx, x);
+      },
+
+      e: async (tx: WriteTransaction) => {
+        console.log(tx);
+        return 42;
+      },
+      f: async (tx: WriteTransaction, x: number) => {
+        console.log(tx, x);
+        return 'hi';
+      },
+
+      // Return void
+      g: async (tx: WriteTransaction) => {
+        console.log(tx);
+      },
+      h: async (tx: WriteTransaction, x: number) => {
+        console.log(tx, x);
+      },
+
+      // // This should be flagged as an error but I need to use `any` for the
+      // // arg since I need covariance and TS uses contravariance here.
+      // // @ts-expect-error XXX
+      // i: (tx: WriteTransaction, d: Date) =>
+      // {console.log(tx, d);
+      // },
+    },
+  });
+
+  rep.mutate.a() as Promise<number>;
+  rep.mutate.b(4) as Promise<string>;
+
+  rep.mutate.c() as Promise<void>;
+  rep.mutate.d(2) as Promise<void>;
+
+  rep.mutate.e() as Promise<number>;
+  rep.mutate.f(4) as Promise<string>;
+
+  rep.mutate.g() as Promise<void>;
+  rep.mutate.h(2) as Promise<void>;
+
+  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
+  rep.mutate.b();
+  //@ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
+  rep.mutate.b(null);
+
+  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
+  rep.mutate.d();
+  //@ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
+  rep.mutate.d(null);
+
+  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
+  rep.mutate.f();
+  //@ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
+  rep.mutate.f(null);
+
+  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
+  rep.mutate.h();
+  // @ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
+  rep.mutate.h(null);
+
+  {
+    const rep = new Replicache({mutators: {}});
+    // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
+    rep.mutate.abc(43);
+  }
+
+  {
+    const rep = new Replicache({});
+    // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
+    rep.mutate.abc(1, 2, 3);
+  }
+
+  {
+    const rep = new Replicache();
+    // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
+    rep.mutate.abc(1, 2, 3);
+  }
 });

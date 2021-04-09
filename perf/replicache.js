@@ -7,6 +7,8 @@ import {makeRandomStrings} from './data.js';
  * @typedef {import('./perf').Benchmark} Benchmark
  * @typedef {import('./perf').Bencher} Bencher
  * @typedef {import('../out/replicache').WriteTransaction} WriteTransaction
+ * @typedef {import('../out/replicache').ReadTransaction} ReadTransaction
+ * @typedef {import('../out/replicache').JSONValue} JSONValue
  */
 
 /**
@@ -24,9 +26,12 @@ export function benchmarkPopulate(opts) {
      * @param {Bencher} bencher
      */
     async run(bencher) {
-      const rep = await makeRep();
+      const rep = await makeRepWithPopulate();
       if (!opts.clean) {
-        await populate(rep, opts, makeRandomStrings(opts.numKeys, valSize));
+        await rep.mutate.populate({
+          numKeys: opts.numKeys,
+          randomStrings: makeRandomStrings(opts.numKeys, valSize),
+        });
       }
       for (let i = 0; i < (opts.indexes || 0); i++) {
         await rep.createIndex({
@@ -36,7 +41,7 @@ export function benchmarkPopulate(opts) {
       }
       const randomStrings = makeRandomStrings(opts.numKeys, valSize);
       bencher.reset();
-      await populate(rep, opts, randomStrings);
+      await rep.mutate.populate({numKeys: opts.numKeys, randomStrings});
       bencher.stop();
       await rep.close();
     },
@@ -54,16 +59,19 @@ export function benchmarkReadTransaction(opts) {
     byteSize: opts.numKeys * valSize,
     rep: /** @type Replicache */ (/** @type unknown */ (null)),
     async setup() {
-      this.rep = await makeRep();
-      await populate(this.rep, opts, makeRandomStrings(opts.numKeys, valSize));
+      this.rep = await makeRepWithPopulate();
+      await this.rep.mutate.populate({
+        numKeys: opts.numKeys,
+        randomStrings: makeRandomStrings(opts.numKeys, valSize),
+      });
     },
     async teardown() {
       await this.rep.close();
     },
-    async run(bench) {
+    async run(/** @type Bencher */ bench) {
       let getCount = 0;
       let hasCount = false;
-      await this.rep.query(async tx => {
+      await this.rep.query(async (/** @type ReadTransaction */ tx) => {
         for (let i = 0; i < opts.numKeys; i++) {
           // use the values to be confident we're not optimizing away.
           // @ts-ignore
@@ -89,14 +97,18 @@ export function benchmarkScan(opts) {
     byteSize: opts.numKeys * valSize,
     rep: /** @type Replicache */ (/** @type unknown */ (null)),
     async setup() {
-      this.rep = await makeRep();
-      await populate(this.rep, opts, makeRandomStrings(opts.numKeys, valSize));
+      this.rep = await makeRepWithPopulate();
+
+      await this.rep.mutate.populate({
+        numKeys: opts.numKeys,
+        randomStrings: makeRandomStrings(opts.numKeys, valSize),
+      });
     },
     async teardown() {
       await this.rep.close();
     },
     async run() {
-      await this.rep.query(async tx => {
+      await this.rep.query(async (/** @type ReadTransaction} */ tx) => {
         let count = 0;
         for await (const value of tx.scan()) {
           // use the value to be confident we're not optimizing away.
@@ -122,11 +134,13 @@ export function benchmarkSingleByteWrite() {
       /** @type unknown */ (null)
     ),
     async setup() {
-      this.rep = await makeRep();
-      this.write = this.rep.register('write', (
-        /** @type {WriteTransaction} */ tx,
-        /** @type {number} */ i,
-      ) => tx.put('k', i % 10));
+      this.rep = await makeRep({
+        mutators: {
+          write: (/** @type WriteTransaction */ tx, /** @type number */ i) =>
+            tx.put('k', i % 10),
+        },
+      });
+      this.write = this.rep.mutate.write;
     },
     async teardown() {
       await this.rep.close();
@@ -153,8 +167,11 @@ export function benchmarkCreateIndex(opts) {
      * @param {Bencher} bencher
      */
     async run(bencher) {
-      const rep = await makeRep();
-      await populate(rep, opts, makeRandomStrings(opts.numKeys, valSize));
+      const rep = await makeRepWithPopulate();
+      await rep.mutate.populate({
+        numKeys: opts.numKeys,
+        randomStrings: makeRandomStrings(opts.numKeys, valSize),
+      });
       bencher.reset();
       await rep.createIndex({
         name: `idx`,
@@ -170,12 +187,20 @@ export function benchmarkCreateIndex(opts) {
  * @returns Benchmark
  */
 export function benchmarkWriteReadRoundTrip() {
+  /** @type string */
+  let key;
+  /** @type number */
+  let value;
   return {
     name: 'roundtrip write/subscribe/get',
     group: 'replicache',
     rep: /** @type Replicache */ (/** @type unknown */ (null)),
     async setup() {
-      this.rep = await makeRep();
+      this.rep = await makeRep({
+        mutators: {
+          write: (/** @type WriteTransaction */ tx) => tx.put(key, value),
+        },
+      });
     },
     async teardown() {
       await this.rep.close();
@@ -185,25 +210,25 @@ export function benchmarkWriteReadRoundTrip() {
      * @param {number} i
      */
     async run(bench, i) {
-      const key = `k${i}`;
-      const value = i;
+      key = `k${i}`;
+      value = i;
       let {promise, resolve} = resolver();
-      const unsubscribe = this.rep.subscribe(tx => tx.get(key), {
-        onData(res) {
-          // `resolve` binding needs to be looked up on every iteration
-          resolve(res);
+      const unsubscribe = this.rep.subscribe(
+        (/** @type ReadTransaction */ tx) => tx.get(key),
+        {
+          onData(/** @type JSONValue | undefined */ res) {
+            // `resolve` binding needs to be looked up on every iteration
+            resolve(res);
+          },
         },
-      });
+      );
       // onData is called once when calling subscribe
       await promise;
-
-      const write = this.rep.register('write', tx => tx.put(key, value));
-      bench.reset();
 
       // reset these.
       ({promise, resolve} = resolver());
 
-      await write();
+      await this.rep.mutate.write();
 
       const res = await promise;
       if (res !== value) {
@@ -228,27 +253,32 @@ function deleteDatabase(name) {
 }
 
 let counter = 0;
-async function makeRep() {
+async function makeRep(options = {}) {
   const name = `bench${counter++}`;
   await deleteDatabase(name);
   return new Replicache({
     name,
     pullInterval: null,
+    ...options,
   });
 }
 
-/**
- * @param {Replicache} rep
- * @param {{numKeys: number}}
- * @param {string[]} randomStrings
- */
-async function populate(rep, {numKeys}, randomStrings) {
-  const set = rep.register('populate', async tx => {
-    for (let i = 0; i < numKeys; i++) {
-      await tx.put(`key${i}`, randomStrings[i]);
-    }
+async function makeRepWithPopulate() {
+  return makeRep({
+    mutators: {
+      populate: async (
+        /** @type WriteTransaction} */ tx,
+        /** @type {{numKeys: number, randomStrings: string[]}} */ {
+          numKeys,
+          randomStrings,
+        },
+      ) => {
+        for (let i = 0; i < numKeys; i++) {
+          await tx.put(`key${i}`, randomStrings[i]);
+        }
+      },
+    },
   });
-  await set();
 }
 
 /**

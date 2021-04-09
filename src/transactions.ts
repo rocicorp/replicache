@@ -140,9 +140,9 @@ export class ReadTransactionImpl implements ReadTransaction {
 }
 
 /**
- * WriteTransactions are used with
- * [[Replicache.register]] and allows read and write
- * operations on the database.
+ * WriteTransactions are used with *mutators* which are registered using
+ * [[ReplicacheOptions.mutators]] and allows read and write operations on the
+ * database.
  */
 export interface WriteTransaction extends ReadTransaction {
   /**

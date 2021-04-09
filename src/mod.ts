@@ -1,7 +1,11 @@
 export {Replicache} from './replicache.js';
 export {TransactionClosedError} from './transaction-closed-error.js';
 
-export type {ReplicacheOptions, MaybePromise} from './replicache.js';
+export type {
+  ReplicacheOptions,
+  MaybePromise,
+  MutatorDefs,
+} from './replicache.js';
 export type {
   CreateIndexDefinition,
   ReadTransaction,

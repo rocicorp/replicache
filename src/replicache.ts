@@ -541,19 +541,6 @@ export class Replicache<MD extends MutatorDefs = {}>
     );
   }
 
-  private async _scanAll<O extends ScanOptions, R>(
-    options: O | undefined,
-    f: (tx: ReadTransactionImpl, options?: O) => Promise<R>,
-  ): Promise<R> {
-    const tx = new ReadTransactionImpl(this._invoke);
-    try {
-      await tx.open({});
-      return await f(tx, options);
-    } finally {
-      tx.close();
-    }
-  }
-
   /**
    * Convenience form of `scan()` which returns all the entries as an array.
    * @deprecated Use `scan().entries().toArray()` instead.
@@ -561,7 +548,13 @@ export class Replicache<MD extends MutatorDefs = {}>
   async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): Promise<[K, JSONValue][]> {
-    return this._scanAll(options, tx => tx.scanAll(options));
+    const tx = new ReadTransactionImpl(this._invoke);
+    try {
+      await tx.open({});
+      return await tx.scanAll(options);
+    } finally {
+      tx.close();
+    }
   }
 
   /**

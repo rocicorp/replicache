@@ -90,13 +90,9 @@ class Replicache implements ReadTransaction {
     pushAuth: string,
     pullURL: string,
     pullAuth: string,
+    // Registers the mutators, which are used to make changes to the data.
+    mutators: {[name: string]: MutatorImpl}
   });
-
-  // Registers a mutator, which is used to make changes to the data.
-  register<Return, Args>(
-    name: string,
-    mutatorImpl: MutatorImpl<Return, Args>,
-  ): Mutator<Return, Args>;
 
   // Subcribe to changes to the underlying data. Every time the underlying data changes onData is called.
   // The function is also called once the first time the subscription is added.
@@ -107,13 +103,13 @@ class Replicache implements ReadTransaction {
 }
 
 // A Replicache "mutator" function is just a normal JS function that accepts any JSON value, makes changes
-// to Replicache, and returns a JSON value. Users can invoke mutators themselves, via the return value
-// from register(). Also Replicache will itself invoke these functions during sync as part of conflict
-// resolution.
+// to Replicache, and returns a JSON value. Users can invoke mutators themselves, via the `mutate` property
+// of the `Replicache` instance. Also Replicache will itself invoke these functions during sync as part of
+// conflict resolution.
 type MutatorImpl<Return extends JSONValue | void, Args extends JSONValue> = (
   tx: WriteTransaction,
-  args: Args,
-) => Promise<Return>;
+  args?: Args,
+) => MaybePromise<Return>;
 
 interface ReadTransaction {
   get(key: string): Promise<JSONValue | undefined>;

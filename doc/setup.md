@@ -153,9 +153,6 @@ export default function Home() {
       // and faster.
       wasmModule: '/replicache.dev.wasm',
     });
-    registerMutators(rep);
-    // TODO: https://github.com/rocicorp/replicache/issues/328
-    rep.pull();
     listen(rep);
     setRep(rep);
   }, []);
@@ -258,15 +255,14 @@ With Replicache, you implement mutations once on the client-side (sometimes call
 
 _Note:_ The two implementations need not match exactly. Replicache replaces the result of a speculative change completely with the result of the corresponding authoritative change, once it's known. This is useful because it means the speculative implementation can frequently be pretty simple, not taking into account security, complex business logic edge cases, etc. Also, if you happen to be running JavaScript on the server, you can of course share mutation code extensively between client and server.
 
-First, let's register a _mutator_ that speculatively creates a message. In `index.js`, replace the `registerMutators` function with:
+First, let's register a _mutator_ that speculatively creates a message. In `index.js`, expand the options passed to the `Replicache` constructor with:
 
 ```js
-function registerMutators(rep) {
-  // TODO: https://github.com/rocicorp/replicache/issues/329
-  rep.createMessage = rep.register(
-    'createMessage',
-    (tx, {id, from, content, order}) => {
-      tx.put(`message/${id}`, {
+const rep = new Replicache({
+  //...
+  mutators: {
+    async createMessage(tx, {id, from, content, order}) {
+      await tx.put(`message/${id}`, {
         from,
         content,
         order,
@@ -285,7 +281,7 @@ const onSubmit = e => {
   e.preventDefault();
   const last = messages.length && messages[messages.length - 1][1];
   const order = (last?.order ?? 0) + 1;
-  rep.createMessage({
+  rep.mutate.createMessage({
     // Easy unique ID. In a real app use a GUID.
     id: Math.random().toString(32).substr(2),
     from: usernameRef.current.value,

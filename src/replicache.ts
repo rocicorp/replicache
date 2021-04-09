@@ -40,25 +40,18 @@ const storageKeyName = (name: string) => `/replicache/root/${name}`;
 const MAX_REAUTH_TRIES = 8;
 
 /**
- * The type of the function used to implement the *mutators* in Replicache.
- *
- * See [[ReplicacheOptions]] [[ReplicacheOptions.mut|mut]] for more info.
- */
-export type MutatorImpl<
-  // Not sure how to not use any here...
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Args extends JSONValue = any,
-  Return extends JSONValue | void = JSONValue | void
-> = (tx: WriteTransaction, args?: Args) => MaybePromise<Return>;
-
-/**
  * The type used to describe the mutator definitions passed into [[Replicache]]
  * constructor as part of the [[ReplicacheOptions]].
  *
- * See [[ReplicacheOptions]] [[ReplicacheOptions.mut|mut]] for more info.
+ * See [[ReplicacheOptions]] [[ReplicacheOptions.mutators|mutators]] for more info.
  */
 export type MutatorDefs = {
-  [key: string]: MutatorImpl;
+  [key: string]: (
+    tx: WriteTransaction,
+    // Not sure how to not use any here...
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    args?: any,
+  ) => MaybePromise<JSONValue | void>;
 };
 
 /**
@@ -164,46 +157,19 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
   logLevel?: LogLevel;
 
   /**
-   * An object used as a map to define the *mutators*. These gets registered at startup
-   * of [[Replicache]].
-   * 
+   * An object used as a map to define the *mutators*. These gets registered at
+   * startup of [[Replicache]].
+   *
    * *Mutators* are used to make changes to the data.
    *
-   * ## Replays
-   *
-   * Mutators run once when they are initially invoked, but they might also be
-   * *replayed* multiple times during sync. As such mutators should not modify
-   * application state directly. Also, it is important that the set of
-   * registered mutator names only grows over time. If Replicache syncs and
-   * needed mutator is not registered, it will substitute a no-op mutator, but
-   * this might be a poor user experience.
-   *
-   * ## Server application
-   *
-   * During sync, a description of each mutation is sent to the server's [push
-   * endpoint](https://github.com/rocicorp/replicache/blob/stable/doc/setup.md#step-6-remote-mutations)
-   * where it is applied. Once the mutation has been applied successfully, as
-   * indicated by the [client
-   * view](https://github.com/rocicorp/replicache/blob/stable/doc/setup.md#step-1-design-your-client-view)'s
-   * `lastMutationId` field, the local version of the mutation is removed. See
-   * the [design
-   * doc](https://github.com/rocicorp/replicache/blob/stable/doc/design.md) for
-   * additional details on the sync protocol.
-   *
-   * ## Transactionality
-   *
-   * Mutators are atomic: all their changes are applied together, or none are.
-   * Throwing an exception aborts the transaction. Otherwise, it is committed.
-   * As with [[query]] and [[subscribe]] all reads will see a consistent view of the
-   * cache while they run.
-   *
    * ## Example
-   * 
-   * The registered *mutations* are reflected on the [[Replicache.mut|mut]] property of the [[Replicache]] instance.
+   *
+   * The registered *mutations* are reflected on the
+   * [[Replicache.mutate|mutate]] property of the [[Replicache]] instance.
    *
    * ```ts
    * const rep = new Replicache({
-   *   mut: {
+   *   mutators: {
    *     async createTodo(tx: WriteTransaction, args: JSONValue) {
    *       const key = `/todo/${args.id}`;
    *       if (await tx.has(key)) {
@@ -221,20 +187,42 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * This will create the function to later use:
    *
    * ```ts
-   * await rep.mut.createTodo({
+   * await rep.mutate.createTodo({
    *   id: 1234,
    *   title: 'Make things work offline',
    *   complete: true,
    * });
    * ```
    *
-   
-
-   * 
-   * 
-   * 
+   * ## Replays
+   *
+   * *Mutators* run once when they are initially invoked, but they might also be
+   * *replayed* multiple times during sync. As such *mutators* should not modify
+   * application state directly. Also, it is important that the set of
+   * registered mutator names only grows over time. If Replicache syncs and
+   * needed *mutator* is not registered, it will substitute a no-op mutator, but
+   * this might be a poor user experience.
+   *
+   * ## Server application
+   *
+   * During push, a description of each mutation is sent to the server's [push
+   * endpoint](https://github.com/rocicorp/replicache/blob/stable/doc/setup.md#step-6-remote-mutations)
+   * where it is applied. Once the *mutation* has been applied successfully, as
+   * indicated by the [client
+   * view](https://github.com/rocicorp/replicache/blob/stable/doc/setup.md#step-1-design-your-client-view)'s
+   * `lastMutationId` field, the local version of the *mutation* is removed. See
+   * the [design
+   * doc](https://github.com/rocicorp/replicache/blob/stable/doc/design.md) for
+   * additional details on the sync protocol.
+   *
+   * ## Transactionality
+   *
+   * *Mutators* are atomic: all their changes are applied together, or none are.
+   * Throwing an exception aborts the transaction. Otherwise, it is committed.
+   * As with [[query]] and [[subscribe]] all reads will see a consistent view of
+   * the cache while they run.
    */
-  mut?: MD;
+  mutators?: MD;
 }
 
 // eslint-disable-next-line @typescript-eslint/ban-types
@@ -263,7 +251,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   /**
    * The mutators that was registered in the constructor.
    */
-  readonly mut: MakeMutators<MD>;
+  readonly mutate: MakeMutators<MD>;
 
   // Number of pushes/pulls at the moment.
   private _pushCounter = 0;
@@ -339,7 +327,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       pullInterval = 60_000,
       useMemstore = false,
       wasmModule,
-      mut = {} as MD,
+      mutators = {} as MD,
     } = options;
     this._pullAuth = pullAuth;
     this._pullURL = pullURL;
@@ -369,7 +357,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     this._logLevel = logLevel;
     this._logger = getLogger([], logLevel);
 
-    this.mut = this._registerMutators(mut);
+    this.mutate = this._registerMutators(mutators);
 
     this._open().then(async () => {
       // TODO: Make log level an arg to open and scope the log level to a db
@@ -929,15 +917,17 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
   }
 
-  /** @deprecated Use [[ReplicacheOptions.mut]] instead. */
+  /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
   register<Return extends JSONValue | void>(
     name: string,
     mutatorImpl: (tx: WriteTransaction) => MaybePromise<Return>,
   ): () => Promise<Return>;
+  /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
   register<Return extends JSONValue | void, Args extends JSONValue>(
     name: string,
     mutatorImpl: (tx: WriteTransaction, args: Args) => MaybePromise<Return>,
   ): (args: Args) => Promise<Return>;
+  /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
   register<Return extends JSONValue | void, Args extends JSONValue>(
     name: string,
     mutatorImpl: (tx: WriteTransaction, args?: Args) => MaybePromise<Return>,
@@ -1075,7 +1065,7 @@ const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';
 type MutatorReturn = MaybePromise<JSONValue | void>;
 
 type MakeMutator<
-  F extends (tx: WriteTransaction, ...args: JSONValue[]) => MutatorReturn
+  F extends (tx: WriteTransaction, ...args: [] | [JSONValue]) => MutatorReturn
 > = F extends (tx: WriteTransaction, ...args: infer Args) => infer Ret
   ? (...args: Args) => ToPromise<Ret>
   : never;

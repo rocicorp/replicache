@@ -37,13 +37,13 @@ export class ScanResult<K> implements AsyncIterable<JSONValue> {
   }
 
   /** The default AsyncIterable. This is the same as [[values]]. */
-  [Symbol.asyncIterator](): AsyncIterableIterator<JSONValue> {
+  [Symbol.asyncIterator](): AsyncIterableIteratorToArrayWrapper<JSONValue> {
     return this.values();
   }
 
   /** Async iterator over the valus of the [[ReadTransaction.scan|scan]] call. */
-  values(): ToArrayWrapper<JSONValue> {
-    return new ToArrayWrapper(this._newIterator(VALUE));
+  values(): AsyncIterableIteratorToArrayWrapper<JSONValue> {
+    return new AsyncIterableIteratorToArrayWrapper(this._newIterator(VALUE));
   }
 
   /**
@@ -51,8 +51,8 @@ export class ScanResult<K> implements AsyncIterable<JSONValue> {
    * call. If the [[ReadTransaction.scan|scan]] is over an index the key
    * is a tuple of `[secondaryKey: string, primaryKey]`
    */
-  keys(): ToArrayWrapper<K> {
-    return new ToArrayWrapper(this._newIterator(KEY));
+  keys(): AsyncIterableIteratorToArrayWrapper<K> {
+    return new AsyncIterableIteratorToArrayWrapper(this._newIterator(KEY));
   }
 
   /**
@@ -61,8 +61,8 @@ export class ScanResult<K> implements AsyncIterable<JSONValue> {
    * [[ReadTransaction.scan|scan]] is over an index the key is a tuple of
    * `[secondaryKey: string, primaryKey]`
    */
-  entries(): ToArrayWrapper<[K, JSONValue]> {
-    return new ToArrayWrapper(this._newIterator(ENTRY));
+  entries(): AsyncIterableIteratorToArrayWrapper<[K, JSONValue]> {
+    return new AsyncIterableIteratorToArrayWrapper(this._newIterator(ENTRY));
   }
 
   valuesArray(): Promise<JSONValue[]> {
@@ -82,11 +82,21 @@ export class ScanResult<K> implements AsyncIterable<JSONValue> {
   }
 }
 
-class ToArrayWrapper<V> implements AsyncIterableIterator<V> {
+/**
+ * A class that wraps an async iterable iterator to add a [[toArray]] method.
+ *
+ * Usage:
+ *
+ * ```ts
+ * const keys: string[] = await rep.scan().keys().toArray();
+ * ```
+ */
+export class AsyncIterableIteratorToArrayWrapper<V>
+  implements AsyncIterableIterator<V> {
   private readonly _it: AsyncIterableIterator<V>;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly next: (v: any) => Promise<IteratorResult<V>>;
+  readonly next: (v?: any) => Promise<IteratorResult<V>>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly return?: (value?: any) => Promise<IteratorResult<V>>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1618002725395,
+  "lastUpdate": 1618008959305,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -20916,6 +20916,114 @@ window.BENCHMARK_DATA = {
             "name": "create index 1024x5000",
             "value": 4.76,
             "range": "±7.8%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "83d0ed70f045f257cba4837376a79a1a1cc622fa",
+          "message": "Feat: Register mutations using ReplicacheOptions (#350)\n\nThis adds a `mutators` option to `ReplicacheOptions` which contains the\r\nmutators to register.\r\n\r\nThese mutators are available as `mutate` on the `Replicache` instance after\r\nconstruction.\r\n\r\nThis deprecates `register` too.\r\n\r\nFixes #329",
+          "timestamp": "2021-04-09T15:53:25-07:00",
+          "tree_id": "e930aba2765eb1094ed8add6d129f3c62ca212de",
+          "url": "https://github.com/rocicorp/replicache/commit/83d0ed70f045f257cba4837376a79a1a1cc622fa"
+        },
+        "date": 1618008958070,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 2.77,
+            "range": "±169.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 2.62,
+            "range": "±3.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.13,
+            "range": "±21.7%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.7,
+            "range": "±1.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.64,
+            "range": "±21.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.58,
+            "range": "±24.5%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 9.55,
+            "range": "±48.5%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 10.21,
+            "range": "±56.2%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±736.5%",
+            "unit": "MB/s",
+            "extra": "52 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 79.54,
+            "range": "±361.4%",
+            "unit": "ops/sec",
+            "extra": "40 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 9.2,
+            "range": "±11.6%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.27,
+            "range": "±27.0%",
             "unit": "ops/sec",
             "extra": "5 samples"
           }

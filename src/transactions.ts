@@ -8,6 +8,7 @@ import {
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
 import {ScanResult} from './scan-iterator.js';
 import {throwIfClosed} from './transaction-closed-error.js';
+import {asyncIterableToArray} from './async-iterable-to-array.js';
 
 /**
  * ReadTransactions are used with [[Replicache.query]] and
@@ -49,6 +50,18 @@ export interface ReadTransaction {
   scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): Promise<[K, JSONValue][]>;
+
+  /**
+   * Convenience form of [[scan]] which returns all the keys as an array.
+   */
+  scanAllKeys<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
+    options?: O,
+  ): Promise<K[]>;
+
+  /**
+   * Convenience form of [[scan]] which returns all the keys as an array.
+   */
+  scanAllValues<O extends ScanOptions>(options?: O): Promise<JSONValue[]>;
 }
 
 export class ReadTransactionImpl implements ReadTransaction {
@@ -105,13 +118,21 @@ export class ReadTransactionImpl implements ReadTransaction {
   async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): Promise<[K, JSONValue][]> {
-    type E = [K, JSONValue];
-    const it = this.scan(options).entries();
-    const result: E[] = [];
-    for await (const pair of it) {
-      result.push(pair as E);
-    }
-    return result;
+    return asyncIterableToArray(
+      this.scan(options).entries() as AsyncIterable<[K, JSONValue]>,
+    );
+  }
+
+  async scanAllKeys<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
+    options?: O,
+  ): Promise<K[]> {
+    return asyncIterableToArray(this.scan(options).keys() as AsyncIterable<K>);
+  }
+
+  async scanAllValues<O extends ScanOptions>(
+    options?: O,
+  ): Promise<JSONValue[]> {
+    return asyncIterableToArray(this.scan(options).values());
   }
 
   get id(): number {

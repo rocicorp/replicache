@@ -541,19 +541,44 @@ export class Replicache<MD extends MutatorDefs = {}>
     );
   }
 
+  private async _scanAll<O extends ScanOptions, R>(
+    options: O | undefined,
+    f: (tx: ReadTransactionImpl, options?: O) => Promise<R>,
+  ): Promise<R> {
+    const tx = new ReadTransactionImpl(this._invoke);
+    try {
+      await tx.open({});
+      return await f(tx, options);
+    } finally {
+      tx.close();
+    }
+  }
+
   /**
    * Convenience form of `scan()` which returns all the entries as an array.
    */
   async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): Promise<[K, JSONValue][]> {
-    const tx = new ReadTransactionImpl(this._invoke);
-    try {
-      await tx.open({});
-      return await tx.scanAll(options);
-    } finally {
-      tx.close();
-    }
+    return this._scanAll(options, tx => tx.scanAll(options));
+  }
+
+  /**
+   * Convenience form of [[scan]] which returns all the keys as an array.
+   */
+  async scanAllKeys<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
+    options?: O,
+  ): Promise<K[]> {
+    return this._scanAll(options, tx => tx.scanAllKeys(options));
+  }
+
+  /**
+   * Convenience form of [[scan]] which returns all the keys as an array.
+   */
+  async scanAllValues<O extends ScanOptions>(
+    options?: O,
+  ): Promise<JSONValue[]> {
+    return this._scanAll(options, tx => tx.scanAllValues(options));
   }
 
   /**

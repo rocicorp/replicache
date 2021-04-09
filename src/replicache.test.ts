@@ -21,6 +21,7 @@ import {Invoke, RPC} from './repm-invoker.js';
 import type {ScanOptions} from './scan-options.js';
 
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
+import {asyncIterableToArray} from './async-iterable-to-array.js';
 
 let clock: SinonFakeTimers;
 setup(function () {
@@ -81,14 +82,6 @@ async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
 }
 
 const emptyHash = '';
-
-async function asyncIterableToArray<T>(it: AsyncIterable<T>) {
-  const arr: T[] = [];
-  for await (const v of it) {
-    arr.push(v);
-  }
-  return arr;
-}
 
 function spyInvoke(
   rep: Replicache,
@@ -202,21 +195,63 @@ async function testScanResult<K, V>(
       await asyncIterableToArray(tx.scan(options).entries()),
     ).to.deep.equal(entries);
   });
-
   await rep.query(async tx => {
     expect(await asyncIterableToArray(tx.scan(options))).to.deep.equal(
       entries.map(([, v]) => v),
     );
   });
-
   await rep.query(async tx => {
     expect(await asyncIterableToArray(tx.scan(options).values())).to.deep.equal(
       entries.map(([, v]) => v),
     );
   });
-
   await rep.query(async tx => {
     expect(await asyncIterableToArray(tx.scan(options).keys())).to.deep.equal(
+      entries.map(([k]) => k),
+    );
+  });
+
+  // scanXxx
+  await rep.query(async tx => {
+    expect(await tx.scanAll(options)).to.deep.equal(entries);
+  });
+  await rep.query(async tx => {
+    expect(await tx.scanAllValues(options)).to.deep.equal(
+      entries.map(([, v]) => v),
+    );
+  });
+  await rep.query(async tx => {
+    expect(await tx.scanAllKeys(options)).to.deep.equal(
+      entries.map(([k]) => k),
+    );
+  });
+
+  // scan().xxxArray()
+  await rep.query(async tx => {
+    expect(await tx.scan(options).entriesArray()).to.deep.equal(entries);
+  });
+  await rep.query(async tx => {
+    expect(await tx.scan(options).valuesArray()).to.deep.equal(
+      entries.map(([, v]) => v),
+    );
+  });
+  await rep.query(async tx => {
+    expect(await tx.scan(options).keysArray()).to.deep.equal(
+      entries.map(([k]) => k),
+    );
+  });
+
+  // scan().xxx().toArray()
+  await rep.query(async tx => {
+    expect(await tx.scan(options).entries().toArray()).to.deep.equal(entries);
+  });
+  await rep.query(async tx => {
+    expect(await tx.scan(options).values().toArray()).to.deep.equal(
+      entries.map(([, v]) => v),
+    );
+  });
+  await rep.query(async tx => {
+    expect(await tx.scan(options).keys().toArray()).to.deep.equal(
       entries.map(([k]) => k),
     );
   });

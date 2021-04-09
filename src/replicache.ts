@@ -556,29 +556,12 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   /**
    * Convenience form of `scan()` which returns all the entries as an array.
+   * @deprecated Use `scan().entries().toArray()` instead.
    */
   async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): Promise<[K, JSONValue][]> {
     return this._scanAll(options, tx => tx.scanAll(options));
-  }
-
-  /**
-   * Convenience form of [[scan]] which returns all the keys as an array.
-   */
-  async scanAllKeys<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): Promise<K[]> {
-    return this._scanAll(options, tx => tx.scanAllKeys(options));
-  }
-
-  /**
-   * Convenience form of [[scan]] which returns all the keys as an array.
-   */
-  async scanAllValues<O extends ScanOptions>(
-    options?: O,
-  ): Promise<JSONValue[]> {
-    return this._scanAll(options, tx => tx.scanAllValues(options));
   }
 
   /**

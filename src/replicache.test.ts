@@ -211,36 +211,15 @@ async function testScanResult<K, V>(
     );
   });
 
-  // scanXxx
   await rep.query(async tx => {
     expect(await tx.scanAll(options)).to.deep.equal(entries);
   });
+
   await rep.query(async tx => {
-    expect(await tx.scanAllValues(options)).to.deep.equal(
+    expect(await tx.scan(options).toArray()).to.deep.equal(
       entries.map(([, v]) => v),
     );
   });
-  await rep.query(async tx => {
-    expect(await tx.scanAllKeys(options)).to.deep.equal(
-      entries.map(([k]) => k),
-    );
-  });
-
-  // scan().xxxArray()
-  await rep.query(async tx => {
-    expect(await tx.scan(options).entriesArray()).to.deep.equal(entries);
-  });
-  await rep.query(async tx => {
-    expect(await tx.scan(options).valuesArray()).to.deep.equal(
-      entries.map(([, v]) => v),
-    );
-  });
-  await rep.query(async tx => {
-    expect(await tx.scan(options).keysArray()).to.deep.equal(
-      entries.map(([k]) => k),
-    );
-  });
-
   // scan().xxx().toArray()
   await rep.query(async tx => {
     expect(await tx.scan(options).entries().toArray()).to.deep.equal(entries);

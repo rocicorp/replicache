@@ -65,16 +65,9 @@ export class ScanResult<K> implements AsyncIterable<JSONValue> {
     return new AsyncIterableIteratorToArrayWrapper(this._newIterator(ENTRY));
   }
 
-  valuesArray(): Promise<JSONValue[]> {
-    return asyncIterableToArray(this._newIterator(VALUE));
-  }
-
-  keysArray(): Promise<JSONValue[]> {
-    return asyncIterableToArray(this._newIterator(KEY));
-  }
-
-  entriesArray(): Promise<JSONValue[]> {
-    return asyncIterableToArray(this._newIterator(ENTRY));
+  /** Returns all the values as an array. Same as `values().toArray()` */
+  toArray(): Promise<JSONValue[]> {
+    return this.values().toArray();
   }
 
   private _newIterator<V>(kind: ScanIterableKind): AsyncIterableIterator<V> {

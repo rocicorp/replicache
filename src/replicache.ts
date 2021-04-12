@@ -543,6 +543,7 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   /**
    * Convenience form of `scan()` which returns all the entries as an array.
+   * @deprecated Use `scan().entries().toArray()` instead.
    */
   async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,

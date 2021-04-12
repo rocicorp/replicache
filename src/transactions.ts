@@ -8,6 +8,7 @@ import {
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
 import {ScanResult} from './scan-iterator.js';
 import {throwIfClosed} from './transaction-closed-error.js';
+import {asyncIterableToArray} from './async-iterable-to-array.js';
 
 /**
  * ReadTransactions are used with [[Replicache.query]] and
@@ -45,6 +46,7 @@ export interface ReadTransaction {
 
   /**
    * Convenience form of [[scan]] which returns all the entries as an array.
+   * @deprecated Use `scan().entries().toArray()` instead
    */
   scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
@@ -105,13 +107,9 @@ export class ReadTransactionImpl implements ReadTransaction {
   async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): Promise<[K, JSONValue][]> {
-    type E = [K, JSONValue];
-    const it = this.scan(options).entries();
-    const result: E[] = [];
-    for await (const pair of it) {
-      result.push(pair as E);
-    }
-    return result;
+    return asyncIterableToArray(
+      this.scan(options).entries() as AsyncIterable<[K, JSONValue]>,
+    );
   }
 
   get id(): number {

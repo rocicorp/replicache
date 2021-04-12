@@ -11,7 +11,10 @@ export type {
   ReadTransaction,
   WriteTransaction,
 } from './transactions.js';
-export type {ScanResult} from './scan-iterator.js';
+export type {
+  ScanResult,
+  AsyncIterableIteratorToArrayWrapper,
+} from './scan-iterator.js';
 export type {JSONObject, JSONValue} from './json.js';
 export type {
   KeyTypeForScanOptions,

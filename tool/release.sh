@@ -34,7 +34,8 @@ fi
 
     rm repc.zip
     rm -rf pkg
-    wasm-pack build --debug --target web --out-dir pkg/debug -- --no-default-features
+    wasm-pack build --profiling --target web --out-dir pkg/debug -- --no-default-features
+    # To install wasm-opt do `brew install binaryen`
     wasm-opt -O4 -o pkg/debug/replicache_client_bg.wasm pkg/debug/replicache_client_bg.wasm
     brotli pkg/debug/replicache_client_bg.wasm
     wasm-pack build --release --target web --out-dir pkg/release -- --no-default-features

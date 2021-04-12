@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1618008959305,
+  "lastUpdate": 1618254329957,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -21024,6 +21024,114 @@ window.BENCHMARK_DATA = {
             "name": "create index 1024x5000",
             "value": 1.27,
             "range": "±27.0%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "de37958e26cc6f66c4225a8514e4b55ac5465d14",
+          "message": "Feat: Add scan().entries().toArray() etc (#353)\n\nThis adds convenience methods to the async iterator returned by scan, allowing\r\nyou to asynchronously get an array. For example:\r\n\r\n```js\r\nawait scan().entries().toArray()\r\nawait scan().values().toArray()\r\nawait scan().keys().toArray()\r\nawait scan().toArray() // Same as values\r\n```\r\n\r\nFixes #292",
+          "timestamp": "2021-04-12T12:02:51-07:00",
+          "tree_id": "b42ab94160e397d1c0c17d0fae7146210ed648da",
+          "url": "https://github.com/rocicorp/replicache/commit/de37958e26cc6f66c4225a8514e4b55ac5465d14"
+        },
+        "date": 1618254329161,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 2.61,
+            "range": "±160.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 2.25,
+            "range": "±2.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.26,
+            "range": "±279.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.76,
+            "range": "±111.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.21,
+            "range": "±21.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.08,
+            "range": "±39.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 8.72,
+            "range": "±49.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 9.11,
+            "range": "±43.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±3642.4%",
+            "unit": "MB/s",
+            "extra": "29 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 85.43,
+            "range": "±450.8%",
+            "unit": "ops/sec",
+            "extra": "43 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 7.93,
+            "range": "±24.9%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 0.99,
+            "range": "±22.0%",
             "unit": "ops/sec",
             "extra": "5 samples"
           }

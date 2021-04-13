@@ -1,12 +1,12 @@
 module.exports = {
   docs: [
-    "getting-started",
+    'getting-started',
     {
-      "API Reference": require('./typedoc-sidebar.js'),
+      'API Reference': require('./typedoc-sidebar.js'),
     },
-    "setup",
-    "launch-checklist",
-    "design",
-    "faq",
+    'setup',
+    'launch-checklist',
+    'design',
+    'faq',
   ],
 };

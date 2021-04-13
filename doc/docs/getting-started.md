@@ -9,13 +9,13 @@ import TabItem from '@theme/TabItem';
 ## Install
 
 <Tabs
-  groupId="lang"
-  defaultValue="hooks"
-  values={[
-    {label: 'React Hooks', value: 'hooks'},
-    {label: 'JavaScript', value: 'js'},
-  ]}>
-  <TabItem value="hooks">
+groupId="lang"
+defaultValue="hooks"
+values={[
+{label: 'React Hooks', value: 'hooks'},
+{label: 'JavaScript', value: 'js'},
+]}>
+<TabItem value="hooks">
 
 ```bash
 npm add replicache replicache-react-util
@@ -51,21 +51,21 @@ You should add a [postinstall](https://docs.npmjs.com/cli/v7/using-npm/scripts) 
 ## Client Setup
 
 <Tabs
-  groupId="lang"
-  defaultValue="hooks"
-  values={[
-    {label: 'React Hooks', value: 'hooks'},
-    {label: 'JavaScript', value: 'js'},
-  ]}>
-  <TabItem value="hooks">
+groupId="lang"
+defaultValue="hooks"
+values={[
+{label: 'React Hooks', value: 'hooks'},
+{label: 'JavaScript', value: 'js'},
+]}>
+<TabItem value="hooks">
 
 ```ts
-import {Replicache} from "replicache";
-import {useSubscribe} from "replicache-react-util";
+import {Replicache} from 'replicache';
+import {useSubscribe} from 'replicache-react-util';
 
 const rep = new Replicache({
   // Put the correct path to replicache.wasm.br on your server here.
-  wasmModule: "/replicache.wasm",
+  wasmModule: '/replicache.wasm',
 
   mutators: {
     createTodo: (tx, args) => {
@@ -75,14 +75,18 @@ const rep = new Replicache({
 });
 
 function MyComponent() {
-  const todos = useSubscribe(rep,
-    tx => tx.scan({prefix: "/todo/"}).toArray(), []);
+  const todos = useSubscribe(
+    rep,
+    tx => tx.scan({prefix: '/todo/'}).toArray(),
+    [],
+  );
 
   const handleClick = () => {
     rep.mutate.createTodo({
       id: Math.random().toString(32).substr(2),
       order: todos.length,
-      text: "new todo!"});
+      text: 'new todo!',
+    });
   };
 
   // ...
@@ -93,11 +97,11 @@ function MyComponent() {
   <TabItem value="js">
 
 ```ts
-import {Replicache} from "replicache";
+import {Replicache} from 'replicache';
 
 const rep = new Replicache({
   // Put the correct path to replicache.wasm[.br] on your server here.
-  wasmModule: "/replicache.wasm",
+  wasmModule: '/replicache.wasm',
 
   mutators: {
     createTodo: (tx, args) => {
@@ -107,12 +111,12 @@ const rep = new Replicache({
 });
 
 rep.subscribe(tx => tx.scan().toArray(), {
-  onData: data => console.log("got todos", data),
+  onData: data => console.log('got todos', data),
 });
 
 rep.mutate.createTodo({
   id: Math.random().toString(32).substr(2),
-  title: "Pick up milk",
+  title: 'Pick up milk',
   order: 3,
 });
 ```
@@ -122,6 +126,6 @@ rep.mutate.createTodo({
 
 ## Server Setup
 
-In order to sync, you will need to implement *push* an *pull* endpoints on your server.
+In order to sync, you will need to implement _push_ an _pull_ endpoints on your server.
 
 For detailed information, see the [integration guide](/integration), or the [push](#TODO)/[pull](#TODO) reference docs.

@@ -17,12 +17,12 @@ module.exports = {
       {
         entryPoints: ['../src/mod.ts'],
         tsconfig: '../tsconfig.json',
-        exclude: ["node_modules", "src/*.test.ts"],
+        exclude: ['node_modules', 'src/*.test.ts'],
         excludePrivate: true,
         excludeProtected: true,
         excludeExternals: true,
-        name: "Replicache",
-        readme: "none",
+        name: 'Replicache',
+        readme: 'none',
       },
     ],
   ],
@@ -84,8 +84,7 @@ module.exports = {
         docs: {
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
-          editUrl:
-            'https://github.com/rocicorp/replicache/tree/main/doc',
+          editUrl: 'https://github.com/rocicorp/replicache/tree/main/doc',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),

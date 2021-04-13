@@ -1,7 +1,7 @@
 /** @type {import('@docusaurus/types').DocusaurusConfig} */
 module.exports = {
   title: 'Replicache Docs',
-  tagline: 'The tagline of my site',
+  tagline: 'Realtime Sync for any Backend Stack',
   url: 'https://doc.replicache.dev/',
   baseUrl: '/',
   onBrokenLinks: 'throw',
@@ -46,7 +46,7 @@ module.exports = {
       },
       items: [
         {
-          href: 'https://github.com/facebook/docusaurus',
+          href: 'https://github.com/rocicorp/replicache',
           label: 'GitHub',
           position: 'right',
         },

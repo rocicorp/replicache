@@ -27,10 +27,16 @@ module.exports = {
     ],
   ],
   themeConfig: {
+    plugins: ['@docusaurus/plugin-google-analytics'],
     colorMode: {
       defaultMode: 'light',
       disableSwitch: true,
       respectPrefersColorScheme: true,
+    },
+    googleAnalytics: {
+      trackingID: 'UA-166756598-1',
+      // Optional fields.
+      anonymizeIP: true, // Should IPs be anonymized?
     },
     navbar: {
       title: 'Replicache Documentation',

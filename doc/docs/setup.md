@@ -102,7 +102,7 @@ export default async (req, res) => {
 
 You'll notice the JSON we're serving is a little different than our idealized schema above.
 
-The response from `replicache-pull` is actually a _patch_ — a series of changes to be applied to the map the client currently has, as a result of changes that have happened on the server. Replicache applies the patch operations one-by-one, in-order, to its existing map. See [Pull Endpoint](TODO) for more details.
+The response from `replicache-pull` is actually a _patch_ — a series of changes to be applied to the map the client currently has, as a result of changes that have happened on the server. Replicache applies the patch operations one-by-one, in-order, to its existing map. See [Pull Endpoint](#TODO) for more details.
 
 Early in development, it's easiest to just return a patch that replaces the entire state with new values, which is what we've done here. Later in this tutorial we will improve this to return only what has changed.
 
@@ -318,7 +318,7 @@ Replicache automatically batches mutations and sends them to the `replicache-pus
 
 Each mutation is identified with a `mutationID` which is a per-client incrementing integer. The server must store this value transactionally when applying the mutation, and return it later in `replicache-pull`. This is what allows Replicache to know when speculative mutations have been confirmed by the server and thus no longer need to be replayed (and in fact can be discarded).
 
-For this demo, we're using [Supabase](https://supabase.io), a very nice hosted Postgres database with a snazzy name. But you can use any datastore as long as it can transactionally update the `lastMutationID`. See [Backend Requirements](TODO) for precise details of what your backend needs to support Replicache.
+For this demo, we're using [Supabase](https://supabase.io), a very nice hosted Postgres database with a snazzy name. But you can use any datastore as long as it can transactionally update the `lastMutationID`. See [Backend Requirements](#TODO) for precise details of what your backend needs to support Replicache.
 
 Head over to [Supabase](https://supabase.io) and create a free account and an empty database. Then add Supabase's Postgres connection string to your environment. You can get it from your Supabase project by clicking on ⚙️ (Gear/Cog) > Database > Connection String.
 
@@ -482,9 +482,9 @@ async function sendPoke() {
 }
 ```
 
-See [Push Endpoint Reference](TODO) for complete details on implementing the push endpoint.
+See [Push Endpoint Reference](#TODO) for complete details on implementing the push endpoint.
 
-_Note:_ In the code sample above, we updated a special `version` column in the message table which will be used in combination with Replicache's _cookie_ support to compute delta responses for `replicache-pull` in the next step. This is an easy way to do it and works for many apps. See [Cookie Monster Manual](TODO) for other options.
+_Note:_ In the code sample above, we updated a special `version` column in the message table which will be used in combination with Replicache's _cookie_ support to compute delta responses for `replicache-pull` in the next step. This is an easy way to do it and works for many apps. See [Cookie Monster Manual](#TODO) for other options.
 
 Restart the server, navigate to [http://localhost:3000/](http://localhost:3000/) and make some changes. You should now see changes getting saved in Supabase. Niiiice.
 
@@ -562,7 +562,7 @@ Voila. We're now round-tripping browsers and devices!
 
 Also notice that if we go offline for awhile, make some changes, then come back online, the mutations get sent when possible.
 
-We don't have any conflicts in this simple data model, but Replicache makes it easy to reason about most conflicts. See the [Design Doc](TODO) for more details.
+We don't have any conflicts in this simple data model, but Replicache makes it easy to reason about most conflicts. See the [Design Doc](/design) for more details.
 
 The only thing left is to make it live — we obviously don't want the user to have to manually refresh to get new data 🙄.
 

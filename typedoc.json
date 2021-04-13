@@ -3,6 +3,7 @@
   "exclude": ["node_modules", "src/*.test.ts"],
   "excludePrivate": true,
   "excludeProtected": true,
+  "readme": null,
   "out": "docs",
   "excludeExternals": true
 }

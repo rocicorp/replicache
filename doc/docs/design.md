@@ -1,4 +1,7 @@
-# Spinner-Free Applications
+---
+title: Detailed Design
+slug: /design
+---
 
 "[Offline-First](https://www.google.com/search?q=offline+first)" describes a client/server architecture where
 the application reads and writes to a local database on the device, and synchronizes with servers asynchronously whenever
@@ -35,7 +38,7 @@ The key features that drive Replicache's increased usability:
 
 Replicache is a cache that runs inside the browser and synchronizes with a web service. The web service typically already exists when Replicache is added and it could be as simple as a document database or could be a massive distributed system -- Replicache doesn't care. In this document, we refer to the web service as the _Data Layer_. An application uses an instance of the _Replicache Client_ to read from and write to the local cache, and the client synchronizes with the data layer in the background.
 
-![Diagram](./diagram.png)
+![Diagram](/img/diagram.png)
 
 ## Data Model
 

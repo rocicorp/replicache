@@ -18,6 +18,7 @@ Before you launch with Replicache in your product, it's a good idea to double-ch
 - Your endpoints should return HTTP 401 to indicate that the user's authentication token is invalid (e.g., non-existent or expired), and that the app should re-authenticate them.
 - Ensure that the `clientID` passed in does in fact belong to the authenticated user. Client IDs are random and cryptographically strong, but it is best to be safe.
 - It is extremely important to ensure that your datastore and/or the way you use it guarantees the consistency and isolation properties required for Replicache to work as designed. These properties are:
+
   - the effects of a transaction are revealed atomically
   - within a transaction, reads are consistent, ie, reading the same item twice always results in the value, unless changed within the transaction
   - a transaction sees the effects of all previously committed transactions

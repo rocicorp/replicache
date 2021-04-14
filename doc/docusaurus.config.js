@@ -65,7 +65,7 @@ module.exports = {
             },
             {
               label: 'Discord',
-              href: 'https://discord.gg/nAxWsGj4X3',
+              href: 'https://discord.replicache.dev/',
             },
             {
               label: 'Twitter',

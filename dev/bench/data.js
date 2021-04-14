@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1618354061254,
+  "lastUpdate": 1618361945659,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -21564,6 +21564,114 @@ window.BENCHMARK_DATA = {
             "name": "create index 1024x5000",
             "value": 1.34,
             "range": "±17.9%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "e8d4b93b199e64a00f6332fc95592dfd1eac5d15",
+          "message": "Shard the integration guide into a number of smaller steps.\n\nAlso spruce by making use of the Docusaurus \"admonitions\" feature liberally.",
+          "timestamp": "2021-04-13T14:56:31-10:00",
+          "tree_id": "324e9f4ab995ea286b259462fa9152fcb94baec9",
+          "url": "https://github.com/rocicorp/replicache/commit/e8d4b93b199e64a00f6332fc95592dfd1eac5d15"
+        },
+        "date": 1618361944415,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 3.07,
+            "range": "±172.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 2.89,
+            "range": "±10.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.3,
+            "range": "±10.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.76,
+            "range": "±42.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 7.17,
+            "range": "±18.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.92,
+            "range": "±31.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 11.87,
+            "range": "±41.4%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 12.88,
+            "range": "±59.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±635.6%",
+            "unit": "MB/s",
+            "extra": "55 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 85.89,
+            "range": "±419.2%",
+            "unit": "ops/sec",
+            "extra": "43 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 10.25,
+            "range": "±8.9%",
+            "unit": "ops/sec",
+            "extra": "6 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.44,
+            "range": "±39.0%",
             "unit": "ops/sec",
             "extra": "5 samples"
           }

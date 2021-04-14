@@ -128,4 +128,4 @@ rep.mutate.createTodo({
 
 In order to sync, you will need to implement _push_ an _pull_ endpoints on your server.
 
-For detailed information, see the [integration guide](/integration), or the [push](#TODO)/[pull](#TODO) reference docs.
+For detailed information, see the [integration guide](/guide/intro), or the [push](#TODO)/[pull](#TODO) reference docs.

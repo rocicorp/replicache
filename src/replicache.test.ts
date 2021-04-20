@@ -1983,3 +1983,34 @@ test.skip('mut [type checking only]', async () => {
     rep.mutate.abc(1, 2, 3);
   }
 });
+
+// Only used for type checking
+test.skip('scan with index [type checking only]', async () => {
+  const rep = await replicacheForTesting('scan-with-index');
+
+  (await rep.scan({indexName: 'a'}).keys().toArray()) as [
+    secondary: string,
+    primary: string,
+  ][];
+
+  (await rep.scan({}).keys().toArray()) as string[];
+  (await rep.scan().keys().toArray()) as string[];
+
+  (await rep.scanAll({})) as [string, JSONValue][];
+  (await rep.scanAll()) as [string, JSONValue][];
+  (await rep.scanAll({indexName: 'i'})) as [[string, string], JSONValue][];
+
+  rep.query(async tx => {
+    (await tx.scan({indexName: 'a'}).keys().toArray()) as [
+      secondary: string,
+      primary: string,
+    ][];
+
+    (await tx.scan({}).keys().toArray()) as string[];
+    (await tx.scan().keys().toArray()) as string[];
+
+    (await tx.scanAll({})) as [string, JSONValue][];
+    (await tx.scanAll()) as [string, JSONValue][];
+    (await tx.scanAll({indexName: 'i'})) as [[string, string], JSONValue][];
+  });
+});

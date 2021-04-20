@@ -40,9 +40,29 @@ export interface ReadTransaction {
    * If the [[ScanResult]] is used after the `ReadTransaction` has been closed it
    * will throw a [[TransactionClosedError]].
    */
+  scan(): ScanResult<string>;
+
+  /**
+   * Gets many values from the database. This returns a [[ScanResult]] which
+   * implements `AsyncIterable`. It also has methods to iterate over the [[ScanResult.keys|keys]]
+   * and [[ScanResult.entries|entries]].
+   *
+   * If `options` has an `indexName`, then this does a scan over an index with
+   * that name. A scan over an index uses a tuple for the key consisting of
+   * `[secondary: string, primary: string]`.
+   *
+   * If the [[ScanResult]] is used after the `ReadTransaction` has been closed it
+   * will throw a [[TransactionClosedError]].
+   */
   scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): ScanResult<K>;
+
+  /**
+   * Convenience form of [[scan]] which returns all the entries as an array.
+   * @deprecated Use `scan().entries().toArray()` instead
+   */
+  scanAll(): Promise<[string, JSONValue][]>;
 
   /**
    * Convenience form of [[scan]] which returns all the entries as an array.

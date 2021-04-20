@@ -21,8 +21,8 @@ Change Date:          2023-04-12
 
 Change License:       Apache License, Version 2.0
 
-For information about alternative licensing arrangements for the Software,
-please visit: https://replicache.dev/
+In order to use Replicache for commercial purposes with more than 500 monthly
+active client instances, see: https://replicache.dev/#price.
 
 Notice
 

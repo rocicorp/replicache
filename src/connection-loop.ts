@@ -2,11 +2,13 @@ import type {Logger} from './logger.js';
 import {resolver} from './resolver.js';
 import {sleep} from './sleep.js';
 
-const DEBOUNCE_DELAY = 10;
+const DEBOUNCE_DELAY_MS = 10;
 
-const MIN_DELAY = 30;
-const MAX_DELAY = 60_000;
+const MIN_DELAY_MS = 30;
+const MAX_DELAY_MS = 60_000;
 
+// Max numbers of outstanding connections. This is pretty arbitrary but assuming
+// a request takes 100ms then we get a response every 33ms which is 30 FPS.
 const MAX_CONNECTIONS = 3;
 
 type SendRecord = {duration: number; ok: boolean};
@@ -69,7 +71,7 @@ export class ConnectionLoop {
 
   async run(): Promise<void> {
     const sendRecords: SendRecord[] = [];
-    let delay = MIN_DELAY;
+    let delay = MIN_DELAY_MS;
     let recoverResolver = resolver();
     let lastSendTime = 0;
 
@@ -77,7 +79,7 @@ export class ConnectionLoop {
     let counter = 0;
     const delegate = this._delegate;
     const {
-      debounceDelay = () => DEBOUNCE_DELAY,
+      debounceDelay = () => DEBOUNCE_DELAY_MS,
       maxConnections = MAX_CONNECTIONS,
       watchdogTimer,
       debug,
@@ -110,7 +112,7 @@ export class ConnectionLoop {
       this._pendingResolver = resolver();
 
       if (counter >= maxConnections) {
-        debug?.('Too many pushes. Waiting until one finishes...');
+        debug?.('Too many request in flight. Waiting until one finishes...');
         await this._waitUntilAvailableConnection();
         if (this._closed) break;
         debug?.('...finished');
@@ -197,44 +199,59 @@ export class ConnectionLoop {
 // Number of connections to remember when computing the new delay.
 const CONNECTION_MEMORY_COUNT = 9;
 
+// Computes a new delay based on the previous requests. We use the median of the
+// previous successfull request divided by `maxConnections`. When we get errors
+// we do exponential backoff. As soon as we recover from an error we reset back
+// to MIN_DELAY_MS.
 function computeDelayAndUpdateDurations(
   delay: number,
   maxConnections: number,
   sendRecords: SendRecord[],
 ): number {
-  const {length} = sendRecords;
-  if (length === 0) {
-    return delay;
+  function compute(
+    delay: number,
+    maxConnections: number,
+    sendRecords: SendRecord[],
+  ): number {
+    const {length} = sendRecords;
+    if (length === 0) {
+      return delay;
+    }
+
+    const {duration, ok} = sendRecords[sendRecords.length - 1];
+
+    if (!ok) {
+      return delay * 2;
+    }
+
+    if (length === 1) {
+      return (duration / maxConnections) | 0;
+    }
+
+    // length > 1
+    const previous: SendRecord = sendRecords[sendRecords.length - 2];
+
+    // Prune
+    while (sendRecords.length > CONNECTION_MEMORY_COUNT) {
+      sendRecords.shift();
+    }
+
+    if (ok && !previous.ok) {
+      // Recovered
+      return MIN_DELAY_MS;
+    }
+
+    const med = median(
+      sendRecords.filter(({ok}) => ok).map(({duration}) => duration),
+    );
+
+    return (med / maxConnections) | 0;
   }
 
-  const {duration, ok} = sendRecords[sendRecords.length - 1];
-
-  if (!ok) {
-    return Math.min(MAX_DELAY, delay * 2);
-  }
-
-  if (length === 1) {
-    return (duration / maxConnections) | 0;
-  }
-
-  // length > 1
-  const previous: SendRecord = sendRecords[sendRecords.length - 2];
-
-  // Prune
-  if (sendRecords.length > CONNECTION_MEMORY_COUNT) {
-    sendRecords.shift();
-  }
-
-  if (ok && !previous.ok) {
-    // Recovered
-    return MIN_DELAY;
-  }
-
-  const med = median(
-    sendRecords.filter(({ok}) => ok).map(({duration}) => duration),
+  return Math.min(
+    MAX_DELAY_MS,
+    Math.max(MIN_DELAY_MS, compute(delay, maxConnections, sendRecords)),
   );
-
-  return (med / maxConnections) | 0;
 }
 
 function median(values: number[]) {

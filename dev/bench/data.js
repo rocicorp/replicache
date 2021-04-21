@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1618960371094,
+  "lastUpdate": 1618981234500,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -22212,6 +22212,114 @@ window.BENCHMARK_DATA = {
             "name": "create index 1024x5000",
             "value": 1.87,
             "range": "±38.6%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7f72d7a5bd287468952af6a5db7d42c6186f9f29",
+          "message": "Fix issue with scan return type (#363)\n\nTS complained in some cases. Added more tests and fixed the type\r\nsignature.",
+          "timestamp": "2021-04-20T21:58:09-07:00",
+          "tree_id": "295f3518644ca0add30ed750bf7583ae502bac90",
+          "url": "https://github.com/rocicorp/replicache/commit/7f72d7a5bd287468952af6a5db7d42c6186f9f29"
+        },
+        "date": 1618981233715,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 2.58,
+            "range": "±147.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 2.34,
+            "range": "±3.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.33,
+            "range": "±8.5%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.78,
+            "range": "±124.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.33,
+            "range": "±23.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.27,
+            "range": "±38.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 8.75,
+            "range": "±47.7%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 8.64,
+            "range": "±46.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±719.3%",
+            "unit": "MB/s",
+            "extra": "61 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 94.56,
+            "range": "±414.9%",
+            "unit": "ops/sec",
+            "extra": "48 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 8.67,
+            "range": "±13.3%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.07,
+            "range": "±25.3%",
             "unit": "ops/sec",
             "extra": "5 samples"
           }

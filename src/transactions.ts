@@ -6,7 +6,12 @@ import {
   RPC,
   CloseTransactionResponse,
 } from './repm-invoker.js';
-import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
+import {
+  KeyTypeForScanOptions,
+  ScanOptions,
+  ScanOptionsRPC,
+  toRPC,
+} from './scan-options.js';
 import {ScanResult} from './scan-iterator.js';
 import {throwIfClosed} from './transaction-closed-error.js';
 import {asyncIterableToArray} from './async-iterable-to-array.js';
@@ -151,6 +156,52 @@ export class ReadTransactionImpl implements ReadTransaction {
     return await this._invoke(RPC.CloseTransaction, {
       transactionId: this._transactionId,
     });
+  }
+}
+
+// An implementation of ReadTransaction that keeps track of `keys` and `scans`
+// for use with Subscriptions.
+export class SubscriptionTransactionImpl extends ReadTransactionImpl {
+  private readonly _keys: Set<string> = new Set();
+  private readonly _scans: ScanOptionsRPC[] = [];
+
+  /** @override */
+  get(key: string): Promise<JSONValue | undefined> {
+    // TODO(arv): Use override keyword once we are using TS4.3
+    this._keys.add(key);
+    return super.get(key);
+  }
+
+  /** @override */
+  has(key: string): Promise<boolean> {
+    this._keys.add(key);
+    return super.has(key);
+  }
+
+  /** @override */
+  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
+    options?: O,
+  ): ScanResult<K> {
+    this._scans.push(toRPC(options));
+    return super.scan(options);
+  }
+
+  /** @override */
+  async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
+    options?: O,
+  ): Promise<[K, JSONValue][]> {
+    this._scans.push(toRPC(options));
+    return super.scanAll(options);
+  }
+
+  get keys(): string[] {
+    const keys = [...this._keys];
+    keys.sort();
+    return keys;
+  }
+
+  get scans(): ScanOptionsRPC[] {
+    return this._scans;
   }
 }
 

@@ -129,12 +129,7 @@ type OpenIndexTransactionRequest = unknown;
 type OpenIndexTransactionResponse = OpenTransactionResponse;
 
 type CloseTransactionRequest = TransactionRequest;
-export type CloseTransactionResponse = {
-  // If this transaction was used for a subscription it contains the keys that
-  // were used with get/has and the scan options used with scan.
-  keys: string[];
-  scans: ScanOptionsRPC[];
-};
+export type CloseTransactionResponse = unknown;
 
 type CommitTransactionRequest = TransactionRequest & {
   generateDiffs: boolean;

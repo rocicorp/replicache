@@ -7,7 +7,6 @@ import type {
 } from './scan-options.js';
 import {REPMWasmInvoker, RPC} from './repm-invoker.js';
 import type {
-  CloseTransactionResponse,
   Diffs,
   InitInput,
   Invoke,
@@ -15,7 +14,10 @@ import type {
   OpenResponse,
   OpenTransactionRequest,
 } from './repm-invoker.js';
-import type {CreateIndexDefinition} from './transactions.js';
+import {
+  CreateIndexDefinition,
+  SubscriptionTransactionImpl,
+} from './transactions.js';
 import {IndexTransactionImpl} from './transactions.js';
 import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
 import {ScanResult} from './scan-iterator.js';
@@ -927,8 +929,9 @@ export class Replicache<MD extends MutatorDefs = {}>
     );
     (async () => {
       try {
-        const {result, response} = await this._querySubscription(s.body);
-        Object.assign(s, response);
+        const {result, keys, scans} = await this._querySubscription(s.body);
+        s.keys = keys;
+        s.scans = scans;
         s.lastValue = result;
         s.onData(result);
       } catch (ex) {
@@ -964,12 +967,12 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   private async _querySubscription<R>(
     body: (tx: ReadTransaction) => Promise<R> | R,
-  ): Promise<{result: R; response: CloseTransactionResponse}> {
-    const tx = new ReadTransactionImpl(this._invoke);
+  ): Promise<{result: R; keys: string[]; scans: ScanOptionsRPC[]}> {
+    const tx = new SubscriptionTransactionImpl(this._invoke);
     await tx.open({isSubscription: true});
     const result = await body(tx);
-    const response = await tx.close();
-    return {result, response};
+    await tx.close();
+    return {result, keys: tx.keys, scans: tx.scans};
   }
 
   /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
@@ -1114,7 +1117,9 @@ type Subscription<R extends JSONValue | undefined, E> = {
   onError?: (e: E) => void;
   onDone?: () => void;
   lastValue?: R;
-} & CloseTransactionResponse;
+  keys: string[];
+  scans: ScanOptionsRPC[];
+};
 
 const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';
 

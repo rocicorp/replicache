@@ -45,7 +45,7 @@ const storageKeyName = (name: string) => `/replicache/root/${name}`;
 const MAX_REAUTH_TRIES = 8;
 
 type BroadcastData = {
-  root: string;
+  root?: string;
   diffs: Diffs;
   index?: string;
 };
@@ -464,7 +464,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     const {key, newValue} = e;
     if (newValue && key === storageKeyName(this._name)) {
       const {root, diffs, index} = JSON.parse(newValue) as {
-        root: string;
+        root?: string;
         diffs: [string, string[]][];
         index?: string;
       };
@@ -473,8 +473,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
   };
 
-  // Callback for when window.onstorage fires which happens when a different tab
-  // changes the db.
+  // Callback for when a different tab changes the db.
   private async _onBroadcastMessage(data: BroadcastData) {
     // Cannot just use the root value from the other tab, because it can be behind us.
     // Also, in the case of memstore, it will have a totally different, unrelated
@@ -485,13 +484,13 @@ export class Replicache<MD extends MutatorDefs = {}>
     const indexSubs = index
       ? getSubscriptionsForIndex(this._subscriptions, index)
       : [];
-    this._fireSubscriptions([...new Set([...diffSubs, ...indexSubs])]);
 
-    this._checkChange(await this._getRoot(), diffs);
+    const subscriptions = [...new Set([...diffSubs, ...indexSubs])];
+    await this._fireSubscriptions(subscriptions);
   }
 
   private _broadcastChange(
-    root: string,
+    root: string | undefined,
     diffs: Map<string, string[]>,
     index: string | undefined,
   ) {
@@ -858,6 +857,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     // index scans with that index.
     const subscriptions = getSubscriptionsForIndex(this._subscriptions, name);
     await this._fireSubscriptions(subscriptions);
+    await this._broadcastChange(await this._root, new Map(), name);
   }
 
   private async _fireSubscriptions(

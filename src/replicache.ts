@@ -1,20 +1,23 @@
-import {deepEqual, JSONValue} from './json.js';
-import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
-import {
-  Invoker,
-  Invoke,
-  OpenTransactionRequest,
-  REPMWasmInvoker,
+import {deepEqual} from './json.js';
+import type {JSONValue} from './json.js';
+import type {
+  KeyTypeForScanOptions,
+  ScanOptions,
+  ScanOptionsRPC,
+} from './scan-options.js';
+import {REPMWasmInvoker, RPC} from './repm-invoker.js';
+import type {
+  CloseTransactionResponse,
+  Diffs,
   InitInput,
+  Invoke,
+  Invoker,
   OpenResponse,
-  RPC,
+  OpenTransactionRequest,
 } from './repm-invoker.js';
-import {
-  CreateIndexDefinition,
-  IndexTransactionImpl,
-  ReadTransactionImpl,
-  WriteTransactionImpl,
-} from './transactions.js';
+import type {CreateIndexDefinition} from './transactions.js';
+import {IndexTransactionImpl} from './transactions.js';
+import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
 import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
 import {ConnectionLoop} from './connection-loop.js';
@@ -38,6 +41,12 @@ const storageKeyName = (name: string) => `/replicache/root/${name}`;
 
 /** The maximum number of time to call out to getDataLayerAuth before giving up and throwing an error. */
 const MAX_REAUTH_TRIES = 8;
+
+type BroadcastData = {
+  root: string;
+  diffs: Diffs;
+  index?: string;
+};
 
 /**
  * The type used to describe the mutator definitions passed into [[Replicache]]
@@ -374,15 +383,12 @@ export class Replicache<MD extends MutatorDefs = {}>
     });
     if (hasBroadcastChannel) {
       this._broadcastChannel = new BroadcastChannel(storageKeyName(this._name));
-      this._broadcastChannel.onmessage = () => this._onStorage();
+      this._broadcastChannel.onmessage = (e: MessageEvent<BroadcastData>) =>
+        this._onBroadcastMessage(e.data);
     } else {
-      window.addEventListener('storage', (e: StorageEvent) => {
-        if (e.key === storageKeyName(this._name)) {
-          this._onStorage();
-        }
-      });
+      window.addEventListener('storage', this._onStorage);
     }
-    this._setRoot(this._getRoot());
+    this._root = this._getRoot();
     await this._root;
   }
 
@@ -428,9 +434,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
 
-    if (hasBroadcastChannel) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      this._broadcastChannel!.close();
+    if (this._broadcastChannel) {
+      this._broadcastChannel.close();
       this._broadcastChannel = undefined;
     } else {
       window.removeEventListener('storage', this._onStorage);
@@ -453,40 +458,60 @@ export class Replicache<MD extends MutatorDefs = {}>
     return res.root;
   }
 
-  private _setRoot(root: Promise<string | undefined>) {
-    this._root = root;
-    this._setStorage(root);
-  }
+  private _onStorage = (e: StorageEvent) => {
+    const {key, newValue} = e;
+    if (newValue && key === storageKeyName(this._name)) {
+      const {root, diffs, index} = JSON.parse(newValue) as {
+        root: string;
+        diffs: [string, string[]][];
+        index?: string;
+      };
 
-  private async _setStorage(root: Promise<string | undefined>) {
-    const r = await root;
-    if (this._closed) {
-      return;
+      this._onBroadcastMessage({root, diffs: new Map(diffs), index});
     }
-    if (hasBroadcastChannel) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      this._broadcastChannel!.postMessage(r);
-    } else {
-      // Also set an item in localStorage so that we can synchronize multiple
-      // windows/tabs.
-      localStorage[storageKeyName(this._name)] = r;
-    }
-  }
+  };
 
   // Callback for when window.onstorage fires which happens when a different tab
   // changes the db.
-  private async _onStorage() {
-    // Cannot just use the value from the other tab, because it can be behind us.
+  private async _onBroadcastMessage(data: BroadcastData) {
+    // Cannot just use the root value from the other tab, because it can be behind us.
     // Also, in the case of memstore, it will have a totally different, unrelated
     // hash chain.
-    this._checkChange(await this._getRoot());
+    const {diffs, index} = data;
+
+    const diffSubs = getSubscriptionsForDiffs(this._subscriptions, diffs);
+    const indexSubs = index
+      ? getSubscriptionsForIndex(this._subscriptions, index)
+      : [];
+    this._fireSubscriptions([...new Set([...diffSubs, ...indexSubs])]);
+
+    this._checkChange(await this._getRoot(), diffs);
   }
 
-  private async _checkChange(root: string | undefined): Promise<void> {
+  private _broadcastChange(
+    root: string,
+    diffs: Map<string, string[]>,
+    index: string | undefined,
+  ) {
+    if (this._broadcastChannel) {
+      const data = {root, diffs, index};
+      this._broadcastChannel.postMessage(data);
+    } else {
+      // local storage needs a string...
+      const data = {root, diffs: [...diffs.entries()], index};
+      localStorage[storageKeyName(this._name)] = JSON.stringify(data);
+    }
+  }
+
+  private async _checkChange(
+    root: string | undefined,
+    diffs: Map<string, string[]>,
+  ): Promise<void> {
     const currentRoot = await this._root; // instantaneous except maybe first time
     if (root !== undefined && root !== currentRoot) {
-      this._setRoot(Promise.resolve(root));
-      await this._fireOnChange();
+      this._root = Promise.resolve(root);
+      this._broadcastChange(root, diffs, undefined);
+      await this._fireOnChange(diffs);
     }
   }
 
@@ -534,7 +559,7 @@ export class Replicache<MD extends MutatorDefs = {}>
           return tx;
         }
         tx = new ReadTransactionImpl(this._invoke);
-        await tx.open({});
+        await tx.open({isSubscription: false});
         return tx;
       },
       true,
@@ -550,10 +575,10 @@ export class Replicache<MD extends MutatorDefs = {}>
   ): Promise<[K, JSONValue][]> {
     const tx = new ReadTransactionImpl(this._invoke);
     try {
-      await tx.open({});
+      await tx.open({isSubscription: false});
       return await tx.scanAll(options);
     } finally {
-      tx.close();
+      closeIgnoreError(tx);
     }
   }
 
@@ -566,6 +591,7 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   async createIndex(def: CreateIndexDefinition): Promise<void> {
     await this._indexOp(tx => tx.createIndex(def));
+    await this._indexDefinitionChanged(def.name);
   }
 
   /**
@@ -573,6 +599,7 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   async dropIndex(name: string): Promise<void> {
     await this._indexOp(tx => tx.dropIndex(name));
+    await this._indexDefinitionChanged(name);
   }
 
   private async _indexOp(
@@ -580,7 +607,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   ): Promise<void> {
     const tx = new IndexTransactionImpl(this._invoke);
     try {
-      await tx.open({});
+      await tx.open({isSubscription: false});
       await f(tx);
     } finally {
       tx.commit();
@@ -596,13 +623,13 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     let {syncHead} = beginPullResult;
 
-    const {replayMutations} = await this._invoke(
+    const {replayMutations, diffs} = await this._invoke(
       RPC.MaybeEndTryPull,
       beginPullResult,
     );
     if (!replayMutations || replayMutations.length === 0) {
       // All done.
-      await this._checkChange(syncHead);
+      await this._checkChange(syncHead, diffs);
       return;
     }
 
@@ -644,6 +671,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     const res = await this._mutate(name, mutatorImpl, args, {
       invokeArgs: {
         rebaseOpts: {basis, original},
+        isSubscription: false,
       },
       isReplay: true,
     });
@@ -818,11 +846,24 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
   }
 
-  private async _fireOnChange(): Promise<void> {
+  private async _fireOnChange(diffs: Map<string, string[]>): Promise<void> {
+    const subscriptions = getSubscriptionsForDiffs(this._subscriptions, diffs);
+    await this._fireSubscriptions(subscriptions);
+  }
+
+  private async _indexDefinitionChanged(name: string): Promise<void> {
+    // When an index definition changes we fire all subscriptions that uses
+    // index scans with that index.
+    const subscriptions = getSubscriptionsForIndex(this._subscriptions, name);
+    await this._fireSubscriptions(subscriptions);
+  }
+
+  private async _fireSubscriptions(
+    subscriptions: Subscription<JSONValue | undefined, unknown>[],
+  ) {
     type R =
       | {ok: true; value: JSONValue | undefined}
       | {ok: false; error: unknown};
-    const subscriptions = [...this._subscriptions];
     const results = await this.query(async tx => {
       const promises = subscriptions.map(async s => {
         // Tag the result so we can deal with success vs error below.
@@ -878,15 +919,18 @@ export class Replicache<MD extends MutatorDefs = {}>
       onError,
       onDone,
       lastValue: undefined,
+      keys: [],
+      scans: [],
     } as Subscription<R, E>;
     this._subscriptions.add(
       (s as unknown) as Subscription<JSONValue | undefined, unknown>,
     );
     (async () => {
       try {
-        const res = await this.query(s.body);
-        s.lastValue = res;
-        s.onData(res);
+        const {result, response} = await this._querySubscription(s.body);
+        Object.assign(s, response);
+        s.lastValue = result;
+        s.onData(result);
       } catch (ex) {
         if (s.onError) {
           s.onError(ex);
@@ -909,13 +953,23 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
     const tx = new ReadTransactionImpl(this._invoke);
-    await tx.open({});
+    await tx.open({isSubscription: false});
     try {
       return await body(tx);
     } finally {
       // No need to await the response.
-      tx.close();
+      closeIgnoreError(tx);
     }
+  }
+
+  private async _querySubscription<R>(
+    body: (tx: ReadTransaction) => Promise<R> | R,
+  ): Promise<{result: R; response: CloseTransactionResponse}> {
+    const tx = new ReadTransactionImpl(this._invoke);
+    await tx.open({isSubscription: true});
+    const result = await body(tx);
+    const response = await tx.close();
+    return {result, response};
   }
 
   /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
@@ -985,6 +1039,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     let actualInvokeArgs: OpenTransactionRequest = {
       args: args !== undefined ? JSON.stringify(args) : 'null',
       name,
+      isSubscription: false,
     };
     if (invokeArgs !== undefined) {
       actualInvokeArgs = {...actualInvokeArgs, ...invokeArgs};
@@ -997,13 +1052,13 @@ export class Replicache<MD extends MutatorDefs = {}>
       result = await mutatorImpl(tx, args);
     } catch (ex) {
       // No need to await the response.
-      tx.close();
+      closeIgnoreError(tx);
       throw ex;
     }
-    const {ref} = await tx.commit();
+    const {ref, diffs} = await tx.commit(!isReplay);
     if (!isReplay) {
       this._pushConnectionLoop.send();
-      await this._checkChange(ref);
+      await this._checkChange(ref, diffs);
     }
 
     return {result, ref};
@@ -1059,7 +1114,7 @@ type Subscription<R extends JSONValue | undefined, E> = {
   onError?: (e: E) => void;
   onDone?: () => void;
   lastValue?: R;
-};
+} & CloseTransactionResponse;
 
 const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';
 
@@ -1074,3 +1129,156 @@ type MakeMutator<
 type MakeMutators<T extends MutatorDefs> = {
   readonly [P in keyof T]: MakeMutator<T[P]>;
 };
+
+async function closeIgnoreError(tx: ReadTransactionImpl) {
+  try {
+    await tx.close();
+  } catch (ex) {
+    console.error('Failed to close transaction', ex);
+  }
+}
+
+function keyMatchesSubscription(
+  subscription: Subscription<JSONValue | undefined, unknown>,
+  indexName: string,
+  diffKey: string,
+) {
+  for (const scanOpts of subscription.scans) {
+    if (scanOptionsMatchesKey(scanOpts, indexName, diffKey)) {
+      return true;
+    }
+  }
+
+  for (const key of subscription.keys) {
+    if (key === diffKey) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function scanOptionsMatchesKey(
+  scanOpts: ScanOptionsRPC,
+  diffIndexName: string,
+  diffKey: string,
+): boolean {
+  const {
+    indexName,
+    prefix,
+    start_key: startKey,
+    start_exclusive: startExclusive,
+    start_secondary_key: startSecondaryKey,
+  } = scanOpts;
+  if (!indexName) {
+    if (diffIndexName) {
+      return false;
+    }
+
+    // No prefix and no start. Must recompute the subscription because all keys
+    // will have an effect on the subscription.
+    if (!prefix && !startKey) {
+      return true;
+    }
+
+    if (prefix && !diffKey.startsWith(prefix)) {
+      return false;
+    }
+
+    if (
+      startKey &&
+      ((startExclusive && diffKey <= startKey) || diffKey < startKey)
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  if (diffIndexName !== indexName) {
+    return false;
+  }
+
+  // No prefix and no start. Must recompute the subscription because all keys
+  // will have an effect on the subscription.
+  if (!prefix && !startKey && !startSecondaryKey) {
+    return true;
+  }
+
+  const [diffKeySecondary, diffKeyPrimary] = decodeIndexKey(diffKey);
+
+  // TODO(arv): Figure out prefix on index scans
+  if (prefix) {
+    if (!diffKeySecondary.startsWith(prefix)) {
+      return false;
+    }
+  }
+
+  if (
+    startSecondaryKey &&
+    ((startExclusive && diffKeySecondary <= startSecondaryKey) ||
+      diffKeySecondary < startSecondaryKey)
+  ) {
+    return false;
+  }
+
+  if (
+    startKey &&
+    ((startExclusive && diffKeyPrimary <= startKey) ||
+      diffKeyPrimary < startKey)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+const KEY_VERSION_0 = '\u0000';
+const KEY_SEPARATOR = '\u0000';
+
+// Decodes an IndexKey encoded by encode_index_key.
+function decodeIndexKey(
+  encodedIndexKey: string,
+): [secondary: string, primary: string] {
+  if (!encodedIndexKey.startsWith(KEY_VERSION_0)) {
+    throw new Error('invalid version');
+  }
+  const parts = encodedIndexKey
+    .slice(KEY_VERSION_0.length)
+    .split(KEY_SEPARATOR, 2);
+  if (parts.length !== 2) {
+    throw new Error('Invalid Formatting: ' + encodedIndexKey);
+  }
+  return parts as [string, string];
+}
+
+function getSubscriptionsForDiffs(
+  subscriptions: Set<Subscription<JSONValue | undefined, unknown>>,
+  diffs: Map<string, string[]>,
+): Subscription<JSONValue | undefined, unknown>[] {
+  const rv = [];
+  for (const subscription of subscriptions) {
+    for (const [indexName, diff] of diffs) {
+      for (const key of diff) {
+        if (keyMatchesSubscription(subscription, indexName, key)) {
+          rv.push(subscription);
+          break;
+        }
+      }
+    }
+  }
+  return rv;
+}
+
+function getSubscriptionsForIndex(
+  subscriptions: Set<Subscription<JSONValue | undefined, unknown>>,
+  name: string,
+) {
+  const rv = [];
+  for (const s of subscriptions) {
+    if (s.scans.some(opt => opt.indexName === name)) {
+      rv.push(s);
+    }
+  }
+  return rv;
+}

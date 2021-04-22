@@ -119,6 +119,7 @@ export type OpenTransactionRequest = {
   name?: string;
   args?: string;
   rebaseOpts?: RebaseOpts;
+  isSubscription: boolean;
 };
 type OpenTransactionResponse = {
   transactionId: number;
@@ -128,11 +129,24 @@ type OpenIndexTransactionRequest = unknown;
 type OpenIndexTransactionResponse = OpenTransactionResponse;
 
 type CloseTransactionRequest = TransactionRequest;
-type CloseTransactionResponse = unknown;
+export type CloseTransactionResponse = {
+  // If this transaction was used for a subscription it contains the keys that
+  // were used with get/has and the scan options used with scan.
+  keys: string[];
+  scans: ScanOptionsRPC[];
+};
 
-type CommitTransactionRequest = TransactionRequest;
+type CommitTransactionRequest = TransactionRequest & {
+  generateDiffs: boolean;
+};
+
+// The changed keys in different indexes. The key of the map is the index name.
+// "" is used for the primary index.
+export type Diffs = Map<string, string[]>;
+
 export type CommitTransactionResponse = {
   ref: string;
+  diffs: Diffs;
 };
 
 type BeginTryPullRequest = {
@@ -180,6 +194,7 @@ type ReplayMutation = Mutation & {
 type MaybeEndTryPullResponse = {
   replayMutations?: ReplayMutation[];
   syncHead: string;
+  diffs: Diffs;
 };
 
 type SetLogLevelRequest = {level: 'debug' | 'info' | 'error'};

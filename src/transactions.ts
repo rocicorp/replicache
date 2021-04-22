@@ -4,6 +4,7 @@ import {
   OpenTransactionRequest,
   CommitTransactionResponse,
   RPC,
+  CloseTransactionResponse,
 } from './repm-invoker.js';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
 import {ScanResult} from './scan-iterator.js';
@@ -145,15 +146,11 @@ export class ReadTransactionImpl implements ReadTransaction {
     this._transactionId = transactionId;
   }
 
-  async close(): Promise<void> {
-    try {
-      this._closed = true;
-      await this._invoke(RPC.CloseTransaction, {
-        transactionId: this._transactionId,
-      });
-    } catch (ex) {
-      console.error('Failed to close transaction', ex);
-    }
+  async close(): Promise<CloseTransactionResponse> {
+    this._closed = true;
+    return await this._invoke(RPC.CloseTransaction, {
+      transactionId: this._transactionId,
+    });
   }
 }
 
@@ -197,10 +194,11 @@ export class WriteTransactionImpl
     return result.ok;
   }
 
-  async commit(): Promise<CommitTransactionResponse> {
+  async commit(generateDiffs: boolean): Promise<CommitTransactionResponse> {
     this._closed = true;
     return await this._invoke(RPC.CommitTransaction, {
       transactionId: this.id,
+      generateDiffs,
     });
   }
 }
@@ -273,6 +271,7 @@ export class IndexTransactionImpl
     this._closed = true;
     return await this._invoke(RPC.CommitTransaction, {
       transactionId: this.id,
+      generateDiffs: false,
     });
   }
 }

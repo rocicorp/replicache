@@ -132,16 +132,16 @@ type CloseTransactionRequest = TransactionRequest;
 export type CloseTransactionResponse = unknown;
 
 type CommitTransactionRequest = TransactionRequest & {
-  generateDiffs: boolean;
+  generateChangedKeys: boolean;
 };
 
 // The changed keys in different indexes. The key of the map is the index name.
 // "" is used for the primary index.
-export type Diffs = Map<string, string[]>;
+export type ChangedKeysMap = Map<string, string[]>;
 
 export type CommitTransactionResponse = {
   ref: string;
-  diffs: Diffs;
+  changedKeys: ChangedKeysMap;
 };
 
 type BeginTryPullRequest = {
@@ -189,7 +189,7 @@ type ReplayMutation = Mutation & {
 type MaybeEndTryPullResponse = {
   replayMutations?: ReplayMutation[];
   syncHead: string;
-  diffs: Diffs;
+  changedKeys: ChangedKeysMap;
 };
 
 type SetLogLevelRequest = {level: 'debug' | 'info' | 'error'};

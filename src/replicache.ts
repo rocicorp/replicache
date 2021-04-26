@@ -7,7 +7,7 @@ import type {
 } from './scan-options.js';
 import {REPMWasmInvoker, RPC} from './repm-invoker.js';
 import type {
-  Diffs,
+  ChangedKeysMap,
   InitInput,
   Invoke,
   Invoker,
@@ -46,7 +46,7 @@ const MAX_REAUTH_TRIES = 8;
 
 type BroadcastData = {
   root?: string;
-  diffs: Diffs;
+  diffs: ChangedKeysMap;
   index?: string;
 };
 
@@ -491,28 +491,28 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   private _broadcastChange(
     root: string | undefined,
-    diffs: Map<string, string[]>,
+    changedKeys: ChangedKeysMap,
     index: string | undefined,
   ) {
     if (this._broadcastChannel) {
-      const data = {root, diffs, index};
+      const data = {root, diffs: changedKeys, index};
       this._broadcastChannel.postMessage(data);
     } else {
       // local storage needs a string...
-      const data = {root, diffs: [...diffs.entries()], index};
+      const data = {root, diffs: [...changedKeys.entries()], index};
       localStorage[storageKeyName(this._name)] = JSON.stringify(data);
     }
   }
 
   private async _checkChange(
     root: string | undefined,
-    diffs: Map<string, string[]>,
+    changedKeys: ChangedKeysMap,
   ): Promise<void> {
     const currentRoot = await this._root; // instantaneous except maybe first time
     if (root !== undefined && root !== currentRoot) {
       this._root = Promise.resolve(root);
-      this._broadcastChange(root, diffs, undefined);
-      await this._fireOnChange(diffs);
+      this._broadcastChange(root, changedKeys, undefined);
+      await this._fireOnChange(changedKeys);
     }
   }
 
@@ -624,7 +624,7 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     let {syncHead} = beginPullResult;
 
-    const {replayMutations, diffs} = await this._invoke(
+    const {replayMutations, changedKeys: diffs} = await this._invoke(
       RPC.MaybeEndTryPull,
       beginPullResult,
     );
@@ -1058,10 +1058,10 @@ export class Replicache<MD extends MutatorDefs = {}>
       closeIgnoreError(tx);
       throw ex;
     }
-    const {ref, diffs} = await tx.commit(!isReplay);
+    const {ref, changedKeys} = await tx.commit(!isReplay);
     if (!isReplay) {
       this._pushConnectionLoop.send();
-      await this._checkChange(ref, diffs);
+      await this._checkChange(ref, changedKeys);
     }
 
     return {result, ref};
@@ -1259,7 +1259,7 @@ function decodeIndexKey(
 
 function getSubscriptionsForDiffs(
   subscriptions: Set<Subscription<JSONValue | undefined, unknown>>,
-  diffs: Map<string, string[]>,
+  diffs: ChangedKeysMap,
 ): Subscription<JSONValue | undefined, unknown>[] {
   const rv = [];
   for (const subscription of subscriptions) {

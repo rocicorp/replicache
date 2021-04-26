@@ -245,11 +245,13 @@ export class WriteTransactionImpl
     return result.ok;
   }
 
-  async commit(generateDiffs: boolean): Promise<CommitTransactionResponse> {
+  async commit(
+    generateChangedKeys: boolean,
+  ): Promise<CommitTransactionResponse> {
     this._closed = true;
     return await this._invoke(RPC.CommitTransaction, {
       transactionId: this.id,
-      generateDiffs,
+      generateChangedKeys,
     });
   }
 }
@@ -322,7 +324,7 @@ export class IndexTransactionImpl
     this._closed = true;
     return await this._invoke(RPC.CommitTransaction, {
       transactionId: this.id,
-      generateDiffs: false,
+      generateChangedKeys: false,
     });
   }
 }

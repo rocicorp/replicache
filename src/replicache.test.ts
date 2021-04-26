@@ -660,6 +660,98 @@ testWithBothStores('subscribe with index and start', async () => {
   cancel();
 });
 
+testWithBothStores('subscribe with index and prefix', async () => {
+  // TODO(arv): Refactor these to share code?
+  const log: [[string, string], JSONValue][] = [];
+
+  const rep = await replicacheForTesting('subscribe-with-index-and-prefix', {
+    mutators: {
+      addData,
+    },
+  });
+
+  await rep.createIndex({
+    name: 'i1',
+    jsonPointer: '/id',
+  });
+
+  let queryCallCount = 0;
+  let onDataCallCount = 0;
+  const cancel = rep.subscribe(
+    async (tx: ReadTransaction) => {
+      queryCallCount++;
+      return await tx.scan({indexName: 'i1', prefix: 'b'}).entries().toArray();
+    },
+    {
+      onData: (values: Iterable<[[string, string], JSONValue]>) => {
+        onDataCallCount++;
+        for (const entry of values) {
+          log.push(entry);
+        }
+      },
+    },
+  );
+
+  expect(log).to.have.length(0);
+  expect(queryCallCount).to.equal(0);
+  expect(onDataCallCount).to.equal(0);
+
+  await rep.mutate.addData({
+    a1: {id: 'a-1', x: 1},
+    a2: {id: 'a-2', x: 2},
+    b: {id: 'bx'},
+  });
+
+  expect(log).to.deep.equal([
+    [
+      ['bx', 'b'],
+      {
+        id: 'bx',
+      },
+    ],
+  ]);
+  expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(2);
+
+  log.length = 0;
+  await rep.mutate.addData({
+    b: {id: 'bx2'},
+  });
+  expect(log).to.deep.equal([
+    [
+      ['bx2', 'b'],
+      {
+        id: 'bx2',
+      },
+    ],
+  ]);
+  expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(3);
+
+  // Adding a entry that does not match the index... no id property
+  await rep.mutate.addData({
+    c: {noid: 'c-3'},
+  });
+  expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(3);
+
+  // Changing a entry but still matching prefix
+  await rep.mutate.addData({
+    b: {id: 'bx3', x: 3},
+  });
+  expect(queryCallCount).to.equal(4);
+  expect(onDataCallCount).to.equal(4);
+
+  // Changing a entry to the same value
+  await rep.mutate.addData({
+    b: {id: 'bx3', x: 3},
+  });
+  expect(queryCallCount).to.equal(4); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(4);
+
+  cancel();
+});
+
 testWithBothStores('subscribe close', async () => {
   const rep = await replicacheForTesting('subscribe-close', {
     mutators: {addData},

@@ -2345,3 +2345,258 @@ test.skip('scan with index [type checking only]', async () => {
     (await tx.scanAll({indexName: 'i'})) as [[string, string], JSONValue][];
   });
 });
+
+test.only('pull and index update', async () => {
+  const pullURL = 'https://pull.com/rep';
+  const rep = await replicacheForTesting('pull-and-index-update', {
+    pullURL,
+    mutators: {addData},
+  });
+
+  const indexName = 'idx1';
+  let lastMutationID = 0;
+
+  async function testPull(opt: {patch: Patch[]; expectedResult: JSONValue}) {
+    fetchMock.post(pullURL, {
+      lastMutationID: lastMutationID++,
+      patch: opt.patch,
+    });
+
+    rep.pull();
+    await tickAFewTimes();
+
+    const actualResult = await rep.scan({indexName}).entries().toArray();
+    expect(actualResult).to.deep.equal(opt.expectedResult);
+  }
+
+  await rep.createIndex({name: indexName, jsonPointer: '/id'});
+
+  await testPull({patch: [], expectedResult: []});
+
+  await testPull({
+    patch: [
+      {
+        op: 'put',
+        key: 'a1',
+        value: {id: 'a-1', x: 1},
+      },
+    ],
+    expectedResult: [
+      [
+        ['a-1', 'a1'],
+        {
+          id: 'a-1',
+          x: 1,
+        },
+      ],
+    ],
+  });
+
+  // Change value for existing key
+  await testPull({
+    patch: [
+      {
+        op: 'put',
+        key: 'a1',
+        value: {id: 'a-1', x: 2},
+      },
+    ],
+    expectedResult: [
+      [
+        ['a-1', 'a1'],
+        {
+          id: 'a-1',
+          x: 2,
+        },
+      ],
+    ],
+  });
+
+  // Del
+  await testPull({
+    patch: [
+      {
+        op: 'del',
+        key: 'a1',
+      },
+    ],
+    expectedResult: [],
+  });
+});
+
+type Patch =
+  | {
+      op: 'clear';
+    }
+  | {op: 'put'; key: string; value: JSONValue}
+  | {op: 'del'; key: string};
+
+testWithBothStores('subscribe pull and index update', async () => {
+  const pullURL = 'https://pull.com/rep';
+  const rep = await replicacheForTesting('subscribe-pull-and-index-update', {
+    pullURL,
+    mutators: {addData},
+  });
+
+  const indexName = 'idx1';
+  await rep.createIndex({name: indexName, jsonPointer: '/id'});
+
+  const log: JSONValue[] = [];
+  let queryCallCount = 0;
+
+  const cancel = rep.subscribe(
+    tx => {
+      queryCallCount++;
+      return tx.scan({indexName}).entries().toArray();
+    },
+    {
+      onData(res) {
+        log.push(res);
+      },
+    },
+  );
+
+  let lastMutationID = 0;
+
+  let expectedQueryCallCount = 1;
+
+  async function testPull(opt: {
+    patch: Patch[];
+    expectedLog: JSONValue[];
+    expectChange: boolean;
+  }) {
+    if (opt.expectChange) {
+      expectedQueryCallCount++;
+    }
+    log.length = 0;
+    fetchMock.post(pullURL, {
+      lastMutationID: lastMutationID++,
+      patch: opt.patch,
+    });
+
+    rep.pull();
+    await tickAFewTimes();
+    expect(queryCallCount).to.equal(expectedQueryCallCount);
+    expect(log).to.deep.equal(opt.expectedLog);
+  }
+
+  await testPull({patch: [], expectedLog: [[]], expectChange: false});
+
+  await testPull({
+    patch: [
+      {
+        op: 'put',
+        key: 'a1',
+        value: {id: 'a-1', x: 1},
+      },
+    ],
+    expectedLog: [
+      [
+        [
+          ['a-1', 'a1'],
+          {
+            id: 'a-1',
+            x: 1,
+          },
+        ],
+      ],
+    ],
+    expectChange: true,
+  });
+
+  // Same value
+  await testPull({
+    patch: [
+      {
+        op: 'put',
+        key: 'a1',
+        value: {id: 'a-1', x: 1},
+      },
+    ],
+    expectedLog: [],
+    expectChange: false,
+  });
+
+  // Change value
+  await testPull({
+    patch: [
+      {
+        op: 'put',
+        key: 'a1',
+        value: {id: 'a-1', x: 2},
+      },
+    ],
+    expectedLog: [
+      [
+        [
+          ['a-1', 'a1'],
+          {
+            id: 'a-1',
+            x: 2,
+          },
+        ],
+      ],
+    ],
+    expectChange: true,
+  });
+
+  // Not matching index json patch
+  await testPull({
+    patch: [
+      {
+        op: 'put',
+        key: 'b1',
+        value: {notAnId: 'b-1', x: 1},
+      },
+    ],
+    expectedLog: [],
+    expectChange: false,
+  });
+
+  // Clear
+  await testPull({
+    patch: [
+      {
+        op: 'clear',
+      },
+    ],
+    expectedLog: [[]],
+    expectChange: true,
+  });
+
+  // Add again so we can test del...
+  await testPull({
+    patch: [
+      {
+        op: 'put',
+        key: 'a2',
+        value: {id: 'a-2', x: 2},
+      },
+    ],
+    expectedLog: [
+      [
+        [
+          ['a-2', 'a2'],
+          {
+            id: 'a-2',
+            x: 2,
+          },
+        ],
+      ],
+    ],
+    expectChange: true,
+  });
+  // .. and del
+  await testPull({
+    patch: [
+      {
+        op: 'del',
+        key: 'a2',
+      },
+    ],
+    expectedLog: [[]],
+    expectChange: true,
+  });
+
+  cancel();
+});

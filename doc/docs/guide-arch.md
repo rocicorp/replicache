@@ -9,7 +9,7 @@ slug: /guide/arch
 
 Replicache is a persistent key/value store that lives inside your web app. Use it as your app's state, in place of things like MobX, Redux, Recoil, Apollo, etc.
 
-You don't need REST or GraphQL APIs when you use Replicache either. Instead, Replicache continuously synchronizes with your server in the background using two special endpoints: `replicache-push` and `replicache-pull`.
+You don't need REST or GraphQL APIs when you use Replicache. Instead, read and write directly from Replicache, as if it was in-memory state. Replicache continuously synchronizes its state with your server in the background using two special endpoints: `replicache-push` and `replicache-pull`.
 
 To learn more about the big picture of Replicache, see [the design document](./design.md).
 

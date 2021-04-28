@@ -488,11 +488,20 @@ export class Replicache<MD extends MutatorDefs = {}>
       this._subscriptions,
       changedKeys,
     );
+
     const indexSubs = index
       ? subscriptionsForIndexDefinitionChanged(this._subscriptions, index)
       : [];
 
-    const subscriptions = [...new Set([...changedKeysSubs, ...indexSubs])];
+    const subscriptions: Set<
+      Subscription<JSONValue | undefined, unknown>
+    > = new Set();
+    for (const s of changedKeysSubs) {
+      subscriptions.add(s);
+    }
+    for (const s of indexSubs) {
+      subscriptions.add(s);
+    }
     await this._fireSubscriptions(subscriptions);
   }
 
@@ -870,17 +879,18 @@ export class Replicache<MD extends MutatorDefs = {}>
       name,
     );
     await this._fireSubscriptions(subscriptions);
-    await this._broadcastChange(await this._root, new Map(), name);
+    this._broadcastChange(await this._root, new Map(), name);
   }
 
   private async _fireSubscriptions(
-    subscriptions: Subscription<JSONValue | undefined, unknown>[],
+    subscriptions: Iterable<Subscription<JSONValue | undefined, unknown>>,
   ) {
+    const subs = [...subscriptions];
     type R =
       | {ok: true; value: JSONValue | undefined}
       | {ok: false; error: unknown};
     const results = await this.query(async tx => {
-      const promises = subscriptions.map(async s => {
+      const promises = subs.map(async s => {
         // Tag the result so we can deal with success vs error below.
         try {
           return {ok: true, value: await s.body(tx)} as R;
@@ -890,11 +900,11 @@ export class Replicache<MD extends MutatorDefs = {}>
       });
       return await Promise.all(promises);
     });
-    for (let i = 0; i < subscriptions.length; i++) {
-      const s = subscriptions[i];
+    for (let i = 0; i < subs.length; i++) {
+      const s = subs[i];
       const result = results[i];
       if (result.ok) {
-        const value: JSONValue | undefined = result.value;
+        const {value} = result;
         if (!deepEqual(value, s.lastValue)) {
           s.lastValue = value;
           s.onData(value);
@@ -1161,15 +1171,19 @@ async function closeIgnoreError(tx: ReadTransactionImpl) {
 function keyMatchesSubscription(
   subscription: Subscription<JSONValue | undefined, unknown>,
   indexName: string,
-  diffKey: string,
+  changedKey: string,
 ) {
+  if (subscription.keys.has(changedKey)) {
+    return true;
+  }
+
   for (const scanOpts of subscription.scans) {
-    if (scanOptionsMatchesKey(scanOpts, indexName, diffKey)) {
+    if (scanOptionsMatchesKey(scanOpts, indexName, changedKey)) {
       return true;
     }
   }
 
-  return subscription.keys.has(diffKey);
+  return false;
 }
 
 function scanOptionsMatchesKey(
@@ -1266,33 +1280,29 @@ function decodeIndexKey(
   return parts as [string, string];
 }
 
-function subscriptionsForChangedKeys(
+function* subscriptionsForChangedKeys(
   subscriptions: Set<Subscription<JSONValue | undefined, unknown>>,
   changedKeysMap: ChangedKeysMap,
-): Subscription<JSONValue | undefined, unknown>[] {
-  const rv = [];
-  for (const subscription of subscriptions) {
+) {
+  outer: for (const subscription of subscriptions) {
     for (const [indexName, changedKeys] of changedKeysMap) {
       for (const key of changedKeys) {
         if (keyMatchesSubscription(subscription, indexName, key)) {
-          rv.push(subscription);
-          break;
+          yield subscription;
+          continue outer;
         }
       }
     }
   }
-  return rv;
 }
 
-function subscriptionsForIndexDefinitionChanged(
+function* subscriptionsForIndexDefinitionChanged(
   subscriptions: Set<Subscription<JSONValue | undefined, unknown>>,
   name: string,
 ) {
-  const rv = [];
   for (const s of subscriptions) {
     if (s.scans.some(opt => opt.indexName === name)) {
-      rv.push(s);
+      yield s;
     }
   }
-  return rv;
 }

@@ -2346,7 +2346,7 @@ test.skip('scan with index [type checking only]', async () => {
   });
 });
 
-test.only('pull and index update', async () => {
+testWithBothStores('pull and index update', async () => {
   const pullURL = 'https://pull.com/rep';
   const rep = await replicacheForTesting('pull-and-index-update', {
     pullURL,

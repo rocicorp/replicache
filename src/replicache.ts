@@ -46,7 +46,7 @@ const MAX_REAUTH_TRIES = 8;
 
 type BroadcastData = {
   root?: string;
-  diffs: ChangedKeysMap;
+  changedKeys: ChangedKeysMap;
   index?: string;
 };
 
@@ -463,13 +463,17 @@ export class Replicache<MD extends MutatorDefs = {}>
   private _onStorage = (e: StorageEvent) => {
     const {key, newValue} = e;
     if (newValue && key === storageKeyName(this._name)) {
-      const {root, diffs, index} = JSON.parse(newValue) as {
+      const {root, changedKeys, index} = JSON.parse(newValue) as {
         root?: string;
-        diffs: [string, string[]][];
+        changedKeys: [string, string[]][];
         index?: string;
       };
 
-      this._onBroadcastMessage({root, diffs: new Map(diffs), index});
+      this._onBroadcastMessage({
+        root,
+        changedKeys: new Map(changedKeys),
+        index,
+      });
     }
   };
 
@@ -478,14 +482,17 @@ export class Replicache<MD extends MutatorDefs = {}>
     // Cannot just use the root value from the other tab, because it can be behind us.
     // Also, in the case of memstore, it will have a totally different, unrelated
     // hash chain.
-    const {diffs, index} = data;
+    const {changedKeys, index} = data;
 
-    const diffSubs = getSubscriptionsForDiffs(this._subscriptions, diffs);
+    const changedKeysSubs = subscriptionsForChangedKeys(
+      this._subscriptions,
+      changedKeys,
+    );
     const indexSubs = index
-      ? getSubscriptionsForIndex(this._subscriptions, index)
+      ? subscriptionsForIndexDefinitionChanged(this._subscriptions, index)
       : [];
 
-    const subscriptions = [...new Set([...diffSubs, ...indexSubs])];
+    const subscriptions = [...new Set([...changedKeysSubs, ...indexSubs])];
     await this._fireSubscriptions(subscriptions);
   }
 
@@ -495,11 +502,11 @@ export class Replicache<MD extends MutatorDefs = {}>
     index: string | undefined,
   ) {
     if (this._broadcastChannel) {
-      const data = {root, diffs: changedKeys, index};
+      const data = {root, changedKeys, index};
       this._broadcastChannel.postMessage(data);
     } else {
       // local storage needs a string...
-      const data = {root, diffs: [...changedKeys.entries()], index};
+      const data = {root, changedKeys: [...changedKeys.entries()], index};
       localStorage[storageKeyName(this._name)] = JSON.stringify(data);
     }
   }
@@ -624,13 +631,13 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     let {syncHead} = beginPullResult;
 
-    const {replayMutations, changedKeys: diffs} = await this._invoke(
+    const {replayMutations, changedKeys} = await this._invoke(
       RPC.MaybeEndTryPull,
       beginPullResult,
     );
     if (!replayMutations || replayMutations.length === 0) {
       // All done.
-      await this._checkChange(syncHead, diffs);
+      await this._checkChange(syncHead, changedKeys);
       return;
     }
 
@@ -847,15 +854,21 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
   }
 
-  private async _fireOnChange(diffs: Map<string, string[]>): Promise<void> {
-    const subscriptions = getSubscriptionsForDiffs(this._subscriptions, diffs);
+  private async _fireOnChange(changedKeys: ChangedKeysMap): Promise<void> {
+    const subscriptions = subscriptionsForChangedKeys(
+      this._subscriptions,
+      changedKeys,
+    );
     await this._fireSubscriptions(subscriptions);
   }
 
   private async _indexDefinitionChanged(name: string): Promise<void> {
     // When an index definition changes we fire all subscriptions that uses
     // index scans with that index.
-    const subscriptions = getSubscriptionsForIndex(this._subscriptions, name);
+    const subscriptions = subscriptionsForIndexDefinitionChanged(
+      this._subscriptions,
+      name,
+    );
     await this._fireSubscriptions(subscriptions);
     await this._broadcastChange(await this._root, new Map(), name);
   }
@@ -921,7 +934,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       onError,
       onDone,
       lastValue: undefined,
-      keys: [],
+      keys: new Set(),
       scans: [],
     } as Subscription<R, E>;
     this._subscriptions.add(
@@ -930,7 +943,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     (async () => {
       try {
         const {result, keys, scans} = await this._querySubscription(s.body);
-        s.keys = keys;
+        // TODO(arv): return set from rust
+        s.keys = new Set(keys);
         s.scans = scans;
         s.lastValue = result;
         s.onData(result);
@@ -967,12 +981,13 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   private async _querySubscription<R>(
     body: (tx: ReadTransaction) => Promise<R> | R,
-  ): Promise<{result: R; keys: string[]; scans: ScanOptionsRPC[]}> {
+  ): Promise<{result: R; keys: Set<string>; scans: ScanOptionsRPC[]}> {
     const tx = new SubscriptionTransactionImpl(this._invoke);
     await tx.open({isSubscription: true});
     const result = await body(tx);
     await tx.close();
-    return {result, keys: tx.keys, scans: tx.scans};
+    // TODO(arv): Return set from Rust
+    return {result, keys: new Set(tx.keys), scans: tx.scans};
   }
 
   /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
@@ -1117,7 +1132,7 @@ type Subscription<R extends JSONValue | undefined, E> = {
   onError?: (e: E) => void;
   onDone?: () => void;
   lastValue?: R;
-  keys: string[];
+  keys: Set<string>;
   scans: ScanOptionsRPC[];
 };
 
@@ -1154,13 +1169,7 @@ function keyMatchesSubscription(
     }
   }
 
-  for (const key of subscription.keys) {
-    if (key === diffKey) {
-      return true;
-    }
-  }
-
-  return false;
+  return subscription.keys.has(diffKey);
 }
 
 function scanOptionsMatchesKey(
@@ -1257,14 +1266,14 @@ function decodeIndexKey(
   return parts as [string, string];
 }
 
-function getSubscriptionsForDiffs(
+function subscriptionsForChangedKeys(
   subscriptions: Set<Subscription<JSONValue | undefined, unknown>>,
-  diffs: ChangedKeysMap,
+  changedKeysMap: ChangedKeysMap,
 ): Subscription<JSONValue | undefined, unknown>[] {
   const rv = [];
   for (const subscription of subscriptions) {
-    for (const [indexName, diff] of diffs) {
-      for (const key of diff) {
+    for (const [indexName, changedKeys] of changedKeysMap) {
+      for (const key of changedKeys) {
         if (keyMatchesSubscription(subscription, indexName, key)) {
           rv.push(subscription);
           break;
@@ -1275,7 +1284,7 @@ function getSubscriptionsForDiffs(
   return rv;
 }
 
-function getSubscriptionsForIndex(
+function subscriptionsForIndexDefinitionChanged(
   subscriptions: Set<Subscription<JSONValue | undefined, unknown>>,
   name: string,
 ) {

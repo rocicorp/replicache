@@ -35,7 +35,7 @@ impl<'a> Transaction<'a> {
     }
 }
 
-type TxnMap<'a> = RwLock<HashMap<u32, RwLock<Transaction<'a>>>>;
+type TransactionsMap<'a> = RwLock<HashMap<u32, RwLock<Transaction<'a>>>>;
 
 #[derive(Debug)]
 enum FromJsError {
@@ -99,7 +99,12 @@ async fn connection_future<'a, 'b>(
     UnorderedResult::None()
 }
 
-pub async fn process(store: dag::Store, rx: Receiver<Request>, client_id: String, lc: LogContext) {
+pub async fn process(
+    store: dag::Store,
+    receiver: Receiver<Request>,
+    client_id: String,
+    lc: LogContext,
+) {
     if let Err(err) = do_init(&store, lc.clone()).await {
         error!(lc, "Could not initialize db: {:?}", err);
         return;
@@ -110,7 +115,7 @@ pub async fn process(store: dag::Store, rx: Receiver<Request>, client_id: String
     let mut recv = true;
 
     futures.push(Box::pin(connection_future(
-        &rx,
+        &receiver,
         Context::new(&store, &txns, client_id.clone(), LogContext::new()),
         None,
     )));
@@ -121,13 +126,13 @@ pub async fn process(store: dag::Store, rx: Receiver<Request>, client_id: String
                 Ok(req) => {
                     if recv {
                         futures.push(Box::pin(connection_future(
-                            &rx,
+                            &receiver,
                             Context::new(&store, &txns, client_id.clone(), LogContext::new()),
                             None,
                         )));
                     }
                     futures.push(Box::pin(connection_future(
-                        &rx,
+                        &receiver,
                         Context::new(&store, &txns, client_id.clone(), req.lc.clone()),
                         Some(req),
                     )));
@@ -141,7 +146,7 @@ pub async fn process(store: dag::Store, rx: Receiver<Request>, client_id: String
 
 struct Context<'a, 'b> {
     store: &'a dag::Store,
-    txns: &'b TxnMap<'a>,
+    txns: &'b TransactionsMap<'a>,
     client_id: String,
     lc: LogContext,
 }
@@ -149,7 +154,7 @@ struct Context<'a, 'b> {
 impl<'a, 'b> Context<'a, 'b> {
     fn new(
         store: &'a dag::Store,
-        txns: &'b TxnMap<'a>,
+        txns: &'b TransactionsMap<'a>,
         client_id: String,
         lc: LogContext,
     ) -> Context<'a, 'b> {
@@ -474,8 +479,11 @@ async fn do_commit<'a, 'b>(
     } else {
         db::DEFAULT_HEAD_NAME
     };
-    let hash = txn.commit(head_name).await.map_err(CommitError)?;
-    Ok(CommitTransactionResponse { hash })
+    let (hash, changed_keys) = txn
+        .commit_with_changed_keys(head_name, req.generate_changed_keys)
+        .await
+        .map_err(CommitError)?;
+    Ok(CommitTransactionResponse { hash, changed_keys })
 }
 
 async fn do_close_transaction<'a, 'b>(
@@ -867,6 +875,7 @@ mod tests {
                 Context::new(&store, &txns, str!("client_id"), LogContext::new()),
                 CommitTransactionRequest {
                     transaction_id: otr.transaction_id,
+                    generate_changed_keys: false,
                 },
             )
             .await

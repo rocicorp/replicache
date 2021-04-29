@@ -1,8 +1,10 @@
+use super::{patch, ChangedKeysError, PullError, PushError};
+use crate::{
+    dag,
+    db::{self, ChangedKeysMap},
+    prolly,
+};
 use serde::{Deserialize, Serialize};
-
-use crate::{dag, db};
-
-use super::{patch, PullError, PushError};
 
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(test, derive(Clone, Debug, PartialEq))]
@@ -30,6 +32,8 @@ pub struct MaybeEndTryPullResponse {
     pub replay_mutations: Vec<ReplayMutation>,
     #[serde(rename = "syncHead")]
     pub sync_head: String,
+    #[serde(rename = "changedKeys")]
+    pub changed_keys: ChangedKeysMap,
 }
 
 // ReplayMutation is returned in the MaybeEndPushResponse, not be confused with
@@ -113,11 +117,14 @@ pub enum BeginTryPullError {
 
 #[derive(Debug)]
 pub enum MaybeEndTryPullError {
+    ChangedKeysError(ChangedKeysError),
     CommitError(dag::Error),
     GetMainHeadError(dag::Error),
     GetSyncHeadError(dag::Error),
     InternalArgsUtf8Error(std::string::FromUtf8Error),
     InternalProgrammerError(String),
+    InvalidUtf8(std::string::FromUtf8Error),
+    LoadHeadError(prolly::LoadError),
     LoadSyncHeadError(db::FromHashError),
     MissingMainHead,
     MissingSyncHead,
@@ -125,6 +132,7 @@ pub enum MaybeEndTryPullError {
     OpenWriteTxWriteError(dag::Error),
     OverlappingSyncsJSLogInfo, // "JSLogInfo" is a signal to bindings to not log this alarmingly.
     PendingError(db::WalkChainError),
+    ReadCommitError(db::ReadCommitError),
     SyncSnapshotWithNoBasis,
     WriteDefaultHeadError(dag::Error),
     WriteSyncHeadError(dag::Error),

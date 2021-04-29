@@ -68,6 +68,9 @@ mod tests {
     use std::collections::HashMap;
 
     macro_rules! map(
+        () => (
+            ::std::collections::HashMap::new()
+        );
         { $($key:expr => $value:expr),+ } => {
             {
                 let mut m = ::std::collections::HashMap::new();

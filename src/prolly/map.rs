@@ -8,6 +8,7 @@ use crate::dag::Read;
 use crate::dag::Write;
 use std::collections::BTreeMap;
 use std::iter::{Iterator, Peekable};
+use std::{cmp::Ordering, string::FromUtf8Error};
 use std::{collections::btree_map::Iter as BTreeMapIter, fmt::Debug};
 
 type Hash = String;
@@ -71,6 +72,10 @@ impl Map {
             return p.is_some();
         }
 
+        self.base_has(key)
+    }
+
+    fn base_has(&self, key: &[u8]) -> bool {
         match &self.base {
             None => false,
             Some(leaf) => leaf.binary_search(key).is_ok(),
@@ -80,9 +85,13 @@ impl Map {
     pub fn get(&self, key: &[u8]) -> Option<&[u8]> {
         if let Some(p) = self.pending.get(key) {
             // if None the key was deleted.
-            return p.as_ref().map(|v| &v[..]);
+            return p.as_ref().map(Vec::as_slice);
         }
 
+        self.base_get(key)
+    }
+
+    fn base_get(&self, key: &[u8]) -> Option<&[u8]> {
         match &self.base {
             None => None,
             Some(leaf) => match leaf.binary_search(key) {
@@ -116,6 +125,75 @@ impl Map {
         self.pending.clear();
         Ok(self.base.as_ref().unwrap().chunk().hash().into())
     }
+
+    // Returns the diff between the pending entries and the already flushed entries.
+    pub fn pending_changed_keys(&self) -> Result<Vec<String>, FromUtf8Error> {
+        let mut keys = Vec::with_capacity(self.pending.len());
+        for (key, pending_val) in self.pending.iter() {
+            match pending_val {
+                Some(pending_val) => match self.base_get(key) {
+                    Some(base_val) => {
+                        if pending_val != base_val {
+                            keys.push(String::from_utf8(key.clone())?);
+                        }
+                    }
+                    None => {
+                        keys.push(String::from_utf8(key.clone())?);
+                    }
+                },
+                None => {
+                    if self.base_has(key) {
+                        keys.push(String::from_utf8(key.clone())?);
+                    }
+                }
+            }
+        }
+        Ok(keys)
+    }
+
+    /// Returns the keys that are different between two maps.
+    pub fn changed_keys<'a>(a: &'a Self, b: &'a Self) -> Result<Vec<String>, FromUtf8Error> {
+        let mut it_a = a.iter();
+        let mut it_b = b.iter();
+        let mut keys = vec![];
+
+        let mut a = it_a.next();
+        let mut b = it_b.next();
+        loop {
+            match (a, b) {
+                (None, None) => break,
+                (None, Some(b_entry)) => {
+                    keys.push(String::from_utf8(b_entry.key.to_vec())?);
+                    b = it_b.next();
+                }
+                (Some(a_entry), None) => {
+                    keys.push(String::from_utf8(a_entry.key.to_vec())?);
+                    a = it_a.next();
+                }
+                (Some(a_entry), Some(b_entry)) => {
+                    let ord = a_entry.key.cmp(b_entry.key);
+                    match ord {
+                        Ordering::Less => {
+                            keys.push(String::from_utf8(a_entry.key.to_vec())?);
+                            a = it_a.next();
+                        }
+                        Ordering::Equal => {
+                            if a_entry.val != b_entry.val {
+                                keys.push(String::from_utf8(a_entry.key.to_vec())?);
+                            }
+                            a = it_a.next();
+                            b = it_b.next();
+                        }
+                        Ordering::Greater => {
+                            keys.push(String::from_utf8(b_entry.key.to_vec())?);
+                            b = it_b.next();
+                        }
+                    };
+                }
+            }
+        }
+        Ok(keys)
+    }
 }
 
 impl Default for Map {
@@ -141,7 +219,7 @@ impl<'a, LeafIter: Iterator<Item = Entry<'a>>> Iter<'a, LeafIter> {
     fn next_pending(&mut self) -> Option<DeletableEntry<'a>> {
         self.pending.next().map(|(key, val)| DeletableEntry {
             key,
-            val: val.as_ref().map(|v| v.as_slice()),
+            val: val.as_ref().map(Vec::as_slice),
         })
     }
 
@@ -211,6 +289,7 @@ mod tests {
     use crate::dag::Store;
     use crate::kv::memstore::MemStore;
     use crate::util::rlog::LogContext;
+    use str_macro::str;
 
     fn make_map(mut base: Option<Vec<&str>>, pending: Vec<&str>, deleted: Vec<&str>) -> Map {
         let entries = base.as_mut().map(|entries| {
@@ -536,5 +615,109 @@ mod tests {
             vec!["b", "d"],
         )
         .await;
+    }
+
+    macro_rules! prolly_map(
+        () => (
+            Map {
+                base: None,
+                pending: ::std::collections::BTreeMap::new(),
+            }
+        );
+        { $($key:expr => $value:expr),+ } => {
+            {
+                let mut pending = ::std::collections::BTreeMap::new();
+                $(
+                    pending.insert($key.as_bytes().to_vec(), Some($value.as_bytes().to_vec()));
+                )+
+                Map {
+                    base: None,
+                    pending,
+                }
+            }
+         };
+    );
+
+    #[test]
+    fn changed_keys() {
+        fn test(old: &Map, new: &Map, mut expected: Vec<&str>) {
+            expected.sort();
+            let actual = Map::changed_keys(old, new).unwrap();
+            assert_eq!(
+                expected.iter().map(|e| e.to_string()).collect::<Vec<_>>(),
+                actual
+            );
+            let actual = Map::changed_keys(new, old).unwrap();
+            assert_eq!(
+                expected.iter().map(|e| e.to_string()).collect::<Vec<_>>(),
+                actual
+            );
+        }
+
+        test(&prolly_map! {}, &prolly_map! {}, vec![]);
+        test(&prolly_map! {"a" => "b"}, &prolly_map! {"a" => "b"}, vec![]);
+
+        test(
+            &prolly_map! {"a" => "a"},
+            &prolly_map! {"a" => "b"},
+            vec!["a"],
+        );
+        test(
+            &prolly_map! {"a" => "a"},
+            &prolly_map! {"b" => "b"},
+            vec!["a", "b"],
+        );
+        test(
+            &prolly_map! {"a" => "a", "b" => "b"},
+            &prolly_map! {"b" => "b", "c" => "c"},
+            vec!["a", "c"],
+        );
+        test(
+            &prolly_map! {"a" => "a", "b" => "b"},
+            &prolly_map! {"b" => "b"},
+            vec!["a"],
+        );
+        test(
+            &prolly_map! {"b" => "b"},
+            &prolly_map! {"b" => "b", "c" => "c"},
+            vec!["c"],
+        );
+        test(
+            &prolly_map! {"a" => "a1", "b"=>"b1"},
+            &prolly_map! {"a" => "a2", "b" => "b2"},
+            vec!["a", "b"],
+        );
+    }
+
+    #[test]
+    fn test_pending_changed_keys() {
+        let mut base_map = BTreeMap::new();
+        base_map.insert(b"a", b"a");
+        base_map.insert(b"b", b"b");
+
+        let entries = base_map.into_iter().map(|(key, val)| Entry { key, val });
+
+        let base = Leaf::new(entries).into();
+        let mut map = Map {
+            base,
+            pending: BTreeMap::new(),
+        };
+
+        map.put(b"c".to_vec(), b"c".to_vec());
+        assert_eq!(map.pending_changed_keys().unwrap(), vec![str!("c")]);
+
+        // Set b to b again... should be a nop
+        map.put(b"b".to_vec(), b"b".to_vec());
+        assert_eq!(map.pending_changed_keys().unwrap(), vec![str!("c")]);
+
+        // Remove c from pending
+        map.del(b"c".to_vec());
+        assert_eq!(map.pending_changed_keys().unwrap(), Vec::<String>::new());
+
+        map.del(b"d".to_vec());
+        assert_eq!(map.pending_changed_keys().unwrap(), Vec::<String>::new());
+
+        map.put(b"b".to_vec(), b"2".to_vec());
+        assert_eq!(map.pending_changed_keys().unwrap(), vec![str!("b")]);
     }
 }

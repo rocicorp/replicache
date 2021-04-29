@@ -1,6 +1,6 @@
 #![allow(clippy::redundant_pattern_matching)] // For derive(Deserialize).
 
-use crate::db;
+use crate::db::{self, ChangedKeysMap};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -46,6 +46,8 @@ pub struct OpenTransactionResponse {
 pub struct CommitTransactionRequest {
     #[serde(rename = "transactionId")]
     pub transaction_id: u32,
+    #[serde(rename = "generateChangedKeys")]
+    pub generate_changed_keys: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -53,6 +55,8 @@ pub struct CommitTransactionResponse {
     // Note: the field is named "ref" in go but "ref" is a reserved word in rust.
     #[serde(rename = "ref")]
     pub hash: String,
+    #[serde(rename = "changedKeys")]
+    pub changed_keys: ChangedKeysMap,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -61,7 +65,8 @@ pub struct CloseTransactionRequest {
     pub transaction_id: u32,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
+#[cfg_attr(test, derive(Debug))]
 pub struct CloseTransactionResponse {}
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -109,7 +114,8 @@ pub struct GetResponse {
     pub has: bool, // Second to avoid trailing comma if value == None.
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
+#[cfg_attr(test, derive(Debug))]
 pub struct ScanRequest {
     #[serde(rename = "transactionId")]
     pub transaction_id: u32,

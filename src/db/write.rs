@@ -1,8 +1,10 @@
+use super::index::GetMapError;
 use super::{commit, index, read, scan, ReadCommitError, Whence};
 use crate::dag;
 use crate::prolly;
 use crate::util::rlog;
-use std::collections::hash_map::HashMap;
+use std::collections::HashMap;
+use std::string::FromUtf8Error;
 use str_macro::str;
 
 #[allow(dead_code)]
@@ -55,8 +57,13 @@ pub async fn init_db(dag_write: dag::Write<'_>, head_name: &str) -> Result<Strin
         }),
         indexes: HashMap::new(),
     };
-    Ok(w.commit(head_name).await.map_err(CommitError)?)
+    w.commit(head_name).await.map_err(CommitError)
 }
+
+// The ChangedKeyMap is used to describe a map of changed keys. The key in the
+// map is the name of the index. The primary index uses `""` in this map. The
+// value of the map is the keys that changed in the last pull/mutations.
+pub type ChangedKeysMap = HashMap<String, Vec<String>>;
 
 #[allow(dead_code)]
 impl<'a> Write<'a> {
@@ -337,16 +344,46 @@ impl<'a> Write<'a> {
     }
 
     // Return value is the hash of the new commit.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn commit(mut self, head_name: &str) -> Result<String, CommitError> {
+    pub async fn commit(self, head_name: &str) -> Result<String, CommitError> {
+        self.commit_with_changed_keys(head_name, false)
+            .await
+            .map(|(hash, _)| hash)
+    }
+
+    // Return value is the hash of the new commit and the diff compared to before the commit.
+    pub async fn commit_with_changed_keys(
+        mut self,
+        head_name: &str,
+        generate_changed_keys: bool,
+    ) -> Result<(String, ChangedKeysMap), CommitError> {
         use CommitError::*;
+        let value_changed_keys = if generate_changed_keys {
+            self.map.pending_changed_keys().map_err(InvalidUtf8)?
+        } else {
+            Vec::new()
+        };
         let value_hash = self
             .map
             .flush(&mut self.dag_write)
             .await
             .map_err(FlushError)?;
         let mut index_metas = Vec::new();
-        for (_, index) in self.indexes.into_iter() {
+        let mut key_changes = ChangedKeysMap::new();
+        if !value_changed_keys.is_empty() {
+            key_changes.insert(str!(""), value_changed_keys);
+        }
+        for (name, index) in self.indexes.into_iter() {
+            {
+                let guard = index
+                    .get_map(&self.dag_write.read())
+                    .await
+                    .map_err(GetMapError)?;
+                let map = guard.get_map();
+                let index_changed_keys = map.pending_changed_keys().map_err(InvalidUtf8)?;
+                if !index_changed_keys.is_empty() {
+                    key_changes.insert(name, index_changed_keys);
+                }
+            }
             let value_hash = index
                 .flush(&mut self.dag_write)
                 .await
@@ -424,7 +461,7 @@ impl<'a> Write<'a> {
 
         self.dag_write.commit().await.map_err(DagCommitError)?;
 
-        Ok(commit.chunk().hash().to_string())
+        Ok((commit.chunk().hash().to_string(), key_changes))
     }
 }
 
@@ -448,9 +485,11 @@ pub enum CommitError {
     DagSetHeadError(dag::Error),
     DagCommitError(dag::Error),
     FlushError(prolly::FlushError),
+    GetMapError(GetMapError),
     IndexChangeMustNotChangeMutationID,
     IndexChangeMustNotChangeValueHash,
     IndexFlushError(index::IndexFlushError),
+    InvalidUtf8(FromUtf8Error),
     SerializeArgsError(serde_json::error::Error),
     SerializeCookieError(serde_json::error::Error),
 }

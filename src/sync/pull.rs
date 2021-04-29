@@ -4,18 +4,23 @@ use super::patch;
 use super::types::*;
 use super::SYNC_HEAD_NAME;
 use crate::dag;
-use crate::db;
 use crate::db::{Commit, MetaTyped, Whence, DEFAULT_HEAD_NAME};
 use crate::fetch;
 use crate::fetch::errors::FetchError;
+use crate::prolly;
 use crate::util::rlog;
 use crate::util::rlog::LogContext;
+use crate::{
+    db::{self, index::GetMapError},
+    prolly::Map,
+};
 use async_trait::async_trait;
+use db::ChangedKeysMap;
 use log::log_enabled;
 use serde::{Deserialize, Serialize};
-use std::collections::hash_map::HashMap;
 use std::default::Default;
 use std::fmt::Debug;
+use std::{collections::HashMap, string::FromUtf8Error};
 use str_macro::str;
 
 // Pull Versions
@@ -79,7 +84,7 @@ pub async fn begin_pull(
         pull_timer.elapsed_ms()
     );
 
-    // If Puller did not get a pull response we still want to return the  HTTP
+    // If Puller did not get a pull response we still want to return the HTTP
     // request info to the JS SDK.
     if pull_resp.is_none() {
         return Ok(BeginTryPullResponse {
@@ -243,6 +248,10 @@ pub async fn maybe_end_try_pull(
     // caller wants them in the order to replay (lower mutation ids first).
     pending.reverse();
 
+    // We return the keys that changed due to this pull. This is used by
+    // subscriptions in the JS API when there are no more pending mutations.
+    let mut changed_keys = ChangedKeysMap::new();
+
     // Return replay commits if any.
     if !pending.is_empty() {
         let mut replay_mutations: Vec<ReplayMutation> = Vec::with_capacity(pending.len());
@@ -269,10 +278,31 @@ pub async fn maybe_end_try_pull(
         return Ok(MaybeEndTryPullResponse {
             sync_head: sync_head_hash,
             replay_mutations,
+            // The changed keys are not reported when further replays are
+            // needed. The changed_keys will be reported at the end when there
+            // are no more mutations to be replay and then it will be reported
+            // relative to DEFAULT_HEAD_NAME.
+            changed_keys,
         });
     }
 
     // TODO check invariants
+
+    // Compute diffs (changed keys) for value map and index maps.
+    let main_snapshot_map = prolly::Map::load(main_snapshot.value_hash(), &dag_read)
+        .await
+        .map_err(LoadHeadError)?;
+    let sync_head_map = prolly::Map::load(sync_head.value_hash(), &dag_read)
+        .await
+        .map_err(LoadHeadError)?;
+    let value_changed_keys =
+        prolly::Map::changed_keys(&main_snapshot_map, &sync_head_map).map_err(InvalidUtf8)?;
+    if !value_changed_keys.is_empty() {
+        changed_keys.insert(str!(""), value_changed_keys);
+    }
+    add_changed_keys_for_indexes(&main_snapshot, &sync_head, &dag_read, &mut changed_keys)
+        .await
+        .map_err(ChangedKeysError)?;
 
     // No mutations to replay so set the main head to the sync head and sync complete!
     dag_write
@@ -301,10 +331,71 @@ pub async fn maybe_end_try_pull(
             main_snapshot.value_hash()
         );
     }
+
     Ok(MaybeEndTryPullResponse {
         sync_head: sync_head_hash.to_string(),
         replay_mutations: Vec::new(),
+        changed_keys,
     })
+}
+
+#[derive(Debug)]
+pub enum ChangedKeysError {
+    GetMapError(GetMapError),
+    InvalidUtf8(FromUtf8Error),
+}
+
+async fn add_changed_keys_for_indexes<'a>(
+    main_snapshot: &'a Commit,
+    sync_head: &'a Commit,
+    read: &dag::Read<'a>,
+    changed_keys_map: &mut ChangedKeysMap,
+) -> Result<(), ChangedKeysError> {
+    use ChangedKeysError::*;
+
+    fn all_keys(old_map: &Map) -> Result<Vec<String>, ChangedKeysError> {
+        old_map
+            .iter()
+            .map(|e| String::from_utf8(e.key.to_vec()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(InvalidUtf8)
+    }
+
+    let old_indexes = db::read_indexes(main_snapshot);
+    let mut new_indexes = db::read_indexes(sync_head);
+
+    for (old_index_name, old_index) in old_indexes {
+        let x = old_index.get_map(&read).await.map_err(GetMapError)?;
+        let old_map = x.get_map();
+        if let Some(new_index) = new_indexes.get(&old_index_name) {
+            let guard = new_index.get_map(&read).await.map_err(GetMapError)?;
+            let new_map = guard.get_map();
+            let changed_keys = Map::changed_keys(&old_map, &new_map).map_err(InvalidUtf8)?;
+            drop(guard);
+            new_indexes.remove(&old_index_name);
+            if !changed_keys.is_empty() {
+                changed_keys_map.insert(old_index_name, changed_keys);
+            }
+        } else {
+            // old index name is not in the new indexes. All keys changed!
+            let changed_keys = all_keys(&old_map)?;
+            if !changed_keys.is_empty() {
+                changed_keys_map.insert(old_index_name, changed_keys);
+            }
+        }
+    }
+
+    for (new_index_name, new_index) in new_indexes {
+        // new index name is not in the old indexes. All keys changed!
+        let guard = new_index.get_map(&read).await.map_err(GetMapError)?;
+        let new_map = guard.get_map();
+        let changed_keys = all_keys(&new_map)?;
+        if !changed_keys.is_empty() {
+            changed_keys_map.insert(new_index_name, all_keys(&new_map)?);
+        }
+    }
+
+    Ok(())
 }
 
 #[derive(Debug, Default, PartialEq, Serialize)]
@@ -579,6 +670,9 @@ mod tests {
     }
 
     macro_rules! map(
+        () => (
+            ::std::collections::HashMap::new()
+        );
         { $($key:expr => $value:expr),+ } => {
             {
                 let mut m = ::std::collections::HashMap::new();
@@ -599,7 +693,7 @@ mod tests {
         let store = dag::Store::new(Box::new(MemStore::new()));
         let mut chain: Chain = vec![];
         add_genesis(&mut chain, &store).await;
-        add_snapshot(&mut chain, &store, Some(vec![str!("foo"), str!("\"bar\"")])).await;
+        add_snapshot(&mut chain, &store, Some(vec![("foo", "\"bar\"")])).await;
         // chain[2] is an index change
         add_index_change(&mut chain, &store).await;
         let starting_num_commits = chain.len();
@@ -938,7 +1032,7 @@ mod tests {
             let w = store.write(LogContext::new()).await.unwrap();
             w.set_head(
                 DEFAULT_HEAD_NAME,
-                Some(chain[chain.len() - 1].chunk().hash()),
+                Some(chain.last().unwrap().chunk().hash()),
             )
             .await
             .unwrap();
@@ -1194,6 +1288,8 @@ mod tests {
             pub intervening_sync: bool,
             pub exp_replay_ids: Vec<u64>,
             pub exp_err: Option<&'a str>,
+            // The expected changed keys as reported by the maybe end pull.
+            pub exp_changed_keys: ChangedKeysMap,
         }
         let cases = [
             Case {
@@ -1203,6 +1299,7 @@ mod tests {
                 intervening_sync: false,
                 exp_replay_ids: vec![],
                 exp_err: None,
+                exp_changed_keys: map!("".to_string() => vec!["key/0".to_string()]),
             },
             Case {
                 name: "2 pending but nothing to replay",
@@ -1211,6 +1308,7 @@ mod tests {
                 intervening_sync: false,
                 exp_replay_ids: vec![],
                 exp_err: None,
+                exp_changed_keys: map!("".to_string() => vec!["key/1".to_string()]),
             },
             Case {
                 name: "3 pending, 2 to replay",
@@ -1219,6 +1317,8 @@ mod tests {
                 intervening_sync: false,
                 exp_replay_ids: vec![2, 3],
                 exp_err: None,
+                // The changed keys are not reported when further replay is needed.
+                exp_changed_keys: ChangedKeysMap::new(),
             },
             Case {
                 name: "another sync landed during replay",
@@ -1227,9 +1327,10 @@ mod tests {
                 intervening_sync: true,
                 exp_replay_ids: vec![],
                 exp_err: Some("OverlappingSyncsJSLogInfo"),
+                exp_changed_keys: ChangedKeysMap::new(),
             },
         ];
-        for c in cases.iter() {
+        for (i, c) in cases.iter().enumerate() {
             let store = dag::Store::new(Box::new(MemStore::new()));
             let mut chain: Chain = vec![];
             add_genesis(&mut chain, &store).await;
@@ -1241,18 +1342,25 @@ mod tests {
             dag_write
                 .set_head(
                     db::DEFAULT_HEAD_NAME,
-                    Some(chain[chain.len() - 1].chunk().hash()),
+                    Some(chain.last().unwrap().chunk().hash()),
                 )
                 .await
                 .unwrap();
 
             // Add snapshot and replayed commits to the sync chain.
-            let w = db::Write::new_snapshot(
-                db::Whence::Hash(chain[0].chunk().hash().to_string()),
+            let mut w = db::Write::new_snapshot(
+                db::Whence::Hash(chain.first().unwrap().chunk().hash().to_string()),
                 0,
                 json!("sync_cookie"),
                 dag_write,
-                db::read_indexes(&chain[0]),
+                db::read_indexes(chain.first().unwrap()),
+            )
+            .await
+            .unwrap();
+            w.put(
+                LogContext::new(),
+                format!("key/{}", i).as_bytes().to_vec(),
+                i.to_string().as_bytes().to_vec(),
             )
             .await
             .unwrap();
@@ -1305,6 +1413,8 @@ mod tests {
                         c.exp_replay_ids,
                         &resp.replay_mutations
                     );
+                    assert_eq!(resp.changed_keys, c.exp_changed_keys);
+
                     for i in 0..c.exp_replay_ids.len() {
                         let chain_idx = chain.len() - c.num_needing_replay + i;
                         assert_eq!(c.exp_replay_ids[i], resp.replay_mutations[i].id);
@@ -1342,5 +1452,224 @@ mod tests {
                 }
             };
         }
+    }
+
+    #[async_std::test]
+    async fn test_changed_keys() {
+        struct IndexDef<'a> {
+            name: &'a str,
+            prefix: &'a str,
+            json_pointer: &'a str,
+        }
+        async fn test<'a>(
+            base_map: HashMap<&str, &str>,
+            index_def: Option<IndexDef<'a>>,
+            patch: Vec<Operation>,
+            expected_changed_keys_map: ChangedKeysMap,
+        ) {
+            let store = dag::Store::new(Box::new(MemStore::new()));
+            let mut chain: Chain = vec![];
+            add_genesis(&mut chain, &store).await;
+
+            if let Some(IndexDef {
+                name,
+                prefix,
+                json_pointer,
+            }) = index_def
+            {
+                chain.push(create_index(name.to_string(), prefix, json_pointer, &store).await);
+            }
+
+            let entries: Vec<(&str, &str)> = base_map.into_iter().collect();
+            add_snapshot(&mut chain, &store, entries.into()).await;
+
+            let base_snapshot = chain.last().unwrap();
+            let (base_last_mutation_id, base_cookie) =
+                Commit::snapshot_meta_parts(base_snapshot).unwrap();
+
+            let request_id = str!("request_id");
+            let client_id = str!("test_client_id");
+            let pull_auth = str!("pull_auth");
+            let pull_url = str!("pull_url");
+            let schema_version = str!("schema_version");
+
+            let new_cookie = json!("new_cookie");
+
+            let exp_pull_req = PullRequest {
+                client_id: client_id.clone(),
+                cookie: base_cookie.clone(),
+                last_mutation_id: base_last_mutation_id,
+                pull_version: PULL_VERSION,
+                schema_version: schema_version.clone(),
+            };
+
+            let pull_resp = PullResponse {
+                cookie: new_cookie.clone(),
+                last_mutation_id: base_last_mutation_id,
+                patch,
+            };
+
+            let fake_puller = FakePuller {
+                exp_pull_req: &exp_pull_req.clone(),
+                exp_pull_url: &pull_url.clone(),
+                exp_pull_auth: &pull_auth.clone(),
+                exp_request_id: &request_id,
+                resp: pull_resp.into(),
+                err: None,
+            };
+
+            let begin_try_pull_req = BeginTryPullRequest {
+                pull_url: pull_url.clone(),
+                pull_auth: pull_auth.clone(),
+                schema_version: schema_version.clone(),
+            };
+
+            let pull_result = begin_pull(
+                client_id.clone(),
+                begin_try_pull_req,
+                &fake_puller,
+                request_id.clone(),
+                &store,
+                LogContext::new(),
+            )
+            .await
+            .unwrap();
+
+            let req = MaybeEndTryPullRequest {
+                request_id: request_id.clone(),
+                sync_head: pull_result.sync_head.clone(),
+            };
+            let result = maybe_end_try_pull(&store, LogContext::new(), req)
+                .await
+                .unwrap();
+
+            assert_eq!(result.changed_keys, expected_changed_keys_map,);
+        }
+
+        test(
+            map!(),
+            None,
+            vec![Operation::Put {
+                key: str!("key"),
+                value: json!("value"),
+            }],
+            map!(str!("") => vec![str!("key")]),
+        )
+        .await;
+
+        test(
+            map!("foo" => "val"),
+            None,
+            vec![Operation::Put {
+                key: str!("foo"),
+                value: json!("new val"),
+            }],
+            map!(str!("") => vec![str!("foo")]),
+        )
+        .await;
+
+        test(
+            map!("a" => "1"),
+            None,
+            vec![Operation::Put {
+                key: str!("b"),
+                value: json!("2"),
+            }],
+            map!(str!("") => vec![str!("b")]),
+        )
+        .await;
+
+        test(
+            map!("a" => "1"),
+            None,
+            vec![
+                Operation::Put {
+                    key: str!("b"),
+                    value: json!("3"),
+                },
+                Operation::Put {
+                    key: str!("a"),
+                    value: json!("2"),
+                },
+            ],
+            map!(str!("") => vec![str!("a"), str!("b")]),
+        )
+        .await;
+
+        test(
+            map!("a" => "1", "b" => "2"),
+            None,
+            vec![Operation::Del { key: str!("b") }],
+            map!(str!("") => vec![str!("b")]),
+        )
+        .await;
+
+        test(
+            map!("a" => "1", "b" => "2"),
+            None,
+            vec![Operation::Del { key: str!("c") }],
+            map!(),
+        )
+        .await;
+
+        test(
+            map!("a1" => r#"{"id": "a-1", "x": 1}"#),
+            Some(IndexDef {
+                name: "i1",
+                prefix: "",
+                json_pointer: "/id",
+            }),
+            vec![Operation::Put {
+                key: str!("a2"),
+                value: json!({"id": "a-2", "x": 2}),
+            }],
+            map!(
+                    str!("") => vec![str!("a2")],
+                    str!("i1") => vec![str!("\u{0}a-2\u{0}a2")]
+            ),
+        )
+        .await;
+
+        test(
+            map!(),
+            Some(IndexDef {
+                name: "i1",
+                prefix: "",
+                json_pointer: "/id",
+            }),
+            vec![
+                Operation::Put {
+                    key: str!("a1"),
+                    value: json!({"id": "a-1", "x": 1}),
+                },
+                Operation::Put {
+                    key: str!("a2"),
+                    value: json!({"id": "a-2", "x": 2}),
+                },
+            ],
+            map!(
+                    str!("") => vec![str!("a1"), str!("a2")],
+                    str!("i1") => vec![str!("\u{0}a-1\u{0}a1"), str!("\u{0}a-2\u{0}a2")]
+            ),
+        )
+        .await;
+
+        test(
+            map!("a1" => r#"{"id": "a-1", "x": 1}"#),
+            Some(IndexDef {
+                name: "i1",
+                prefix: "",
+                json_pointer: "/id",
+            }),
+            vec![Operation::Put {
+                key: str!("a2"),
+                value: json!({"id": "a-2", "x": 2}),
+            }],
+            map!(
+                    str!("") => vec![str!("a2")],
+                    str!("i1") => vec![str!("\u{0}a-2\u{0}a2")]
+            ),
+        )
+        .await;
     }
 }

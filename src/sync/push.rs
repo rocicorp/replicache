@@ -412,7 +412,7 @@ mod tests {
         let store = dag::Store::new(Box::new(MemStore::new()));
         let mut chain: Chain = vec![];
         add_genesis(&mut chain, &store).await;
-        add_snapshot(&mut chain, &store, Some(vec![str!("foo"), str!("bar")])).await;
+        add_snapshot(&mut chain, &store, Some(vec![("foo", "bar")])).await;
         // chain[2] is an index change
         add_index_change(&mut chain, &store).await;
         let starting_num_commits = chain.len();

@@ -86,16 +86,16 @@ pub async fn dispatch(db_name: String, rpc: Rpc, data: JsValue) -> Response {
     debug!(lc, "-> data={:?}", &data);
     let timer = rlog::Timer::new();
 
-    let (tx, rx) = channel::<Response>(1);
+    let (sender, receiver) = channel::<Response>(1);
     let request = Request {
         lc: lc.clone(),
         db_name: db_name.clone(),
         rpc,
         data,
-        response: tx,
+        response: sender,
     };
     SENDER.lock().await.send(request).await;
-    let receive_result = rx.recv().await;
+    let receive_result = receiver.recv().await;
     let result = match receive_result {
         Err(e) => Err(JsValue::from_str(&e.to_string())),
         Ok(v) => v,
@@ -142,14 +142,14 @@ async fn do_open(conns: &mut ConnMap, req: &Request) -> Response {
         .await
         .map_err(to_debug)?;
 
-    let (tx, rx) = channel::<Request>(1);
+    let (sender, receiver) = channel::<Request>(1);
     spawn_local(connection::process(
         dag::Store::new(kv),
-        rx,
+        receiver,
         client_id.clone(),
         req.lc.clone(),
     ));
-    conns.insert(req.db_name.clone(), tx);
+    conns.insert(req.db_name.clone(), sender);
     Ok(client_id.into())
 }
 

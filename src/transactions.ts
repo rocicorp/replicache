@@ -194,10 +194,8 @@ export class SubscriptionTransactionImpl extends ReadTransactionImpl {
     return super.scanAll(options);
   }
 
-  get keys(): string[] {
-    const keys = [...this._keys];
-    keys.sort();
-    return keys;
+  get keys(): ReadonlySet<string> {
+    return this._keys;
   }
 
   get scans(): ScanOptionsRPC[] {

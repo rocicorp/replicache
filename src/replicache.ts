@@ -236,6 +236,8 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
   mutators?: MD;
 }
 
+const emptySet: ReadonlySet<string> = new Set();
+
 // eslint-disable-next-line @typescript-eslint/ban-types
 export class Replicache<MD extends MutatorDefs = {}>
   implements ReadTransaction {
@@ -944,7 +946,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       onError,
       onDone,
       lastValue: undefined,
-      keys: new Set(),
+      keys: emptySet,
       scans: [],
     } as Subscription<R, E>;
     this._subscriptions.add(
@@ -953,7 +955,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     (async () => {
       try {
         const {result, keys, scans} = await this._querySubscription(s.body);
-        s.keys = new Set(keys);
+        s.keys = keys;
         s.scans = scans;
         s.lastValue = result;
         s.onData(result);
@@ -990,12 +992,12 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   private async _querySubscription<R>(
     body: (tx: ReadTransaction) => Promise<R> | R,
-  ): Promise<{result: R; keys: Set<string>; scans: ScanOptionsRPC[]}> {
+  ): Promise<{result: R; keys: ReadonlySet<string>; scans: ScanOptionsRPC[]}> {
     const tx = new SubscriptionTransactionImpl(this._invoke);
     await tx.open({isSubscription: true});
     const result = await body(tx);
     await tx.close();
-    return {result, keys: new Set(tx.keys), scans: tx.scans};
+    return {result, keys: tx.keys, scans: tx.scans};
   }
 
   /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
@@ -1140,8 +1142,8 @@ type Subscription<R extends JSONValue | undefined, E> = {
   onError?: (e: E) => void;
   onDone?: () => void;
   lastValue?: R;
-  keys: Set<string>;
-  scans: ScanOptionsRPC[];
+  keys: ReadonlySet<string>;
+  scans: ReadonlyArray<Readonly<ScanOptionsRPC>>;
 };
 
 const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';

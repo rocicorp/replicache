@@ -119,6 +119,7 @@ export type OpenTransactionRequest = {
   name?: string;
   args?: string;
   rebaseOpts?: RebaseOpts;
+  isSubscription: boolean;
 };
 type OpenTransactionResponse = {
   transactionId: number;
@@ -128,11 +129,19 @@ type OpenIndexTransactionRequest = unknown;
 type OpenIndexTransactionResponse = OpenTransactionResponse;
 
 type CloseTransactionRequest = TransactionRequest;
-type CloseTransactionResponse = unknown;
+export type CloseTransactionResponse = unknown;
 
-type CommitTransactionRequest = TransactionRequest;
+type CommitTransactionRequest = TransactionRequest & {
+  generateChangedKeys: boolean;
+};
+
+// The changed keys in different indexes. The key of the map is the index name.
+// "" is used for the primary index.
+export type ChangedKeysMap = Map<string, string[]>;
+
 export type CommitTransactionResponse = {
   ref: string;
+  changedKeys: ChangedKeysMap;
 };
 
 type BeginTryPullRequest = {
@@ -180,6 +189,7 @@ type ReplayMutation = Mutation & {
 type MaybeEndTryPullResponse = {
   replayMutations?: ReplayMutation[];
   syncHead: string;
+  changedKeys: ChangedKeysMap;
 };
 
 type SetLogLevelRequest = {level: 'debug' | 'info' | 'error'};

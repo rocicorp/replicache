@@ -4,8 +4,14 @@ import {
   OpenTransactionRequest,
   CommitTransactionResponse,
   RPC,
+  CloseTransactionResponse,
 } from './repm-invoker.js';
-import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
+import {
+  KeyTypeForScanOptions,
+  ScanOptions,
+  ScanOptionsRPC,
+  toRPC,
+} from './scan-options.js';
 import {ScanResult} from './scan-iterator.js';
 import {throwIfClosed} from './transaction-closed-error.js';
 import {asyncIterableToArray} from './async-iterable-to-array.js';
@@ -145,15 +151,62 @@ export class ReadTransactionImpl implements ReadTransaction {
     this._transactionId = transactionId;
   }
 
-  async close(): Promise<void> {
-    try {
-      this._closed = true;
-      await this._invoke(RPC.CloseTransaction, {
-        transactionId: this._transactionId,
-      });
-    } catch (ex) {
-      console.error('Failed to close transaction', ex);
-    }
+  async close(): Promise<CloseTransactionResponse> {
+    this._closed = true;
+    return await this._invoke(RPC.CloseTransaction, {
+      transactionId: this._transactionId,
+    });
+  }
+}
+
+// An implementation of ReadTransaction that keeps track of `keys` and `scans`
+// for use with Subscriptions.
+export class SubscriptionTransactionWrapper implements ReadTransaction {
+  private readonly _keys: Set<string> = new Set();
+  private readonly _scans: ScanOptionsRPC[] = [];
+  private readonly _tx: ReadTransaction;
+
+  constructor(tx: ReadTransaction) {
+    this._tx = tx;
+  }
+
+  isEmpty() {
+    // Any change to the subscription requires rerunning it.
+    this._scans.push({});
+    return this._tx.isEmpty();
+  }
+
+  get(key: string): Promise<JSONValue | undefined> {
+    // TODO(arv): Use override keyword once we are using TS4.3
+    this._keys.add(key);
+    return this._tx.get(key);
+  }
+
+  has(key: string): Promise<boolean> {
+    this._keys.add(key);
+    return this._tx.has(key);
+  }
+
+  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
+    options?: O,
+  ): ScanResult<K> {
+    this._scans.push(toRPC(options));
+    return this._tx.scan(options);
+  }
+
+  async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
+    options?: O,
+  ): Promise<[K, JSONValue][]> {
+    this._scans.push(toRPC(options));
+    return this._tx.scanAll(options);
+  }
+
+  get keys(): ReadonlySet<string> {
+    return this._keys;
+  }
+
+  get scans(): ScanOptionsRPC[] {
+    return this._scans;
   }
 }
 
@@ -197,10 +250,13 @@ export class WriteTransactionImpl
     return result.ok;
   }
 
-  async commit(): Promise<CommitTransactionResponse> {
+  async commit(
+    generateChangedKeys: boolean,
+  ): Promise<CommitTransactionResponse> {
     this._closed = true;
     return await this._invoke(RPC.CommitTransaction, {
       transactionId: this.id,
+      generateChangedKeys,
     });
   }
 }
@@ -273,6 +329,7 @@ export class IndexTransactionImpl
     this._closed = true;
     return await this._invoke(RPC.CommitTransaction, {
       transactionId: this.id,
+      generateChangedKeys: false,
     });
   }
 }

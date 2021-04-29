@@ -179,7 +179,7 @@ let current = 0;
 async function nextTest(groups, format) {
   while (current < benchmarks.length) {
     const b = benchmarks[current++];
-    if (groups.indexOf(b.group) > -1) {
+    if (groups.includes(b.group)) {
       try {
         return await runBenchmark(b, format);
       } catch (e) {

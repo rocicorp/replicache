@@ -953,7 +953,6 @@ export class Replicache<MD extends MutatorDefs = {}>
     (async () => {
       try {
         const {result, keys, scans} = await this._querySubscription(s.body);
-        // TODO(arv): return set from rust
         s.keys = new Set(keys);
         s.scans = scans;
         s.lastValue = result;
@@ -996,7 +995,6 @@ export class Replicache<MD extends MutatorDefs = {}>
     await tx.open({isSubscription: true});
     const result = await body(tx);
     await tx.close();
-    // TODO(arv): Return set from Rust
     return {result, keys: new Set(tx.keys), scans: tx.scans};
   }
 
@@ -1188,8 +1186,8 @@ function keyMatchesSubscription(
 
 function scanOptionsMatchesKey(
   scanOpts: ScanOptionsRPC,
-  diffIndexName: string,
-  diffKey: string,
+  changeIndexName: string,
+  changedKey: string,
 ): boolean {
   const {
     indexName,
@@ -1198,33 +1196,30 @@ function scanOptionsMatchesKey(
     start_exclusive: startExclusive,
     start_secondary_key: startSecondaryKey,
   } = scanOpts;
-  if (!indexName) {
-    if (diffIndexName) {
-      return false;
-    }
 
+  if (changeIndexName !== indexName) {
+    return false;
+  }
+
+  if (!indexName) {
     // No prefix and no start. Must recompute the subscription because all keys
     // will have an effect on the subscription.
     if (!prefix && !startKey) {
       return true;
     }
 
-    if (prefix && !diffKey.startsWith(prefix)) {
+    if (prefix && !changedKey.startsWith(prefix)) {
       return false;
     }
 
     if (
       startKey &&
-      ((startExclusive && diffKey <= startKey) || diffKey < startKey)
+      ((startExclusive && changedKey <= startKey) || changedKey < startKey)
     ) {
       return false;
     }
 
     return true;
-  }
-
-  if (diffIndexName !== indexName) {
-    return false;
   }
 
   // No prefix and no start. Must recompute the subscription because all keys
@@ -1233,27 +1228,26 @@ function scanOptionsMatchesKey(
     return true;
   }
 
-  const [diffKeySecondary, diffKeyPrimary] = decodeIndexKey(diffKey);
+  const [changedKeySecondary, changedKeyPrimary] = decodeIndexKey(changedKey);
 
-  // TODO(arv): Figure out prefix on index scans
   if (prefix) {
-    if (!diffKeySecondary.startsWith(prefix)) {
+    if (!changedKeySecondary.startsWith(prefix)) {
       return false;
     }
   }
 
   if (
     startSecondaryKey &&
-    ((startExclusive && diffKeySecondary <= startSecondaryKey) ||
-      diffKeySecondary < startSecondaryKey)
+    ((startExclusive && changedKeySecondary <= startSecondaryKey) ||
+      changedKeySecondary < startSecondaryKey)
   ) {
     return false;
   }
 
   if (
     startKey &&
-    ((startExclusive && diffKeyPrimary <= startKey) ||
-      diffKeyPrimary < startKey)
+    ((startExclusive && changedKeyPrimary <= startKey) ||
+      changedKeyPrimary < startKey)
   ) {
     return false;
   }
@@ -1300,9 +1294,9 @@ function* subscriptionsForIndexDefinitionChanged(
   subscriptions: Set<Subscription<JSONValue | undefined, unknown>>,
   name: string,
 ) {
-  for (const s of subscriptions) {
-    if (s.scans.some(opt => opt.indexName === name)) {
-      yield s;
+  for (const subscription of subscriptions) {
+    if (subscription.scans.some(opt => opt.indexName === name)) {
+      yield subscription;
     }
   }
 }

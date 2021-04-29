@@ -32,7 +32,10 @@ async function main() {
 
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${port}/perf/index.html`);
-  await page.waitForFunction('typeof nextTest ===  "function"');
+  await page.waitForFunction('typeof nextTest ===  "function"', null, {
+    // No need to wait 30s if failing to load
+    timeout: 1000,
+  });
   logLine('Running benchmarks please wait...');
 
   if (devtools) {

@@ -1199,11 +1199,11 @@ function scanOptionsMatchesKey(
     start_secondary_key: startSecondaryKey,
   } = scanOpts;
 
-  if (changeIndexName !== indexName) {
-    return false;
-  }
-
   if (!indexName) {
+    if (changeIndexName) {
+      return false;
+    }
+
     // No prefix and no start. Must recompute the subscription because all keys
     // will have an effect on the subscription.
     if (!prefix && !startKey) {
@@ -1222,6 +1222,10 @@ function scanOptionsMatchesKey(
     }
 
     return true;
+  }
+
+  if (changeIndexName !== indexName) {
+    return false;
   }
 
   // No prefix and no start. Must recompute the subscription because all keys

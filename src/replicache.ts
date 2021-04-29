@@ -16,7 +16,7 @@ import type {
 } from './repm-invoker.js';
 import {
   CreateIndexDefinition,
-  SubscriptionTransactionImpl,
+  SubscriptionTransactionWrapper,
 } from './transactions.js';
 import {IndexTransactionImpl} from './transactions.js';
 import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
@@ -895,9 +895,13 @@ export class Replicache<MD extends MutatorDefs = {}>
       const promises = subs.map(async s => {
         // Tag the result so we can deal with success vs error below.
         try {
-          return {ok: true, value: await s.body(tx)} as R;
-        } catch (ex) {
-          return {ok: false, error: ex} as R;
+          const stx = new SubscriptionTransactionWrapper(tx);
+          const value = await s.body(stx);
+          s.keys = stx.keys;
+          s.scans = stx.scans;
+          return {ok: true, value} as R;
+        } catch (error) {
+          return {ok: false, error} as R;
         }
       });
       return await Promise.all(promises);
@@ -993,11 +997,12 @@ export class Replicache<MD extends MutatorDefs = {}>
   private async _querySubscription<R>(
     body: (tx: ReadTransaction) => Promise<R> | R,
   ): Promise<{result: R; keys: ReadonlySet<string>; scans: ScanOptionsRPC[]}> {
-    const tx = new SubscriptionTransactionImpl(this._invoke);
+    const tx = new ReadTransactionImpl(this._invoke);
+    const stx = new SubscriptionTransactionWrapper(tx);
     await tx.open({isSubscription: true});
-    const result = await body(tx);
+    const result = await body(stx);
     await tx.close();
-    return {result, keys: tx.keys, scans: tx.scans};
+    return {result, keys: stx.keys, scans: stx.scans};
   }
 
   /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */

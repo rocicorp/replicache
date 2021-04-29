@@ -661,7 +661,6 @@ testWithBothStores('subscribe with index and start', async () => {
 });
 
 testWithBothStores('subscribe with index and prefix', async () => {
-  // TODO(arv): Refactor these to share code?
   const log: [[string, string], JSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index-and-prefix', {
@@ -748,6 +747,152 @@ testWithBothStores('subscribe with index and prefix', async () => {
   });
   expect(queryCallCount).to.equal(4); // One for initial subscribe and one for the add.
   expect(onDataCallCount).to.equal(4);
+
+  cancel();
+});
+
+testWithBothStores('subscribe with isEmpty and prefix', async () => {
+  const log: boolean[] = [];
+
+  const rep = await replicacheForTesting('subscribe-with-is-empty', {
+    mutators: {
+      addData,
+      del: (tx, k: string) => tx.del(k),
+    },
+  });
+
+  let queryCallCount = 0;
+  let onDataCallCount = 0;
+  const cancel = rep.subscribe(
+    async (tx: ReadTransaction) => {
+      queryCallCount++;
+      return await tx.isEmpty();
+    },
+    {
+      onData: (empty: boolean) => {
+        onDataCallCount++;
+        log.push(empty);
+      },
+    },
+  );
+
+  expect(log).to.deep.equal([]);
+  expect(queryCallCount).to.equal(0);
+  expect(onDataCallCount).to.equal(0);
+
+  await tickAFewTimes();
+
+  expect(log).to.deep.equal([true]);
+  expect(queryCallCount).to.equal(1);
+  expect(onDataCallCount).to.equal(1);
+
+  await rep.mutate.addData({
+    a: 1,
+  });
+
+  expect(log).to.deep.equal([true, false]);
+  expect(queryCallCount).to.equal(2);
+  expect(onDataCallCount).to.equal(2);
+
+  await rep.mutate.addData({
+    b: 2,
+  });
+
+  expect(log).to.deep.equal([true, false]);
+  expect(queryCallCount).to.equal(3);
+  expect(onDataCallCount).to.equal(2);
+
+  await rep.mutate.del('a');
+
+  expect(log).to.deep.equal([true, false]);
+  expect(queryCallCount).to.equal(4);
+  expect(onDataCallCount).to.equal(2);
+
+  await rep.mutate.del('b');
+
+  expect(log).to.deep.equal([true, false, true]);
+  expect(queryCallCount).to.equal(5);
+  expect(onDataCallCount).to.equal(3);
+
+  cancel();
+});
+
+testWithBothStores('subscribe change keys', async () => {
+  const log: JSONValue[][] = [];
+
+  const rep = await replicacheForTesting('subscribe-change-keys', {
+    mutators: {
+      addData,
+    },
+  });
+
+  let queryCallCount = 0;
+  let onDataCallCount = 0;
+  const cancel = rep.subscribe(
+    async (tx: ReadTransaction) => {
+      queryCallCount++;
+      const a = await tx.get('a');
+      const rv = [a ?? 'no-a'];
+      if (a === 1) {
+        rv.push((await tx.get('b')) ?? 'no b');
+      }
+      return rv;
+    },
+    {
+      onData: (values: JSONValue[]) => {
+        onDataCallCount++;
+        log.push(values);
+      },
+    },
+  );
+
+  expect(log).to.have.length(0);
+  expect(queryCallCount).to.equal(0);
+  expect(onDataCallCount).to.equal(0);
+
+  await rep.mutate.addData({
+    a: 0,
+  });
+
+  expect(log).to.deep.equal([['no-a'], [0]]);
+  expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(2);
+
+  await rep.mutate.addData({
+    b: 2,
+  });
+  expect(queryCallCount).to.equal(2);
+  expect(onDataCallCount).to.equal(2);
+
+  log.length = 0;
+  await rep.mutate.addData({
+    a: 1,
+  });
+  expect(queryCallCount).to.equal(3);
+  expect(onDataCallCount).to.equal(3);
+  expect(log).to.deep.equal([[1, 2]]);
+
+  log.length = 0;
+  await rep.mutate.addData({
+    b: 3,
+  });
+  expect(queryCallCount).to.equal(4);
+  expect(onDataCallCount).to.equal(4);
+  expect(log).to.deep.equal([[1, 3]]);
+
+  log.length = 0;
+  await rep.mutate.addData({
+    a: 4,
+  });
+  expect(queryCallCount).to.equal(5);
+  expect(onDataCallCount).to.equal(5);
+  expect(log).to.deep.equal([[4]]);
+
+  await rep.mutate.addData({
+    b: 5,
+  });
+  expect(queryCallCount).to.equal(5);
+  expect(onDataCallCount).to.equal(5);
 
   cancel();
 });

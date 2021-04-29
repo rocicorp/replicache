@@ -161,37 +161,44 @@ export class ReadTransactionImpl implements ReadTransaction {
 
 // An implementation of ReadTransaction that keeps track of `keys` and `scans`
 // for use with Subscriptions.
-export class SubscriptionTransactionImpl extends ReadTransactionImpl {
+export class SubscriptionTransactionWrapper implements ReadTransaction {
   private readonly _keys: Set<string> = new Set();
   private readonly _scans: ScanOptionsRPC[] = [];
+  private readonly _tx: ReadTransaction;
 
-  /** @override */
+  constructor(tx: ReadTransaction) {
+    this._tx = tx;
+  }
+
+  isEmpty() {
+    // Any change to the subscription requires rerunning it.
+    this._scans.push({});
+    return this._tx.isEmpty();
+  }
+
   get(key: string): Promise<JSONValue | undefined> {
     // TODO(arv): Use override keyword once we are using TS4.3
     this._keys.add(key);
-    return super.get(key);
+    return this._tx.get(key);
   }
 
-  /** @override */
   has(key: string): Promise<boolean> {
     this._keys.add(key);
-    return super.has(key);
+    return this._tx.has(key);
   }
 
-  /** @override */
   scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): ScanResult<K> {
     this._scans.push(toRPC(options));
-    return super.scan(options);
+    return this._tx.scan(options);
   }
 
-  /** @override */
   async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): Promise<[K, JSONValue][]> {
     this._scans.push(toRPC(options));
-    return super.scanAll(options);
+    return this._tx.scanAll(options);
   }
 
   get keys(): ReadonlySet<string> {

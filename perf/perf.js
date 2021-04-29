@@ -183,7 +183,7 @@ async function nextTest(groups, format) {
       try {
         return await runBenchmark(b, format);
       } catch (e) {
-        return `${b.name}: Error: ${e.toString()}`;
+        return `${b.name}: Error: ${e}`;
       }
     }
   }

@@ -365,13 +365,13 @@ async fn add_changed_keys_for_indexes<'a>(
     let mut new_indexes = db::read_indexes(sync_head);
 
     for (old_index_name, old_index) in old_indexes {
-        let x = old_index.get_map(&read).await.map_err(GetMapError)?;
-        let old_map = x.get_map();
+        let old_guard = old_index.get_map(&read).await.map_err(GetMapError)?;
+        let old_map = old_guard.get_map();
         if let Some(new_index) = new_indexes.get(&old_index_name) {
-            let guard = new_index.get_map(&read).await.map_err(GetMapError)?;
-            let new_map = guard.get_map();
+            let new_guard = new_index.get_map(&read).await.map_err(GetMapError)?;
+            let new_map = new_guard.get_map();
             let changed_keys = Map::changed_keys(&old_map, &new_map).map_err(InvalidUtf8)?;
-            drop(guard);
+            drop(new_guard);
             new_indexes.remove(&old_index_name);
             if !changed_keys.is_empty() {
                 changed_keys_map.insert(old_index_name, changed_keys);
@@ -1609,6 +1609,14 @@ mod tests {
             None,
             vec![Operation::Del { key: str!("c") }],
             map!(),
+        )
+        .await;
+
+        test(
+            map!("a" => "1", "b" => "2"),
+            None,
+            vec![Operation::Clear],
+            map!(str!("") => vec![str!("a"), str!("b")]),
         )
         .await;
 

@@ -32,6 +32,11 @@ pub struct MaybeEndTryPullResponse {
     pub replay_mutations: Vec<ReplayMutation>,
     #[serde(rename = "syncHead")]
     pub sync_head: String,
+    // The changed_keys will only be filled if there are no replay_mutations. If
+    // there are still pending mutations to replay the JS bindings does not care
+    // about the changed_keys. It only cares about the changed_keys when the
+    // pull operation is complete and at that point it wants the changed keys
+    // between the state before and after the pull.
     #[serde(rename = "changedKeys")]
     pub changed_keys: ChangedKeysMap,
 }

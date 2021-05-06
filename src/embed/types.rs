@@ -46,6 +46,11 @@ pub struct OpenTransactionResponse {
 pub struct CommitTransactionRequest {
     #[serde(rename = "transactionId")]
     pub transaction_id: u32,
+
+    // The JS bindings wants the changed keyes when doing one off mutations.
+    // However, when the bidnings is replaying mutations during a pull it does
+    // not need the changed keys; In that case the js bindings will ask for the
+    // diff for the entire pull operation instead.
     #[serde(rename = "generateChangedKeys")]
     pub generate_changed_keys: bool,
 }

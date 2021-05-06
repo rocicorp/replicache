@@ -170,7 +170,7 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
     this._tx = tx;
   }
 
-  isEmpty() {
+  isEmpty(): Promise<boolean> {
     // Any change to the subscription requires rerunning it.
     this._scans.push({});
     return this._tx.isEmpty();

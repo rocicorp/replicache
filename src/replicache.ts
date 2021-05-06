@@ -44,10 +44,20 @@ const storageKeyName = (name: string) => `/replicache/root/${name}`;
 /** The maximum number of time to call out to getDataLayerAuth before giving up and throwing an error. */
 const MAX_REAUTH_TRIES = 8;
 
+/**
+ * This type describes the data we send on the BroadcastChannel when things change.
+ */
 type BroadcastData = {
   root?: string;
   changedKeys: ChangedKeysMap;
   index?: string;
+};
+
+/**
+ * When using localStorage instead of BroadcastChannel we need to use a JSON string.
+ */
+type StorageBroadcastData = Omit<BroadcastData, 'changedKeys'> & {
+  changedKeys: [string, string[]][];
 };
 
 /**
@@ -465,11 +475,9 @@ export class Replicache<MD extends MutatorDefs = {}>
   private _onStorage = (e: StorageEvent) => {
     const {key, newValue} = e;
     if (newValue && key === storageKeyName(this._name)) {
-      const {root, changedKeys, index} = JSON.parse(newValue) as {
-        root?: string;
-        changedKeys: [string, string[]][];
-        index?: string;
-      };
+      const {root, changedKeys, index} = JSON.parse(
+        newValue,
+      ) as StorageBroadcastData;
 
       this._onBroadcastMessage({
         root,
@@ -1178,7 +1186,12 @@ function keyMatchesSubscription(
   indexName: string,
   changedKey: string,
 ) {
-  if (subscription.keys.has(changedKey)) {
+  // subscription.keys contains the primary index keys. If we are passing in an
+  // indexName there was a change to the index map, in which case the changedKey
+  // is an encoded index key. We could skip checking the indexName here since
+  // the set would never contain encoded index keys but we do the check for
+  // clarity.
+  if (indexName === '' && subscription.keys.has(changedKey)) {
     return true;
   }
 
@@ -1269,7 +1282,8 @@ function scanOptionsMatchesKey(
 const KEY_VERSION_0 = '\u0000';
 const KEY_SEPARATOR = '\u0000';
 
-// Decodes an IndexKey encoded by encode_index_key.
+// When working with indexes the changed keys are encoded. This is a port of the Rust code in Repc.
+// Make sure these are in sync.
 function decodeIndexKey(
   encodedIndexKey: string,
 ): [secondary: string, primary: string] {

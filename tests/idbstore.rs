@@ -123,9 +123,7 @@ pub mod idbstore {
         }
 
         // Drop db
-        IdbStore::drop_store(&name, LogContext::new())
-            .await
-            .unwrap();
+        IdbStore::drop_store(&name).await.unwrap();
 
         // Reopen store, verify data is gone
         let store = wasm::new_idbstore(name.clone()).await.unwrap();

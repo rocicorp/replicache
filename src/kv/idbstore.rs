@@ -1,11 +1,9 @@
 use crate::kv::{Read, Result, Store, StoreError, Write};
 use crate::util::rlog::LogContext;
 use crate::util::to_debug;
-use async_std::sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
-use async_std::task;
+use async_std::sync::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use async_trait::async_trait;
-use std::collections::HashMap;
-use wasm_bindgen::closure::Closure;
+use std::{collections::HashMap, convert::TryInto};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{IdbDatabase, IdbObjectStore, IdbTransaction};
@@ -37,7 +35,16 @@ extern "C" {
     async fn drop_store(name: &str) -> std::result::Result<JsValue, JsValue>;
 
     #[wasm_bindgen(catch, js_name = commit)]
-    async fn js_commit(tx: &IdbTransaction, entries: &JsValue) -> std::result::Result<(), JsValue>;
+    async fn js_commit(
+        tx: &IdbTransaction,
+        entries: &JsValue,
+    ) -> std::result::Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(catch, js_name = abort)]
+    async fn js_abort(tx: &IdbTransaction) -> std::result::Result<JsValue, JsValue>;
+
+    #[wasm_bindgen(catch, js_name = transactionState)]
+    async fn transaction_state_js(tx: &IdbTransaction) -> std::result::Result<JsValue, JsValue>;
 }
 
 impl From<String> for StoreError {
@@ -183,61 +190,21 @@ enum WriteState {
     Open,
     Committed,
     Aborted,
-    Errored,
 }
 
 struct WriteTransaction<'a> {
     _db: RwLockWriteGuard<'a, IdbDatabase>, // Not referenced, holding lock.
     tx: IdbTransaction,
     pending: Mutex<HashMap<String, Option<Vec<u8>>>>,
-    pair: Arc<(Mutex<WriteState>, Condvar)>,
-    callbacks: Vec<Closure<dyn FnMut()>>,
-}
-
-impl std::ops::Drop for WriteTransaction<'_> {
-    fn drop(&mut self) {
-        self.tx.set_oncomplete(None);
-        self.tx.set_onabort(None);
-        self.tx.set_onerror(None);
-    }
 }
 
 impl WriteTransaction<'_> {
     fn new(db: RwLockWriteGuard<'_, IdbDatabase>, tx: IdbTransaction) -> WriteTransaction {
-        let mut wt = WriteTransaction {
+        WriteTransaction {
             _db: db,
             tx,
-            pair: Arc::new((Mutex::new(WriteState::Open), Condvar::new())),
             pending: Mutex::new(HashMap::new()),
-            callbacks: Vec::with_capacity(3),
-        };
-
-        let tx = &wt.tx;
-        let callback = wt.tx_callback(WriteState::Committed);
-        tx.set_oncomplete(Some(callback.as_ref().unchecked_ref()));
-        wt.callbacks.push(callback);
-
-        let callback = wt.tx_callback(WriteState::Aborted);
-        tx.set_onabort(Some(callback.as_ref().unchecked_ref()));
-        wt.callbacks.push(callback);
-
-        let callback = wt.tx_callback(WriteState::Errored);
-        tx.set_onerror(Some(callback.as_ref().unchecked_ref()));
-        wt.callbacks.push(callback);
-
-        wt
-    }
-
-    fn tx_callback(&self, new_state: WriteState) -> Closure<dyn FnMut()> {
-        let pair = self.pair.clone();
-        Closure::once(move || {
-            task::block_on(async move {
-                let (lock, cv) = &*pair;
-                let mut state = lock.lock().await;
-                *state = new_state;
-                cv.notify_one();
-            });
-        })
+        }
     }
 }
 
@@ -303,16 +270,9 @@ impl Write for WriteTransaction<'_> {
                 js_sys::Array::of2(&k, &v)
             })
             .collect();
-        js_commit(&self.tx, &js_entries).await?;
-
-        let (lock, cv) = &*self.pair;
-        let state = cv
-            .wait_until(lock.lock().await, |state| *state != WriteState::Open)
-            .await;
-        if let Some(e) = self.tx.error() {
-            return Err(to_debug(e).into());
-        }
-        if *state != WriteState::Committed {
+        let js_state = js_commit(&self.tx, &js_entries).await?;
+        let state: WriteState = js_state.try_into()?;
+        if state != WriteState::Committed {
             return Err(StoreError::Str("Transaction aborted".into()));
         }
         Ok(())
@@ -325,23 +285,38 @@ impl Write for WriteTransaction<'_> {
             return Ok(());
         }
 
-        let (lock, cv) = &*self.pair;
-        match *lock.lock().await {
+        match transaction_state(&self.tx).await? {
             WriteState::Committed | WriteState::Aborted => return Ok(()),
             _ => (),
         }
 
-        self.tx.abort()?;
-        let state = cv
-            .wait_until(lock.lock().await, |state| *state != WriteState::Open)
-            .await;
-        if let Some(e) = self.tx.error() {
-            return Err(to_debug(e).into());
-        }
-        if *state != WriteState::Aborted {
+        let js_state = js_abort(&self.tx).await?;
+        let state: WriteState = js_state.try_into()?;
+        if state != WriteState::Aborted {
             return Err(StoreError::Str("Transaction abort failed".into()));
         }
         Ok(())
+    }
+}
+
+async fn transaction_state(tx: &IdbTransaction) -> Result<WriteState> {
+    let js = transaction_state_js(tx).await?;
+    js.try_into()
+}
+
+impl TryInto<WriteState> for JsValue {
+    type Error = StoreError;
+
+    fn try_into(self) -> Result<WriteState> {
+        match self.as_f64() {
+            Some(f) => match f as u8 {
+                0 => Ok(WriteState::Open),
+                1 => Ok(WriteState::Committed),
+                2 => Ok(WriteState::Aborted),
+                _ => Err(StoreError::Str("Invalid state".into())),
+            },
+            _ => Err(StoreError::Str("Invalid state".into())),
+        }
     }
 }
 

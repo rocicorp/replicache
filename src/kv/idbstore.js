@@ -81,9 +81,10 @@ export function dropStore(name) {
 /**
  * @param {IDBTransaction} tx
  * @param {[string, null | Uint8Array][]} entries
- * @return {Promise<(IDBValidKey|undefined)[]>}
+ * @return {Promise<WriteState>}
  */
-export function commit(tx, entries) {
+export async function commit(tx, entries) {
+  registerTransaction(tx);
   const store = objectStore(tx);
   const ps = entries.map((entry) => {
     const val = entry[1];
@@ -93,7 +94,18 @@ export function commit(tx, entries) {
     }
     return wrap(store.put(val, key));
   });
-  return Promise.all(ps);
+  await Promise.all(ps);
+  return await transactionState(tx);
+}
+
+/**
+ * @param {IDBTransaction} tx
+ * @return {Promise<WriteState>}
+ */
+export async function abort(tx) {
+  registerTransaction(tx);
+  tx.abort();
+  return await transactionState(tx);
 }
 
 /**
@@ -106,4 +118,39 @@ function wrap(req) {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
+}
+
+/** @type {WeakMap<IDBTransaction, Promise<WriteState>>} */
+const txStateMap = new WeakMap();
+
+const OPEN = 0;
+const COMMITTED = 1;
+const ABORTED = 2;
+
+/** @typedef {typeof OPEN | typeof COMMITTED | ABORTED} WriteState */
+
+/**
+ * @param {IDBTransaction} tx
+ * @return {IDBTransaction}
+ */
+function registerTransaction(tx) {
+  if (txStateMap.has(tx)) {
+    throw new Error("invalid state");
+  }
+
+  const p = new Promise((resolve, reject) => {
+    tx.onabort = () => resolve(ABORTED);
+    tx.oncomplete = () => resolve(COMMITTED);
+    tx.onerror = () => reject(tx.error);
+  });
+  txStateMap.set(tx, p);
+  return tx;
+}
+
+/**
+ * @param {IDBTransaction} tx
+ * @return {Promise<WriteState>}
+ */
+export function transactionState(tx) {
+  return txStateMap.get(tx) || Promise.resolve(OPEN);
 }

@@ -1,0 +1,43 @@
+namespace nodes;
+
+// A serialized Node in the tree is one of these. A Leaf node is a special case
+// of an InternalNode. We distinguish it to make the logic easier to follow. 
+union Node {
+    Internal: InternalNode,
+    Leaf: InternalNode,
+    Data: DataNode
+}
+
+// Typically B+Tree internal nodes store n keys and n-1 pointers, but I find
+// that doing the math is awkward to follow so we are keeping n keys and
+// n pointers. This means a little extra work above what's required in a regular
+// B+Tree in order to keep the greatest key entry up to date when children change,
+// but since we are merkleized we have to do some fixing up anyway because childrens'
+// hashes change.
+table InternalNode {
+    // Edges are in key order.
+    edges: [Edge];
+}
+
+table Edge {
+    key: [ubyte];
+    chunk_hash: string;
+}
+
+table DataNode {
+    // DataNodeEntrys are in key order.
+    entries: [DataNodeEntry];
+}
+
+table DataNodeEntry {
+    key: [ubyte];
+    value: [ubyte];
+}
+
+// The root table for a Node. We would like Node to be the root, but unions cannot be
+// roots so we have this small wrapper.
+table NodeRecord {
+    record: Node;
+}
+
+root_type NodeRecord;

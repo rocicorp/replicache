@@ -67,20 +67,20 @@ impl<'a> TryFrom<fb::NodeRecord<'a>> for Node<'a> {
             fb::Node::Internal => Node::Internal(
                 node_record
                     .record_as_internal()
-                    .ok_or_else(|| Self::Error::Corrupt(str!("Expected InternalNode")))?,
+                    .ok_or_else(|| NodeError::Corrupt(str!("Expected InternalNode")))?,
             ),
             fb::Node::Leaf => Node::Leaf(
                 node_record
                     .record_as_leaf()
-                    .ok_or_else(|| Self::Error::Corrupt(str!("Expected LeafNode")))?,
+                    .ok_or_else(|| NodeError::Corrupt(str!("Expected LeafNode")))?,
             ),
             fb::Node::Data => Node::Data(
                 node_record
                     .record_as_data()
-                    .ok_or_else(|| Self::Error::Corrupt(str!("Expected DataNode")))?,
+                    .ok_or_else(|| NodeError::Corrupt(str!("Expected DataNode")))?,
             ),
             _ => {
-                return Err(Self::Error::Corrupt(format!(
+                return Err(NodeError::Corrupt(format!(
                     "Unknown node type {:?} (most likely parsing garbage)",
                     node_record.record_type()
                 )))

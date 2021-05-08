@@ -1,10 +1,12 @@
 // This file implements our B+Tree nodes, which wrap flatbuffers.
 
+
 // TODO remove this once this code is called from repc.
 #![allow(dead_code)]
 
 use super::nodes_generated::nodes as fb;
 use std::cmp::Ordering;
+use std::convert::TryFrom;
 use std::iter::Iterator;
 use str_macro::str;
 
@@ -58,38 +60,36 @@ impl Node<'_> {
     }
 }
 
-// node_try_from_node_record converts from a flatbuffer NodeRecord into a Node. I would
-// have liked to implement the TryFrom trait to do this but I couldn't get the lifetimes
-// to work out and finally gave up.
-pub fn node_try_from_node_record(node_record: fb::NodeRecord) -> Result<Node, NodeError> {
-    use NodeError::*;
+impl<'a> TryFrom<fb::NodeRecord<'a>> for Node<'a> {
+    type Error = NodeError;
+    fn try_from(node_record: fb::NodeRecord<'a>) ->  Result<Node, NodeError> {
+        let node = match node_record.record_type() {
+            fb::Node::Internal => Node::Internal(
+                node_record
+                    .record_as_internal()
+                    .ok_or_else(|| Self::Error::Corrupt(str!("Expected InternalNode")))?,
+            ),
+            fb::Node::Leaf => Node::Leaf(
+                node_record
+                    .record_as_leaf()
+                    .ok_or_else(|| Self::Error::Corrupt(str!("Expected LeafNode")))?,
+            ),
+            fb::Node::Data => Node::Data(
+                node_record
+                    .record_as_data()
+                    .ok_or_else(|| Self::Error::Corrupt(str!("Expected DataNode")))?,
+            ),
+            _ => {
+                return Err(Self::Error::Corrupt(format!(
+                    "Unknown node type {:?} (most likely parsing garbage)",
+                    node_record.record_type()
+                )))
+            }
+        };
 
-    let node = match node_record.record_type() {
-        fb::Node::Internal => Node::Internal(
-            node_record
-                .record_as_internal()
-                .ok_or_else(|| Corrupt(str!("Expected InternalNode")))?,
-        ),
-        fb::Node::Leaf => Node::Leaf(
-            node_record
-                .record_as_leaf()
-                .ok_or_else(|| Corrupt(str!("Expected LeafNode")))?,
-        ),
-        fb::Node::Data => Node::Data(
-            node_record
-                .record_as_data()
-                .ok_or_else(|| Corrupt(str!("Expected DataNode")))?,
-        ),
-        _ => {
-            return Err(Corrupt(format!(
-                "Unknown node type {:?} (most likely parsing garbage)",
-                node_record.record_type()
-            )))
-        }
-    };
-
-    // TODO(phritz): validate the node before returning it here.
-    Ok(node)
+        // TODO(phritz): validate the node before returning it here.
+        Ok(node)
+    }
 }
 
 #[derive(Debug)]
@@ -213,8 +213,7 @@ mod tests {
             // Test Node::Data
             let entries: Vec<(&str, &str)> = keys.iter().map(|k| (*k, "")).collect();
             let (bytes, start) = new_data_node(&entries);
-            let data_node =
-                node_try_from_node_record(fb::get_root_as_node_record(&bytes[start..])).unwrap();
+            let data_node = Node::try_from(fb::get_root_as_node_record(&bytes[start..])).unwrap();
             let expected: Vec<&[u8]> = keys.iter().map(|k| k.as_bytes()).collect();
             let got: Vec<&[u8]> = data_node.key_iter().collect();
             assert_eq!(expected, got);
@@ -222,15 +221,13 @@ mod tests {
             // Test Node::Internal.
             let edges: Vec<(&str, &str)> = keys.iter().map(|k| (*k, "")).collect();
             let (bytes, start) = new_internal_node(fb::Node::Internal, &edges);
-            let internal_node =
-                node_try_from_node_record(fb::get_root_as_node_record(&bytes[start..])).unwrap();
+            let internal_node = Node::try_from(fb::get_root_as_node_record(&bytes[start..])).unwrap();
             let got: Vec<&[u8]> = internal_node.key_iter().collect();
             assert_eq!(expected, got);
 
             // Test Node::Leaf.
             let (bytes, start) = new_internal_node(fb::Node::Leaf, &edges);
-            let leaf_node =
-                node_try_from_node_record(fb::get_root_as_node_record(&bytes[start..])).unwrap();
+            let leaf_node = Node::try_from(fb::get_root_as_node_record(&bytes[start..])).unwrap();
             let got: Vec<&[u8]> = leaf_node.key_iter().collect();
             assert_eq!(expected, got);
         }
@@ -249,21 +246,18 @@ mod tests {
             // Test Node::Data
             let entries: Vec<(&str, &str)> = haystack.iter().map(|k| (*k, "")).collect();
             let (bytes, start) = new_data_node(&entries);
-            let data_node =
-                node_try_from_node_record(fb::get_root_as_node_record(&bytes[start..])).unwrap();
+            let data_node = Node::try_from(fb::get_root_as_node_record(&bytes[start..])).unwrap();
             assert_eq!(expected, data_node.find(needle));
 
             // Test Node::Internal
             let edges: Vec<(&str, &str)> = haystack.iter().map(|k| (*k, "")).collect();
             let (bytes, start) = new_internal_node(fb::Node::Internal, &edges);
-            let internal_node =
-                node_try_from_node_record(fb::get_root_as_node_record(&bytes[start..])).unwrap();
+            let internal_node = Node::try_from(fb::get_root_as_node_record(&bytes[start..])).unwrap();
             assert_eq!(expected, internal_node.find(needle));
 
             // Test Node::Leaf
             let (bytes, start) = new_internal_node(fb::Node::Leaf, &edges);
-            let leaf_node =
-                node_try_from_node_record(fb::get_root_as_node_record(&bytes[start..])).unwrap();
+            let leaf_node = Node::try_from(fb::get_root_as_node_record(&bytes[start..])).unwrap();
             assert_eq!(expected, leaf_node.find(needle));
         }
 

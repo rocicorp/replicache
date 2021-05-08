@@ -62,7 +62,7 @@ impl Node<'_> {
 
 impl<'a> TryFrom<fb::NodeRecord<'a>> for Node<'a> {
     type Error = NodeError;
-    fn try_from(node_record: fb::NodeRecord) ->  Result<Node, NodeError> {
+    fn try_from(node_record: fb::NodeRecord) -> Result<Node, NodeError> {
         let node = match node_record.record_type() {
             fb::Node::Internal => Node::Internal(
                 node_record
@@ -83,7 +83,7 @@ impl<'a> TryFrom<fb::NodeRecord<'a>> for Node<'a> {
                 return Err(NodeError::Corrupt(format!(
                     "Unknown node type {:?} (most likely parsing garbage)",
                     node_record.record_type()
-                )))
+                )));
             }
         };
 
@@ -221,7 +221,8 @@ mod tests {
             // Test Node::Internal.
             let edges: Vec<(&str, &str)> = keys.iter().map(|k| (*k, "")).collect();
             let (bytes, start) = new_internal_node(fb::Node::Internal, &edges);
-            let internal_node = Node::try_from(fb::get_root_as_node_record(&bytes[start..])).unwrap();
+            let internal_node =
+                Node::try_from(fb::get_root_as_node_record(&bytes[start..])).unwrap();
             let got: Vec<&[u8]> = internal_node.key_iter().collect();
             assert_eq!(expected, got);
 
@@ -252,7 +253,8 @@ mod tests {
             // Test Node::Internal
             let edges: Vec<(&str, &str)> = haystack.iter().map(|k| (*k, "")).collect();
             let (bytes, start) = new_internal_node(fb::Node::Internal, &edges);
-            let internal_node = Node::try_from(fb::get_root_as_node_record(&bytes[start..])).unwrap();
+            let internal_node =
+                Node::try_from(fb::get_root_as_node_record(&bytes[start..])).unwrap();
             assert_eq!(expected, internal_node.find(needle));
 
             // Test Node::Leaf

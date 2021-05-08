@@ -62,7 +62,7 @@ impl Node<'_> {
 
 impl<'a> TryFrom<fb::NodeRecord<'a>> for Node<'a> {
     type Error = NodeError;
-    fn try_from(node_record: fb::NodeRecord<'a>) ->  Result<Node, NodeError> {
+    fn try_from(node_record: fb::NodeRecord) ->  Result<Node, NodeError> {
         let node = match node_record.record_type() {
             fb::Node::Internal => Node::Internal(
                 node_record

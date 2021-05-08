@@ -1,6 +1,5 @@
 // This file implements our B+Tree nodes, which wrap flatbuffers.
 
-
 // TODO remove this once this code is called from repc.
 #![allow(dead_code)]
 

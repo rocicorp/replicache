@@ -11,7 +11,7 @@ These applications are highly desired by product teams and users because they ar
 reliable than applications that are directly dependent upon servers. By storing data in a local database, offline-first
 applications are instantaneously responsive and reliable in any network conditions.
 
-Additionally, offline-first applications typically update live, in real time, when something change server side, without
+Additionally, offline-first applications typically update live, in real time, when something changes server side, without
 the user having to refresh. Since they are already continuously synchronizing, realtime updates are just updating the UI
 when new data arrives.
 
@@ -32,7 +32,7 @@ The key features that drive Replicache's increased usability:
 - **The Client View**: To use Replicache, developers define a _Client View_, which is the data Replicache keeps cached on a specific device. Developers must arrange to return a delta from some previous version of the Client View to the current one when requested, but developers do _not_ have to worry about any local changes the client may have applied. Replicache ensures that any local mutations are correctly ordered with respect to the canonical server state.
 - **Transactional Conflict Resolution**: Conflicts are an unavoidable part of offline-first systems, but contrary to popular
   belief they don't need to be exceptionally painful. Replicache makes conflict resolution significantly easier by capturing the _intent_ of changes and then asking developers to replay that intended change later. See [Conflicts](#conflicts) for more.
-- **Causal+ Consistency**: [Consistency guarantees](https://jepsen.io/consistency) make distributed systems easier to reason about and prevent confusing user-visible data anomalies. When properly integrated with your backend, Replicache provides for [Causal+ Consistency](https://jepsen.io/consistency/models/causal) across the entire system. This means that transactions are guaranteed to be applied _atomically_, in the _same order_, _across all clients_. Further, all clients will see an order of transactions that is compatible with _causal history_. Basically: all clients will end up seeing the same thing, and you're not going to have anly weirdly reordered or dropped messages. We have worked with independent Distributed Systems expert Kyle Kingsbury of Jepsen to validate these properties of our design. See [Jepsen on Replicache](https://replicache.dev/jepsen.html).
+- **Causal+ Consistency**: [Consistency guarantees](https://jepsen.io/consistency) make distributed systems easier to reason about and prevent confusing user-visible data anomalies. When properly integrated with your backend, Replicache provides for [Causal+ Consistency](https://jepsen.io/consistency/models/causal) across the entire system. This means that transactions are guaranteed to be applied _atomically_, in the _same order_, _across all clients_. Further, all clients will see an order of transactions that is compatible with _causal history_. Basically: all clients will end up seeing the same thing, and you're not going to have any weirdly reordered or dropped messages. We have worked with independent Distributed Systems expert Kyle Kingsbury of Jepsen to validate these properties of our design. See [Jepsen on Replicache](https://replicache.dev/jepsen.html).
 
 # System Overview
 
@@ -80,7 +80,7 @@ Within the Replicache client, each version of the user's state is represented as
 Commits come in two flavors, those from the client and those from the server:
 
 - _Local commits_ represent a change made by a mutator executing locally against the client's cache. The set of local commits that are not yet known to be applied in the Data Layer are known as _pending_ commits. Local commits include the _mutator name_ and _arguments_ that caused them, so that the mutator may be replayed later on top of new snapshot commits from the server if necessary.
-- _Snapshot commits_ represent a state update pulled from the server. They carry a _cookie_, which the Data Layer can used to calculate the delta for the next pull.
+- _Snapshot commits_ represent a state update pulled from the server. They carry a _cookie_, which the Data Layer can use to calculate the delta for the next pull.
 
 ### API Sketch
 

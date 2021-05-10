@@ -1,13 +1,10 @@
 import {expect} from '@esm-bundle/chai';
 import {sleep} from './sleep.js';
-
-const dbsToDrop = new Set<string>();
+import {closeAllReps, dbsToDrop, deletaAllDatabases} from './test-util.js';
 
 teardown(async () => {
-  for (const name of dbsToDrop) {
-    indexedDB.deleteDatabase(name);
-  }
-  dbsToDrop.clear();
+  await closeAllReps();
+  deletaAllDatabases();
 });
 
 test('worker test', async () => {
@@ -36,10 +33,10 @@ async function send(
     w.onmessageerror = reject;
   });
   w.postMessage(data);
-  return timeout(p);
+  return withTimeout(p);
 }
 
-async function timeout<T>(p: Promise<T>): Promise<T> {
+async function withTimeout<T>(p: Promise<T>): Promise<T> {
   return Promise.race([
     p,
     sleep(3000).then(() => Promise.reject(new Error('Timed out'))),

@@ -1,21 +1,11 @@
 // This test file is loaded by worker.test.ts
 
-import {Replicache, ReplicacheTest} from './replicache.js';
+import {ReplicacheTest} from './replicache.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
 import {asyncIterableToArray} from './async-iterable-to-array.js';
 import {expect} from '@esm-bundle/chai';
 import type {JSONValue} from './json.js';
-
-const reps: Set<Replicache> = new Set();
-
-async function closeAllReps() {
-  for (const rep of reps) {
-    if (!rep.closed) {
-      await rep.close();
-    }
-    reps.delete(rep);
-  }
-}
+import {closeAllReps, reps} from './test-util.js';
 
 onmessage = async (e: MessageEvent) => {
   // postMessage(Replicache + '');

@@ -19,6 +19,12 @@ import type {ScanOptions} from './scan-options.js';
 
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import {asyncIterableToArray} from './async-iterable-to-array.js';
+import {
+  closeAllReps,
+  deletaAllDatabases,
+  reps,
+  dbsToDrop,
+} from './test-util.js';
 
 let clock: SinonFakeTimers;
 setup(function () {
@@ -38,8 +44,6 @@ async function tickAFewTimes(n = 10, time = 10) {
 fetchMock.config.overwriteRoutes = true;
 
 const {fail} = assert;
-
-const reps: Set<ReplicacheTest> = new Set();
 
 let overrideUseMemstore = false;
 
@@ -70,8 +74,6 @@ async function replicacheForTesting<MD extends MutatorDefs = {}>(
   return rep;
 }
 
-const dbsToDrop = new Set<string>();
-
 async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
   for (const [key, value] of Object.entries(data)) {
     await tx.put(key, value);
@@ -92,17 +94,8 @@ teardown(async () => {
   fetchMock.restore();
   sinon.restore();
 
-  for (const rep of reps) {
-    if (!rep.closed) {
-      await rep.close();
-    }
-    reps.delete(rep);
-  }
-
-  for (const name of dbsToDrop) {
-    indexedDB.deleteDatabase(name);
-  }
-  dbsToDrop.clear();
+  await closeAllReps();
+  deletaAllDatabases();
 });
 
 async function expectPromiseToReject(p: unknown): Promise<Chai.Assertion> {

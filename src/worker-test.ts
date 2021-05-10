@@ -8,10 +8,7 @@ import type {JSONValue} from './json.js';
 import {closeAllReps, reps} from './test-util.js';
 
 onmessage = async (e: MessageEvent) => {
-  // postMessage(Replicache + '');
-
   const {name, useMemstore} = e.data;
-  console.log(e.source, e.origin);
   try {
     await testGethasScanOnEmptyDB(name, useMemstore);
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment

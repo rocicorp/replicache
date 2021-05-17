@@ -661,7 +661,6 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
 
     // Replay.
-    this._logger.debug ?? console.group('Replaying');
     for (const mutation of replayMutations) {
       syncHead = await this._replay(
         syncHead,
@@ -670,7 +669,6 @@ export class Replicache<MD extends MutatorDefs = {}>
         JSON.parse(mutation.args),
       );
     }
-    this._logger.debug ?? console.groupEnd();
 
     await this._maybeEndPull({...beginPullResult, syncHead});
   }

@@ -18,14 +18,19 @@ export default {
   groups: [
     {
       name: 'Main',
-      files: 'src/{replicache,connection-loop,json}.test.ts',
-      browsers: [chromium, webkit, firefox],
+      files: 'src/replicache.test.ts',
+      browsers: [webkit],
     },
-    {
-      name: 'Worker',
-      files: 'src/worker.test.ts',
-      // Only Chrome supports modules in workers at the moment
-      browsers: [chromium],
-    },
+    // {
+    //   name: 'Main',
+    //   files: 'src/{replicache,connection-loop,json}.test.ts',
+    //   browsers: [chromium, webkit, firefox],
+    // },
+    // {
+    //   name: 'Worker',
+    //   files: 'src/worker.test.ts',
+    //   // Only Chrome supports modules in workers at the moment
+    //   browsers: [chromium],
+    // },
   ],
 };

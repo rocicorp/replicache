@@ -2108,7 +2108,11 @@ testWithBothStores('onSync', async () => {
     };
 
     await add({c: 'c'});
-    await tickAFewTimes(6);
+
+    // This feels like cheating
+    while (onSync.callCount < 4) {
+      await tickAFewTimes(1, 1);
+    }
 
     expect(consoleErrorStub.firstCall.args[0]).to.equal(
       'Got error response from server (https://push.com/push) doing push: 401: xxx',

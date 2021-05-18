@@ -68,6 +68,8 @@ async function replicacheForTesting<MD extends MutatorDefs = {}>(
     ...rest,
   });
   reps.add(rep);
+  // Wait for open to be done.
+  await rep.clientID;
   fetchMock.post(pullURL, {lastMutationID: 0, patch: []});
   fetchMock.post(pushURL, {});
   await tickAFewTimes();
@@ -2012,24 +2014,24 @@ testWithBothStores('isEmpty', async () => {
       addData,
       del: (tx: WriteTransaction, key: string) => tx.del(key),
       mut: async tx => {
-        expect(await tx.isEmpty()).to.eq(false);
+        expect(await tx.isEmpty()).to.equal(false);
 
         tx.del('c');
-        expect(await tx.isEmpty()).to.eq(false);
+        expect(await tx.isEmpty()).to.equal(false);
 
         tx.del('a');
-        expect(await tx.isEmpty()).to.eq(true);
+        expect(await tx.isEmpty()).to.equal(true);
 
         tx.put('d', 4);
-        expect(await tx.isEmpty()).to.eq(false);
+        expect(await tx.isEmpty()).to.equal(false);
       },
     },
   });
   const {addData: add, del, mut} = rep.mutate;
 
   async function t(expected: boolean) {
-    expect(await rep?.query(tx => tx.isEmpty())).to.eq(expected);
-    expect(await rep?.isEmpty()).to.eq(expected);
+    expect(await rep?.query(tx => tx.isEmpty())).to.equal(expected);
+    expect(await rep?.isEmpty()).to.equal(expected);
   }
 
   await t(true);
@@ -2063,7 +2065,7 @@ testWithBothStores('onSync', async () => {
   const onSync = sinon.fake();
   rep.onSync = onSync;
 
-  expect(onSync.callCount).to.eq(0);
+  expect(onSync.callCount).to.equal(0);
 
   fetchMock.postOnce(pullURL, {
     cookie: '',
@@ -2073,7 +2075,7 @@ testWithBothStores('onSync', async () => {
   rep.pull();
   await tickAFewTimes(15);
 
-  expect(onSync.callCount).to.eq(2);
+  expect(onSync.callCount).to.equal(2);
   expect(onSync.getCall(0).args[0]).to.be.true;
   expect(onSync.getCall(1).args[0]).to.be.false;
 
@@ -2082,7 +2084,7 @@ testWithBothStores('onSync', async () => {
   await add({a: 'a'});
   await tickAFewTimes();
 
-  expect(onSync.callCount).to.eq(2);
+  expect(onSync.callCount).to.equal(2);
   expect(onSync.getCall(0).args[0]).to.be.true;
   expect(onSync.getCall(1).args[0]).to.be.false;
 
@@ -2090,7 +2092,7 @@ testWithBothStores('onSync', async () => {
   onSync.resetHistory();
   await add({b: 'b'});
   await tickAFewTimes();
-  expect(onSync.callCount).to.eq(2);
+  expect(onSync.callCount).to.equal(2);
   expect(onSync.getCall(0).args[0]).to.be.true;
   expect(onSync.getCall(1).args[0]).to.be.false;
 
@@ -2112,7 +2114,7 @@ testWithBothStores('onSync', async () => {
       'Got error response from server (https://push.com/push) doing push: 401: xxx',
     );
 
-    expect(onSync.callCount).to.eq(4);
+    expect(onSync.callCount).to.equal(4);
     expect(onSync.getCall(0).args[0]).to.be.true;
     expect(onSync.getCall(1).args[0]).to.be.false;
     expect(onSync.getCall(2).args[0]).to.be.true;
@@ -2122,7 +2124,7 @@ testWithBothStores('onSync', async () => {
   rep.onSync = null;
   onSync.resetHistory();
   fetchMock.postOnce(pushURL, {});
-  expect(onSync.callCount).to.eq(0);
+  expect(onSync.callCount).to.equal(0);
 });
 
 testWithBothStores('push timing', async () => {
@@ -2146,7 +2148,7 @@ testWithBothStores('push timing', async () => {
   const tryPushCalls = () =>
     spy.args.filter(([rpc]) => rpc === RPC.TryPush).length;
 
-  expect(tryPushCalls()).to.eq(1);
+  expect(tryPushCalls()).to.equal(1);
 
   spy.resetHistory();
 
@@ -2156,28 +2158,28 @@ testWithBothStores('push timing', async () => {
   await add({c: 3});
   await add({d: 4});
 
-  expect(tryPushCalls()).to.eq(0);
+  expect(tryPushCalls()).to.equal(0);
 
   await clock.tickAsync(pushDelay + 10);
 
-  expect(tryPushCalls()).to.eq(1);
+  expect(tryPushCalls()).to.equal(1);
   spy.resetHistory();
 
   const p1 = add({e: 5});
   const p2 = add({f: 6});
   const p3 = add({g: 7});
 
-  expect(tryPushCalls()).to.eq(0);
+  expect(tryPushCalls()).to.equal(0);
 
   await tickAFewTimes();
   await p1;
-  expect(tryPushCalls()).to.eq(1);
+  expect(tryPushCalls()).to.equal(1);
   await tickAFewTimes();
   await p2;
-  expect(tryPushCalls()).to.eq(1);
+  expect(tryPushCalls()).to.equal(1);
   await tickAFewTimes();
   await p3;
-  expect(tryPushCalls()).to.eq(1);
+  expect(tryPushCalls()).to.equal(1);
 });
 
 test('push and pull concurrently', async () => {

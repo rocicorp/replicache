@@ -1,13 +1,13 @@
 module.exports = {
   docs: [
     'getting-started',
+    'how-it-works',
     {
       'API Reference': require('./typedoc-sidebar.js'),
     },
     {
       'Integration Guide': [
         'guide-intro',
-        'guide-arch',
         'guide-design-client-view',
         'guide-install-replicache',
         'guide-render-ui',

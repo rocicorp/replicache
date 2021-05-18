@@ -14,7 +14,7 @@ Replicache is a persistent key/value store that lives inside your web app. Use i
 
 You don't need REST or GraphQL APIs when you use Replicache either.
 
-Instead, read and write directly from Replicache, as if it was in-memory data. Replicache continuously synchronizes itself to local storage, and also with your server using two special endpoints: `replicache-push` and `replicache-pull`.
+Instead, read and write directly to Replicache, as if it was in-memory data. Replicache continuously persists itself locally and synchronizes with your server using two special endpoints: `replicache-push` and `replicache-pull`.
 
 ## ① Pull
 
@@ -78,9 +78,9 @@ Content-Type: application/json
 
 Understanding Replicache starts with the _Client View_.
 
-The Client View is the set of key/value pairs that Replicache is synchronizing at any point in time.
+The Client View is the set of key/value pairs that Replicache is synchronizing at any point in time. It is the Replicache Client's _view_ of the server's data. Typically there is a 1-1 correspondence between items in the server's datastore and items in the Client View, for example rows in the server's database and key/value pairs in the Client View.
 
-The server has the _authoritative_ version of the Client View: Whatever it says the Client View contains is what apps will see. The only exception is local mutations (discussed further below).
+The server is the _authoritative_ source of the Client View. With the exception of local mutations which are discussed below, the app will see the Client View returned by the server. In this sense the server is the source of truth for the Client View -- all clients will converge on the data it returns.
 
 Replicache _pulls_ updates to the Client View periodically from the `/replicache-pull` endpoint on your server. Return a JSON cookie describing the last pulled state with each response.
 
@@ -88,7 +88,7 @@ When Replicache pulls the next time, it sends the cookie in the request. Use it 
 
 :::note
 
-You don't need to worry about clobbering pending data with your server-side changes. Replicache rewinds local pending mutations during sync and replays them "on top" of new server side state.
+You don't need to worry about clobbering the effects of unpushed ("pending") local mutations in the client with server-side changes. Replicache rewinds pending local mutations during sync and replays them "on top" of new server side state.
 
 :::
 
@@ -135,7 +135,7 @@ Whenever the data in Replicache changes — either due to changes in this tab, a
 
 Replicache only refires subscriptions when the query results have actually changed, eliminating wasteful re-renders.
 
-## ③ Optimistic Mutate
+## ③ Optimistic Local Mutations
 
 <Tabs
 groupId="lang"
@@ -166,11 +166,11 @@ rep.createTodo(
   </TabItem>
 </Tabs>
 
-To make changes first register a _mutator_ with the `Replicache` constructor.
+To make changes to the Client View register a _mutator_ with the `Replicache` constructor.
 
-A mutator is simply a named JavaScript function with JSON- serializable arguments. Replicache executes mutators immediately (aka "optimistically") against the local cache, without waiting for server confirmation. Subscriptions re-fire instantly, and views are updated with the pending change.
+A mutator is a named JavaScript function with JSON-serializable arguments. Replicache executes mutators immediately (aka "optimistically") against the local cache, without waiting for server confirmation. Subscriptions re-fire instantly, and views are updated with the pending change.
 
-It doesn't matter if the mutator computes the same result as server later will — Replicache unwinds the effects of the local mutation as soon as the effects of the remote mutation are known.
+Once executed locally, the mutator invocation -- _mutation_ -- is queued to be pushed to and executed by the server in the background. It doesn't matter if the local mutator computes the same result as server later will — Replicache unwinds the effects of the local mutation as soon as the effects of the remote mutation are known.
 
 ## ④ Push
 
@@ -221,9 +221,9 @@ HTTP/2 200
   </TabItem>
 </Tabs>
 
-Batches of pending write transactions are sent to the `/replicache-batch` endpoint on your service as connectivity allows. These requests are delayed, but otherwise normal. Your service defensively checks for conflicts, and ignores, modifies, or rejects the request.
+We call the set of local mutations that have not yet been confirmed by the server "pending mutations". Batches of pending mutations are pushed to the `/replicache-push` endpoint on your service as connectivity allows. The push endpoint has an implementation of each mutator and applies each mutation in order to its datastore. The outcome on the server might be different than the outcome of the local mutation that ran against Replicache in the client. That's OK -- the server is authoritative so the Replicache client will converge on the state of the server.
 
-The Replicache client assigns each mutation a unique incrementing integer. Your server must store this `lastMutationID` someplace associated with each client. It should be updated transactionally with the effects of a mutation taking place and returned in the next pull.
+The mechanism by which a mutation is "confirmed" by the server is the client's _last mutation id_. Each mutation is assigned by the client a unique incrementing integer, its _mutation id_. When the server push endpoint applies a mutation, it must transactionally update the `lastMutationID` for the cilent to that mutation's ID. The next time the client pulls, the server returns the `lastMutationID` for the client, which the client uses to determine which pending mutations have been confirmed. Confirmed pending mutations do not need to be replayed on top of any new state returned by pull, but unconfirmed pending mutations do need to be replayed (see below).
 
 ## ⑤,⑥ Poke, Incremental Pull
 
@@ -239,14 +239,14 @@ const pusher = new Pusher({
 await pusher.trigger(`todos-${userID}`, 'poke', {});
 ```
 
-After processing a mutation on your server, send a WebSocket "poke" (a message with no payload) telling any potentially affected users' devices to sync again.
+After applying a mutation on your server, send a WebSocket "poke" (a message with no payload) hinting to any potentially affected users' devices to try to pull. You can use any WebSocket library or even a hosted service to send this poke. No user data is sent over the web socket — its only purpose is a hint to get the relevant clients to pull soon.
 
-You can use any WebSocket library or even a hosted service to send this poke.
-
-Note that no user data is sent over the web socket — its only purpose is a hint to get the relevant clients to pull again soon.
+Note that Replicache can also pull on an interval, in addition to or instead of in response to a poke. See [ReplicacheOptions](https://doc.replicache.dev/api/interfaces/replicacheoptions).
 
 ## ⑦ Rebase
 
-Replicache rewinds the cache to the point before sync started, applies the incremental pull, and then replays any remaining unacknowledged pending mutations on top.
+When the Replicache client pulls a new Client View from the server, it potentially needs to replay pending local mutations on top of the new state. The set of pending mutations to replay is the set with mutation id > `lastMutationID` returned by the server in the pull.
 
-The final state is revealed to the UI atomically, subscriptions re-fire, and the UI refreshes.
+To replay, Replicache rewinds the state of the key/value store to the point before the latest pull, applies the changes from the server (from the incremental pull), and then replays unconfirmed pending mutations if any on top.
+
+The new state is revealed to the UI atomically, subscriptions re-fire, and the UI refreshes.

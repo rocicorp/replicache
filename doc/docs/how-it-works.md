@@ -247,6 +247,6 @@ Note that no user data is sent over the web socket — its only purpose is a hin
 
 ## ⑦ Rebase
 
- Replicache rewinds the cache to the point before sync started, applies the incremental pull, and then replays any remaining unacknowledged pending mutations on top.
+Replicache rewinds the cache to the point before sync started, applies the incremental pull, and then replays any remaining unacknowledged pending mutations on top.
 
 The final state is revealed to the UI atomically, subscriptions re-fire, and the UI refreshes.

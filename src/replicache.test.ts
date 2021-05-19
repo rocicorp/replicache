@@ -41,6 +41,12 @@ async function tickAFewTimes(n = 10, time = 10) {
   }
 }
 
+async function tickUntil(f: () => boolean, msPerTest = 10) {
+  while (!f()) {
+    await clock.tickAsync(msPerTest);
+  }
+}
+
 fetchMock.config.overwriteRoutes = true;
 
 const {fail} = assert;
@@ -2109,10 +2115,7 @@ testWithBothStores('onSync', async () => {
 
     await add({c: 'c'});
 
-    // This feels like cheating
-    while (onSync.callCount < 4) {
-      await tickAFewTimes(1, 1);
-    }
+    await tickUntil(() => onSync.callCount >= 4);
 
     expect(consoleErrorStub.firstCall.args[0]).to.equal(
       'Got error response from server (https://push.com/push) doing push: 401: xxx',
@@ -2565,7 +2568,7 @@ testWithBothStores('subscribe pull and index update', async () => {
     });
 
     rep.pull();
-    await tickAFewTimes();
+    await tickUntil(() => log.length >= opt.expectedLog.length);
     expect(queryCallCount).to.equal(expectedQueryCallCount);
     expect(log).to.deep.equal(opt.expectedLog);
   }

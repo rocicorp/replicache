@@ -6,6 +6,7 @@ const webkit = playwrightLauncher({product: 'webkit'});
 const firefox = playwrightLauncher({product: 'firefox'});
 
 export default {
+  concurrentBrowsers: 3,
   nodeResolve: true,
   plugins: [esbuildPlugin({ts: true})],
   testFramework: {
@@ -19,7 +20,7 @@ export default {
     {
       name: 'Main',
       files: 'src/{replicache,connection-loop,json}.test.ts',
-      browsers: [chromium, webkit, firefox],
+      browsers: [firefox, chromium, webkit],
     },
     {
       name: 'Worker',

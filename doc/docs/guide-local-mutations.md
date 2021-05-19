@@ -28,8 +28,8 @@ const rep = new Replicache({
         order,
       });
     },
-  );
-}
+  },
+});
 ```
 
 This creates a mutator named "createMessage". When invoked, the implementation is run within a transaction (`tx`) and it `put`s the new message into the local map.

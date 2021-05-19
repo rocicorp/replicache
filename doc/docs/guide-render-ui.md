@@ -115,10 +115,6 @@ const styles = {
   },
 };
 
-function registerMutators(rep) {
-  // TODO: Register mutators
-}
-
 function listen(rep) {
   // TODO: Listen for changes on server
 }

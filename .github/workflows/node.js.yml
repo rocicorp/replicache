@@ -1,4 +1,4 @@
-name: TypeScript/JavaScript
+name: JS
 
 on:
   push:
@@ -24,7 +24,6 @@ jobs:
       - run: npm ci
       - run: npm run check-format
       - run: npm run lint
-      - run: npm test
 
   build:
     name: Build

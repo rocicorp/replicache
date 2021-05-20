@@ -21,7 +21,7 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
-      - run: npm ci
+      - run: npm install
       - run: npm run check-format
       - run: npm run lint
 
@@ -39,7 +39,7 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
-      - run: npm ci
+      - run: npm install
       - run: npm run build
 
   test:
@@ -57,5 +57,5 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
       - uses: microsoft/playwright-github-action@v1
-      - run: npm ci
+      - run: npm install
       - run: npm test

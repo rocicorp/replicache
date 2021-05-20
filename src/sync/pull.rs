@@ -658,10 +658,10 @@ mod tests {
                     let got_err_str = to_debug(result.expect_err(c.name));
                     assert!(
                         got_err_str.contains(err_str),
-                        format!(
-                            "{}: '{}' does not contain '{}'",
-                            c.name, got_err_str, err_str
-                        )
+                        "{}: '{}' does not contain '{}'",
+                        c.name,
+                        got_err_str,
+                        err_str
                     );
                 }
             }
@@ -1193,11 +1193,9 @@ mod tests {
                 let got_head = read.get_head(SYNC_HEAD_NAME).await.unwrap();
                 assert!(
                     got_head.is_none(),
-                    format!(
-                        "{}: expected head to be None, was {}",
-                        c.name,
-                        got_head.unwrap()
-                    )
+                    "{}: expected head to be None, was {}",
+                    c.name,
+                    got_head.unwrap()
                 );
                 // In a nop sync we except Beginpull to succeed but sync_head will
                 // be empty.
@@ -1402,7 +1400,7 @@ mod tests {
             match c.exp_err {
                 Some(e) => assert!(to_debug(result.unwrap_err()).contains(e)),
                 None => {
-                    assert!(result.is_ok(), format!("{}: {:?}", c.name, result));
+                    assert!(result.is_ok(), "{}: {:?}", c.name, result);
                     let resp = result.unwrap();
                     assert_eq!(sync_head, resp.sync_head);
                     assert_eq!(

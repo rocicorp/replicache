@@ -46,10 +46,7 @@ impl Chunk {
     }
 
     pub fn meta(&self) -> Option<&[u8]> {
-        match &self.meta {
-            None => None,
-            Some((buf, offset)) => Some(&buf[*offset..]),
-        }
+        self.meta.as_ref().map(|(buf, offset)| &buf[*offset..])
     }
 
     fn create_meta(refs: &[&str]) -> Option<(Vec<u8>, usize)> {

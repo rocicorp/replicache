@@ -213,7 +213,7 @@ mod tests {
             map.put(b"baz".to_vec(), b"baz".to_vec());
             let actual = scan(&map, opts.try_into().unwrap())
                 .map(|sr| match sr {
-                    ScanResult::Error(e) => panic!(e),
+                    ScanResult::Error(e) => panic!("{:?}", e),
                     ScanResult::Item(item) => item.key,
                 })
                 .collect::<Vec<&[u8]>>();
@@ -532,7 +532,7 @@ mod tests {
             };
             let got = scan(&map, opts.try_into().unwrap())
                 .map(|sr| match sr {
-                    ScanResult::Error(e) => panic!(e),
+                    ScanResult::Error(e) => panic!("{:?}", e),
                     ScanResult::Item(item) => std::str::from_utf8(item.key).unwrap(),
                 })
                 .collect::<Vec<&str>>();
@@ -580,7 +580,7 @@ mod tests {
             };
             let got = scan(&map, opts.try_into().unwrap())
                 .map(|sr| match sr {
-                    ScanResult::Error(e) => panic!(e),
+                    ScanResult::Error(e) => panic!("{:?}", e),
                     ScanResult::Item(item) => {
                         (std::str::from_utf8(item.secondary_key).unwrap(), item.key)
                     }

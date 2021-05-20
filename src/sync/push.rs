@@ -342,10 +342,10 @@ mod tests {
                     let got_err_str = to_debug(result.expect_err(c.name));
                     assert!(
                         got_err_str.contains(err_str),
-                        format!(
-                            "{}: '{}' does not contain '{}'",
-                            c.name, got_err_str, err_str
-                        )
+                        "{}: '{}' does not contain '{}'",
+                        c.name,
+                        got_err_str,
+                        err_str
                     );
                 }
             }

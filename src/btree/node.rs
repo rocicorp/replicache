@@ -115,11 +115,8 @@ impl<'a, 'b> Iterator for InternalNodeKeyIterator<'a, 'b> {
     type Item = &'a [u8];
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.iter.next() {
-            None => None,
-            // TODO validate Node on creation so this unwrap() is not dangerous.
-            Some(e) => Some(e.key().unwrap()),
-        }
+        // TODO validate Node on creation so this unwrap() is not dangerous.
+        self.iter.next().map(|e| e.key().unwrap())
     }
 }
 
@@ -141,11 +138,8 @@ impl<'a, 'b> Iterator for DataNodeKeyIterator<'a, 'b> {
     type Item = &'a [u8];
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.iter.next() {
-            None => None,
-            // TODO validate Node on creation so this unwrap() is not dangerous.
-            Some(dne) => Some(dne.key().unwrap()),
-        }
+        // TODO validate Node on creation so this unwrap() is not dangerous.
+        self.iter.next().map(|dne| dne.key().unwrap())
     }
 }
 

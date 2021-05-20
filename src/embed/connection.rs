@@ -37,16 +37,8 @@ impl<'a> Transaction<'a> {
 
 type TransactionsMap<'a> = RwLock<HashMap<u32, RwLock<Transaction<'a>>>>;
 
-#[derive(Debug)]
-enum FromJsError {
-    DeserializeError(serde_wasm_bindgen::Error),
-}
-
-fn from_js<T: serde::de::DeserializeOwned>(data: JsValue) -> Result<T, String> {
-    use FromJsError::*;
-    serde_wasm_bindgen::from_value(data)
-        .map_err(DeserializeError)
-        .map_err(to_debug)
+fn from_js<T: serde::de::DeserializeOwned>(data: JsValue) -> Result<T, JsValue> {
+    serde_wasm_bindgen::from_value(data).map_err(JsValue::from)
 }
 
 #[derive(Debug)]
@@ -60,7 +52,7 @@ fn to_js<T: serde::Serialize, E: std::fmt::Debug>(res: Result<T, E>) -> Result<J
         Ok(v) => Ok(serde_wasm_bindgen::to_value(&v)
             .map_err(SerializeError)
             .map_err(to_debug)?),
-        Err(v) => Err(JsValue::from_str(&to_debug(v))),
+        Err(v) => Err(js_sys::Error::new(&to_debug(v)).into()),
     }
 }
 

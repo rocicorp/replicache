@@ -26,6 +26,10 @@ use wasm_bindgen_test::*;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
+fn js_error_message(v: &JsValue) -> String {
+    v.unchecked_ref::<js_sys::Error>().message().into()
+}
+
 fn random_db() -> String {
     let mut rng = rand::thread_rng();
     std::iter::repeat(())
@@ -35,7 +39,7 @@ fn random_db() -> String {
 }
 
 // TODO: Can we deserialize back to the original enum?
-async fn dispatch<Request, Response>(db: &str, rpc: Rpc, req: Request) -> Result<Response, String>
+async fn dispatch<Request, Response>(db: &str, rpc: Rpc, req: Request) -> Result<Response, JsValue>
 where
     Request: Serialize,
     Response: DeserializeOwned,
@@ -48,7 +52,7 @@ async fn dispatch_with_scan_receiver<Request, Response>(
     rpc: Rpc,
     req: Request,
     scan_receiver: Option<js_sys::Function>,
-) -> Result<Response, String>
+) -> Result<Response, JsValue>
 where
     Request: Serialize,
     Response: DeserializeOwned,
@@ -62,7 +66,6 @@ where
     }
     let resp = wasm::dispatch(db.to_string(), rpc as u8, req).await;
     resp.map(|v| serde_wasm_bindgen::from_value(v).unwrap())
-        .map_err(|e| serde_wasm_bindgen::from_value(e).unwrap())
 }
 
 async fn open_transaction(
@@ -492,17 +495,19 @@ async fn test_get_put_del() {
         let db = &random_db();
 
         assert_eq!(
-            dispatch::<_, PutResponse>(
-                db,
-                Rpc::Put,
-                PutRequest {
-                    transaction_id: 42,
-                    key: str!("unused"),
-                    value: str!("unused"),
-                }
-            )
-            .await
-            .unwrap_err(),
+            js_error_message(
+                &dispatch::<_, PutResponse>(
+                    db,
+                    Rpc::Put,
+                    PutRequest {
+                        transaction_id: 42,
+                        key: str!("unused"),
+                        value: str!("unused"),
+                    }
+                )
+                .await
+                .unwrap_err()
+            ),
             format!("\"{}\" not open", db)
         );
         let client_id = dispatch::<_, String>(db, Rpc::Open, OpenRequest { use_memstore })
@@ -608,7 +613,11 @@ async fn test_create_drop_index() {
         )
         .await
         .unwrap_err();
-        assert_eq!("DBError(IndexExistsWithDifferentDefinition)", response);
+
+        assert_eq!(
+            "DBError(IndexExistsWithDifferentDefinition)",
+            js_error_message(&response)
+        );
         close(db, transaction_id).await;
 
         // Ensure the index can be used: insert a value and ensure it scans.
@@ -658,7 +667,7 @@ async fn test_create_drop_index() {
             .transaction_id;
         {
             let (receive, _cb, _got) = new_test_scan_receiver();
-            let scan_result: Result<ScanResponse, String> = dispatch_with_scan_receiver(
+            let scan_result: Result<ScanResponse, JsValue> = dispatch_with_scan_receiver(
                 db,
                 Rpc::Scan,
                 ScanRequest {
@@ -678,7 +687,7 @@ async fn test_create_drop_index() {
             .await;
             assert_eq!(
                 "ScanError(UnknownIndexName(\"idx1\"))",
-                &scan_result.unwrap_err()
+                js_error_message(&scan_result.unwrap_err())
             );
         }
         close(db, transaction_id).await;
@@ -695,7 +704,10 @@ async fn test_create_drop_index() {
         )
         .await
         .unwrap_err();
-        assert_eq!(str!("DBError(NoSuchIndexError(\"idx1\"))"), result);
+        assert_eq!(
+            "DBError(NoSuchIndexError(\"idx1\"))",
+            js_error_message(&result)
+        );
         close(db, transaction_id).await;
 
         assert_eq!(dispatch::<_, String>(db, Rpc::Close, "").await.unwrap(), "");
@@ -1338,9 +1350,15 @@ async fn test_get_root() {
         let db = &random_db();
         assert_eq!(
             format!(r#""{}" not open"#, db),
-            dispatch::<_, GetRootResponse>(db, Rpc::GetRoot, &GetRootRequest { head_name: None })
+            js_error_message(
+                &dispatch::<_, GetRootResponse>(
+                    db,
+                    Rpc::GetRoot,
+                    &GetRootRequest { head_name: None }
+                )
                 .await
                 .unwrap_err()
+            )
         );
 
         let client_id = dispatch::<_, String>(db, Rpc::Open, OpenRequest { use_memstore })
@@ -1416,7 +1434,7 @@ async fn test_set_log_level() {
     )
     .await
     .unwrap_err();
-    assert_eq!("UnknownLogLevel(\"BOOM\")", response);
+    assert_eq!("UnknownLogLevel(\"BOOM\")", js_error_message(&response));
     assert_eq!(log::LevelFilter::Error, log::max_level());
 
     log::set_max_level(level);

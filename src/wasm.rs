@@ -19,7 +19,8 @@ pub async fn new_idbstore(name: String) -> Option<Box<dyn Store>> {
 #[wasm_bindgen]
 pub async fn dispatch(db_name: String, rpc: u8, args: JsValue) -> Result<JsValue, JsValue> {
     init_panic_hook();
-    let rpc = Rpc::from_u8(rpc).ok_or_else(|| JsValue::from(format!("Invalid RPC: {:?}", rpc)))?;
+    let rpc = Rpc::from_u8(rpc)
+        .ok_or_else(|| JsValue::from(js_sys::Error::new(&format!("Invalid RPC: {:?}", rpc))))?;
     embed::dispatch(db_name, rpc, args).await
 }
 

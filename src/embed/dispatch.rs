@@ -67,10 +67,10 @@ async fn dispatch_loop(rx: Receiver<Request>) {
             Some(tx) => tx.send(req).await,
             None => {
                 req.response
-                    .send(Err(JsValue::from_str(&format!(
+                    .send(Err(JsValue::from(js_sys::Error::new(&format!(
                         "\"{}\" not open",
                         req.db_name
-                    ))))
+                    )))))
                     .await;
             }
         };

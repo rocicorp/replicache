@@ -12,8 +12,8 @@
     "lint": "eslint --ext .ts,.tsx,.js,.jsx src/ perf/",
     "build": "rm -rf out && rollup --config rollup.config.js && CJS=1 rollup --config rollup.config.js ",
     "build:watch": "rollup --config rollup.config.js --watch",
-    "prepack": "npm run lint && tool/get-deps.sh && npm run test && npm run build",
-    "prepare": "rm -f node_modules/fetch-mock/esm/client.d.ts",
+    "prepack": "npm run lint && npm run test && npm run build",
+    "prepare": "rm -f node_modules/fetch-mock/esm/client.d.ts && tool/get-deps.sh",
     "perf": "node perf/runner.js"
   },
   "devDependencies": {

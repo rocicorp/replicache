@@ -103,17 +103,18 @@ values={[
 ]}>
 <TabItem value="react">
 
-````js
+```js
 const todos = useSubscribe(
     replicache,
     tx => tx.scanAll({prefix: '/todo/'}));
 
 return <ul>{
   todos.map(t => <li>{t.title}</li>)
-}</ul>;```
+}</ul>;
+```
 
-  </TabItem>
-  <TabItem value="vanilla">
+</TabItem>
+<TabItem value="vanilla">
 
 ```js
 replicache.subscribe(

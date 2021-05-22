@@ -44,11 +44,6 @@ impl std::convert::From<db::LocalMeta<'_>> for Mutation {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct PushResponse {
-    // TODO: MutationInfos []MutationInfo `json:"mutationInfos,omitempty"`
-}
-
 // We define this trait so we can provide a fake implementation for testing.
 #[async_trait(?Send)]
 pub trait Pusher {
@@ -58,7 +53,7 @@ pub trait Pusher {
         push_url: &str,
         push_auth: &str,
         request_id: &str,
-    ) -> Result<(Option<PushResponse>, HttpRequestInfo), PushError>;
+    ) -> Result<HttpRequestInfo, PushError>;
 }
 
 pub struct FetchPusher<'a> {
@@ -87,7 +82,7 @@ impl Pusher for FetchPusher<'_> {
         push_url: &str,
         push_auth: &str,
         request_id: &str,
-    ) -> Result<(Option<PushResponse>, HttpRequestInfo), PushError> {
+    ) -> Result<HttpRequestInfo, PushError> {
         use PushError::*;
         let http_req = new_push_http_request(push_req, push_url, push_auth, request_id)?;
         let http_resp: http::Response<String> = self
@@ -104,12 +99,7 @@ impl Pusher for FetchPusher<'_> {
                 http_resp.body().into()
             },
         };
-        let push_resp = if ok {
-            serde_json::from_str(&http_resp.body()).map_err(InvalidResponse)?
-        } else {
-            None
-        };
-        Ok((push_resp, http_request_info))
+        Ok(http_request_info)
     }
 }
 
@@ -137,7 +127,6 @@ fn new_push_http_request(
 pub enum PushError {
     FetchFailed(FetchError),
     InvalidRequest(http::Error),
-    InvalidResponse(serde_json::error::Error),
     SerializePushError(serde_json::error::Error),
 }
 
@@ -186,7 +175,7 @@ pub async fn push(
         };
         debug!(lc, "Starting push...");
         let push_timer = rlog::Timer::new();
-        let (_push_resp, req_info) = pusher
+        let req_info = pusher
             .push(&push_req, &req.push_url, &req.push_auth, request_id)
             .await
             .map_err(PushFailed)?;
@@ -257,7 +246,6 @@ mod tests {
             pub resp_status: u16,
             pub resp_body: &'a str,
             pub exp_err: Option<&'a str>,
-            pub exp_resp: Option<PushResponse>,
             pub exp_http_request_info: HttpRequestInfo,
         }
         let cases = [
@@ -266,7 +254,6 @@ mod tests {
                 resp_status: 200,
                 resp_body: r#"{}"#,
                 exp_err: None,
-                exp_resp: Some(PushResponse {}),
                 exp_http_request_info: good_http_request_info.clone(),
             },
             Case {
@@ -274,7 +261,6 @@ mod tests {
                 resp_status: 403,
                 resp_body: "forbidden",
                 exp_err: None,
-                exp_resp: None,
                 exp_http_request_info: HttpRequestInfo {
                     http_status_code: http::StatusCode::FORBIDDEN.into(),
                     error_message: str!("forbidden"),
@@ -284,9 +270,7 @@ mod tests {
                 name: "invalid response",
                 resp_status: 200,
                 resp_body: r#"not json"#,
-                exp_err: Some("\"expected ident\", line: 1, column: 2"),
-                exp_resp: None,
-                // Not used when there was an error
+                exp_err: None,
                 exp_http_request_info: good_http_request_info.clone(),
             },
         ];
@@ -329,25 +313,15 @@ mod tests {
                 )
                 .await;
 
-            if let Ok(result) = &result {
-                assert_eq!(result.0, c.exp_resp, "{}", c.name);
-            }
-
-            match &c.exp_err {
-                None => {
-                    let got_push_resp = result.expect(c.name).0;
-                    assert_eq!(c.exp_resp, got_push_resp);
-                }
-                Some(err_str) => {
-                    let got_err_str = to_debug(result.expect_err(c.name));
-                    assert!(
-                        got_err_str.contains(err_str),
-                        "{}: '{}' does not contain '{}'",
-                        c.name,
-                        got_err_str,
-                        err_str
-                    );
-                }
+            if let Some(err_str) = &c.exp_err {
+                let got_err_str = to_debug(result.expect_err(c.name));
+                assert!(
+                    got_err_str.contains(err_str),
+                    "{}: '{}' does not contain '{}'",
+                    c.name,
+                    got_err_str,
+                    err_str
+                );
             }
             handle.cancel().await;
         }
@@ -360,14 +334,6 @@ mod tests {
         exp_push_auth: &'a str,
         exp_request_id: &'a str,
 
-        // We would like to write here:
-        //    result: Result<PushResponse, PushError>,
-        // but pull takes &self so we can't move out of result if we did.
-        // Cloning and returning result would work except for that our error
-        // enums contain values that are not cloneable, eg http::Status and
-        // DeserializeErr. (Or, I guess we could make pull take &mut self as another
-        // solution, so long as all contained errors are Send. I think.)
-        resp: Option<push::PushResponse>,
         err: Option<String>,
     }
 
@@ -379,7 +345,7 @@ mod tests {
             push_url: &str,
             push_auth: &str,
             request_id: &str,
-        ) -> Result<(Option<push::PushResponse>, HttpRequestInfo), push::PushError> {
+        ) -> Result<HttpRequestInfo, push::PushError> {
             assert!(self.exp_push);
 
             if self.exp_push_req.is_some() {
@@ -403,7 +369,7 @@ mod tests {
                 },
             };
 
-            Ok((self.resp.clone(), http_request_info))
+            Ok(http_request_info)
         }
     }
 
@@ -431,7 +397,7 @@ mod tests {
             // Push expectations.
             pub num_pending_mutations: u32,
             pub exp_push_req: Option<push::PushRequest>,
-            pub push_result: Option<Result<push::PushResponse, String>>,
+            pub push_result: Option<Result<(), String>>,
             pub exp_batch_push_info: Option<HttpRequestInfo>,
         }
         let cases: Vec<Case> = vec![
@@ -455,7 +421,7 @@ mod tests {
                     push_version: PUSH_VERSION,
                     schema_version: push_schema_version.clone(),
                 }),
-                push_result: Some(Ok(push::PushResponse {})),
+                push_result: Some(Ok(())),
                 exp_batch_push_info: Some(HttpRequestInfo {
                     http_status_code: 200,
                     error_message: str!(""),
@@ -484,7 +450,7 @@ mod tests {
                     push_version: PUSH_VERSION,
                     schema_version: push_schema_version.clone(),
                 }),
-                push_result: Some(Ok(push::PushResponse {})),
+                push_result: Some(Ok(())),
                 exp_batch_push_info: Some(HttpRequestInfo {
                     http_status_code: 200,
                     error_message: str!(""),
@@ -572,10 +538,10 @@ mod tests {
             }
 
             // See explanation in FakePusher for why we do this dance with the push_result.
-            let (exp_push, push_resp, push_err) = match &c.push_result {
-                Some(Ok(resp)) => (true, Some(resp.clone()), None),
-                Some(Err(e)) => (true, None, Some(e.clone())),
-                None => (false, None, None),
+            let (exp_push, push_err) = match &c.push_result {
+                Some(Ok(_)) => (true, None),
+                Some(Err(e)) => (true, Some(e.clone())),
+                None => (false, None),
             };
             let fake_pusher = FakePusher {
                 exp_push,
@@ -583,7 +549,6 @@ mod tests {
                 exp_push_url: &push_url,
                 exp_push_auth: &push_auth,
                 exp_request_id: &request_id,
-                resp: push_resp,
                 err: push_err,
             };
 

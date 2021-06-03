@@ -22,7 +22,12 @@ import {IndexTransactionImpl} from './transactions.js';
 import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
 import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
-import {ConnectionLoop} from './connection-loop.js';
+import {
+  ConnectionLoop,
+  CONNECTION_MEMORY_COUNT,
+  MAX_DELAY_MS,
+  MIN_DELAY_MS,
+} from './connection-loop.js';
 import {getLogger} from './logger.js';
 import type {Logger, LogLevel} from './logger.js';
 
@@ -363,17 +368,32 @@ export class Replicache<MD extends MutatorDefs = {}>
     this.pushDelay = pushDelay;
     this._useMemstore = useMemstore;
 
-    this._pullConnectionLoop = new ConnectionLoop({
-      invokeSend: () => this._invokePull(),
-      watchdogTimer: () => this.pullInterval,
-      debounceDelay: () => 0,
+    const connectionLoopBase = {
       maxConnections: 1,
+      minDelayMs: MIN_DELAY_MS,
+      maxDelayMs: MAX_DELAY_MS,
+      connectionMemoryCount: CONNECTION_MEMORY_COUNT,
+    };
+    // We need this alias because getters have no lexical this syntax.
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const self = this;
+
+    this._pullConnectionLoop = new ConnectionLoop({
+      ...connectionLoopBase,
+      invokeSend: () => this._invokePull(),
+      get watchdogTimer() {
+        return self.pullInterval;
+      },
+      debounceDelay: 0,
       ...getLogger(['PULL'], logLevel),
     });
     this._pushConnectionLoop = new ConnectionLoop({
+      ...connectionLoopBase,
       invokeSend: () => this._invokePush(MAX_REAUTH_TRIES),
-      debounceDelay: () => this.pushDelay,
-      maxConnections: 1,
+      get debounceDelay() {
+        return self.pushDelay;
+      },
+      watchdogTimer: null,
       ...getLogger(['PUSH'], logLevel),
     });
 

@@ -2,22 +2,28 @@ import type {Logger} from './logger.js';
 import {resolver} from './resolver.js';
 import {sleep} from './sleep.js';
 
-const DEBOUNCE_DELAY_MS = 10;
+export const DEBOUNCE_DELAY_MS = 10;
 
-const MIN_DELAY_MS = 30;
-const MAX_DELAY_MS = 60_000;
+export const MIN_DELAY_MS = 30;
+export const MAX_DELAY_MS = 60_000;
 
 // Max numbers of outstanding connections. This is pretty arbitrary but assuming
 // a request takes 100ms then we get a response every 33ms which is 30 FPS.
-const MAX_CONNECTIONS = 3;
+export const MAX_CONNECTIONS = 3;
 
 type SendRecord = {duration: number; ok: boolean};
 
 export interface ConnectionLoopDelegate extends Logger {
   invokeSend(): Promise<boolean>;
-  debounceDelay?(): number;
-  maxConnections?: number;
-  watchdogTimer?(): number | null;
+  debounceDelay: number;
+  // If null, no watchdog timer is used.
+  watchdogTimer: number | null;
+  maxConnections: number;
+  maxDelayMs: number;
+  minDelayMs: number;
+  // The number of successful requests to keep in memory. This is currently used
+  // to compute the median over.
+  connectionMemoryCount: number;
 }
 
 export class ConnectionLoop {
@@ -71,19 +77,15 @@ export class ConnectionLoop {
 
   async run(): Promise<void> {
     const sendRecords: SendRecord[] = [];
-    let delay = MIN_DELAY_MS;
+
     let recoverResolver = resolver();
     let lastSendTime = 0;
 
     // The number of active connections.
     let counter = 0;
     const delegate = this._delegate;
-    const {
-      debounceDelay = () => DEBOUNCE_DELAY_MS,
-      maxConnections = MAX_CONNECTIONS,
-      watchdogTimer,
-      debug,
-    } = delegate;
+    const {debug} = delegate;
+    let delay = delegate.minDelayMs;
 
     debug?.('Starting connection loop');
 
@@ -96,22 +98,22 @@ export class ConnectionLoop {
 
       // Wait until send is called or until the watchdog timer fires.
       const races = [this._pendingResolver.promise];
-      const t = watchdogTimer?.();
-      if (t != null) {
+      const t = delegate.watchdogTimer;
+      if (t !== null) {
         races.push(sleep(t));
       }
       await Promise.race(races);
       if (this._closed) break;
 
       debug?.('Waiting for debounce');
-      await sleep(debounceDelay());
+      await sleep(delegate.debounceDelay);
       if (this._closed) break;
       debug?.('debounced');
 
       // This resolver is used to wait for incoming push calls.
       this._pendingResolver = resolver();
 
-      if (counter >= maxConnections) {
+      if (counter >= delegate.maxConnections) {
         debug?.('Too many request in flight. Waiting until one finishes...');
         await this._waitUntilAvailableConnection();
         if (this._closed) break;
@@ -121,11 +123,7 @@ export class ConnectionLoop {
       // We need to delay the next request even if there are no active requests
       // in case of error.
       if (counter > 0 || didLastSendRequestFail(sendRecords)) {
-        delay = computeDelayAndUpdateDurations(
-          delay,
-          maxConnections,
-          sendRecords,
-        );
+        delay = computeDelayAndUpdateDurations(delay, delegate, sendRecords);
         debug?.(
           didLastSendRequestFail(sendRecords)
             ? 'Last connection errored. Sleeping for'
@@ -197,7 +195,7 @@ export class ConnectionLoop {
 }
 
 // Number of connections to remember when computing the new delay.
-const CONNECTION_MEMORY_COUNT = 9;
+export const CONNECTION_MEMORY_COUNT = 9;
 
 // Computes a new delay based on the previous requests. We use the median of the
 // previous successfull request divided by `maxConnections`. When we get errors
@@ -205,12 +203,12 @@ const CONNECTION_MEMORY_COUNT = 9;
 // to MIN_DELAY_MS.
 function computeDelayAndUpdateDurations(
   delay: number,
-  maxConnections: number,
+  delegate: ConnectionLoopDelegate,
   sendRecords: SendRecord[],
 ): number {
   function compute(
     delay: number,
-    maxConnections: number,
+    delegate: ConnectionLoopDelegate,
     sendRecords: SendRecord[],
   ): number {
     const {length} = sendRecords;
@@ -224,6 +222,8 @@ function computeDelayAndUpdateDurations(
       return delay * 2;
     }
 
+    const {maxConnections, connectionMemoryCount, minDelayMs} = delegate;
+
     if (length === 1) {
       return (duration / maxConnections) | 0;
     }
@@ -232,13 +232,13 @@ function computeDelayAndUpdateDurations(
     const previous: SendRecord = sendRecords[sendRecords.length - 2];
 
     // Prune
-    while (sendRecords.length > CONNECTION_MEMORY_COUNT) {
+    while (sendRecords.length > connectionMemoryCount) {
       sendRecords.shift();
     }
 
     if (ok && !previous.ok) {
       // Recovered
-      return MIN_DELAY_MS;
+      return minDelayMs;
     }
 
     const med = median(
@@ -248,9 +248,10 @@ function computeDelayAndUpdateDurations(
     return (med / maxConnections) | 0;
   }
 
+  const {maxDelayMs, minDelayMs} = delegate;
   return Math.min(
-    MAX_DELAY_MS,
-    Math.max(MIN_DELAY_MS, compute(delay, maxConnections, sendRecords)),
+    maxDelayMs,
+    Math.max(minDelayMs, compute(delay, delegate, sendRecords)),
   );
 }
 

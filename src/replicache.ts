@@ -81,6 +81,85 @@ export type MutatorDefs = {
 };
 
 /**
+ * Base options for [[PullOptions]] and [[PushOptions]]
+ */
+export interface RequestOptions {
+  /**
+   * When there are pending pull or push requests this is the _minimum_ ammount
+   * of time to wait until we try another pull/push.
+   */
+  minDelayMs?: number;
+
+  /**
+   * When there are pending pull or push requests this is the _maximum_ ammount
+   * of time to wait until we try another pull/push.
+   */
+  maxDelayMs?: number;
+}
+
+export interface PullOptions extends RequestOptions {
+  /**
+   * This is the URL to the server endpoint dealing with the push updates. See
+   * [Server Setup Upstream Sync](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync)
+   * for more details.
+   */
+  url?: string;
+
+  /**
+   * This is the
+   * [authentication](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#authentication)
+   * token used when doing a [push
+   * ](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync).
+   */
+  auth?: string;
+
+  /**
+   * The duration between each [[pull]]. Set this to `null` to prevent pulling
+   * in the background.
+   */
+  interval?: number | null;
+}
+
+export interface PushOptions extends RequestOptions {
+  /**
+   * This is the URL to the server endpoint dealing with the push updates. See
+   * [Server Setup Upstream Sync](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync)
+   * for more details.
+   */
+  url?: string;
+
+  /**
+   * This is the
+   * [authentication](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#authentication)
+   * token used when doing a [push
+   * ](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync).
+   */
+  auth?: string;
+
+  /**
+   * The delay between when a change is made to Replicache and when Replicache
+   * attempts to push that change.
+   */
+  delay?: number;
+}
+
+const defaultPullOptions = {
+  auth: '',
+  interval: 60_000,
+  maxDelayMs: MAX_DELAY_MS,
+  minDelayMs: MIN_DELAY_MS,
+  url: '',
+} as const;
+
+const defaultPushOptions = {
+  auth: '',
+  delay: 10,
+  maxDelayMs: MAX_DELAY_MS,
+  minDelayMs: MIN_DELAY_MS,
+  url: '',
+} as const;
+
+/**
  * The options passed to [[Replicache]].
  */
 export interface ReplicacheOptions<MD extends MutatorDefs> {
@@ -89,6 +168,8 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * [authentication](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#authentication)
    * token used when doing a [push
    * ](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync).
+   *
+   * @deprecated Use [[PushOptions.auth]] instead
    */
   pushAuth?: string;
 
@@ -96,6 +177,8 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * This is the URL to the server endpoint dealing with the push updates. See
    * [Server Setup Upstream Sync](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync)
    * for more details.
+   *
+   * @deprecated Use [[PushOptions.url]] instead
    */
   pushURL?: string;
 
@@ -104,6 +187,8 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * [authentication](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#authentication)
    * token used when doing a [pull
    * ](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync).
+   *
+   * @deprecated Use [[PullOptions.auth]] instead
    */
   pullAuth?: string;
 
@@ -112,6 +197,8 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * Downstream
    * Sync](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-1-downstream-sync)
    * for more details.
+   *
+   * @deprecated Use [[PullOptions.url]] instead
    */
   pullURL?: string;
 
@@ -135,12 +222,16 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
   /**
    * The duration between each [[pull]]. Set this to `null` to prevent pulling
    * in the background.
+   *
+   * @deprecated Use [[PullOptions.interval]] instead
    */
   pullInterval?: number | null;
 
   /**
    * The delay between when a change is made to Replicache and when Replicache
    * attempts to push that change.
+   *
+   * @deprecated Use [[PushOptions.delay]] instead
    */
   pushDelay?: number;
 
@@ -249,6 +340,16 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * the cache while they run.
    */
   mutators?: MD;
+
+  /**
+   * The options used when doing [[pull]].
+   */
+  pull?: PullOptions;
+
+  /**
+   * The options used when doing pushes.
+   */
+  push?: PushOptions;
 }
 
 const emptySet: ReadonlySet<string> = new Set();
@@ -256,10 +357,10 @@ const emptySet: ReadonlySet<string> = new Set();
 // eslint-disable-next-line @typescript-eslint/ban-types
 export class Replicache<MD extends MutatorDefs = {}>
   implements ReadTransaction {
-  private _pullAuth: string;
-  private readonly _pullURL: string;
-  private _pushAuth: string;
-  private readonly _pushURL: string;
+  // private _pullAuth: string;
+  // private readonly _pullURL: string;
+  // private _pushAuth: string;
+  // private readonly _pushURL: string;
   private readonly _name: string;
   private readonly _repmInvoker: Invoker;
   private readonly _useMemstore: boolean;
@@ -299,13 +400,43 @@ export class Replicache<MD extends MutatorDefs = {}>
    * disables periodic pull completely. Pull will still happen if you call
    * [[pull]] manually.
    */
-  pullInterval: number | null;
+  get pullInterval(): number | null {
+    return this._pullOptions.interval;
+  }
+
+  set pullInterval(interval: number | null) {
+    this._pullOptions.interval = interval;
+  }
 
   /**
    * The delay between when a change is made to Replicache and when Replicache
    * attempts to push that change.
    */
-  pushDelay: number;
+  get pushDelay(): number {
+    return this._pushOptions.delay;
+  }
+  set pushDelay(delay: number) {
+    this._pushOptions.delay = delay;
+  }
+
+  private _pullOptions: Required<PullOptions>;
+  private _pushOptions: Required<PushOptions>;
+
+  /**
+   * The options used to control the [[pull]] behavior. This object is live so
+   * changes to it will affect the next pull call.
+   */
+  get pullOptions(): Required<PullOptions> {
+    return this._pullOptions;
+  }
+
+  /**
+   * The options used to control the push behavior. This object is live so
+   * changes to it will affect the next push call.
+   */
+  get pushOptions(): Required<PushOptions> {
+    return this._pushOptions;
+  }
 
   /**
    * `onSync` is called when a sync begins, and again when the sync ends. The parameter `syncing`
@@ -346,25 +477,65 @@ export class Replicache<MD extends MutatorDefs = {}>
     const {
       name = 'default',
       logLevel = 'info',
-      pullAuth = '',
-      pullURL = '',
+      pullAuth,
+      pullURL,
       pushAuth = '',
       pushDelay = 10,
       pushURL = '',
       schemaVersion = '',
-      pullInterval = 60_000,
+      pullInterval,
       useMemstore = false,
       wasmModule,
       mutators = {} as MD,
+      pull = {},
+      push = {},
     } = options;
-    this._pullAuth = pullAuth;
-    this._pullURL = pullURL;
-    this._pushAuth = pushAuth;
-    this._pushURL = pushURL;
+
+    function applyOptions<O extends PullOptions | PushOptions>(
+      baseValue: Required<O>,
+      newValue: O,
+    ): Required<O> {
+      // We do not want to overwrite an existing value with an undefined value.
+      for (const [k, v] of Object.entries(newValue)) {
+        if (v !== undefined) {
+          (baseValue as Record<string, unknown>)[k] = v;
+        }
+      }
+      return baseValue;
+    }
+
+    this._pullOptions = applyOptions<PullOptions>(
+      {
+        ...defaultPullOptions,
+      },
+      {
+        url: pullURL,
+        auth: pullAuth,
+        interval: pullInterval,
+        ...pull,
+      },
+    );
+
+    this._pushOptions = applyOptions<PushOptions>(
+      {
+        ...defaultPushOptions,
+      },
+      {
+        url: pushURL,
+        auth: pushAuth,
+        delay: pushDelay,
+        ...push,
+      },
+    );
+
+    // this._pullAuth = this._pullOptions.auth ?? '';
+    // this._pullURL = pullURL;
+    // this._pushAuth = pushAuth;
+    // this._pushURL = pushURL;
     this._name = name;
     this._repmInvoker = new REPMWasmInvoker(wasmModule);
     this._schemaVersion = schemaVersion;
-    this.pullInterval = pullInterval;
+    // this.pullInterval = pullInterval;
     this.pushDelay = pushDelay;
     this._useMemstore = useMemstore;
 
@@ -777,8 +948,8 @@ export class Replicache<MD extends MutatorDefs = {}>
       try {
         this._changeSyncCounters(1, 0);
         pushResponse = await this._invoke(RPC.TryPush, {
-          pushURL: this._pushURL,
-          pushAuth: this._pushAuth,
+          pushURL: this._pushOptions.url,
+          pushAuth: this._pushOptions.auth,
           schemaVersion: this._schemaVersion,
         });
       } finally {
@@ -791,7 +962,7 @@ export class Replicache<MD extends MutatorDefs = {}>
         const reauth = checkStatus(
           httpRequestInfo,
           'push',
-          this._pushURL,
+          this._pushOptions.url,
           this._logger,
         );
 
@@ -805,7 +976,7 @@ export class Replicache<MD extends MutatorDefs = {}>
           }
           const pushAuth = await this.getPushAuth();
           if (pushAuth != null) {
-            this._pushAuth = pushAuth;
+            this._pushOptions.auth = pushAuth;
             // Try again now instead of waiting for next push.
             return await this._invokePush(maxAuthTries - 1);
           }
@@ -841,8 +1012,8 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
     const beginPullResponse = await this._invoke(RPC.BeginTryPull, {
-      pullAuth: this._pullAuth,
-      pullURL: this._pullURL,
+      pullAuth: this._pullOptions.auth,
+      pullURL: this._pullOptions.url,
       schemaVersion: this._schemaVersion,
     });
 
@@ -851,7 +1022,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     const reauth = checkStatus(
       httpRequestInfo,
       'pull',
-      this._pullURL,
+      this._pullOptions.url,
       this._logger,
     );
     if (reauth && this.getPullAuth) {
@@ -869,7 +1040,7 @@ export class Replicache<MD extends MutatorDefs = {}>
         this._changeSyncCounters(0, 1);
       }
       if (pullAuth != null) {
-        this._pullAuth = pullAuth;
+        this._pullOptions.auth = pullAuth;
         // Try again now instead of waiting for next pull.
         return await this._beginPull(maxAuthTries - 1);
       }

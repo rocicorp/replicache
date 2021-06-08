@@ -319,7 +319,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   onSync: ((syncing: boolean) => void) | null = null;
 
   /**
-   * This gets called when we get an HTTP unauthorized (410) response from the
+   * This gets called when we get an HTTP unauthorized (401) response from the
    * pull endpoint. Set this to a function that will ask your user to
    * reauthenticate.
    */
@@ -329,7 +329,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     | undefined = null;
 
   /**
-   * This gets called when we get an HTTP unauthorized (410) response from the push
+   * This gets called when we get an HTTP unauthorized (401) response from the push
    * endpoint. Set this to a function that will ask your user to reauthenticate.
    */
   getPushAuth:

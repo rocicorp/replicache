@@ -79,13 +79,13 @@ export class ConnectionLoop {
     const sendRecords: SendRecord[] = [];
 
     let recoverResolver = resolver();
-    let lastSendTime = 0;
+    let lastSendTime;
 
     // The number of active connections.
     let counter = 0;
     const delegate = this._delegate;
     const {debug} = delegate;
-    let delay = delegate.minDelayMs;
+    let delay = 0;
 
     debug?.('Starting connection loop');
 
@@ -133,11 +133,17 @@ export class ConnectionLoop {
           delay,
           'ms',
         );
+      }
 
+      const clampedDelay = Math.min(
+        delegate.maxDelayMs,
+        Math.max(delegate.minDelayMs, delay),
+      );
+      if (lastSendTime !== undefined) {
         const timeSinceLastSend = Date.now() - lastSendTime;
-        if (delay > timeSinceLastSend) {
+        if (clampedDelay > timeSinceLastSend) {
           await Promise.race([
-            sleep(delay - timeSinceLastSend),
+            sleep(clampedDelay - timeSinceLastSend),
             recoverResolver.promise,
           ]);
           if (this._closed) break;
@@ -206,53 +212,41 @@ function computeDelayAndUpdateDurations(
   delegate: ConnectionLoopDelegate,
   sendRecords: SendRecord[],
 ): number {
-  function compute(
-    delay: number,
-    delegate: ConnectionLoopDelegate,
-    sendRecords: SendRecord[],
-  ): number {
-    const {length} = sendRecords;
-    if (length === 0) {
-      return delay;
-    }
-
-    const {duration, ok} = sendRecords[sendRecords.length - 1];
-
-    if (!ok) {
-      return delay * 2;
-    }
-
-    const {maxConnections, connectionMemoryCount, minDelayMs} = delegate;
-
-    if (length === 1) {
-      return (duration / maxConnections) | 0;
-    }
-
-    // length > 1
-    const previous: SendRecord = sendRecords[sendRecords.length - 2];
-
-    // Prune
-    while (sendRecords.length > connectionMemoryCount) {
-      sendRecords.shift();
-    }
-
-    if (ok && !previous.ok) {
-      // Recovered
-      return minDelayMs;
-    }
-
-    const med = median(
-      sendRecords.filter(({ok}) => ok).map(({duration}) => duration),
-    );
-
-    return (med / maxConnections) | 0;
+  const {length} = sendRecords;
+  if (length === 0) {
+    return delay;
   }
 
-  const {maxDelayMs, minDelayMs} = delegate;
-  return Math.min(
-    maxDelayMs,
-    Math.max(minDelayMs, compute(delay, delegate, sendRecords)),
+  const {duration, ok} = sendRecords[sendRecords.length - 1];
+
+  if (!ok) {
+    return delay * 2;
+  }
+
+  const {maxConnections, connectionMemoryCount, minDelayMs} = delegate;
+
+  if (length === 1) {
+    return (duration / maxConnections) | 0;
+  }
+
+  // length > 1
+  const previous: SendRecord = sendRecords[sendRecords.length - 2];
+
+  // Prune
+  while (sendRecords.length > connectionMemoryCount) {
+    sendRecords.shift();
+  }
+
+  if (ok && !previous.ok) {
+    // Recovered
+    return minDelayMs;
+  }
+
+  const med = median(
+    sendRecords.filter(({ok}) => ok).map(({duration}) => duration),
   );
+
+  return (med / maxConnections) | 0;
 }
 
 function median(values: number[]) {

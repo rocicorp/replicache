@@ -71,7 +71,6 @@ function createLoop(
     maxDelayMs: MAX_DELAY_MS,
     minDelayMs: MIN_DELAY_MS,
     connectionMemoryCount: CONNECTION_MEMORY_COUNT,
-
     ...partialDelegate,
   };
 
@@ -83,20 +82,17 @@ test('basic sequential by awaiting', async () => {
   const debounceDelay = 3;
   loop = createLoop({requestTime, debounceDelay});
 
-  let p = loop.send();
+  loop.send();
   await clock.runAllAsync();
-  await p;
   expect(Date.now()).to.equal(requestTime + debounceDelay);
 
   expect(log).to.deep.equal(['s0:3', 'f0:203']);
 
-  p = loop.send();
+  loop.send();
   await clock.runAllAsync();
-  await p;
 
-  p = loop.send();
+  loop.send();
   await clock.runAllAsync();
-  await p;
 
   expect(log).to.deep.equal([
     's0:3',
@@ -505,4 +501,62 @@ test('watchdog timer again', async () => {
   await clock.tickAsync(requestTime);
 
   expect(log).to.deep.equal(['s0:510', 'f0:610', 's1:1520', 'f1:1620']);
+});
+
+test('mutate minDelayMs', async () => {
+  let minDelayMs = 50;
+  const log: number[] = [];
+  loop = new ConnectionLoop({
+    async invokeSend() {
+      log.push(Date.now());
+      return true;
+    },
+    debounceDelay: 0,
+    get minDelayMs() {
+      return minDelayMs;
+    },
+    maxDelayMs: 60_000,
+    maxConnections: MAX_CONNECTIONS,
+    connectionMemoryCount: CONNECTION_MEMORY_COUNT,
+    watchdogTimer: null,
+  });
+
+  while (Date.now() < 200) {
+    send();
+    await clock.tickAsync(25);
+  }
+
+  minDelayMs = 500;
+
+  while (Date.now() < 2000) {
+    send();
+    await clock.tickAsync(50);
+  }
+
+  minDelayMs = 20;
+
+  while (Date.now() < 2400) {
+    send();
+    await clock.tickAsync(10);
+  }
+
+  expect(log).to.deep.equal([
+    0,
+    50,
+    100,
+    150,
+    200,
+    250,
+    750,
+    1250,
+    1750,
+    2250,
+    2270,
+    2290,
+    2310,
+    2330,
+    2350,
+    2370,
+    2390,
+  ]);
 });

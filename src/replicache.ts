@@ -24,6 +24,7 @@ import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
 import {
   ConnectionLoop,
+  ConnectionLoopDelegate,
   CONNECTION_MEMORY_COUNT,
   MAX_DELAY_MS,
   MIN_DELAY_MS,
@@ -357,10 +358,6 @@ const emptySet: ReadonlySet<string> = new Set();
 // eslint-disable-next-line @typescript-eslint/ban-types
 export class Replicache<MD extends MutatorDefs = {}>
   implements ReadTransaction {
-  // private _pullAuth: string;
-  // private readonly _pullURL: string;
-  // private _pushAuth: string;
-  // private readonly _pushURL: string;
   private readonly _name: string;
   private readonly _repmInvoker: Invoker;
   private readonly _useMemstore: boolean;
@@ -528,45 +525,26 @@ export class Replicache<MD extends MutatorDefs = {}>
       },
     );
 
-    // this._pullAuth = this._pullOptions.auth ?? '';
-    // this._pullURL = pullURL;
-    // this._pushAuth = pushAuth;
-    // this._pushURL = pushURL;
     this._name = name;
     this._repmInvoker = new REPMWasmInvoker(wasmModule);
     this._schemaVersion = schemaVersion;
-    // this.pullInterval = pullInterval;
-    this.pushDelay = pushDelay;
     this._useMemstore = useMemstore;
 
-    const connectionLoopBase = {
-      maxConnections: 1,
-      minDelayMs: MIN_DELAY_MS,
-      maxDelayMs: MAX_DELAY_MS,
-      connectionMemoryCount: CONNECTION_MEMORY_COUNT,
-    };
-    // We need this alias because getters have no lexical this syntax.
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
+    this._pullConnectionLoop = new ConnectionLoop(
+      new PullDelegate(
+        this._pullOptions,
+        () => this._invokePull(),
+        getLogger(['PULL'], logLevel),
+      ),
+    );
 
-    this._pullConnectionLoop = new ConnectionLoop({
-      ...connectionLoopBase,
-      invokeSend: () => this._invokePull(),
-      get watchdogTimer() {
-        return self.pullInterval;
-      },
-      debounceDelay: 0,
-      ...getLogger(['PULL'], logLevel),
-    });
-    this._pushConnectionLoop = new ConnectionLoop({
-      ...connectionLoopBase,
-      invokeSend: () => this._invokePush(MAX_REAUTH_TRIES),
-      get debounceDelay() {
-        return self.pushDelay;
-      },
-      watchdogTimer: null,
-      ...getLogger(['PUSH'], logLevel),
-    });
+    this._pushConnectionLoop = new ConnectionLoop(
+      new PushDelegate(
+        this._pushOptions,
+        () => this._invokePush(MAX_REAUTH_TRIES),
+        getLogger(['PUSH'], logLevel),
+      ),
+    );
 
     this._logLevel = logLevel;
     this._logger = getLogger([], logLevel);
@@ -1512,5 +1490,66 @@ function* subscriptionsForIndexDefinitionChanged(
     if (subscription.scans.some(opt => opt.indexName === name)) {
       yield subscription;
     }
+  }
+}
+
+class ConnectionLoopDelegateImpl<
+  Options extends Required<PullOptions> | Required<PushOptions>
+> implements ConnectionLoopDelegate, Logger {
+  options: Options;
+  readonly invokeSend: () => Promise<boolean>;
+  logger: Logger;
+
+  constructor(
+    options: Options,
+    invokeSend: () => Promise<boolean>,
+    logger: Logger,
+  ) {
+    this.options = options;
+    this.invokeSend = invokeSend;
+    this.logger = logger;
+  }
+
+  get debounceDelay() {
+    return 0;
+  }
+
+  get watchdogTimer(): number | null {
+    return null;
+  }
+
+  get minDelayMs(): number {
+    return this.options.minDelayMs;
+  }
+
+  get maxDelayMs(): number {
+    return this.options.maxDelayMs;
+  }
+
+  readonly connectionMemoryCount = CONNECTION_MEMORY_COUNT;
+  readonly maxConnections = 1;
+
+  get error() {
+    return this.logger.error;
+  }
+
+  get info() {
+    return this.logger.info;
+  }
+
+  get debug() {
+    return this.logger.debug;
+  }
+}
+
+class PullDelegate extends ConnectionLoopDelegateImpl<Required<PullOptions>> {
+  get watchdogTimer() {
+    return this.options.interval;
+  }
+}
+
+class PushDelegate extends ConnectionLoopDelegateImpl<Required<PushOptions>> {
+  get debounceDelay() {
+    return this.options.delay;
   }
 }

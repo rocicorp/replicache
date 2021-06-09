@@ -76,7 +76,6 @@ async function replicacheForTesting<MD extends MutatorDefs = {}>(
   reps.add(rep);
   // Wait for open to be done.
   await rep.clientID;
-
   fetchMock.post(pullURL, {lastMutationID: 0, patch: []});
   fetchMock.post(pushURL, {});
   await tickAFewTimes();

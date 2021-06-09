@@ -32,7 +32,7 @@ Import the library into `pages/api/replicache-push.js`:
 import Pusher from 'pusher';
 ```
 
-Typically you'll establish one WebSocket _channel_ per-document or whatever the unit of collaobration is in your application. For this simple demo, we just create one channel, `"default"`.
+Typically you'll establish one WebSocket _channel_ per-document or whatever the unit of collaboration is in your application. For this simple demo, we just create one channel, `"default"`.
 
 Replace the implementation of `sendPoke()` in `replicache-push.js`:
 

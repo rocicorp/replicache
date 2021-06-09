@@ -104,28 +104,27 @@ values={[
 <TabItem value="react">
 
 ```js
-const todos = useSubscribe(
-    replicache,
-    tx => tx.scanAll({prefix: '/todo/'}));
+const todos = useSubscribe(replicache, tx => tx.scanAll({prefix: '/todo/'}));
 
-return <ul>{
-  todos.map(t => <li>{t.title}</li>)
-}</ul>;
+return (
+  <ul>
+    {todos.map(t => (
+      <li>{t.title}</li>
+    ))}
+  </ul>
+);
 ```
 
 </TabItem>
 <TabItem value="vanilla">
 
 ```js
-replicache.subscribe(
-  async (tx) => await tx.scanAll({prefix: '/todo/'}),
-  {
-    onData: (todos) => {
-      this.setState({ todos });
-    },
-  }
-);
-````
+replicache.subscribe(async tx => await tx.scanAll({prefix: '/todo/'}), {
+  onData: todos => {
+    this.setState({todos});
+  },
+});
+```
 
   </TabItem>
 </Tabs>

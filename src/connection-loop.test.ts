@@ -3,7 +3,6 @@ import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import {
   ConnectionLoop,
   ConnectionLoopDelegate,
-  CONNECTION_MEMORY_COUNT,
   DEBOUNCE_DELAY_MS,
   MAX_CONNECTIONS,
   MAX_DELAY_MS,
@@ -70,7 +69,6 @@ function createLoop(
     maxConnections: MAX_CONNECTIONS,
     maxDelayMs: MAX_DELAY_MS,
     minDelayMs: MIN_DELAY_MS,
-    connectionMemoryCount: CONNECTION_MEMORY_COUNT,
     ...partialDelegate,
   };
 
@@ -517,7 +515,6 @@ test('mutate minDelayMs', async () => {
     },
     maxDelayMs: 60_000,
     maxConnections: MAX_CONNECTIONS,
-    connectionMemoryCount: CONNECTION_MEMORY_COUNT,
     watchdogTimer: null,
   });
 

@@ -4,8 +4,6 @@ export {TransactionClosedError} from './transaction-closed-error.js';
 export type {
   MaybePromise,
   MutatorDefs,
-  PullOptions,
-  PushOptions,
   ReplicacheOptions,
   RequestOptions,
 } from './replicache.js';

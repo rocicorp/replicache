@@ -21,9 +21,6 @@ export interface ConnectionLoopDelegate extends Logger {
   maxConnections: number;
   maxDelayMs: number;
   minDelayMs: number;
-  // The number of successful requests to keep in memory. This is currently used
-  // to compute the median over.
-  connectionMemoryCount: number;
 }
 
 export class ConnectionLoop {
@@ -201,7 +198,7 @@ export class ConnectionLoop {
 }
 
 // Number of connections to remember when computing the new delay.
-export const CONNECTION_MEMORY_COUNT = 9;
+const CONNECTION_MEMORY_COUNT = 9;
 
 // Computes a new delay based on the previous requests. We use the median of the
 // previous successfull request divided by `maxConnections`. When we get errors
@@ -223,7 +220,7 @@ function computeDelayAndUpdateDurations(
     return delay * 2;
   }
 
-  const {maxConnections, connectionMemoryCount, minDelayMs} = delegate;
+  const {maxConnections, minDelayMs} = delegate;
 
   if (length === 1) {
     return (duration / maxConnections) | 0;
@@ -233,7 +230,7 @@ function computeDelayAndUpdateDurations(
   const previous: SendRecord = sendRecords[sendRecords.length - 2];
 
   // Prune
-  while (sendRecords.length > connectionMemoryCount) {
+  while (sendRecords.length > CONNECTION_MEMORY_COUNT) {
     sendRecords.shift();
   }
 

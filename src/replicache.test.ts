@@ -57,17 +57,18 @@ let overrideUseMemstore = false;
 async function replicacheForTesting<MD extends MutatorDefs = {}>(
   name: string,
   {
-    pull = {url: 'https://pull.com/?name=' + name},
-    push = {url: 'https://push.com/?name=' + name},
+    pullURL = 'https://pull.com/?name=' + name,
+    pushDelay = 60_000, // Large to prevent interfering
+    pushURL = 'https://push.com/?name=' + name,
     useMemstore = overrideUseMemstore,
     ...rest
   }: ReplicacheOptions<MD> = {},
 ): Promise<ReplicacheTest<MD>> {
   dbsToDrop.add(name);
-  push.delay = push.delay ?? 60_000; // Large to prevent interfering
   const rep = new ReplicacheTest<MD>({
-    pull,
-    push,
+    pullURL,
+    pushDelay,
+    pushURL,
     name,
     useMemstore,
     ...rest,
@@ -76,8 +77,8 @@ async function replicacheForTesting<MD extends MutatorDefs = {}>(
   // Wait for open to be done.
   await rep.clientID;
 
-  fetchMock.post(pull.url, {lastMutationID: 0, patch: []});
-  fetchMock.post(push.url, {});
+  fetchMock.post(pullURL, {lastMutationID: 0, patch: []});
+  fetchMock.post(pushURL, {});
   await tickAFewTimes();
   return rep;
 }
@@ -1010,7 +1011,7 @@ testWithBothStores('overlapping writes', async () => {
   const pushURL = 'https://push.com';
   // writes wait on writes
   const rep = await replicacheForTesting('conflict', {
-    push: {url: pushURL},
+    pushURL,
     mutators: {
       'wait-then-return': async <T extends JSONValue>(
         tx: ReadTransaction,
@@ -1051,7 +1052,9 @@ testWithBothStores('push', async () => {
   const pushURL = 'https://push.com';
 
   const rep = await replicacheForTesting('push', {
-    push: {url: pushURL, auth: 'a', delay: 10},
+    pushAuth: '1',
+    pushURL,
+    pushDelay: 10,
     mutators: {
       createTodo: async <A extends {id: number}>(
         tx: WriteTransaction,
@@ -1159,7 +1162,9 @@ testWithBothStores('push delay', async () => {
   const pushURL = 'https://push.com';
 
   const rep = await replicacheForTesting('push', {
-    push: {url: pushURL, auth: '1', delay: 1},
+    pushAuth: '1',
+    pushURL,
+    pushDelay: 1,
     mutators: {
       createTodo: async <A extends {id: number}>(
         tx: WriteTransaction,
@@ -1196,7 +1201,8 @@ testWithBothStores('pull', async () => {
   const pullURL = 'https://diff.com/pull';
 
   const rep = await replicacheForTesting('pull', {
-    pull: {url: pullURL, auth: '1'},
+    pullAuth: '1',
+    pullURL,
     mutators: {
       createTodo: async <A extends {id: number}>(
         tx: WriteTransaction,
@@ -1325,7 +1331,8 @@ testWithBothStores('reauth', async () => {
   const pullURL = 'https://diff.com/pull';
 
   const rep = await replicacheForTesting('reauth', {
-    pull: {url: pullURL, auth: 'wrong'},
+    pullURL,
+    pullAuth: 'wrong',
   });
 
   fetchMock.post(pullURL, {body: 'xxx', status: httpStatusUnauthorized});
@@ -1360,7 +1367,7 @@ testWithBothStores('HTTP status pull', async () => {
   const pullURL = 'https://diff.com/pull';
 
   const rep = await replicacheForTesting('http-status-pull', {
-    pull: {url: pullURL},
+    pullURL,
   });
 
   let okCalled = false;
@@ -1395,7 +1402,8 @@ testWithBothStores('HTTP status push', async () => {
   const pushURL = 'https://diff.com/push';
 
   const rep = await replicacheForTesting('http-status-push', {
-    push: {url: pushURL, delay: 1},
+    pushURL,
+    pushDelay: 1,
     mutators: {addData},
   });
   const add = rep.mutate.addData;
@@ -2054,8 +2062,9 @@ testWithBothStores('onSync', async () => {
   const pushURL = 'https://push.com/push';
 
   const rep = await replicacheForTesting('onSync', {
-    pull: {url: pullURL},
-    push: {url: pushURL, delay: 5},
+    pullURL,
+    pushURL,
+    pushDelay: 5,
     mutators: {addData},
   });
   const add = rep.mutate.addData;
@@ -2131,7 +2140,8 @@ testWithBothStores('push timing', async () => {
   const pushDelay = 5;
 
   const rep = await replicacheForTesting('push-timing', {
-    push: {url: pushURL, delay: pushDelay},
+    pushURL,
+    pushDelay,
     useMemstore: true,
     mutators: {addData},
   });
@@ -2185,9 +2195,10 @@ test('push and pull concurrently', async () => {
   const pullURL = 'https://pull.com/pull';
 
   const rep = await replicacheForTesting('concurrently', {
-    pull: {url: pullURL},
-    push: {url: pushURL, delay: 10},
+    pullURL,
+    pushURL,
     useMemstore: true,
+    pushDelay: 10,
     mutators: {addData},
   });
   const spy = spyInvoke(rep);
@@ -2265,8 +2276,9 @@ test('schemaVersion push', async () => {
   const schemaVersion = 'testing-push';
 
   const rep = await replicacheForTesting('schema-version-push', {
-    push: {url: pushURL, delay: 1},
+    pushURL,
     schemaVersion,
+    pushDelay: 1,
     mutators: {addData},
   });
 
@@ -2431,7 +2443,7 @@ test.skip('scan with index [type checking only]', async () => {
 testWithBothStores('pull and index update', async () => {
   const pullURL = 'https://pull.com/rep';
   const rep = await replicacheForTesting('pull-and-index-update', {
-    pull: {url: pullURL},
+    pullURL,
     mutators: {addData},
   });
 
@@ -2516,7 +2528,7 @@ type Patch =
 testWithBothStores('subscribe pull and index update', async () => {
   const pullURL = 'https://pull.com/rep';
   const rep = await replicacheForTesting('subscribe-pull-and-index-update', {
-    pull: {url: pullURL},
+    pullURL,
     mutators: {addData},
   });
 
@@ -2690,10 +2702,12 @@ async function tickUntilTimeIs(time: number, tick = 10) {
 }
 
 test('pull mutate options', async () => {
+  const pullURL = 'https://diff.com/pull';
   const rep = await replicacheForTesting('pull-mutate-options', {
+    pullURL,
     useMemstore: true,
   });
-  const pullURL = rep.pullOptions.url;
+
   const log: number[] = [];
 
   fetchMock.post(pullURL, () => {
@@ -2712,14 +2726,14 @@ test('pull mutate options', async () => {
     await clock.tickAsync(10);
   }
 
-  rep.pullOptions.minDelayMs = 500;
+  rep.requestOptions.minDelayMs = 500;
 
   while (Date.now() < 2000) {
     rep.pull();
     await clock.tickAsync(100);
   }
 
-  rep.pullOptions.minDelayMs = 25;
+  rep.requestOptions.minDelayMs = 25;
 
   while (Date.now() < 2500) {
     rep.pull();

@@ -22,7 +22,12 @@ import {IndexTransactionImpl} from './transactions.js';
 import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
 import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
-import {ConnectionLoop} from './connection-loop.js';
+import {
+  ConnectionLoop,
+  ConnectionLoopDelegate,
+  MAX_DELAY_MS,
+  MIN_DELAY_MS,
+} from './connection-loop.js';
 import {getLogger} from './logger.js';
 import type {Logger, LogLevel} from './logger.js';
 
@@ -74,6 +79,23 @@ export type MutatorDefs = {
     args?: any,
   ) => MaybePromise<JSONValue | void>;
 };
+
+/**
+ * Base options for [[PullOptions]] and [[PushOptions]]
+ */
+export interface RequestOptions {
+  /**
+   * When there are pending pull or push requests this is the _minimum_ ammount
+   * of time to wait until we try another pull/push.
+   */
+  minDelayMs?: number;
+
+  /**
+   * When there are pending pull or push requests this is the _maximum_ ammount
+   * of time to wait until we try another pull/push.
+   */
+  maxDelayMs?: number;
+}
 
 /**
  * The options passed to [[Replicache]].
@@ -244,6 +266,11 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * the cache while they run.
    */
   mutators?: MD;
+
+  /**
+   * Options to use when doing pull and push requests.
+   */
+  requestOptions?: RequestOptions;
 }
 
 const emptySet: ReadonlySet<string> = new Set();
@@ -302,6 +329,16 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   pushDelay: number;
 
+  private _requestOptions: Required<RequestOptions>;
+
+  /**
+   * The options used to control the [[pull]] and push request behavior. This
+   * object is live so changes to it will affect the next pull or push call.
+   */
+  get requestOptions(): Required<RequestOptions> {
+    return this._requestOptions;
+  }
+
   /**
    * `onSync` is called when a sync begins, and again when the sync ends. The parameter `syncing`
    * is set to `true` when `onSync` is called at the beginning of a sync, and `false` when it
@@ -351,6 +388,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       useMemstore = false,
       wasmModule,
       mutators = {} as MD,
+      requestOptions = {},
     } = options;
     this._pullAuth = pullAuth;
     this._pullURL = pullURL;
@@ -363,19 +401,27 @@ export class Replicache<MD extends MutatorDefs = {}>
     this.pushDelay = pushDelay;
     this._useMemstore = useMemstore;
 
-    this._pullConnectionLoop = new ConnectionLoop({
-      invokeSend: () => this._invokePull(),
-      watchdogTimer: () => this.pullInterval,
-      debounceDelay: () => 0,
-      maxConnections: 1,
-      ...getLogger(['PULL'], logLevel),
-    });
-    this._pushConnectionLoop = new ConnectionLoop({
-      invokeSend: () => this._invokePush(MAX_REAUTH_TRIES),
-      debounceDelay: () => this.pushDelay,
-      maxConnections: 1,
-      ...getLogger(['PUSH'], logLevel),
-    });
+    const {
+      minDelayMs = MIN_DELAY_MS,
+      maxDelayMs = MAX_DELAY_MS,
+    } = requestOptions;
+    this._requestOptions = {maxDelayMs, minDelayMs};
+
+    this._pullConnectionLoop = new ConnectionLoop(
+      new PullDelegate(
+        this,
+        () => this._invokePull(),
+        getLogger(['PULL'], logLevel),
+      ),
+    );
+
+    this._pushConnectionLoop = new ConnectionLoop(
+      new PushDelegate(
+        this,
+        () => this._invokePush(MAX_REAUTH_TRIES),
+        getLogger(['PUSH'], logLevel),
+      ),
+    );
 
     this._logLevel = logLevel;
     this._logger = getLogger([], logLevel);
@@ -1322,4 +1368,61 @@ function* subscriptionsForIndexDefinitionChanged(
       yield subscription;
     }
   }
+}
+
+class ConnectionLoopDelegateImpl implements Logger {
+  readonly rep: Replicache;
+  readonly invokeSend: () => Promise<boolean>;
+  readonly logger: Logger;
+  readonly maxConnections = 1;
+
+  constructor(
+    rep: Replicache,
+    invokeSend: () => Promise<boolean>,
+    logger: Logger,
+  ) {
+    this.rep = rep;
+    this.invokeSend = invokeSend;
+    this.logger = logger;
+  }
+
+  get maxDelayMs() {
+    return this.rep.requestOptions.maxDelayMs;
+  }
+
+  get minDelayMs() {
+    return this.rep.requestOptions.minDelayMs;
+  }
+
+  get error() {
+    return this.logger.error;
+  }
+
+  get info() {
+    return this.logger.info;
+  }
+
+  get debug() {
+    return this.logger.debug;
+  }
+}
+
+class PullDelegate
+  extends ConnectionLoopDelegateImpl
+  implements ConnectionLoopDelegate {
+  readonly debounceDelay = 0;
+
+  get watchdogTimer() {
+    return this.rep.pullInterval;
+  }
+}
+
+class PushDelegate
+  extends ConnectionLoopDelegateImpl
+  implements ConnectionLoopDelegate {
+  get debounceDelay() {
+    return this.rep.pushDelay;
+  }
+
+  watchdogTimer = null;
 }

@@ -2693,3 +2693,73 @@ testWithBothStores('subscribe pull and index update', async () => {
 
   cancel();
 });
+
+async function tickUntilTimeIs(time: number, tick = 10) {
+  while (Date.now() < time) {
+    await clock.tickAsync(tick);
+  }
+}
+
+test('pull mutate options', async () => {
+  const pullURL = 'https://diff.com/pull';
+  const rep = await replicacheForTesting('pull-mutate-options', {
+    pullURL,
+    useMemstore: true,
+  });
+
+  const log: number[] = [];
+
+  fetchMock.post(pullURL, () => {
+    log.push(Date.now());
+    return {
+      cookie: '',
+      lastMutationID: 2,
+      patch: [],
+    };
+  });
+
+  await tickUntilTimeIs(1000);
+
+  while (Date.now() < 1150) {
+    rep.pull();
+    await clock.tickAsync(10);
+  }
+
+  rep.requestOptions.minDelayMs = 500;
+
+  while (Date.now() < 2000) {
+    rep.pull();
+    await clock.tickAsync(100);
+  }
+
+  rep.requestOptions.minDelayMs = 25;
+
+  while (Date.now() < 2500) {
+    rep.pull();
+    await clock.tickAsync(5);
+  }
+
+  expect(log).to.deep.equal([
+    1000,
+    1030,
+    1060,
+    1090,
+    1120,
+    1150,
+    1180,
+    1680,
+    2180,
+    2205,
+    2230,
+    2255,
+    2280,
+    2305,
+    2330,
+    2355,
+    2380,
+    2405,
+    2430,
+    2455,
+    2480,
+  ]);
+});

@@ -26,9 +26,10 @@ async function main() {
   const userDataDir = await fs.mkdtemp(
     path.join(os.tmpdir(), 'replicache-playwright-'),
   );
-  const context = await playwright[
-    browserType
-  ].launchPersistentContext(userDataDir, {devtools});
+  const context = await playwright[browserType].launchPersistentContext(
+    userDataDir,
+    {devtools},
+  );
 
   const page = await context.newPage();
   await page.goto(`http://127.0.0.1:${port}/perf/index.html`);

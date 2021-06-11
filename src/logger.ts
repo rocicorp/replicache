@@ -20,8 +20,10 @@ export type LogLevel = 'error' | 'info' | 'debug';
 
 export function getLogger(prefix: string[], level: LogLevel): Logger {
   const logger: Logger = {};
-  const impl = (name: 'debug' | 'log' | 'error') => (...args: unknown[]) =>
-    console[name](...prefix, ...args);
+  const impl =
+    (name: 'debug' | 'log' | 'error') =>
+    (...args: unknown[]) =>
+      console[name](...prefix, ...args);
   switch (level) {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore

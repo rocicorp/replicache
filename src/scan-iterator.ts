@@ -85,7 +85,8 @@ export class ScanResult<K> implements AsyncIterable<JSONValue> {
  * ```
  */
 export class AsyncIterableIteratorToArrayWrapper<V>
-  implements AsyncIterableIterator<V> {
+  implements AsyncIterableIterator<V>
+{
   private readonly _it: AsyncIterableIterator<V>;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -163,13 +164,13 @@ async function load<V>(
         items.push(parse(value));
         return;
       case KEY:
-        items.push((key(primaryKey, secondaryKey) as unknown) as V);
+        items.push(key(primaryKey, secondaryKey) as unknown as V);
         return;
       case ENTRY:
-        items.push(([
+        items.push([
           key(primaryKey, secondaryKey),
           parse(value),
-        ] as unknown) as V);
+        ] as unknown as V);
     }
   };
 

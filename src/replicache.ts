@@ -277,7 +277,8 @@ const emptySet: ReadonlySet<string> = new Set();
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export class Replicache<MD extends MutatorDefs = {}>
-  implements ReadTransaction {
+  implements ReadTransaction
+{
   private _pullAuth: string;
   private readonly _pullURL: string;
   private _pushAuth: string;
@@ -401,10 +402,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     this.pushDelay = pushDelay;
     this._useMemstore = useMemstore;
 
-    const {
-      minDelayMs = MIN_DELAY_MS,
-      maxDelayMs = MAX_DELAY_MS,
-    } = requestOptions;
+    const {minDelayMs = MIN_DELAY_MS, maxDelayMs = MAX_DELAY_MS} =
+      requestOptions;
     this._requestOptions = {maxDelayMs, minDelayMs};
 
     this._pullConnectionLoop = new ConnectionLoop(
@@ -549,9 +548,8 @@ export class Replicache<MD extends MutatorDefs = {}>
       ? subscriptionsForIndexDefinitionChanged(this._subscriptions, index)
       : [];
 
-    const subscriptions: Set<
-      Subscription<JSONValue | undefined, unknown>
-    > = new Set();
+    const subscriptions: Set<Subscription<JSONValue | undefined, unknown>> =
+      new Set();
     for (const s of changedKeysSubs) {
       subscriptions.add(s);
     }
@@ -1006,7 +1004,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       scans: [],
     } as Subscription<R, E>;
     this._subscriptions.add(
-      (s as unknown) as Subscription<JSONValue | undefined, unknown>,
+      s as unknown as Subscription<JSONValue | undefined, unknown>,
     );
     (async () => {
       try {
@@ -1025,7 +1023,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     })();
     return (): void => {
       this._subscriptions.delete(
-        (s as unknown) as Subscription<JSONValue | undefined, unknown>,
+        s as unknown as Subscription<JSONValue | undefined, unknown>,
       );
     };
   }
@@ -1102,7 +1100,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   private _registerMutators<
     M extends {
       [key: string]: (tx: WriteTransaction, args?: JSONValue) => MutatorReturn;
-    }
+    },
   >(regs: M): MakeMutators<M> {
     type Mut = MakeMutators<M>;
     const rv: Partial<Mut> = Object.create(null);
@@ -1182,7 +1180,7 @@ function checkStatus(
 
 export class ReplicacheTest<
   // eslint-disable-next-line @typescript-eslint/ban-types
-  MD extends MutatorDefs = {}
+  MD extends MutatorDefs = {},
 > extends Replicache<MD> {
   beginPull(): Promise<BeginPullResult> {
     return super._beginPull(MAX_REAUTH_TRIES);
@@ -1208,7 +1206,7 @@ const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';
 type MutatorReturn = MaybePromise<JSONValue | void>;
 
 type MakeMutator<
-  F extends (tx: WriteTransaction, ...args: [] | [JSONValue]) => MutatorReturn
+  F extends (tx: WriteTransaction, ...args: [] | [JSONValue]) => MutatorReturn,
 > = F extends (tx: WriteTransaction, ...args: infer Args) => infer Ret
   ? (...args: Args) => ToPromise<Ret>
   : never;
@@ -1409,7 +1407,8 @@ class ConnectionLoopDelegateImpl implements Logger {
 
 class PullDelegate
   extends ConnectionLoopDelegateImpl
-  implements ConnectionLoopDelegate {
+  implements ConnectionLoopDelegate
+{
   readonly debounceDelay = 0;
 
   get watchdogTimer() {
@@ -1419,7 +1418,8 @@ class PullDelegate
 
 class PushDelegate
   extends ConnectionLoopDelegateImpl
-  implements ConnectionLoopDelegate {
+  implements ConnectionLoopDelegate
+{
   get debounceDelay() {
     return this.rep.pushDelay;
   }

@@ -231,7 +231,8 @@ export interface WriteTransaction extends ReadTransaction {
 
 export class WriteTransactionImpl
   extends ReadTransactionImpl
-  implements WriteTransaction {
+  implements WriteTransaction
+{
   async put(key: string, value: JSONValue): Promise<void> {
     throwIfClosed(this);
     await this._invoke(RPC.Put, {
@@ -304,7 +305,8 @@ export interface CreateIndexDefinition {
 
 export class IndexTransactionImpl
   extends ReadTransactionImpl
-  implements IndexTransaction {
+  implements IndexTransaction
+{
   protected readonly _openTransactionName = RPC.OpenIndexTransaction;
 
   async createIndex(options: CreateIndexDefinition): Promise<void> {

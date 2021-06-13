@@ -12,7 +12,7 @@ Let's fix that now. We'll also use the `cookie` field to return only changed mes
 Replace the contents of `pages/api/replicache-pull.js` with this code:
 
 ```js
-import {getDB} from '../../db';
+import {db} from '../../db.js';
 
 export default async (req, res) => {
   const pull = req.body;
@@ -20,7 +20,6 @@ export default async (req, res) => {
   const t0 = Date.now();
 
   try {
-    const db = await getDB();
     db.tx(async t => {
       const lastMutationID = parseInt(
         (
@@ -39,10 +38,14 @@ export default async (req, res) => {
       ).version;
       console.log({cookie, lastMutationID, changed});
 
-      res.json({
-        lastMutationID,
-        cookie,
-        patch: changed.map(row => ({
+      const patch = [];
+      if (pull.cookie === null) {
+        patch.push({
+          op: 'clear',
+        });
+      }
+
+      patch.push(...changed.map(row => ({
           op: 'put',
           key: `message/${row.id}`,
           value: {
@@ -50,13 +53,20 @@ export default async (req, res) => {
             content: row.content,
             order: parseInt(row.ord),
           },
-        })),
+        })));
+
+      res.json({
+        lastMutationID,
+        cookie,
+        patch,
       });
       res.end();
     });
   } catch (e) {
     console.error(e);
     res.status(500).send(e.toString());
+  } finally {
+    console.log('Processed pull in', Date.now() - t0);
   }
 };
 ```

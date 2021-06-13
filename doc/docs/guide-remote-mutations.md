@@ -6,7 +6,7 @@ slug: /guide/remote-mutations
 Now to actually implement our push handler. Create a new file `pages/api/replicache-push.js` and copy the following code into it:
 
 ```js
-import {getDB} from '../../db';
+import {db} from '../../db.js';
 
 export default async (req, res) => {
   const push = req.body;
@@ -14,7 +14,6 @@ export default async (req, res) => {
 
   const t0 = Date.now();
   try {
-    const db = await getDB();
     await db.tx(async t => {
       const {nextval: version} = await db.one("SELECT nextval('version')");
       let lastMutationID = parseInt(

@@ -26,23 +26,16 @@ Create a new file `db.js` with this code:
 ```js
 import pgInit from 'pg-promise';
 
-export async function getDB() {
-  const pgp = pgInit();
-  const db = pgp({
-    connectionString: process.env.REPLICHAT_DB_CONNECTION_STRING,
-  });
-  await db.connect();
-  return db;
-}
+const pgp = pgInit();
+export const db = pgp(process.env.REPLICHAT_DB_CONNECTION_STRING);
 ```
 
 And another new file `pages/api/init.js` that initializes the schema:
 
 ```js
-import {getDB} from '../../db.js';
+import {db} from '../../db.js';
 
 export default async (_, res) => {
-  const db = await getDB();
   await db.task(async t => {
     await t.none('DROP TABLE IF EXISTS message');
     await t.none('DROP TABLE IF EXISTS replicache_client');

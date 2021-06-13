@@ -5,19 +5,9 @@ slug: /guide/render-ui
 
 The next step is to use the data in the Client View to render your UI.
 
-The model is that your UI is a [pure function](https://en.wikipedia.org/wiki/Pure_function) of the data in Replicache. There is no separate in-memory state. Everything\* goes in Replicache.
+The model is that your UI is a [pure function](https://en.wikipedia.org/wiki/Pure_function) of the data in Replicache. There is no separate in-memory state. Everything goes in Replicache.
 
-Whenver the data in Replicache changes — either due to local mutations or syncing with the server — subscriptions will fire, and your UI components re-render. Easy.
-
-:::tip _Everything??_
-
-Pretty much, yeah.
-
-Suppose we wanted to support edit of our chat messages like in Slack. In a typical application, you'd keep in-memory state to make that UI responsive while you wait for a server confirmation.
-
-In Replicache there is no distinction between the server state and the local in-memory state. You can work with Replicache as if it is in-memory, but changes to it are asynchronously committed to the server behind the scenes.
-
-:::
+Whenever the data in Replicache changes — either due to local mutations or syncing with the server — subscriptions will fire, and your UI components re-render. Easy.
 
 To create a subscription, use the `useSubscribe()` React hook. You can do multiple reads and compute a result. Your React component only re-renders when the returned result changes.
 

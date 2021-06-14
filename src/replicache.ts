@@ -938,6 +938,10 @@ export class Replicache<MD extends MutatorDefs = {}>
     subscriptions: Iterable<Subscription<JSONValue | undefined, unknown>>,
   ) {
     const subs = [...subscriptions];
+    if (subs.length === 0) {
+      return;
+    }
+
     type R =
       | {ok: true; value: JSONValue | undefined}
       | {ok: false; error: unknown};

@@ -2741,3 +2741,38 @@ test('pull mutate options', async () => {
     2280, 2305, 2330, 2355, 2380, 2405, 2430, 2455, 2480,
   ]);
 });
+
+testWithBothStores('online', async () => {
+  const pushURL = 'https://diff.com/push';
+  const rep = await replicacheForTesting('online', {
+    useMemstore: true,
+    pushURL,
+    pushDelay: 0,
+    mutators: {addData},
+  });
+
+  const info = sinon.stub(console, 'log');
+
+  fetchMock.post(pushURL, () => {
+    return {throws: new Error('Simulate fetch error in push')};
+  });
+
+  expect(rep.online).to.equal(true);
+
+  await rep.mutate.addData({a: 0});
+  expect(info.callCount).to.equal(0);
+
+  await tickAFewTimes();
+
+  expect(rep.online).to.equal(false);
+  expect(info.callCount).to.be.greaterThan(0);
+
+  info.resetHistory();
+
+  fetchMock.post(pushURL, 'ok');
+  await rep.mutate.addData({a: 1});
+
+  await tickAFewTimes();
+  expect(info.callCount).to.equal(0);
+  expect(rep.online).to.equal(true);
+});

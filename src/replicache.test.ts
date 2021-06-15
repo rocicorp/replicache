@@ -2742,7 +2742,7 @@ test('pull mutate options', async () => {
   ]);
 });
 
-testWithBothStores('online', async () => {
+test('online', async () => {
   const pushURL = 'https://diff.com/push';
   const rep = await replicacheForTesting('online', {
     useMemstore: true,

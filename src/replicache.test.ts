@@ -2760,7 +2760,6 @@ test('online', async () => {
   expect(rep.online).to.equal(true);
 
   await rep.mutate.addData({a: 0});
-  expect(info.callCount).to.equal(0);
 
   await tickAFewTimes();
 

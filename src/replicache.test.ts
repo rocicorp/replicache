@@ -62,6 +62,7 @@ async function replicacheForTesting<MD extends MutatorDefs = {}>(
     pushDelay = 60_000, // Large to prevent interfering
     pushURL = 'https://push.com/?name=' + name,
     useMemstore = overrideUseMemstore,
+
     ...rest
   }: ReplicacheOptions<MD> = {},
 ): Promise<ReplicacheTest<MD>> {
@@ -72,13 +73,17 @@ async function replicacheForTesting<MD extends MutatorDefs = {}>(
     pushURL,
     name,
     useMemstore,
+    wasmModule: new URL(
+      './wasm/debug/replicache_client_bg.wasm',
+      import.meta.url,
+    ).href,
     ...rest,
   });
   reps.add(rep);
   // Wait for open to be done.
   await rep.clientID;
   fetchMock.post(pullURL, {lastMutationID: 0, patch: []});
-  fetchMock.post(pushURL, {});
+  fetchMock.post(pushURL, 'ok');
   await tickAFewTimes();
   return rep;
 }

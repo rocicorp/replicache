@@ -25,6 +25,7 @@ import {
   reps,
   dbsToDrop,
 } from './test-util.js';
+import {sleep} from './sleep.js';
 
 let clock: SinonFakeTimers;
 setup(function () {
@@ -2740,4 +2741,40 @@ test('pull mutate options', async () => {
     1000, 1030, 1060, 1090, 1120, 1150, 1180, 1680, 2180, 2205, 2230, 2255,
     2280, 2305, 2330, 2355, 2380, 2405, 2430, 2455, 2480,
   ]);
+});
+
+test('online', async () => {
+  const pushURL = 'https://diff.com/push';
+  const rep = await replicacheForTesting('online', {
+    useMemstore: true,
+    pushURL,
+    pushDelay: 0,
+    mutators: {addData},
+  });
+
+  const info = sinon.stub(console, 'log');
+
+  fetchMock.post(pushURL, async () => {
+    await sleep(10);
+    return {throws: new Error('Simulate fetch error in push')};
+  });
+
+  expect(rep.online).to.equal(true);
+
+  await rep.mutate.addData({a: 0});
+
+  await tickAFewTimes();
+
+  expect(rep.online).to.equal(false);
+  expect(info.callCount).to.be.greaterThan(0);
+
+  info.resetHistory();
+
+  fetchMock.post(pushURL, {});
+  await rep.mutate.addData({a: 1});
+
+  await tickAFewTimes();
+
+  expect(info.callCount).to.equal(0);
+  expect(rep.online).to.equal(true);
 });

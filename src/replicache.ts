@@ -785,7 +785,12 @@ export class Replicache<MD extends MutatorDefs = {}>
       // hacky string search. (a) and (c) are not distinguishable currently
       // because repc doesn't provide sufficient information, so we treat all
       // errors that aren't (b) as (a).
-      if (e.toString().includes('JSLogInfo')) {
+
+      // TODO(arv): Use Error.prototype.cause
+      // (https://github.com/tc39/proposal-error-cause) and check for a
+      // structured error in the cause chain. On the Rust side we should create
+      // a structured error that we can instanceof check instead
+      if (e.toString().includes('FetchFailed')) {
         online = false;
       }
       this._logger.info?.(`${name} returned: ${e}`);

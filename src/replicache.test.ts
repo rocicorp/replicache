@@ -2767,6 +2767,8 @@ test('online', async () => {
   expect(rep.online).to.equal(false);
   expect(info.callCount).to.be.greaterThan(0);
 
+  await tickAFewTimes();
+
   info.resetHistory();
 
   fetchMock.post(pushURL, 'ok');

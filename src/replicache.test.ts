@@ -2775,6 +2775,9 @@ test('online', async () => {
   await rep.mutate.addData({a: 1});
 
   await tickAFewTimes();
+  if (info.callCount > 0) {
+    console.warn(info.getCalls()[0].firstArg);
+  }
   expect(info.callCount).to.equal(0);
   expect(rep.online).to.equal(true);
 });

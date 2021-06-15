@@ -45,7 +45,8 @@ export default async (req, res) => {
         });
       }
 
-      patch.push(...changed.map(row => ({
+      patch.push(
+        ...changed.map(row => ({
           op: 'put',
           key: `message/${row.id}`,
           value: {
@@ -53,7 +54,8 @@ export default async (req, res) => {
             content: row.content,
             order: parseInt(row.ord),
           },
-        })));
+        })),
+      );
 
       res.json({
         lastMutationID,

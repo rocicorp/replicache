@@ -2230,8 +2230,6 @@ test('push and pull concurrently', async () => {
     'OpenTransaction',
     'Put',
     'CommitTransaction',
-    'OpenTransaction',
-    'CloseTransaction',
     'BeginTryPull',
     'TryPush',
   ]);
@@ -2249,8 +2247,6 @@ test('push and pull concurrently', async () => {
     'OpenTransaction',
     'Put',
     'CommitTransaction',
-    'OpenTransaction',
-    'CloseTransaction',
     'BeginTryPull',
     'TryPush',
   ]);

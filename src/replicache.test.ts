@@ -25,6 +25,7 @@ import {
   reps,
   dbsToDrop,
 } from './test-util.js';
+import {sleep} from './sleep.js';
 
 let clock: SinonFakeTimers;
 setup(function () {
@@ -2753,7 +2754,8 @@ test('online', async () => {
 
   const info = sinon.stub(console, 'log');
 
-  fetchMock.post(pushURL, () => {
+  fetchMock.post(pushURL, async () => {
+    await sleep(10);
     return {throws: new Error('Simulate fetch error in push')};
   });
 
@@ -2765,8 +2767,6 @@ test('online', async () => {
 
   expect(rep.online).to.equal(false);
   expect(info.callCount).to.be.greaterThan(0);
-
-  await tickAFewTimes();
 
   info.resetHistory();
 

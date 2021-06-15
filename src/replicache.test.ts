@@ -2771,7 +2771,7 @@ test('online', async () => {
   info.resetHistory();
   expect(info.callCount).to.equal(0);
 
-  fetchMock.post(pushURL, 'ok');
+  fetchMock.post(pushURL, {});
   await rep.mutate.addData({a: 1});
 
   await tickAFewTimes();

@@ -2769,15 +2769,12 @@ test('online', async () => {
   expect(info.callCount).to.be.greaterThan(0);
 
   info.resetHistory();
-  expect(info.callCount).to.equal(0);
 
   fetchMock.post(pushURL, {});
   await rep.mutate.addData({a: 1});
 
   await tickAFewTimes();
-  if (info.callCount > 0) {
-    console.warn(info.getCalls()[0].firstArg);
-  }
+
   expect(info.callCount).to.equal(0);
   expect(rep.online).to.equal(true);
 });

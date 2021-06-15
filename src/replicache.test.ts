@@ -2769,6 +2769,7 @@ test('online', async () => {
   expect(info.callCount).to.be.greaterThan(0);
 
   info.resetHistory();
+  expect(info.callCount).to.equal(0);
 
   fetchMock.post(pushURL, 'ok');
   await rep.mutate.addData({a: 1});

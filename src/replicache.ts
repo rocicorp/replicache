@@ -272,6 +272,20 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * Options to use when doing pull and push requests.
    */
   requestOptions?: RequestOptions;
+
+  /**
+   * Allows passing in a custom implementation of a [[Puller]] function. This
+   * function is called when doing a pull and it is responsible for
+   * communicating with the server.
+   */
+  puller?: Puller;
+
+  /**
+   * Allows passing in a custom implementation of a [[Pusher]] function. This
+   * function is called when doing a push and it is responsible for
+   * communicating with the server.
+   */
+  pusher?: Pusher;
 }
 
 const emptySet: ReadonlySet<string> = new Set();
@@ -331,7 +345,9 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   pushDelay: number;
 
-  private _requestOptions: Required<RequestOptions>;
+  private readonly _requestOptions: Required<RequestOptions>;
+  private readonly _puller: Puller;
+  private readonly _pusher: Pusher;
 
   /**
    * The options used to control the [[pull]] and push request behavior. This
@@ -391,6 +407,8 @@ export class Replicache<MD extends MutatorDefs = {}>
       wasmModule,
       mutators = {} as MD,
       requestOptions = {},
+      puller = defaultPuller,
+      pusher = defaultPusher,
     } = options;
     this._pullAuth = pullAuth;
     this._pullURL = pullURL;
@@ -402,6 +420,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     this.pullInterval = pullInterval;
     this.pushDelay = pushDelay;
     this._useMemstore = useMemstore;
+    this._puller = puller;
+    this._pusher = pusher;
 
     const {minDelayMs = MIN_DELAY_MS, maxDelayMs = MAX_DELAY_MS} =
       requestOptions;
@@ -810,7 +830,7 @@ export class Replicache<MD extends MutatorDefs = {}>
           pushURL: this._pushURL,
           pushAuth: this._pushAuth,
           schemaVersion: this._schemaVersion,
-          pusher: defaultPusher,
+          pusher: this._pusher,
         });
       } finally {
         this._changeSyncCounters(-1, 0);
@@ -875,7 +895,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       pullAuth: this._pullAuth,
       pullURL: this._pullURL,
       schemaVersion: this._schemaVersion,
-      puller: defaultPuller,
+      puller: this._puller,
     });
 
     const {httpRequestInfo, syncHead, requestID} = beginPullResponse;

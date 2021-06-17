@@ -5,8 +5,9 @@ import type {
   ScanOptions,
   ScanOptionsRPC,
 } from './scan-options.js';
-import {Pusher, REPMWasmInvoker, RPC} from './repm-invoker.js';
-import type {Puller} from './repm-invoker.js';
+import {REPMWasmInvoker, RPC} from './repm-invoker.js';
+import type {Pusher} from './pusher.js';
+import type {Puller} from './puller.js';
 import type {
   ChangedKeysMap,
   InitInput,
@@ -31,6 +32,8 @@ import {
 } from './connection-loop.js';
 import {getLogger} from './logger.js';
 import type {Logger, LogLevel} from './logger.js';
+import {defaultPuller} from './puller';
+import {defaultPusher} from './pusher';
 
 type BeginPullResult = {
   requestID: string;
@@ -1457,83 +1460,4 @@ class PushDelegate
   }
 
   watchdogTimer = null;
-}
-
-const defaultPuller: Puller = async arg => {
-  const {url} = arg;
-  const headers = getHeaders(arg);
-
-  const body = {
-    clientID: arg.clientID,
-    cookie: arg.cookie,
-    lastMutationID: arg.lastMutationID,
-    pullVersion: arg.pullVersion,
-    schemaVersion: arg.schemaVersion,
-  };
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-  const httpStatusCode = res.status;
-  if (httpStatusCode !== 200) {
-    const errorMessage = await res.text();
-    return {
-      httpRequestInfo: {
-        httpStatusCode,
-        errorMessage,
-      },
-    };
-  }
-
-  const response = await res.json();
-  return {
-    response,
-    httpRequestInfo: {
-      httpStatusCode,
-      errorMessage: '',
-    },
-  };
-};
-
-const defaultPusher: Pusher = async arg => {
-  const {url} = arg;
-  const headers = getHeaders(arg);
-
-  const body = {
-    clientID: arg.clientID,
-    mutations: arg.mutations,
-    pushVersion: arg.pushVersion,
-    schemaVersion: arg.schemaVersion,
-  };
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-  const httpStatusCode = res.status;
-  if (httpStatusCode !== 200) {
-    const errorMessage = await res.text();
-    return {
-      httpStatusCode,
-      errorMessage,
-    };
-  }
-
-  return {
-    httpStatusCode,
-    errorMessage: '',
-  };
-};
-
-function getHeaders(arg: {auth: string; requestID: string}) {
-  /* eslint-disable @typescript-eslint/naming-convention */
-  return {
-    'Content-type': 'application/json',
-    Authorization: arg.auth,
-    'X-Replicache-RequestID': arg.requestID,
-  };
-  /* eslint-disable @typescript-eslint/naming-convention */
 }

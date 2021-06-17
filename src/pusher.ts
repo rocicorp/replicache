@@ -1,5 +1,5 @@
 import type {HTTPRequestInfo, Mutation} from './repm-invoker.js';
-import {getHeaders} from './get-headers.js';
+import {httpRequest} from './http-request.js';
 
 export type Pusher = (arg: PusherArg) => Promise<HTTPRequestInfo>;
 
@@ -14,32 +14,11 @@ export type PusherArg = {
 };
 
 export const defaultPusher: Pusher = async arg => {
-  const {url} = arg;
-  const headers = getHeaders(arg);
-
   const body = {
     clientID: arg.clientID,
     mutations: arg.mutations,
     pushVersion: arg.pushVersion,
     schemaVersion: arg.schemaVersion,
   };
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-  const httpStatusCode = res.status;
-  if (httpStatusCode !== 200) {
-    const errorMessage = await res.text();
-    return {
-      httpStatusCode,
-      errorMessage,
-    };
-  }
-
-  return {
-    httpStatusCode,
-    errorMessage: '',
-  };
+  return (await httpRequest(arg, body)).httpRequestInfo;
 };

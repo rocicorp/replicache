@@ -1,4 +1,4 @@
-import {getHeaders} from './get-headers.js';
+import {httpRequest} from './http-request.js';
 import type {JSONValue} from './json.js';
 import type {HTTPRequestInfo} from './repm-invoker.js';
 
@@ -37,9 +37,6 @@ export type PatchOperation =
   | {op: 'clear'};
 
 export const defaultPuller: Puller = async arg => {
-  const {url} = arg;
-  const headers = getHeaders(arg);
-
   const body = {
     clientID: arg.clientID,
     cookie: arg.cookie,
@@ -47,29 +44,14 @@ export const defaultPuller: Puller = async arg => {
     pullVersion: arg.pullVersion,
     schemaVersion: arg.schemaVersion,
   };
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-  const httpStatusCode = res.status;
-  if (httpStatusCode !== 200) {
-    const errorMessage = await res.text();
+  const {httpRequestInfo, response} = await httpRequest(arg, body);
+  if (httpRequestInfo.httpStatusCode !== 200) {
     return {
-      httpRequestInfo: {
-        httpStatusCode,
-        errorMessage,
-      },
+      httpRequestInfo,
     };
   }
-
-  const response = await res.json();
   return {
-    response,
-    httpRequestInfo: {
-      httpStatusCode,
-      errorMessage: '',
-    },
+    response: await response.json(),
+    httpRequestInfo,
   };
 };

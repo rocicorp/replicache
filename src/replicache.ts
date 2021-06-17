@@ -5,7 +5,8 @@ import type {
   ScanOptions,
   ScanOptionsRPC,
 } from './scan-options.js';
-import {REPMWasmInvoker, RPC} from './repm-invoker.js';
+import {Pusher, REPMWasmInvoker, RPC} from './repm-invoker.js';
+import type {Puller} from './repm-invoker.js';
 import type {
   ChangedKeysMap,
   InitInput,
@@ -790,7 +791,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       // (https://github.com/tc39/proposal-error-cause) and check for a
       // structured error in the cause chain. On the Rust side we should create
       // a structured error that we can instanceof check instead
-      if (e.toString().includes('FetchFailed')) {
+      if (/Pu(sh|ll)Failed\(JsError\(JsValue/.test(e + '')) {
         online = false;
       }
       this._logger.info?.(`${name} returned: ${e}`);
@@ -809,6 +810,7 @@ export class Replicache<MD extends MutatorDefs = {}>
           pushURL: this._pushURL,
           pushAuth: this._pushAuth,
           schemaVersion: this._schemaVersion,
+          pusher: defaultPusher,
         });
       } finally {
         this._changeSyncCounters(-1, 0);
@@ -873,6 +875,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       pullAuth: this._pullAuth,
       pullURL: this._pullURL,
       schemaVersion: this._schemaVersion,
+      puller: defaultPuller,
     });
 
     const {httpRequestInfo, syncHead, requestID} = beginPullResponse;
@@ -1434,4 +1437,83 @@ class PushDelegate
   }
 
   watchdogTimer = null;
+}
+
+const defaultPuller: Puller = async arg => {
+  const {url} = arg;
+  const headers = getHeaders(arg);
+
+  const body = {
+    clientID: arg.clientID,
+    cookie: arg.cookie,
+    lastMutationID: arg.lastMutationID,
+    pullVersion: arg.pullVersion,
+    schemaVersion: arg.schemaVersion,
+  };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+  const httpStatusCode = res.status;
+  if (httpStatusCode !== 200) {
+    const errorMessage = await res.text();
+    return {
+      httpRequestInfo: {
+        httpStatusCode,
+        errorMessage,
+      },
+    };
+  }
+
+  const response = await res.json();
+  return {
+    response,
+    httpRequestInfo: {
+      httpStatusCode,
+      errorMessage: '',
+    },
+  };
+};
+
+const defaultPusher: Pusher = async arg => {
+  const {url} = arg;
+  const headers = getHeaders(arg);
+
+  const body = {
+    clientID: arg.clientID,
+    mutations: arg.mutations,
+    pushVersion: arg.pushVersion,
+    schemaVersion: arg.schemaVersion,
+  };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+  const httpStatusCode = res.status;
+  if (httpStatusCode !== 200) {
+    const errorMessage = await res.text();
+    return {
+      httpStatusCode,
+      errorMessage,
+    };
+  }
+
+  return {
+    httpStatusCode,
+    errorMessage: '',
+  };
+};
+
+function getHeaders(arg: {auth: string; requestID: string}) {
+  /* eslint-disable @typescript-eslint/naming-convention */
+  return {
+    'Content-type': 'application/json',
+    Authorization: arg.auth,
+    'X-Replicache-RequestID': arg.requestID,
+  };
+  /* eslint-disable @typescript-eslint/naming-convention */
 }

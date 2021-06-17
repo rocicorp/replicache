@@ -148,7 +148,42 @@ type BeginTryPullRequest = {
   pullURL: string;
   pullAuth: string;
   schemaVersion: string;
+  puller: Puller;
 };
+
+export type PullerArg = {
+  clientID: string;
+  cookie: JSONValue;
+  lastMutationID: number;
+  pullVersion: number;
+  schemaVersion: string;
+  url: string;
+  auth: string;
+  requestID: string;
+};
+
+export type PatchOperation =
+  | {
+      op: 'put';
+
+      key: string;
+      value: JSONValue;
+    }
+  | {op: 'del'; key: string}
+  | {op: 'clear'};
+
+export type PullResponse = {
+  cookie: JSONValue;
+  lastMutationID: number;
+  patch: PatchOperation[];
+};
+
+export type PullerResult = {
+  response?: PullResponse;
+  httpRequestInfo: HTTPRequestInfo;
+};
+
+export type Puller = (arg: PullerArg) => Promise<PullerResult>;
 
 type BeginTryPullResponse = {
   httpRequestInfo: HTTPRequestInfo;
@@ -160,13 +195,26 @@ type TryPushRequest = {
   pushURL: string;
   pushAuth: string;
   schemaVersion: string;
+  pusher: Pusher;
+};
+
+export type Pusher = (arg: PusherArg) => Promise<HTTPRequestInfo>;
+
+export type PusherArg = {
+  clientID: string;
+  mutations: Mutation[];
+  pushVersion: number;
+  schemaVersion: string;
+  url: string;
+  auth: string;
+  requestID: string;
 };
 
 type TryPushResponse = {
   httpRequestInfo?: HTTPRequestInfo;
 };
 
-type HTTPRequestInfo = {
+export type HTTPRequestInfo = {
   httpStatusCode: number;
   errorMessage: string;
 };
@@ -176,7 +224,7 @@ type MaybeEndTryPullRequest = {
   syncHead: string;
 };
 
-type Mutation = {
+export type Mutation = {
   id: number;
   name: string;
   args: JSONValue;

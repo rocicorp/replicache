@@ -179,7 +179,7 @@ type MaybeEndTryPullRequest = {
 type Mutation = {
   id: number;
   name: string;
-  args: string;
+  args: JSONValue;
 };
 
 type ReplayMutation = Mutation & {

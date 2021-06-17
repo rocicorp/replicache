@@ -29,7 +29,6 @@ export type PullResponse = {
 export type PatchOperation =
   | {
       op: 'put';
-
       key: string;
       value: JSONValue;
     }

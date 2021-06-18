@@ -29,8 +29,9 @@ export type {LogLevel} from './logger.js';
 export type {
   PatchOperation,
   Puller,
-  PullerArg,
+  PullerBody,
   PullerResult,
   PullResponse,
 } from './puller.js';
-export type {Pusher, PusherArg} from './pusher.js';
+export type {Pusher, PusherBody} from './pusher.js';
+export type {FetchArgs} from './http-request.js';

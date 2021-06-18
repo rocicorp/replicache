@@ -2,14 +2,20 @@ import {httpRequest} from './http-request.js';
 import type {JSONValue} from './json.js';
 import type {HTTPRequestInfo} from './repm-invoker.js';
 
-export type Puller = (arg: PullerArg) => Promise<PullerResult>;
+export type Puller = (
+  arg: PullerArg,
+  body: PullerBody,
+) => Promise<PullerResult>;
 
-export type PullerArg = {
+export type PullerBody = {
   clientID: string;
   cookie: JSONValue;
   lastMutationID: number;
   pullVersion: number;
   schemaVersion: string;
+};
+
+export type PullerArg = {
   url: string;
   auth: string;
   requestID: string;
@@ -35,14 +41,14 @@ export type PatchOperation =
   | {op: 'del'; key: string}
   | {op: 'clear'};
 
-export const defaultPuller: Puller = async arg => {
-  const body = {
-    clientID: arg.clientID,
-    cookie: arg.cookie,
-    lastMutationID: arg.lastMutationID,
-    pullVersion: arg.pullVersion,
-    schemaVersion: arg.schemaVersion,
-  };
+export const defaultPuller: Puller = async (arg, body) => {
+  // const body = {
+  //   clientID: arg.clientID,
+  //   cookie: arg.cookie,
+  //   lastMutationID: arg.lastMutationID,
+  //   pullVersion: arg.pullVersion,
+  //   schemaVersion: arg.schemaVersion,
+  // };
   const {httpRequestInfo, response} = await httpRequest(arg, body);
   if (httpRequestInfo.httpStatusCode !== 200) {
     return {

@@ -5,6 +5,7 @@ use crate::{
     prolly,
 };
 use serde::{Deserialize, Serialize};
+use wasm_bindgen::JsValue;
 
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(test, derive(Clone, Debug, PartialEq))]
@@ -95,6 +96,7 @@ pub enum TryPushError {
     InternalGetPendingCommitsError(db::WalkChainError),
     InternalNoMainHeadError,
     InternalNonLocalPendingCommit,
+    InvalidPusher(JsValue),
     PushFailed(PushError),
     ReadError(dag::Error),
 }
@@ -109,6 +111,7 @@ pub enum BeginTryPullError {
     InternalProgrammerError(db::InternalProgrammerError),
     InternalRebuildIndexError(db::CreateIndexError),
     InvalidBaseSnapshotCookie(serde_json::error::Error),
+    InvalidPuller(JsValue),
     LockError(dag::Error),
     MainHeadDisappeared,
     NoBaseSnapshot(db::BaseSnapshotError),

@@ -2,8 +2,8 @@ use super::dispatch::Request;
 use super::types::*;
 use crate::dag;
 use crate::db;
-use crate::fetch;
 use crate::sync;
+use crate::sync::JsPusher;
 use crate::util::rlog;
 use crate::util::rlog::LogContext;
 use crate::util::to_debug;
@@ -220,8 +220,10 @@ async fn execute<'a, 'b>(
         Rpc::CloseTransaction => return to_js(do_close_transaction(ctx, from_js(data)?).await),
         Rpc::SetLogLevel => return to_js(do_set_log_level(ctx, from_js(data)?).await),
 
-        Rpc::TryPush => return to_js(do_try_push(ctx, from_js(data)?).await),
-        Rpc::BeginTryPull => return to_js(do_begin_try_pull(ctx, from_js(data)?).await),
+        Rpc::TryPush => return to_js(do_try_push(ctx, from_js(data.clone())?, data).await),
+        Rpc::BeginTryPull => {
+            return to_js(do_begin_try_pull(ctx, from_js(data.clone())?, data).await)
+        }
         Rpc::MaybeEndTryPull => return to_js(do_maybe_end_try_pull(ctx, from_js(data)?).await),
 
         _ => (),
@@ -694,10 +696,9 @@ async fn do_set_log_level<'a, 'b>(
 async fn do_try_push<'a, 'b>(
     ctx: Context<'a, 'b>,
     req: sync::TryPushRequest,
+    req_raw: JsValue,
 ) -> Result<sync::TryPushResponse, sync::TryPushError> {
-    // TODO move client, pusher up to process() or into a lazy static so we can share.
-    let fetch_client = fetch::client::Client::new();
-    let pusher = sync::FetchPusher::new(&fetch_client);
+    let pusher = JsPusher::new(req_raw).map_err(sync::TryPushError::InvalidPusher)?;
     let request_id = sync::request_id::new(&ctx.client_id);
     ctx.lc.add_context("request_id", &request_id);
 
@@ -709,10 +710,9 @@ async fn do_try_push<'a, 'b>(
 async fn do_begin_try_pull<'a, 'b>(
     ctx: Context<'a, 'b>,
     req: sync::BeginTryPullRequest,
+    req_raw: JsValue,
 ) -> Result<sync::BeginTryPullResponse, sync::BeginTryPullError> {
-    // TODO move client, pusher up to process() or into a lazy static so we can share.
-    let fetch_client = fetch::client::Client::new();
-    let puller = sync::FetchPuller::new(&fetch_client);
+    let puller = sync::JsPuller::new(req_raw).map_err(sync::BeginTryPullError::InvalidPuller)?;
     let request_id = sync::request_id::new(&ctx.client_id);
     ctx.lc.add_context("request_id", &request_id);
     sync::begin_pull(ctx.client_id, req, &puller, request_id, ctx.store, ctx.lc).await

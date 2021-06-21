@@ -1,6 +1,7 @@
 #![allow(clippy::redundant_pattern_matching)] // For derive(Deserialize).
 
 pub mod client_id;
+mod js_request;
 mod patch;
 mod pull;
 mod push;

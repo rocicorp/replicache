@@ -2,6 +2,8 @@ import type {JSONValue} from './json.js';
 import type {ScanOptionsRPC} from './scan-options.js';
 import init, {dispatch} from './wasm/release/replicache_client.js';
 import type {InitOutput} from './wasm/release/replicache_client.js';
+import type {Puller} from './puller.js';
+import type {Pusher} from './pusher.js';
 
 /**
  * This type is used for the [[ReplicacheOptions.wasmModule]] property.
@@ -148,6 +150,7 @@ type BeginTryPullRequest = {
   pullURL: string;
   pullAuth: string;
   schemaVersion: string;
+  puller: Puller;
 };
 
 type BeginTryPullResponse = {
@@ -160,13 +163,14 @@ type TryPushRequest = {
   pushURL: string;
   pushAuth: string;
   schemaVersion: string;
+  pusher: Pusher;
 };
 
 type TryPushResponse = {
   httpRequestInfo?: HTTPRequestInfo;
 };
 
-type HTTPRequestInfo = {
+export type HTTPRequestInfo = {
   httpStatusCode: number;
   errorMessage: string;
 };
@@ -176,7 +180,7 @@ type MaybeEndTryPullRequest = {
   syncHead: string;
 };
 
-type Mutation = {
+export type Mutation = {
   id: number;
   name: string;
   args: JSONValue;

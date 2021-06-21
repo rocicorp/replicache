@@ -6,6 +6,8 @@ import type {
   ScanOptionsRPC,
 } from './scan-options.js';
 import {REPMWasmInvoker, RPC} from './repm-invoker.js';
+import type {Pusher} from './pusher.js';
+import type {Puller} from './puller.js';
 import type {
   ChangedKeysMap,
   InitInput,
@@ -30,6 +32,8 @@ import {
 } from './connection-loop.js';
 import {getLogger} from './logger.js';
 import type {Logger, LogLevel} from './logger.js';
+import {defaultPuller} from './puller';
+import {defaultPusher} from './pusher';
 
 type BeginPullResult = {
   requestID: string;
@@ -271,6 +275,26 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * Options to use when doing pull and push requests.
    */
   requestOptions?: RequestOptions;
+
+  /**
+   * Allows passing in a custom implementation of a [[Puller]] function. This
+   * function is called when doing a pull and it is responsible for
+   * communicating with the server.
+   *
+   * Normally, this is just a POST to a URL with a JSON body but you can provide
+   * your own function if you need to do things differently.
+   */
+  puller?: Puller;
+
+  /**
+   * Allows passing in a custom implementation of a [[Pusher]] function. This
+   * function is called when doing a push and it is responsible for
+   * communicating with the server.
+   *
+   * Normally, this is just a POST to a URL with a JSON body but you can provide
+   * your own function if you need to do things differently.
+   */
+  pusher?: Pusher;
 }
 
 const emptySet: ReadonlySet<string> = new Set();
@@ -330,7 +354,9 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   pushDelay: number;
 
-  private _requestOptions: Required<RequestOptions>;
+  private readonly _requestOptions: Required<RequestOptions>;
+  private readonly _puller: Puller;
+  private readonly _pusher: Pusher;
 
   /**
    * The options used to control the [[pull]] and push request behavior. This
@@ -390,6 +416,8 @@ export class Replicache<MD extends MutatorDefs = {}>
       wasmModule,
       mutators = {} as MD,
       requestOptions = {},
+      puller = defaultPuller,
+      pusher = defaultPusher,
     } = options;
     this._pullAuth = pullAuth;
     this._pullURL = pullURL;
@@ -401,6 +429,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     this.pullInterval = pullInterval;
     this.pushDelay = pushDelay;
     this._useMemstore = useMemstore;
+    this._puller = puller;
+    this._pusher = pusher;
 
     const {minDelayMs = MIN_DELAY_MS, maxDelayMs = MAX_DELAY_MS} =
       requestOptions;
@@ -790,7 +820,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       // (https://github.com/tc39/proposal-error-cause) and check for a
       // structured error in the cause chain. On the Rust side we should create
       // a structured error that we can instanceof check instead
-      if (e.toString().includes('FetchFailed')) {
+      if (/Pu(sh|ll)Failed\(JsError\(JsValue\(/.test(e + '')) {
         online = false;
       }
       this._logger.info?.(`${name} returned: ${e}`);
@@ -809,6 +839,7 @@ export class Replicache<MD extends MutatorDefs = {}>
           pushURL: this._pushURL,
           pushAuth: this._pushAuth,
           schemaVersion: this._schemaVersion,
+          pusher: this._pusher,
         });
       } finally {
         this._changeSyncCounters(-1, 0);
@@ -873,6 +904,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       pullAuth: this._pullAuth,
       pullURL: this._pullURL,
       schemaVersion: this._schemaVersion,
+      puller: this._puller,
     });
 
     const {httpRequestInfo, syncHead, requestID} = beginPullResponse;

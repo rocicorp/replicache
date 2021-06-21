@@ -26,12 +26,5 @@ export type {
 } from './scan-options.js';
 export type {HTTPRequestInfo, InitInput, Mutation} from './repm-invoker.js';
 export type {LogLevel} from './logger.js';
-export type {
-  PatchOperation,
-  Puller,
-  PullerBody,
-  PullerResult,
-  PullResponse,
-} from './puller.js';
-export type {Pusher, PusherBody} from './pusher.js';
-export type {FetchArgs} from './http-request.js';
+export type {PatchOperation, Puller, PullResponse} from './puller.js';
+export type {Pusher} from './pusher.js';

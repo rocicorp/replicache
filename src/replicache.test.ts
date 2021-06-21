@@ -1099,8 +1099,7 @@ testWithBothStores('push', async () => {
   });
   await tickAFewTimes();
   expect(deleteCount).to.equal(2);
-  const req = JSON.parse(fetchMock.lastCall()[1].body);
-  const {mutations} = req;
+  const {mutations} = await fetchMock.lastCall().request.json();
   expect(mutations).to.deep.equal([
     {id: 1, name: 'deleteTodo', args: {id: id1}},
     {id: 2, name: 'deleteTodo', args: {id: id2}},
@@ -1120,8 +1119,7 @@ testWithBothStores('push', async () => {
   });
   await tickAFewTimes();
   {
-    const req = JSON.parse(fetchMock.lastCall()[1].body);
-    const {mutations} = req;
+    const {mutations} = await fetchMock.lastCall().request.json();
     expect(mutations).to.deep.equal([
       {id: 1, name: 'deleteTodo', args: {id: id1}},
       {id: 2, name: 'deleteTodo', args: {id: id2}},
@@ -1150,8 +1148,7 @@ testWithBothStores('push', async () => {
   });
   await tickAFewTimes();
   {
-    const req = JSON.parse(fetchMock.lastCall()[1].body);
-    const {mutations} = req;
+    const {mutations} = await fetchMock.lastCall().request.json();
     expect(mutations).to.deep.equal([
       {id: 1, name: 'deleteTodo', args: {id: id1}},
       {id: 2, name: 'deleteTodo', args: {id: id2}},
@@ -2271,7 +2268,7 @@ test('schemaVersion pull', async () => {
   rep.pull();
   await tickAFewTimes();
 
-  const req = JSON.parse(fetchMock.lastCall()[1].body);
+  const req = await fetchMock.lastCall().request.json();
   expect(req.schemaVersion).to.deep.equal(schemaVersion);
 });
 
@@ -2292,7 +2289,7 @@ test('schemaVersion push', async () => {
   fetchMock.post(pushURL, {});
   await tickAFewTimes();
 
-  const req = JSON.parse(fetchMock.lastCall()[1].body);
+  const req = await fetchMock.lastCall().request.json();
   expect(req.schemaVersion).to.deep.equal(schemaVersion);
 });
 

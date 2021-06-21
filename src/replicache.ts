@@ -280,6 +280,9 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * Allows passing in a custom implementation of a [[Puller]] function. This
    * function is called when doing a pull and it is responsible for
    * communicating with the server.
+   *
+   * Normally, this is just a POST to a URL with a JSON body but you can provide
+   * your own function if you need to do things differently.
    */
   puller?: Puller;
 
@@ -287,7 +290,10 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * Allows passing in a custom implementation of a [[Pusher]] function. This
    * function is called when doing a push and it is responsible for
    * communicating with the server.
-   */
+   *
+   * Normally, this is just a POST to a URL with a JSON body but you can provide
+   * your own function if you need to do things differently.
+   * */
   pusher?: Pusher;
 }
 

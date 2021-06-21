@@ -293,7 +293,7 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    *
    * Normally, this is just a POST to a URL with a JSON body but you can provide
    * your own function if you need to do things differently.
-   * */
+   */
   pusher?: Pusher;
 }
 
@@ -820,7 +820,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       // (https://github.com/tc39/proposal-error-cause) and check for a
       // structured error in the cause chain. On the Rust side we should create
       // a structured error that we can instanceof check instead
-      if (/Pu(sh|ll)Failed\(JsError\(JsValue/.test(e + '')) {
+      if (/Pu(sh|ll)Failed\(JsError\(JsValue\(/.test(e + '')) {
         online = false;
       }
       this._logger.info?.(`${name} returned: ${e}`);

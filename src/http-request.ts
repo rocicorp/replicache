@@ -1,7 +1,7 @@
 import type {HTTPRequestInfo} from './repm-invoker.js';
 
 /**
- * This is used be the defaultPuller and defaultPusher to reduce code
+ * This is used by the defaultPuller and defaultPusher to reduce code
  * duplication.
  */
 export async function httpRequest(

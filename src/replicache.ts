@@ -34,6 +34,7 @@ import {getLogger} from './logger.js';
 import type {Logger, LogLevel} from './logger.js';
 import {defaultPuller} from './puller';
 import {defaultPusher} from './pusher';
+import {resolver} from './resolver.js';
 
 type BeginPullResult = {
   requestID: string;
@@ -316,7 +317,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   private _online = true;
   private readonly _logLevel: LogLevel;
   private readonly _logger: Logger;
-  private _openResponse!: Promise<OpenResponse>;
+  private _openResponse: Promise<OpenResponse> | undefined = undefined;
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
@@ -357,6 +358,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   private readonly _requestOptions: Required<RequestOptions>;
   private readonly _puller: Puller;
   private readonly _pusher: Pusher;
+  private readonly _clintIDResolver = resolver<string>();
 
   /**
    * The options used to control the [[pull]] and push request behavior. This
@@ -457,13 +459,7 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     this.mutate = this._registerMutators(mutators);
 
-    this._open().then(async () => {
-      // TODO: Make log level an arg to open and scope the log level to a db
-      // connection.
-      await this._invoke(RPC.SetLogLevel, {level: this._logLevel});
-      this.pull();
-      this._push();
-    });
+    this._open();
   }
 
   private async _open(): Promise<void> {
@@ -479,6 +475,12 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
     this._root = this._getRoot();
     await this._root;
+
+    await this._invoke(RPC.SetLogLevel, {level: this._logLevel});
+    this.pull();
+    this._push();
+
+    this._clintIDResolver.resolve(await this._openResponse);
   }
 
   /**
@@ -489,7 +491,7 @@ export class Replicache<MD extends MutatorDefs = {}>
    * time a new Replicache instance is created).
    */
   get clientID(): Promise<string> {
-    return this._openResponse;
+    return this._clintIDResolver.promise;
   }
 
   /**

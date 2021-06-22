@@ -2311,6 +2311,11 @@ test('clientID', async () => {
   const clientID3 = await rep.clientID;
   expect(clientID3).to.match(re);
   expect(clientID3).to.equal(clientID);
+
+  const rep4 = new Replicache({name: 'clientID4', pullInterval: null});
+  const clientID4 = await rep4.clientID;
+  expect(clientID4).to.match(re);
+  await rep4.close();
 });
 
 // Only used for type checking

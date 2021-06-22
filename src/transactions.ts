@@ -177,7 +177,6 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
   }
 
   get(key: string): Promise<JSONValue | undefined> {
-    // TODO(arv): Use override keyword once we are using TS4.3
     this._keys.add(key);
     return this._tx.get(key);
   }

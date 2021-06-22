@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1624314157443,
+  "lastUpdate": 1624387686459,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -26040,6 +26040,135 @@ window.BENCHMARK_DATA = {
             "name": "subscription 1000",
             "value": 1.77,
             "range": "±55.7%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "distinct": true,
+          "id": "7ef148d2ddb8ec5f09f828654dfd29fac4cecc15",
+          "message": "Remove old todo comment\n\nThe comment was about using the `override` keyword but the implementaion\nuses an `implements` interface and is not extending a base class.\n`override` only works when extending a class. `implements` already flags\ninvalid implementaions.",
+          "timestamp": "2021-06-22T11:42:54-07:00",
+          "tree_id": "b52c09087796ba2c75aa1bfd372a0f7674762660",
+          "url": "https://github.com/rocicorp/replicache/commit/7ef148d2ddb8ec5f09f828654dfd29fac4cecc15"
+        },
+        "date": 1624387685195,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 2.28,
+            "range": "±67.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 2.16,
+            "range": "±11.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.66,
+            "range": "±3.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.93,
+            "range": "±6.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 3.14,
+            "range": "±6.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 3.39,
+            "range": "±51.5%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 3.91,
+            "range": "±7.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 3.85,
+            "range": "±61.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±2003.8%",
+            "unit": "MB/s",
+            "extra": "83 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 35.52,
+            "range": "±128.8%",
+            "unit": "ops/sec",
+            "extra": "18 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 2.66,
+            "range": "±3.1%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 0.48,
+            "range": "±52.3%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 6.78,
+            "range": "±82.4%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 3.63,
+            "range": "±5.1%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 1.07,
+            "range": "±3.0%",
             "unit": "ops/sec",
             "extra": "5 samples"
           }

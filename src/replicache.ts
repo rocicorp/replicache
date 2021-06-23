@@ -517,7 +517,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   /**
    * A rough heuristic for whether the client is currently online. Note that
    * there is no way to know for certain whether a client is online - the next
-   * request can always fail. This is true if the last sync attempt succeeded,
+   * request can always fail. This property returns true if the last sync attempt succeeded,
    * and false otherwise.
    */
   get online(): boolean {

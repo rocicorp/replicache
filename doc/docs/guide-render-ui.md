@@ -16,7 +16,7 @@ Let's use a subscription to implement our chat UI. Replace `index.js` with this:
 ```js
 import React, {useEffect, useRef, useState} from 'react';
 import {Replicache} from 'replicache';
-import {useSubscribe} from 'replicache-react-util';
+import {useSubscribe} from 'replicache-react';
 
 export default function Home() {
   const [rep, setRep] = useState(null);

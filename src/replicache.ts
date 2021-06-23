@@ -509,9 +509,16 @@ export class Replicache<MD extends MutatorDefs = {}>
   }
 
   /**
-   * A rough heuristic for whether the client is currently online. Note that there is no way to know
-   * for certain whether a client is online - the next request can always fail. This is true if the last
-   * sync attempt succeeded, and false otherwise.
+   * `onOnlineChange` is called when the [[online]] property changes. See
+   * [[online]] for more details.
+   */
+  onOnlineChange: ((online: boolean) => void) | null = null;
+
+  /**
+   * A rough heuristic for whether the client is currently online. Note that
+   * there is no way to know for certain whether a client is online - the next
+   * request can always fail. This is true if the last sync attempt succeeded,
+   * and false otherwise.
    */
   get online(): boolean {
     return this._online;
@@ -844,7 +851,10 @@ export class Replicache<MD extends MutatorDefs = {}>
       this._logger.info?.(`${name} returned: ${e}`);
       return false;
     } finally {
-      this._online = online;
+      if (this._online !== online) {
+        this._online = online;
+        this.onOnlineChange?.(online);
+      }
     }
   }
 

@@ -34,6 +34,7 @@ import {getLogger} from './logger.js';
 import type {Logger, LogLevel} from './logger.js';
 import {defaultPuller} from './puller';
 import {defaultPusher} from './pusher';
+import {resolver} from './resolver.js';
 
 type BeginPullResult = {
   requestID: string;
@@ -316,7 +317,9 @@ export class Replicache<MD extends MutatorDefs = {}>
   private _online = true;
   private readonly _logLevel: LogLevel;
   private readonly _logger: Logger;
-  private _openResponse!: Promise<OpenResponse>;
+  private readonly _openResponse: Promise<OpenResponse>;
+  private readonly _openResolve: (resp: OpenResponse) => void;
+  private readonly _clientIDPromise: Promise<string>;
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
@@ -432,6 +435,12 @@ export class Replicache<MD extends MutatorDefs = {}>
     this._puller = puller;
     this._pusher = pusher;
 
+    // Use a promise-resolve pair so that we have a promise to use even before
+    // we call the Open RPC.
+    const {promise, resolve} = resolver<OpenResponse>();
+    this._openResponse = promise;
+    this._openResolve = resolve;
+
     const {minDelayMs = MIN_DELAY_MS, maxDelayMs = MAX_DELAY_MS} =
       requestOptions;
     this._requestOptions = {maxDelayMs, minDelayMs};
@@ -457,19 +466,19 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     this.mutate = this._registerMutators(mutators);
 
-    this._open().then(async () => {
-      // TODO: Make log level an arg to open and scope the log level to a db
-      // connection.
-      await this._invoke(RPC.SetLogLevel, {level: this._logLevel});
-      this.pull();
-      this._push();
-    });
+    this._clientIDPromise = this._open();
   }
 
-  private async _open(): Promise<void> {
-    this._openResponse = this._repmInvoker.invoke(this._name, RPC.Open, {
+  private async _open(): Promise<OpenResponse> {
+    // If we are currently closing a Replicache instance with the same name,
+    // wait for it to finish closing.
+    await closingInstances.get(this._name);
+
+    const openResponse = await this._repmInvoker.invoke(this._name, RPC.Open, {
       useMemstore: this._useMemstore,
     });
+    this._openResolve(openResponse);
+
     if (hasBroadcastChannel) {
       this._broadcastChannel = new BroadcastChannel(storageKeyName(this._name));
       this._broadcastChannel.onmessage = (e: MessageEvent<BroadcastData>) =>
@@ -479,6 +488,13 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
     this._root = this._getRoot();
     await this._root;
+
+    if (!this._closed) {
+      await this._invoke(RPC.SetLogLevel, {level: this._logLevel});
+    }
+    this.pull();
+    this._push();
+    return openResponse;
   }
 
   /**
@@ -489,7 +505,7 @@ export class Replicache<MD extends MutatorDefs = {}>
    * time a new Replicache instance is created).
    */
   get clientID(): Promise<string> {
-    return this._openResponse;
+    return this._clientIDPromise;
   }
 
   /**
@@ -519,6 +535,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   async close(): Promise<void> {
     this._closed = true;
     const p = this._invoke(RPC.Close);
+    closingInstances.set(this._name, p);
 
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
@@ -537,6 +554,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     this._subscriptions.clear();
 
     await p;
+    closingInstances.delete(this._name);
   }
 
   private async _getRoot(): Promise<string | undefined> {
@@ -1467,3 +1485,7 @@ class PushDelegate
 
   watchdogTimer = null;
 }
+
+// This map is used to keep track of closing instances of Replicache. When an
+// instance is opening we wait for any currently closing instances.
+const closingInstances: Map<string, Promise<unknown>> = new Map();

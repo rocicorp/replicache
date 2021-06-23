@@ -2311,6 +2311,11 @@ test('clientID', async () => {
   const clientID3 = await rep.clientID;
   expect(clientID3).to.match(re);
   expect(clientID3).to.equal(clientID);
+
+  const rep4 = new Replicache({name: 'clientID4', pullInterval: null});
+  const clientID4 = await rep4.clientID;
+  expect(clientID4).to.match(re);
+  await rep4.close();
 });
 
 // Only used for type checking
@@ -2782,4 +2787,33 @@ test('online', async () => {
 
   expect(info.callCount).to.equal(0);
   expect(rep.online).to.equal(true);
+});
+
+test('overlapping open/close', async () => {
+  const pullInterval = 60_000;
+  const name = 'overlapping-open-close';
+
+  const rep = new Replicache({name, pullInterval});
+  const p = rep.close();
+
+  const rep2 = new Replicache({name, pullInterval});
+  const p2 = rep2.close();
+
+  const rep3 = new Replicache({name, pullInterval});
+  const p3 = rep3.close();
+
+  await p;
+  await p2;
+  await p3;
+
+  {
+    const rep = new Replicache({name, pullInterval});
+    await rep.clientID;
+    const p = rep.close();
+    const rep2 = new Replicache({name, pullInterval});
+    await rep2.clientID;
+    const p2 = rep2.close();
+    await p;
+    await p2;
+  }
 });

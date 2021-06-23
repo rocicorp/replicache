@@ -18,7 +18,7 @@ values={[
 <TabItem value="hooks">
 
 ```bash
-npm install replicache replicache-react
+npm install replicache replicache
 ```
 
   </TabItem>
@@ -61,7 +61,7 @@ values={[
 
 ```ts
 import {Replicache} from 'replicache';
-import {useSubscribe} from 'replicache-react';
+import {useSubscribe} from 'replicache';
 import {nanoid} from 'nanoid';
 
 const rep = new Replicache({

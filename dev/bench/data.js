@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1624387686459,
+  "lastUpdate": 1624406929223,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -26169,6 +26169,135 @@ window.BENCHMARK_DATA = {
             "name": "subscription 1000",
             "value": 1.07,
             "range": "±3.0%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "17e6076e352a827b1d6ce8fc644dc7f35da65b66",
+          "message": "Wait for close in open (#415)\n\nIf there is a Replicache instance with the same name that is currently\r\nclosing, then we wait for that close to finish before we open a new\r\ninstance.\r\n\r\nThis fixes the issue where the developer uses the useReplicache hook and\r\nhas hot module reloading enabled.\r\n\r\nFixes #405",
+          "timestamp": "2021-06-22T17:05:32-07:00",
+          "tree_id": "b3dce49fe280f2e36fc2c0330af6d46bccfd97b9",
+          "url": "https://github.com/rocicorp/replicache/commit/17e6076e352a827b1d6ce8fc644dc7f35da65b66"
+        },
+        "date": 1624406928021,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.53,
+            "range": "±228.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.17,
+            "range": "±4.2%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.52,
+            "range": "±4.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.82,
+            "range": "±79.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 3.25,
+            "range": "±56.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 3.49,
+            "range": "±61.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 4.1,
+            "range": "±65.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 4.12,
+            "range": "±6.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±267.3%",
+            "unit": "MB/s",
+            "extra": "86 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 37.59,
+            "range": "±63.3%",
+            "unit": "ops/sec",
+            "extra": "20 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 5.05,
+            "range": "±3.0%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.03,
+            "range": "±4.0%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 6.41,
+            "range": "±61.0%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 3.25,
+            "range": "±14.6%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 0.96,
+            "range": "±5.4%",
             "unit": "ops/sec",
             "extra": "5 samples"
           }

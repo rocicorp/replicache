@@ -18,7 +18,7 @@ values={[
 <TabItem value="hooks">
 
 ```bash
-npm install replicache replicache-react-util
+npm install replicache replicache-react
 ```
 
   </TabItem>
@@ -61,7 +61,7 @@ values={[
 
 ```ts
 import {Replicache} from 'replicache';
-import {useSubscribe} from 'replicache-react-util';
+import {useSubscribe} from 'replicache-react';
 
 const rep = new Replicache({
   // Put the correct path to replicache.wasm.br on your server here.

@@ -2762,6 +2762,11 @@ test('online', async () => {
     mutators: {addData},
   });
 
+  const log: boolean[] = [];
+  rep.onOnlineChange = b => {
+    log.push(b);
+  };
+
   const info = sinon.stub(console, 'log');
 
   fetchMock.post(pushURL, async () => {
@@ -2770,6 +2775,7 @@ test('online', async () => {
   });
 
   expect(rep.online).to.equal(true);
+  expect(log).to.deep.equal([]);
 
   await rep.mutate.addData({a: 0});
 
@@ -2777,6 +2783,7 @@ test('online', async () => {
 
   expect(rep.online).to.equal(false);
   expect(info.callCount).to.be.greaterThan(0);
+  expect(log).to.deep.equal([false]);
 
   info.resetHistory();
 
@@ -2787,6 +2794,7 @@ test('online', async () => {
 
   expect(info.callCount).to.equal(0);
   expect(rep.online).to.equal(true);
+  expect(log).to.deep.equal([false, true]);
 });
 
 test('overlapping open/close', async () => {

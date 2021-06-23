@@ -42,8 +42,7 @@ const onSubmit = e => {
   const last = messages.length && messages[messages.length - 1][1];
   const order = (last?.order ?? 0) + 1;
   rep.mutate.createMessage({
-    // Easy unique ID. In a real app use a GUID.
-    id: Math.random().toString(32).substr(2),
+    id: nanoid(), // From https://www.npmjs.com/package/nanoid
     from: usernameRef.current.value,
     content: contentRef.current.value,
     order,

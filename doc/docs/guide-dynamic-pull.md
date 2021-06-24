@@ -16,11 +16,11 @@ import {db} from '../../db.js';
 
 export default async (req, res) => {
   const pull = req.body;
-  console.log(`Processing pull`, JSON.stringify(pull, null, ''));
+  console.log(`Processing pull`, JSON.stringify(pull));
   const t0 = Date.now();
 
   try {
-    db.tx(async t => {
+    await db.tx(async t => {
       const lastMutationID = parseInt(
         (
           await db.oneOrNone(

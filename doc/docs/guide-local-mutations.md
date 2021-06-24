@@ -47,7 +47,6 @@ const onSubmit = e => {
     content: contentRef.current.value,
     order,
   });
-  usernameRef.current.value = '';
   contentRef.current.value = '';
 };
 ```

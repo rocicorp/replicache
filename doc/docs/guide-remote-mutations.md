@@ -10,7 +10,7 @@ import {db} from '../../db.js';
 
 export default async (req, res) => {
   const push = req.body;
-  console.log('Processing push', JSON.stringify(push, null, ''));
+  console.log('Processing push', JSON.stringify(push));
 
   const t0 = Date.now();
   try {
@@ -33,10 +33,9 @@ export default async (req, res) => {
       }
       console.log('version', version, 'lastMutationID:', lastMutationID);
 
-      for (let i = 0; i < push.mutations.length; i++) {
+      for (const mutation of push.mutations) {
         const t1 = Date.now();
 
-        const mutation = push.mutations[i];
         const expectedMutationID = lastMutationID + 1;
 
         if (mutation.id < expectedMutationID) {
@@ -50,7 +49,7 @@ export default async (req, res) => {
           break;
         }
 
-        console.log('Processing mutation:', JSON.stringify(mutation, null, ''));
+        console.log('Processing mutation:', JSON.stringify(mutation));
 
         switch (mutation.name) {
           case 'createMessage':

@@ -33,10 +33,8 @@ Before you launch with Replicache in your product, it's a good idea to double-ch
 - Think carefully about your error handling policy. It is possible to deadlock a client if it pushes a mutation that _always_ causes an error that stops processing. No other mutations from that client can make progress in this case. A reasonable default starting point might be along these lines:
   - If a temporary error is encountered that might be resolved on retry, halt processing mutations and return.
   - If a permanent error is encountered such that the mutation will never be appliable, ignore that mutation and increment the `lastMutationID` as if it were applied.
-- Ignore all `PushRequest`s with an unexpected `version`.
+- Ignore all `PushRequest`s with an unexpected `pushVersion`.
 
 ## Pull endpoint
 
-- Ensure that the `lastMutationID` returned in the response is read in the same transaction as the client view data (ie, is consistent with it)
-- If there is a problem with the `cookie` (e.g., it is unusable) return all data.
-- Ignore all `PullRequest`s with an unexpected `version`.
+See [Pull Launch Checklist](server-pull#pull-launch-checklist).

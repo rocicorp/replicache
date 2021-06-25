@@ -1,6 +1,6 @@
 import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
 import type {MutatorDefs} from './replicache.js';
-import type {ReplicacheOptions} from './replicache.js';
+import type {ReplicacheOptions} from './replicache-options';
 import {Replicache, TransactionClosedError} from './mod.js';
 
 import type {ReadTransaction, WriteTransaction} from './mod.js';

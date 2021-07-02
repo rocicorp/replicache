@@ -9,7 +9,7 @@ Replicache instead uses WebSockets only to hint the client that it should pull a
 
 We refer to this WebSocket hint as a _poke_, to go along with _push_ and _pull_. You can use any hosted WebSocket service to send pokes, such as [socket.io](https://socket.io) or [Pusher](https://pusher.com/), and it's trivial to setup.
 
-For this sample, we'll use Pusher. Get thee to [pusher.com](https://pusher.com) and setup a free project with client type "React" and server type "Node.js".
+For this sample, we'll use Pusher. Get thee to [pusher.com](https://pusher.com) and setup a free "Channels" project with client type "React" and server type "Node.js".
 
 Store the settings from the project in the following environment variables:
 

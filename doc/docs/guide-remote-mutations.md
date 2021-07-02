@@ -102,7 +102,7 @@ async function sendPoke() {
 }
 ```
 
-See [Push Endpoint Reference](#TODO) for complete details on implementing the push endpoint.
+See [Push Endpoint Reference](../server-push) for complete details on implementing the push endpoint.
 
 :::note info
 

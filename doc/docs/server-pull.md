@@ -122,7 +122,7 @@ For more information on different strategies on how to use the cookie see [Compu
 
 ### `lastMutationID`
 
-The ID of the last mutation that was successfully applied to the server from this client. See [push](#TODO) for more details.
+The ID of the last mutation that was successfully applied to the server from this client.
 
 ### `patch`
 

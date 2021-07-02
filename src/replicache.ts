@@ -582,7 +582,7 @@ export class Replicache<MD extends MutatorDefs = {}>
         syncHead,
         mutation.original,
         mutation.name,
-        mutation.args,
+        JSON.parse(mutation.args),
       );
     }
 

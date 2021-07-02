@@ -183,7 +183,7 @@ type MaybeEndTryPullRequest = {
 export type Mutation = {
   id: number;
   name: string;
-  args: JSONValue;
+  args: string;
 };
 
 type ReplayMutation = Mutation & {

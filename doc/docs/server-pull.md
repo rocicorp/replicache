@@ -1,15 +1,15 @@
 ---
-title: Pull Endpoint
+title: Pull Endpoint Reference
 slug: /server-pull
 ---
 
-The pull endpoint is used when doing a [`pull`](api/classes/replicache#pull).
+The Pull Endpoint serves the Client View for a particular Replicache client.
 
-The purpose of the server pull endpoint is to send the client view to the
-client. The client view is the view of the data that the client should see.
+For more information, see [How Replicache Works — Pull](how-it-works#%E2%91%A0-pull).
 
-This is an HTTP POST to a URL configured by the
-[`pullURL`](api/interfaces/replicacheoptions#pullurl).
+## Configuration
+
+Specify the URL with the [`pullURL`](api/interfaces/replicacheoptions#pullurl) constructor option:
 
 ```js
 const rep = new Replicache({
@@ -17,15 +17,17 @@ const rep = new Replicache({
 });
 ```
 
-Then when the pull happens Replicache will do an HTTP POST request:
+## Method
+
+Replicache always fetches the pull endpoint using HTTP POST:
 
 ```http
 POST /replicache-pull HTTP/2
 ```
 
-Replicache also sends the following HTTP request headers:
+## Request Headers
 
-## HTTP Request Headers
+Replicache sends the following HTTP request headers with pull requests:
 
 ```http
 Content-type: application/json
@@ -35,14 +37,12 @@ X-Replicache-RequestID: <request-id>
 
 ### `Content-type`
 
-The POST body of the request is encoded as [JSON](https://www.json.org/json-en.html).
+Always `application/json`.
 
 ### `Authorization`
 
-This is a string that can be used to authorize a user. The auth token can be set
-by defining [`getPullAuth`](api/classes/replicache#getpullauth). This function is
-called when a request returns an HTTP `401 Unauthorized` and can be used to show
-a login screen or request a new auth token as needed.
+This is a string that can be used to authorize a user. The auth token is set
+by defining [`pullAuth`](api/interfaces/replicacheoptions#pullauth) or [`getPullAuth`](api/classes/replicache#getpullauth).
 
 ### `X-Replicache-RequestID`
 
@@ -63,7 +63,6 @@ When pulling we `POST` an HTTP request with a JSON encoded body.
 type PullRequestBody = {
   clientID: string;
   cookie: JSONValue;
-  lastMutationID: number;
   pullVersion: number;
   schemaVersion: string;
 };
@@ -71,24 +70,15 @@ type PullRequestBody = {
 
 ### `clientID`
 
-The [`clientID`](api/classes/replicache#clientid) for this instance of
-Replicache. Each web browser and instance of Replicache gets a unique client ID
-keyed by the [`name`](api/interfaces/replicacheoptions#name).
+The [`clientID`](api/classes/replicache#clientid) of the requesting Replicache instance.
 
 ### `cookie`
 
-The cookie that was received last time a pull was done. `null` if this is the first time we do a pull.
-
-<!-- TODO: Is this null the first time or is the property missing? -->
-
-### `lastMutationID`
-
-When doing a pull this is the ID of th last mutation that was applied to the client.
+The cookie that was received last time a pull was done. `null` if this is the first pull from this client.
 
 ### `pullVersion`
 
-This is the version number describing the type Replicache uses for the response
-JSON. The current version is `0`.
+Version of the type Replicache uses for the response JSON. The current version is `0`.
 
 ### `schemaVersion`
 
@@ -120,23 +110,17 @@ the diff between pull requests.
 The cookie can be any [`JSONValue`](api#jsonvalue) but just like with HTTP cookies
 you want to limit its size since it get sent on every request.
 
-For more information on different strategies on how to use the cookie check out
-the [Cookie Monster Manual](#TODO)
+For more information on different strategies on how to use the cookie see [Computing Changes for Pull](#TODO).
 
 ### `lastMutationID`
 
-This is the ID of the last mutation that was successfully applied to from
-client. See [push](#TODO) for more details.
+The ID of the last mutation that was successfully applied to the server from this client. See [push](#TODO) for more details.
 
 ### `patch`
 
-Conceptually Replicache is a string-key-json-value database. The data in
-Replicache that a client has access to locally is called the client view.
+The patch the client should apply to bring its state up to date with the server.
 
-Instead of sending the whole client view on every pull request you can send a
-patch that describes how to update the client view. This is the delta between
-the last pull and now. This is where you can you use the [`cookie`](#cookie-1) to
-compute the minimal delta.
+Basically this should be the delta between the last pull (as identified by the request cookie) and now.
 
 The [`patch`](api#patchoperation) supports 3 operations:
 
@@ -165,8 +149,7 @@ Removes a key from the data store. The `key` is a `string`.
 Removes all the data from the client view. Basically replacing the client view
 with an empty map.
 
-This one is useful in case the cookie is missing or there was an error with
-cookie, in which place it makes sense to send all the data.
+This is useful in case the request cookie is invalid or not known to the server, or in any other case where the server cannot compute a diff. In those cases, the server can use `clear` followed by a set of `put`s that completely rebuild the Client View from scratch.
 
 ## Pull Launch Checklist
 

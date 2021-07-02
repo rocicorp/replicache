@@ -88,6 +88,14 @@ client can correctly handle the data.
 
 ## HTTP Response
 
+### HTTP Response Status
+
+* `200` for success
+* `401` for auth error — Replicache will reauthenticate using [`getPullAuth`](api/classes/replicache#getpullauth) if available
+* All other status codes considered errors
+
+Replicache will exponentially back off sending pushes in the case of both network level and HTTP level errors.
+
 ### HTTP Response Body
 
 The response body is a JSON object of the [`PullResponse`](api#pullresponse) type:

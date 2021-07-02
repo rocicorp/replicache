@@ -23,6 +23,8 @@ module.exports = {
         excludeExternals: true,
         name: 'Replicache',
         readme: 'none',
+        out: 'api',
+        watch: process.env.TYPEDOC_WATCH ?? false,
       },
     ],
   ],

@@ -203,7 +203,7 @@ const CONNECTION_MEMORY_COUNT = 9;
 // Computes a new delay based on the previous requests. We use the median of the
 // previous successfull request divided by `maxConnections`. When we get errors
 // we do exponential backoff. As soon as we recover from an error we reset back
-// to MIN_DELAY_MS.
+// to delegate.minDelayMs.
 function computeDelayAndUpdateDurations(
   delay: number,
   delegate: ConnectionLoopDelegate,
@@ -217,7 +217,7 @@ function computeDelayAndUpdateDurations(
   const {duration, ok} = sendRecords[sendRecords.length - 1];
 
   if (!ok) {
-    return delay * 2;
+    return delay == 0 ? 1 : delay * 2;
   }
 
   const {maxConnections, minDelayMs} = delegate;

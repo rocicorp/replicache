@@ -42,7 +42,7 @@ const onSubmit = e => {
   const last = messages.length && messages[messages.length - 1][1];
   const order = (last?.order ?? 0) + 1;
   rep.mutate.createMessage({
-    id: nanoid(), // From https://www.npmjs.com/package/nanoid
+    id: nanoid(),
     from: usernameRef.current.value,
     content: contentRef.current.value,
     order,

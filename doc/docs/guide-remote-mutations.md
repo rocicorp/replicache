@@ -15,22 +15,9 @@ export default async (req, res) => {
   const t0 = Date.now();
   try {
     await db.tx(async t => {
-      const {nextval: version} = await db.one("SELECT nextval('version')");
-      let lastMutationID = parseInt(
-        (
-          await db.oneOrNone(
-            'SELECT last_mutation_id FROM replicache_client WHERE id = $1',
-            push.clientID,
-          )
-        )?.last_mutation_id ?? '0',
-      );
+      const {nextval: version} = await t.one("SELECT nextval('version')");
+      let lastMutationID = await getLastMutationID(t, push.clientID);
 
-      if (!lastMutationID) {
-        await db.none(
-          'INSERT INTO replicache_client (id, last_mutation_id) VALUES ($1, $2)',
-          [push.clientID, lastMutationID],
-        );
-      }
       console.log('version', version, 'lastMutationID:', lastMutationID);
 
       for (const mutation of push.mutations) {
@@ -53,7 +40,7 @@ export default async (req, res) => {
 
         switch (mutation.name) {
           case 'createMessage':
-            await createMessage(db, mutation.args, version);
+            await createMessage(t, mutation.args, version);
             break;
           default:
             throw new Error(`Unknown mutation: ${mutation.name}`);
@@ -71,7 +58,7 @@ export default async (req, res) => {
         'last_mutation_id to',
         lastMutationID,
       );
-      await db.none(
+      await t.none(
         'UPDATE replicache_client SET last_mutation_id = $2 WHERE id = $1',
         [push.clientID, lastMutationID],
       );
@@ -85,8 +72,24 @@ export default async (req, res) => {
   }
 };
 
-async function createMessage(db, {id, from, content, order}, version) {
-  await db.none(
+async function getLastMutationID(t, clientID) {
+  const clientRow = await t.oneOrNone(
+    'SELECT last_mutation_id FROM replicache_client WHERE id = $1', clientID,
+  );
+  if (clientRow) {
+    return parseInt(clientRow.last_mutation_id);
+  }
+
+  console.log('Creating new client', clientID);
+  await t.none(
+    'INSERT INTO replicache_client (id, last_mutation_id) VALUES ($1, 0)',
+    clientID,
+  );
+  return 0;
+}
+
+async function createMessage(t, {id, from, content, order}, version) {
+  await t.none(
     `INSERT INTO message (
     id, sender, content, ord, version) values 
     ($1, $2, $3, $4, $5)`,

@@ -42,7 +42,7 @@ export default async (_, res) => {
     await t.none('DROP SEQUENCE IF EXISTS version');
     // Stores chat messages
     await t.none(`CREATE TABLE message (
-      id VARCHAR(20) PRIMARY KEY NOT NULL,
+      id VARCHAR(21) PRIMARY KEY NOT NULL,
       sender VARCHAR(255) NOT NULL,
       content TEXT NOT NULL,
       ord BIGINT NOT NULL,

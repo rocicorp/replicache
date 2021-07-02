@@ -1,13 +1,10 @@
-import {
-  ReplicacheTest,
-  httpStatusUnauthorized,
-  MutatorDefs,
-} from './replicache.js';
-import type {ReplicacheOptions} from './replicache.js';
+import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
+import type {MutatorDefs} from './replicache.js';
+import type {ReplicacheOptions} from './replicache-options';
 import {Replicache, TransactionClosedError} from './mod.js';
 
 import type {ReadTransaction, WriteTransaction} from './mod.js';
-import {deepEqual, JSONValue} from './json.js';
+import type {JSONValue} from './json.js';
 
 import {assert, expect} from '@esm-bundle/chai';
 import * as sinon from 'sinon';
@@ -22,6 +19,13 @@ import type {ScanOptions} from './scan-options.js';
 
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import {asyncIterableToArray} from './async-iterable-to-array.js';
+import {
+  closeAllReps,
+  deletaAllDatabases,
+  reps,
+  dbsToDrop,
+} from './test-util.js';
+import {sleep} from './sleep.js';
 
 let clock: SinonFakeTimers;
 setup(function () {
@@ -38,11 +42,15 @@ async function tickAFewTimes(n = 10, time = 10) {
   }
 }
 
+async function tickUntil(f: () => boolean, msPerTest = 10) {
+  while (!f()) {
+    await clock.tickAsync(msPerTest);
+  }
+}
+
 fetchMock.config.overwriteRoutes = true;
 
 const {fail} = assert;
-
-const reps: Set<ReplicacheTest> = new Set();
 
 let overrideUseMemstore = false;
 
@@ -54,6 +62,7 @@ async function replicacheForTesting<MD extends MutatorDefs = {}>(
     pushDelay = 60_000, // Large to prevent interfering
     pushURL = 'https://push.com/?name=' + name,
     useMemstore = overrideUseMemstore,
+
     ...rest
   }: ReplicacheOptions<MD> = {},
 ): Promise<ReplicacheTest<MD>> {
@@ -64,16 +73,20 @@ async function replicacheForTesting<MD extends MutatorDefs = {}>(
     pushURL,
     name,
     useMemstore,
+    wasmModule: new URL(
+      './wasm/debug/replicache_client_bg.wasm',
+      import.meta.url,
+    ).href,
     ...rest,
   });
   reps.add(rep);
+  // Wait for open to be done.
+  await rep.clientID;
   fetchMock.post(pullURL, {lastMutationID: 0, patch: []});
-  fetchMock.post(pushURL, {});
+  fetchMock.post(pushURL, 'ok');
   await tickAFewTimes();
   return rep;
 }
-
-const dbsToDrop = new Set<string>();
 
 async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
   for (const [key, value] of Object.entries(data)) {
@@ -95,17 +108,8 @@ teardown(async () => {
   fetchMock.restore();
   sinon.restore();
 
-  for (const rep of reps) {
-    if (!rep.closed) {
-      await rep.close();
-    }
-    reps.delete(rep);
-  }
-
-  for (const name of dbsToDrop) {
-    indexedDB.deleteDatabase(name);
-  }
-  dbsToDrop.clear();
+  await closeAllReps();
+  deletaAllDatabases();
 });
 
 async function expectPromiseToReject(p: unknown): Promise<Chai.Assertion> {
@@ -367,11 +371,7 @@ testWithBothStores('subscribe', async () => {
   const cancel = rep.subscribe(
     async (tx: ReadTransaction) => {
       queryCallCount++;
-      const rv = [];
-      for await (const entry of tx.scan({prefix: 'a/'}).entries()) {
-        rv.push(entry);
-      }
-      return rv;
+      return await tx.scan({prefix: 'a/'}).entries().toArray();
     },
     {
       onData: (values: Iterable<[string, JSONValue]>) => {
@@ -390,11 +390,11 @@ testWithBothStores('subscribe', async () => {
   expect(log).to.deep.equal([['a/0', 0]]);
   expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
 
-  // The body returns the same JSON value in the following case.
+  // Put with same value should not invoke the subscription.
   log.length = 0;
   await add({'a/0': 0});
   expect(log).to.deep.equal([]);
-  expect(queryCallCount).to.equal(3);
+  expect(queryCallCount).to.equal(2);
 
   log.length = 0;
   await add({'a/1': 1});
@@ -402,7 +402,7 @@ testWithBothStores('subscribe', async () => {
     ['a/0', 0],
     ['a/1', 1],
   ]);
-  expect(queryCallCount).to.equal(4);
+  expect(queryCallCount).to.equal(3);
 
   log.length = 0;
   log.length = 0;
@@ -411,14 +411,494 @@ testWithBothStores('subscribe', async () => {
     ['a/0', 0],
     ['a/1', 11],
   ]);
-  expect(queryCallCount).to.equal(5);
+  expect(queryCallCount).to.equal(4);
 
   log.length = 0;
   cancel();
-  await add({'a/1': 11});
+  await add({'a/1': 12});
   await Promise.resolve();
   expect(log).to.have.length(0);
+  expect(queryCallCount).to.equal(4);
+});
+
+testWithBothStores('subscribe with index', async () => {
+  const log: [[string, string], JSONValue][] = [];
+
+  const rep = await replicacheForTesting('subscribe-with-index', {
+    mutators: {
+      addData,
+    },
+  });
+
+  await rep.createIndex({
+    name: 'i1',
+    jsonPointer: '/id',
+    keyPrefix: 'a',
+  });
+
+  let queryCallCount = 0;
+  let onDataCallCount = 0;
+  const cancel = rep.subscribe(
+    async (tx: ReadTransaction) => {
+      queryCallCount++;
+      return await tx.scan({indexName: 'i1'}).entries().toArray();
+    },
+    {
+      onData: (values: Iterable<[[string, string], JSONValue]>) => {
+        onDataCallCount++;
+        for (const entry of values) {
+          log.push(entry);
+        }
+      },
+    },
+  );
+
+  expect(log).to.have.length(0);
+  expect(queryCallCount).to.equal(0);
+  expect(onDataCallCount).to.equal(0);
+
+  await rep.mutate.addData({
+    a1: {id: 'a-1', x: 1},
+    a2: {id: 'a-2', x: 2},
+    b: {id: 'bx'},
+  });
+
+  expect(log).to.deep.equal([
+    [
+      ['a-1', 'a1'],
+      {
+        id: 'a-1',
+        x: 1,
+      },
+    ],
+    [
+      ['a-2', 'a2'],
+      {
+        id: 'a-2',
+        x: 2,
+      },
+    ],
+  ]);
+  expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(2);
+
+  log.length = 0;
+  await rep.mutate.addData({a3: {id: 'a-3', x: 3}});
+
+  expect(queryCallCount).to.equal(3);
+  expect(onDataCallCount).to.equal(3);
+  expect(log).to.deep.equal([
+    [
+      ['a-1', 'a1'],
+      {
+        id: 'a-1',
+        x: 1,
+      },
+    ],
+    [
+      ['a-2', 'a2'],
+      {
+        id: 'a-2',
+        x: 2,
+      },
+    ],
+    [
+      ['a-3', 'a3'],
+      {
+        id: 'a-3',
+        x: 3,
+      },
+    ],
+  ]);
+
+  await rep.dropIndex('i1');
+  expect(queryCallCount).to.equal(4);
+  expect(onDataCallCount).to.equal(3); // scan({indexName: 'i1'}) fails since we do not have that index any more.
+
+  log.length = 0;
+  await rep.createIndex({
+    name: 'i1',
+    jsonPointer: '/id',
+  });
+
   expect(queryCallCount).to.equal(5);
+  expect(onDataCallCount).to.equal(4);
+  expect(log).to.deep.equal([
+    [
+      ['a-1', 'a1'],
+      {
+        id: 'a-1',
+        x: 1,
+      },
+    ],
+    [
+      ['a-2', 'a2'],
+      {
+        id: 'a-2',
+        x: 2,
+      },
+    ],
+    [
+      ['a-3', 'a3'],
+      {
+        id: 'a-3',
+        x: 3,
+      },
+    ],
+    [
+      ['bx', 'b'],
+      {
+        id: 'bx',
+      },
+    ],
+  ]);
+
+  cancel();
+});
+
+testWithBothStores('subscribe with index and start', async () => {
+  const log: [[string, string], JSONValue][] = [];
+
+  const rep = await replicacheForTesting('subscribe-with-index-and-start', {
+    mutators: {
+      addData,
+    },
+  });
+
+  await rep.createIndex({
+    name: 'i1',
+    jsonPointer: '/id',
+  });
+
+  let queryCallCount = 0;
+  let onDataCallCount = 0;
+  const cancel = rep.subscribe(
+    async (tx: ReadTransaction) => {
+      queryCallCount++;
+      return await tx
+        .scan({indexName: 'i1', start: {key: 'a-2'}})
+        .entries()
+        .toArray();
+    },
+    {
+      onData: (values: Iterable<[[string, string], JSONValue]>) => {
+        onDataCallCount++;
+        for (const entry of values) {
+          log.push(entry);
+        }
+      },
+    },
+  );
+
+  expect(log).to.have.length(0);
+  expect(queryCallCount).to.equal(0);
+  expect(onDataCallCount).to.equal(0);
+
+  await rep.mutate.addData({
+    a1: {id: 'a-1', x: 1},
+    a2: {id: 'a-2', x: 2},
+    b: {id: 'bx'},
+  });
+
+  expect(log).to.deep.equal([
+    [
+      ['a-2', 'a2'],
+      {
+        id: 'a-2',
+        x: 2,
+      },
+    ],
+    [
+      ['bx', 'b'],
+      {
+        id: 'bx',
+      },
+    ],
+  ]);
+  expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(2);
+
+  log.length = 0;
+  await rep.mutate.addData({
+    b: {id: 'bx2'},
+  });
+  expect(log).to.deep.equal([
+    [
+      ['a-2', 'a2'],
+      {
+        id: 'a-2',
+        x: 2,
+      },
+    ],
+    [
+      ['bx2', 'b'],
+      {
+        id: 'bx2',
+      },
+    ],
+  ]);
+  expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(3);
+
+  // Adding a entry that does not match the index... no id property
+  await rep.mutate.addData({
+    c: {noid: 'c-3'},
+  });
+  expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(3);
+
+  // Changing a entry before the start key
+  await rep.mutate.addData({
+    a1: {id: 'a-1', x: 2},
+  });
+  expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(3);
+
+  // Changing a entry to the same value
+  await rep.mutate.addData({
+    a2: {id: 'a-2', x: 2},
+  });
+  expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(3);
+
+  cancel();
+});
+
+testWithBothStores('subscribe with index and prefix', async () => {
+  const log: [[string, string], JSONValue][] = [];
+
+  const rep = await replicacheForTesting('subscribe-with-index-and-prefix', {
+    mutators: {
+      addData,
+    },
+  });
+
+  await rep.createIndex({
+    name: 'i1',
+    jsonPointer: '/id',
+  });
+
+  let queryCallCount = 0;
+  let onDataCallCount = 0;
+  const cancel = rep.subscribe(
+    async (tx: ReadTransaction) => {
+      queryCallCount++;
+      return await tx.scan({indexName: 'i1', prefix: 'b'}).entries().toArray();
+    },
+    {
+      onData: (values: Iterable<[[string, string], JSONValue]>) => {
+        onDataCallCount++;
+        for (const entry of values) {
+          log.push(entry);
+        }
+      },
+    },
+  );
+
+  expect(log).to.have.length(0);
+  expect(queryCallCount).to.equal(0);
+  expect(onDataCallCount).to.equal(0);
+
+  await rep.mutate.addData({
+    a1: {id: 'a-1', x: 1},
+    a2: {id: 'a-2', x: 2},
+    b: {id: 'bx'},
+  });
+
+  expect(log).to.deep.equal([
+    [
+      ['bx', 'b'],
+      {
+        id: 'bx',
+      },
+    ],
+  ]);
+  expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(2);
+
+  log.length = 0;
+  await rep.mutate.addData({
+    b: {id: 'bx2'},
+  });
+  expect(log).to.deep.equal([
+    [
+      ['bx2', 'b'],
+      {
+        id: 'bx2',
+      },
+    ],
+  ]);
+  expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(3);
+
+  // Adding a entry that does not match the index... no id property
+  await rep.mutate.addData({
+    c: {noid: 'c-3'},
+  });
+  expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(3);
+
+  // Changing a entry but still matching prefix
+  await rep.mutate.addData({
+    b: {id: 'bx3', x: 3},
+  });
+  expect(queryCallCount).to.equal(4);
+  expect(onDataCallCount).to.equal(4);
+
+  // Changing a entry to the same value
+  await rep.mutate.addData({
+    b: {id: 'bx3', x: 3},
+  });
+  expect(queryCallCount).to.equal(4); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(4);
+
+  cancel();
+});
+
+testWithBothStores('subscribe with isEmpty and prefix', async () => {
+  const log: boolean[] = [];
+
+  const rep = await replicacheForTesting('subscribe-with-is-empty', {
+    mutators: {
+      addData,
+      del: (tx, k: string) => tx.del(k),
+    },
+  });
+
+  let queryCallCount = 0;
+  let onDataCallCount = 0;
+  const cancel = rep.subscribe(
+    async (tx: ReadTransaction) => {
+      queryCallCount++;
+      return await tx.isEmpty();
+    },
+    {
+      onData: (empty: boolean) => {
+        onDataCallCount++;
+        log.push(empty);
+      },
+    },
+  );
+
+  expect(log).to.deep.equal([]);
+  expect(queryCallCount).to.equal(0);
+  expect(onDataCallCount).to.equal(0);
+
+  await tickAFewTimes();
+
+  expect(log).to.deep.equal([true]);
+  expect(queryCallCount).to.equal(1);
+  expect(onDataCallCount).to.equal(1);
+
+  await rep.mutate.addData({
+    a: 1,
+  });
+
+  expect(log).to.deep.equal([true, false]);
+  expect(queryCallCount).to.equal(2);
+  expect(onDataCallCount).to.equal(2);
+
+  await rep.mutate.addData({
+    b: 2,
+  });
+
+  expect(log).to.deep.equal([true, false]);
+  expect(queryCallCount).to.equal(3);
+  expect(onDataCallCount).to.equal(2);
+
+  await rep.mutate.del('a');
+
+  expect(log).to.deep.equal([true, false]);
+  expect(queryCallCount).to.equal(4);
+  expect(onDataCallCount).to.equal(2);
+
+  await rep.mutate.del('b');
+
+  expect(log).to.deep.equal([true, false, true]);
+  expect(queryCallCount).to.equal(5);
+  expect(onDataCallCount).to.equal(3);
+
+  cancel();
+});
+
+testWithBothStores('subscribe change keys', async () => {
+  const log: JSONValue[][] = [];
+
+  const rep = await replicacheForTesting('subscribe-change-keys', {
+    mutators: {
+      addData,
+    },
+  });
+
+  let queryCallCount = 0;
+  let onDataCallCount = 0;
+  const cancel = rep.subscribe(
+    async (tx: ReadTransaction) => {
+      queryCallCount++;
+      const a = await tx.get('a');
+      const rv = [a ?? 'no-a'];
+      if (a === 1) {
+        rv.push((await tx.get('b')) ?? 'no b');
+      }
+      return rv;
+    },
+    {
+      onData: (values: JSONValue[]) => {
+        onDataCallCount++;
+        log.push(values);
+      },
+    },
+  );
+
+  expect(log).to.have.length(0);
+  expect(queryCallCount).to.equal(0);
+  expect(onDataCallCount).to.equal(0);
+
+  await rep.mutate.addData({
+    a: 0,
+  });
+
+  expect(log).to.deep.equal([['no-a'], [0]]);
+  expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
+  expect(onDataCallCount).to.equal(2);
+
+  await rep.mutate.addData({
+    b: 2,
+  });
+  expect(queryCallCount).to.equal(2);
+  expect(onDataCallCount).to.equal(2);
+
+  log.length = 0;
+  await rep.mutate.addData({
+    a: 1,
+  });
+  expect(queryCallCount).to.equal(3);
+  expect(onDataCallCount).to.equal(3);
+  expect(log).to.deep.equal([[1, 2]]);
+
+  log.length = 0;
+  await rep.mutate.addData({
+    b: 3,
+  });
+  expect(queryCallCount).to.equal(4);
+  expect(onDataCallCount).to.equal(4);
+  expect(log).to.deep.equal([[1, 3]]);
+
+  log.length = 0;
+  await rep.mutate.addData({
+    a: 4,
+  });
+  expect(queryCallCount).to.equal(5);
+  expect(onDataCallCount).to.equal(5);
+  expect(log).to.deep.equal([[4]]);
+
+  await rep.mutate.addData({
+    b: 5,
+  });
+  expect(queryCallCount).to.equal(5);
+  expect(onDataCallCount).to.equal(5);
+
+  cancel();
 });
 
 testWithBothStores('subscribe close', async () => {
@@ -1412,57 +1892,6 @@ testWithBothStores('logLevel', async () => {
   rep = await replicacheForTesting('log-level', {logLevel: 'info'});
 });
 
-test('JSON deep equal', () => {
-  const t = (
-    a: JSONValue | undefined,
-    b: JSONValue | undefined,
-    expected = true,
-  ) => {
-    const res = deepEqual(a, b);
-    if (res !== expected) {
-      fail(
-        JSON.stringify(a) + (expected ? ' === ' : ' !== ') + JSON.stringify(b),
-      );
-    }
-  };
-
-  const oneLevelOfData = [
-    0,
-    1,
-    2,
-    3,
-    456789,
-    true,
-    false,
-    null,
-    '',
-    'a',
-    'b',
-    'cdefefsfsafasdadsaas',
-    [],
-    {},
-    {x: 4, y: 5, z: 6},
-    [7, 8, 9],
-  ] as const;
-
-  const testData = [
-    ...oneLevelOfData,
-    [...oneLevelOfData],
-    Object.fromEntries(oneLevelOfData.map(v => [JSON.stringify(v), v])),
-  ];
-
-  for (let i = 0; i < testData.length; i++) {
-    for (let j = 0; j < testData.length; j++) {
-      const a = testData[i];
-      // "clone" to ensure we do not end up with a and b being the same object.
-      const b = JSON.parse(JSON.stringify(testData[j]));
-      t(a, b, i === j);
-    }
-  }
-
-  t({a: 1, b: 2}, {b: 2, a: 1});
-});
-
 // Only used for type checking
 test.skip('Test partial JSONObject [type checking only]', async () => {
   const rep = await replicacheForTesting('test-types', {
@@ -1597,24 +2026,24 @@ testWithBothStores('isEmpty', async () => {
       addData,
       del: (tx: WriteTransaction, key: string) => tx.del(key),
       mut: async tx => {
-        expect(await tx.isEmpty()).to.eq(false);
+        expect(await tx.isEmpty()).to.equal(false);
 
         tx.del('c');
-        expect(await tx.isEmpty()).to.eq(false);
+        expect(await tx.isEmpty()).to.equal(false);
 
         tx.del('a');
-        expect(await tx.isEmpty()).to.eq(true);
+        expect(await tx.isEmpty()).to.equal(true);
 
         tx.put('d', 4);
-        expect(await tx.isEmpty()).to.eq(false);
+        expect(await tx.isEmpty()).to.equal(false);
       },
     },
   });
   const {addData: add, del, mut} = rep.mutate;
 
   async function t(expected: boolean) {
-    expect(await rep?.query(tx => tx.isEmpty())).to.eq(expected);
-    expect(await rep?.isEmpty()).to.eq(expected);
+    expect(await rep?.query(tx => tx.isEmpty())).to.equal(expected);
+    expect(await rep?.isEmpty()).to.equal(expected);
   }
 
   await t(true);
@@ -1648,7 +2077,7 @@ testWithBothStores('onSync', async () => {
   const onSync = sinon.fake();
   rep.onSync = onSync;
 
-  expect(onSync.callCount).to.eq(0);
+  expect(onSync.callCount).to.equal(0);
 
   fetchMock.postOnce(pullURL, {
     cookie: '',
@@ -1658,7 +2087,7 @@ testWithBothStores('onSync', async () => {
   rep.pull();
   await tickAFewTimes(15);
 
-  expect(onSync.callCount).to.eq(2);
+  expect(onSync.callCount).to.equal(2);
   expect(onSync.getCall(0).args[0]).to.be.true;
   expect(onSync.getCall(1).args[0]).to.be.false;
 
@@ -1667,7 +2096,7 @@ testWithBothStores('onSync', async () => {
   await add({a: 'a'});
   await tickAFewTimes();
 
-  expect(onSync.callCount).to.eq(2);
+  expect(onSync.callCount).to.equal(2);
   expect(onSync.getCall(0).args[0]).to.be.true;
   expect(onSync.getCall(1).args[0]).to.be.false;
 
@@ -1675,7 +2104,7 @@ testWithBothStores('onSync', async () => {
   onSync.resetHistory();
   await add({b: 'b'});
   await tickAFewTimes();
-  expect(onSync.callCount).to.eq(2);
+  expect(onSync.callCount).to.equal(2);
   expect(onSync.getCall(0).args[0]).to.be.true;
   expect(onSync.getCall(1).args[0]).to.be.false;
 
@@ -1691,13 +2120,14 @@ testWithBothStores('onSync', async () => {
     };
 
     await add({c: 'c'});
-    await tickAFewTimes(6);
+
+    await tickUntil(() => onSync.callCount >= 4);
 
     expect(consoleErrorStub.firstCall.args[0]).to.equal(
       'Got error response from server (https://push.com/push) doing push: 401: xxx',
     );
 
-    expect(onSync.callCount).to.eq(4);
+    expect(onSync.callCount).to.equal(4);
     expect(onSync.getCall(0).args[0]).to.be.true;
     expect(onSync.getCall(1).args[0]).to.be.false;
     expect(onSync.getCall(2).args[0]).to.be.true;
@@ -1707,7 +2137,7 @@ testWithBothStores('onSync', async () => {
   rep.onSync = null;
   onSync.resetHistory();
   fetchMock.postOnce(pushURL, {});
-  expect(onSync.callCount).to.eq(0);
+  expect(onSync.callCount).to.equal(0);
 });
 
 testWithBothStores('push timing', async () => {
@@ -1731,7 +2161,7 @@ testWithBothStores('push timing', async () => {
   const tryPushCalls = () =>
     spy.args.filter(([rpc]) => rpc === RPC.TryPush).length;
 
-  expect(tryPushCalls()).to.eq(1);
+  expect(tryPushCalls()).to.equal(1);
 
   spy.resetHistory();
 
@@ -1741,28 +2171,28 @@ testWithBothStores('push timing', async () => {
   await add({c: 3});
   await add({d: 4});
 
-  expect(tryPushCalls()).to.eq(0);
+  expect(tryPushCalls()).to.equal(0);
 
   await clock.tickAsync(pushDelay + 10);
 
-  expect(tryPushCalls()).to.eq(1);
+  expect(tryPushCalls()).to.equal(1);
   spy.resetHistory();
 
   const p1 = add({e: 5});
   const p2 = add({f: 6});
   const p3 = add({g: 7});
 
-  expect(tryPushCalls()).to.eq(0);
+  expect(tryPushCalls()).to.equal(0);
 
   await tickAFewTimes();
   await p1;
-  expect(tryPushCalls()).to.eq(1);
+  expect(tryPushCalls()).to.equal(1);
   await tickAFewTimes();
   await p2;
-  expect(tryPushCalls()).to.eq(1);
+  expect(tryPushCalls()).to.equal(1);
   await tickAFewTimes();
   await p3;
-  expect(tryPushCalls()).to.eq(1);
+  expect(tryPushCalls()).to.equal(1);
 });
 
 test('push and pull concurrently', async () => {
@@ -1806,8 +2236,6 @@ test('push and pull concurrently', async () => {
     'OpenTransaction',
     'Put',
     'CommitTransaction',
-    'OpenTransaction',
-    'CloseTransaction',
     'BeginTryPull',
     'TryPush',
   ]);
@@ -1825,8 +2253,6 @@ test('push and pull concurrently', async () => {
     'OpenTransaction',
     'Put',
     'CommitTransaction',
-    'OpenTransaction',
-    'CloseTransaction',
     'BeginTryPull',
     'TryPush',
   ]);
@@ -1868,7 +2294,8 @@ test('schemaVersion push', async () => {
 });
 
 test('clientID', async () => {
-  const re = /^[0-9:A-z]{8}-[0-9:A-z]{4}-4[0-9:A-z]{3}-[0-9:A-z]{4}-[0-9:A-z]{12}$/;
+  const re =
+    /^[0-9:A-z]{8}-[0-9:A-z]{4}-4[0-9:A-z]{3}-[0-9:A-z]{4}-[0-9:A-z]{12}$/;
 
   let rep = await replicacheForTesting('clientID');
   const clientID = await rep.clientID;
@@ -1884,6 +2311,11 @@ test('clientID', async () => {
   const clientID3 = await rep.clientID;
   expect(clientID3).to.match(re);
   expect(clientID3).to.equal(clientID);
+
+  const rep4 = new Replicache({name: 'clientID4', pullInterval: null});
+  const clientID4 = await rep4.clientID;
+  expect(clientID4).to.match(re);
+  await rep4.close();
 });
 
 // Only used for type checking
@@ -1981,5 +2413,415 @@ test.skip('mut [type checking only]', async () => {
     const rep = new Replicache();
     // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
     rep.mutate.abc(1, 2, 3);
+  }
+});
+
+// Only used for type checking
+test.skip('scan with index [type checking only]', async () => {
+  const rep = await replicacheForTesting('scan-with-index');
+
+  (await rep.scan({indexName: 'a'}).keys().toArray()) as [
+    secondary: string,
+    primary: string,
+  ][];
+
+  (await rep.scan({}).keys().toArray()) as string[];
+  (await rep.scan().keys().toArray()) as string[];
+
+  (await rep.scanAll({})) as [string, JSONValue][];
+  (await rep.scanAll()) as [string, JSONValue][];
+  (await rep.scanAll({indexName: 'i'})) as [[string, string], JSONValue][];
+
+  rep.query(async tx => {
+    (await tx.scan({indexName: 'a'}).keys().toArray()) as [
+      secondary: string,
+      primary: string,
+    ][];
+
+    (await tx.scan({}).keys().toArray()) as string[];
+    (await tx.scan().keys().toArray()) as string[];
+
+    (await tx.scanAll({})) as [string, JSONValue][];
+    (await tx.scanAll()) as [string, JSONValue][];
+    (await tx.scanAll({indexName: 'i'})) as [[string, string], JSONValue][];
+  });
+});
+
+testWithBothStores('pull and index update', async () => {
+  const pullURL = 'https://pull.com/rep';
+  const rep = await replicacheForTesting('pull-and-index-update', {
+    pullURL,
+    mutators: {addData},
+  });
+
+  const indexName = 'idx1';
+  let lastMutationID = 0;
+
+  async function testPull(opt: {patch: Patch[]; expectedResult: JSONValue}) {
+    fetchMock.post(pullURL, {
+      lastMutationID: lastMutationID++,
+      patch: opt.patch,
+    });
+
+    rep.pull();
+    await tickAFewTimes();
+
+    const actualResult = await rep.scan({indexName}).entries().toArray();
+    expect(actualResult).to.deep.equal(opt.expectedResult);
+  }
+
+  await rep.createIndex({name: indexName, jsonPointer: '/id'});
+
+  await testPull({patch: [], expectedResult: []});
+
+  await testPull({
+    patch: [
+      {
+        op: 'put',
+        key: 'a1',
+        value: {id: 'a-1', x: 1},
+      },
+    ],
+    expectedResult: [
+      [
+        ['a-1', 'a1'],
+        {
+          id: 'a-1',
+          x: 1,
+        },
+      ],
+    ],
+  });
+
+  // Change value for existing key
+  await testPull({
+    patch: [
+      {
+        op: 'put',
+        key: 'a1',
+        value: {id: 'a-1', x: 2},
+      },
+    ],
+    expectedResult: [
+      [
+        ['a-1', 'a1'],
+        {
+          id: 'a-1',
+          x: 2,
+        },
+      ],
+    ],
+  });
+
+  // Del
+  await testPull({
+    patch: [
+      {
+        op: 'del',
+        key: 'a1',
+      },
+    ],
+    expectedResult: [],
+  });
+});
+
+type Patch =
+  | {
+      op: 'clear';
+    }
+  | {op: 'put'; key: string; value: JSONValue}
+  | {op: 'del'; key: string};
+
+testWithBothStores('subscribe pull and index update', async () => {
+  const pullURL = 'https://pull.com/rep';
+  const rep = await replicacheForTesting('subscribe-pull-and-index-update', {
+    pullURL,
+    mutators: {addData},
+  });
+
+  const indexName = 'idx1';
+  await rep.createIndex({name: indexName, jsonPointer: '/id'});
+
+  const log: JSONValue[] = [];
+  let queryCallCount = 0;
+
+  const cancel = rep.subscribe(
+    tx => {
+      queryCallCount++;
+      return tx.scan({indexName}).entries().toArray();
+    },
+    {
+      onData(res) {
+        log.push(res);
+      },
+    },
+  );
+
+  let lastMutationID = 0;
+
+  let expectedQueryCallCount = 1;
+
+  async function testPull(opt: {
+    patch: Patch[];
+    expectedLog: JSONValue[];
+    expectChange: boolean;
+  }) {
+    if (opt.expectChange) {
+      expectedQueryCallCount++;
+    }
+    log.length = 0;
+    fetchMock.post(pullURL, {
+      lastMutationID: lastMutationID++,
+      patch: opt.patch,
+    });
+
+    rep.pull();
+    await tickUntil(() => log.length >= opt.expectedLog.length);
+    expect(queryCallCount).to.equal(expectedQueryCallCount);
+    expect(log).to.deep.equal(opt.expectedLog);
+  }
+
+  await testPull({patch: [], expectedLog: [[]], expectChange: false});
+
+  await testPull({
+    patch: [
+      {
+        op: 'put',
+        key: 'a1',
+        value: {id: 'a-1', x: 1},
+      },
+    ],
+    expectedLog: [
+      [
+        [
+          ['a-1', 'a1'],
+          {
+            id: 'a-1',
+            x: 1,
+          },
+        ],
+      ],
+    ],
+    expectChange: true,
+  });
+
+  // Same value
+  await testPull({
+    patch: [
+      {
+        op: 'put',
+        key: 'a1',
+        value: {id: 'a-1', x: 1},
+      },
+    ],
+    expectedLog: [],
+    expectChange: false,
+  });
+
+  // Change value
+  await testPull({
+    patch: [
+      {
+        op: 'put',
+        key: 'a1',
+        value: {id: 'a-1', x: 2},
+      },
+    ],
+    expectedLog: [
+      [
+        [
+          ['a-1', 'a1'],
+          {
+            id: 'a-1',
+            x: 2,
+          },
+        ],
+      ],
+    ],
+    expectChange: true,
+  });
+
+  // Not matching index json patch
+  await testPull({
+    patch: [
+      {
+        op: 'put',
+        key: 'b1',
+        value: {notAnId: 'b-1', x: 1},
+      },
+    ],
+    expectedLog: [],
+    expectChange: false,
+  });
+
+  // Clear
+  await testPull({
+    patch: [
+      {
+        op: 'clear',
+      },
+    ],
+    expectedLog: [[]],
+    expectChange: true,
+  });
+
+  // Add again so we can test del...
+  await testPull({
+    patch: [
+      {
+        op: 'put',
+        key: 'a2',
+        value: {id: 'a-2', x: 2},
+      },
+    ],
+    expectedLog: [
+      [
+        [
+          ['a-2', 'a2'],
+          {
+            id: 'a-2',
+            x: 2,
+          },
+        ],
+      ],
+    ],
+    expectChange: true,
+  });
+  // .. and del
+  await testPull({
+    patch: [
+      {
+        op: 'del',
+        key: 'a2',
+      },
+    ],
+    expectedLog: [[]],
+    expectChange: true,
+  });
+
+  cancel();
+});
+
+async function tickUntilTimeIs(time: number, tick = 10) {
+  while (Date.now() < time) {
+    await clock.tickAsync(tick);
+  }
+}
+
+test('pull mutate options', async () => {
+  const pullURL = 'https://diff.com/pull';
+  const rep = await replicacheForTesting('pull-mutate-options', {
+    pullURL,
+    useMemstore: true,
+  });
+
+  const log: number[] = [];
+
+  fetchMock.post(pullURL, () => {
+    log.push(Date.now());
+    return {
+      cookie: '',
+      lastMutationID: 2,
+      patch: [],
+    };
+  });
+
+  await tickUntilTimeIs(1000);
+
+  while (Date.now() < 1150) {
+    rep.pull();
+    await clock.tickAsync(10);
+  }
+
+  rep.requestOptions.minDelayMs = 500;
+
+  while (Date.now() < 2000) {
+    rep.pull();
+    await clock.tickAsync(100);
+  }
+
+  rep.requestOptions.minDelayMs = 25;
+
+  while (Date.now() < 2500) {
+    rep.pull();
+    await clock.tickAsync(5);
+  }
+
+  expect(log).to.deep.equal([
+    1000, 1030, 1060, 1090, 1120, 1150, 1180, 1680, 2180, 2205, 2230, 2255,
+    2280, 2305, 2330, 2355, 2380, 2405, 2430, 2455, 2480,
+  ]);
+});
+
+test('online', async () => {
+  const pushURL = 'https://diff.com/push';
+  const rep = await replicacheForTesting('online', {
+    useMemstore: true,
+    pushURL,
+    pushDelay: 0,
+    mutators: {addData},
+  });
+
+  const log: boolean[] = [];
+  rep.onOnlineChange = b => {
+    log.push(b);
+  };
+
+  const info = sinon.stub(console, 'log');
+
+  fetchMock.post(pushURL, async () => {
+    await sleep(10);
+    return {throws: new Error('Simulate fetch error in push')};
+  });
+
+  expect(rep.online).to.equal(true);
+  expect(log).to.deep.equal([]);
+
+  await rep.mutate.addData({a: 0});
+
+  await tickAFewTimes();
+
+  expect(rep.online).to.equal(false);
+  expect(info.callCount).to.be.greaterThan(0);
+  expect(log).to.deep.equal([false]);
+
+  info.resetHistory();
+
+  fetchMock.post(pushURL, {});
+  await rep.mutate.addData({a: 1});
+
+  await tickAFewTimes();
+
+  expect(info.callCount).to.equal(0);
+  expect(rep.online).to.equal(true);
+  expect(log).to.deep.equal([false, true]);
+});
+
+test('overlapping open/close', async () => {
+  const pullInterval = 60_000;
+  const name = 'overlapping-open-close';
+
+  const rep = new Replicache({name, pullInterval});
+  const p = rep.close();
+
+  const rep2 = new Replicache({name, pullInterval});
+  const p2 = rep2.close();
+
+  const rep3 = new Replicache({name, pullInterval});
+  const p3 = rep3.close();
+
+  await p;
+  await p2;
+  await p3;
+
+  {
+    const rep = new Replicache({name, pullInterval});
+    await rep.clientID;
+    const p = rep.close();
+    const rep2 = new Replicache({name, pullInterval});
+    await rep2.clientID;
+    const p2 = rep2.close();
+    await p;
+    await p2;
   }
 });

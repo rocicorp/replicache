@@ -6,7 +6,7 @@ slug: /guide/install
 Nothing to it...
 
 ```bash
-npm install replicache replicache-react-util
+npm install replicache replicache-react nanoid
 ```
 
 ... well, _almost_ nothing.

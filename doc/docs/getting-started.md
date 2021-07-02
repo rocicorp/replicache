@@ -18,7 +18,7 @@ values={[
 <TabItem value="hooks">
 
 ```bash
-npm install replicache replicache-react-util
+npm install replicache replicache-react
 ```
 
   </TabItem>
@@ -61,7 +61,8 @@ values={[
 
 ```ts
 import {Replicache} from 'replicache';
-import {useSubscribe} from 'replicache-react-util';
+import {useSubscribe} from 'replicache';
+import {nanoid} from 'nanoid';
 
 const rep = new Replicache({
   // Put the correct path to replicache.wasm.br on your server here.
@@ -83,7 +84,7 @@ function MyComponent() {
 
   const handleClick = () => {
     rep.mutate.createTodo({
-      id: Math.random().toString(32).substr(2),
+      id: nanoid(),
       order: todos.length,
       text: 'new todo!',
     });
@@ -98,6 +99,7 @@ function MyComponent() {
 
 ```ts
 import {Replicache} from 'replicache';
+import {nanoid} from 'nanoid';
 
 const rep = new Replicache({
   // Put the correct path to replicache.wasm[.br] on your server here.
@@ -115,7 +117,7 @@ rep.subscribe(tx => tx.scan().toArray(), {
 });
 
 rep.mutate.createTodo({
-  id: Math.random().toString(32).substr(2),
+  id: nanoid(),
   title: 'Pick up milk',
   order: 3,
 });

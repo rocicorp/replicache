@@ -5,6 +5,7 @@ import {
   benchmarkScan,
   benchmarkSingleByteWrite,
   benchmarkWriteReadRoundTrip,
+  benchmarkSubscribe,
 } from './replicache.js';
 import {benchmarkIDBRead, benchmarkIDBWrite} from './idb.js';
 
@@ -130,6 +131,9 @@ const benchmarks = [
   benchmarkWriteReadRoundTrip(),
   benchmarkCreateIndex({numKeys: 1000}),
   benchmarkCreateIndex({numKeys: 5000}),
+  benchmarkSubscribe({count: 10}),
+  benchmarkSubscribe({count: 100}),
+  benchmarkSubscribe({count: 1000}),
 ];
 
 for (let b of [benchmarkIDBRead, benchmarkIDBWrite]) {
@@ -175,11 +179,11 @@ let current = 0;
 async function nextTest(groups, format) {
   while (current < benchmarks.length) {
     const b = benchmarks[current++];
-    if (groups.indexOf(b.group) > -1) {
+    if (groups.includes(b.group)) {
       try {
         return await runBenchmark(b, format);
       } catch (e) {
-        return `${b.name}: Error: ${e.toString()}`;
+        return `${b.name}: Error: ${e}`;
       }
     }
   }

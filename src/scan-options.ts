@@ -57,7 +57,7 @@ export type ScanIndexOptions = {
 export type KeyTypeForScanOptions<O extends ScanOptions> = O extends {
   indexName: string;
 }
-  ? ScanOptionIndexedStartKey
+  ? [secondary: string, primary: string]
   : string;
 
 /**

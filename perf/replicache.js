@@ -12,6 +12,16 @@ import {makeRandomStrings} from './data.js';
  */
 
 /**
+ * @param {unknown} b
+ */
+function assert(b) {
+  // console.assert is not working inside playwright?
+  if (!b) {
+    throw new Error('Assertion failed');
+  }
+}
+
+/**
  * @param {{numKeys: number; clean: boolean; indexes?: number;}} opts
  * @returns Benchmark
  */
@@ -237,6 +247,103 @@ export function benchmarkWriteReadRoundTrip() {
 
       bench.stop();
       unsubscribe();
+    },
+  };
+}
+
+/**
+ * @param {number} ms
+ */
+export function sleep(ms) {
+  return new Promise(resolve => {
+    // @ts-ignore
+    setTimeout(() => resolve(), ms);
+  });
+}
+
+/**
+ * @param {{count: number;}} opts
+ * @returns Benchmark
+ */
+export function benchmarkSubscribe(opts) {
+  const {count} = opts;
+  const maxCount = 1000;
+  const minCount = 10;
+  const key = (/** @type {number} */ k) => `key${k}`;
+  if (count > maxCount) {
+    throw new Error('Please increase maxCount');
+  }
+  return {
+    name: `subscription ${count}`,
+    group: 'replicache',
+    /**
+     * @param {Bencher} bencher
+     */
+    async run(bencher) {
+      const rep = await makeRep({
+        mutators: {
+          /**
+           * @param {WriteTransaction} tx
+           * @param {number} count
+           */
+          async init(tx) {
+            await Promise.all(
+              Array.from({length: maxCount}, (_, i) => tx.put(key(i), i)),
+            );
+          },
+          /**
+           * @param {WriteTransaction} tx
+           * @param {{key: string, val: JSONValue}} options
+           */
+          async put(tx, options) {
+            await tx.put(options.key, options.val);
+          },
+        },
+      });
+
+      await rep.mutate.init(count);
+      const data = Array.from({length: count}).fill(0);
+      let onDataCallCount = 0;
+      const subs = Array.from({length: count}, (_, i) =>
+        rep.subscribe((/** @type {ReadTransaction} */ tx) => tx.get(key(i)), {
+          onData(/** @type {JSONValue} */ v) {
+            onDataCallCount++;
+            data[i] = v;
+          },
+        }),
+      );
+
+      // We need to wait until all the initial async onData have been called.
+      while (onDataCallCount !== count) {
+        await sleep(10);
+      }
+
+      // The number of mutations to do. These should each trigger one
+      // subscription. The goal of this test is to ensure that we are only
+      // paying the runtime cost of subscriptions that are affected byt the
+      // changes.
+      const mut = 10;
+      if (mut < minCount) {
+        throw new Error('Please decrease minCount');
+      }
+      const rand = Math.random();
+
+      bencher.reset();
+
+      for (let i = 0; i < mut; i++) {
+        await rep.mutate.put({key: key(i), val: i ** 2 + rand});
+      }
+
+      bencher.stop();
+
+      subs.forEach(c => c());
+
+      assert(onDataCallCount === count + mut);
+      for (let i = 0; i < count; i++) {
+        assert(data[i] === (i < mut ? i ** 2 + rand : i));
+      }
+
+      await rep.close();
     },
   };
 }

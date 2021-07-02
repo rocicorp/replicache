@@ -14,3 +14,5 @@ You can follow the steps exactly to end up with our chat app, or use them as gui
 ## Prerequisites
 
 You only need [Node.js](https://nodejs.org/en/), version 10.13 or higher to get started.
+
+You should also already understand [How Replicache Works](../how-it-works) at a high level.

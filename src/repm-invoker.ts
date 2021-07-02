@@ -2,6 +2,8 @@ import type {JSONValue} from './json.js';
 import type {ScanOptionsRPC} from './scan-options.js';
 import init, {dispatch} from './wasm/release/replicache_client.js';
 import type {InitOutput} from './wasm/release/replicache_client.js';
+import type {Puller} from './puller.js';
+import type {Pusher} from './pusher.js';
 
 /**
  * This type is used for the [[ReplicacheOptions.wasmModule]] property.
@@ -119,6 +121,7 @@ export type OpenTransactionRequest = {
   name?: string;
   args?: string;
   rebaseOpts?: RebaseOpts;
+  isSubscription: boolean;
 };
 type OpenTransactionResponse = {
   transactionId: number;
@@ -128,17 +131,26 @@ type OpenIndexTransactionRequest = unknown;
 type OpenIndexTransactionResponse = OpenTransactionResponse;
 
 type CloseTransactionRequest = TransactionRequest;
-type CloseTransactionResponse = unknown;
+export type CloseTransactionResponse = unknown;
 
-type CommitTransactionRequest = TransactionRequest;
+type CommitTransactionRequest = TransactionRequest & {
+  generateChangedKeys: boolean;
+};
+
+// The changed keys in different indexes. The key of the map is the index name.
+// "" is used for the primary index.
+export type ChangedKeysMap = Map<string, string[]>;
+
 export type CommitTransactionResponse = {
   ref: string;
+  changedKeys: ChangedKeysMap;
 };
 
 type BeginTryPullRequest = {
   pullURL: string;
   pullAuth: string;
   schemaVersion: string;
+  puller: Puller;
 };
 
 type BeginTryPullResponse = {
@@ -151,13 +163,14 @@ type TryPushRequest = {
   pushURL: string;
   pushAuth: string;
   schemaVersion: string;
+  pusher: Pusher;
 };
 
 type TryPushResponse = {
   httpRequestInfo?: HTTPRequestInfo;
 };
 
-type HTTPRequestInfo = {
+export type HTTPRequestInfo = {
   httpStatusCode: number;
   errorMessage: string;
 };
@@ -167,7 +180,7 @@ type MaybeEndTryPullRequest = {
   syncHead: string;
 };
 
-type Mutation = {
+export type Mutation = {
   id: number;
   name: string;
   args: string;
@@ -180,6 +193,7 @@ type ReplayMutation = Mutation & {
 type MaybeEndTryPullResponse = {
   replayMutations?: ReplayMutation[];
   syncHead: string;
+  changedKeys: ChangedKeysMap;
 };
 
 type SetLogLevelRequest = {level: 'debug' | 'info' | 'error'};

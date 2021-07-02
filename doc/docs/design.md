@@ -3,36 +3,32 @@ title: Detailed Design
 slug: /design
 ---
 
-"[Offline-First](https://www.google.com/search?q=offline+first)" describes a client/server architecture where
-the application reads and writes to a local database on the device, and synchronizes with servers asynchronously whenever
-there is connectivity.
+_Realtime Sync_ describes a client/server architecture in which
+an application reads and writes to a local on-device database that is synchronized in realtime in the background to a server. Updates from many users are synchronized with each other through the server with low latency and high througput, realizing a variety of benefits.
 
-These applications are highly desired by product teams and users because they are so much more responsive and
-reliable than applications that are directly dependent upon servers. By storing data in a local database, offline-first
-applications are instantaneously responsive and reliable in any network conditions.
+Adding realtime sync to your application enables:
 
-Additionally, offline-first applications typically update live, in real time, when something change server side, without
-the user having to refresh. Since they are already continuously synchronizing, realtime updates are just updating the UI
-when new data arrives.
+- **Realtime Multiplayer Collaboration**. Popularized by Google Docs, Figma, and Notion, realtime collaboration makes applications more useful, not to mention more exciting and alive-feeling. However realtime collaboration is famously hard to build. Replicache provides the tools that make it much easier.
 
-Unfortunately, offline-first applications are also really hard to build. Many previous companies and open source projects
-have sought to provide an easy framework for buiding offline-first applications, but for a variety of reasons none have
-succeeded.
+- **Lag-Free UI**. By executing all reads and writes against a local datastore, apps built with Replicache respond instantly, never pausing while waiting for a server. They even work if the app is...
+
+- **Offline**. Replicache persists its cache to client-side storage, so apps start and render instantly. Local changes are synchronized opportunistically in the background so the app works online, offline, or anything in between.
+
+Applications with realtime sync capabilities are highly desired by product teams and users because they update live, in realtime, when something changes, without the user having to refresh. Additionally, they are much more responsive and reliable than applications that are directly dependent upon servers. Realtime sync applications are instantaneously responsive regardless of the network conditions.
 
 # Introducing Replicache
 
-[Replicache](https://replicache.dev) dramatically reduces the difficulty of building offline-first applications. Replicache's goals are:
+[Replicache](https://replicache.dev) dramatically reduces the difficulty of building applications with realtime sync. Replicache's goals are:
 
-1. Providing a truly offline-first programming model that is natural and easy to reason about
+1. Providing a programming model that is natural and easy to reason about
 1. Maximizing compatability with existing application infrastructure and patterns, minimizing the work to integrate
 
 The key features that drive Replicache's increased usability:
 
-- **Easy Integration**: Replicache runs alongside your existing application infrastructure. You keep your existing server-side stack and client-side frameworks. Replicache doesn't take ownership of data, and is not the source of truth. Its only job is to provide bidirectional sync between your clients and your servers. This makes it easy to adopt: you can try it for just a small piece of functionality, or a small slice of users, while leaving the rest of your application the same.
-- **The Client View**: To use Replicache, developers define a _Client View_, which is the data Replicache keeps cached on a specific device. Developers must arrange to return a delta from some previous version of the Client View to the current one when requested, but developers do _not_ have to worry about any local changes the client may have applied. Replicache ensures that any local mutations are correctly ordered with respect to the canonical server state.
-- **Transactional Conflict Resolution**: Conflicts are an unavoidable part of offline-first systems, but contrary to popular
-  belief they don't need to be exceptionally painful. Replicache makes conflict resolution significantly easier by capturing the _intent_ of changes and then asking developers to replay that intended change later. See [Conflicts](#conflicts) for more.
-- **Causal+ Consistency**: [Consistency guarantees](https://jepsen.io/consistency) make distributed systems easier to reason about and prevent confusing user-visible data anomalies. When properly integrated with your backend, Replicache provides for [Causal+ Consistency](https://jepsen.io/consistency/models/causal) across the entire system. This means that transactions are guaranteed to be applied _atomically_, in the _same order_, _across all clients_. Further, all clients will see an order of transactions that is compatible with _causal history_. Basically: all clients will end up seeing the same thing, and you're not going to have anly weirdly reordered or dropped messages. We have worked with independent Distributed Systems expert Kyle Kingsbury of Jepsen to validate these properties of our design. See [Jepsen on Replicache](https://replicache.dev/jepsen.html).
+- **Easy Integration**: Replicache runs alongside your existing application infrastructure. You keep your existing server-side stack and client-side frameworks. Replicache doesn't take ownership of data, and is not the source of truth. Its job is to provide bidirectional sync between your clients and your servers. This makes it easy to adopt: you can try it for just a small piece of functionality, or a small slice of users, while leaving the rest of your application the same.
+- **The Client View**: To use Replicache, developers define a _Client View_, the data Replicache keeps cached on a specific device. Developers arrange to return a delta from a previous version of the Client View to the current version when requested, but developers do _not_ have to worry about any local changes the client may have applied. Replicache ensures that any local mutations are correctly ordered with respect to the canonical server state.
+- **Transactional Conflict Resolution**: Conflicts are a fact of life when syncing, but they don't have to be painful. Replicache rewinds and replays your transactions during sync, sort of like `git rebase`. See [Conflicts](#conflicts) for more.
+- **Correctness**: [Consistency guarantees](https://jepsen.io/consistency) make distributed systems easier to reason about and prevent confusing user-visible data anomalies. When properly integrated with your backend, Replicache provides for [Causal+ Consistency](https://jepsen.io/consistency/models/causal) across the entire system. This means that transactions are guaranteed to be applied _atomically_, in the _same order_, _across all clients_. Further, all clients will see an order of transactions that is compatible with _causal history_. Basically: all clients will end up seeing the same thing, and you're not going to have any weirdly reordered or dropped messages. We have worked with independent Distributed Systems expert Kyle Kingsbury of Jepsen to validate these properties of our design. See [Jepsen on Replicache](https://replicache.dev/jepsen.html).
 
 # System Overview
 
@@ -80,7 +76,7 @@ Within the Replicache client, each version of the user's state is represented as
 Commits come in two flavors, those from the client and those from the server:
 
 - _Local commits_ represent a change made by a mutator executing locally against the client's cache. The set of local commits that are not yet known to be applied in the Data Layer are known as _pending_ commits. Local commits include the _mutator name_ and _arguments_ that caused them, so that the mutator may be replayed later on top of new snapshot commits from the server if necessary.
-- _Snapshot commits_ represent a state update pulled from the server. They carry a _cookie_, which the Data Layer can used to calculate the delta for the next pull.
+- _Snapshot commits_ represent a state update pulled from the server. They carry a _cookie_, which the Data Layer can use to calculate the delta for the next pull.
 
 ### API Sketch
 
@@ -197,6 +193,6 @@ We believe the Replicache model for dealing with conflicts — to have defensive
 
 A second concern with data size is that it might be infeasible to complete large state update downloads on unreliable or slow connections. We can imagine a variety of potential solutions to this problem but for simplicity's sake we are punting on the problem for now. (The size constraint above helps here as well.)
 
-**Blobs** Any truly offline first system must have first class bidirectional support for binary assets aka blobs (eg, profile pictures). In some cases these assets should be managed transactionally along with the user's data: either you get all the data and all the blobs it references or you get none of it. In any case, there is presently no special support for blobs in Replicache. Users who need blobs are advised to base64 encode them as JSON strings in the user data. We plan to address this shortcoming in the future.
+**Blobs** A realtime sync engine should have first class bidirectional support for binary assets aka blobs (eg, profile pictures). In some cases these assets should be managed transactionally along with the user's data: either you get all the data and all the blobs it references or you get none of it. In any case, there is presently no special support for blobs in Replicache. Users who need blobs are advised to base64 encode them as JSON strings in the user data. We plan to address this shortcoming in the future.
 
 **Duplicate transaction logic** You have to implement transactions twice, once in the mobile app and once in the Data Layer. Bummer. We can imagine potential solutions to this problem but it's not clear if the benefit would be worth the cost, or widely usable. It is also expected that client-side transactions will be significantly simpler as they are by nature _speculative_, having the canonical answer come from the server-side implementation.

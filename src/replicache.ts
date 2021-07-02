@@ -1,25 +1,41 @@
-import {deepEqual, JSONValue} from './json.js';
-import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
-import {
-  Invoker,
+import {deepEqual} from './json.js';
+import type {JSONValue} from './json.js';
+import type {
+  KeyTypeForScanOptions,
+  ScanOptions,
+  ScanOptionsRPC,
+} from './scan-options.js';
+import {REPMWasmInvoker, RPC} from './repm-invoker.js';
+import type {Pusher} from './pusher.js';
+import type {Puller} from './puller.js';
+import type {
+  ChangedKeysMap,
   Invoke,
-  OpenTransactionRequest,
-  REPMWasmInvoker,
-  InitInput,
+  Invoker,
   OpenResponse,
-  RPC,
+  OpenTransactionRequest,
 } from './repm-invoker.js';
 import {
   CreateIndexDefinition,
-  IndexTransactionImpl,
-  ReadTransactionImpl,
-  WriteTransactionImpl,
+  SubscriptionTransactionWrapper,
 } from './transactions.js';
+import {IndexTransactionImpl} from './transactions.js';
+import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
 import {ScanResult} from './scan-iterator.js';
 import type {ReadTransaction, WriteTransaction} from './transactions.js';
-import {ConnectionLoop} from './connection-loop.js';
+import {ConnectionLoop, MAX_DELAY_MS, MIN_DELAY_MS} from './connection-loop.js';
 import {getLogger} from './logger.js';
 import type {Logger, LogLevel} from './logger.js';
+import {defaultPuller} from './puller';
+import {defaultPusher} from './pusher';
+import {resolver} from './resolver.js';
+import type {ReplicacheOptions} from './replicache-options.js';
+import {PullDelegate, PushDelegate} from './connection-loop-delegates.js';
+import type {Subscription} from './subscriptions.js';
+import {
+  subscriptionsForChangedKeys,
+  subscriptionsForIndexDefinitionChanged,
+} from './subscriptions.js';
 
 type BeginPullResult = {
   requestID: string;
@@ -40,6 +56,22 @@ const storageKeyName = (name: string) => `/replicache/root/${name}`;
 const MAX_REAUTH_TRIES = 8;
 
 /**
+ * This type describes the data we send on the BroadcastChannel when things change.
+ */
+type BroadcastData = {
+  root?: string;
+  changedKeys: ChangedKeysMap;
+  index?: string;
+};
+
+/**
+ * When using localStorage instead of BroadcastChannel we need to use a JSON string.
+ */
+type StorageBroadcastData = Omit<BroadcastData, 'changedKeys'> & {
+  changedKeys: [string, string[]][];
+};
+
+/**
  * The type used to describe the mutator definitions passed into [[Replicache]]
  * constructor as part of the [[ReplicacheOptions]].
  *
@@ -54,180 +86,41 @@ export type MutatorDefs = {
   ) => MaybePromise<JSONValue | void>;
 };
 
+type MutatorReturn = MaybePromise<JSONValue | void>;
+
+type MakeMutator<
+  F extends (tx: WriteTransaction, ...args: [] | [JSONValue]) => MutatorReturn,
+> = F extends (tx: WriteTransaction, ...args: infer Args) => infer Ret
+  ? (...args: Args) => ToPromise<Ret>
+  : never;
+
+type MakeMutators<T extends MutatorDefs> = {
+  readonly [P in keyof T]: MakeMutator<T[P]>;
+};
+
 /**
- * The options passed to [[Replicache]].
+ * Base options for [[PullOptions]] and [[PushOptions]]
  */
-export interface ReplicacheOptions<MD extends MutatorDefs> {
+export interface RequestOptions {
   /**
-   * This is the
-   * [authentication](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#authentication)
-   * token used when doing a [push
-   * ](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync).
+   * When there are pending pull or push requests this is the _minimum_ ammount
+   * of time to wait until we try another pull/push.
    */
-  pushAuth?: string;
+  minDelayMs?: number;
 
   /**
-   * This is the URL to the server endpoint dealing with the push updates. See
-   * [Server Setup Upstream Sync](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync)
-   * for more details.
+   * When there are pending pull or push requests this is the _maximum_ ammount
+   * of time to wait until we try another pull/push.
    */
-  pushURL?: string;
-
-  /**
-   * This is the
-   * [authentication](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#authentication)
-   * token used when doing a [pull
-   * ](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync).
-   */
-  pullAuth?: string;
-
-  /**
-   * This is the URL to the server endpoint dealing with pull. See [Server Setup
-   * Downstream
-   * Sync](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-1-downstream-sync)
-   * for more details.
-   */
-  pullURL?: string;
-
-  /**
-   * The name of the Replicache database. This defaults to `"default"`.
-   *
-   * You can use multiple Replicache instances as long as the names are unique.
-   *
-   * Using different names for different users allows you to switch users even
-   * when you are offline.
-   */
-  name?: string;
-
-  /**
-   * The schema version of the data understood by this application. This enables
-   * versioning of mutators (in the push direction) and the client view (in the
-   * pull direction).
-   */
-  schemaVersion?: string;
-
-  /**
-   * The duration between each [[pull]]. Set this to `null` to prevent pulling
-   * in the background.
-   */
-  pullInterval?: number | null;
-
-  /**
-   * The delay between when a change is made to Replicache and when Replicache
-   * attempts to push that change.
-   */
-  pushDelay?: number;
-
-  /**
-   * By default we will load the Replicache wasm module relative to the
-   * Replicache js files but under some circumstances (like bundling with old
-   * versions of Webpack) it is useful to manually configure where the wasm
-   * module is located on the web server.
-   *
-   * If you provide your own path to the wasm module it probably makes sense to
-   * use a relative URL relative to your current file.
-   *
-   * ```js
-   * wasmModule: new URL('./relative/path/to/replicache.wasm', import.meta.url),
-   * ```
-   *
-   * You might also want to consider using an absolute URL so that we can find
-   * the wasm module no matter where your js file is loaded from:
-   *
-   * ```js
-   * wasmModule: '/static/replicache.wasm',
-   * ```
-   */
-  wasmModule?: InitInput | undefined;
-
-  /**
-   * Allows using an in memory store instead of IndexedDB. This is useful for
-   * testing for example. Notice that when this is `true` no data is persisted
-   * in Replicache and all the data that has not yet been synced when Replicache
-   * is [[closed]] or the page is unloaded is lost.
-   */
-  useMemstore?: boolean;
-
-  /**
-   * Determines how much logging to do. When this is set to `'debug'`,
-   * Replicache will also log `'info'` and `'error'` messages. When set to
-   * `'info'` we log `'info'` and `'error'` but not `'debug'`. When set to
-   * `'error'` we only log `'error'` messages.
-   */
-  logLevel?: LogLevel;
-
-  /**
-   * An object used as a map to define the *mutators*. These gets registered at
-   * startup of [[Replicache]].
-   *
-   * *Mutators* are used to make changes to the data.
-   *
-   * ## Example
-   *
-   * The registered *mutations* are reflected on the
-   * [[Replicache.mutate|mutate]] property of the [[Replicache]] instance.
-   *
-   * ```ts
-   * const rep = new Replicache({
-   *   mutators: {
-   *     async createTodo(tx: WriteTransaction, args: JSONValue) {
-   *       const key = `/todo/${args.id}`;
-   *       if (await tx.has(key)) {
-   *         throw new Error('Todo already exists');
-   *       }
-   *       await tx.put(key, args);
-   *     },
-   *     async deleteTodo(tx: WriteTransaction, id: number) {
-   *       ...
-   *     },
-   *   },
-   * });
-   * ```
-   *
-   * This will create the function to later use:
-   *
-   * ```ts
-   * await rep.mutate.createTodo({
-   *   id: 1234,
-   *   title: 'Make things work offline',
-   *   complete: true,
-   * });
-   * ```
-   *
-   * ## Replays
-   *
-   * *Mutators* run once when they are initially invoked, but they might also be
-   * *replayed* multiple times during sync. As such *mutators* should not modify
-   * application state directly. Also, it is important that the set of
-   * registered mutator names only grows over time. If Replicache syncs and
-   * needed *mutator* is not registered, it will substitute a no-op mutator, but
-   * this might be a poor user experience.
-   *
-   * ## Server application
-   *
-   * During push, a description of each mutation is sent to the server's [push
-   * endpoint](https://github.com/rocicorp/replicache/blob/stable/doc/setup.md#step-6-remote-mutations)
-   * where it is applied. Once the *mutation* has been applied successfully, as
-   * indicated by the [client
-   * view](https://github.com/rocicorp/replicache/blob/stable/doc/setup.md#step-1-design-your-client-view)'s
-   * `lastMutationId` field, the local version of the *mutation* is removed. See
-   * the [design
-   * doc](https://github.com/rocicorp/replicache/blob/stable/doc/design.md) for
-   * additional details on the sync protocol.
-   *
-   * ## Transactionality
-   *
-   * *Mutators* are atomic: all their changes are applied together, or none are.
-   * Throwing an exception aborts the transaction. Otherwise, it is committed.
-   * As with [[query]] and [[subscribe]] all reads will see a consistent view of
-   * the cache while they run.
-   */
-  mutators?: MD;
+  maxDelayMs?: number;
 }
+
+const emptySet: ReadonlySet<string> = new Set();
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export class Replicache<MD extends MutatorDefs = {}>
-  implements ReadTransaction {
+  implements ReadTransaction
+{
   private _pullAuth: string;
   private readonly _pullURL: string;
   private _pushAuth: string;
@@ -241,7 +134,9 @@ export class Replicache<MD extends MutatorDefs = {}>
   private _online = true;
   private readonly _logLevel: LogLevel;
   private readonly _logger: Logger;
-  private _openResponse!: Promise<OpenResponse>;
+  private readonly _openResponse: Promise<OpenResponse>;
+  private readonly _openResolve: (resp: OpenResponse) => void;
+  private readonly _clientIDPromise: Promise<string>;
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
@@ -279,6 +174,18 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   pushDelay: number;
 
+  private readonly _requestOptions: Required<RequestOptions>;
+  private readonly _puller: Puller;
+  private readonly _pusher: Pusher;
+
+  /**
+   * The options used to control the [[pull]] and push request behavior. This
+   * object is live so changes to it will affect the next pull or push call.
+   */
+  get requestOptions(): Required<RequestOptions> {
+    return this._requestOptions;
+  }
+
   /**
    * `onSync` is called when a sync begins, and again when the sync ends. The parameter `syncing`
    * is set to `true` when `onSync` is called at the beginning of a sync, and `false` when it
@@ -296,7 +203,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   onSync: ((syncing: boolean) => void) | null = null;
 
   /**
-   * This gets called when we get an HTTP unauthorized (410) response from the
+   * This gets called when we get an HTTP unauthorized (401) response from the
    * pull endpoint. Set this to a function that will ask your user to
    * reauthenticate.
    */
@@ -306,7 +213,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     | undefined = null;
 
   /**
-   * This gets called when we get an HTTP unauthorized (410) response from the push
+   * This gets called when we get an HTTP unauthorized (401) response from the push
    * endpoint. Set this to a function that will ask your user to reauthenticate.
    */
   getPushAuth:
@@ -328,6 +235,9 @@ export class Replicache<MD extends MutatorDefs = {}>
       useMemstore = false,
       wasmModule,
       mutators = {} as MD,
+      requestOptions = {},
+      puller = defaultPuller,
+      pusher = defaultPusher,
     } = options;
     this._pullAuth = pullAuth;
     this._pullURL = pullURL;
@@ -339,51 +249,69 @@ export class Replicache<MD extends MutatorDefs = {}>
     this.pullInterval = pullInterval;
     this.pushDelay = pushDelay;
     this._useMemstore = useMemstore;
+    this._puller = puller;
+    this._pusher = pusher;
 
-    this._pullConnectionLoop = new ConnectionLoop({
-      invokeSend: () => this._invokePull(),
-      watchdogTimer: () => this.pullInterval,
-      debounceDelay: () => 0,
-      maxConnections: 1,
-      ...getLogger(['PULL'], logLevel),
-    });
-    this._pushConnectionLoop = new ConnectionLoop({
-      invokeSend: () => this._invokePush(MAX_REAUTH_TRIES),
-      debounceDelay: () => this.pushDelay,
-      maxConnections: 1,
-      ...getLogger(['PUSH'], logLevel),
-    });
+    // Use a promise-resolve pair so that we have a promise to use even before
+    // we call the Open RPC.
+    const {promise, resolve} = resolver<OpenResponse>();
+    this._openResponse = promise;
+    this._openResolve = resolve;
+
+    const {minDelayMs = MIN_DELAY_MS, maxDelayMs = MAX_DELAY_MS} =
+      requestOptions;
+    this._requestOptions = {maxDelayMs, minDelayMs};
+
+    this._pullConnectionLoop = new ConnectionLoop(
+      new PullDelegate(
+        this,
+        () => this._invokePull(),
+        getLogger(['PULL'], logLevel),
+      ),
+    );
+
+    this._pushConnectionLoop = new ConnectionLoop(
+      new PushDelegate(
+        this,
+        () => this._invokePush(MAX_REAUTH_TRIES),
+        getLogger(['PUSH'], logLevel),
+      ),
+    );
 
     this._logLevel = logLevel;
     this._logger = getLogger([], logLevel);
 
     this.mutate = this._registerMutators(mutators);
 
-    this._open().then(async () => {
-      // TODO: Make log level an arg to open and scope the log level to a db
-      // connection.
-      await this._invoke(RPC.SetLogLevel, {level: this._logLevel});
-      this.pull();
-      this._push();
-    });
+    this._clientIDPromise = this._open();
   }
 
-  private async _open(): Promise<void> {
-    this._openResponse = this._repmInvoker.invoke(this._name, RPC.Open, {
+  private async _open(): Promise<OpenResponse> {
+    // If we are currently closing a Replicache instance with the same name,
+    // wait for it to finish closing.
+    await closingInstances.get(this._name);
+
+    const openResponse = await this._repmInvoker.invoke(this._name, RPC.Open, {
       useMemstore: this._useMemstore,
     });
+    this._openResolve(openResponse);
+
     if (hasBroadcastChannel) {
       this._broadcastChannel = new BroadcastChannel(storageKeyName(this._name));
-      this._broadcastChannel.onmessage = () => this._onStorage();
+      this._broadcastChannel.onmessage = (e: MessageEvent<BroadcastData>) =>
+        this._onBroadcastMessage(e.data);
     } else {
-      window.addEventListener('storage', (e: StorageEvent) => {
-        if (e.key === storageKeyName(this._name)) {
-          this._onStorage();
-        }
-      });
+      window.addEventListener('storage', this._onStorage);
     }
-    this._setRoot(this._getRoot());
+    this._root = this._getRoot();
     await this._root;
+
+    if (!this._closed) {
+      await this._invoke(RPC.SetLogLevel, {level: this._logLevel});
+    }
+    this.pull();
+    this._push();
+    return openResponse;
   }
 
   /**
@@ -394,13 +322,20 @@ export class Replicache<MD extends MutatorDefs = {}>
    * time a new Replicache instance is created).
    */
   get clientID(): Promise<string> {
-    return this._openResponse;
+    return this._clientIDPromise;
   }
 
   /**
-   * A rough heuristic for whether the client is currently online. Note that there is no way to know
-   * for certain whether a client is online - the next request can always fail. This is true if the last
-   * sync attempt succeeded, and false otherwise.
+   * `onOnlineChange` is called when the [[online]] property changes. See
+   * [[online]] for more details.
+   */
+  onOnlineChange: ((online: boolean) => void) | null = null;
+
+  /**
+   * A rough heuristic for whether the client is currently online. Note that
+   * there is no way to know for certain whether a client is online - the next
+   * request can always fail. This property returns true if the last sync attempt succeeded,
+   * and false otherwise.
    */
   get online(): boolean {
     return this._online;
@@ -424,13 +359,13 @@ export class Replicache<MD extends MutatorDefs = {}>
   async close(): Promise<void> {
     this._closed = true;
     const p = this._invoke(RPC.Close);
+    closingInstances.set(this._name, p);
 
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
 
-    if (hasBroadcastChannel) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      this._broadcastChannel!.close();
+    if (this._broadcastChannel) {
+      this._broadcastChannel.close();
       this._broadcastChannel = undefined;
     } else {
       window.removeEventListener('storage', this._onStorage);
@@ -443,6 +378,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     this._subscriptions.clear();
 
     await p;
+    closingInstances.delete(this._name);
   }
 
   private async _getRoot(): Promise<string | undefined> {
@@ -453,40 +389,72 @@ export class Replicache<MD extends MutatorDefs = {}>
     return res.root;
   }
 
-  private _setRoot(root: Promise<string | undefined>) {
-    this._root = root;
-    this._setStorage(root);
-  }
+  private _onStorage = (e: StorageEvent) => {
+    const {key, newValue} = e;
+    if (newValue && key === storageKeyName(this._name)) {
+      const {root, changedKeys, index} = JSON.parse(
+        newValue,
+      ) as StorageBroadcastData;
 
-  private async _setStorage(root: Promise<string | undefined>) {
-    const r = await root;
-    if (this._closed) {
-      return;
+      this._onBroadcastMessage({
+        root,
+        changedKeys: new Map(changedKeys),
+        index,
+      });
     }
-    if (hasBroadcastChannel) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      this._broadcastChannel!.postMessage(r);
-    } else {
-      // Also set an item in localStorage so that we can synchronize multiple
-      // windows/tabs.
-      localStorage[storageKeyName(this._name)] = r;
-    }
-  }
+  };
 
-  // Callback for when window.onstorage fires which happens when a different tab
-  // changes the db.
-  private async _onStorage() {
-    // Cannot just use the value from the other tab, because it can be behind us.
+  // Callback for when a different tab changes the db.
+  private async _onBroadcastMessage(data: BroadcastData) {
+    // Cannot just use the root value from the other tab, because it can be behind us.
     // Also, in the case of memstore, it will have a totally different, unrelated
     // hash chain.
-    this._checkChange(await this._getRoot());
+    const {changedKeys, index} = data;
+
+    const changedKeysSubs = subscriptionsForChangedKeys(
+      this._subscriptions,
+      changedKeys,
+    );
+
+    const indexSubs = index
+      ? subscriptionsForIndexDefinitionChanged(this._subscriptions, index)
+      : [];
+
+    const subscriptions: Set<Subscription<JSONValue | undefined, unknown>> =
+      new Set();
+    for (const s of changedKeysSubs) {
+      subscriptions.add(s);
+    }
+    for (const s of indexSubs) {
+      subscriptions.add(s);
+    }
+    await this._fireSubscriptions(subscriptions);
   }
 
-  private async _checkChange(root: string | undefined): Promise<void> {
+  private _broadcastChange(
+    root: string | undefined,
+    changedKeys: ChangedKeysMap,
+    index: string | undefined,
+  ) {
+    if (this._broadcastChannel) {
+      const data = {root, changedKeys, index};
+      this._broadcastChannel.postMessage(data);
+    } else {
+      // local storage needs a string...
+      const data = {root, changedKeys: [...changedKeys.entries()], index};
+      localStorage[storageKeyName(this._name)] = JSON.stringify(data);
+    }
+  }
+
+  private async _checkChange(
+    root: string | undefined,
+    changedKeys: ChangedKeysMap,
+  ): Promise<void> {
     const currentRoot = await this._root; // instantaneous except maybe first time
     if (root !== undefined && root !== currentRoot) {
-      this._setRoot(Promise.resolve(root));
-      await this._fireOnChange();
+      this._root = Promise.resolve(root);
+      this._broadcastChange(root, changedKeys, undefined);
+      await this._fireOnChange(changedKeys);
     }
   }
 
@@ -534,7 +502,7 @@ export class Replicache<MD extends MutatorDefs = {}>
           return tx;
         }
         tx = new ReadTransactionImpl(this._invoke);
-        await tx.open({});
+        await tx.open({isSubscription: false});
         return tx;
       },
       true,
@@ -550,10 +518,10 @@ export class Replicache<MD extends MutatorDefs = {}>
   ): Promise<[K, JSONValue][]> {
     const tx = new ReadTransactionImpl(this._invoke);
     try {
-      await tx.open({});
+      await tx.open({isSubscription: false});
       return await tx.scanAll(options);
     } finally {
-      tx.close();
+      closeIgnoreError(tx);
     }
   }
 
@@ -566,6 +534,7 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   async createIndex(def: CreateIndexDefinition): Promise<void> {
     await this._indexOp(tx => tx.createIndex(def));
+    await this._indexDefinitionChanged(def.name);
   }
 
   /**
@@ -573,6 +542,7 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   async dropIndex(name: string): Promise<void> {
     await this._indexOp(tx => tx.dropIndex(name));
+    await this._indexDefinitionChanged(name);
   }
 
   private async _indexOp(
@@ -580,7 +550,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   ): Promise<void> {
     const tx = new IndexTransactionImpl(this._invoke);
     try {
-      await tx.open({});
+      await tx.open({isSubscription: false});
       await f(tx);
     } finally {
       tx.commit();
@@ -596,18 +566,17 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     let {syncHead} = beginPullResult;
 
-    const {replayMutations} = await this._invoke(
+    const {replayMutations, changedKeys} = await this._invoke(
       RPC.MaybeEndTryPull,
       beginPullResult,
     );
     if (!replayMutations || replayMutations.length === 0) {
       // All done.
-      await this._checkChange(syncHead);
+      await this._checkChange(syncHead, changedKeys);
       return;
     }
 
     // Replay.
-    this._logger.debug ?? console.group('Replaying');
     for (const mutation of replayMutations) {
       syncHead = await this._replay(
         syncHead,
@@ -616,7 +585,6 @@ export class Replicache<MD extends MutatorDefs = {}>
         JSON.parse(mutation.args),
       );
     }
-    this._logger.debug ?? console.groupEnd();
 
     await this._maybeEndPull({...beginPullResult, syncHead});
   }
@@ -644,6 +612,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     const res = await this._mutate(name, mutatorImpl, args, {
       invokeArgs: {
         rebaseOpts: {basis, original},
+        isSubscription: false,
       },
       isReplay: true,
     });
@@ -688,13 +657,21 @@ export class Replicache<MD extends MutatorDefs = {}>
       // hacky string search. (a) and (c) are not distinguishable currently
       // because repc doesn't provide sufficient information, so we treat all
       // errors that aren't (b) as (a).
-      if (e.toString().includes('JSLogInfo')) {
+
+      // TODO(arv): Use Error.prototype.cause
+      // (https://github.com/tc39/proposal-error-cause) and check for a
+      // structured error in the cause chain. On the Rust side we should create
+      // a structured error that we can instanceof check instead
+      if (/Pu(sh|ll)Failed\(JsError\(JsValue\(/.test(e + '')) {
         online = false;
       }
       this._logger.info?.(`${name} returned: ${e}`);
       return false;
     } finally {
-      this._online = online;
+      if (this._online !== online) {
+        this._online = online;
+        this.onOnlineChange?.(online);
+      }
     }
   }
 
@@ -707,6 +684,7 @@ export class Replicache<MD extends MutatorDefs = {}>
           pushURL: this._pushURL,
           pushAuth: this._pushAuth,
           schemaVersion: this._schemaVersion,
+          pusher: this._pusher,
         });
       } finally {
         this._changeSyncCounters(-1, 0);
@@ -771,6 +749,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       pullAuth: this._pullAuth,
       pullURL: this._pullURL,
       schemaVersion: this._schemaVersion,
+      puller: this._puller,
     });
 
     const {httpRequestInfo, syncHead, requestID} = beginPullResponse;
@@ -818,27 +797,56 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
   }
 
-  private async _fireOnChange(): Promise<void> {
+  private async _fireOnChange(changedKeys: ChangedKeysMap): Promise<void> {
+    const subscriptions = subscriptionsForChangedKeys(
+      this._subscriptions,
+      changedKeys,
+    );
+    await this._fireSubscriptions(subscriptions);
+  }
+
+  private async _indexDefinitionChanged(name: string): Promise<void> {
+    // When an index definition changes we fire all subscriptions that uses
+    // index scans with that index.
+    const subscriptions = subscriptionsForIndexDefinitionChanged(
+      this._subscriptions,
+      name,
+    );
+    await this._fireSubscriptions(subscriptions);
+    this._broadcastChange(await this._root, new Map(), name);
+  }
+
+  private async _fireSubscriptions(
+    subscriptions: Iterable<Subscription<JSONValue | undefined, unknown>>,
+  ) {
+    const subs = [...subscriptions];
+    if (subs.length === 0) {
+      return;
+    }
+
     type R =
       | {ok: true; value: JSONValue | undefined}
       | {ok: false; error: unknown};
-    const subscriptions = [...this._subscriptions];
     const results = await this.query(async tx => {
-      const promises = subscriptions.map(async s => {
+      const promises = subs.map(async s => {
         // Tag the result so we can deal with success vs error below.
         try {
-          return {ok: true, value: await s.body(tx)} as R;
-        } catch (ex) {
-          return {ok: false, error: ex} as R;
+          const stx = new SubscriptionTransactionWrapper(tx);
+          const value = await s.body(stx);
+          s.keys = stx.keys;
+          s.scans = stx.scans;
+          return {ok: true, value} as R;
+        } catch (error) {
+          return {ok: false, error} as R;
         }
       });
       return await Promise.all(promises);
     });
-    for (let i = 0; i < subscriptions.length; i++) {
-      const s = subscriptions[i];
+    for (let i = 0; i < subs.length; i++) {
+      const s = subs[i];
       const result = results[i];
       if (result.ok) {
-        const value: JSONValue | undefined = result.value;
+        const {value} = result;
         if (!deepEqual(value, s.lastValue)) {
           s.lastValue = value;
           s.onData(value);
@@ -878,15 +886,19 @@ export class Replicache<MD extends MutatorDefs = {}>
       onError,
       onDone,
       lastValue: undefined,
+      keys: emptySet,
+      scans: [],
     } as Subscription<R, E>;
     this._subscriptions.add(
-      (s as unknown) as Subscription<JSONValue | undefined, unknown>,
+      s as unknown as Subscription<JSONValue | undefined, unknown>,
     );
     (async () => {
       try {
-        const res = await this.query(s.body);
-        s.lastValue = res;
-        s.onData(res);
+        const {result, keys, scans} = await this._querySubscription(s.body);
+        s.keys = keys;
+        s.scans = scans;
+        s.lastValue = result;
+        s.onData(result);
       } catch (ex) {
         if (s.onError) {
           s.onError(ex);
@@ -897,7 +909,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     })();
     return (): void => {
       this._subscriptions.delete(
-        (s as unknown) as Subscription<JSONValue | undefined, unknown>,
+        s as unknown as Subscription<JSONValue | undefined, unknown>,
       );
     };
   }
@@ -909,13 +921,24 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
     const tx = new ReadTransactionImpl(this._invoke);
-    await tx.open({});
+    await tx.open({isSubscription: false});
     try {
       return await body(tx);
     } finally {
       // No need to await the response.
-      tx.close();
+      closeIgnoreError(tx);
     }
+  }
+
+  private async _querySubscription<R>(
+    body: (tx: ReadTransaction) => Promise<R> | R,
+  ): Promise<{result: R; keys: ReadonlySet<string>; scans: ScanOptionsRPC[]}> {
+    const tx = new ReadTransactionImpl(this._invoke);
+    const stx = new SubscriptionTransactionWrapper(tx);
+    await tx.open({isSubscription: true});
+    const result = await body(stx);
+    await tx.close();
+    return {result, keys: stx.keys, scans: stx.scans};
   }
 
   /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
@@ -963,7 +986,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   private _registerMutators<
     M extends {
       [key: string]: (tx: WriteTransaction, args?: JSONValue) => MutatorReturn;
-    }
+    },
   >(regs: M): MakeMutators<M> {
     type Mut = MakeMutators<M>;
     const rv: Partial<Mut> = Object.create(null);
@@ -985,6 +1008,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     let actualInvokeArgs: OpenTransactionRequest = {
       args: args !== undefined ? JSON.stringify(args) : 'null',
       name,
+      isSubscription: false,
     };
     if (invokeArgs !== undefined) {
       actualInvokeArgs = {...actualInvokeArgs, ...invokeArgs};
@@ -997,13 +1021,13 @@ export class Replicache<MD extends MutatorDefs = {}>
       result = await mutatorImpl(tx, args);
     } catch (ex) {
       // No need to await the response.
-      tx.close();
+      closeIgnoreError(tx);
       throw ex;
     }
-    const {ref} = await tx.commit();
+    const {ref, changedKeys} = await tx.commit(!isReplay);
     if (!isReplay) {
       this._pushConnectionLoop.send();
-      await this._checkChange(ref);
+      await this._checkChange(ref, changedKeys);
     }
 
     return {result, ref};
@@ -1042,7 +1066,7 @@ function checkStatus(
 
 export class ReplicacheTest<
   // eslint-disable-next-line @typescript-eslint/ban-types
-  MD extends MutatorDefs = {}
+  MD extends MutatorDefs = {},
 > extends Replicache<MD> {
   beginPull(): Promise<BeginPullResult> {
     return super._beginPull(MAX_REAUTH_TRIES);
@@ -1053,24 +1077,16 @@ export class ReplicacheTest<
   }
 }
 
-type Subscription<R extends JSONValue | undefined, E> = {
-  body: (tx: ReadTransaction) => Promise<R>;
-  onData: (r: R) => void;
-  onError?: (e: E) => void;
-  onDone?: () => void;
-  lastValue?: R;
-};
-
 const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';
 
-type MutatorReturn = MaybePromise<JSONValue | void>;
+async function closeIgnoreError(tx: ReadTransactionImpl) {
+  try {
+    await tx.close();
+  } catch (ex) {
+    console.error('Failed to close transaction', ex);
+  }
+}
 
-type MakeMutator<
-  F extends (tx: WriteTransaction, ...args: [] | [JSONValue]) => MutatorReturn
-> = F extends (tx: WriteTransaction, ...args: infer Args) => infer Ret
-  ? (...args: Args) => ToPromise<Ret>
-  : never;
-
-type MakeMutators<T extends MutatorDefs> = {
-  readonly [P in keyof T]: MakeMutator<T[P]>;
-};
+// This map is used to keep track of closing instances of Replicache. When an
+// instance is opening we wait for any currently closing instances.
+const closingInstances: Map<string, Promise<unknown>> = new Map();

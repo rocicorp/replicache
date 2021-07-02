@@ -1,11 +1,8 @@
 export {Replicache} from './replicache.js';
 export {TransactionClosedError} from './transaction-closed-error.js';
 
-export type {
-  ReplicacheOptions,
-  MaybePromise,
-  MutatorDefs,
-} from './replicache.js';
+export type {MaybePromise, MutatorDefs, RequestOptions} from './replicache.js';
+export type {ReplicacheOptions} from './replicache-options.js';
 export type {
   CreateIndexDefinition,
   ReadTransaction,
@@ -23,5 +20,7 @@ export type {
   ScanOptionIndexedStartKey,
   ScanOptions,
 } from './scan-options.js';
-export type {InitInput} from './repm-invoker.js';
+export type {HTTPRequestInfo, InitInput, Mutation} from './repm-invoker.js';
 export type {LogLevel} from './logger.js';
+export type {PatchOperation, Puller, PullResponse} from './puller.js';
+export type {Pusher} from './pusher.js';

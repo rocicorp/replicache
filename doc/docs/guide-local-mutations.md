@@ -28,8 +28,8 @@ const rep = new Replicache({
         order,
       });
     },
-  );
-}
+  },
+});
 ```
 
 This creates a mutator named "createMessage". When invoked, the implementation is run within a transaction (`tx`) and it `put`s the new message into the local map.
@@ -42,13 +42,11 @@ const onSubmit = e => {
   const last = messages.length && messages[messages.length - 1][1];
   const order = (last?.order ?? 0) + 1;
   rep.mutate.createMessage({
-    // Easy unique ID. In a real app use a GUID.
-    id: Math.random().toString(32).substr(2),
+    id: nanoid(),
     from: usernameRef.current.value,
     content: contentRef.current.value,
     order,
   });
-  usernameRef.current.value = '';
   contentRef.current.value = '';
 };
 ```
@@ -61,7 +59,7 @@ For example here, we pass the generated unique ID _into_ the mutator as a param,
 
 :::note info
 
-Careful readers may be wondering what happens with the order field during sync. Can multiple messages end up with the same order? Yes! But in this case, what the user likely wants is for their message to stay rougly at the same position in the stream, and using the client-specified order and sorting by that roughly achieves the desired result. If we wanted better control over this, we could use [fractional indexing](https://www.npmjs.com/package/fractional-indexing) but that's not necessary in this case.
+Careful readers may be wondering what happens with the order field during sync. Can multiple messages end up with the same order? Yes! But in this case, what the user likely wants is for their message to stay roughly at the same position in the stream, and using the client-specified order and sorting by that roughly achieves the desired result. If we wanted better control over this, we could use [fractional indexing](https://www.npmjs.com/package/fractional-indexing) but that's not necessary in this case.
 
 :::
 

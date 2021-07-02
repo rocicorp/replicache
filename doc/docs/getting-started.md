@@ -18,7 +18,7 @@ values={[
 <TabItem value="hooks">
 
 ```bash
-npm install replicache replicache
+npm install replicache replicache-react
 ```
 
   </TabItem>

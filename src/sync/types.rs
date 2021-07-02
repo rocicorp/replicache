@@ -48,7 +48,7 @@ pub struct MaybeEndTryPullResponse {
 pub struct ReplayMutation {
     pub id: u64,
     pub name: String,
-    pub args: serde_json::Value,
+    pub args: String,
     pub original: String,
 }
 
@@ -132,7 +132,6 @@ pub enum MaybeEndTryPullError {
     InternalArgsUtf8Error(std::string::FromUtf8Error),
     InternalProgrammerError(String),
     InvalidUtf8(std::string::FromUtf8Error),
-    InvalidJson(serde_json::Error),
     LoadHeadError(prolly::LoadError),
     LoadSyncHeadError(db::FromHashError),
     MissingMainHead,

@@ -273,7 +273,6 @@ pub async fn maybe_end_try_pull(
                     ))
                 }
             };
-            let args: serde_json::Value = serde_json::from_str(&args).map_err(InvalidJson)?;
             replay_mutations.push(ReplayMutation {
                 id: c.mutation_id(),
                 name,
@@ -1530,8 +1529,6 @@ mod tests {
                                 let got_args = &resp.replay_mutations[i].args;
                                 let exp_args =
                                     String::from_utf8(lm.mutator_args_json().to_vec()).unwrap();
-                                let exp_args: serde_json::Value =
-                                    serde_json::from_str(&exp_args).unwrap();
                                 assert_eq!(&exp_args, got_args);
                             }
                             _ => panic!("inconceivable"),

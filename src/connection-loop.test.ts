@@ -68,8 +68,10 @@ function createLoop(
     debounceDelay: DEBOUNCE_DELAY_MS,
     maxConnections: MAX_CONNECTIONS,
     maxDelayMs: MAX_DELAY_MS,
-    minDelayMs: MIN_DELAY_MS,
     ...partialDelegate,
+    get minDelayMs() {
+      return partialDelegate.minDelayMs ?? MIN_DELAY_MS;
+    },
   };
 
   return (loop = new ConnectionLoop(delegate));
@@ -436,6 +438,76 @@ for (const errorKind of [false, 'throw'] as const) {
       'f19:61805',
       'f20:61835',
       'f21:61865',
+    ]);
+  });
+
+  test(`error {errorKind: ${errorKind} start with error}`, async () => {
+    // This tests that if the first few requests fail we recover correctly.
+    const debounceDelay = 5;
+    const maxConnections = 1;
+    const requestTime = 50;
+    let requestCount = 0;
+    let minDelayMs = 80;
+
+    createLoop({
+      get invokeResult() {
+        const shouldFail = requestCount < 5;
+        requestCount++;
+        return shouldFail ? errorKind : true;
+      },
+      debounceDelay,
+      requestTime,
+      maxConnections,
+      get minDelayMs() {
+        return minDelayMs;
+      },
+    });
+
+    // reset
+    requestCount = 0;
+
+    while (requestCount < 5) {
+      send();
+      await clock.tickAsync(10);
+    }
+
+    while (requestCount < 8) {
+      send();
+      await clock.tickAsync(10);
+    }
+
+    minDelayMs = 40;
+
+    while (requestCount < 10) {
+      send();
+      await clock.tickAsync(10);
+    }
+
+    await clock.runAllAsync();
+
+    expect(log).to.deep.equal([
+      's0:5',
+      'e0:55',
+      's1:85',
+      'e1:135',
+      's2:245',
+      'e2:295',
+      's3:565',
+      'e3:615',
+      's4:1205',
+      'e4:1255',
+      's5:2485',
+      'f5:2535',
+      's6:2565',
+      'f6:2615',
+      's7:2645',
+      'f7:2695',
+      's8:2695',
+      'f8:2745',
+      's9:2745',
+      'f9:2795',
+      's10:2795',
+      'f10:2845',
     ]);
   });
 }

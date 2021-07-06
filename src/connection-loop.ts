@@ -130,6 +130,12 @@ export class ConnectionLoop {
           delay,
           'ms',
         );
+      } else {
+        // We set this to 0 here in case minDelayMs is mutated to a lower value
+        // than the old delay so that we still get minDelayMs. This can happen
+        // if we get an error during a run where minDelayMs is larger than the
+        // current value of minDelayMs.
+        delay = 0;
       }
 
       const clampedDelay = Math.min(
@@ -214,29 +220,26 @@ function computeDelayAndUpdateDurations(
     return delay;
   }
 
-  const {duration, ok} = sendRecords[sendRecords.length - 1];
-
-  if (!ok) {
-    return delay == 0 ? 1 : delay * 2;
-  }
-
+  const {ok} = sendRecords[sendRecords.length - 1];
   const {maxConnections, minDelayMs} = delegate;
 
-  if (length === 1) {
-    return (duration / maxConnections) | 0;
+  if (!ok) {
+    return delay === 0 ? minDelayMs : delay * 2;
   }
 
-  // length > 1
-  const previous: SendRecord = sendRecords[sendRecords.length - 2];
+  if (length > 1) {
+    // length > 1
+    const previous: SendRecord = sendRecords[sendRecords.length - 2];
 
-  // Prune
-  while (sendRecords.length > CONNECTION_MEMORY_COUNT) {
-    sendRecords.shift();
-  }
+    // Prune
+    while (sendRecords.length > CONNECTION_MEMORY_COUNT) {
+      sendRecords.shift();
+    }
 
-  if (ok && !previous.ok) {
-    // Recovered
-    return minDelayMs;
+    if (ok && !previous.ok) {
+      // Recovered
+      return minDelayMs;
+    }
   }
 
   const med = median(

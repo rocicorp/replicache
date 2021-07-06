@@ -2790,7 +2790,7 @@ test('online', async () => {
   fetchMock.post(pushURL, {});
   await rep.mutate.addData({a: 1});
 
-  await tickAFewTimes();
+  await tickAFewTimes(20);
 
   expect(info.callCount).to.equal(0);
   expect(rep.online).to.equal(true);

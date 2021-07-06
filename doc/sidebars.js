@@ -3,7 +3,7 @@ module.exports = {
     'getting-started',
     'how-it-works',
     {
-      'Reference': [
+      Reference: [
         {
           'JavaScript Reference': [
             {

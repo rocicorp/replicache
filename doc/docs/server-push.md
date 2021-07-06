@@ -94,9 +94,9 @@ client can correctly handle the data.
 
 ### HTTP Response Status
 
-* `200` for success
-* `401` for auth error — Replicache will reauthenticate using [`getPushAuth`](api/classes/replicache#getpushauth) if available
-* All other status codes considered errors
+- `200` for success
+- `401` for auth error — Replicache will reauthenticate using [`getPushAuth`](api/classes/replicache#getpushauth) if available
+- All other status codes considered errors
 
 Replicache will exponentially back off sending pushes in the case of both network level and HTTP level errors.
 
@@ -114,22 +114,21 @@ Replicache will continue retrying a mutation until the server marks the mutation
 
 ### Mutations are Atomic and Ordered
 
-The effect of a mutation and the corresponding change to the `lastMutationID` as reported by the Pull Response must happen atomically. If the Pull Response indicates that mutation `42` has been processed, then the effects of mutation `42` (and all prior mutations from this client) must be present in the Pull Response. Additionally the effects of mutation `43` (or any higher mutation from this client) must *not* be present in the Pull Response.
+The effect of a mutation and the corresponding change to the `lastMutationID` as reported by the Pull Response must happen atomically. If the Pull Response indicates that mutation `42` has been processed, then the effects of mutation `42` (and all prior mutations from this client) must be present in the Pull Response. Additionally the effects of mutation `43` (or any higher mutation from this client) must _not_ be present in the Pull Response.
 
 ### Error Handling
 
 If a mutation is invalid and cannot be handled, the server **must still mark the mutation as processed** by updating the `lastMutationID`. Otherwise, the client will keep trying to send the mutation and be blocked forever.
 
-If the server knows that the mutation cannot be handled *now*, but will be able to be handled later (e.g., because some server-side resource is unavailable), the push endpoint can abort processing without updating the `lastMutationID`. Replicache will consider the server offline and try again later.
+If the server knows that the mutation cannot be handled _now_, but will be able to be handled later (e.g., because some server-side resource is unavailable), the push endpoint can abort processing without updating the `lastMutationID`. Replicache will consider the server offline and try again later.
 
-The server can also *optionally* include an appropriate HTTP error code for debugging purposes (e.g., HTTP 500 for internal error) in this case, but this is for developer convenience only and has no effect on the sync protocol.
+The server can also _optionally_ include an appropriate HTTP error code for debugging purposes (e.g., HTTP 500 for internal error) in this case, but this is for developer convenience only and has no effect on the sync protocol.
 
 :::caution
 
 Temporary errors block synchronization and thus should be used carefully. A server should only do this when it definitely will be able to process the mutation later.
 
 :::
-
 
 ## Push Launch Checklist
 

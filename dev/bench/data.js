@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1625605811778,
+  "lastUpdate": 1625605979703,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -28620,6 +28620,135 @@ window.BENCHMARK_DATA = {
             "name": "subscription 1000",
             "value": 1.32,
             "range": "±7.3%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4ecb13154adaef887857104f22c8a24e60d06401",
+          "message": "Bump prismjs from 1.23.0 to 1.24.0 in /doc (#423)\n\nBumps [prismjs](https://github.com/PrismJS/prism) from 1.23.0 to 1.24.0.\r\n- [Release notes](https://github.com/PrismJS/prism/releases)\r\n- [Changelog](https://github.com/PrismJS/prism/blob/master/CHANGELOG.md)\r\n- [Commits](https://github.com/PrismJS/prism/compare/v1.23.0...v1.24.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: prismjs\r\n  dependency-type: indirect\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Erik Arvidsson <arv@roci.dev>",
+          "timestamp": "2021-07-06T21:10:24Z",
+          "tree_id": "ca1ba66d03dbb4e68ae5b70df6e010d8f942ca76",
+          "url": "https://github.com/rocicorp/replicache/commit/4ecb13154adaef887857104f22c8a24e60d06401"
+        },
+        "date": 1625605978379,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.71,
+            "range": "±241.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.5,
+            "range": "±5.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.72,
+            "range": "±17.7%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.92,
+            "range": "±13.5%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 3.39,
+            "range": "±54.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 3.35,
+            "range": "±10.5%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 14.01,
+            "range": "±305.7%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 4,
+            "range": "±79.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±758.9%",
+            "unit": "MB/s",
+            "extra": "46 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 57.53,
+            "range": "±300.8%",
+            "unit": "ops/sec",
+            "extra": "29 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 4.84,
+            "range": "±4.4%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.05,
+            "range": "±11.6%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 7.21,
+            "range": "±61.6%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 3.95,
+            "range": "±24.1%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 1.12,
+            "range": "±6.8%",
             "unit": "ops/sec",
             "extra": "5 samples"
           }

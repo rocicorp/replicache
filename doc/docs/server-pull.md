@@ -90,9 +90,9 @@ client can correctly handle the data.
 
 ### HTTP Response Status
 
-* `200` for success
-* `401` for auth error — Replicache will reauthenticate using [`getPullAuth`](api/classes/replicache#getpullauth) if available
-* All other status codes considered errors
+- `200` for success
+- `401` for auth error — Replicache will reauthenticate using [`getPullAuth`](api/classes/replicache#getpullauth) if available
+- All other status codes considered errors
 
 Replicache will exponentially back off sending pushes in the case of both network level and HTTP level errors.
 

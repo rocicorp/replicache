@@ -9,7 +9,8 @@ For more information, see [How Replicache Works — Push](how-it-works#④-push)
 
 ## Configuration
 
-Specify the URL with the [`pushURL`](api/interfaces/replicacheoptions#pushurl) constructor option:
+Specify the URL with the [`pushURL`](api/interfaces/replicacheoptions#pushurl)
+constructor option:
 
 ```js
 const rep = new Replicache({
@@ -41,8 +42,9 @@ Always `application/json`.
 
 ### `Authorization`
 
-This is a string that can be used to authorize a user. The auth token is set
-by defining [`pushAuth`](api/interfaces/replicacheoptions#pushauth) or [`getPushAuth`](api/classes/replicache#getpushauth).
+This is a string that can be used to authorize a user. The auth token is set by
+defining [`pushAuth`](api/interfaces/replicacheoptions#pushauth) or
+[`getPushAuth`](api/classes/replicache#getpushauth).
 
 ### `X-Replicache-RequestID`
 
@@ -74,11 +76,16 @@ type Mutation = {
 
 ### `clientID`
 
-The [`clientID`](api/classes/replicache#clientid) of the requesting Replicache instance.
+The [`clientID`](api/classes/replicache#clientid) of the requesting Replicache
+instance.
 
 ### `mutations`
 
-An array of mutations to be applied to the server. The `id` is a sequential per-client unsigned integer. Each mutation will have an ID exactly one greater than the previous one in the list. The `name` is the name of the mutator that was invoked (e.g., from [Replicache.mutate](api/classes/replicache#mutate)). The `args` are the arguments that were passed to the mutator.
+An array of mutations to be applied to the server. The `id` is a sequential
+per-client unsigned integer. Each mutation will have an ID exactly one greater
+than the previous one in the list. The `name` is the name of the mutator that
+was invoked (e.g., from [Replicache.mutate](api/classes/replicache#mutate)). The
+`args` are the arguments that were passed to the mutator.
 
 ### `pushVersion`
 
@@ -95,10 +102,12 @@ client can correctly handle the data.
 ### HTTP Response Status
 
 - `200` for success
-- `401` for auth error — Replicache will reauthenticate using [`getPushAuth`](api/classes/replicache#getpushauth) if available
-- All other status codes considered errors
+- `401` for auth error — Replicache will reauthenticate using
+  [`getPushAuth`](api/classes/replicache#getpushauth) if available
+- All other status codes are considered to be errors
 
-Replicache will exponentially back off sending pushes in the case of both network level and HTTP level errors.
+Replicache will exponentially back off sending pushes in the case of both
+network level and HTTP level errors.
 
 ### HTTP Response Body
 
@@ -108,34 +117,60 @@ The response body to the push endpoint is ignored.
 
 ### Mutation Status
 
-The server marks a mutation with id `x` _processed_ by returning a [`lastMutationID`](server-pull#lastmutationid) in the Pull Response greater than or equal to `x`.
+The server marks a mutation with id `x` _processed_ by returning a
+[`lastMutationID`](server-pull#lastmutationid) in the Pull Response greater than
+or equal to `x`.
 
-Replicache will continue retrying a mutation until the server marks the mutation processed in this way.
+Replicache will continue retrying a mutation until the server marks the mutation
+processed in this way.
 
 ### Mutations are Atomic and Ordered
 
-The effect of a mutation and the corresponding change to the `lastMutationID` as reported by the Pull Response must happen atomically. If the Pull Response indicates that mutation `42` has been processed, then the effects of mutation `42` (and all prior mutations from this client) must be present in the Pull Response. Additionally the effects of mutation `43` (or any higher mutation from this client) must _not_ be present in the Pull Response.
+The effect of a mutation and the corresponding change to the `lastMutationID` as
+reported by the Pull Response must happen atomically. If the Pull Response
+indicates that mutation `42` has been processed, then the effects of mutation
+`42` (and all prior mutations from this client) must be present in the Pull
+Response. Additionally the effects of mutation `43` (or any higher mutation from
+this client) must _not_ be present in the Pull Response.
 
 ### Error Handling
 
-If a mutation is invalid and cannot be handled, the server **must still mark the mutation as processed** by updating the `lastMutationID`. Otherwise, the client will keep trying to send the mutation and be blocked forever.
+If a mutation is invalid and cannot be handled, the server **must still mark the
+mutation as processed** by updating the `lastMutationID`. Otherwise, the client
+will keep trying to send the mutation and be blocked forever.
 
-If the server knows that the mutation cannot be handled _now_, but will be able to be handled later (e.g., because some server-side resource is unavailable), the push endpoint can abort processing without updating the `lastMutationID`. Replicache will consider the server offline and try again later.
+If the server knows that the mutation cannot be handled _now_, but will be able
+to be handled later (e.g., because some server-side resource is unavailable),
+the push endpoint can abort processing without updating the `lastMutationID`.
+Replicache will consider the server offline and try again later.
 
-The server can also _optionally_ include an appropriate HTTP error code for debugging purposes (e.g., HTTP 500 for internal error) in this case, but this is for developer convenience only and has no effect on the sync protocol.
+The server can also _optionally_ include an appropriate HTTP error code for
+debugging purposes (e.g., HTTP 500 for internal error) in this case, but this is
+for developer convenience only and has no effect on the sync protocol.
 
 :::caution
 
-Temporary errors block synchronization and thus should be used carefully. A server should only do this when it definitely will be able to process the mutation later.
+Temporary errors block synchronization and thus should be used carefully. A
+server should only do this when it definitely will be able to process the
+mutation later.
 
 :::
 
 ## Push Launch Checklist
 
-- Ensure that the `lastMutationID` for a client is updated transactionally along with the pushed mutations' effects.
-- All mutations with `id`s less than the client's current `lastMutationID` must be ignored.
-- All mutations with `id`s greater than the client's current `lastMutationID+1` must be ignored.
-- Think carefully about your error handling policy. It is possible to deadlock a client if it pushes a mutation that _always_ causes an error that stops processing. No other mutations from that client can make progress in this case. A reasonable default starting point might be along these lines:
-  - If a temporary error is encountered that might be resolved on retry, halt processing mutations and return.
-  - If a permanent error is encountered such that the mutation will never be appliable, ignore that mutation and increment the `lastMutationID` as if it were applied.
+- Ensure that the `lastMutationID` for a client is updated transactionally along
+  with the pushed mutations' effects.
+- All mutations with `id`s less than the client's current `lastMutationID` must
+  be ignored.
+- All mutations with `id`s greater than the client's current `lastMutationID+1`
+  must be ignored.
+- Think carefully about your error handling policy. It is possible to deadlock a
+  client if it pushes a mutation that _always_ causes an error that stops
+  processing. No other mutations from that client can make progress in this
+  case. A reasonable default starting point might be along these lines:
+  - If a temporary error is encountered that might be resolved on retry, halt
+    processing mutations and return.
+  - If a permanent error is encountered such that the mutation will never be
+    appliable, ignore that mutation and increment the `lastMutationID` as if it
+    were applied.
 - Ignore all `PushRequest`s with an unexpected `pushVersion`.

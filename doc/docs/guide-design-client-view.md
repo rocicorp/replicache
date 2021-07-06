@@ -77,7 +77,7 @@ export default async (req, res) => {
 
 You'll notice the JSON we're serving is a little different than our idealized schema above.
 
-The response from `replicache-pull` is actually a _patch_ — a series of changes to be applied to the map the client currently has, as a result of changes that have happened on the server. Replicache applies the patch operations one-by-one, in-order, to its existing map. See [Pull Endpoint](#TODO) for more details.
+The response from `replicache-pull` is actually a _patch_ — a series of changes to be applied to the map the client currently has, as a result of changes that have happened on the server. Replicache applies the patch operations one-by-one, in-order, to its existing map. See [Pull Endpoint](../server-pull) for more details.
 
 Early in development, it's easiest to just return a patch that replaces the entire state with new values, which is what we've done here. Later in this tutorial we will improve this to return only what has changed.
 

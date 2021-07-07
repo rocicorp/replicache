@@ -20,7 +20,7 @@ export type {
   ScanOptionIndexedStartKey,
   ScanOptions,
 } from './scan-options.js';
-export type {HTTPRequestInfo, InitInput, Mutation} from './repm-invoker.js';
+export type {HTTPRequestInfo, InitInput} from './repm-invoker.js';
 export type {LogLevel} from './logger.js';
 export type {
   PatchOperation,

@@ -180,13 +180,14 @@ type MaybeEndTryPullRequest = {
   syncHead: string;
 };
 
-export type Mutation = {
+/**
+ * ReplayMutation is used int the RPC between EndPull so that we can replay
+ * mutations ontop of the current state. It is never exposed to the public.
+ */
+type ReplayMutation = {
   id: number;
   name: string;
   args: string;
-};
-
-type ReplayMutation = Mutation & {
   original: string;
 };
 

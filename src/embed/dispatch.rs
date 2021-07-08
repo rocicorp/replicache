@@ -3,6 +3,7 @@ use super::Rpc;
 use crate::dag;
 use crate::embed::connection;
 use crate::kv::idbstore::IdbStore;
+use crate::kv::jsstore::JsStore;
 use crate::kv::memstore::MemStore;
 use crate::kv::Store;
 use crate::sync;
@@ -124,7 +125,11 @@ async fn do_open(conns: &mut ConnMap, req: &Request) -> Response {
     let open_req = serde_wasm_bindgen::from_value::<OpenRequest>(req.data.clone())
         .map_err(|e| JsValue::from_str(&format!("Failed to read open request options: {}", e)))?;
 
-    let kv: Box<dyn Store> = if open_req.use_memstore {
+    let js_store = js_sys::Reflect::get(&req.data, &JsValue::from("store"))?;
+
+    let kv: Box<dyn Store> = if !js_store.is_undefined() {
+        Box::new(JsStore::new(js_store))
+    } else if open_req.use_memstore {
         Box::new(MemStore::new())
     } else {
         match IdbStore::new(&req.db_name[..]).await {

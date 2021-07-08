@@ -127,12 +127,6 @@ impl Write for WriteTransaction<'_> {
         }
         Ok(())
     }
-
-    async fn rollback(self: Box<Self>) -> Result<()> {
-        // TODO(phritz): determine what happens to async calls pending on
-        // a lock that has been dropped (eg, the pending mutex).
-        Ok(())
-    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

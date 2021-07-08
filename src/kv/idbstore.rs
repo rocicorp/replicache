@@ -40,9 +40,6 @@ extern "C" {
         entries: &JsValue,
     ) -> std::result::Result<JsValue, JsValue>;
 
-    #[wasm_bindgen(catch, js_name = abort)]
-    async fn js_abort(tx: &IdbTransaction) -> std::result::Result<JsValue, JsValue>;
-
     #[wasm_bindgen(catch, js_name = transactionState)]
     async fn transaction_state_js(tx: &IdbTransaction) -> std::result::Result<JsValue, JsValue>;
 }
@@ -277,31 +274,6 @@ impl Write for WriteTransaction<'_> {
         }
         Ok(())
     }
-
-    async fn rollback(self: Box<Self>) -> Result<()> {
-        // Define rollback() to succeed if no writes have occurred, even if
-        // the underlying transaction has exited.
-        if self.pending.lock().await.is_empty() {
-            return Ok(());
-        }
-
-        match transaction_state(&self.tx).await? {
-            WriteState::Committed | WriteState::Aborted => return Ok(()),
-            _ => (),
-        }
-
-        let js_state = js_abort(&self.tx).await?;
-        let state: WriteState = js_state.try_into()?;
-        if state != WriteState::Aborted {
-            return Err(StoreError::Str("Transaction abort failed".into()));
-        }
-        Ok(())
-    }
-}
-
-async fn transaction_state(tx: &IdbTransaction) -> Result<WriteState> {
-    let js = transaction_state_js(tx).await?;
-    js.try_into()
 }
 
 impl TryInto<WriteState> for JsValue {

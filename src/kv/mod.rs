@@ -1,4 +1,5 @@
 pub mod idbstore;
+pub mod jsstore;
 pub mod memstore;
 
 use crate::util::rlog::LogContext;
@@ -59,7 +60,6 @@ pub trait Write: Read {
     async fn del(&self, key: &str) -> Result<()>;
 
     async fn commit(self: Box<Self>) -> Result<()>;
-    async fn rollback(self: Box<Self>) -> Result<()>;
 }
 
 pub mod trait_tests {
@@ -130,7 +130,7 @@ pub mod trait_tests {
         // Test put then rollback.
         let wt = store.write(LogContext::new()).await.unwrap();
         wt.put("k1", b"should be rolled back").await.unwrap();
-        wt.rollback().await.unwrap();
+        drop(wt);
         assert_eq!(Some(b"overwrite".to_vec()), store.get("k1").await.unwrap());
 
         // Test del then commit.
@@ -145,7 +145,7 @@ pub mod trait_tests {
         let wt = store.write(LogContext::new()).await.unwrap();
         wt.del("k2").await.unwrap();
         assert!(!wt.has("k2").await.unwrap());
-        wt.rollback().await.unwrap();
+        drop(wt);
         assert!(store.has("k2").await.unwrap());
 
         // Test overwrite multiple times then commit.
@@ -214,7 +214,7 @@ pub mod trait_tests {
             spew("1 open write tx should have prevented new read");
             panic!();
         }
-        w.rollback().await.unwrap();
+        drop(w);
         let r = store.read(LogContext::new()).await.unwrap();
         assert!(!r.has("foo").await.unwrap());
     }

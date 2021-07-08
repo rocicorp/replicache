@@ -87,17 +87,19 @@ pub mod idbstore {
 
         let wt = store.write(LogContext::new()).await.unwrap();
         assert!(!wt.has("bar").await.unwrap());
-        wt.rollback().await.unwrap();
     }
 
     #[wasm_bindgen_test]
     async fn simple_rollback() {
+        // Rollback was removed. drop is all we need.
         let store = new_store().await;
 
         // Start a write transaction and put a value, then abort.
-        let wt = store.write(LogContext::new()).await.unwrap();
-        wt.put("bar", b"baz").await.unwrap();
-        wt.rollback().await.unwrap();
+        {
+            let wt = store.write(LogContext::new()).await.unwrap();
+            wt.put("bar", b"baz").await.unwrap();
+            // drop wt
+        }
 
         let rt = store.read(LogContext::new()).await.unwrap();
         assert_eq!(None, rt.get("bar").await.unwrap());

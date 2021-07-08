@@ -1,14 +1,14 @@
 // @ts-check
 
-const RELAXED = { durability: "relaxed" };
-const OBJECT_STORE = "chunks";
+const RELAXED = {durability: 'relaxed'};
+const OBJECT_STORE = 'chunks';
 
 /**
  * @param {IDBDatabase} idb
  * @return {IDBTransaction}
  */
 export function readTransaction(idb) {
-  return idb.transaction(OBJECT_STORE, "readonly");
+  return idb.transaction(OBJECT_STORE, 'readonly');
 }
 
 /**
@@ -18,7 +18,7 @@ export function readTransaction(idb) {
 export function writeTransaction(idb) {
   // TS does not have type defs for the third options argument yet.
   // @ts-ignore Expected 1-2 arguments, but got 3.ts(2554)
-  return idb.transaction(OBJECT_STORE, "readwrite", RELAXED);
+  return idb.transaction(OBJECT_STORE, 'readwrite', RELAXED);
 }
 
 /**
@@ -86,7 +86,7 @@ export function dropStore(name) {
 export async function commit(tx, entries) {
   registerTransaction(tx);
   const store = objectStore(tx);
-  const ps = entries.map((entry) => {
+  const ps = entries.map(entry => {
     const val = entry[1];
     const key = entry[0];
     if (val === null) {
@@ -127,7 +127,7 @@ const OPEN = 0;
 const COMMITTED = 1;
 const ABORTED = 2;
 
-/** @typedef {typeof OPEN | typeof COMMITTED | ABORTED} WriteState */
+/** @typedef {typeof OPEN | typeof COMMITTED | typeof ABORTED} WriteState */
 
 /**
  * @param {IDBTransaction} tx
@@ -135,7 +135,7 @@ const ABORTED = 2;
  */
 function registerTransaction(tx) {
   if (txStateMap.has(tx)) {
-    throw new Error("invalid state");
+    throw new Error('invalid state');
   }
 
   const p = new Promise((resolve, reject) => {

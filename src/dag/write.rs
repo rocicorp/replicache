@@ -103,11 +103,6 @@ impl<'a> Write<'_> {
         Ok(self.kvw.commit().await?)
     }
 
-    #[allow(dead_code)]
-    pub async fn rollback(self) -> Result<()> {
-        Ok(self.kvw.rollback().await?)
-    }
-
     async fn collect_garbage(&self) -> Result<()> {
         // We increment all the ref counts before we do all the decrements. This
         // is so that we do not remove an item that goes from 1 -> 0 -> 1
@@ -352,8 +347,6 @@ mod tests {
                         w.set_head("test", Some(c.hash())).await.unwrap();
                     }
                     w.commit().await.unwrap();
-                } else {
-                    w.rollback().await.unwrap();
                 }
             }
 

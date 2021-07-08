@@ -70,7 +70,7 @@ export class REPMWasmInvoker {
 
 type OpenRequest = {
   useMemstore: boolean;
-  store?: Store;
+  store?: StoreWithRelease;
 };
 export type OpenResponse = string;
 

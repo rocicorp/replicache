@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1625617012675,
+  "lastUpdate": 1625858873587,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -29007,6 +29007,135 @@ window.BENCHMARK_DATA = {
             "name": "subscription 1000",
             "value": 1.34,
             "range": "±9.0%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c5a7ca13cfb32a6336ee0b8ed002d2269fd22fa0",
+          "message": "FIX: Remove unused type Mutation (#426)\n\nAnd clarify ReplayMutation with a comment.\r\n\r\nTechnically, this is a breaking change from 6.3 but it is only a type\r\nand the type is never used so hopefully we can get away with it without\r\ndoing a major release.",
+          "timestamp": "2021-07-09T12:25:10-07:00",
+          "tree_id": "f3f95f41f75698c9810003e36bd60d1205134c2c",
+          "url": "https://github.com/rocicorp/replicache/commit/c5a7ca13cfb32a6336ee0b8ed002d2269fd22fa0"
+        },
+        "date": 1625858872304,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.47,
+            "range": "±259.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.01,
+            "range": "±5.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.62,
+            "range": "±12.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.95,
+            "range": "±53.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 3.33,
+            "range": "±58.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 3.46,
+            "range": "±4.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 4.14,
+            "range": "±68.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 4.21,
+            "range": "±4.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±1392.5%",
+            "unit": "MB/s",
+            "extra": "74 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 76.88,
+            "range": "±505.1%",
+            "unit": "ops/sec",
+            "extra": "40 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 5.28,
+            "range": "±5.0%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.03,
+            "range": "±3.9%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 7.93,
+            "range": "±58.0%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 4.46,
+            "range": "±14.0%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 1.21,
+            "range": "±9.2%",
             "unit": "ops/sec",
             "extra": "5 samples"
           }

@@ -42,7 +42,6 @@ jobs:
           # Workflow will fail when an alert happens
           fail-on-alert: true
           github-token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
-          gh-pages-branch: perf-data
           auto-push: true
           alert-threshold: '130%'
           comment-on-alert: true

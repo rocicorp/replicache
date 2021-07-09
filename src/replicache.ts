@@ -37,6 +37,7 @@ import {
   subscriptionsForIndexDefinitionChanged,
 } from './subscriptions.js';
 import {MemStore} from './mem-store.js';
+import {IDBStore} from './idb-store.js';
 
 type BeginPullResult = {
   requestID: string;
@@ -294,7 +295,7 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     const openResponse = await this._repmInvoker.invoke(this._name, RPC.Open, {
       useMemstore: this._useMemstore,
-      store: this._useMemstore ? new MemStore() : undefined,
+      store: this._useMemstore ? new MemStore() : new IDBStore(this._name),
     });
     this._openResolve(openResponse);
 

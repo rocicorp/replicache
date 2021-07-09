@@ -366,7 +366,6 @@ async function makeRep(options = {}) {
   return new Replicache({
     name,
     pullInterval: null,
-    useMemstore: true,
     ...options,
   });
 }

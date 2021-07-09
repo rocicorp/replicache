@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1625873269442,
+  "lastUpdate": 1625873459713,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -514,6 +514,135 @@ window.BENCHMARK_DATA = {
             "name": "subscription 1000",
             "value": 8.19,
             "range": "±44.6%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9aff6290b694ff3f4729bccb2596f3afc2d91125",
+          "message": "One more rename (#429)",
+          "timestamp": "2021-07-09T23:19:26Z",
+          "tree_id": "88f687c4dbafc49b11fbf807295b8f5e19d54580",
+          "url": "https://github.com/rocicorp/replicache/commit/9aff6290b694ff3f4729bccb2596f3afc2d91125"
+        },
+        "date": 1625873458693,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.74,
+            "range": "±218.2%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.64,
+            "range": "±27.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 1.47,
+            "range": "±6.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.32,
+            "range": "±10.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 4.07,
+            "range": "±44.2%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 4.01,
+            "range": "±58.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 4.88,
+            "range": "±58.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 4.41,
+            "range": "±8.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±1851.2%",
+            "unit": "MB/s",
+            "extra": "86 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 77.21,
+            "range": "±534.4%",
+            "unit": "ops/sec",
+            "extra": "42 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 5.9,
+            "range": "±7.7%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.15,
+            "range": "±15.9%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 9.86,
+            "range": "±12.3%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 9.18,
+            "range": "±16.0%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 8.82,
+            "range": "±28.6%",
             "unit": "ops/sec",
             "extra": "5 samples"
           }

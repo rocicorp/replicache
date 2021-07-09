@@ -1,4 +1,4 @@
-import typescript from '@wessberg/rollup-plugin-ts';
+import typescript from 'rollup-plugin-ts';
 import replace from '@rollup/plugin-replace';
 import copy from 'rollup-plugin-copy';
 

@@ -32,24 +32,45 @@ async function main() {
   );
 
   const page = await context.newPage();
+
+  async function waitForTests() {
+    await page.waitForFunction('typeof benchmarks !==  "undefined"', null, {
+      // No need to wait 30s if failing to load
+      timeout: 1000,
+    });
+  }
+
   await page.goto(`http://127.0.0.1:${port}/perf/index.html`);
-  await page.waitForFunction('typeof nextTest ===  "function"', null, {
-    // No need to wait 30s if failing to load
-    timeout: 1000,
-  });
+  await waitForTests();
   logLine('Running benchmarks please wait...');
 
+  /** @type {{name: string, group: string}[]} */
+  const benchmarks = await page.evaluate('benchmarks');
+
   if (devtools) {
-    console.log('Enter `await nextTest()` in the devtools console');
+    console.log(
+      'Available benchmarks:',
+      benchmarks.map(({name, group}) => ({name, group})),
+    );
+    console.log(
+      'Run a single benchmark with `await runBenchmarkByNameAndGroup(name, group)`',
+    );
     return;
   }
 
-  for (;;) {
-    const testResult = await page.evaluate('nextTest(["replicache"])');
-    if (testResult === null) {
-      break;
-    }
+  const replicacheBenchmarks = benchmarks.filter(
+    ({group}) => group === 'replicache',
+  );
+  for (const benchmark of replicacheBenchmarks) {
+    const testResult = await page.evaluate(
+      // @ts-ignore
+      // eslint-disable-next-line no-undef
+      ({name, group}) => runBenchmarkByNameAndGroup(name, group),
+      benchmark,
+    );
     logLine(testResult);
+    await page.reload();
+    await waitForTests();
   }
 
   logLine('Done!');

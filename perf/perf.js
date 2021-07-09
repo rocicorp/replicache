@@ -79,7 +79,7 @@ async function runBenchmark(benchmark, format) {
     ? `${formatToMBPerSecond(benchmark.byteSize, medianTime)} `
     : '';
 
-  if (format == 'replicache') {
+  if (format === 'replicache') {
     const ptiles = [median, 0.75, 0.9, 0.95];
     return `${benchmark.name} ${ptiles
       .map(p => String(p * 100))
@@ -170,42 +170,57 @@ for (let b of [benchmarkIDBRead, benchmarkIDBWrite]) {
   }
 }
 
-let current = 0;
+/**
+ * @param {string} name
+ * @param {string} group
+ * @return {Benchmark}
+ */
+function findBenchmark(name, group) {
+  for (const b of benchmarks) {
+    if (b.name === name && b.group === group) {
+      return b;
+    }
+  }
+  throw new Error(`No benchmark named "${name}" in group "${group}"`);
+}
+
+/**
+ * @param {string} name
+ * @param {string} group
+ * @param {OutputFormat | undefined} format
+ */
+async function runBenchmarkByNameAndGroup(name, group, format = 'benchmarkJS') {
+  const b = findBenchmark(name, group);
+  try {
+    return await runBenchmark(b, format);
+  } catch (e) {
+    return `${b.name}: Error: ${e}`;
+  }
+}
 
 /**
  * @param {string[]} groups
- * @param {OutputFormat} format
+ * @return {Benchmark[]}
  */
-async function nextTest(groups, format) {
-  while (current < benchmarks.length) {
-    const b = benchmarks[current++];
-    if (groups.includes(b.group)) {
-      try {
-        return await runBenchmark(b, format);
-      } catch (e) {
-        return `${b.name}: Error: ${e}`;
-      }
-    }
-  }
-  return null;
+function findBenchmarks(groups) {
+  return benchmarks.filter(b => groups.includes(b.group));
 }
 
 // @ts-ignore
-window.nextTest = nextTest;
-// @ts-ignore
 window.benchmarks = benchmarks;
+// @ts-ignore
+window.findBenchmarks = findBenchmarks;
+// @ts-ignore
+window.runBenchmarkByNameAndGroup = runBenchmarkByNameAndGroup;
 
 // @ts-ignore
 window.runAll = async function (groups) {
-  current = 0;
   const out = /** @type {HTMLPreElement} */ (
     /** @type {unknown} */ document.getElementById('out')
   );
-  for (;;) {
-    const r = await nextTest(groups, 'replicache');
-    if (r == null) {
-      break;
-    }
+  const benchmarks = findBenchmarks(groups);
+  for (const b of benchmarks) {
+    const r = await runBenchmark(b, 'replicache');
     out.textContent += r + '\n';
   }
   out.textContent += 'Done!\n';

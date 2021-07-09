@@ -33,7 +33,7 @@ async function main() {
 
   const page = await context.newPage();
 
-  async function waitForTests() {
+  async function waitForBenchmarks() {
     await page.waitForFunction('typeof benchmarks !==  "undefined"', null, {
       // No need to wait 30s if failing to load
       timeout: 1000,
@@ -41,7 +41,7 @@ async function main() {
   }
 
   await page.goto(`http://127.0.0.1:${port}/perf/index.html`);
-  await waitForTests();
+  await waitForBenchmarks();
   logLine('Running benchmarks please wait...');
 
   /** @type {{name: string, group: string}[]} */
@@ -70,7 +70,7 @@ async function main() {
     );
     logLine(testResult);
     await page.reload();
-    await waitForTests();
+    await waitForBenchmarks();
   }
 
   logLine('Done!');

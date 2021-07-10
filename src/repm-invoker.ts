@@ -121,7 +121,6 @@ export type OpenTransactionRequest = {
   name?: string;
   args?: string;
   rebaseOpts?: RebaseOpts;
-  isSubscription: boolean;
 };
 type OpenTransactionResponse = {
   transactionId: number;

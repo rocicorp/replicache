@@ -34,4 +34,4 @@ npm publish
 
 We continuously track performance across a variety of benchmarks. Results here:
 
-https://rocicorp.github.io/replicache/bench/
+https://rocicorp.github.io/replicache/perf/

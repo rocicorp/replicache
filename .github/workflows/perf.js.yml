@@ -1,4 +1,5 @@
 name: Perf Test
+runs-on: self-hosted
 
 on:
   push:

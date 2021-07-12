@@ -1,5 +1,6 @@
 name: do-the-job
 on: pull_request
+environment: EC2 Runner
 jobs:
   start-runner:
     name: Start self-hosted EC2 runner

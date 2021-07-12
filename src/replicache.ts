@@ -502,7 +502,7 @@ export class Replicache<MD extends MutatorDefs = {}>
           return tx;
         }
         tx = new ReadTransactionImpl(this._invoke);
-        await tx.open({isSubscription: false});
+        await tx.open({});
         return tx;
       },
       true,
@@ -518,7 +518,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   ): Promise<[K, JSONValue][]> {
     const tx = new ReadTransactionImpl(this._invoke);
     try {
-      await tx.open({isSubscription: false});
+      await tx.open({});
       return await tx.scanAll(options);
     } finally {
       closeIgnoreError(tx);
@@ -550,7 +550,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   ): Promise<void> {
     const tx = new IndexTransactionImpl(this._invoke);
     try {
-      await tx.open({isSubscription: false});
+      await tx.open({});
       await f(tx);
     } finally {
       tx.commit();
@@ -612,7 +612,6 @@ export class Replicache<MD extends MutatorDefs = {}>
     const res = await this._mutate(name, mutatorImpl, args, {
       invokeArgs: {
         rebaseOpts: {basis, original},
-        isSubscription: false,
       },
       isReplay: true,
     });
@@ -921,7 +920,7 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
     const tx = new ReadTransactionImpl(this._invoke);
-    await tx.open({isSubscription: false});
+    await tx.open({});
     try {
       return await body(tx);
     } finally {
@@ -935,7 +934,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   ): Promise<{result: R; keys: ReadonlySet<string>; scans: ScanOptionsRPC[]}> {
     const tx = new ReadTransactionImpl(this._invoke);
     const stx = new SubscriptionTransactionWrapper(tx);
-    await tx.open({isSubscription: true});
+    await tx.open({});
     const result = await body(stx);
     await tx.close();
     return {result, keys: stx.keys, scans: stx.scans};
@@ -1008,7 +1007,6 @@ export class Replicache<MD extends MutatorDefs = {}>
     let actualInvokeArgs: OpenTransactionRequest = {
       args: args !== undefined ? JSON.stringify(args) : 'null',
       name,
-      isSubscription: false,
     };
     if (invokeArgs !== undefined) {
       actualInvokeArgs = {...actualInvokeArgs, ...invokeArgs};

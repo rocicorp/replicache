@@ -11,7 +11,7 @@ jobs:
       - name: Testing secrets
         run: |
           echo '>>>>>>>'
-          echo ${{ sectrets.TEST }}
+          echo ${{ secrets.TEST }}
           echo '<<<<<<<
 
       - name: Configure AWS credentials

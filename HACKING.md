@@ -30,6 +30,92 @@ git push origin v<semver>
 npm publish
 ```
 
+# Verify that release works
+
+To test that a release works before creating the release we use a tarball dependency.
+
+```
+npm pack
+```
+
+## Replidraw
+
+Check out [rocicorp/replidraw](https://github.com/rocicorp/replidraw)
+
+Replace the replicache dependency in
+[package.json](https://github.com/rocicorp/replidraw/blob/master/package.json)
+with the tarball.
+
+```
+// package.json
+"replicache": "file:../replicache/replicache.tar.gz",
+```
+
+Recreate the deps:
+
+```
+npm install
+```
+
+Run Replidraw with environment variables:
+
+```
+AMAZON_ACCESS_KEY_ID=... \
+AMAZON_SECRET_ACCESS_KEY=... \
+AMAZON_REGION=us-west-2 \
+REPLIDRAW_DB_NAME=... \
+REPLIDRAW_RESOURCE_ARN=... \
+REPLIDRAW_SECRET_ARN=... \
+REPLICHAT_DB_CONNECTION_STRING=... \
+npm run dev
+```
+
+TODO: Document how to get the environment variables.
+
+You might need to initialize the DB by going to `http://localhost:3000/api/init`.
+
+Open two windows and make sure that the changes are reflected in each window.
+
+## Chat Sample
+
+Check out [rocicorp/replicache-sample-chat](https://github.com/rocicorp/replicache-sample-chat)
+
+Replace the replicache dependency in
+[package.json](https://github.com/rocicorp/replicache-sample-chat/blob/master/package.json)
+with the tarball.
+
+```
+// package.json
+"replicache": "file:../replicache/replicache.tar.gz",
+```
+
+Recreate the deps:
+
+```
+npm install
+```
+
+Run the app with environment variables:
+
+```
+NEXT_PUBLIC_REPLICHAT_PUSHER_APP_ID=... \
+NEXT_PUBLIC_REPLICHAT_PUSHER_KEY=... \
+NEXT_PUBLIC_REPLICHAT_PUSHER_SECRET=... \
+NEXT_PUBLIC_REPLICHAT_PUSHER_CLUSTER=... \
+REPLICHAT_DB_CONNECTION_STRING=... \
+npm run dev
+```
+
+Log in to pusher and supabase to get the above info.
+
+You might need to initialize the DB by going to `http://localhost:3000/api/init`.
+
+Open two windows and make sure that the changes are reflected in each window.
+
+## Integration Guide
+
+Review all the `doc/docs/guide*.md` files
+
 # Performance Monitoring
 
 We continuously track performance across a variety of benchmarks. Results here:

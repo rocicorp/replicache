@@ -70,7 +70,9 @@ REPLICHAT_DB_CONNECTION_STRING=... \
 npm run dev
 ```
 
-TODO: Document how to get the environment variables.
+The Amazon credentials can be found in `~/.aws/credentials`. See [Replidraw
+Hacking.md](https://github.com/rocicorp/replidraw/blob/master/HACKING.md) for
+instructions.
 
 You might need to initialize the DB by going to `http://localhost:3000/api/init`.
 

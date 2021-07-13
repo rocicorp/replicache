@@ -9,9 +9,11 @@ jobs:
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
     steps:
       - name: Testing secrets
-        run: echo '>>>>>>>'
-        run: echo ${{ sectrets.TEST }}
-        run: echo '<<<<<<<
+        run: |
+          echo '>>>>>>>'
+          echo ${{ sectrets.TEST }}
+          echo '<<<<<<<
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:

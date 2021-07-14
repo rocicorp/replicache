@@ -79,6 +79,11 @@ module.exports = {
       ],
       copyright: `Copyright © ${new Date().getFullYear()} Rocicorp, LLC.`,
     },
+    algolia: {
+      apiKey: '34c403597e7dae56ae1dcb8946cc355c',
+      indexName: 'replicache',
+      contextualSearch: false,
+    },
   },
   presets: [
     [

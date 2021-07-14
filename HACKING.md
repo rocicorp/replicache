@@ -30,7 +30,18 @@ git push origin v<semver>
 npm publish
 ```
 
-# Verify that release works
+## Update docs
+
+The docs are built from the `stable` branch so we need to rebase that to get it
+to deploy a new version.
+
+```
+git checkout stable
+git rebase main
+git push origin stable
+```
+
+## Verify that release works
 
 To test that a release works before creating the release we use a tarball dependency.
 
@@ -38,7 +49,7 @@ To test that a release works before creating the release we use a tarball depend
 npm pack
 ```
 
-## Replidraw
+### Replidraw
 
 Check out [rocicorp/replidraw](https://github.com/rocicorp/replidraw)
 
@@ -78,7 +89,7 @@ You might need to initialize the DB by going to `http://localhost:3000/api/init`
 
 Open two windows and make sure that the changes are reflected in each window.
 
-## Chat Sample
+### Chat Sample
 
 Check out [rocicorp/replicache-sample-chat](https://github.com/rocicorp/replicache-sample-chat)
 
@@ -114,7 +125,7 @@ You might need to initialize the DB by going to `http://localhost:3000/api/init`
 
 Open two windows and make sure that the changes are reflected in each window.
 
-## Integration Guide
+### Integration Guide
 
 Walk through the integration guide and make sure things still work.
 

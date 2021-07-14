@@ -11,32 +11,29 @@ import type {MutatorDefs, RequestOptions} from './replicache';
 export interface ReplicacheOptions<MD extends MutatorDefs> {
   /**
    * This is the
-   * [authentication](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#authentication)
-   * token used when doing a [push
-   * ](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync).
+   * [authorization](https://doc.replicache.dev/server-push#authorization) token
+   * used when doing a [push](https://doc.replicache.dev/server-push).
    */
   pushAuth?: string;
 
   /**
    * This is the URL to the server endpoint dealing with the push updates. See
-   * [Server Setup Upstream Sync](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync)
-   * for more details.
+   * [Push Endpoint Reference](https://doc.replicache.dev/server-push) for more
+   * details.
    */
   pushURL?: string;
 
   /**
    * This is the
-   * [authentication](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#authentication)
-   * token used when doing a [pull
-   * ](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-4-upstream-sync).
+   * [authorization](https://doc.replicache.dev/server-pull#authorization) token
+   * used when doing a [pull](https://doc.replicache.dev/server-pull).
    */
   pullAuth?: string;
 
   /**
-   * This is the URL to the server endpoint dealing with pull. See [Server Setup
-   * Downstream
-   * Sync](https://github.com/rocicorp/replicache/blob/main/SERVER_SETUP.md#step-1-downstream-sync)
-   * for more details.
+   * This is the URL to the server endpoint dealing with pull. See [Pull
+   * Endpoint Reference](https://doc.replicache.dev/server-pull) for more
+   * details.
    */
   pullURL?: string;
 
@@ -157,14 +154,13 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * ## Server application
    *
    * During push, a description of each mutation is sent to the server's [push
-   * endpoint](https://github.com/rocicorp/replicache/blob/stable/doc/setup.md#step-6-remote-mutations)
-   * where it is applied. Once the *mutation* has been applied successfully, as
-   * indicated by the [client
-   * view](https://github.com/rocicorp/replicache/blob/stable/doc/setup.md#step-1-design-your-client-view)'s
-   * `lastMutationId` field, the local version of the *mutation* is removed. See
-   * the [design
-   * doc](https://github.com/rocicorp/replicache/blob/stable/doc/design.md) for
-   * additional details on the sync protocol.
+   * endpoint](https://doc.replicache.dev/server-push) where it is applied. Once
+   * the *mutation* has been applied successfully, as indicated by the client
+   * view's
+   * [`lastMutationId`](https://doc.replicache.dev/server-pull#lastmutationid)
+   * field, the local version of the *mutation* is removed. See the [design
+   * doc](https://doc.replicache.dev/design#commits) for additional details on
+   * the sync protocol.
    *
    * ## Transactionality
    *

@@ -110,7 +110,7 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    *
    * *Mutators* are used to make changes to the data.
    *
-   * ## Example
+   * #### Example
    *
    * The registered *mutations* are reflected on the
    * [[Replicache.mutate|mutate]] property of the [[Replicache]] instance.
@@ -142,7 +142,7 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * });
    * ```
    *
-   * ## Replays
+   * #### Replays
    *
    * *Mutators* run once when they are initially invoked, but they might also be
    * *replayed* multiple times during sync. As such *mutators* should not modify
@@ -151,7 +151,7 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * needed *mutator* is not registered, it will substitute a no-op mutator, but
    * this might be a poor user experience.
    *
-   * ## Server application
+   * #### Server application
    *
    * During push, a description of each mutation is sent to the server's [push
    * endpoint](https://doc.replicache.dev/server-push) where it is applied. Once
@@ -162,7 +162,7 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * doc](https://doc.replicache.dev/design#commits) for additional details on
    * the sync protocol.
    *
-   * ## Transactionality
+   * #### Transactionality
    *
    * *Mutators* are atomic: all their changes are applied together, or none are.
    * Throwing an exception aborts the transaction. Otherwise, it is committed.

@@ -97,6 +97,10 @@ This is something that you control and should identify the schema of your client
 view. This ensures that you are sending data of the correct type so that the
 client can correctly handle the data.
 
+The [`schemaVersion`](api/interfaces/replicacheoptions#schemaversion) can be set
+in the [`ReplicacheOptions`](api/interfaces/replicacheoptions) when creating
+your instance of [`Replicache`](api/classes/replicache).
+
 ## HTTP Response
 
 ### HTTP Response Status

@@ -421,140 +421,145 @@ testWithBothStores('subscribe', async () => {
   expect(queryCallCount).to.equal(4);
 });
 
-testWithBothStores('subscribe with index', async () => {
-  const log: [[string, string], JSONValue][] = [];
+for (const prefixPropertyName of ['prefix', 'keyPrefix']) {
+  testWithBothStores(
+    `subscribe with index {prefixPropertyName: ${prefixPropertyName}}`,
+    async () => {
+      const log: [[string, string], JSONValue][] = [];
 
-  const rep = await replicacheForTesting('subscribe-with-index', {
-    mutators: {
-      addData,
-    },
-  });
+      const rep = await replicacheForTesting('subscribe-with-index', {
+        mutators: {
+          addData,
+        },
+      });
 
-  await rep.createIndex({
-    name: 'i1',
-    jsonPointer: '/id',
-    keyPrefix: 'a',
-  });
+      await rep.createIndex({
+        name: 'i1',
+        jsonPointer: '/id',
+        [prefixPropertyName]: 'a',
+      });
 
-  let queryCallCount = 0;
-  let onDataCallCount = 0;
-  const cancel = rep.subscribe(
-    async (tx: ReadTransaction) => {
-      queryCallCount++;
-      return await tx.scan({indexName: 'i1'}).entries().toArray();
-    },
-    {
-      onData: (values: Iterable<[[string, string], JSONValue]>) => {
-        onDataCallCount++;
-        for (const entry of values) {
-          log.push(entry);
-        }
-      },
+      let queryCallCount = 0;
+      let onDataCallCount = 0;
+      const cancel = rep.subscribe(
+        async (tx: ReadTransaction) => {
+          queryCallCount++;
+          return await tx.scan({indexName: 'i1'}).entries().toArray();
+        },
+        {
+          onData: (values: Iterable<[[string, string], JSONValue]>) => {
+            onDataCallCount++;
+            for (const entry of values) {
+              log.push(entry);
+            }
+          },
+        },
+      );
+
+      expect(log).to.have.length(0);
+      expect(queryCallCount).to.equal(0);
+      expect(onDataCallCount).to.equal(0);
+
+      await rep.mutate.addData({
+        a1: {id: 'a-1', x: 1},
+        a2: {id: 'a-2', x: 2},
+        b: {id: 'bx'},
+      });
+
+      expect(log).to.deep.equal([
+        [
+          ['a-1', 'a1'],
+          {
+            id: 'a-1',
+            x: 1,
+          },
+        ],
+        [
+          ['a-2', 'a2'],
+          {
+            id: 'a-2',
+            x: 2,
+          },
+        ],
+      ]);
+      expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
+      expect(onDataCallCount).to.equal(2);
+
+      log.length = 0;
+      await rep.mutate.addData({a3: {id: 'a-3', x: 3}});
+
+      expect(queryCallCount).to.equal(3);
+      expect(onDataCallCount).to.equal(3);
+      expect(log).to.deep.equal([
+        [
+          ['a-1', 'a1'],
+          {
+            id: 'a-1',
+            x: 1,
+          },
+        ],
+        [
+          ['a-2', 'a2'],
+          {
+            id: 'a-2',
+            x: 2,
+          },
+        ],
+        [
+          ['a-3', 'a3'],
+          {
+            id: 'a-3',
+            x: 3,
+          },
+        ],
+      ]);
+
+      await rep.dropIndex('i1');
+      expect(queryCallCount).to.equal(4);
+      expect(onDataCallCount).to.equal(3); // scan({indexName: 'i1'}) fails since we do not have that index any more.
+
+      log.length = 0;
+      await rep.createIndex({
+        name: 'i1',
+        jsonPointer: '/id',
+      });
+
+      expect(queryCallCount).to.equal(5);
+      expect(onDataCallCount).to.equal(4);
+      expect(log).to.deep.equal([
+        [
+          ['a-1', 'a1'],
+          {
+            id: 'a-1',
+            x: 1,
+          },
+        ],
+        [
+          ['a-2', 'a2'],
+          {
+            id: 'a-2',
+            x: 2,
+          },
+        ],
+        [
+          ['a-3', 'a3'],
+          {
+            id: 'a-3',
+            x: 3,
+          },
+        ],
+        [
+          ['bx', 'b'],
+          {
+            id: 'bx',
+          },
+        ],
+      ]);
+
+      cancel();
     },
   );
-
-  expect(log).to.have.length(0);
-  expect(queryCallCount).to.equal(0);
-  expect(onDataCallCount).to.equal(0);
-
-  await rep.mutate.addData({
-    a1: {id: 'a-1', x: 1},
-    a2: {id: 'a-2', x: 2},
-    b: {id: 'bx'},
-  });
-
-  expect(log).to.deep.equal([
-    [
-      ['a-1', 'a1'],
-      {
-        id: 'a-1',
-        x: 1,
-      },
-    ],
-    [
-      ['a-2', 'a2'],
-      {
-        id: 'a-2',
-        x: 2,
-      },
-    ],
-  ]);
-  expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
-  expect(onDataCallCount).to.equal(2);
-
-  log.length = 0;
-  await rep.mutate.addData({a3: {id: 'a-3', x: 3}});
-
-  expect(queryCallCount).to.equal(3);
-  expect(onDataCallCount).to.equal(3);
-  expect(log).to.deep.equal([
-    [
-      ['a-1', 'a1'],
-      {
-        id: 'a-1',
-        x: 1,
-      },
-    ],
-    [
-      ['a-2', 'a2'],
-      {
-        id: 'a-2',
-        x: 2,
-      },
-    ],
-    [
-      ['a-3', 'a3'],
-      {
-        id: 'a-3',
-        x: 3,
-      },
-    ],
-  ]);
-
-  await rep.dropIndex('i1');
-  expect(queryCallCount).to.equal(4);
-  expect(onDataCallCount).to.equal(3); // scan({indexName: 'i1'}) fails since we do not have that index any more.
-
-  log.length = 0;
-  await rep.createIndex({
-    name: 'i1',
-    jsonPointer: '/id',
-  });
-
-  expect(queryCallCount).to.equal(5);
-  expect(onDataCallCount).to.equal(4);
-  expect(log).to.deep.equal([
-    [
-      ['a-1', 'a1'],
-      {
-        id: 'a-1',
-        x: 1,
-      },
-    ],
-    [
-      ['a-2', 'a2'],
-      {
-        id: 'a-2',
-        x: 2,
-      },
-    ],
-    [
-      ['a-3', 'a3'],
-      {
-        id: 'a-3',
-        x: 3,
-      },
-    ],
-    [
-      ['bx', 'b'],
-      {
-        id: 'bx',
-      },
-    ],
-  ]);
-
-  cancel();
-});
+}
 
 testWithBothStores('subscribe with index and start', async () => {
   const log: [[string, string], JSONValue][] = [];

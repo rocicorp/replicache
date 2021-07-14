@@ -60,6 +60,6 @@ export default async (_, res) => {
 
 Start up your server again and navigate to [http://localhost:3000/api/init](http://localhost:3000/api/init). You should see the text "OK" after a few moments. Then if you go to your Supabase UI, you should see the new tables.
 
-<p align="center">
+<p class="text--center">
   <img src="/img/setup/schema-init.webp" width="650"/>
 </p>

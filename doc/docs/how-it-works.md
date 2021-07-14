@@ -6,7 +6,7 @@ slug: /how-it-works
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-<p align="center">
+<p class="text--center">
   <img src="/img/diagram.png" width="650"/>
 </p>
 

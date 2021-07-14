@@ -21,6 +21,7 @@ module.exports = {
         excludePrivate: true,
         excludeProtected: true,
         excludeExternals: true,
+        disableSources: true,
         name: 'Replicache',
         readme: 'none',
         out: 'api',

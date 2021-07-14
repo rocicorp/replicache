@@ -116,7 +116,7 @@ Open two windows and make sure that the changes are reflected in each window.
 
 ## Integration Guide
 
-Review all the `doc/docs/guide*.md` files
+Walk through the integration guide and make sure things still work.
 
 # Performance Monitoring
 

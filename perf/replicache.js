@@ -320,7 +320,7 @@ export function benchmarkSubscribe(opts) {
 
       // The number of mutations to do. These should each trigger one
       // subscription. The goal of this test is to ensure that we are only
-      // paying the runtime cost of subscriptions that are affected byt the
+      // paying the runtime cost of subscriptions that are affected by the
       // changes.
       const mut = 10;
       if (mut < minCount) {

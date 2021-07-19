@@ -5,7 +5,7 @@ slug: /guide/intro
 
 This integration guide is a detailed walkthrough for creating a simple Replicache-powered chat application.
 
-<p align="center">
+<p class="text--center">
   <img src="/img/setup/sync.webp" width="650"/>
 </p>
 

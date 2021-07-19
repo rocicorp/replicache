@@ -65,7 +65,7 @@ Careful readers may be wondering what happens with the order field during sync. 
 
 Restart the server and you should now be able to make changes!
 
-<p align="center">
+<p class="text--center">
   <img src="/img/setup/local-mutation.webp" width="650"/>
 </p>
 

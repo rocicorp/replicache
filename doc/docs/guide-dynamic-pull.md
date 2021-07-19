@@ -75,7 +75,7 @@ export default async (req, res) => {
 
 Voila. We're now round-tripping browsers and devices!
 
-<p align="center">
+<p class="text--center">
   <img src="/img/setup/manual-sync.webp" width="650"/>
 </p>
 

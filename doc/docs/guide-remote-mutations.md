@@ -113,7 +113,7 @@ In the code sample above, we updated a special `version` column in the message t
 
 Restart the server, navigate to [http://localhost:3000/](http://localhost:3000/) and make some changes. You should now see changes getting saved in Supabase. Niiiice.
 
-<p align="center">
+<p class="text--center">
   <img src="/img/setup/remote-mutation.webp" width="650"/>
 </p>
 

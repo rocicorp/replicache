@@ -289,8 +289,15 @@ export interface CreateIndexDefinition {
   /**
    * The prefix, if any, to limit the index over. If not provided the values of
    * all keys are indexed.
+   * @deprecated Use [[prefix]] instead.
    */
   keyPrefix?: string;
+
+  /**
+   * The prefix, if any, to limit the index over. If not provided the values of
+   * all keys are indexed.
+   */
+  prefix?: string;
 
   /**
    * A [JSON Pointer](https://tools.ietf.org/html/rfc6901) pointing at the sub
@@ -313,7 +320,7 @@ export class IndexTransactionImpl
     await this._invoke(RPC.CreateIndex, {
       transactionId: this.id,
       name: options.name,
-      keyPrefix: options.keyPrefix || '',
+      keyPrefix: options.prefix ?? options.keyPrefix ?? '',
       jsonPointer: options.jsonPointer,
     });
   }

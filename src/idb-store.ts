@@ -1,9 +1,5 @@
 import {RWLock} from './rw-lock.js';
-import type {Read, Store, Write} from './store.js';
-
-interface Release {
-  release(): void;
-}
+import type {Read, Release, Store, Write} from './store.js';
 
 export class IDBStore implements Store {
   private readonly _rwLock: RWLock = new RWLock();

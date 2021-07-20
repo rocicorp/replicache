@@ -1,9 +1,5 @@
 import {RWLock} from './rw-lock.js';
-import type {Read, Store, Write} from './store.js';
-
-interface Release {
-  release(): void;
-}
+import type {Read, Release, Store, Write} from './store.js';
 
 export class MemStore implements Store {
   private readonly _map: Map<string, Uint8Array> = new Map();
@@ -82,7 +78,7 @@ class WriteImpl {
       case undefined:
         return this._map.get(key);
       default:
-        return v as Uint8Array;
+        return v;
     }
   }
 

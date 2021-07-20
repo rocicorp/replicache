@@ -14,9 +14,12 @@ export interface Read {
 }
 
 export interface Write extends Read {
-  asRead(): Read;
   put(key: string, value: Uint8Array): Promise<void>;
   del(key: string): Promise<void>;
   commit(): Promise<void>;
   rollback(): Promise<void>;
+}
+
+export interface Release {
+  release(): void;
 }

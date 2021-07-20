@@ -1,7 +1,7 @@
 import {resolver} from './resolver.js';
 
 export class Lock {
-  private _lockP: Promise<unknown> | null = null;
+  private _lockP: Promise<void> | null = null;
 
   async lock(): Promise<() => void> {
     const previous = this._lockP;
@@ -18,8 +18,8 @@ export class Lock {
 
 export class RWLock {
   private _lock = new Lock();
-  private _writeP: Promise<unknown> | null = null;
-  private _readP: Promise<unknown>[] = [];
+  private _writeP: Promise<void> | null = null;
+  private _readP: Promise<void>[] = [];
 
   read(): Promise<() => void> {
     return this._lock.run(async () => {

@@ -82,10 +82,6 @@ class WriteImpl {
     }
   }
 
-  asRead(): Read {
-    return this;
-  }
-
   async put(key: string, value: Uint8Array): Promise<void> {
     this._pending.set(key, value);
   }

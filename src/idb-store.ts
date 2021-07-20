@@ -1,6 +1,15 @@
 import {RWLock} from './rw-lock.js';
 import type {Read, Release, Store, Write} from './store.js';
 
+const RELAXED = {durability: 'relaxed'};
+const OBJECT_STORE = 'chunks';
+
+const OPEN = 0;
+const COMMITTED = 1;
+const ABORTED = 2;
+
+type WriteState = typeof OPEN | typeof COMMITTED | typeof ABORTED;
+
 export class IDBStore implements Store {
   private readonly _rwLock: RWLock = new RWLock();
   private readonly _db: Promise<IDBDatabase>;
@@ -12,23 +21,22 @@ export class IDBStore implements Store {
   async read(): Promise<Read & Release> {
     const release = await this._rwLock.read();
     const db = await this._db;
-    const tx = await readTransaction(db);
+    const tx = db.transaction(OBJECT_STORE, 'readonly');
     return new ReadImpl(tx, release);
   }
 
   async write(): Promise<Write & Release> {
     const release = await this._rwLock.write();
     const db = await this._db;
-    const tx = await writeTransaction(db);
+    // TS does not have type defs for the third options argument yet.
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore Expected 1-2 arguments, but got 3.ts(2554)
+    const tx = db.transaction(OBJECT_STORE, 'readwrite', RELAXED);
     return new WriteImpl(tx, release);
   }
 
   async close(): Promise<void> {
     (await this._db).close();
-  }
-
-  static async dropStore(name: string): Promise<void> {
-    await dropStore(name);
   }
 }
 
@@ -46,11 +54,11 @@ class ReadImpl {
   }
 
   async has(key: string): Promise<boolean> {
-    return dbHas(this._tx, key);
+    return hasImpl(this._tx, key);
   }
 
   async get(key: string): Promise<Uint8Array | undefined> {
-    return dbGet(this._tx, key) as Promise<Uint8Array | undefined>;
+    return getImpl(this._tx, key);
   }
 }
 
@@ -62,6 +70,7 @@ class WriteImpl {
   private readonly _pending: Map<string, Uint8Array | DeleteSentinel> =
     new Map();
   private readonly _release: () => void;
+  private _txState: Promise<WriteState> | undefined = undefined;
 
   constructor(tx: IDBTransaction, release: () => void) {
     this._tx = tx;
@@ -75,7 +84,7 @@ class WriteImpl {
   async has(key: string): Promise<boolean> {
     switch (this._pending.get(key)) {
       case undefined:
-        return await dbHas(this._tx, key);
+        return await hasImpl(this._tx, key);
       case deleteSentinel:
         return false;
       default:
@@ -89,7 +98,7 @@ class WriteImpl {
       case deleteSentinel:
         return undefined;
       case undefined:
-        return (await dbGet(this._tx, key)) as Promise<Uint8Array | undefined>;
+        return await getImpl(this._tx, key);
       default:
         return v as Uint8Array;
     }
@@ -107,6 +116,25 @@ class WriteImpl {
     this._pending.set(key, deleteSentinel);
   }
 
+  private _registerTransaction(): void {
+    const tx = this._tx;
+
+    if (this._txState) {
+      throw new Error('invalid state');
+    }
+
+    const p = new Promise((resolve, reject) => {
+      tx.onabort = () => resolve(ABORTED);
+      tx.oncomplete = () => resolve(COMMITTED);
+      tx.onerror = () => reject(tx.error);
+    });
+    this._txState = p as Promise<WriteState>;
+  }
+
+  private _transactionState(): Promise<WriteState> {
+    return this._txState || Promise.resolve(OPEN);
+  }
+
   async commit(): Promise<void> {
     if (this._pending.size === 0) {
       return;
@@ -114,7 +142,7 @@ class WriteImpl {
 
     const tx = this._tx;
 
-    registerTransaction(tx);
+    this._registerTransaction();
     const store = objectStore(tx);
     const ps = Array.from(this._pending, ([key, val]) => {
       if (val === null) {
@@ -123,7 +151,7 @@ class WriteImpl {
       return wrap(store.put(val, key));
     });
     await Promise.all(ps);
-    const state = await transactionState(tx);
+    const state = await this._transactionState();
 
     if (state !== COMMITTED) {
       throw new Error('Transaction aborted');
@@ -135,7 +163,7 @@ class WriteImpl {
       return;
     }
 
-    switch (await transactionState(this._tx)) {
+    switch (await this._transactionState()) {
       case OPEN:
         break;
       case COMMITTED:
@@ -143,7 +171,13 @@ class WriteImpl {
         return;
     }
 
-    const state = await abort(this._tx);
+    // const state = await abort(this._tx);
+
+    const tx = this._tx;
+    this._registerTransaction();
+    tx.abort();
+    const state = await this._transactionState();
+
     if (state !== ABORTED) {
       throw new Error('Transaction abort failed');
     }
@@ -152,58 +186,29 @@ class WriteImpl {
 
 /////////////////////
 
-const RELAXED = {durability: 'relaxed'};
-const OBJECT_STORE = 'chunks';
-
-function readTransaction(idb: IDBDatabase): IDBTransaction {
-  return idb.transaction(OBJECT_STORE, 'readonly');
-}
-
-function writeTransaction(idb: IDBDatabase): IDBTransaction {
-  // TS does not have type defs for the third options argument yet.
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore Expected 1-2 arguments, but got 3.ts(2554)
-  return idb.transaction(OBJECT_STORE, 'readwrite', RELAXED);
-}
-
 function objectStore(tx: IDBTransaction): IDBObjectStore {
   return tx.objectStore(OBJECT_STORE);
-}
-
-function createObjectStore(idb: IDBDatabase): IDBObjectStore {
-  return idb.createObjectStore(OBJECT_STORE);
 }
 
 async function openDatabase(name: string): Promise<IDBDatabase> {
   const req = indexedDB.open(name);
   req.onupgradeneeded = () => {
     const db = req.result;
-    createObjectStore(db);
+    db.createObjectStore(OBJECT_STORE);
     db.onversionchange = () => db.close();
   };
   return wrap(req);
 }
 
-function dbGet(
+function getImpl(
   tx: IDBTransaction,
   key: IDBValidKey | IDBKeyRange,
-): Promise<unknown> {
+): Promise<Uint8Array | undefined> {
   return wrap(objectStore(tx).get(key));
 }
 
-async function dbHas(tx: IDBTransaction, key: string): Promise<boolean> {
-  const c = await wrap(objectStore(tx).count(key));
-  return c > 0;
-}
-
-function dropStore(name: string): Promise<IDBDatabase> {
-  return wrap(indexedDB.deleteDatabase(name));
-}
-
-async function abort(tx: IDBTransaction): Promise<WriteState> {
-  registerTransaction(tx);
-  tx.abort();
-  return await transactionState(tx);
+async function hasImpl(tx: IDBTransaction, key: string): Promise<boolean> {
+  return (await wrap(objectStore(tx).count(key))) > 0;
 }
 
 function wrap<T>(req: IDBRequest<T>): Promise<T> {
@@ -211,30 +216,4 @@ function wrap<T>(req: IDBRequest<T>): Promise<T> {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
-}
-
-const txStateMap: WeakMap<IDBTransaction, Promise<WriteState>> = new WeakMap();
-
-const OPEN = 0;
-const COMMITTED = 1;
-const ABORTED = 2;
-
-type WriteState = typeof OPEN | typeof COMMITTED | typeof ABORTED;
-
-function registerTransaction(tx: IDBTransaction): IDBTransaction {
-  if (txStateMap.has(tx)) {
-    throw new Error('invalid state');
-  }
-
-  const p = new Promise((resolve, reject) => {
-    tx.onabort = () => resolve(ABORTED);
-    tx.oncomplete = () => resolve(COMMITTED);
-    tx.onerror = () => reject(tx.error);
-  });
-  txStateMap.set(tx, p as Promise<WriteState>);
-  return tx;
-}
-
-function transactionState(tx: IDBTransaction): Promise<WriteState> {
-  return txStateMap.get(tx) || Promise.resolve(OPEN);
 }

@@ -11,7 +11,7 @@ export class Lock {
     return resolve;
   }
 
-  run<R>(f: () => R | Promise<R>): Promise<R> {
+  withLock<R>(f: () => R | Promise<R>): Promise<R> {
     return run(this.lock(), f);
   }
 }
@@ -22,7 +22,7 @@ export class RWLock {
   private _readP: Promise<void>[] = [];
 
   read(): Promise<() => void> {
-    return this._lock.run(async () => {
+    return this._lock.withLock(async () => {
       await this._writeP;
       const {promise, resolve} = resolver();
       this._readP.push(promise);
@@ -30,12 +30,12 @@ export class RWLock {
     });
   }
 
-  runRead<R>(f: () => R | Promise<R>): Promise<R> {
+  withRead<R>(f: () => R | Promise<R>): Promise<R> {
     return run(this.read(), f);
   }
 
   async write(): Promise<() => void> {
-    return await this._lock.run(async () => {
+    return await this._lock.withLock(async () => {
       await this._writeP;
       await Promise.all(this._readP);
       const {promise, resolve} = resolver();
@@ -45,7 +45,7 @@ export class RWLock {
     });
   }
 
-  runWrite<R>(f: () => R | Promise<R>): Promise<R> {
+  withWrite<R>(f: () => R | Promise<R>): Promise<R> {
     return run(this.write(), f);
   }
 }

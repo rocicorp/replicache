@@ -1,5 +1,4 @@
-import {RWLock} from './rw-lock.js';
-import type {Read, Release, Store, Write} from './store.js';
+import type {Read, Store, Write} from './store.js';
 
 const RELAXED = {durability: 'relaxed'};
 const OBJECT_STORE = 'chunks';
@@ -11,28 +10,25 @@ const ABORTED = 2;
 type WriteState = typeof OPEN | typeof COMMITTED | typeof ABORTED;
 
 export class IDBStore implements Store {
-  private readonly _rwLock: RWLock = new RWLock();
   private readonly _db: Promise<IDBDatabase>;
 
   constructor(name: string) {
     this._db = openDatabase(name);
   }
 
-  async read(): Promise<Read & Release> {
-    const release = await this._rwLock.read();
+  async read(): Promise<Read> {
     const db = await this._db;
     const tx = db.transaction(OBJECT_STORE, 'readonly');
-    return new ReadImpl(tx, release);
+    return new ReadImpl(tx);
   }
 
-  async write(): Promise<Write & Release> {
-    const release = await this._rwLock.write();
+  async write(): Promise<Write> {
     const db = await this._db;
     // TS does not have type defs for the third options argument yet.
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore Expected 1-2 arguments, but got 3.ts(2554)
     const tx = db.transaction(OBJECT_STORE, 'readwrite', RELAXED);
-    return new WriteImpl(tx, release);
+    return new WriteImpl(tx);
   }
 
   async close(): Promise<void> {
@@ -42,15 +38,9 @@ export class IDBStore implements Store {
 
 class ReadImpl {
   private readonly _tx: IDBTransaction;
-  private readonly _release: () => void;
 
-  constructor(tx: IDBTransaction, release: () => void) {
+  constructor(tx: IDBTransaction) {
     this._tx = tx;
-    this._release = release;
-  }
-
-  release(): void {
-    this._release();
   }
 
   async has(key: string): Promise<boolean> {
@@ -69,16 +59,10 @@ class WriteImpl {
   private readonly _tx: IDBTransaction;
   private readonly _pending: Map<string, Uint8Array | DeleteSentinel> =
     new Map();
-  private readonly _release: () => void;
   private _txState: Promise<WriteState> | undefined = undefined;
 
-  constructor(tx: IDBTransaction, release: () => void) {
+  constructor(tx: IDBTransaction) {
     this._tx = tx;
-    this._release = release;
-  }
-
-  release(): void {
-    this._release();
   }
 
   async has(key: string): Promise<boolean> {

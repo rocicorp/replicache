@@ -38,6 +38,7 @@ import {
 } from './subscriptions.js';
 import {MemStore} from './mem-store.js';
 import {IDBStore} from './idb-store.js';
+import {WrapStore} from './store.js';
 
 type BeginPullResult = {
   requestID: string;
@@ -293,9 +294,13 @@ export class Replicache<MD extends MutatorDefs = {}>
     // wait for it to finish closing.
     await closingInstances.get(this._name);
 
+    const store = new WrapStore(
+      this._useMemstore ? new MemStore() : new IDBStore(this._name),
+    );
+
     const openResponse = await this._repmInvoker.invoke(this._name, RPC.Open, {
       useMemstore: this._useMemstore,
-      store: this._useMemstore ? new MemStore() : new IDBStore(this._name),
+      store,
     });
     this._openResolve(openResponse);
 

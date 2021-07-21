@@ -4,10 +4,6 @@ export interface Store {
   close(): Promise<void>;
 }
 
-export interface Drop {
-  drop(): void;
-}
-
 export interface Read {
   has(key: string): Promise<boolean>;
   get(key: string): Promise<Uint8Array | undefined>;

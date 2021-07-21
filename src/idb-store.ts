@@ -104,10 +104,6 @@ class WriteImpl {
     }
   }
 
-  asRead(): Read {
-    return this;
-  }
-
   async put(key: string, value: Uint8Array): Promise<void> {
     this._pending.set(key, value);
   }
@@ -171,8 +167,6 @@ class WriteImpl {
         return;
     }
 
-    // const state = await abort(this._tx);
-
     const tx = this._tx;
     this._registerTransaction();
     tx.abort();
@@ -183,8 +177,6 @@ class WriteImpl {
     }
   }
 }
-
-/////////////////////
 
 function objectStore(tx: IDBTransaction): IDBObjectStore {
   return tx.objectStore(OBJECT_STORE);

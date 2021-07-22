@@ -32,15 +32,10 @@ import {
   subscriptionsForChangedKeys,
   subscriptionsForIndexDefinitionChanged,
 } from './subscriptions.js';
-<<<<<<< HEAD
 import {MemStore} from './kv/mem-store.js';
 import {IDBStore} from './kv/idb-store.js';
-import type {Store} from './kv/store.js';
-=======
-import {MemStore} from './mem-store.js';
-import {IDBStore} from './idb-store.js';
-import {WrapStore} from './store.js';
->>>>>>> 900cee5 (Move the RWLock into a wrapper class)
+import {WrapStore} from './kv/store.js';
+import {Store as DagStore} from './dag/store.js';
 
 type BeginPullResult = {
   requestID: string;
@@ -332,17 +327,16 @@ export class Replicache<MD extends MutatorDefs = {}>
     // wait for it to finish closing.
     await closingInstances.get(this.name);
 
-<<<<<<< HEAD
-    const openResponse = await this._repmInvoker.invoke(this.name, RPC.Open, {
-=======
     const store = new WrapStore(
       this._useMemstore ? new MemStore() : new IDBStore(this._name),
     );
 
+    const dag = new DagStore(store);
+
     const openResponse = await this._repmInvoker.invoke(this._name, RPC.Open, {
->>>>>>> 900cee5 (Move the RWLock into a wrapper class)
       useMemstore: this._useMemstore,
       store,
+      dag,
     });
     this._openResolve(openResponse);
 

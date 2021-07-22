@@ -21,8 +21,16 @@ export default {
     {
       name: 'Main',
       files: [
+        // All but worker.test.ts
+        'src/connection-loop.test.ts',
+        'src/json.test.ts',
+        'src/rw-lock.test.ts',
+        'src/hash.test.ts  ',
+        'src/replicache.test.ts',
+        'src/hash.test.ts',
+
+        'src/dag/*.test.ts',
         'src/kv/*.test.ts',
-        'src/{replicache,connection-loop,json,subscriptions,rw-lock}.test.ts',
       ],
       browsers: [firefox, chromium, webkit],
     },

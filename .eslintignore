@@ -4,3 +4,4 @@ out
 tool
 bin
 src/wasm
+*_generated.ts

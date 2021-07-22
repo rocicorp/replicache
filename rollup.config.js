@@ -1,6 +1,8 @@
 import typescript from 'rollup-plugin-ts';
 import replace from '@rollup/plugin-replace';
 import copy from 'rollup-plugin-copy';
+import commonjs from '@rollup/plugin-commonjs';
+import nodeResolve from '@rollup/plugin-node-resolve';
 
 /* eslint-env node */
 
@@ -23,6 +25,9 @@ export default {
       include: 'src/repm-invoker.ts',
       preventAssignment: true,
     }),
+
+    nodeResolve(),
+    commonjs(),
 
     typescript(),
 

@@ -4,7 +4,8 @@ import init, {dispatch} from './wasm/release/replicache_client.js';
 import type {InitOutput} from './wasm/release/replicache_client.js';
 import type {Puller} from './puller.js';
 import type {Pusher} from './pusher.js';
-import type {Store} from './kv/store.js';
+import type {StoreWithRelease} from './kv/store.js';
+import type {Store as DagStore} from './dag/store.js';
 
 /**
  * This type is used for the [[ReplicacheOptions.wasmModule]] property.
@@ -71,6 +72,7 @@ export class REPMWasmInvoker {
 type OpenRequest = {
   useMemstore: boolean;
   store?: StoreWithRelease;
+  dag?: DagStore;
 };
 export type OpenResponse = string;
 

@@ -1,14 +1,13 @@
-import {deleteSentinel, WriteImplBase} from './write-impl-base.js';
 import type {Read, Store, Write} from './store.js';
 
 const RELAXED = {durability: 'relaxed'};
 const OBJECT_STORE = 'chunks';
 
-const enum WriteState {
-  OPEN,
-  COMMITTED,
-  ABORTED,
-}
+const OPEN = 0;
+const COMMITTED = 1;
+const ABORTED = 2;
+
+type WriteState = typeof OPEN | typeof COMMITTED | typeof ABORTED;
 
 export class IDBStore implements Store {
   private readonly _db: Promise<IDBDatabase>;
@@ -45,39 +44,75 @@ class ReadImpl {
   }
 
   async has(key: string): Promise<boolean> {
-    return (await wrap(objectStore(this._tx).count(key))) > 0;
+    return hasImpl(this._tx, key);
   }
 
   async get(key: string): Promise<Uint8Array | undefined> {
-    return wrap(objectStore(this._tx).get(key));
-  }
-
-  release(): void {
-    // Do nothing. We rely on IDB locking.
+    return getImpl(this._tx, key);
   }
 }
 
-class WriteImpl extends WriteImplBase {
+const deleteSentinel = null;
+type DeleteSentinel = typeof deleteSentinel;
+
+class WriteImpl {
   private readonly _tx: IDBTransaction;
-  private readonly _onTxEnd: Promise<void>;
-  private _txState = WriteState.OPEN;
+  private readonly _pending: Map<string, Uint8Array | DeleteSentinel> =
+    new Map();
+  private _txState: Promise<WriteState> | undefined = undefined;
 
   constructor(tx: IDBTransaction) {
-    super(new ReadImpl(tx));
     this._tx = tx;
-    this._onTxEnd = this._addTransactionListeners();
   }
 
-  private async _addTransactionListeners(): Promise<void> {
+  async has(key: string): Promise<boolean> {
+    switch (this._pending.get(key)) {
+      case undefined:
+        return await hasImpl(this._tx, key);
+      case deleteSentinel:
+        return false;
+      default:
+        return true;
+    }
+  }
+
+  async get(key: string): Promise<Uint8Array | undefined> {
+    const v = this._pending.get(key);
+    switch (v) {
+      case deleteSentinel:
+        return undefined;
+      case undefined:
+        return await getImpl(this._tx, key);
+      default:
+        return v as Uint8Array;
+    }
+  }
+
+  async put(key: string, value: Uint8Array): Promise<void> {
+    this._pending.set(key, value);
+  }
+
+  async del(key: string): Promise<void> {
+    this._pending.set(key, deleteSentinel);
+  }
+
+  private _registerTransaction(): void {
     const tx = this._tx;
-    const p: Promise<WriteState> = new Promise((resolve, reject) => {
-      tx.onabort = () => resolve(WriteState.ABORTED);
-      tx.oncomplete = () => resolve(WriteState.COMMITTED);
+
+    if (this._txState) {
+      throw new Error('invalid state');
+    }
+
+    const p = new Promise((resolve, reject) => {
+      tx.onabort = () => resolve(ABORTED);
+      tx.oncomplete = () => resolve(COMMITTED);
       tx.onerror = () => reject(tx.error);
     });
+    this._txState = p as Promise<WriteState>;
+  }
 
-    // When the transaction completes/aborts, set the state.
-    this._txState = await p;
+  private _transactionState(): Promise<WriteState> {
+    return this._txState || Promise.resolve(OPEN);
   }
 
   async commit(): Promise<void> {
@@ -85,23 +120,45 @@ class WriteImpl extends WriteImplBase {
       return;
     }
 
-    const store = objectStore(this._tx);
+    const tx = this._tx;
+
+    this._registerTransaction();
+    const store = objectStore(tx);
     const ps = Array.from(this._pending, ([key, val]) => {
-      if (val === deleteSentinel) {
+      if (val === null) {
         return wrap(store.delete(key));
       }
       return wrap(store.put(val, key));
     });
     await Promise.all(ps);
-    await this._onTxEnd;
+    const state = await this._transactionState();
 
-    if (this._txState === WriteState.ABORTED) {
+    if (state !== COMMITTED) {
       throw new Error('Transaction aborted');
     }
   }
 
-  release(): void {
-    // We rely on IDB locking so no need to do anything here.
+  async rollback(): Promise<void> {
+    if (this._pending.size === 0) {
+      return;
+    }
+
+    switch (await this._transactionState()) {
+      case OPEN:
+        break;
+      case COMMITTED:
+      case ABORTED:
+        return;
+    }
+
+    const tx = this._tx;
+    this._registerTransaction();
+    tx.abort();
+    const state = await this._transactionState();
+
+    if (state !== ABORTED) {
+      throw new Error('Transaction abort failed');
+    }
   }
 }
 
@@ -119,13 +176,20 @@ async function openDatabase(name: string): Promise<IDBDatabase> {
   return wrap(req);
 }
 
+function getImpl(
+  tx: IDBTransaction,
+  key: IDBValidKey | IDBKeyRange,
+): Promise<Uint8Array | undefined> {
+  return wrap(objectStore(tx).get(key));
+}
+
+async function hasImpl(tx: IDBTransaction, key: string): Promise<boolean> {
+  return (await wrap(objectStore(tx).count(key))) > 0;
+}
+
 function wrap<T>(req: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
-}
-
-export async function dropStore(name: string): Promise<void> {
-  await wrap(indexedDB.deleteDatabase(name));
 }

@@ -30,6 +30,9 @@ module.exports = {
         'guide-conclusion',
       ],
     },
+    {
+      Samples: ['sample-chat', 'sample-replidraw'],
+    },
     'launch-checklist',
     'design',
     'faq',

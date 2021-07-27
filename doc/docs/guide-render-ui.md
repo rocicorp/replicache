@@ -113,7 +113,7 @@ function listen(rep) {
 
 Then restart your server and navigate to [http://localhost:3000/](http://localhost:3000). You should see that we're rendering data from Replicache!
 
-<p align="center">
+<p class="text--center">
   <img src="/img/setup/static-ui.webp" width="650"/>
 </p>
 

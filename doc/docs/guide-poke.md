@@ -77,6 +77,6 @@ function listen(rep) {
 
 Restart the app, and make a change, and you should see it propagate live between browsers:
 
-<p align="center">
+<p class="text--center">
   <img src="/img/setup/sync.webp" width="650"/>
 </p>

@@ -91,6 +91,6 @@ Also, Replicache is a _transactional_ key/value store. So although the changes a
 
 Start your app with `npm run dev`, and navigate to [http://localhost:3000/api/replicache-pull](http://localhost:3000/api/replicache-pull) to ensure it's working:
 
-<p align="center">
+<p class="text--center">
   <img src="/img/setup/replicache-pull.webp" width="650"/>
 </p>

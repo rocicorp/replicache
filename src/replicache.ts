@@ -38,7 +38,7 @@ import {
 } from './subscriptions.js';
 import {MemStore} from './kv/mem-store.js';
 import {IDBStore} from './kv/idb-store.js';
-import {WrapStore} from './kv/store.js';
+import {ReleasableStore} from './kv/store.js';
 
 type BeginPullResult = {
   requestID: string;
@@ -180,6 +180,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   private readonly _requestOptions: Required<RequestOptions>;
   private readonly _puller: Puller;
   private readonly _pusher: Pusher;
+  private readonly _store: ReleasableStore;
 
   /**
    * The options used to control the [[pull]] and push request behavior. This
@@ -241,6 +242,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       requestOptions = {},
       puller = defaultPuller,
       pusher = defaultPusher,
+      experimentalKVStore,
     } = options;
     this._pullAuth = pullAuth;
     this._pullURL = pullURL;
@@ -254,6 +256,11 @@ export class Replicache<MD extends MutatorDefs = {}>
     this._useMemstore = useMemstore;
     this._puller = puller;
     this._pusher = pusher;
+    this._store = new ReleasableStore(
+      experimentalKVStore || this._useMemstore
+        ? new MemStore()
+        : new IDBStore(this._name),
+    );
 
     // Use a promise-resolve pair so that we have a promise to use even before
     // we call the Open RPC.
@@ -294,13 +301,9 @@ export class Replicache<MD extends MutatorDefs = {}>
     // wait for it to finish closing.
     await closingInstances.get(this._name);
 
-    const store = new WrapStore(
-      this._useMemstore ? new MemStore() : new IDBStore(this._name),
-    );
-
     const openResponse = await this._repmInvoker.invoke(this._name, RPC.Open, {
       useMemstore: this._useMemstore,
-      store,
+      store: this._store,
     });
     this._openResolve(openResponse);
 

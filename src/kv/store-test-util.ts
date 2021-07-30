@@ -1,18 +1,65 @@
 import {assert, expect} from '@esm-bundle/chai';
-import {Store, WrapStore} from './store';
+import {Read, Store, ReleasableStore, Write} from './store';
 
 const {fail} = assert;
+
+/**
+ * Creates a new store that wraps read and write in an RWLock.
+ */
+class TestReleasableStore extends ReleasableStore {
+  async withRead<T>(fn: (read: Read) => Promise<T> | T): Promise<T> {
+    let read;
+    try {
+      read = await this.read();
+      return await fn(read);
+    } finally {
+      read?.release();
+    }
+  }
+
+  async withWrite<T>(fn: (write: Write) => Promise<T> | T): Promise<T> {
+    let write;
+    try {
+      write = await this.write();
+      return await fn(write);
+    } finally {
+      write?.release();
+    }
+  }
+
+  async put(key: string, value: Uint8Array): Promise<void> {
+    await this.withWrite(async write => {
+      await write.put(key, value);
+      await write.commit();
+    });
+  }
+
+  async del(key: string): Promise<void> {
+    await this.withWrite(async write => {
+      await write.del(key);
+      await write.commit();
+    });
+  }
+
+  has(key: string): Promise<boolean> {
+    return this.withRead(read => read.has(key));
+  }
+
+  get(key: string): Promise<Uint8Array | undefined> {
+    return this.withRead(read => read.get(key));
+  }
+}
 
 export async function runAll(
   newStore: () => Promise<Store> | Store,
 ): Promise<void> {
-  let s = new WrapStore(await newStore());
+  let s = new TestReleasableStore(await newStore());
   await store(s);
-  s = new WrapStore(await newStore());
+  s = new TestReleasableStore(await newStore());
   await readTransaction(s);
-  s = new WrapStore(await newStore());
+  s = new TestReleasableStore(await newStore());
   await writeTransaction(s);
-  s = new WrapStore(await newStore());
+  s = new TestReleasableStore(await newStore());
   await isolation(s);
 }
 
@@ -20,7 +67,7 @@ function b(x: TemplateStringsArray): Uint8Array {
   return new TextEncoder().encode(x[0]);
 }
 
-async function store(store: WrapStore): Promise<void> {
+async function store(store: TestReleasableStore): Promise<void> {
   // Test put/has/get, which use read() and write() for one-shot txs.
   expect(await store.has('foo')).to.be.false;
   expect(await store.get('foo')).to.be.undefined;
@@ -40,7 +87,7 @@ async function store(store: WrapStore): Promise<void> {
   expect(await store.get('baz')).to.deep.equal(b`bat`);
 }
 
-async function readTransaction(store: WrapStore): Promise<void> {
+async function readTransaction(store: TestReleasableStore): Promise<void> {
   await store.put('k1', b`v1`);
 
   await store.withRead(async rt => {
@@ -49,7 +96,7 @@ async function readTransaction(store: WrapStore): Promise<void> {
   });
 }
 
-async function writeTransaction(store: WrapStore): Promise<void> {
+async function writeTransaction(store: TestReleasableStore): Promise<void> {
   await store.put('k1', b`v1`);
   await store.put('k2', b`v2`);
 
@@ -104,7 +151,7 @@ async function writeTransaction(store: WrapStore): Promise<void> {
   });
 }
 
-async function isolation(store: WrapStore): Promise<void> {
+async function isolation(store: ReleasableStore): Promise<void> {
   // Assert there can be multiple concurrent read txs...
   const r1 = await store.read();
   const r2 = await store.read();

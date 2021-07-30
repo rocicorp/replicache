@@ -29,3 +29,9 @@ export type {
   PullerResult,
 } from './puller.js';
 export type {Pusher} from './pusher.js';
+
+export type {
+  Store as ExperimentalKVStore,
+  Read as ExperimentalKVRead,
+  Write as ExperimentalKVWrite,
+} from './kv/store.js';

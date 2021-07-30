@@ -1,5 +1,5 @@
 import {assert, expect} from '@esm-bundle/chai';
-import {Read, Store, ReleasableStore, Write} from './store';
+import {Read, Store, ReleasableStore, Write} from './store.js';
 
 const {fail} = assert;
 

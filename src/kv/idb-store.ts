@@ -1,4 +1,4 @@
-import {deleteSentinel, WriteImplBase} from './write-impl-base';
+import {deleteSentinel, WriteImplBase} from './write-impl-base.js';
 import type {Read, Store, Write} from './store.js';
 
 const RELAXED = {durability: 'relaxed'};

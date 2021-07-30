@@ -36,9 +36,9 @@ import {
   subscriptionsForChangedKeys,
   subscriptionsForIndexDefinitionChanged,
 } from './subscriptions.js';
-import {MemStore} from './mem-store.js';
-import {IDBStore} from './idb-store.js';
-import {WrapStore} from './store.js';
+import {MemStore} from './kv/mem-store.js';
+import {IDBStore} from './kv/idb-store.js';
+import {WrapStore} from './kv/store.js';
 
 type BeginPullResult = {
   requestID: string;

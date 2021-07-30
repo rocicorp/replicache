@@ -19,8 +19,10 @@ export default {
   groups: [
     {
       name: 'Main',
-      files:
+      files: [
+        'src/kv/*.test.ts',
         'src/{replicache,connection-loop,json,subscriptions,rwlock}.test.ts',
+      ],
       browsers: [firefox, chromium, webkit],
     },
     {

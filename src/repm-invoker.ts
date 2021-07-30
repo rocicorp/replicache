@@ -4,7 +4,7 @@ import init, {dispatch} from './wasm/release/replicache_client.js';
 import type {InitOutput} from './wasm/release/replicache_client.js';
 import type {Puller} from './puller.js';
 import type {Pusher} from './pusher.js';
-import type {StoreWithRelease} from './store.js';
+import type {StoreWithRelease} from './kv/store.js';
 
 /**
  * This type is used for the [[ReplicacheOptions.wasmModule]] property.

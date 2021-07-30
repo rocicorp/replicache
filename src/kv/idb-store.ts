@@ -1,13 +1,14 @@
+import {deleteSentinel, WriteImplBase} from './write-impl-base';
 import type {Read, Store, Write} from './store.js';
 
 const RELAXED = {durability: 'relaxed'};
 const OBJECT_STORE = 'chunks';
 
-const OPEN = 0;
-const COMMITTED = 1;
-const ABORTED = 2;
-
-type WriteState = typeof OPEN | typeof COMMITTED | typeof ABORTED;
+const enum WriteState {
+  OPEN,
+  COMMITTED,
+  ABORTED,
+}
 
 export class IDBStore implements Store {
   private readonly _db: Promise<IDBDatabase>;
@@ -44,56 +45,21 @@ class ReadImpl {
   }
 
   async has(key: string): Promise<boolean> {
-    return hasImpl(this._tx, key);
+    return (await wrap(objectStore(this._tx).count(key))) > 0;
   }
 
   async get(key: string): Promise<Uint8Array | undefined> {
-    return getImpl(this._tx, key);
+    return wrap(objectStore(this._tx).get(key));
   }
 }
 
-const deleteSentinel = null;
-type DeleteSentinel = typeof deleteSentinel;
-
-class WriteImpl {
+class WriteImpl extends WriteImplBase {
   private readonly _tx: IDBTransaction;
-  private readonly _pending: Map<string, Uint8Array | DeleteSentinel> =
-    new Map();
   private _txState: Promise<WriteState> | undefined = undefined;
 
   constructor(tx: IDBTransaction) {
+    super(new ReadImpl(tx));
     this._tx = tx;
-  }
-
-  async has(key: string): Promise<boolean> {
-    switch (this._pending.get(key)) {
-      case undefined:
-        return await hasImpl(this._tx, key);
-      case deleteSentinel:
-        return false;
-      default:
-        return true;
-    }
-  }
-
-  async get(key: string): Promise<Uint8Array | undefined> {
-    const v = this._pending.get(key);
-    switch (v) {
-      case deleteSentinel:
-        return undefined;
-      case undefined:
-        return await getImpl(this._tx, key);
-      default:
-        return v as Uint8Array;
-    }
-  }
-
-  async put(key: string, value: Uint8Array): Promise<void> {
-    this._pending.set(key, value);
-  }
-
-  async del(key: string): Promise<void> {
-    this._pending.set(key, deleteSentinel);
   }
 
   private _registerTransaction(): void {
@@ -104,15 +70,15 @@ class WriteImpl {
     }
 
     const p = new Promise((resolve, reject) => {
-      tx.onabort = () => resolve(ABORTED);
-      tx.oncomplete = () => resolve(COMMITTED);
+      tx.onabort = () => resolve(WriteState.ABORTED);
+      tx.oncomplete = () => resolve(WriteState.COMMITTED);
       tx.onerror = () => reject(tx.error);
     });
     this._txState = p as Promise<WriteState>;
   }
 
   private _transactionState(): Promise<WriteState> {
-    return this._txState || Promise.resolve(OPEN);
+    return this._txState || Promise.resolve(WriteState.OPEN);
   }
 
   async commit(): Promise<void> {
@@ -125,7 +91,7 @@ class WriteImpl {
     this._registerTransaction();
     const store = objectStore(tx);
     const ps = Array.from(this._pending, ([key, val]) => {
-      if (val === null) {
+      if (val === deleteSentinel) {
         return wrap(store.delete(key));
       }
       return wrap(store.put(val, key));
@@ -133,7 +99,7 @@ class WriteImpl {
     await Promise.all(ps);
     const state = await this._transactionState();
 
-    if (state !== COMMITTED) {
+    if (state !== WriteState.COMMITTED) {
       throw new Error('Transaction aborted');
     }
   }
@@ -144,10 +110,10 @@ class WriteImpl {
     }
 
     switch (await this._transactionState()) {
-      case OPEN:
+      case WriteState.OPEN:
         break;
-      case COMMITTED:
-      case ABORTED:
+      case WriteState.COMMITTED:
+      case WriteState.ABORTED:
         return;
     }
 
@@ -156,7 +122,7 @@ class WriteImpl {
     tx.abort();
     const state = await this._transactionState();
 
-    if (state !== ABORTED) {
+    if (state !== WriteState.ABORTED) {
       throw new Error('Transaction abort failed');
     }
   }
@@ -174,17 +140,6 @@ async function openDatabase(name: string): Promise<IDBDatabase> {
     db.onversionchange = () => db.close();
   };
   return wrap(req);
-}
-
-function getImpl(
-  tx: IDBTransaction,
-  key: IDBValidKey | IDBKeyRange,
-): Promise<Uint8Array | undefined> {
-  return wrap(objectStore(tx).get(key));
-}
-
-async function hasImpl(tx: IDBTransaction, key: string): Promise<boolean> {
-  return (await wrap(objectStore(tx).count(key))) > 0;
 }
 
 function wrap<T>(req: IDBRequest<T>): Promise<T> {

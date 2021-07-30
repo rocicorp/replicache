@@ -23,18 +23,18 @@ export default async (req, res) => {
     await db.tx(async t => {
       const lastMutationID = parseInt(
         (
-          await db.oneOrNone(
+          await t.oneOrNone(
             'select last_mutation_id from replicache_client where id = $1',
             pull.clientID,
           )
         )?.last_mutation_id ?? '0',
       );
-      const changed = await db.manyOrNone(
+      const changed = await t.manyOrNone(
         'select id, sender, content, ord from message where version > $1',
         parseInt(pull.cookie ?? 0),
       );
       const cookie = (
-        await db.one('select max(version) as version from message')
+        await t.one('select max(version) as version from message')
       ).version;
       console.log({cookie, lastMutationID, changed});
 

@@ -31,6 +31,9 @@ module.exports = {
       ],
     },
     {
+      Recipes: ['recipe-blobs'],
+    },
+    {
       Samples: ['sample-chat', 'sample-replidraw'],
     },
     'launch-checklist',

@@ -2,9 +2,13 @@
  * Key-value store interface that is used with the experimental
  * [[ReplicacheOptions.experimentalKVStore]].
  *
- * The implementation does not need to take care of locking the read and write
- * transactions. Replicache will handle this so that [[read]]/[[write]] calls
- * are put in a read-write-lock.
+ * The implementation needs to take care of locking the read and write
+ * transactions. The required locking semantics are:
+ * - Multiple read transactions can be run concurrently.
+ * - Only a single write transaction can be run concurrently.
+ * - A write transaction cannot start until all read transactions have finished.
+ * - If a write transaction is running or waiting, new read transactions have to
+ *   wait until that write transaction is finished.
  *
  * @experimental This interface is experimental and might be removed or changed
  * in the future without following semver versioning. Please be cautious.

@@ -19,12 +19,6 @@ export interface Store {
   close(): Promise<void>;
 }
 
-export interface StoreWithRelease {
-  read(): Promise<Read & Release>;
-  write(): Promise<Write & Release>;
-  close(): Promise<void>;
-}
-
 /**
  * This interface is used so that we can release the lock when the transaction
  * is done.

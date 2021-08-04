@@ -141,7 +141,7 @@ pub mod trait_tests {
         assert!(!store.has("k1").await.unwrap());
 
         // Test del then rollback.
-        assert_eq!(true, store.has("k2").await.unwrap());
+        assert!(store.has("k2").await.unwrap());
         let wt = store.write(LogContext::new()).await.unwrap();
         wt.del("k2").await.unwrap();
         assert!(!wt.has("k2").await.unwrap());

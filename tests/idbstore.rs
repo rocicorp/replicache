@@ -38,14 +38,14 @@ pub mod idbstore {
 
         // Start a write transaction, and put a value on it.
         let wt = store.write(LogContext::new()).await.unwrap();
-        assert_eq!(false, wt.has("bar").await.unwrap());
+        assert!(!wt.has("bar").await.unwrap());
         wt.put("bar", b"baz").await.unwrap();
         assert_eq!(Some(b"baz".to_vec()), wt.get("bar").await.unwrap());
         wt.commit().await.unwrap();
 
         // Verify that the write was effective.
         let rt = store.read(LogContext::new()).await.unwrap();
-        assert_eq!(true, rt.has("bar").await.unwrap());
+        assert!(rt.has("bar").await.unwrap());
         assert_eq!(Some(b"baz".to_vec()), rt.get("bar").await.unwrap());
     }
 
@@ -55,20 +55,20 @@ pub mod idbstore {
 
         // Start a write transaction, and put a value on it.
         let wt = store.write(LogContext::new()).await.unwrap();
-        assert_eq!(false, wt.has("bar").await.unwrap());
+        assert!(!wt.has("bar").await.unwrap());
         wt.put("bar", b"baz").await.unwrap();
         wt.commit().await.unwrap();
 
         // Delete.
         let wt = store.write(LogContext::new()).await.unwrap();
-        assert_eq!(true, wt.has("bar").await.unwrap());
+        assert!(wt.has("bar").await.unwrap());
         wt.del("bar").await.unwrap();
-        assert_eq!(false, wt.has("bar").await.unwrap());
+        assert!(!wt.has("bar").await.unwrap());
         wt.commit().await.unwrap();
 
         // Verify that the delete was effective.
         let rt = store.read(LogContext::new()).await.unwrap();
-        assert_eq!(false, rt.has("bar").await.unwrap());
+        assert!(!rt.has("bar").await.unwrap());
         assert_eq!(None, rt.get("bar").await.unwrap());
     }
 
@@ -77,7 +77,7 @@ pub mod idbstore {
         let store = new_store().await;
 
         let wt = store.write(LogContext::new()).await.unwrap();
-        assert_eq!(false, wt.has("bar").await.unwrap());
+        assert!(!wt.has("bar").await.unwrap());
         wt.commit().await.unwrap();
     }
 
@@ -86,7 +86,7 @@ pub mod idbstore {
         let store = new_store().await;
 
         let wt = store.write(LogContext::new()).await.unwrap();
-        assert_eq!(false, wt.has("bar").await.unwrap());
+        assert!(!wt.has("bar").await.unwrap());
         wt.rollback().await.unwrap();
     }
 

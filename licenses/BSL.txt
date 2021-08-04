@@ -4,7 +4,7 @@ Parameters
 
 Licensor:             Rocicorp, LLC
 
-Licensed Work:        repc 0.32.1
+Licensed Work:        repc 0.32.2
                       The Licensed Work is (c) 2020 Rocicorp, LLC.
 
 Additional Use Grant: You may make use of the Licensed Work, provided you

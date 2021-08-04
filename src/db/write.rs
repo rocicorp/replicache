@@ -158,7 +158,7 @@ impl<'a> Write<'a> {
                 &self.dag_write,
                 index::IndexOperation::Remove,
                 &key,
-                &old_val,
+                old_val,
             )
             .await
             .map_err(RemoveOldIndexEntriesError)?;
@@ -194,7 +194,7 @@ impl<'a> Write<'a> {
                     &self.dag_write,
                     index::IndexOperation::Remove,
                     &key,
-                    &old_val,
+                    old_val,
                 )
                 .await
                 .map_err(UpdateIndexesError)?;

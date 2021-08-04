@@ -118,7 +118,7 @@ mod tests {
         app.at("/").post(|mut req: tide::Request<()>| async move {
             assert_eq!(
                 "Header Value",
-                req.header("X-Header-Name").unwrap().as_str()
+                req.header("X-Header-Name").unwrap().as_str(),
             );
             Ok(Response::builder(200).body(Body::from_string(req.body_string().await?)))
         });
@@ -135,8 +135,8 @@ mod tests {
                 .body(c.body.to_string())
                 .unwrap();
             let resp = Client::new().request(req).await.unwrap();
-            assert_eq!(c.status, resp.status());
-            assert_eq!(c.body, resp.body());
+            assert_eq!(c.status, resp.status(), "name: {}", c.name);
+            assert_eq!(c.body, resp.body(), "name: {}", c.name);
         }
         handle.cancel().await;
     }

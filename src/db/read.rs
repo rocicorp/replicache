@@ -127,7 +127,7 @@ impl<'a> Read<'a> {
                 let guard = idx.get_map(&self.dag_read).await.map_err(GetMapError)?;
                 super::scan::scan(guard.get_map(), opts_internal).for_each(callback)
             }
-            None => super::scan::scan(&self.map, opts_internal).for_each(callback),
+            None => super::scan::scan(self.map, opts_internal).for_each(callback),
         };
         Ok(())
     }

@@ -370,12 +370,12 @@ async fn add_changed_keys_for_indexes<'a>(
     let mut new_indexes = db::read_indexes(sync_head);
 
     for (old_index_name, old_index) in old_indexes {
-        let old_guard = old_index.get_map(&read).await.map_err(GetMapError)?;
+        let old_guard = old_index.get_map(read).await.map_err(GetMapError)?;
         let old_map = old_guard.get_map();
         if let Some(new_index) = new_indexes.get(&old_index_name) {
-            let new_guard = new_index.get_map(&read).await.map_err(GetMapError)?;
+            let new_guard = new_index.get_map(read).await.map_err(GetMapError)?;
             let new_map = new_guard.get_map();
-            let changed_keys = Map::changed_keys(&old_map, &new_map).map_err(InvalidUtf8)?;
+            let changed_keys = Map::changed_keys(old_map, new_map).map_err(InvalidUtf8)?;
             drop(new_guard);
             new_indexes.remove(&old_index_name);
             if !changed_keys.is_empty() {
@@ -383,7 +383,7 @@ async fn add_changed_keys_for_indexes<'a>(
             }
         } else {
             // old index name is not in the new indexes. All keys changed!
-            let changed_keys = all_keys(&old_map)?;
+            let changed_keys = all_keys(old_map)?;
             if !changed_keys.is_empty() {
                 changed_keys_map.insert(old_index_name, changed_keys);
             }
@@ -392,11 +392,11 @@ async fn add_changed_keys_for_indexes<'a>(
 
     for (new_index_name, new_index) in new_indexes {
         // new index name is not in the old indexes. All keys changed!
-        let guard = new_index.get_map(&read).await.map_err(GetMapError)?;
+        let guard = new_index.get_map(read).await.map_err(GetMapError)?;
         let new_map = guard.get_map();
-        let changed_keys = all_keys(&new_map)?;
+        let changed_keys = all_keys(new_map)?;
         if !changed_keys.is_empty() {
-            changed_keys_map.insert(new_index_name, all_keys(&new_map)?);
+            changed_keys_map.insert(new_index_name, all_keys(new_map)?);
         }
     }
 
@@ -486,7 +486,7 @@ impl Puller for FetchPuller<'_> {
             },
         };
         let pull_response = if ok {
-            Some(serde_json::from_str(&http_resp.body()).map_err(InvalidResponse)?)
+            Some(serde_json::from_str(http_resp.body()).map_err(InvalidResponse)?)
         } else {
             None
         };

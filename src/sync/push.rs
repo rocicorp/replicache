@@ -333,17 +333,11 @@ mod tests {
         let request_id = "TODO";
         let path = "/push";
 
-        let good_http_request_info = HttpRequestInfo {
-            http_status_code: http::StatusCode::OK.into(),
-            error_message: str!(""),
-        };
-
         struct Case<'a> {
             pub name: &'a str,
             pub resp_status: u16,
             pub resp_body: &'a str,
             pub exp_err: Option<&'a str>,
-            pub exp_http_request_info: HttpRequestInfo,
         }
         let cases = [
             Case {
@@ -351,24 +345,18 @@ mod tests {
                 resp_status: 200,
                 resp_body: r#"{}"#,
                 exp_err: None,
-                exp_http_request_info: good_http_request_info.clone(),
             },
             Case {
                 name: "403",
                 resp_status: 403,
                 resp_body: "forbidden",
                 exp_err: None,
-                exp_http_request_info: HttpRequestInfo {
-                    http_status_code: http::StatusCode::FORBIDDEN.into(),
-                    error_message: str!("forbidden"),
-                },
             },
             Case {
                 name: "invalid response",
                 resp_status: 200,
                 resp_body: r#"not json"#,
                 exp_err: None,
-                exp_http_request_info: good_http_request_info.clone(),
             },
         ];
 

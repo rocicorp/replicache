@@ -129,9 +129,9 @@ impl<'a> Write<'_> {
         // Now we go through the mutated chunks to see if any of them are still orphaned.
         let mutated_chunks = self.mutated_chunks.read().await;
         try_join_all(mutated_chunks.iter().map(|hash| async move {
-            let count = self.get_ref_count(&hash).await?;
+            let count = self.get_ref_count(hash).await?;
             if count == 0u16 {
-                self.remove_all_related_keys(&hash, false).await?;
+                self.remove_all_related_keys(hash, false).await?;
             }
             Ok(()) as Result<()>
         }))

@@ -120,7 +120,7 @@ impl Commit {
     pub async fn from_hash(hash: &str, dag_read: &dag::Read<'_>) -> Result<Commit, FromHashError> {
         use FromHashError::*;
         let chunk = dag_read
-            .get_chunk(&hash)
+            .get_chunk(hash)
             .await
             .map_err(GetChunkFailed)?
             .ok_or_else(|| ChunkMissing(hash.to_string()))?;
@@ -268,7 +268,7 @@ impl Commit {
     }
 
     fn commit(&self) -> commit_fb::Commit {
-        commit_fb::get_root_as_commit(&self.chunk.data())
+        commit_fb::get_root_as_commit(self.chunk.data())
     }
 
     fn new_impl(
@@ -540,6 +540,7 @@ pub enum LoadError {
 }
 
 #[derive(Debug, PartialEq)]
+#[allow(clippy::enum_variant_names)]
 pub enum ValidateIndexDefinitionError {
     MissingName,
     MissingKeyPrefix,

@@ -16,7 +16,7 @@ pub async fn init(s: &dyn Store, lc: LogContext) -> Result<String, InitClientIdE
     }
     let wt = s.write(lc).await.map_err(OpenErr)?;
     let uuid = uuid().map_err(UuidErr)?;
-    wt.put(CID_KEY, &uuid.as_bytes())
+    wt.put(CID_KEY, uuid.as_bytes())
         .await
         .map_err(PutClientIdErr)?;
     wt.commit().await.map_err(CommitErr)?;

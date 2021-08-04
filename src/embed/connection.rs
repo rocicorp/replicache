@@ -279,6 +279,7 @@ async fn execute<'a, 'b>(
 }
 
 #[derive(Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum DoInitError {
     WriteError(dag::Error),
     GetHeadError(dag::Error),

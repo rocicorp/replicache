@@ -21,7 +21,7 @@ export default {
       name: 'Main',
       files: [
         'src/kv/*.test.ts',
-        'src/{replicache,connection-loop,json,subscriptions,rwlock}.test.ts',
+        'src/{replicache,connection-loop,json,subscriptions,rw-lock}.test.ts',
       ],
       browsers: [firefox, chromium, webkit],
     },

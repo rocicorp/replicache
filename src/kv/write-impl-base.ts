@@ -42,4 +42,8 @@ export class WriteImplBase {
   async del(key: string): Promise<void> {
     this._pending.set(key, deleteSentinel);
   }
+
+  release(): void {
+    this._read.release();
+  }
 }

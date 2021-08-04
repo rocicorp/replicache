@@ -38,7 +38,7 @@ import {
 } from './subscriptions.js';
 import {MemStore} from './kv/mem-store.js';
 import {IDBStore} from './kv/idb-store.js';
-import {ReleasableStore} from './kv/store.js';
+import type {Store} from './kv/store.js';
 
 type BeginPullResult = {
   requestID: string;
@@ -180,7 +180,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   private readonly _requestOptions: Required<RequestOptions>;
   private readonly _puller: Puller;
   private readonly _pusher: Pusher;
-  private readonly _store: ReleasableStore;
+  private readonly _store: Store;
 
   /**
    * The options used to control the [[pull]] and push request behavior. This
@@ -256,11 +256,10 @@ export class Replicache<MD extends MutatorDefs = {}>
     this._useMemstore = useMemstore;
     this._puller = puller;
     this._pusher = pusher;
-    this._store = new ReleasableStore(
+    this._store =
       experimentalKVStore || this._useMemstore
         ? new MemStore()
-        : new IDBStore(this._name),
-    );
+        : new IDBStore(this._name);
 
     // Use a promise-resolve pair so that we have a promise to use even before
     // we call the Open RPC.

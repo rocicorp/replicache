@@ -51,6 +51,10 @@ class ReadImpl {
   async get(key: string): Promise<Uint8Array | undefined> {
     return wrap(objectStore(this._tx).get(key));
   }
+
+  release(): void {
+    // Do nothing. We rely on IDB locking.
+  }
 }
 
 class WriteImpl extends WriteImplBase {
@@ -86,10 +90,8 @@ class WriteImpl extends WriteImplBase {
       return;
     }
 
-    const tx = this._tx;
-
     this._registerTransaction();
-    const store = objectStore(tx);
+    const store = objectStore(this._tx);
     const ps = Array.from(this._pending, ([key, val]) => {
       if (val === deleteSentinel) {
         return wrap(store.delete(key));
@@ -117,14 +119,17 @@ class WriteImpl extends WriteImplBase {
         return;
     }
 
-    const tx = this._tx;
     this._registerTransaction();
-    tx.abort();
+    this._tx.abort();
     const state = await this._transactionState();
 
     if (state !== WriteState.ABORTED) {
       throw new Error('Transaction abort failed');
     }
+  }
+
+  release(): void {
+    // Do nothing. We rely on IDB locking.
   }
 }
 

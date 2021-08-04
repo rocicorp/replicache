@@ -1,12 +1,25 @@
-import {assert, expect} from '@esm-bundle/chai';
-import {Read, Store, ReleasableStore, Write} from './store.js';
+import {expect} from '@esm-bundle/chai';
+import type {Read, Store, Write} from './store.js';
 
-const {fail} = assert;
+class TestStore implements Store {
+  private readonly _store: Store;
 
-/**
- * Creates a new store that wraps read and write in an RWLock.
- */
-class TestReleasableStore extends ReleasableStore {
+  constructor(store: Store) {
+    this._store = store;
+  }
+
+  read(): Promise<Read> {
+    return this._store.read();
+  }
+
+  write(): Promise<Write> {
+    return this._store.write();
+  }
+
+  close(): Promise<void> {
+    return this._store.close();
+  }
+
   async withRead<T>(fn: (read: Read) => Promise<T> | T): Promise<T> {
     let read;
     try {
@@ -50,24 +63,36 @@ class TestReleasableStore extends ReleasableStore {
   }
 }
 
-export async function runAll(
+export function runAll(
+  name: string,
   newStore: () => Promise<Store> | Store,
-): Promise<void> {
-  let s = new TestReleasableStore(await newStore());
-  await store(s);
-  s = new TestReleasableStore(await newStore());
-  await readTransaction(s);
-  s = new TestReleasableStore(await newStore());
-  await writeTransaction(s);
-  s = new TestReleasableStore(await newStore());
-  await isolation(s);
+): void {
+  test(`store (${name})`, async () => {
+    const s = new TestStore(await newStore());
+    await store(s);
+  });
+
+  test(`store readTransaction (${name})`, async () => {
+    const s = new TestStore(await newStore());
+    await readTransaction(s);
+  });
+
+  test(`store writeTransaction (${name})`, async () => {
+    const s = new TestStore(await newStore());
+    await writeTransaction(s);
+  });
+
+  test(`store isolation (${name})`, async () => {
+    const s = new TestStore(await newStore());
+    await isolation(s);
+  });
 }
 
 function b(x: TemplateStringsArray): Uint8Array {
   return new TextEncoder().encode(x[0]);
 }
 
-async function store(store: TestReleasableStore): Promise<void> {
+async function store(store: TestStore): Promise<void> {
   // Test put/has/get, which use read() and write() for one-shot txs.
   expect(await store.has('foo')).to.be.false;
   expect(await store.get('foo')).to.be.undefined;
@@ -87,7 +112,7 @@ async function store(store: TestReleasableStore): Promise<void> {
   expect(await store.get('baz')).to.deep.equal(b`bat`);
 }
 
-async function readTransaction(store: TestReleasableStore): Promise<void> {
+async function readTransaction(store: TestStore): Promise<void> {
   await store.put('k1', b`v1`);
 
   await store.withRead(async rt => {
@@ -96,7 +121,7 @@ async function readTransaction(store: TestReleasableStore): Promise<void> {
   });
 }
 
-async function writeTransaction(store: TestReleasableStore): Promise<void> {
+async function writeTransaction(store: TestStore): Promise<void> {
   await store.put('k1', b`v1`);
   await store.put('k2', b`v2`);
 
@@ -151,78 +176,112 @@ async function writeTransaction(store: TestReleasableStore): Promise<void> {
   });
 }
 
-async function isolation(store: ReleasableStore): Promise<void> {
-  // Assert there can be multiple concurrent read txs...
-  const r1 = await store.read();
-  const r2 = await store.read();
+async function isolation(store: Store): Promise<void> {
+  // Things we want to test:
+  // - Multiple readers can read at the same time.
+  // - A write transaction must wait until all readers are done.
+  // - Only one writer can write at a time.
+  // - If a writer is waiting no new readers or writers can access the store.
 
-  // and that while outstanding they prevent write txs...
-  const dur = 200;
-  const w = store.write();
-  w.then(w => w.release());
+  const log: string[] = [];
 
-  if (await timeout(dur, w)) {
-    console.error('2 open read tx should have prevented new write');
-    fail();
-  }
-  // until both the reads are done...
-  r1.release();
+  const r1 = store.read().then(async r => {
+    log.push('r1 start');
+    expect(await r.has('k1')).to.be.false;
+    log.push('r1 touched store');
+    expect(await r.get('k1')).to.be.undefined;
+    log.push('r1 end');
+    r.release();
+  });
+  const r2 = store.read().then(async r => {
+    log.push('r2 start');
+    expect(await r.has('k1')).to.be.false;
+    log.push('r2 touched store');
+    expect(await r.get('k1')).to.be.undefined;
+    log.push('r2 end');
+    r.release();
+  });
+  const w1 = store.write().then(async w => {
+    log.push('w1 start');
+    expect(await w.has('k1')).to.be.false;
+    log.push('w1 touched store');
+    expect(await w.get('k1')).to.be.undefined;
 
-  {
-    const w = store.write();
-    w.then(w => w.release());
-    if (await timeout(dur, w)) {
-      console.error('1 open read tx should have prevented new write');
-      fail();
+    log.push('w1 mutated store');
+    await w.put('k1', b`w1`);
+
+    log.push('w1 end');
+    await w.commit();
+    w.release();
+  });
+  const w2 = store.write().then(async w => {
+    log.push('w2 start');
+    expect(await w.has('k1')).to.be.true;
+    log.push('w2 touched store');
+    expect(await w.get('k1')).to.deep.equal(b`w1`);
+
+    log.push('w2 mutated store');
+    await w.put('k1', b`w2`);
+
+    log.push('w2 end');
+    await w.commit();
+    w.release();
+  });
+  const r3 = store.read().then(async r => {
+    log.push('r3 start');
+    expect(await r.has('k1')).to.be.true;
+    log.push('r3 touched store');
+    expect(await r.get('k1')).to.deep.equal(b`w2`);
+    log.push('r3 end');
+    r.release();
+  });
+
+  await Promise.all([r1, r2, w1, w2, r3]);
+
+  // We allow some lee-way for the ordering as long as the actual reads
+  // (get/has) and writes (put/del) are ordered correctly. This is to allow
+  // IndexedDB which does not queue on transaction creation but on the actual
+  // requests done in the transaction.
+
+  function assertOrder(...items: string[]) {
+    let last = -1;
+    for (const item of items) {
+      expect(log.indexOf(item)).to.be.greaterThan(last);
+      last = log.indexOf(item);
     }
-    r2.release();
-
-    {
-      const w = await store.write();
-
-      // At this point we have a write tx outstanding. Assert that
-      // we cannot open another write transaction.
-      {
-        const w2 = store.write();
-        w2.then(w2 => w2.release());
-        if (await timeout(dur, w2)) {
-          console.error('1 open write tx should have prevented new write');
-          fail();
-        }
-
-        // The write tx is still outstanding, ensure we cannot open
-        // a read tx until it is finished.
-        const r = store.read();
-        r.then(r => r.release());
-        if (await timeout(dur, r)) {
-          console.error('1 open write tx should have prevented new read');
-          fail();
-        }
-        await w.rollback();
-        w.release();
-
-        {
-          const r = await store.read();
-          expect(await r.has('foo')).to.be.false;
-        }
-      }
-    }
   }
-}
 
-async function timeout(dur: number, w: Promise<unknown>): Promise<boolean> {
-  const sentinel = {};
-  const result = await Promise.race([sleep(dur, sentinel), w]);
-  if (result === sentinel) {
-    return false;
-  }
-  return true;
-}
+  assertOrder('r1 start', 'r1 touched store', 'r1 end');
+  assertOrder('r2 start', 'r2 touched store', 'r2 end');
+  assertOrder('w1 start', 'w1 touched store', 'w1 mutated store', 'w1 end');
+  assertOrder('w2 start', 'w2 touched store', 'w2 mutated store', 'w2 end');
+  assertOrder('r3 start', 'r3 touched store', 'r3 end');
 
-function sleep<T>(ms: number, v: T): Promise<T> {
-  return new Promise(resolve =>
-    setTimeout(() => {
-      resolve(v);
-    }, ms),
+  assertOrder('r1 start', 'r2 start', 'w1 start', 'w2 start', 'r3 start');
+
+  assertOrder('r1 end', 'w1 end', 'w2 end', 'r3 end');
+  assertOrder('r2 end', 'w1 end', 'w2 end', 'r3 end');
+
+  assertOrder(
+    'r1 touched store',
+    'r2 touched store',
+    'w1 touched store',
+    'w2 touched store',
+    'r3 touched store',
   );
+
+  assertOrder(
+    'r1 touched store',
+    'r2 touched store',
+    'w1 mutated store',
+    'w2 mutated store',
+    'r3 touched store',
+  );
+
+  assertOrder('r1 end', 'w1 touched store');
+  assertOrder('r2 end', 'w1 touched store');
+
+  assertOrder('w1 end', 'w2 touched store');
+
+  assertOrder('w2 end', 'r3 touched store');
 }

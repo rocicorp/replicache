@@ -1,26 +1,33 @@
+import {RWLock} from '../rw-lock.js';
 import type {Read, Store, Write} from './store.js';
 import {deleteSentinel, WriteImplBase} from './write-impl-base.js';
 
 export class MemStore implements Store {
   private readonly _map: Map<string, Uint8Array> = new Map();
+  private readonly _rwLock = new RWLock();
 
   async read(): Promise<Read> {
-    return new ReadImpl(this._map);
+    const release = await this._rwLock.read();
+    return new ReadImpl(this._map, release);
   }
 
   async write(): Promise<Write> {
-    return new WriteImpl(this._map);
+    const release = await this._rwLock.write();
+    return new WriteImpl(this._map, release);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  async close(): Promise<void> {}
+  async close(): Promise<void> {
+    // No-op.
+  }
 }
 
 class ReadImpl {
   private readonly _map: Map<string, Uint8Array>;
+  readonly release: () => void;
 
-  constructor(map: Map<string, Uint8Array>) {
+  constructor(map: Map<string, Uint8Array>, relase: () => void) {
     this._map = map;
+    this.release = relase;
   }
 
   async has(key: string): Promise<boolean> {
@@ -35,8 +42,8 @@ class ReadImpl {
 class WriteImpl extends WriteImplBase {
   private readonly _map: Map<string, Uint8Array>;
 
-  constructor(map: Map<string, Uint8Array>) {
-    super(new ReadImpl(map));
+  constructor(map: Map<string, Uint8Array>, release: () => void) {
+    super(new ReadImpl(map, release));
     this._map = map;
   }
 
@@ -48,8 +55,10 @@ class WriteImpl extends WriteImplBase {
         this._map.set(k, v);
       }
     }
+    this._pending.clear();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  async rollback(): Promise<void> {}
+  async rollback(): Promise<void> {
+    this._pending.clear();
+  }
 }

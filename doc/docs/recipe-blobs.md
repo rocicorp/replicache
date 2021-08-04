@@ -3,8 +3,8 @@ title: Blobs
 slug: /recipes/blobs
 ---
 
-Binary data is often referred to as "blobs". This recipe shows a few ways to use binary
-data in Replicache.
+Binary data is often referred to as "blobs". This recipe shows a few ways to use
+binary data in Replicache.
 
 The data model in Replicache is [JSON](https://www.json.org/json-en.html). JSON
 does not have a way to represent binary data efficiently. Depending on your use
@@ -165,13 +165,26 @@ async function getUserData(rep: Replicache, id: string): Promise<User> {
 
 ## Storing binary data outside of Replicache
 
-It is also possible to store binary data outside of Replicache. This is useful
-when the data is large and you do not want the overhead of base64 encoding.
-Another reason might be that you want to store the files directly to S3 or
-something similar.
+It is also possible to store binary data outside of Replicache.
 
-This gets significantly more complicated since the data is no longer kept in
-sync by Replicache and you need to manage the syncing yourself.
+This gets significantly more complicated and it is important to point out that
+since the data is no longer managed by Replicahce there is no guarantee that the
+blobs stays consistend with the state of Replicache. User code needs to handle
+the case where a referenced blob isn't downloaded yet as well as manage the
+syncing of the blobs.
+
+The main reason to store binary data outside the client view (outside
+Replicache) is to exceed the size limits of the client view of Replicache itself
+as well as the size limit imposed by "serverless" servers. For example [AWS
+Lambda](https://aws.amazon.com/lambda/) limits the size of response/requst to
+[6MB](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html).
+When using things like [Amazon S3](https://aws.amazon.com/s3/) for the actual
+storage you can upload and download directly to the S3 bucket which allows you
+to sidestep the request size limit of you server functions.
+
+Another benifit of this approach is that we do not need to read large blobs into
+memory and we can let the browser keep things on disk as needed. This might be
+important if your app is working with large media files for example.
 
 To make things a little bit simpler we are going to treat blobs as immutable and
 use content adressed data.
@@ -201,12 +214,14 @@ view. We subscribe to changes of a keyspace of the client view and whenever this
 changes we download the files as needed.
 
 ```ts
+const blobPrefx = 'blob/';
+
 rep.subscribe(
-  (tx: ReadTransaction) => tx.scan({prefix: 'blob/'}).keys().toArray(),
+  (tx: ReadTransaction) => tx.scan({prefix: blobPrefix}).keys().toArray(),
   {
     async onData(keys: string[]) {
       for (const key of keys) {
-        const hash = key.slice('blob/'.length);
+        const hash = key.slice(blobPrefix.length);
         await downloadBlob(hash);
       }
     },
@@ -216,10 +231,13 @@ rep.subscribe(
 // This should be the same as the name used with Replicache.
 const cacheName = 'profile-pictures';
 
+const blobURL = hash => `/blob/${hash}`;
+const blobKey = hash => `blob/${hash}`;
+
 async function downloadBlob(hash: string) {
   // Check if we already have the blob.
   const cache = await caches.open(cacheName);
-  const url = `/blob/${hash}`;
+  const url = blobURL(hash);
   const resp = await cache.match(url);
   if (!resp) {
     // not in cache
@@ -238,31 +256,32 @@ async function downloadBlob(hash: string) {
 
 We could just upload the blob and sync the data using a `pull`, which would in
 turn download the file. This is the simplest way to do it but the downside is
-that we have to redownload the file directly after we upload it. One way to
-prevent this is to keep the uploaded state in the client view as well.
+that we have to redownload the file directly after we upload it. This is going
+to be slow, especially for large media files. One way to prevent this is to add
+the file to the cache and keep the uploaded state in the client view as well.
 
 ```ts
-async function uploadBlob(rep, data, hash) {
+async function uploadBlob(rep: Replicache, data: Uint8Array, hash: string) {
   // Since we already have the blob here, we might as well add it to
   // the cache instead of redownloading it.
   await addBlobToCache(hash, data);
-  const resp = await fetch(`/blob/${hash}`, {
+  const resp = await fetch(blobURL(hash), {
     method: 'PUT',
     body: data,
   });
   await rep.mutate.addBlob({hash, uploaded: resp.ok});
 }
 
-async function addBlobToCache(hash, data) {
+async function addBlobToCache(hash: string, data: Uint8Array) {
   const cache = await caches.open(cacheName);
   const blob = new Blob([data]);
-  await cache.put(`blob/${hash}`, new Response(blob));
+  await cache.put(blobURL(hash), new Response(blob));
 }
 
 const rep = new Replicache({
   mutators: {
     async addBlob(tx, {hash, uploaded}) {
-      await tx.put(`blob/${hash}`, {uploaded});
+      await tx.put(blobKey(hash), {uploaded});
     },
   },
 });
@@ -278,11 +297,11 @@ subscription to deal with both upload and download now that we are keeping track
 of the uploaded state.
 
 ```ts
-rep.subscribe(tx => tx.scan({prefix: 'blob/'}).entries().toArray(), {
-  async onData(blobs) {
+rep.subscribe(tx => tx.scan({prefix: blobPrefix}).entries().toArray(), {
+  async onData(blobs: [string, {uploaded: boolean}][]) {
     const cache = await caches.open(cacheName);
     for (const [key, value] of blobs) {
-      const hash = key.slice('blob/'.length);
+      const hash = key.slice(blobPrefix.length);
       const {uploaded} = value;
       await syncBlob(rep, cache, hash, uploaded);
     }
@@ -307,17 +326,20 @@ async function syncBlob(rep, cache, hash, uploaded) {
     }
   }
 }
+```
 
-// Change download blob to do nothing but download
+Change download blob to do nothing but download...
+
+```ts
 async function downloadBlob(hash) {
   return await fetch(blobURL(hash));
 }
 ```
 
-The above code should now work for both upload and download. When we add data we
-register the hash in Replicache and we store the blob in a CacheStorage cache.
-We subscribe to changes in Replicache keys starting with `'blob/'` and resync
-the file as needed when this changes.
+The above code should now work for both upload and download. When we add a blob
+we register the hash in Replicache and we store the blob in a CacheStorage
+cache. We subscribe to changes in Replicache keys starting with `'blob/'` and
+resync the file as needed when this changes.
 
 #### Pull Response
 
@@ -325,6 +347,6 @@ The above works well for blobs added by the current client. However, if we want
 to get blobs from other clients we need to ensure that the pull resonponse
 includes the hashes of the blobs from them too.
 
-In this simple case we can just check when a key starting with `user/` is
-included in the pull response and also add an op the blob key in that case as
+In this simple case we can check if a key starting with `user/` is included in
+the pull response and if so also add an op to set the blob key in that case as
 well. In a more mature system you probably want to design a more solid solution.

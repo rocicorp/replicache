@@ -59,30 +59,25 @@ class ReadImpl {
 
 class WriteImpl extends WriteImplBase {
   private readonly _tx: IDBTransaction;
-  private _txState: Promise<WriteState> | undefined = undefined;
+  private readonly _onTxEnd: Promise<void>;
+  private _txState = WriteState.OPEN;
 
   constructor(tx: IDBTransaction) {
     super(new ReadImpl(tx));
     this._tx = tx;
+    this._onTxEnd = this._addTransactionListeners();
   }
 
-  private _registerTransaction(): void {
+  private async _addTransactionListeners(): Promise<void> {
     const tx = this._tx;
-
-    if (this._txState) {
-      throw new Error('invalid state');
-    }
-
-    const p = new Promise((resolve, reject) => {
+    const p: Promise<WriteState> = new Promise((resolve, reject) => {
       tx.onabort = () => resolve(WriteState.ABORTED);
       tx.oncomplete = () => resolve(WriteState.COMMITTED);
       tx.onerror = () => reject(tx.error);
     });
-    this._txState = p as Promise<WriteState>;
-  }
 
-  private _transactionState(): Promise<WriteState> {
-    return this._txState || Promise.resolve(WriteState.OPEN);
+    // When the transaction completes/aborts, set the state.
+    this._txState = await p;
   }
 
   async commit(): Promise<void> {
@@ -90,7 +85,6 @@ class WriteImpl extends WriteImplBase {
       return;
     }
 
-    this._registerTransaction();
     const store = objectStore(this._tx);
     const ps = Array.from(this._pending, ([key, val]) => {
       if (val === deleteSentinel) {
@@ -99,19 +93,15 @@ class WriteImpl extends WriteImplBase {
       return wrap(store.put(val, key));
     });
     await Promise.all(ps);
-    const state = await this._transactionState();
+    await this._onTxEnd;
 
-    if (state !== WriteState.COMMITTED) {
+    if (this._txState !== WriteState.COMMITTED) {
       throw new Error('Transaction aborted');
     }
   }
 
   async rollback(): Promise<void> {
-    if (this._pending.size === 0) {
-      return;
-    }
-
-    switch (await this._transactionState()) {
+    switch (this._txState) {
       case WriteState.OPEN:
         break;
       case WriteState.COMMITTED:
@@ -119,17 +109,23 @@ class WriteImpl extends WriteImplBase {
         return;
     }
 
-    this._registerTransaction();
     this._tx.abort();
-    const state = await this._transactionState();
+    await this._onTxEnd;
 
-    if (state !== WriteState.ABORTED) {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore TS does not know that _txState may change between the check
+    // above and here.
+    if (this._txState !== WriteState.ABORTED) {
       throw new Error('Transaction abort failed');
     }
   }
 
   release(): void {
-    // Do nothing. We rely on IDB locking.
+    if (this._txState === WriteState.OPEN && this._pending.size !== 0) {
+      throw new Error(
+        'IDBStore Write transaction is still open with pending writes',
+      );
+    }
   }
 }
 

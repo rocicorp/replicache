@@ -173,6 +173,7 @@ async function writeTransaction(store: TestStore): Promise<void> {
     await wt.put('k2', b`new value`);
     expect(await wt.has('k2')).to.be.true;
     expect(await wt.get('k2')).to.deep.equal(b`new value`);
+    await wt.commit();
   });
 }
 

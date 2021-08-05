@@ -1,14 +1,15 @@
 /**
- * Key-value store interface that is used with the experimental
- * [[ReplicacheOptions.experimentalKVStore]].
+ * Store defines a transactional key/value store that Replicache stores all data
+ * within.
  *
- * The implementation needs to take care of locking the read and write
- * transactions. The required locking semantics are:
- * - Multiple read transactions can be run concurrently.
- * - Only a single write transaction can be run concurrently.
- * - A write transaction cannot start until all read transactions have finished.
- * - If a write transaction is running or waiting, new read transactions have to
- *   wait until that write transaction is finished.
+ * For correct operation of Replicache, implementations of this interface must
+ * provide [strict
+ * serializable](https://jepsen.io/consistency/models/strict-serializable)
+ * transactions.
+ *
+ * Informally, read and write transactions must behave like a ReadWrite Lock -
+ * multiple read transactions are allowed in parallel, or one write.
+ * Additionally writes from a transaction must appear all at one, atomically.
  *
  * @experimental This interface is experimental and might be removed or changed
  * in the future without following semver versioning. Please be cautious.

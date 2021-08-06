@@ -138,7 +138,6 @@ async function writeTransaction(store: TestStore): Promise<void> {
   // Test put then rollback.
   await store.withWrite(async wt => {
     await wt.put('k1', b`should be rolled back`);
-    await wt.rollback();
   });
   expect(await store.get('k1')).to.deep.equal(b`overwrite`);
 
@@ -155,7 +154,6 @@ async function writeTransaction(store: TestStore): Promise<void> {
   await store.withWrite(async wt => {
     await wt.del('k2');
     expect(await wt.has('k2')).to.be.false;
-    await wt.rollback();
   });
   expect(await store.has('k2')).to.be.true;
 

@@ -47,5 +47,4 @@ export interface Write extends Read {
   put(key: string, value: Uint8Array): Promise<void>;
   del(key: string): Promise<void>;
   commit(): Promise<void>;
-  rollback(): Promise<void>;
 }

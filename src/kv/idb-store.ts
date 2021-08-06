@@ -100,32 +100,8 @@ class WriteImpl extends WriteImplBase {
     }
   }
 
-  async rollback(): Promise<void> {
-    switch (this._txState) {
-      case WriteState.OPEN:
-        break;
-      case WriteState.COMMITTED:
-      case WriteState.ABORTED:
-        return;
-    }
-
-    this._tx.abort();
-    await this._onTxEnd;
-
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore TS does not know that _txState may change between the check
-    // above and here.
-    if (this._txState !== WriteState.ABORTED) {
-      throw new Error('Transaction abort failed');
-    }
-  }
-
   release(): void {
-    if (this._txState === WriteState.OPEN && this._pending.size !== 0) {
-      throw new Error(
-        'IDBStore Write transaction is still open with pending writes',
-      );
-    }
+    // We rely on IDB locking so no need to do anything here.
   }
 }
 

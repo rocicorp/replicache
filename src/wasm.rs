@@ -4,17 +4,6 @@ use wasm_bindgen::JsValue;
 
 use crate::embed;
 use crate::embed::Rpc;
-use crate::kv::idbstore::IdbStore;
-use crate::kv::Store;
-
-#[cfg(not(default))]
-pub async fn new_idbstore(name: String) -> Option<Box<dyn Store>> {
-    init_panic_hook();
-    match IdbStore::new(&name).await {
-        Ok(store) => Some(Box::new(store)),
-        _ => None,
-    }
-}
 
 #[wasm_bindgen]
 pub async fn dispatch(db_name: String, rpc: u8, args: JsValue) -> Result<JsValue, JsValue> {

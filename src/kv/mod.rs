@@ -1,10 +1,10 @@
-pub mod idbstore;
 pub mod jsstore;
 pub mod memstore;
 
-use crate::util::rlog::LogContext;
+use crate::util::{rlog::LogContext, to_debug};
 use async_trait::async_trait;
 use std::fmt;
+use wasm_bindgen::JsValue;
 
 #[derive(Debug, PartialEq)]
 pub enum StoreError {
@@ -16,6 +16,19 @@ impl fmt::Display for StoreError {
         match self {
             StoreError::Str(s) => write!(f, "{}", s),
         }
+    }
+}
+
+impl From<String> for StoreError {
+    fn from(err: String) -> StoreError {
+        StoreError::Str(err)
+    }
+}
+
+impl From<JsValue> for StoreError {
+    fn from(err: JsValue) -> StoreError {
+        // TODO(nate): Pick out a useful subset of this value.
+        StoreError::Str(to_debug(err))
     }
 }
 

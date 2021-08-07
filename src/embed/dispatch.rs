@@ -1,8 +1,6 @@
-use super::types::OpenRequest;
 use super::Rpc;
 use crate::dag;
 use crate::embed::connection;
-use crate::kv::idbstore::IdbStore;
 use crate::kv::jsstore::JsStore;
 use crate::kv::memstore::MemStore;
 use crate::kv::Store;
@@ -122,25 +120,12 @@ async fn do_open(conns: &mut ConnMap, req: &Request) -> Response {
         .into());
     }
 
-    let open_req = serde_wasm_bindgen::from_value::<OpenRequest>(req.data.clone())
-        .map_err(|e| JsValue::from_str(&format!("Failed to read open request options: {}", e)))?;
-
     let js_store = js_sys::Reflect::get(&req.data, &JsValue::from("store"))?;
 
     let kv: Box<dyn Store> = if !js_store.is_undefined() {
         Box::new(JsStore::new(js_store))
-    } else if open_req.use_memstore {
-        Box::new(MemStore::new())
     } else {
-        match IdbStore::new(&req.db_name[..]).await {
-            Err(e) => {
-                return Err(JsValue::from_str(&format!(
-                    "Failed to open \"{}\": {}",
-                    req.db_name, e
-                )))
-            }
-            Ok(store) => Box::new(store),
-        }
+        Box::new(MemStore::new())
     };
 
     let client_id = sync::client_id::init(kv.as_ref(), req.lc.clone())

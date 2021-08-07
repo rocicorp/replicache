@@ -4,10 +4,7 @@ use crate::db::{self, ChangedKeysMap};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct OpenRequest {
-    #[serde(rename = "useMemstore")]
-    pub use_memstore: bool,
-}
+pub struct OpenRequest {}
 
 // Note: index transactions are closed or committed using the regular
 // (Commit|Close)Transaction RPC.

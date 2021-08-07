@@ -740,7 +740,7 @@ mod tests {
             let opts: Result<ScanOptionsInternal, _> = opts.try_into();
             let actual = scan(&map, opts.unwrap())
                 .map(|sr| match sr {
-                    ScanResult::Error(e) => panic!(e),
+                    ScanResult::Error(e) => panic!("{:?}", e),
                     ScanResult::Item(item) => item,
                 })
                 .collect::<Vec<_>>();

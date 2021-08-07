@@ -125,3 +125,7 @@ function wrap<T>(req: IDBRequest<T>): Promise<T> {
     req.onerror = () => reject(req.error);
   });
 }
+
+export async function dropStore(name: string): Promise<void> {
+  await wrap(indexedDB.deleteDatabase(name));
+}

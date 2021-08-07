@@ -1,18 +1,39 @@
-import {runAll} from './store-test-util.js';
-import {IDBStore} from './idb-store.js';
+import {b, runAll, TestStore} from './store-test-util.js';
+import {dropStore, IDBStore} from './idb-store.js';
+import {expect} from '@esm-bundle/chai';
 
-let c = 0;
-
-runAll('idbstore', async () => {
-  const name = `test-idbstore-${c++}`;
-  await deletaDatabase(name);
+async function newRandomIDBStore() {
+  const name = `test-idbstore-${Math.random()}`;
+  await dropStore(name);
   return new IDBStore(name);
-});
-
-function deletaDatabase(name: string): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    const request = indexedDB.deleteDatabase(name);
-    request.onsuccess = () => resolve();
-    request.onerror = e => reject(e);
-  });
 }
+
+runAll('idbstore', newRandomIDBStore);
+
+test('dropStore', async () => {
+  const name = `drop-store-${Math.random()}`;
+  await dropStore(name);
+  let idb = new IDBStore(name);
+  let store = new TestStore(idb);
+
+  // Write a value.
+  await store.withWrite(async wt => {
+    await wt.put('foo', b`bar`);
+    await wt.commit();
+  });
+
+  // Verify it's there.
+  await store.withRead(async rt => {
+    expect(await rt.get('foo')).to.deep.equal(b`bar`);
+  });
+
+  // Drop db
+  dropStore(name);
+
+  // Reopen store, verify data is gone
+  idb = new IDBStore(name);
+  store = new TestStore(idb);
+  await store.withRead(async rt => {
+    expect(await rt.has('foo')).to.be.false;
+  });
+});

@@ -56,9 +56,6 @@ class WriteImpl extends WriteImplBase {
       }
     }
     this._pending.clear();
-  }
-
-  async rollback(): Promise<void> {
-    this._pending.clear();
+    this.release();
   }
 }

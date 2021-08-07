@@ -1,7 +1,7 @@
 import {expect} from '@esm-bundle/chai';
 import type {Read, Store, Write} from './store.js';
 
-class TestStore implements Store {
+export class TestStore implements Store {
   private readonly _store: Store;
 
   constructor(store: Store) {
@@ -67,29 +67,92 @@ export function runAll(
   name: string,
   newStore: () => Promise<Store> | Store,
 ): void {
-  test(`store (${name})`, async () => {
-    const s = new TestStore(await newStore());
-    await store(s);
+  const funcs = [
+    store,
+    simpleCommit,
+    del,
+    readOnlyCommit,
+    readOnlyRollback,
+    simpleRollback,
+    readTransaction,
+    writeTransaction,
+    isolation,
+  ];
+
+  for (const f of funcs) {
+    test(`store ${f.name} (${name})`, async () => {
+      const s = new TestStore(await newStore());
+      await f(s);
+    });
+  }
+}
+
+export function b(x: TemplateStringsArray): Uint8Array {
+  return new TextEncoder().encode(x[0]);
+}
+
+async function simpleCommit(store: TestStore): Promise<void> {
+  // Start a write transaction, and put a value on it.
+  await store.withWrite(async wt => {
+    expect(await wt.has('bar')).to.be.false;
+    await wt.put('bar', b`baz`);
+    expect(await wt.get('bar')).to.deep.equal(b`baz`);
+    await wt.commit();
   });
 
-  test(`store readTransaction (${name})`, async () => {
-    const s = new TestStore(await newStore());
-    await readTransaction(s);
-  });
-
-  test(`store writeTransaction (${name})`, async () => {
-    const s = new TestStore(await newStore());
-    await writeTransaction(s);
-  });
-
-  test(`store isolation (${name})`, async () => {
-    const s = new TestStore(await newStore());
-    await isolation(s);
+  // Verify that the write was effective.
+  await store.withRead(async rt => {
+    expect(await rt.has('bar')).to.be.true;
+    expect(await rt.get('bar')).to.deep.equal(b`baz`);
   });
 }
 
-function b(x: TemplateStringsArray): Uint8Array {
-  return new TextEncoder().encode(x[0]);
+async function del(store: TestStore): Promise<void> {
+  // Start a write transaction, and put a value on it.
+  await store.withWrite(async wt => {
+    expect(await wt.has('bar')).to.be.false;
+    await wt.put('bar', b`baz`);
+    await wt.commit();
+  });
+
+  // Delete
+  await store.withWrite(async wt => {
+    expect(await wt.has('bar')).to.be.true;
+    await wt.del('bar');
+    expect(await wt.has('bar')).to.be.false;
+    await wt.commit();
+  });
+
+  // Verify that the delete was effective.
+  await store.withRead(async rt => {
+    expect(await rt.has('bar')).to.be.false;
+    expect(await rt.get('bar')).to.be.undefined;
+  });
+}
+
+async function readOnlyCommit(store: TestStore): Promise<void> {
+  await store.withWrite(async wt => {
+    expect(await wt.has('bar')).to.be.false;
+    await wt.commit();
+  });
+}
+
+async function readOnlyRollback(store: TestStore): Promise<void> {
+  await store.withWrite(async wt => {
+    expect(await wt.has('bar')).to.be.false;
+  });
+}
+
+async function simpleRollback(store: TestStore): Promise<void> {
+  // Start a write transaction and put a value, then abort.
+  await store.withWrite(async wt => {
+    await wt.put('bar', b`baz`);
+    // no commit, implicit rollback
+  });
+
+  await store.withRead(async rt => {
+    expect(await rt.has('bar')).to.be.false;
+  });
 }
 
 async function store(store: TestStore): Promise<void> {

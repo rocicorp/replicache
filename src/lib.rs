@@ -31,6 +31,3 @@ pub mod kv;
 mod kv;
 
 mod prolly;
-
-#[cfg(feature = "benchmark")]
-pub mod benches;

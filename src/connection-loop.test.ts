@@ -72,6 +72,9 @@ function createLoop(
     get minDelayMs() {
       return partialDelegate.minDelayMs ?? MIN_DELAY_MS;
     },
+    debug() {
+      // intentionally empty
+    },
   };
 
   return (loop = new ConnectionLoop(delegate));

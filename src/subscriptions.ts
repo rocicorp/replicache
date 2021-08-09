@@ -36,7 +36,7 @@ function keyMatchesSubscription<V, E>(
   return false;
 }
 
-function scanOptionsMatchesKey(
+export function scanOptionsMatchesKey(
   scanOpts: ScanOptionsRPC,
   changeIndexName: string,
   changedKey: string,
@@ -116,17 +116,17 @@ const KEY_SEPARATOR = '\u0000';
 
 // When working with indexes the changed keys are encoded. This is a port of the Rust code in Repc.
 // Make sure these are in sync.
-function decodeIndexKey(
+export function decodeIndexKey(
   encodedIndexKey: string,
 ): [secondary: string, primary: string] {
   if (!encodedIndexKey.startsWith(KEY_VERSION_0)) {
-    throw new Error('invalid version');
+    throw new Error('Invalid version');
   }
   const parts = encodedIndexKey
     .slice(KEY_VERSION_0.length)
-    .split(KEY_SEPARATOR, 2);
+    .split(KEY_SEPARATOR);
   if (parts.length !== 2) {
-    throw new Error('Invalid Formatting: ' + encodedIndexKey);
+    throw new Error('Invalid formatting: ' + encodedIndexKey);
   }
   return parts as [string, string];
 }

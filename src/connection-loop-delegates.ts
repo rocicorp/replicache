@@ -26,14 +26,6 @@ export class ConnectionLoopDelegateImpl implements Logger {
     return this.rep.requestOptions.minDelayMs;
   }
 
-  get error(): ((...args: unknown[]) => void) | undefined {
-    return this.logger.error;
-  }
-
-  get info(): ((...args: unknown[]) => void) | undefined {
-    return this.logger.info;
-  }
-
   get debug(): ((...args: unknown[]) => void) | undefined {
     return this.logger.debug;
   }

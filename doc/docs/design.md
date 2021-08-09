@@ -86,9 +86,8 @@ This API sketch is in TypeScript, for JavaScript bindings. A similar API would e
 class Replicache implements ReadTransaction {
   constructor({
     pushURL: string,
-    pushAuth: string,
     pullURL: string,
-    pullAuth: string,
+    auth: string,
     // Registers the mutators, which are used to make changes to the data.
     mutators: {[name: string]: MutatorImpl}
   });

@@ -14,6 +14,7 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * This is the
    * [authorization](https://doc.replicache.dev/server-push#authorization) token
    * used when doing a [push](https://doc.replicache.dev/server-push).
+   * @deprecated Use [[auth]] instead.
    */
   pushAuth?: string;
 
@@ -28,8 +29,16 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * This is the
    * [authorization](https://doc.replicache.dev/server-pull#authorization) token
    * used when doing a [pull](https://doc.replicache.dev/server-pull).
+   * @deprecated Use [[auth]] instead.
    */
   pullAuth?: string;
+
+  /**
+   * This is the authorization token used when doing a
+   * [pull](https://doc.replicache.dev/server-pull#authorization) and
+   * [push](https://doc.replicache.dev/server-push#authorization).
+   */
+  auth?: string;
 
   /**
    * This is the URL to the server endpoint dealing with pull. See [Pull

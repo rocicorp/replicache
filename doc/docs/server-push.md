@@ -43,8 +43,7 @@ Always `application/json`.
 ### `Authorization`
 
 This is a string that can be used to authorize a user. The auth token is set by
-defining [`pushAuth`](api/interfaces/replicacheoptions#pushauth) or
-[`getPushAuth`](api/classes/replicache#getpushauth).
+defining [`auth`](api/interfaces/replicacheoptions#auth).
 
 ### `X-Replicache-RequestID`
 
@@ -107,7 +106,7 @@ your instance of [`Replicache`](api/classes/replicache).
 
 - `200` for success
 - `401` for auth error — Replicache will reauthenticate using
-  [`getPushAuth`](api/classes/replicache#getpushauth) if available
+  [`getAuth`](api/classes/replicache#getauth) if available
 - All other status codes are considered to be errors
 
 Replicache will exponentially back off sending pushes in the case of both

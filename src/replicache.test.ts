@@ -1074,7 +1074,7 @@ testWithBothStores('push', async () => {
   const pushURL = 'https://push.com';
 
   const rep = await replicacheForTesting('push', {
-    pushAuth: '1',
+    auth: '1',
     pushURL,
     pushDelay: 10,
     mutators: {
@@ -1184,7 +1184,7 @@ testWithBothStores('push delay', async () => {
   const pushURL = 'https://push.com';
 
   const rep = await replicacheForTesting('push', {
-    pushAuth: '1',
+    auth: '1',
     pushURL,
     pushDelay: 1,
     mutators: {
@@ -1223,7 +1223,7 @@ testWithBothStores('pull', async () => {
   const pullURL = 'https://diff.com/pull';
 
   const rep = await replicacheForTesting('pull', {
-    pullAuth: '1',
+    auth: '1',
     pullURL,
     mutators: {
       createTodo: async <A extends {id: number}>(
@@ -1354,31 +1354,31 @@ testWithBothStores('reauth pull', async () => {
 
   const rep = await replicacheForTesting('reauth', {
     pullURL,
-    pullAuth: 'wrong',
+    auth: 'wrong',
   });
 
   fetchMock.post(pullURL, {body: 'xxx', status: httpStatusUnauthorized});
 
   const consoleErrorStub = sinon.stub(console, 'error');
 
-  const getPullAuthFake = sinon.fake.returns(null);
-  rep.getPullAuth = getPullAuthFake;
+  const getAuthFake = sinon.fake.returns(null);
+  rep.getAuth = getAuthFake;
 
   await rep.beginPull();
 
-  expect(getPullAuthFake.callCount).to.equal(1);
+  expect(getAuthFake.callCount).to.equal(1);
   expect(consoleErrorStub.firstCall.args[0]).to.equal(
     'Got error response from server (https://diff.com/pull) doing pull: 401: xxx',
   );
 
   {
     const consoleInfoStub = sinon.stub(console, 'log');
-    const getPullAuthFake = sinon.fake(() => 'boo');
-    rep.getPullAuth = getPullAuthFake;
+    const getAuthFake = sinon.fake(() => 'boo');
+    rep.getAuth = getAuthFake;
 
     expect((await rep.beginPull()).syncHead).to.equal('');
 
-    expect(getPullAuthFake.callCount).to.equal(8);
+    expect(getAuthFake.callCount).to.equal(8);
     expect(consoleInfoStub.firstCall.args[0]).to.equal(
       'Tried to reauthenticate too many times',
     );
@@ -2175,7 +2175,7 @@ testWithBothStores('onSync', async () => {
     const consoleErrorStub = sinon.stub(console, 'error');
     fetchMock.postOnce(pushURL, {body: 'xxx', status: httpStatusUnauthorized});
     onSync.resetHistory();
-    rep.getPushAuth = () => {
+    rep.getAuth = () => {
       // Next time it is going to be fine
       fetchMock.postOnce({url: pushURL, headers: {authorization: 'ok'}}, {});
       return 'ok';

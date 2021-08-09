@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1628545393341,
+  "lastUpdate": 1628546007122,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -32619,6 +32619,135 @@ window.BENCHMARK_DATA = {
             "name": "subscription 1000",
             "value": 8.66,
             "range": "±6.7%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9c3a49bc4b16924a3d8e0af5bbd4208156d20174",
+          "message": "feat: Make more Replicache options public (#443)\n\nThis makes a few more options from `ReplicacheOptions` public and\r\nread/write on the `Replicache` instance. The following are now reflected\r\non `Replicache` and can be changed at runtime:\r\n  - `auth`\r\n  - `pushURL`\r\n  - `pullURL`\r\n  - `name` (readonly)\r\n  - `schemaVersion`\r\n  - `pullInterval`\r\n  - `pushDelay`\r\n  - `mutators` (gets reflected as mutate)\r\n  - `requestOptions` (readonly)\r\n  - `puller`\r\n  - `pusher`\r\n\r\nI decided not to reflect these readonly properties from\r\n`ReplicacheOptions`:\r\n  - `wasmModule`\r\n  - `useMemstore`\r\n  - `logLevel`\r\n\r\nAlso, deprecate `Replicache` `getPullAuth` and `getPushAuth` in favor of a single `getAuth`.\r\n\r\nFixes #402",
+          "timestamp": "2021-08-09T21:51:52Z",
+          "tree_id": "355654efed48042bf70dde86d541bdd4cec4e45a",
+          "url": "https://github.com/rocicorp/replicache/commit/9c3a49bc4b16924a3d8e0af5bbd4208156d20174"
+        },
+        "date": 1628546006856,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.52,
+            "range": "±107.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 5.13,
+            "range": "±8.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 3.33,
+            "range": "±15.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.31,
+            "range": "±8.2%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 3.75,
+            "range": "±50.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 3.8,
+            "range": "±3.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 4.41,
+            "range": "±54.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 4.41,
+            "range": "±3.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±1100.0%",
+            "unit": "MB/s",
+            "extra": "88 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 93.72,
+            "range": "±583.1%",
+            "unit": "ops/sec",
+            "extra": "50 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 6.94,
+            "range": "±2.6%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 0.84,
+            "range": "±53.3%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 11.85,
+            "range": "±4.8%",
+            "unit": "ops/sec",
+            "extra": "6 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 10.61,
+            "range": "±28.7%",
+            "unit": "ops/sec",
+            "extra": "6 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 8.52,
+            "range": "±18.6%",
             "unit": "ops/sec",
             "extra": "5 samples"
           }

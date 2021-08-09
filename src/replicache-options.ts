@@ -3,6 +3,7 @@ import type {Puller} from './puller.js';
 import type {InitInput} from './repm-invoker.js';
 import type {LogLevel} from './logger.js';
 import type {MutatorDefs, RequestOptions} from './replicache';
+import type {Store} from './kv/store.js';
 
 /**
  * The options passed to [[Replicache]].
@@ -195,4 +196,12 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * your own function if you need to do things differently.
    */
   pusher?: Pusher;
+
+  /**
+   * Allows implementing the underlying storage layer completely in JavaScript.
+   *
+   * @experimental This option is experimental and might be removed or changed
+   * in the future without following semver versioning. Please be cautious.
+   */
+  experimentalKVStore?: Store;
 }

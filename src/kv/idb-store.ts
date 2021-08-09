@@ -95,7 +95,7 @@ class WriteImpl extends WriteImplBase {
     await Promise.all(ps);
     await this._onTxEnd;
 
-    if (this._txState !== WriteState.COMMITTED) {
+    if (this._txState === WriteState.ABORTED) {
       throw new Error('Transaction aborted');
     }
   }

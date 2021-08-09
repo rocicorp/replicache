@@ -493,15 +493,11 @@ export class Replicache<MD extends MutatorDefs = {}>
   scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): ScanResult<K> {
-    let tx: ReadTransactionImpl;
     return new ScanResult<K>(
       options,
       this._invoke,
       async () => {
-        if (tx) {
-          return tx;
-        }
-        tx = new ReadTransactionImpl(this._invoke);
+        const tx = new ReadTransactionImpl(this._invoke);
         await tx.open({});
         return tx;
       },
@@ -951,6 +947,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     mutatorImpl: (tx: WriteTransaction, args: Args) => MaybePromise<Return>,
   ): (args: Args) => Promise<Return>;
   /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
+  /* c8 ignore next 14 */
   register<Return extends JSONValue | void, Args extends JSONValue>(
     name: string,
     mutatorImpl: (tx: WriteTransaction, args?: Args) => MaybePromise<Return>,
@@ -1031,6 +1028,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     return {result, ref};
   }
 
+  /* c8 ignore next 13 */
   /**
    * When this is set to `true` the internal Replicache wasm module will log
    * more things to the console (using `console.debug`). Setting this to false

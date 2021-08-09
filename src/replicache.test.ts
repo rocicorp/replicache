@@ -832,6 +832,7 @@ testWithBothStores('subscribe change keys', async () => {
   const rep = await replicacheForTesting('subscribe-change-keys', {
     mutators: {
       addData,
+      del: (tx, k: string) => tx.del(k),
     },
   });
 
@@ -845,6 +846,7 @@ testWithBothStores('subscribe change keys', async () => {
       if (a === 1) {
         rv.push((await tx.get('b')) ?? 'no b');
       }
+      await tx.has('c');
       return rv;
     },
     {
@@ -901,6 +903,16 @@ testWithBothStores('subscribe change keys', async () => {
     b: 5,
   });
   expect(queryCallCount).to.equal(5);
+  expect(onDataCallCount).to.equal(5);
+
+  await rep.mutate.addData({
+    c: 6,
+  });
+  expect(queryCallCount).to.equal(6);
+  expect(onDataCallCount).to.equal(5);
+
+  await rep.mutate.del('c');
+  expect(queryCallCount).to.equal(7);
   expect(onDataCallCount).to.equal(5);
 
   cancel();
@@ -1337,7 +1349,7 @@ testWithBothStores('pull', async () => {
   expect(createCount).to.equal(3);
 });
 
-testWithBothStores('reauth', async () => {
+testWithBothStores('reauth pull', async () => {
   const pullURL = 'https://diff.com/pull';
 
   const rep = await replicacheForTesting('reauth', {
@@ -1367,6 +1379,51 @@ testWithBothStores('reauth', async () => {
     expect((await rep.beginPull()).syncHead).to.equal('');
 
     expect(getPullAuthFake.callCount).to.equal(8);
+    expect(consoleInfoStub.firstCall.args[0]).to.equal(
+      'Tried to reauthenticate too many times',
+    );
+  }
+});
+
+testWithBothStores('reauth push', async () => {
+  const pushURL = 'https://diff.com/push';
+
+  const rep = await replicacheForTesting('reauth', {
+    pushURL,
+    pushAuth: 'wrong',
+    pushDelay: 0,
+    mutators: {
+      noop() {
+        // no op
+      },
+    },
+  });
+
+  const consoleErrorStub = sinon.stub(console, 'error');
+  const getPushAuthFake = sinon.fake.returns(null);
+  rep.getPushAuth = getPushAuthFake;
+
+  await tickAFewTimes();
+
+  fetchMock.post(pushURL, {body: 'xxx', status: httpStatusUnauthorized});
+
+  await rep.mutate.noop();
+  await tickUntil(() => getPushAuthFake.callCount > 0, 1);
+
+  expect(consoleErrorStub.firstCall.args[0]).to.equal(
+    'Got error response from server (https://diff.com/push) doing push: 401: xxx',
+  );
+
+  {
+    await tickAFewTimes();
+
+    const consoleInfoStub = sinon.stub(console, 'log');
+    const getPushAuthFake = sinon.fake(() => 'boo');
+    rep.getPushAuth = getPushAuthFake;
+
+    await rep.mutate.noop();
+    await tickUntil(() => consoleInfoStub.callCount > 0, 1);
+
     expect(consoleInfoStub.firstCall.args[0]).to.equal(
       'Tried to reauthenticate too many times',
     );

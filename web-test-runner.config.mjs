@@ -19,7 +19,7 @@ export default {
   groups: [
     {
       name: 'Main',
-      files: 'src/{replicache,connection-loop,json}.test.ts',
+      files: 'src/{replicache,connection-loop,json,subscriptions}.test.ts',
       browsers: [firefox, chromium, webkit],
     },
     {

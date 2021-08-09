@@ -193,6 +193,8 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
     return this._tx.scan(options);
   }
 
+  /** @deprecated Use [[scan]] instead */
+  /* c8 ignore next 6 */
   async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): Promise<[K, JSONValue][]> {

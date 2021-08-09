@@ -1,6 +1,6 @@
 [package]
 name = "replicache-client"
-version = "0.32.3"
+version = "0.33.0"
 authors = ["Rocicorp <replicache@roci.dev>"]
 edition = "2018"
 

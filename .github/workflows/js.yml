@@ -56,6 +56,6 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
-      - uses: microsoft/playwright-github-action@v1
       - run: npm install
+      - run: npx playwright install-deps
       - run: npm test

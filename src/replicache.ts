@@ -1,10 +1,6 @@
 import {deepEqual} from './json.js';
 import type {JSONValue} from './json.js';
-import type {
-  KeyTypeForScanOptions,
-  ScanOptions,
-  ScanOptionsRPC,
-} from './scan-options.js';
+import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
 import {REPMWasmInvoker, RPC} from './repm-invoker.js';
 import type {Pusher} from './pusher.js';
 import type {Puller} from './puller.js';
@@ -120,6 +116,9 @@ export interface RequestOptions {
 
 const emptySet: ReadonlySet<string> = new Set();
 
+type UnknownSubscription = Subscription<JSONValue | undefined, unknown>;
+type SubscriptionSet = Set<UnknownSubscription>;
+
 // eslint-disable-next-line @typescript-eslint/ban-types
 export class Replicache<MD extends MutatorDefs = {}>
   implements ReadTransaction
@@ -169,9 +168,8 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   private _broadcastChannel?: BroadcastChannel = undefined;
 
-  private readonly _subscriptions = new Set<
-    Subscription<JSONValue | undefined, unknown>
-  >();
+  private readonly _subscriptions: SubscriptionSet = new Set();
+  private readonly _pendingSubscriptions: SubscriptionSet = new Set();
 
   /**
    * The duration between each periodic [[pull]]. Setting this to `null`
@@ -199,6 +197,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   pusher: Pusher;
 
   private readonly _store: Store;
+  private _hasPendingSubscriptionRuns = false;
 
   /**
    * The options used to control the [[pull]] and push request behavior. This
@@ -465,7 +464,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     for (const s of indexSubs) {
       subscriptions.add(s);
     }
-    await this._fireSubscriptions(subscriptions);
+    await this._fireSubscriptions(subscriptions, false);
   }
 
   private _broadcastChange(
@@ -838,7 +837,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       this._subscriptions,
       changedKeys,
     );
-    await this._fireSubscriptions(subscriptions);
+    await this._fireSubscriptions(subscriptions, false);
   }
 
   private async _indexDefinitionChanged(name: string): Promise<void> {
@@ -848,12 +847,13 @@ export class Replicache<MD extends MutatorDefs = {}>
       this._subscriptions,
       name,
     );
-    await this._fireSubscriptions(subscriptions);
+    await this._fireSubscriptions(subscriptions, false);
     this._broadcastChange(await this._root, new Map(), name);
   }
 
   private async _fireSubscriptions(
     subscriptions: Iterable<Subscription<JSONValue | undefined, unknown>>,
+    skipEqualsCheck: boolean,
   ) {
     const subs = [...subscriptions];
     if (subs.length === 0) {
@@ -883,7 +883,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       const result = results[i];
       if (result.ok) {
         const {value} = result;
-        if (!deepEqual(value, s.lastValue)) {
+        if (skipEqualsCheck || !deepEqual(value, s.lastValue)) {
           s.lastValue = value;
           s.onData(value);
         }
@@ -924,30 +924,26 @@ export class Replicache<MD extends MutatorDefs = {}>
       lastValue: undefined,
       keys: emptySet,
       scans: [],
-    } as Subscription<R, E>;
-    this._subscriptions.add(
-      s as unknown as Subscription<JSONValue | undefined, unknown>,
-    );
-    (async () => {
-      try {
-        const {result, keys, scans} = await this._querySubscription(s.body);
-        s.keys = keys;
-        s.scans = scans;
-        s.lastValue = result;
-        s.onData(result);
-      } catch (ex) {
-        if (s.onError) {
-          s.onError(ex);
-        } else {
-          throw ex;
-        }
-      }
-    })();
+    } as unknown as UnknownSubscription;
+    this._subscriptions.add(s);
+
+    this._scheduleInitialSubscriptionRun(s);
+
     return (): void => {
-      this._subscriptions.delete(
-        s as unknown as Subscription<JSONValue | undefined, unknown>,
-      );
+      this._subscriptions.delete(s);
     };
+  }
+  private async _scheduleInitialSubscriptionRun(s: UnknownSubscription) {
+    this._pendingSubscriptions.add(s);
+
+    if (!this._hasPendingSubscriptionRuns) {
+      this._hasPendingSubscriptionRuns = true;
+      await Promise.resolve();
+      this._hasPendingSubscriptionRuns = false;
+      const subscriptions = [...this._pendingSubscriptions];
+      this._pendingSubscriptions.clear();
+      await this._fireSubscriptions(subscriptions, true);
+    }
   }
 
   /**
@@ -964,17 +960,6 @@ export class Replicache<MD extends MutatorDefs = {}>
       // No need to await the response.
       closeIgnoreError(tx);
     }
-  }
-
-  private async _querySubscription<R>(
-    body: (tx: ReadTransaction) => Promise<R> | R,
-  ): Promise<{result: R; keys: ReadonlySet<string>; scans: ScanOptionsRPC[]}> {
-    const tx = new ReadTransactionImpl(this._invoke);
-    const stx = new SubscriptionTransactionWrapper(tx);
-    await tx.open({});
-    const result = await body(stx);
-    await tx.close();
-    return {result, keys: stx.keys, scans: stx.scans};
   }
 
   /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
@@ -1048,6 +1033,12 @@ export class Replicache<MD extends MutatorDefs = {}>
     };
     if (invokeArgs !== undefined) {
       actualInvokeArgs = {...actualInvokeArgs, ...invokeArgs};
+    }
+
+    // Ensure that we run initial pending subscribe functions before starting a
+    // write transaction.
+    if (this._hasPendingSubscriptionRuns) {
+      await Promise.resolve();
     }
 
     let result: R;

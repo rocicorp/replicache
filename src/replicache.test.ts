@@ -26,6 +26,7 @@ import {
   dbsToDrop,
 } from './test-util.js';
 import {sleep} from './sleep.js';
+import {MemStore} from './kv/mem-store.js';
 
 let clock: SinonFakeTimers;
 setup(function () {
@@ -2886,4 +2887,53 @@ test('overlapping open/close', async () => {
     await p;
     await p2;
   }
+});
+
+test('experiment KV Store', async () => {
+  let readCount = 0;
+  let writeCount = 0;
+  let closeCount = 0;
+
+  class MyMemStore {
+    readonly store = new MemStore();
+    read() {
+      readCount++;
+      return this.store.read();
+    }
+    write() {
+      writeCount++;
+      return this.store.write();
+    }
+    async close() {
+      closeCount++;
+    }
+  }
+
+  const store = new MyMemStore();
+
+  const rep = await replicacheForTesting('experiment-kv-store', {
+    experimentalKVStore: store,
+    mutators: {addData},
+  });
+
+  expect(readCount).to.equal(3);
+  expect(writeCount).to.equal(3);
+  expect(closeCount).to.equal(0);
+
+  const b = await rep.query(tx => tx.has('foo'));
+  expect(b).to.be.false;
+
+  expect(readCount).to.equal(4);
+  expect(writeCount).to.equal(3);
+  expect(closeCount).to.equal(0);
+
+  await rep.mutate.addData({foo: 'bar'});
+  expect(readCount).to.equal(4);
+  expect(writeCount).to.equal(4);
+  expect(closeCount).to.equal(0);
+
+  await rep.close();
+  expect(readCount).to.equal(4);
+  expect(writeCount).to.equal(4);
+  expect(closeCount).to.equal(1);
 });

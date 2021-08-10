@@ -285,9 +285,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     this.puller = puller;
     this.pusher = pusher;
     this._store =
-      experimentalKVStore || this._useMemstore
-        ? new MemStore()
-        : new IDBStore(this.name);
+      experimentalKVStore ||
+      (this._useMemstore ? new MemStore() : new IDBStore(this.name));
 
     // Use a promise-resolve pair so that we have a promise to use even before
     // we call the Open RPC.

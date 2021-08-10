@@ -14,6 +14,7 @@ export default {
       ui: 'tdd',
       reporter: 'html',
       timeout: 30000,
+      retries: process.env.CI ? 3 : 0, // Firefox is flaky
     },
   },
   groups: [

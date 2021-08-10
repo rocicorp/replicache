@@ -2889,51 +2889,112 @@ test('overlapping open/close', async () => {
   }
 });
 
-test('experiment KV Store', async () => {
-  let readCount = 0;
-  let writeCount = 0;
-  let closeCount = 0;
-
-  class MyMemStore {
-    readonly store = new MemStore();
-    read() {
-      readCount++;
-      return this.store.read();
-    }
-    write() {
-      writeCount++;
-      return this.store.write();
-    }
-    async close() {
-      closeCount++;
-    }
+class MemStoreWithCounters {
+  readonly store = new MemStore();
+  readCount = 0;
+  writeCount = 0;
+  closeCount = 0;
+  read() {
+    this.readCount++;
+    return this.store.read();
   }
+  write() {
+    this.writeCount++;
+    return this.store.write();
+  }
+  async close() {
+    this.closeCount++;
+  }
+}
 
-  const store = new MyMemStore();
-
+test('experiment KV Store', async () => {
+  const store = new MemStoreWithCounters();
   const rep = await replicacheForTesting('experiment-kv-store', {
     experimentalKVStore: store,
     mutators: {addData},
   });
 
-  expect(readCount).to.equal(3);
-  expect(writeCount).to.equal(3);
-  expect(closeCount).to.equal(0);
+  expect(store.readCount).to.equal(3);
+  expect(store.writeCount).to.equal(3);
+  expect(store.closeCount).to.equal(0);
 
   const b = await rep.query(tx => tx.has('foo'));
   expect(b).to.be.false;
 
-  expect(readCount).to.equal(4);
-  expect(writeCount).to.equal(3);
-  expect(closeCount).to.equal(0);
+  expect(store.readCount).to.equal(4);
+  expect(store.writeCount).to.equal(3);
+  expect(store.closeCount).to.equal(0);
 
   await rep.mutate.addData({foo: 'bar'});
-  expect(readCount).to.equal(4);
-  expect(writeCount).to.equal(4);
-  expect(closeCount).to.equal(0);
+  expect(store.readCount).to.equal(4);
+  expect(store.writeCount).to.equal(4);
+  expect(store.closeCount).to.equal(0);
 
   await rep.close();
-  expect(readCount).to.equal(4);
-  expect(writeCount).to.equal(4);
-  expect(closeCount).to.equal(1);
+  expect(store.readCount).to.equal(4);
+  expect(store.writeCount).to.equal(4);
+  expect(store.closeCount).to.equal(1);
+});
+
+test('subscription coalescing', async () => {
+  const store = new MemStoreWithCounters();
+  const rep = await replicacheForTesting('experiment-kv-store', {
+    experimentalKVStore: store,
+    mutators: {addData},
+  });
+
+  expect(store.readCount).to.equal(3);
+  expect(store.writeCount).to.equal(3);
+  expect(store.closeCount).to.equal(0);
+
+  const log: string[] = [];
+  const ca = rep.subscribe(tx => tx.has('a'), {
+    onData() {
+      log.push('a');
+    },
+  });
+  const cb = rep.subscribe(tx => tx.has('b'), {
+    onData() {
+      log.push('b');
+    },
+  });
+  const cc = rep.subscribe(tx => tx.has('c'), {
+    onData() {
+      log.push('c');
+    },
+  });
+
+  await tickUntil(() => log.length === 3);
+  expect(log).to.deep.equal(['a', 'b', 'c']);
+
+  expect(store.readCount).to.equal(4);
+  expect(store.writeCount).to.equal(3);
+  expect(store.closeCount).to.equal(0);
+
+  ca();
+  cb();
+  cc();
+  log.length = 0;
+  rep.subscribe(tx => tx.has('d'), {
+    onData() {
+      log.push('d');
+    },
+  });
+  rep.subscribe(tx => tx.has('e'), {
+    onData() {
+      log.push('e');
+    },
+  });
+
+  expect(store.readCount).to.equal(4);
+  expect(store.writeCount).to.equal(3);
+  expect(store.closeCount).to.equal(0);
+
+  await rep.mutate.addData({a: 1});
+
+  expect(store.readCount).to.equal(5);
+  expect(store.writeCount).to.equal(4);
+  expect(store.closeCount).to.equal(0);
+
+  expect(log).to.deep.equal(['d', 'e']);
 });

@@ -9,7 +9,7 @@ For more information, see [How Replicache Works — Pull](how-it-works#%E2%91%A0
 
 ## Configuration
 
-Specify the URL with the [`pullURL`](api/interfaces/replicacheoptions#pullurl) constructor option:
+Specify the URL with the [`pullURL`](api/interfaces/ReplicacheOptions#pullURL) constructor option:
 
 ```js
 const rep = new Replicache({
@@ -42,7 +42,7 @@ Always `application/json`.
 ### `Authorization`
 
 This is a string that can be used to authorize a user. The auth token is set
-by defining [`auth`](api/interfaces/replicacheoptions#auth).
+by defining [`auth`](api/interfaces/ReplicacheOptions#auth).
 
 ### `X-Replicache-RequestID`
 
@@ -71,7 +71,7 @@ type PullRequestBody = {
 
 ### `clientID`
 
-The [`clientID`](api/classes/replicache#clientid) of the requesting Replicache instance.
+The [`clientID`](api/classes/Replicache#clientID) of the requesting Replicache instance.
 
 ### `cookie`
 
@@ -93,23 +93,23 @@ This is something that you control and should identify the schema of your client
 view. This ensures that you are sending data of the correct type so that the
 client can correctly handle the data.
 
-The [`schemaVersion`](api/interfaces/replicacheoptions#schemaversion) can be set
-in the [`ReplicacheOptions`](api/interfaces/replicacheoptions) when creating
-your instance of [`Replicache`](api/classes/replicache).
+The [`schemaVersion`](api/interfaces/ReplicacheOptions#schemaVersion) can be set
+in the [`ReplicacheOptions`](api/interfaces/ReplicacheOptions) when creating
+your instance of [`Replicache`](api/classes/Replicache).
 
 ## HTTP Response
 
 ### HTTP Response Status
 
 - `200` for success
-- `401` for auth error — Replicache will reauthenticate using [`getAuth`](api/classes/replicache#getauth) if available
+- `401` for auth error — Replicache will reauthenticate using [`getAuth`](api/classes/Replicache#getAuth) if available
 - All other status codes considered errors
 
 Replicache will exponentially back off sending pushes in the case of both network level and HTTP level errors.
 
 ### HTTP Response Body
 
-The response body is a JSON object of the [`PullResponse`](api#pullresponse) type:
+The response body is a JSON object of the [`PullResponse`](api#PullResponse) type:
 
 ```ts
 type PullResponse = {
@@ -126,7 +126,7 @@ the client in the pull response and gets sent back to the server in the next
 pull request. Its main usecase is to allow the backend to efficiently compute
 the diff between pull requests.
 
-The cookie can be any [`JSONValue`](api#jsonvalue) but just like with HTTP cookies
+The cookie can be any [`JSONValue`](api#JSONValue) but just like with HTTP cookies
 you want to limit its size since it get sent on every request.
 
 For more information on different strategies on how to use the cookie see [Computing Changes for Pull](#TODO).
@@ -141,7 +141,7 @@ The patch the client should apply to bring its state up to date with the server.
 
 Basically this should be the delta between the last pull (as identified by the request cookie) and now.
 
-The [`patch`](api#patchoperation) supports 3 operations:
+The [`patch`](api#PatchOperation) supports 3 operations:
 
 ```ts
 type PatchOperation =
@@ -157,7 +157,7 @@ type PatchOperation =
 #### `put`
 
 Puts a key value into the data store. The `key` is a `string` and the `value` is
-any [`JSONValue`](api#jsonvalue).
+any [`JSONValue`](api#JSONValue).
 
 #### `del`
 

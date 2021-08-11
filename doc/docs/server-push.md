@@ -9,7 +9,7 @@ For more information, see [How Replicache Works — Push](how-it-works#④-push)
 
 ## Configuration
 
-Specify the URL with the [`pushURL`](api/interfaces/replicacheoptions#pushurl)
+Specify the URL with the [`pushURL`](api/interfaces/ReplicacheOptions#pushURL)
 constructor option:
 
 ```js
@@ -43,7 +43,7 @@ Always `application/json`.
 ### `Authorization`
 
 This is a string that can be used to authorize a user. The auth token is set by
-defining [`auth`](api/interfaces/replicacheoptions#auth).
+defining [`auth`](api/interfaces/ReplicacheOptions#auth).
 
 ### `X-Replicache-RequestID`
 
@@ -75,7 +75,7 @@ type Mutation = {
 
 ### `clientID`
 
-The [`clientID`](api/classes/replicache#clientid) of the requesting Replicache
+The [`clientID`](api/classes/Replicache#clientID) of the requesting Replicache
 instance.
 
 ### `mutations`
@@ -83,7 +83,7 @@ instance.
 An array of mutations to be applied to the server. The `id` is a sequential
 per-client unsigned integer. Each mutation will have an ID exactly one greater
 than the previous one in the list. The `name` is the name of the mutator that
-was invoked (e.g., from [Replicache.mutate](api/classes/replicache#mutate)). The
+was invoked (e.g., from [Replicache.mutate](api/classes/Replicache#mutate)). The
 `args` are the arguments that were passed to the mutator.
 
 ### `pushVersion`
@@ -96,9 +96,9 @@ This is something that you control and should identify the schema of your client
 view. This ensures that you are sending data of the correct type so that the
 client can correctly handle the data.
 
-The [`schemaVersion`](api/interfaces/replicacheoptions#schemaversion) can be set
-in the [`ReplicacheOptions`](api/interfaces/replicacheoptions) when creating
-your instance of [`Replicache`](api/classes/replicache).
+The [`schemaVersion`](api/interfaces/ReplicacheOptions#schemaVersion) can be set
+in the [`ReplicacheOptions`](api/interfaces/ReplicacheOptions) when creating
+your instance of [`Replicache`](api/classes/Replicache).
 
 ## HTTP Response
 
@@ -106,7 +106,7 @@ your instance of [`Replicache`](api/classes/replicache).
 
 - `200` for success
 - `401` for auth error — Replicache will reauthenticate using
-  [`getAuth`](api/classes/replicache#getauth) if available
+  [`getAuth`](api/classes/Replicache#getAuth) if available
 - All other status codes are considered to be errors
 
 Replicache will exponentially back off sending pushes in the case of both

@@ -349,6 +349,69 @@ export function benchmarkSubscribe(opts) {
 }
 
 /**
+ * @param {{count: number;}} opts
+ * @returns Benchmark
+ */
+export function benchmarkSubscribeSetup(opts) {
+  const {count} = opts;
+  const maxCount = 1000;
+  const key = (/** @type {number} */ k) => `key${k}`;
+  if (count > maxCount) {
+    throw new Error('Please increase maxCount');
+  }
+  return {
+    name: `subscription setup ${count}`,
+    group: 'replicache',
+    /**
+     * @param {Bencher} bencher
+     */
+    async run(bencher) {
+      const rep = await makeRep({
+        mutators: {
+          /**
+           * @param {WriteTransaction} tx
+           * @param {number} count
+           */
+          async init(tx) {
+            await Promise.all(
+              Array.from({length: maxCount}, (_, i) => tx.put(key(i), i)),
+            );
+          },
+        },
+      });
+
+      await rep.mutate.init(count);
+      const data = Array.from({length: count}).fill(0);
+      let onDataCallCount = 0;
+      bencher.reset();
+      for (let i = 0; i < count; i++) {
+        rep.subscribe((/** @type {ReadTransaction} */ tx) => tx.get(key(i)), {
+          onData(/** @type {JSONValue} */ v) {
+            onDataCallCount++;
+            data[i] = v;
+
+            if (onDataCallCount === count) {
+              bencher.stop();
+            }
+          },
+        });
+      }
+
+      // We need to wait until all the initial async onData have been called.
+      while (onDataCallCount !== count) {
+        await sleep(1);
+      }
+
+      for (let i = 0; i < count; i++) {
+        assert(data[i] === i);
+      }
+
+      await rep.close();
+    },
+  };
+}
+
+/**
  * @param {string} name
  */
 function deleteDatabase(name) {

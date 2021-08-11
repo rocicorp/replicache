@@ -6,6 +6,7 @@ import {
   benchmarkSingleByteWrite,
   benchmarkWriteReadRoundTrip,
   benchmarkSubscribe,
+  benchmarkSubscribeSetup,
 } from './replicache.js';
 import {benchmarkIDBRead, benchmarkIDBWrite} from './idb.js';
 
@@ -134,6 +135,9 @@ const benchmarks = [
   benchmarkSubscribe({count: 10}),
   benchmarkSubscribe({count: 100}),
   benchmarkSubscribe({count: 1000}),
+  benchmarkSubscribeSetup({count: 10}),
+  benchmarkSubscribeSetup({count: 100}),
+  benchmarkSubscribeSetup({count: 1000}),
 ];
 
 for (let b of [benchmarkIDBRead, benchmarkIDBWrite]) {

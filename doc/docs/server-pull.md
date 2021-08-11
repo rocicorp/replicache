@@ -63,6 +63,7 @@ When pulling we `POST` an HTTP request with a JSON encoded body.
 type PullRequestBody = {
   clientID: string;
   cookie: JSONValue;
+  lastMutationID: number;
   pullVersion: number;
   schemaVersion: string;
 };
@@ -75,6 +76,12 @@ The [`clientID`](api/classes/replicache#clientid) of the requesting Replicache i
 ### `cookie`
 
 The cookie that was received last time a pull was done. `null` if this is the first pull from this client.
+
+### `lastMutationID`
+
+The `lastMutationsID` of this client's base snapshot. This means that we have
+successfully applied the local mutations up to (and including) `lastMutationID`
+from this client on the server.
 
 ### `pullVersion`
 

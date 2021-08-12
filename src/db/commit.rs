@@ -112,8 +112,8 @@ impl Commit {
         )
     }
 
-    pub fn from_chunk(chunk: dag::Chunk) -> Result<Commit, LoadError> {
-        Commit::validate(chunk.data())?;
+    pub fn from_chunk(chunk: dag::Chunk) -> Result<Self, LoadError> {
+        Self::validate(chunk.data())?;
         Ok(Commit { chunk })
     }
 

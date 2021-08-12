@@ -48,11 +48,11 @@ impl Node<'_> {
     // for internal nodes, finding which edge to follow in the search down the tree for a key.
     pub fn find(&self, key: &[u8]) -> Result<usize, usize> {
         let mut end = 0;
-        for cur in self.key_iter().enumerate() {
-            match key.cmp(cur.1) {
-                Ordering::Equal => return Ok(cur.0),
-                Ordering::Less => return Err(cur.0),
-                Ordering::Greater => end = cur.0 + 1,
+        for (i, k) in self.key_iter().enumerate() {
+            match key.cmp(k) {
+                Ordering::Equal => return Ok(i),
+                Ordering::Less => return Err(i),
+                Ordering::Greater => end = i + 1,
             }
         }
         Err(end)
@@ -150,9 +150,9 @@ mod test_helpers {
         let mut builder = FlatBufferBuilder::default();
         let fb_entries: Vec<flatbuffers::WIPOffset<fb::DataNodeEntry>> = entries
             .iter()
-            .map(|e| {
-                let key = builder.create_vector(e.0.as_bytes());
-                let value = builder.create_vector(e.1.as_bytes());
+            .map(|&(k, v)| {
+                let key = builder.create_vector(k.as_bytes());
+                let value = builder.create_vector(v.as_bytes());
                 let mut dne = fb::DataNodeEntryBuilder::new(&mut builder);
                 dne.add_key(key);
                 dne.add_value(value);
@@ -163,11 +163,10 @@ mod test_helpers {
         let mut dnb = fb::DataNodeBuilder::new(&mut builder);
         dnb.add_entries(fb_entries_vec);
         let fb_node = dnb.finish();
-        let nra = fb::NodeRecordArgs {
-            record_type: fb::Node::Data,
-            record: Some(fb_node.as_union_value()),
-        };
-        let nr = fb::NodeRecord::create(&mut builder, &nra);
+        let mut nrb = fb::NodeRecordBuilder::new(&mut builder);
+        nrb.add_record_type(fb::Node::Data);
+        nrb.add_record(fb_node.as_union_value());
+        let nr = nrb.finish();
         builder.finish(nr, None);
         builder.collapse()
     }
@@ -191,11 +190,10 @@ mod test_helpers {
         let mut inb = fb::InternalNodeBuilder::new(&mut builder);
         inb.add_edges(fb_edges_vec);
         let fb_node = inb.finish();
-        let nra = fb::NodeRecordArgs {
-            record_type: node_type,
-            record: Some(fb_node.as_union_value()),
-        };
-        let nr = fb::NodeRecord::create(&mut builder, &nra);
+        let mut nrb = fb::NodeRecordBuilder::new(&mut builder);
+        nrb.add_record_type(node_type);
+        nrb.add_record(fb_node.as_union_value());
+        let nr = nrb.finish();
         builder.finish(nr, None);
         builder.collapse()
     }

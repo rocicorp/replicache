@@ -63,6 +63,7 @@ When pulling we `POST` an HTTP request with a JSON encoded body.
 type PullRequestBody = {
   clientID: string;
   cookie: JSONValue;
+  lastMutationID: number;
   pullVersion: number;
   schemaVersion: string;
 };
@@ -75,6 +76,15 @@ The [`clientID`](api/classes/Replicache#clientID) of the requesting Replicache i
 ### `cookie`
 
 The cookie that was received last time a pull was done. `null` if this is the first pull from this client.
+
+### `lastMutationID`
+
+The `lastMutationID` the client received in the last [pull
+response](#http-response). This can be useful in cases where a server receives a
+pull request from a client it doesn't know about (perhaps because the client
+state has been deleted). In that case one thing one might do is to re-establish
+the record of the client on the server side with the `lastMutationID` it is
+expecting, which is this value.
 
 ### `pullVersion`
 

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1628722742060,
+  "lastUpdate": 1628788952154,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -33824,6 +33824,156 @@ window.BENCHMARK_DATA = {
             "range": "±126.2%",
             "unit": "ops/sec",
             "extra": "29 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ab4d195aba2b85092d9873b32c1bf32b553c43fb",
+          "message": "doc: Add lastMutationID to pull reference (#452)\n\nCo-authored-by: Aaron Boodman <aaron@aaronboodman.com>",
+          "timestamp": "2021-08-12T10:20:24-07:00",
+          "tree_id": "9505d3fa217ec1f76daa00ea16d425f0e06cb85e",
+          "url": "https://github.com/rocicorp/replicache/commit/ab4d195aba2b85092d9873b32c1bf32b553c43fb"
+        },
+        "date": 1628788951890,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.69,
+            "range": "±123.5%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 5.12,
+            "range": "±6.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 3.31,
+            "range": "±37.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.4,
+            "range": "±10.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 3.88,
+            "range": "±51.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 3.8,
+            "range": "±1.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 4.78,
+            "range": "±68.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 4.46,
+            "range": "±3.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±1112.5%",
+            "unit": "MB/s",
+            "extra": "90 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 101.52,
+            "range": "±385.7%",
+            "unit": "ops/sec",
+            "extra": "52 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 6.54,
+            "range": "±10.8%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.41,
+            "range": "±1.5%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 12.38,
+            "range": "±7.8%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 12.56,
+            "range": "±3.2%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 11,
+            "range": "±4.2%",
+            "unit": "ops/sec",
+            "extra": "6 samples"
+          },
+          {
+            "name": "subscription setup 10",
+            "value": 487.8,
+            "range": "±452.6%",
+            "unit": "ops/sec",
+            "extra": "244 samples"
+          },
+          {
+            "name": "subscription setup 100",
+            "value": 267.91,
+            "range": "±542.4%",
+            "unit": "ops/sec",
+            "extra": "135 samples"
+          },
+          {
+            "name": "subscription setup 1000",
+            "value": 59.73,
+            "range": "±62.6%",
+            "unit": "ops/sec",
+            "extra": "30 samples"
           }
         ]
       }

@@ -79,7 +79,12 @@ The cookie that was received last time a pull was done. `null` if this is the fi
 
 ### `lastMutationID`
 
-The `lastMutationID`  the client received for the last [pull response](https://doc.replicache.dev/server-pull#http-request-body). This can be useful in cases where a server receives a pull request from a client it doesn't know about (perhaps because the client state has been deleted). In that case an easy thing to do is to re-establish the record of the client on the server side with the `lastMutationID` it is expecting, which is this value.
+The `lastMutationID` the client received for the last [pull
+response](https://doc.replicache.dev/server-pull#http-request-body). This can be
+useful in cases where a server receives a pull request from a client it doesn't
+know about (perhaps because the client state has been deleted). In that case an
+easy thing to do is to re-establish the record of the client on the server side
+with the `lastMutationID` it is expecting, which is this value.
 
 ### `pullVersion`
 

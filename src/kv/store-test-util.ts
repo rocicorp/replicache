@@ -87,8 +87,11 @@ export function runAll(
   }
 }
 
+// TODO(arv): Move to shared place?
+const textEncoder = new TextEncoder();
+
 export function b(x: TemplateStringsArray): Uint8Array {
-  return new TextEncoder().encode(x[0]);
+  return textEncoder.encode(x[0]);
 }
 
 async function simpleCommit(store: TestStore): Promise<void> {

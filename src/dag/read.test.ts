@@ -1,6 +1,5 @@
 import {expect} from '@esm-bundle/chai';
 import {MemStore} from '../kv/mem-store';
-import {WrapStore} from '../kv/store';
 import {Chunk} from './chunk';
 import {chunkDataKey, chunkMetaKey} from './key';
 import {Read} from './read';
@@ -8,7 +7,7 @@ import {Read} from './read';
 test('has chunk', async () => {
   const t = async (hash: string, expectHas: boolean) => {
     const k = 'present';
-    const kv = new WrapStore(new MemStore());
+    const kv = new MemStore();
     await kv.withWrite(async kvw => {
       await kvw.put(chunkDataKey(k), new Uint8Array([0, 1]));
       await kvw.commit();
@@ -26,7 +25,7 @@ test('has chunk', async () => {
 
 test('get chunk', async () => {
   const t = async (data: Uint8Array, refs: string[], getSameChunk: boolean) => {
-    const kv = new WrapStore(new MemStore());
+    const kv = new MemStore();
     const chunk = await Chunk.new(data, refs);
     await kv.withWrite(async kvw => {
       await kvw.put(chunkDataKey(chunk.hash), chunk.data);

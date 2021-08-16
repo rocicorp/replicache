@@ -28,9 +28,12 @@ export default {
         'src/hash.test.ts  ',
         'src/replicache.test.ts',
         'src/hash.test.ts',
+        'src/subscriptions.test.ts',
 
         'src/dag/*.test.ts',
+        'src/db/*.test.ts',
         'src/kv/*.test.ts',
+        'src/prolly/*.test.ts',
       ],
       browsers: [firefox, chromium, webkit],
     },

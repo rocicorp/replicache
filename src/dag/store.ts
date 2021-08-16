@@ -13,8 +13,16 @@ export class Store {
     return new Read(await this._kv.read());
   }
 
+  async withRead<R>(fn: (read: Read) => R | Promise<R>): Promise<R> {
+    return this._kv.withRead(kvr => fn(new Read(kvr)));
+  }
+
   async write(): Promise<Write> {
     return new Write(await this._kv.write());
+  }
+
+  async withWrite<R>(fn: (Write: Write) => R | Promise<R>): Promise<R> {
+    return this._kv.withWrite(kvw => fn(new Write(kvw)));
   }
 
   async close(): Promise<void> {

@@ -1,4 +1,4 @@
-import {Meta} from './meta_generated.js';
+import {Meta} from './generated/meta/meta.js';
 import * as flatbuffers from 'flatbuffers';
 
 export function getRootAsMeta(bytes: Uint8Array): Meta {

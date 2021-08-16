@@ -1,16 +1,15 @@
 import {expect} from '@esm-bundle/chai';
 import {MemStore} from '../kv/mem-store';
-import {WrapStore} from '../kv/store';
 import {Chunk} from './chunk';
 import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
 import {Write} from './write';
-import type {Read as KVRead} from '../kv/store';
+import type {Read as KVRead, Store as KVStore} from '../kv/store';
 import {fromLittleEndian} from './dag';
 import {Read} from './read';
 
 test('put chunk', async () => {
   const t = async (data: Uint8Array, refs: string[]) => {
-    const kv = new WrapStore(new MemStore());
+    const kv = new MemStore();
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
       const c = await Chunk.new(data, refs);
@@ -48,7 +47,7 @@ async function assertRefCount(kvr: KVRead, hash: string, count: number) {
 }
 
 test('set head', async () => {
-  const t = async (kv: WrapStore, name: string, hash: string | undefined) => {
+  const t = async (kv: KVStore, name: string, hash: string | undefined) => {
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
       await w.setHead(name, hash);
@@ -63,7 +62,7 @@ test('set head', async () => {
     });
   };
 
-  const kv = new WrapStore(new MemStore());
+  const kv = new MemStore();
 
   await t(kv, '', '');
   await kv.withRead(async kvr => {
@@ -109,7 +108,7 @@ test('set head', async () => {
 test('commit rollback', async () => {
   const t = async (commit: boolean, setHead: boolean) => {
     let key: string;
-    const kv = new WrapStore(new MemStore());
+    const kv = new MemStore();
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
       const c = await Chunk.new(new Uint8Array([0, 1]), []);
@@ -126,7 +125,7 @@ test('commit rollback', async () => {
         }
         await w.commit();
       } else {
-        await w.rollback();
+        // implicit rollback
       }
     });
 
@@ -142,7 +141,7 @@ test('commit rollback', async () => {
 
 test('roundtrip', async () => {
   const t = async (name: string, data: Uint8Array, refs: string[]) => {
-    const kv = new WrapStore(new MemStore());
+    const kv = new MemStore();
     const c = await Chunk.new(data, refs);
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);

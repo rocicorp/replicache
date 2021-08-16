@@ -1,6 +1,6 @@
 import * as flatbuffers from 'flatbuffers';
 import {Hash} from '../hash.js';
-import {Meta} from './meta_generated.js';
+import {Meta} from './generated/meta/meta.js';
 
 export class Chunk {
   readonly hash: string;

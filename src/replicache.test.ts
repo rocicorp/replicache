@@ -27,6 +27,7 @@ import {
 } from './test-util.js';
 import {sleep} from './sleep.js';
 import {MemStore} from './kv/mem-store.js';
+import type {Read, Store, Write} from './kv/store.js';
 
 let clock: SinonFakeTimers;
 setup(function () {
@@ -2889,7 +2890,7 @@ test('overlapping open/close', async () => {
   }
 });
 
-class MemStoreWithCounters {
+class MemStoreWithCounters implements Store {
   readonly store = new MemStore();
   readCount = 0;
   writeCount = 0;
@@ -2898,10 +2899,20 @@ class MemStoreWithCounters {
     this.readCount++;
     return this.store.read();
   }
+
+  withRead<R>(fn: (read: Read) => R | Promise<R>): Promise<R> {
+    return this.store.withRead(fn);
+  }
+
   write() {
     this.writeCount++;
     return this.store.write();
   }
+
+  withWrite<R>(fn: (write: Write) => R | Promise<R>): Promise<R> {
+    return this.store.withWrite(fn);
+  }
+
   async close() {
     this.closeCount++;
   }

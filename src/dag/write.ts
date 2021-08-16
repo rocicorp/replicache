@@ -58,10 +58,6 @@ export class Write {
     await this._kvw.commit();
   }
 
-  async rollback(): Promise<void> {
-    await this._kvw.rollback();
-  }
-
   async collectGarbage(): Promise<void> {
     // We increment all the ref counts before we do all the decrements. This
     // is so that we do not remove an item that goes from 1 -> 0 -> 1
@@ -108,7 +104,7 @@ export class Write {
         const length = meta.refsLength();
         for (let i = 0; i < length; i++) {
           const r = meta.refs(i);
-          this.changeRefCount(r, delta);
+          await this.changeRefCount(r, delta);
         }
       }
     }

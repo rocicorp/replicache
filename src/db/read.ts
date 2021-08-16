@@ -1,0 +1,126 @@
+// import
+
+import {Index} from './index';
+import type {Read as DagRead} from '../dag/read';
+import {Map as ProllyMap} from '../prolly/map';
+import {
+  convert,
+  scan,
+  ScanOptions,
+  ScanOptionsInternal,
+  ScanResult,
+} from './scan';
+import {Commit, fromHash as commitFromHash} from './commit';
+
+export class Read {
+  private readonly _dagRead: DagRead;
+  private readonly _map: ProllyMap;
+  private readonly _indexes: Map<string, Index>;
+
+  constructor(dagRead: DagRead, map: ProllyMap, indexes: Map<string, Index>) {
+    this._dagRead = dagRead;
+    this._map = map;
+    this._indexes = indexes;
+  }
+
+  has(key: Uint8Array): boolean {
+    return this._map.has(key);
+  }
+
+  get(key: Uint8Array): Uint8Array | undefined {
+    return this._map.get(key);
+  }
+
+  async scan(
+    opts: ScanOptions,
+    callback: (s: ScanResult) => void,
+  ): Promise<void> {
+    const opts_internal: ScanOptionsInternal = convert(opts);
+    let it;
+    if (opts_internal.indexName !== undefined) {
+      const name = opts_internal.indexName;
+      const idx = this._indexes.get(name);
+      if (idx === undefined) {
+        throw new Error(`Unknown index name: ${name}`);
+      }
+      const map = await idx.getMap(this._dagRead);
+      it = scan(map, opts_internal);
+    } else {
+      it = scan(this._map, opts_internal);
+    }
+
+    for (const item of it) {
+      callback(item);
+    }
+  }
+}
+
+const enum WhenceType {
+  Head,
+  Hash,
+}
+
+export type Whence =
+  | {
+      type: WhenceType.Hash;
+      hash: string;
+    }
+  | {
+      type: WhenceType.Head;
+      name: string;
+    };
+
+export function whenceHead(name: string): Whence {
+  return {
+    type: WhenceType.Head,
+    name,
+  };
+}
+
+export function whenceHash(hash: string): Whence {
+  return {
+    type: WhenceType.Hash,
+    hash,
+  };
+}
+
+export async function fromWhence(
+  whence: Whence,
+  dagRead: DagRead,
+): Promise<Read> {
+  const [, basis, map] = await readCommit(whence, dagRead);
+  const indexex = readIndexes(basis);
+  return new Read(dagRead, map, indexex);
+}
+
+export async function readCommit(
+  whence: Whence,
+  read: DagRead,
+): Promise<[string, Commit, ProllyMap]> {
+  let hash: string;
+  switch (whence.type) {
+    case WhenceType.Hash:
+      hash = whence.hash;
+      break;
+    case WhenceType.Head: {
+      const h = await read.getHead(whence.name);
+      if (h === undefined) {
+        throw new Error(`Unknown head: ${whence.name}`);
+      }
+      hash = h;
+      break;
+    }
+  }
+
+  const commit = await commitFromHash(hash, read);
+  const map = await ProllyMap.load(commit.valueHash(), read);
+  return [hash, commit, map];
+}
+
+export function readIndexes(commit: Commit): Map<string, Index> {
+  const m = new Map();
+  for (const index of commit.indexes()) {
+    m.set(index.definition.name, new Index(index, undefined));
+  }
+  return m;
+}

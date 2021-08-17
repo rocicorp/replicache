@@ -28,7 +28,7 @@ test('dropStore', async () => {
   });
 
   // Drop db
-  dropStore(name);
+  await dropStore(name);
 
   // Reopen store, verify data is gone
   idb = new IDBStore(name);

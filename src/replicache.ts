@@ -432,6 +432,7 @@ export class Replicache<MD extends MutatorDefs = {}>
         newValue,
       ) as StorageBroadcastData;
 
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this._onBroadcastMessage({
         root,
         changedKeys: new Map(changedKeys),
@@ -553,6 +554,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       await tx.open({});
       return await tx.scanAll(options);
     } finally {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       closeIgnoreError(tx);
     }
   }
@@ -585,7 +587,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       await tx.open({});
       await f(tx);
     } finally {
-      tx.commit();
+      await tx.commit();
     }
   }
 
@@ -828,6 +830,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     const counter = this._pushCounter + this._pullCounter;
     if ((delta === 1 && counter === 1) || counter === 0) {
       const syncing = counter > 0;
+      // Run in a new microtask.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       Promise.resolve().then(() => this.onSync?.(syncing));
     }
   }
@@ -927,6 +931,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     } as unknown as UnknownSubscription;
     this._subscriptions.add(s);
 
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this._scheduleInitialSubscriptionRun(s);
 
     return (): void => {
@@ -958,6 +963,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       return await body(tx);
     } finally {
       // No need to await the response.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       closeIgnoreError(tx);
     }
   }
@@ -1048,6 +1054,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       result = await mutatorImpl(tx, args);
     } catch (ex) {
       // No need to await the response.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       closeIgnoreError(tx);
       throw ex;
     }

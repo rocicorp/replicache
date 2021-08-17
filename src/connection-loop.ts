@@ -60,6 +60,7 @@ export class ConnectionLoop {
 
   constructor(delegate: ConnectionLoopDelegate) {
     this._delegate = delegate;
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.run();
   }
 
@@ -154,6 +155,7 @@ export class ConnectionLoop {
       }
 
       counter++;
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       (async () => {
         const start = Date.now();
         let ok: boolean;

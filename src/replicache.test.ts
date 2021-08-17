@@ -2059,13 +2059,13 @@ test.skip('Key type for scans [type checking only]', async () => {
   rep.scan({indexName: 'n', start: {key: ['s', 42]}});
 
   // @ts-expect-error Type 'number' is not assignable to type 'string | undefined'.ts(2322)
-  rep.scanAll({indexName: 'n', start: {key: ['s', 42]}});
+  await rep.scanAll({indexName: 'n', start: {key: ['s', 42]}});
 
   // @ts-expect-error Type '[string]' is not assignable to type 'string'.ts(2322)
   rep.scan({start: {key: ['s']}});
 
   // @ts-expect-error Type '[string]' is not assignable to type 'string'.ts(2322)
-  rep.scanAll({start: {key: ['s']}});
+  await rep.scanAll({start: {key: ['s']}});
 });
 
 test('mem store', async () => {
@@ -2091,13 +2091,13 @@ testWithBothStores('isEmpty', async () => {
       mut: async tx => {
         expect(await tx.isEmpty()).to.equal(false);
 
-        tx.del('c');
+        await tx.del('c');
         expect(await tx.isEmpty()).to.equal(false);
 
-        tx.del('a');
+        await tx.del('a');
         expect(await tx.isEmpty()).to.equal(true);
 
-        tx.put('d', 4);
+        await tx.put('d', 4);
         expect(await tx.isEmpty()).to.equal(false);
       },
     },
@@ -2441,24 +2441,24 @@ test.skip('mut [type checking only]', async () => {
   rep.mutate.h(2) as Promise<void>;
 
   // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
-  rep.mutate.b();
+  await rep.mutate.b();
   //@ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
-  rep.mutate.b(null);
+  await rep.mutate.b(null);
 
   // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
-  rep.mutate.d();
+  await rep.mutate.d();
   //@ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
-  rep.mutate.d(null);
+  await rep.mutate.d(null);
 
   // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
-  rep.mutate.f();
+  await rep.mutate.f();
   //@ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
-  rep.mutate.f(null);
+  await rep.mutate.f(null);
 
   // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
-  rep.mutate.h();
+  await rep.mutate.h();
   // @ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
-  rep.mutate.h(null);
+  await rep.mutate.h(null);
 
   {
     const rep = new Replicache({mutators: {}});
@@ -2495,7 +2495,7 @@ test.skip('scan with index [type checking only]', async () => {
   (await rep.scanAll()) as [string, JSONValue][];
   (await rep.scanAll({indexName: 'i'})) as [[string, string], JSONValue][];
 
-  rep.query(async tx => {
+  await rep.query(async tx => {
     (await tx.scan({indexName: 'a'}).keys().toArray()) as [
       secondary: string,
       primary: string,

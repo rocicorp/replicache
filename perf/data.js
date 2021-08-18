@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1628788952154,
+  "lastUpdate": 1629302709759,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -33974,6 +33974,156 @@ window.BENCHMARK_DATA = {
             "range": "±62.6%",
             "unit": "ops/sec",
             "extra": "30 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a990848e7bb313e429a4692c7d1f2397e811c109",
+          "message": "chore: Enable eslint rule to find missing await (#457)\n\nThis adds the `@typescript-eslint/no-floating-promises` rule to\r\nmark missing await as errors.\r\n\r\nThis forces us to explicitly disable the `no-floating-promises` rule\r\nwhen we do not want to await something.",
+          "timestamp": "2021-08-18T09:02:27-07:00",
+          "tree_id": "b58643fc021925d03a91be20d813841eb1e5a79e",
+          "url": "https://github.com/rocicorp/replicache/commit/a990848e7bb313e429a4692c7d1f2397e811c109"
+        },
+        "date": 1629302709482,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.13,
+            "range": "±102.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.99,
+            "range": "±21.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 3.16,
+            "range": "±14.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.33,
+            "range": "±13.5%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 3.75,
+            "range": "±51.2%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 3.69,
+            "range": "±2.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 4.46,
+            "range": "±69.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 4.37,
+            "range": "±0.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±1087.8%",
+            "unit": "MB/s",
+            "extra": "87 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 98.32,
+            "range": "±479.5%",
+            "unit": "ops/sec",
+            "extra": "51 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 5.17,
+            "range": "±12.0%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.09,
+            "range": "±1.5%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 12.21,
+            "range": "±5.3%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 11.12,
+            "range": "±50.2%",
+            "unit": "ops/sec",
+            "extra": "6 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 10.83,
+            "range": "±4.6%",
+            "unit": "ops/sec",
+            "extra": "6 samples"
+          },
+          {
+            "name": "subscription setup 10",
+            "value": 503.6,
+            "range": "±210.5%",
+            "unit": "ops/sec",
+            "extra": "252 samples"
+          },
+          {
+            "name": "subscription setup 100",
+            "value": 271.95,
+            "range": "±285.3%",
+            "unit": "ops/sec",
+            "extra": "136 samples"
+          },
+          {
+            "name": "subscription setup 1000",
+            "value": 55.18,
+            "range": "±57.4%",
+            "unit": "ops/sec",
+            "extra": "28 samples"
           }
         ]
       }

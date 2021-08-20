@@ -49,7 +49,7 @@ export class Chunk {
   }
 }
 
-export function createMeta(refs: string[]): Uint8Array | undefined {
+function createMeta(refs: string[]): Uint8Array | undefined {
   const refsLength = refs.length;
   if (refsLength === 0) {
     return undefined;

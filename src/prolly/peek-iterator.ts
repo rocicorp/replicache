@@ -1,9 +1,13 @@
-export class PeekIterator<T> implements Iterator<T> {
+export class PeekIterator<T> implements IterableIterator<T> {
   private _peeked: IteratorResult<T> | undefined = undefined;
   private readonly _iter: Iterator<T>;
 
   constructor(iter: Iterator<T>) {
     this._iter = iter;
+  }
+
+  [Symbol.iterator](): IterableIterator<T> {
+    return this;
   }
 
   next(): IteratorResult<T> {

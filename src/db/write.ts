@@ -1,7 +1,13 @@
 import type {Write as DagWrite} from '../dag/write';
 import type {JSONValue} from '../json';
 import {Map as ProllyMap} from '../prolly/mod';
-import {Commit, IndexDefinition} from './commit';
+import {
+  Commit,
+  IndexDefinition,
+  newIndexChange as commitNewIndexChange,
+  newLocal as commitNewLocal,
+  newSnapshot as commitNewSnapshot,
+} from './commit';
 import {Read, readCommit, readIndexes, Whence} from './read';
 import {stringToUint8Array} from './util';
 import {Index, IndexOperation, indexValue} from './index';
@@ -37,10 +43,10 @@ const enum MetaType {
 
 export class Write {
   private readonly _dagWrite: DagWrite;
-  private _map: ProllyMap;
+  map: ProllyMap;
   private readonly _basis: Commit | undefined;
   private readonly _meta: Meta;
-  private readonly _indexes: Map<string, Index>;
+  readonly indexes: Map<string, Index>;
 
   constructor(
     dagWrite: DagWrite,
@@ -50,10 +56,10 @@ export class Write {
     indexes: Map<string, Index>,
   ) {
     this._dagWrite = dagWrite;
-    this._map = map;
+    this.map = map;
     this._basis = basis;
     this._meta = meta;
-    this._indexes = indexes;
+    this.indexes = indexes;
   }
 
   static async newLocal(
@@ -115,7 +121,7 @@ export class Write {
   }
 
   asRead(): Read {
-    return new Read(this._dagWrite.read(), this._map, this._indexes);
+    return new Read(this._dagWrite.read(), this.map, this.indexes);
   }
 
   isRebase(): boolean {
@@ -129,10 +135,10 @@ export class Write {
     if (this._meta.type === MetaType.IndexChange) {
       throw new Error('Not allowed');
     }
-    const oldVal = this._map.get(key);
+    const oldVal = this.map.get(key);
     if (oldVal !== undefined) {
       await updateIndexes(
-        this._indexes,
+        this.indexes,
         this._dagWrite,
         IndexOperation.Remove,
         key,
@@ -140,14 +146,14 @@ export class Write {
       );
     }
     await updateIndexes(
-      this._indexes,
+      this.indexes,
       this._dagWrite,
       IndexOperation.Add,
       key,
       val,
     );
 
-    this._map.put(key, val);
+    this.map.put(key, val);
   }
 
   async del(key: Uint8Array): Promise<void> {
@@ -155,17 +161,17 @@ export class Write {
       throw new Error('Not allowed');
     }
 
-    const oldVal = this._map.get(key);
+    const oldVal = this.map.get(key);
     if (oldVal !== undefined) {
       await updateIndexes(
-        this._indexes,
+        this.indexes,
         this._dagWrite,
         IndexOperation.Remove,
         key,
         oldVal,
       );
     }
-    this._map.del(key);
+    this.map.del(key);
   }
 
   async clear(): Promise<void> {
@@ -173,8 +179,8 @@ export class Write {
       throw new Error('Not allowed');
     }
 
-    this._map = ProllyMap.new();
-    for (const idx of this._indexes.values()) {
+    this.map = ProllyMap.new();
+    for (const idx of this.indexes.values()) {
       // TODO(arv): Parallelize this.
       await idx.clear();
     }
@@ -196,7 +202,7 @@ export class Write {
     };
 
     // Check to see if the index already exists.
-    const idx = this._indexes.get(name);
+    const idx = this.indexes.get(name);
     if (idx) {
       const oldDefintion = idx.meta.definition;
       if (
@@ -211,7 +217,7 @@ export class Write {
     }
 
     const indexMap = ProllyMap.new();
-    for (const entry of scanRaw(this._map, {
+    for (const entry of scanRaw(this.map, {
       prefix: keyPrefix,
       limit: undefined,
       startKey: undefined,
@@ -220,17 +226,25 @@ export class Write {
       // All the index_value errors because of customer-supplied data: malformed
       // json, json path pointing to nowhere, etc. We ignore them.
 
-      // TODO: Try/catch?
-      indexValue(
-        indexMap,
-        IndexOperation.Add,
-        entry.key,
-        entry.val,
-        jsonPointer,
-      );
+      try {
+        indexValue(
+          indexMap,
+          IndexOperation.Add,
+          entry.key,
+          entry.val,
+          jsonPointer,
+        );
+      } catch (e) {
+        console.info(
+          'Not indexing value',
+          new TextDecoder().decode(entry.val),
+          ':',
+          e,
+        );
+      }
     }
 
-    this._indexes.set(
+    this.indexes.set(
       name,
       new Index(
         {
@@ -247,7 +261,7 @@ export class Write {
       throw new Error('Not allowed');
     }
 
-    if (!this._indexes.delete(name)) {
+    if (!this.indexes.delete(name)) {
       throw new Error(`No such index: ${name}`);
     }
   }
@@ -263,15 +277,15 @@ export class Write {
     generateChangedKeys: boolean,
   ): Promise<[string, ChangedKeysMap]> {
     const valueChangedKeys = generateChangedKeys
-      ? this._map.pendingChangedKeys()
+      ? this.map.pendingChangedKeys()
       : [];
-    const valueHash = await this._map.flush(this._dagWrite);
+    const valueHash = await this.map.flush(this._dagWrite);
     const indexMetas = [];
     const keyChanges = new Map();
     if (valueChangedKeys.length > 0) {
       keyChanges.set('', valueChangedKeys);
     }
-    for (const [name, index] of this._indexes) {
+    for (const [name, index] of this.indexes) {
       {
         const map = await index.getMap(this._dagWrite.read());
         const indexChangedKeys = map.pendingChangedKeys();
@@ -290,7 +304,7 @@ export class Write {
     switch (meta.type) {
       case MetaType.Local: {
         const {mutationID, mutatorName, mutatorArgs, originalHash} = meta;
-        commit = await Commit.newLocal(
+        commit = await commitNewLocal(
           basisHash,
           mutationID,
           mutatorName,
@@ -303,7 +317,7 @@ export class Write {
       }
       case MetaType.Snapshot: {
         const {lastMutationID, cookie} = meta;
-        commit = await Commit.newSnapshot(
+        commit = await commitNewSnapshot(
           basisHash,
           lastMutationID,
           stringToUint8Array(JSON.stringify(cookie)),
@@ -323,7 +337,7 @@ export class Write {
           }
         }
 
-        commit = await Commit.newIndexChange(
+        commit = await commitNewIndexChange(
           basisHash,
           lastMutationID,
           valueHash,

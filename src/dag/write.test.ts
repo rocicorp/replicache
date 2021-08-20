@@ -40,8 +40,10 @@ async function assertRefCount(kvr: KVRead, hash: string, count: number) {
   if (count === 0) {
     expect(buf).to.be.undefined;
   } else {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const metaCount = fromLittleEndian(buf!);
+    if (buf === undefined) {
+      throw new Error('buf is undefined');
+    }
+    const metaCount = fromLittleEndian(buf);
     expect(metaCount).to.equal(count);
   }
 }

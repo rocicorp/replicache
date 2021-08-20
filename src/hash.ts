@@ -27,15 +27,6 @@ export class Hash {
     return encode(this._sum);
   }
 
-  equals(other: Hash): boolean {
-    for (const i of this._sum) {
-      if (i !== other._sum[i]) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   static empty(): Hash {
     return new Hash(new Uint8Array(BYTE_LENGTH));
   }

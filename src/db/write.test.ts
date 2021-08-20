@@ -1,9 +1,10 @@
 import {expect} from '@esm-bundle/chai';
-import {Store as DagStore, Store} from '../dag/store';
+import {assertNotNull, assertNotUndefined} from '../assert-not-null';
+import {Store as DagStore} from '../dag/store';
 import {MemStore} from '../kv/mem-store';
 import {b} from '../kv/store-test-util';
 import {DEFAULT_HEAD_NAME} from './commit';
-import {whenceHead} from './read';
+import {readCommit, readIndexes, whenceHead} from './read';
 import {initDB, Write} from './write';
 
 test('basics', async () => {
@@ -73,7 +74,7 @@ test('basics', async () => {
   });
 });
 
-test('index commit type', async () => {
+test('index commit type constraints', async () => {
   const ds = new DagStore(new MemStore());
   await initDB(await ds.write(), DEFAULT_HEAD_NAME);
 
@@ -108,9 +109,65 @@ test('index commit type', async () => {
 });
 
 test('clear', async () => {
-  // throw new Error('TODO(arv): Implement');
+  const ds = new DagStore(new MemStore());
+  await ds.withWrite(dagWrite => initDB(dagWrite, DEFAULT_HEAD_NAME));
+  await ds.withWrite(async dagWrite => {
+    const w = await Write.newLocal(
+      whenceHead(DEFAULT_HEAD_NAME),
+      'mutator_name',
+      JSON.stringify([]),
+      undefined,
+      dagWrite,
+    );
+    await w.put(b`foo`, b`"bar"`);
+    await w.commit(DEFAULT_HEAD_NAME);
+  });
+
+  await ds.withWrite(async dagWrite => {
+    const w = await Write.newIndexChange(
+      whenceHead(DEFAULT_HEAD_NAME),
+      dagWrite,
+    );
+    await w.createIndex('idx', b``, '');
+    await w.commit(DEFAULT_HEAD_NAME);
+  });
+
+  await ds.withWrite(async dagWrite => {
+    const w = await Write.newLocal(
+      whenceHead(DEFAULT_HEAD_NAME),
+      'mutator_name',
+      JSON.stringify([]),
+      undefined,
+      dagWrite,
+    );
+    await w.put(b`hot`, b`"dog"`);
+
+    expect([...w.map]).to.have.lengthOf(2);
+    let index = w.indexes.get('idx');
+    assertNotUndefined(index);
+    let map = await index.getMap(dagWrite.read());
+    expect([...map]).prototype.have.lengthOf(2);
+
+    await w.clear();
+    expect([...w.map]).to.have.lengthOf(0);
+    index = w.indexes.get('idx');
+    assertNotUndefined(index);
+    map = await index.getMap(dagWrite.read());
+    expect([...map]).prototype.have.lengthOf(0);
+
+    await w.commit(DEFAULT_HEAD_NAME);
+  });
+
+  await ds.withRead(async dagRead => {
+    const [, c, m] = await readCommit(whenceHead(DEFAULT_HEAD_NAME), dagRead);
+    const indexes = readIndexes(c);
+    expect([...m]).to.have.lengthOf(0);
+    const index = indexes.get('idx');
+    assertNotUndefined(index);
+    expect([...(await index.getMap(dagRead))]).to.have.lengthOf(0);
+  });
 });
 
 test('create and drop index', async () => {
-  // throw new Error('TODO(arv): Implement');
+  throw new Error('TODO(arv): Implement');
 });

@@ -18,7 +18,6 @@ export async function addGenesis(
 }
 
 export async function createGenesis(store: DagStore): Promise<Commit> {
-  debugger;
   await store.withWrite(async w => {
     await initDB(w, DEFAULT_HEAD_NAME);
   });
@@ -34,7 +33,7 @@ export async function addLocal(chain: Chain, store: DagStore): Promise<Chain> {
   expect(chain).to.have.length.greaterThan(0);
   const i = chain.length;
   const commit = await createLocal(
-    [[stringToUint8Array('local'), stringToUint8Array(i.toString())]],
+    [[stringToUint8Array('local'), stringToUint8Array(`"${i}"`)]],
     store,
     i,
   );

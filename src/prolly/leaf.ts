@@ -4,6 +4,7 @@ import * as flatbuffers from 'flatbuffers';
 import {Leaf as LeafFB} from './generated/leaf/leaf';
 import {LeafEntry as LeafEntryFB} from './generated/leaf/leaf-entry';
 import {arrayCompare} from './array-compare';
+import {assertNotNull} from '../assert-not-null';
 
 export class Leaf {
   readonly chunk: Chunk;
@@ -137,11 +138,5 @@ export class Leaf {
       return {found: true, index: base};
     }
     return {found: false, index: base + cmp};
-  }
-}
-
-function assertNotNull<T>(v: T | null): asserts v is T {
-  if (v === null) {
-    throw new Error('Expected non-null value');
   }
 }

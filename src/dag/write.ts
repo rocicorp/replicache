@@ -88,7 +88,6 @@ export class Write {
         ps.push(this.removeAllRelatedKeys(hash, false));
       }
     }
-
     await Promise.all(ps);
   }
 
@@ -102,10 +101,12 @@ export class Write {
       if (buf !== undefined) {
         const meta = getRootAsMeta(buf);
         const length = meta.refsLength();
+        const ps = [];
         for (let i = 0; i < length; i++) {
           const r = meta.refs(i);
-          await this.changeRefCount(r, delta);
+          ps.push(this.changeRefCount(r, delta));
         }
+        await Promise.all(ps);
       }
     }
 
@@ -127,6 +128,14 @@ export class Write {
     }
   }
 
+  async getRefCount(hash: string): Promise<number> {
+    const buf = await this._kvw.get(chunkRefCountKey(hash));
+    if (buf === undefined) {
+      return 0;
+    }
+    return fromLittleEndian(buf);
+  }
+
   async removeAllRelatedKeys(
     hash: string,
     updateMutatedChunks: boolean,
@@ -140,13 +149,5 @@ export class Write {
     if (updateMutatedChunks) {
       this._mutatedChunks.delete(hash);
     }
-  }
-
-  async getRefCount(hash: string): Promise<number> {
-    const buf = await this._kvw.get(chunkRefCountKey(hash));
-    if (buf === undefined) {
-      return 0;
-    }
-    return fromLittleEndian(buf);
   }
 }

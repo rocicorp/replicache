@@ -83,8 +83,12 @@ class ProllyMap {
     this._pending.set(ks, null);
   }
 
-  [Symbol.iterator](): Iterator<Entry> {
+  entries(): IterableIterator<Entry> {
     return new Iter(this._base, this._pending);
+  }
+
+  [Symbol.iterator](): IterableIterator<Entry> {
+    return this.entries();
   }
 
   async flush(write: DagWrite): Promise<string> {
@@ -190,7 +194,7 @@ export function stringCompare(a: string, b: string): number {
 const textEncoder = new TextEncoder();
 
 // TODO(arv): Refactor to use generator(s)?
-class Iter implements Iterator<Entry> {
+class Iter implements IterableIterator<Entry> {
   private readonly _base: PeekIterator<Entry>;
   private readonly _pending: PeekIterator<DeletableEntry>;
 
@@ -207,6 +211,10 @@ class Iter implements Iterator<Entry> {
       val,
     }));
     this._pending = new PeekIterator(entries.values());
+  }
+
+  [Symbol.iterator](): IterableIterator<Entry> {
+    return this;
   }
 
   next(): IteratorResult<Entry> {

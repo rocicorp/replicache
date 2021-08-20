@@ -10,12 +10,7 @@ import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
 import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
 import type {Read as DagRead} from '../dag/read';
 import type {JSONValue} from '../json';
-
-function assertNotNull<T>(v: T | null): asserts v is T {
-  if (v === null) {
-    throw new Error('Expected non-null value');
-  }
-}
+import {assertNotNull} from '../assert-not-null';
 
 export const DEFAULT_HEAD_NAME = 'main';
 
@@ -66,67 +61,25 @@ export class Commit {
       assertNotNull(idx);
       const definitionFB = idx.definition();
       assertNotNull(definitionFB);
+      const jsonPointer = definitionFB.jsonPointer() ?? '';
+      const name = definitionFB.name();
+      assertNotNull(name);
+      const keyPrefix = definitionFB.keyPrefixArray();
+      assertNotNull(keyPrefix);
       const definition: IndexDefinition = {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        name: definitionFB.name()!,
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        keyPrefix: definitionFB.keyPrefixArray()!,
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        jsonPointer: definitionFB.jsonPointer()!,
+        name,
+        keyPrefix,
+        jsonPointer,
       };
+      const valueHash = idx.valueHash();
+      assertNotNull(valueHash);
       const index: IndexRecord = {
         definition,
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        valueHash: idx.valueHash()!,
+        valueHash,
       };
       result.push(index);
     }
     return result;
-  }
-
-  static newLocal(
-    basisHash: string | undefined,
-    mutationID: number,
-    mutatorName: string,
-    mutatorArgsJSON: Uint8Array,
-    originalHash: string | undefined,
-    valueHash: string,
-    indexes: IndexRecord[],
-  ): Promise<Commit> {
-    return newLocal(
-      basisHash,
-      mutationID,
-      mutatorName,
-      mutatorArgsJSON,
-      originalHash,
-      valueHash,
-      indexes,
-    );
-  }
-
-  static newSnapshot(
-    basisHash: string | undefined,
-    lastMutationID: number,
-    cookieJSON: Uint8Array,
-    valueHash: string,
-    indexes: IndexRecord[],
-  ): Promise<Commit> {
-    return newSnapshot(
-      basisHash,
-      lastMutationID,
-      cookieJSON,
-      valueHash,
-      indexes,
-    );
-  }
-
-  static newIndexChange(
-    basisHash: string | undefined,
-    lastMutationID: number,
-    valueHash: string,
-    indexes: IndexRecord[],
-  ): Promise<Commit> {
-    return newIndexChange(basisHash, lastMutationID, valueHash, indexes);
   }
 }
 
@@ -198,12 +151,10 @@ export class LocalMeta {
     return this.fb.mutatorArgsJsonArray()!;
   }
 
-  originalHash(): string {
+  originalHash(): string | undefined {
     // original_hash is legitimately optional, it's only present if the
     // local commit was rebased.
-    // Already validated!
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return this.fb.originalHash()!;
+    return this.fb.originalHash() ?? undefined;
   }
 }
 
@@ -257,31 +208,13 @@ export function newLocal(
   indexes: IndexRecord[],
 ): Promise<Commit> {
   const builder = new flatbuffers.Builder();
-
-  const argsVecOffset = LocalMetaFB.createMutatorArgsJsonVector(
-    builder,
-    mutatorArgsJSON,
-  );
-
   const localMeta = LocalMetaFB.createLocalMeta(
     builder,
     flatbuffers.createLong(mutationID, 0),
     builder.createString(mutatorName),
-    argsVecOffset,
+    LocalMetaFB.createMutatorArgsJsonVector(builder, mutatorArgsJSON),
     originalHash ? builder.createString(originalHash) : 0,
   );
-
-  // LocalMetaFB.startLocalMeta(builder);
-  // LocalMetaFB.addMutationId(builder, flatbuffers.createLong(0, mutationID));
-  // LocalMetaFB.addMutatorName(builder, builder.createString(mutatorName));
-  // LocalMetaFB.addMutatorArgsJson(
-  //   builder,
-  //   LocalMetaFB.createMutatorArgsJsonVector(builder, mutatorArgsJSON),
-  // );
-  // if (originalHash) {
-  //   LocalMetaFB.addOriginalHash(builder, builder.createString(originalHash));
-  // }
-  // const localMeta = LocalMetaFB.endLocalMeta(builder);
 
   return newImpl(
     builder,
@@ -386,14 +319,6 @@ async function newImpl(
     unionType,
     unionValue,
   );
-
-  // MetaFB.startMeta(builder);
-  // if (basisHash) {
-  //   MetaFB.addBasisHash(builder, builder.createString(basisHash.h));
-  // }
-  // MetaFB.addTypedType(builder, unionType);
-  // MetaFB.addTyped(builder, unionValue);
-  // const meta = MetaFB.endMeta(builder);
 
   const indexRecordsFB = [];
   for (const index of indexes) {
@@ -513,6 +438,9 @@ export function snapshotMetaParts(
 function validate(data: Uint8Array) {
   const buf = new flatbuffers.ByteBuffer(data);
   const root = CommitFB.getRootAsCommit(buf);
+  if (root.valueHash() === null) {
+    throw new Error('Missing value hash');
+  }
   const meta = root.meta();
   if (!meta) {
     throw new Error('Missing meta');
@@ -560,13 +488,16 @@ function validateIndexChangeMeta(_meta: IndexChangeMetaFB) {
   // commit time.
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function validateLocalMeta(meta: LocalMetaFB) {
+  // JS impl of Flatbuffers does not distinguish between null and empty string.
   if (meta.mutatorName(flatbuffers.Encoding.UTF8_BYTES) === null) {
     throw new Error('Missing mutator name');
   }
-  if (meta.mutatorArgsJsonLength() === 0) {
-    throw new Error('Missing mutator args JSON');
-  }
+  // JS impl of Flatbuffers does not distinguish between null and empty string.
+  // if (meta.mutatorArgsJsonLength() === 0) {
+  //   throw new Error('Missing mutator args JSON');
+  // }
 }
 
 function validateSnapshotMeta(meta: SnapshotMetaFB) {
@@ -597,7 +528,9 @@ function validateIndexDefinition(d: IndexDefinitionFB) {
   if (d.keyPrefixLength() === 0) {
     throw new Error('Missing key prefix');
   }
-  if (d.jsonPointer(flatbuffers.Encoding.UTF8_BYTES) === null) {
-    throw new Error('Missing index path');
-  }
+
+  // JS impl of Flatbuffers does not distinguish between null and empty string.
+  // if (d.jsonPointer(flatbuffers.Encoding.UTF8_BYTES) === null) {
+  //   throw new Error('Missing index path');
+  // }
 }

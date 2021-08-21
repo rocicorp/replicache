@@ -3,71 +3,100 @@
 import * as flatbuffers from 'flatbuffers';
 
 export class Meta {
-  bb: flatbuffers.ByteBuffer|null = null;
+  bb: flatbuffers.ByteBuffer | null = null;
   bb_pos = 0;
-__init(i:number, bb:flatbuffers.ByteBuffer):Meta {
-  this.bb_pos = i;
-  this.bb = bb;
-  return this;
-}
-
-static getRootAsMeta(bb:flatbuffers.ByteBuffer, obj?:Meta):Meta {
-  return (obj || new Meta()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-}
-
-static getSizePrefixedRootAsMeta(bb:flatbuffers.ByteBuffer, obj?:Meta):Meta {
-  bb.setPosition(bb.position() + flatbuffers.SIZE_PREFIX_LENGTH);
-  return (obj || new Meta()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
-}
-
-refs(index: number):string
-refs(index: number,optionalEncoding:flatbuffers.Encoding):string|Uint8Array
-refs(index: number,optionalEncoding?:any):string|Uint8Array|null {
-  const offset = this.bb!.__offset(this.bb_pos, 4);
-  return offset ? this.bb!.__string(this.bb!.__vector(this.bb_pos + offset) + index * 4, optionalEncoding) : null;
-}
-
-refsLength():number {
-  const offset = this.bb!.__offset(this.bb_pos, 4);
-  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
-}
-
-static startMeta(builder:flatbuffers.Builder) {
-  builder.startObject(1);
-}
-
-static addRefs(builder:flatbuffers.Builder, refsOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(0, refsOffset, 0);
-}
-
-static createRefsVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
-  builder.startVector(4, data.length, 4);
-  for (let i = data.length - 1; i >= 0; i--) {
-    builder.addOffset(data[i]!);
+  __init(i: number, bb: flatbuffers.ByteBuffer): Meta {
+    this.bb_pos = i;
+    this.bb = bb;
+    return this;
   }
-  return builder.endVector();
-}
 
-static startRefsVector(builder:flatbuffers.Builder, numElems:number) {
-  builder.startVector(4, numElems, 4);
-}
+  static getRootAsMeta(bb: flatbuffers.ByteBuffer, obj?: Meta): Meta {
+    return (obj || new Meta()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
+  }
 
-static endMeta(builder:flatbuffers.Builder):flatbuffers.Offset {
-  const offset = builder.endObject();
-  return offset;
-}
+  static getSizePrefixedRootAsMeta(
+    bb: flatbuffers.ByteBuffer,
+    obj?: Meta,
+  ): Meta {
+    bb.setPosition(bb.position() + flatbuffers.SIZE_PREFIX_LENGTH);
+    return (obj || new Meta()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
+  }
 
-static finishMetaBuffer(builder:flatbuffers.Builder, offset:flatbuffers.Offset) {
-  builder.finish(offset);
-}
+  refs(index: number): string;
+  refs(
+    index: number,
+    optionalEncoding: flatbuffers.Encoding,
+  ): string | Uint8Array;
+  refs(index: number, optionalEncoding?: any): string | Uint8Array | null {
+    const offset = this.bb!.__offset(this.bb_pos, 4);
+    return offset
+      ? this.bb!.__string(
+          this.bb!.__vector(this.bb_pos + offset) + index * 4,
+          optionalEncoding,
+        )
+      : null;
+  }
 
-static finishSizePrefixedMetaBuffer(builder:flatbuffers.Builder, offset:flatbuffers.Offset) {
-  builder.finish(offset, undefined, true);
-}
+  refsLength(): number {
+    const offset = this.bb!.__offset(this.bb_pos, 4);
+    return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+  }
 
-static createMeta(builder:flatbuffers.Builder, refsOffset:flatbuffers.Offset):flatbuffers.Offset {
-  Meta.startMeta(builder);
-  Meta.addRefs(builder, refsOffset);
-  return Meta.endMeta(builder);
-}
+  static startMeta(builder: flatbuffers.Builder) {
+    builder.startObject(1);
+  }
+
+  static addRefs(builder: flatbuffers.Builder, refsOffset: flatbuffers.Offset) {
+    builder.addFieldOffset(0, refsOffset, 0);
+  }
+
+  static createRefsVector(
+    builder: flatbuffers.Builder,
+    data: flatbuffers.Offset[],
+  ): flatbuffers.Offset {
+    builder.startVector(4, data.length, 4);
+    for (let i = data.length - 1; i >= 0; i--) {
+      builder.addOffset(data[i]!);
+    }
+    return builder.endVector();
+  }
+
+  static startRefsVector(builder: flatbuffers.Builder, numElems: number) {
+    builder.startVector(4, numElems, 4);
+  }
+
+  static endMeta(builder: flatbuffers.Builder): flatbuffers.Offset {
+    const offset = builder.endObject();
+    return offset;
+  }
+
+  static finishMetaBuffer(
+    builder: flatbuffers.Builder,
+    offset: flatbuffers.Offset,
+  ) {
+    builder.finish(offset);
+  }
+
+  static finishSizePrefixedMetaBuffer(
+    builder: flatbuffers.Builder,
+    offset: flatbuffers.Offset,
+  ) {
+    builder.finish(offset, undefined, true);
+  }
+
+  static createMeta(
+    builder: flatbuffers.Builder,
+    refsOffset: flatbuffers.Offset,
+  ): flatbuffers.Offset {
+    Meta.startMeta(builder);
+    Meta.addRefs(builder, refsOffset);
+    return Meta.endMeta(builder);
+  }
 }

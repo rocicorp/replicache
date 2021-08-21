@@ -335,7 +335,7 @@ async function newImpl(
     const indexRecord = IndexRecordFB.createIndexRecord(
       builder,
       indexDefinition,
-      builder.createString(valueHash.h),
+      builder.createString(index.valueHash),
     );
     indexRecordsFB.push(indexRecord);
   }
@@ -525,11 +525,13 @@ function validateIndexDefinition(d: IndexDefinitionFB) {
   if (d.name(flatbuffers.Encoding.UTF8_BYTES) === null) {
     throw new Error('Missing index name');
   }
-  if (d.keyPrefixLength() === 0) {
-    throw new Error('Missing key prefix');
-  }
 
-  // JS impl of Flatbuffers does not distinguish between null and empty string.
+  // JS impl of Flatbuffers does not distinguish between missing and empty vector.
+  // if (d.keyPrefixLength() === 0) {
+  //   throw new Error('Missing key prefix');
+  // }
+
+  // JS impl of Flatbuffers does not distinguish between missin and empty string.
   // if (d.jsonPointer(flatbuffers.Encoding.UTF8_BYTES) === null) {
   //   throw new Error('Missing index path');
   // }

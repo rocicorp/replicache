@@ -35,22 +35,23 @@ export class Read {
     opts: ScanOptions,
     callback: (s: ScanResult) => void,
   ): Promise<void> {
-    const opts_internal: ScanOptionsInternal = convert(opts);
-    let it;
-    if (opts_internal.indexName !== undefined) {
-      const name = opts_internal.indexName;
+    const optsInternal: ScanOptionsInternal = convert(opts);
+    if (optsInternal.indexName !== undefined) {
+      const name = optsInternal.indexName;
       const idx = this._indexes.get(name);
       if (idx === undefined) {
         throw new Error(`Unknown index name: ${name}`);
       }
-      const map = await idx.getMap(this._dagRead);
-      it = scan(map, opts_internal);
-    } else {
-      it = scan(this._map, opts_internal);
-    }
 
-    for (const item of it) {
-      callback(item);
+      await idx.withMap(this._dagRead, map => {
+        for (const item of scan(map, optsInternal)) {
+          callback(item);
+        }
+      });
+    } else {
+      for (const item of scan(this._map, optsInternal)) {
+        callback(item);
+      }
     }
   }
 }

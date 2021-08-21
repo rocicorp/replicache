@@ -32,7 +32,7 @@ async function makeLeaf(
 test('try from', async () => {
   const t = (input: Chunk, expected: Entry) => {
     const leaf = Leaf.load(input);
-    const actual = leaf[Symbol.iterator]().next().value;
+    const actual = leaf.entries().next().value;
     expect(actual).to.deep.equal(expected);
   };
 

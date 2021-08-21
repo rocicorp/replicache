@@ -1,4 +1,4 @@
-import type {Read} from '../dag/read';
+import type {Read as DagRead} from '../dag/read';
 import type {Write} from '../dag/write';
 import type {JSONValue} from '../json';
 import {Map as ProllyMap} from '../prolly/map';
@@ -9,7 +9,6 @@ import {stringToUint8Array} from './util';
 export class Index {
   readonly meta: IndexRecord;
   private _map: ProllyMap | undefined;
-  // TODO(arv): Is this lock necessary?
   private _rwLock = new RWLock();
 
   constructor(meta: IndexRecord, map: ProllyMap | undefined) {
@@ -17,13 +16,17 @@ export class Index {
     this._map = map;
   }
 
-  getMap(dagRead: Read): Promise<ProllyMap> {
-    return this._rwLock.withWrite(async () => {
-      if (this._map) {
-        return this._map;
-      }
-      return (this._map = await ProllyMap.load(this.meta.valueHash, dagRead));
-    });
+  async withMap<T>(
+    dagRead: DagRead,
+    cb: (map: ProllyMap) => T | Promise<T>,
+  ): Promise<T> {
+    if (!this._map) {
+      await this._rwLock.withWrite(async () => {
+        return (this._map = await ProllyMap.load(this.meta.valueHash, dagRead));
+      });
+    }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return this._rwLock.withRead(() => cb(this._map!));
   }
 
   // Note: does not update self.meta.value_hash (doesn't need to at this point as flush

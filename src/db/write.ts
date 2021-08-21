@@ -202,9 +202,9 @@ export class Write {
     };
 
     // Check to see if the index already exists.
-    const idx = this.indexes.get(name);
-    if (idx) {
-      const oldDefintion = idx.meta.definition;
+    const index = this.indexes.get(name);
+    if (index) {
+      const oldDefintion = index.meta.definition;
       if (
         oldDefintion.name === name &&
         oldDefintion.keyPrefix === keyPrefix &&
@@ -287,15 +287,17 @@ export class Write {
     }
     for (const [name, index] of this.indexes) {
       {
-        const map = await index.getMap(this._dagWrite.read());
-        const indexChangedKeys = map.pendingChangedKeys();
+        const indexChangedKeys = await index.withMap(
+          this._dagWrite.read(),
+          map => map.pendingChangedKeys(),
+        );
         if (indexChangedKeys.length > 0) {
           keyChanges.set(name, indexChangedKeys);
         }
       }
-      const value_hash = await index.flush(this._dagWrite);
+      const valueHash = await index.flush(this._dagWrite);
       const {meta} = index;
-      meta.valueHash = value_hash;
+      meta.valueHash = valueHash;
       indexMetas.push(meta);
     }
     const basisHash = this._basis && this._basis.chunk.hash;
@@ -366,24 +368,23 @@ async function updateIndexes(
   val: Uint8Array,
 ): Promise<void> {
   for (const idx of indexes.values()) {
-    if (startsWith(key, idx.meta.definition.keyPrefix)) {
-      // let guard = await idx
-      //     .get_map_mut(dagWrite.read())
-      //     .await
-      //     .map_err(GetMapError)?;
-      // // TODO: use outer guard to avoid unwrap. But it doesn't work.
-      // // See comment in that struct.
-      // let map = guard.guard.as_mut().unwrap();
+    if (startsWith(idx.meta.definition.keyPrefix, key)) {
+      await idx.withMap(dagWrite.read(), map => {
+        // Right now all the errors that index_value() returns are customers dev
+        // problems: either the value is not json, the pointer is into nowhere, etc.
+        // So we ignore them.
 
-      const map = await idx.getMap(dagWrite.read());
-      // Right now all the errors that index_value() returns are customers dev
-      // problems: either the value is not json, the pointer is into nowhere, etc.
-      // So we ignore them.
-
-      // TODO(arv): Locking of index maps?
-
-      // TODO(arv): Try/catch?
-      indexValue(map, op, key, val, idx.meta.definition.jsonPointer);
+        try {
+          indexValue(map, op, key, val, idx.meta.definition.jsonPointer);
+        } catch (e) {
+          console.info(
+            'Not indexing value',
+            new TextDecoder().decode(val),
+            ':',
+            e,
+          );
+        }
+      });
     }
   }
 }

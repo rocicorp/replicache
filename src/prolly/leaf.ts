@@ -75,7 +75,7 @@ export class Leaf {
     return new Leaf(chunk);
   }
 
-  *[Symbol.iterator](): Generator<Entry, void> {
+  *entries(): Generator<Entry, void> {
     const buf = new flatbuffers.ByteBuffer(this.chunk.data);
     const root = LeafFB.getRootAsLeaf(buf);
     for (let i = 0; i < root.entriesLength(); i++) {
@@ -90,11 +90,8 @@ export class Leaf {
     }
   }
 
-  // TODO(arv): Use get size or get length?
-  len(): number {
-    const buf = new flatbuffers.ByteBuffer(this.chunk.data);
-    const root = LeafFB.getRootAsLeaf(buf);
-    return root.entriesLength();
+  [Symbol.iterator](): Generator<Entry, void> {
+    return this.entries();
   }
 
   getEntryByIndex(i: number): LeafEntryFB {

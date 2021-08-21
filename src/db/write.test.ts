@@ -1,11 +1,14 @@
 import {expect} from '@esm-bundle/chai';
-import {assertNotNull, assertNotUndefined} from '../assert-not-null';
+import {assertNotUndefined} from '../assert-not-null';
 import {Store as DagStore} from '../dag/store';
 import {MemStore} from '../kv/mem-store';
 import {b} from '../kv/store-test-util';
 import {DEFAULT_HEAD_NAME} from './commit';
 import {readCommit, readIndexes, whenceHead} from './read';
+import {stringToUint8Array} from './util';
 import {initDB, Write} from './write';
+import {Map as ProllyMap} from '../prolly/map';
+import {encodeIndexKey} from './index';
 
 test('basics', async () => {
   const ds = new DagStore(new MemStore());
@@ -145,15 +148,17 @@ test('clear', async () => {
     expect([...w.map]).to.have.lengthOf(2);
     let index = w.indexes.get('idx');
     assertNotUndefined(index);
-    let map = await index.getMap(dagWrite.read());
-    expect([...map]).prototype.have.lengthOf(2);
+    await index.withMap(dagWrite.read(), map => {
+      expect([...map]).to.have.lengthOf(2);
+    });
 
     await w.clear();
     expect([...w.map]).to.have.lengthOf(0);
     index = w.indexes.get('idx');
     assertNotUndefined(index);
-    map = await index.getMap(dagWrite.read());
-    expect([...map]).prototype.have.lengthOf(0);
+    await index.withMap(dagWrite.read(), map => {
+      expect([...map]).to.have.lengthOf(0);
+    });
 
     await w.commit(DEFAULT_HEAD_NAME);
   });
@@ -164,10 +169,104 @@ test('clear', async () => {
     expect([...m]).to.have.lengthOf(0);
     const index = indexes.get('idx');
     assertNotUndefined(index);
-    expect([...(await index.getMap(dagRead))]).to.have.lengthOf(0);
+    await index.withMap(dagRead, map => {
+      expect([...map]).to.have.lengthOf(0);
+    });
   });
 });
 
 test('create and drop index', async () => {
-  throw new Error('TODO(arv): Implement');
+  const t = async (writeBeforeIndexing: boolean) => {
+    const ds = new DagStore(new MemStore());
+    await ds.withWrite(dagWrite => initDB(dagWrite, DEFAULT_HEAD_NAME));
+
+    if (writeBeforeIndexing) {
+      await ds.withWrite(async dagWrite => {
+        const w = await Write.newLocal(
+          whenceHead(DEFAULT_HEAD_NAME),
+          'mutator_name',
+          JSON.stringify([]),
+          undefined,
+          dagWrite,
+        );
+        for (let i = 0; i < 3; i++) {
+          await w.put(
+            stringToUint8Array(`k${i}`),
+            stringToUint8Array(JSON.stringify({s: `s${i}`})),
+          );
+        }
+        await w.commit(DEFAULT_HEAD_NAME);
+      });
+    }
+
+    const indexName = 'i1';
+    await ds.withWrite(async dagWrite => {
+      const w = await Write.newIndexChange(
+        whenceHead(DEFAULT_HEAD_NAME),
+        dagWrite,
+      );
+      await w.createIndex(indexName, b``, '/s');
+      await w.commit(DEFAULT_HEAD_NAME);
+    });
+
+    if (!writeBeforeIndexing) {
+      await ds.withWrite(async dagWrite => {
+        const w = await Write.newLocal(
+          whenceHead(DEFAULT_HEAD_NAME),
+          'mutator_name',
+          JSON.stringify([]),
+          undefined,
+          dagWrite,
+        );
+        for (let i = 0; i < 3; i++) {
+          await w.put(
+            stringToUint8Array(`k${i}`),
+            stringToUint8Array(JSON.stringify({s: `s${i}`})),
+          );
+        }
+        await w.commit(DEFAULT_HEAD_NAME);
+      });
+    }
+
+    await ds.withRead(async dagRead => {
+      const [, c] = await readCommit(whenceHead(DEFAULT_HEAD_NAME), dagRead);
+      const indexes = c.indexes();
+      expect(indexes).to.have.lengthOf(1);
+      const idx = indexes[0];
+      expect(idx.definition.name).to.equal(indexName);
+      expect(idx.definition.keyPrefix).to.be.empty;
+      expect(idx.definition.jsonPointer).to.equal('/s');
+      const indexMap = await ProllyMap.load(idx.valueHash, dagRead);
+
+      const entries = [...indexMap];
+      expect(entries).to.have.lengthOf(3);
+      for (let i = 0; i < 3; i++) {
+        expect(entries[i].key).to.deep.equal(
+          encodeIndexKey({
+            secondary: stringToUint8Array(`s${i}`),
+            primary: stringToUint8Array(`k${i}`),
+          }),
+        );
+      }
+    });
+
+    // Ensure drop works.
+    await ds.withWrite(async dagWrite => {
+      const w = await Write.newIndexChange(
+        whenceHead(DEFAULT_HEAD_NAME),
+        dagWrite,
+      );
+      await w.dropIndex(indexName);
+      await w.commit(DEFAULT_HEAD_NAME);
+      const [, c] = await readCommit(
+        whenceHead(DEFAULT_HEAD_NAME),
+        dagWrite.read(),
+      );
+      const indexes = c.indexes();
+      expect(indexes).to.be.empty;
+    });
+  };
+
+  await t(true);
+  await t(false);
 });

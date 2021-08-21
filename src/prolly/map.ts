@@ -74,6 +74,8 @@ class ProllyMap {
   }
 
   put(key: Uint8Array, val: Uint8Array): void {
+    // TODO(arv): Consider storing the Uint8Array key in the value if we want to
+    // keep using Uint8Array keys.
     const ks = textDecoder.decode(key);
     this._pending.set(ks, val);
   }
@@ -100,8 +102,8 @@ class ProllyMap {
   }
 
   static changedKeys(am: ProllyMap, bm: ProllyMap): Uint8Array[] {
-    const itA = am[Symbol.iterator]();
-    const itB = bm[Symbol.iterator]();
+    const itA = am.entries();
+    const itB = bm.entries();
     const keys = [];
 
     let a = itA.next();

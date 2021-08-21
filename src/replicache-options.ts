@@ -3,7 +3,7 @@ import type {Puller} from './puller.js';
 import type {InitInput} from './repm-invoker.js';
 import type {LogLevel} from './logger.js';
 import type {MutatorDefs, RequestOptions} from './replicache';
-import type {Store} from './kv/store.js';
+import type * as kv from './kv/mod.js';
 
 /**
  * The options passed to [[Replicache]].
@@ -212,5 +212,5 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * @experimental This option is experimental and might be removed or changed
    * in the future without following semver versioning. Please be cautious.
    */
-  experimentalKVStore?: Store;
+  experimentalKVStore?: kv.Store;
 }

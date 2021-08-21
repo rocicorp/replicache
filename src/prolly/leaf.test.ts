@@ -1,5 +1,5 @@
 import {expect} from '@esm-bundle/chai';
-import {Chunk} from '../dag/chunk';
+import {Chunk} from '../dag/mod';
 import {Leaf} from './leaf';
 import type {Entry} from './mod';
 import * as flatbuffers from 'flatbuffers';

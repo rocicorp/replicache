@@ -1,9 +1,9 @@
-import type {Read as DagRead} from '../dag/read';
-import type {Write as DagWrite} from '../dag/write';
+import type * as dag from '../dag/mod';
 import {arrayCompare} from './array-compare';
 import {Leaf} from './leaf';
 import type {Entry} from './mod';
 import {PeekIterator} from './peek-iterator';
+import {stringCompare} from './string-compare';
 
 const textDecoder = new TextDecoder();
 
@@ -22,7 +22,7 @@ class ProllyMap {
     return new ProllyMap(undefined, new Map());
   }
 
-  static async load(hash: string, read: DagRead): Promise<ProllyMap> {
+  static async load(hash: string, read: dag.Read): Promise<ProllyMap> {
     const chunk = await read.getChunk(hash);
     if (chunk === undefined) {
       throw new Error(`Chunk not found: ${hash}`);
@@ -93,7 +93,7 @@ class ProllyMap {
     return this.entries();
   }
 
-  async flush(write: DagWrite): Promise<string> {
+  async flush(write: dag.Write): Promise<string> {
     const newBase = await Leaf.new(this);
     await write.putChunk(newBase.chunk);
     this._base = newBase;
@@ -182,16 +182,6 @@ type DeletableEntry = {
   key: Uint8Array;
   val: Uint8Array | null;
 };
-
-export function stringCompare(a: string, b: string): number {
-  if (a === b) {
-    return 0;
-  }
-  if (a < b) {
-    return -1;
-  }
-  return 1;
-}
 
 const textEncoder = new TextEncoder();
 

@@ -1,17 +1,16 @@
 import {expect} from '@esm-bundle/chai';
 import {assertNotUndefined} from '../assert-not-null';
-import {Store as DagStore} from '../dag/store';
-import {MemStore} from '../kv/mem-store';
-import {b} from '../kv/store-test-util';
+import * as dag from '../dag/mod';
+import {MemStore} from '../kv/mod';
 import {DEFAULT_HEAD_NAME} from './commit';
 import {readCommit, readIndexes, whenceHead} from './read';
-import {stringToUint8Array} from './util';
+import {b, stringToUint8Array} from '../test-util';
 import {initDB, Write} from './write';
-import {Map as ProllyMap} from '../prolly/map';
+import * as prolly from '../prolly/mod.js';
 import {encodeIndexKey} from './index';
 
 test('basics', async () => {
-  const ds = new DagStore(new MemStore());
+  const ds = new dag.Store(new MemStore());
   await initDB(await ds.write(), DEFAULT_HEAD_NAME);
 
   // Put.
@@ -78,7 +77,7 @@ test('basics', async () => {
 });
 
 test('index commit type constraints', async () => {
-  const ds = new DagStore(new MemStore());
+  const ds = new dag.Store(new MemStore());
   await initDB(await ds.write(), DEFAULT_HEAD_NAME);
 
   // Test that local changes cannot create or drop an index.
@@ -112,7 +111,7 @@ test('index commit type constraints', async () => {
 });
 
 test('clear', async () => {
-  const ds = new DagStore(new MemStore());
+  const ds = new dag.Store(new MemStore());
   await ds.withWrite(dagWrite => initDB(dagWrite, DEFAULT_HEAD_NAME));
   await ds.withWrite(async dagWrite => {
     const w = await Write.newLocal(
@@ -177,7 +176,7 @@ test('clear', async () => {
 
 test('create and drop index', async () => {
   const t = async (writeBeforeIndexing: boolean) => {
-    const ds = new DagStore(new MemStore());
+    const ds = new dag.Store(new MemStore());
     await ds.withWrite(dagWrite => initDB(dagWrite, DEFAULT_HEAD_NAME));
 
     if (writeBeforeIndexing) {
@@ -236,7 +235,7 @@ test('create and drop index', async () => {
       expect(idx.definition.name).to.equal(indexName);
       expect(idx.definition.keyPrefix).to.be.empty;
       expect(idx.definition.jsonPointer).to.equal('/s');
-      const indexMap = await ProllyMap.load(idx.valueHash, dagRead);
+      const indexMap = await prolly.Map.load(idx.valueHash, dagRead);
 
       const entries = [...indexMap];
       expect(entries).to.have.lengthOf(3);

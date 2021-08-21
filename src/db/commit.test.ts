@@ -1,8 +1,8 @@
 import {expect} from '@esm-bundle/chai';
 import * as flatbuffers from 'flatbuffers';
-import {Chunk} from '../dag/chunk';
-import {Store} from '../dag/store';
-import {MemStore} from '../kv/mem-store';
+import {Chunk} from '../dag/mod.js';
+import * as dag from '../dag/mod.js';
+import {MemStore} from '../kv/mod.js';
 import {
   baseSnapshot,
   chain as commitChain,
@@ -31,11 +31,11 @@ import {
 import {LocalMeta as LocalMetaFB} from './generated/commit/local-meta';
 import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
 import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
-import {stringToUint8Array} from './util';
-import {b} from '../kv/store-test-util';
+import {stringToUint8Array} from '../test-util';
+import {b} from '../test-util';
 
 test('base snapshot', async () => {
-  const store = new Store(new MemStore());
+  const store = new dag.Store(new MemStore());
   const chain: Chain = [];
   await addGenesis(chain, store);
   let genesisHash = chain[0].chunk.hash;
@@ -77,7 +77,7 @@ test('base snapshot', async () => {
 });
 
 test('local mutations', async () => {
-  const store = new Store(new MemStore());
+  const store = new dag.Store(new MemStore());
   const chain: Chain = [];
   await addGenesis(chain, store);
   const genesisHash = chain[0].chunk.hash;
@@ -99,7 +99,7 @@ test('local mutations', async () => {
 });
 
 test('chain', async () => {
-  const store = new Store(new MemStore());
+  const store = new dag.Store(new MemStore());
   const chain: Chain = [];
   await addGenesis(chain, store);
 

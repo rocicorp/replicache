@@ -1,4 +1,5 @@
 import {expect} from '@esm-bundle/chai';
+import {b} from '../test-util.js';
 import type {Read, Store, Write} from './store.js';
 
 export class TestStore implements Store {
@@ -85,13 +86,6 @@ export function runAll(
       await f(s);
     });
   }
-}
-
-// TODO(arv): Move to shared place?
-const textEncoder = new TextEncoder();
-
-export function b(x: TemplateStringsArray): Uint8Array {
-  return textEncoder.encode(x[0]);
 }
 
 async function simpleCommit(store: TestStore): Promise<void> {

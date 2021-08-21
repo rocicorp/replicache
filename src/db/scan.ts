@@ -1,11 +1,11 @@
 import {arrayCompare} from '../prolly/array-compare';
-import type {Map as ProllyMap} from '../prolly/map';
+import type * as prolly from '../prolly/mod';
 import type {Entry} from '../prolly/mod';
 import {PeekIterator} from '../prolly/peek-iterator';
 import {startsWith} from './starts-with';
 import {take, takeWhile} from './iter-util';
 import {decodeIndexKey, encodeIndexScanKey} from '.';
-import {stringToUint8Array} from './util';
+import {stringToUint8Array} from '../test-util';
 
 // TODO(arv): Unify with src/scan-options.ts
 
@@ -78,7 +78,7 @@ export type ScanResult =
   | {type: ScanResultType.Item; item: ScanItem};
 
 export function* scan(
-  map: ProllyMap,
+  map: prolly.Map,
   opts: ScanOptionsInternal,
 ): IterableIterator<ScanResult> {
   // We don't do any encoding of the key in regular prolly maps, so we have no
@@ -157,7 +157,7 @@ export function convert(source: ScanOptions): ScanOptionsInternal {
 }
 
 export function scanRaw(
-  map: ProllyMap,
+  map: prolly.Map,
   opts: ScanOptionsInternal,
 ): IterableIterator<Entry> {
   const it = new PeekIterator(map.entries());

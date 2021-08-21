@@ -1,8 +1,6 @@
-// import
-
 import {Index} from './index';
-import type {Read as DagRead} from '../dag/read';
-import {Map as ProllyMap} from '../prolly/map';
+import type * as dag from '../dag/mod.js';
+import * as prolly from '../prolly/mod.js';
 import {
   convert,
   scan,
@@ -13,11 +11,11 @@ import {
 import {Commit, fromHash as commitFromHash} from './commit';
 
 export class Read {
-  private readonly _dagRead: DagRead;
-  private readonly _map: ProllyMap;
+  private readonly _dagRead: dag.Read;
+  private readonly _map: prolly.Map;
   private readonly _indexes: Map<string, Index>;
 
-  constructor(dagRead: DagRead, map: ProllyMap, indexes: Map<string, Index>) {
+  constructor(dagRead: dag.Read, map: prolly.Map, indexes: Map<string, Index>) {
     this._dagRead = dagRead;
     this._map = map;
     this._indexes = indexes;
@@ -87,7 +85,7 @@ export function whenceHash(hash: string): Whence {
 
 export async function fromWhence(
   whence: Whence,
-  dagRead: DagRead,
+  dagRead: dag.Read,
 ): Promise<Read> {
   const [, basis, map] = await readCommit(whence, dagRead);
   const indexex = readIndexes(basis);
@@ -96,8 +94,8 @@ export async function fromWhence(
 
 export async function readCommit(
   whence: Whence,
-  read: DagRead,
-): Promise<[string, Commit, ProllyMap]> {
+  read: dag.Read,
+): Promise<[string, Commit, prolly.Map]> {
   let hash: string;
   switch (whence.type) {
     case WhenceType.Hash:
@@ -114,7 +112,7 @@ export async function readCommit(
   }
 
   const commit = await commitFromHash(hash, read);
-  const map = await ProllyMap.load(commit.valueHash(), read);
+  const map = await prolly.Map.load(commit.valueHash(), read);
   return [hash, commit, map];
 }
 

@@ -32,10 +32,9 @@ import {
   subscriptionsForChangedKeys,
   subscriptionsForIndexDefinitionChanged,
 } from './subscriptions.js';
-import {MemStore} from './kv/mem-store.js';
-import {IDBStore} from './kv/idb-store.js';
-import type {Store as KVStore} from './kv/store.js';
-import {Store as DagStore} from './dag/store.js';
+import {IDBStore, MemStore} from './kv/mod.js';
+import type * as kv from './kv/mod.js';
+import * as dag from './dag/mod.js';
 
 type BeginPullResult = {
   requestID: string;
@@ -197,7 +196,7 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   pusher: Pusher;
 
-  private readonly _store: KVStore;
+  private readonly _store: kv.Store;
   private _hasPendingSubscriptionRuns = false;
 
   /**
@@ -327,7 +326,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     // wait for it to finish closing.
     await closingInstances.get(this.name);
 
-    const dagStore = new DagStore(this._store);
+    const dagStore = new dag.Store(this._store);
 
     const openResponse = await this._repmInvoker.invoke(this.name, RPC.Open, {
       useMemstore: this._useMemstore,

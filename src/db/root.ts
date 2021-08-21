@@ -1,6 +1,6 @@
-import type {Store} from '../dag/store';
+import type * as dag from '../dag/mod';
 
-export function getRoot(store: Store, headName: string): Promise<string> {
+export function getRoot(store: dag.Store, headName: string): Promise<string> {
   return store.withRead(async read => {
     const head = await read.getHead(headName);
     if (head === undefined) {

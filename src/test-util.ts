@@ -20,3 +20,13 @@ export function deletaAllDatabases(): void {
   }
   dbsToDrop.clear();
 }
+
+const textEncoder = new TextEncoder();
+
+export function stringToUint8Array(str: string): Uint8Array {
+  return textEncoder.encode(str);
+}
+
+export function b(x: TemplateStringsArray): Uint8Array {
+  return textEncoder.encode(x[0]);
+}

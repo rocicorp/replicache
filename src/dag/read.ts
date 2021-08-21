@@ -1,13 +1,13 @@
-import type {Read as KVRead} from '../kv/store.js';
+import type * as kv from '../kv/mod.js';
 import {Chunk} from './chunk.js';
-import {chunkDataKey, chunkMetaKey, headKey} from './key';
+import {chunkDataKey, chunkMetaKey, headKey} from './key.js';
 
 const decoder = new TextDecoder();
 
 export class Read {
-  private readonly _kv: KVRead;
+  private readonly _kv: kv.Read;
 
-  constructor(kv: KVRead) {
+  constructor(kv: kv.Read) {
     this._kv = kv;
   }
 

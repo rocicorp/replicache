@@ -1,5 +1,6 @@
 import * as flatbuffers from 'flatbuffers';
-import {Chunk} from '../dag/chunk';
+import {Chunk} from '../dag/mod';
+import type * as dag from '../dag/mod';
 import {IndexDefinition as IndexDefinitionFB} from './generated/commit/index-definition';
 import {LocalMeta as LocalMetaFB} from './generated/commit/local-meta.js';
 import {Meta as MetaFB} from './generated/commit/meta';
@@ -8,7 +9,6 @@ import {Commit as CommitFB} from './generated/commit/commit';
 import {IndexRecord as IndexRecordFB} from './generated/commit/index-record';
 import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
 import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
-import type {Read as DagRead} from '../dag/read';
 import type {JSONValue} from '../json';
 import {assertNotNull} from '../assert-not-null';
 
@@ -280,7 +280,7 @@ export function fromChunk(chunk: Chunk): Commit {
 
 export async function fromHash(
   hash: string,
-  dagRead: DagRead,
+  dagRead: dag.Read,
 ): Promise<Commit> {
   const chunk = await dagRead.getChunk(hash);
   if (!chunk) {
@@ -364,7 +364,7 @@ async function newImpl(
 
 export async function baseSnapshot(
   hash: string,
-  dagRead: DagRead,
+  dagRead: dag.Read,
 ): Promise<Commit> {
   let commit = await fromHash(hash, dagRead);
   while (!commit.meta().isSnapshot()) {
@@ -385,7 +385,7 @@ export async function baseSnapshot(
  */
 export async function chain(
   fromCommitHash: string,
-  dagRead: DagRead,
+  dagRead: dag.Read,
 ): Promise<Commit[]> {
   let commit = await fromHash(fromCommitHash, dagRead);
   const commits = [];
@@ -417,7 +417,7 @@ export async function chain(
  */
 export async function localMutations(
   fromCommitHash: string,
-  dagRead: DagRead,
+  dagRead: dag.Read,
 ): Promise<Commit[]> {
   const commits = await chain(fromCommitHash, dagRead);
   return commits.filter(c => c.meta().isLocal());

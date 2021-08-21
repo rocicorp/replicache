@@ -1,13 +1,13 @@
 import {expect} from '@esm-bundle/chai';
-import {Store} from '../dag/store';
-import {MemStore} from '../kv/mem-store';
-import {DEFAULT_HEAD_NAME} from './commit';
-import {getRoot} from './root';
+import * as dag from '../dag/mod.js';
+import {MemStore} from '../kv/mod.js';
+import {DEFAULT_HEAD_NAME} from './commit.js';
+import {getRoot} from './root.js';
 
 test('getRoot', async () => {
   const t = async (headVal: string | undefined, expected: string | Error) => {
     const kvs = new MemStore();
-    const ds = new Store(kvs);
+    const ds = new dag.Store(kvs);
     if (headVal !== undefined) {
       await ds.withWrite(async dw => {
         await dw.setHead(DEFAULT_HEAD_NAME, headVal);

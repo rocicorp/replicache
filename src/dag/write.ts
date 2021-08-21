@@ -1,16 +1,16 @@
 import {getRootAsMeta} from './meta.js';
-import type {Write as KVWrite} from '../kv/store.js';
+import type * as kv from '../kv/mod.js';
 import {HeadChange, encoder, toLittleEndian, fromLittleEndian} from './dag.js';
 import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key.js';
 import {Read} from './read.js';
 import type {Chunk} from './chunk.js';
 
 export class Write {
-  private readonly _kvw: KVWrite;
+  private readonly _kvw: kv.Write;
   private readonly _mutatedChunks = new Set<string>();
   private readonly _changedHeads = new Map<string, HeadChange>();
 
-  constructor(kvw: KVWrite) {
+  constructor(kvw: kv.Write) {
     this._kvw = kvw;
   }
 

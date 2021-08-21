@@ -1,4 +1,4 @@
-import {Chunk} from '../dag/chunk';
+import {Chunk} from '../dag/mod';
 import type {Entry} from './mod';
 import * as flatbuffers from 'flatbuffers';
 import {Leaf as LeafFB} from './generated/leaf/leaf';

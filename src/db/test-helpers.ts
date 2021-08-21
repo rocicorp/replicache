@@ -1,15 +1,15 @@
-import type {Store as DagStore} from '../dag/store';
+import type * as dag from '../dag/mod';
 import {Commit, DEFAULT_HEAD_NAME} from './commit';
 import {expect} from '@esm-bundle/chai';
 import {readCommit, readIndexes, whenceHead} from './read';
-import {stringToUint8Array} from './util';
+import {stringToUint8Array} from '../test-util';
 import {initDB, Write} from './write';
 
 export type Chain = Commit[];
 
 export async function addGenesis(
   chain: Chain,
-  store: DagStore,
+  store: dag.Store,
 ): Promise<Chain> {
   expect(chain).to.have.length(0);
   const commit = await createGenesis(store);
@@ -17,7 +17,7 @@ export async function addGenesis(
   return chain;
 }
 
-export async function createGenesis(store: DagStore): Promise<Commit> {
+export async function createGenesis(store: dag.Store): Promise<Commit> {
   await store.withWrite(async w => {
     await initDB(w, DEFAULT_HEAD_NAME);
   });
@@ -29,7 +29,7 @@ export async function createGenesis(store: DagStore): Promise<Commit> {
 
 // Local commit has mutator name and args according to its index in the
 // chain.
-export async function addLocal(chain: Chain, store: DagStore): Promise<Chain> {
+export async function addLocal(chain: Chain, store: dag.Store): Promise<Chain> {
   expect(chain).to.have.length.greaterThan(0);
   const i = chain.length;
   const commit = await createLocal(
@@ -44,7 +44,7 @@ export async function addLocal(chain: Chain, store: DagStore): Promise<Chain> {
 
 export async function createLocal(
   entries: [Uint8Array, Uint8Array][],
-  store: DagStore,
+  store: dag.Store,
   i: number,
 ): Promise<Commit> {
   await store.withWrite(async dagWrite => {
@@ -68,7 +68,7 @@ export async function createLocal(
 
 export async function addIndexChange(
   chain: Chain,
-  store: DagStore,
+  store: dag.Store,
 ): Promise<Chain> {
   expect(chain).to.have.length.greaterThan(0);
   const i = chain.length;
@@ -81,7 +81,7 @@ export async function createIndex(
   name: string,
   prefix: string,
   jsonPointer: string,
-  store: DagStore,
+  store: dag.Store,
 ): Promise<Commit> {
   await store.withWrite(async dagWrite => {
     const w = await Write.newIndexChange(
@@ -103,7 +103,7 @@ export async function createIndex(
 // The optional map for the commit is treated as key, value pairs.
 export async function addSnapshot(
   chain: Chain,
-  store: DagStore,
+  store: dag.Store,
   map: [string, string][] | undefined,
 ): Promise<Chain> {
   expect(chain).to.have.length.greaterThan(0);

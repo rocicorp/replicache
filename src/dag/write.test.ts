@@ -1,11 +1,11 @@
 import {expect} from '@esm-bundle/chai';
-import {MemStore} from '../kv/mem-store';
-import {Chunk} from './chunk';
-import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
-import {Write} from './write';
-import type {Read as KVRead, Store as KVStore} from '../kv/store';
-import {fromLittleEndian} from './dag';
-import {Read} from './read';
+import {MemStore} from '../kv/mod.js';
+import {Chunk} from './chunk.js';
+import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key.js';
+import {Write} from './write.js';
+import type * as kv from '../kv/mod.js';
+import {fromLittleEndian} from './dag.js';
+import {Read} from './read.js';
 
 test('put chunk', async () => {
   const t = async (data: Uint8Array, refs: string[]) => {
@@ -35,7 +35,7 @@ test('put chunk', async () => {
   await t(new Uint8Array([0, 1]), ['r1', 'r2']);
 });
 
-async function assertRefCount(kvr: KVRead, hash: string, count: number) {
+async function assertRefCount(kvr: kv.Read, hash: string, count: number) {
   const buf = await kvr.get(chunkRefCountKey(hash));
   if (count === 0) {
     expect(buf).to.be.undefined;
@@ -49,7 +49,7 @@ async function assertRefCount(kvr: KVRead, hash: string, count: number) {
 }
 
 test('set head', async () => {
-  const t = async (kv: KVStore, name: string, hash: string | undefined) => {
+  const t = async (kv: kv.Store, name: string, hash: string | undefined) => {
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
       await w.setHead(name, hash);

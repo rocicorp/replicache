@@ -1,8 +1,8 @@
 import {expect} from '@esm-bundle/chai';
 import type {JSONValue} from '../json.js';
-import {b} from '../kv/store-test-util.js';
+import {b} from '../test-util.js';
 import {arrayCompare} from '../prolly/array-compare.js';
-import {Map as ProllyMap} from '../prolly/map.js';
+import * as prolly from '../prolly/mod.js';
 import {
   decodeIndexKey,
   encodeIndexKey,
@@ -16,7 +16,7 @@ import {
   KEY_VERSION_0,
 } from './index.js';
 import {startsWith} from './starts-with.js';
-import {stringToUint8Array} from './util.js';
+import {stringToUint8Array} from '../test-util.js';
 
 test('test index key', () => {
   const testValid = (secondary: string, primary: Uint8Array) => {
@@ -276,7 +276,7 @@ test('index value', () => {
     op: IndexOperation,
     expected: number[] | string,
   ) => {
-    const index = ProllyMap.new();
+    const index = prolly.Map.new();
     index.put(
       encodeIndexKey({
         secondary: b`s1`,

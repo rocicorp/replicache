@@ -1,8 +1,7 @@
 import {expect} from '@esm-bundle/chai';
 import {convert, scan, ScanItem, ScanOptions, ScanResultType} from './scan';
-import {Map as ProllyMap} from '../prolly/mod';
-import {b} from '../kv/store-test-util';
-import {stringToUint8Array} from './util';
+import * as prolly from '../prolly/mod.js';
+import {b, stringToUint8Array} from '../test-util';
 import {encodeIndexKey} from './index';
 
 test('scan', () => {
@@ -13,7 +12,7 @@ test('scan', () => {
       2,
     )}, expected: ${expected}`;
 
-    const map = ProllyMap.new();
+    const map = prolly.Map.new();
     map.put(b`foo`, b`foo`);
     map.put(b`bar`, b`bar`);
     map.put(b`baz`, b`baz`);
@@ -319,7 +318,7 @@ test('scan', () => {
 test('exclusive regular map', () => {
   const t = (keys: string[], startKey: string, expected: string[]) => {
     const testDesc = `keys: ${keys}, startKey: ${startKey}, expected: ${expected}`;
-    const map = ProllyMap.new();
+    const map = prolly.Map.new();
     for (const key of keys) {
       map.put(stringToUint8Array(key), b`value`);
     }
@@ -358,7 +357,7 @@ test('exclusive index map', () => {
   ) => {
     const test_desc = `entries: ${entries}, startSecondaryKey ${startSecondaryKey}, startKey: ${startKey}, expected: ${expected}`;
 
-    const map = ProllyMap.new();
+    const map = prolly.Map.new();
     for (const entry of entries) {
       const encoded = encodeIndexKey({
         secondary: stringToUint8Array(entry[0]),
@@ -581,8 +580,8 @@ test('exclusive index map', () => {
   );
 });
 
-function prolly(entries: Iterable<[string, string]>): ProllyMap {
-  const map = ProllyMap.new();
+function makeProllyMap(entries: Iterable<[string, string]>): prolly.Map {
+  const map = prolly.Map.new();
   for (const [k, v] of entries) {
     map.put(stringToUint8Array(k), stringToUint8Array(v));
   }
@@ -595,7 +594,7 @@ test('scan index startKey', () => {
     opts: ScanOptions,
     expected: ScanItem[],
   ) => {
-    const map = prolly(entries);
+    const map = makeProllyMap(entries);
     const testDesc = `opts: ${opts}, expected: ${expected}`;
 
     const actual: ScanItem[] = [];

@@ -1,8 +1,8 @@
 import {expect} from '@esm-bundle/chai';
-import {MemStore} from '../kv/mem-store';
-import {Chunk} from './chunk';
-import {chunkDataKey, chunkMetaKey} from './key';
-import {Read} from './read';
+import {MemStore} from '../kv/mod.js';
+import {Chunk} from './chunk.js';
+import {chunkDataKey, chunkMetaKey} from './key.js';
+import {Read} from './read.js';
 
 test('has chunk', async () => {
   const t = async (hash: string, expectHas: boolean) => {

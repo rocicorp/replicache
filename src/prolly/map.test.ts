@@ -1,14 +1,16 @@
 import {expect} from '@esm-bundle/chai';
-import {Store} from '../dag/store';
-import {MemStore} from '../kv/mem-store';
-import {Leaf} from './leaf';
-import {Map as ProllyMap, stringCompare} from './map';
+import {Store} from '../dag/mod.js';
+import {MemStore} from '../kv/mod.js';
+import {Leaf} from './leaf.js';
+import {stringCompare} from './string-compare.js';
+import * as prolly from './mod.js';
+import {stringToUint8Array} from '../test-util.js';
 
 async function makeMap(
   base: string[] | undefined,
   pending: string[],
   deleted: string[],
-): Promise<ProllyMap> {
+): Promise<prolly.Map> {
   const entries = base && base.sort();
   const leaf =
     entries &&
@@ -28,15 +30,11 @@ async function makeMap(
   for (const p of deleted) {
     pm.set(p, null);
   }
-  return new ProllyMap(leaf, pm);
+  return new prolly.Map(leaf, pm);
 }
 
-// TODO(arv): Move to a separate test file.
-const textEncoder = new TextEncoder();
-const stringToUint8Array = (str: string): Uint8Array => textEncoder.encode(str);
-
 test('has', async () => {
-  const t = (map: ProllyMap, test: string, expected: boolean) => {
+  const t = (map: prolly.Map, test: string, expected: boolean) => {
     const actual = map.has(stringToUint8Array(test));
     expect(actual).to.equal(expected);
   };
@@ -69,7 +67,7 @@ test('has', async () => {
 });
 
 test('get', async () => {
-  const t = (map: ProllyMap, test: string, expected: string | undefined) => {
+  const t = (map: prolly.Map, test: string, expected: string | undefined) => {
     const actual = map.get(stringToUint8Array(test));
     expect(actual).to.deep.equal(expected && stringToUint8Array(expected));
   };
@@ -174,7 +172,7 @@ test('iter flush', async () => {
     const map = await makeMap(base, pending, deleted);
     const expected = expected1.map(stringToUint8Array);
 
-    const t = (map: ProllyMap, expected: Uint8Array[]) => {
+    const t = (map: prolly.Map, expected: Uint8Array[]) => {
       const actual = [...map].map(item => item.key);
       expect(actual).to.deep.equal(expected);
     };
@@ -194,7 +192,7 @@ test('iter flush', async () => {
     // The hash should yield a new map with same data
     await write.commit();
     const read = await store.read();
-    const map2 = await ProllyMap.load(hash, read);
+    const map2 = await prolly.Map.load(hash, read);
     t(map2, expected);
   };
 
@@ -235,9 +233,9 @@ test('changed keys', () => {
     const newMap = makeProllyMap(n);
     expected.sort();
     const expectedUint8Arrays = expected.map(stringToUint8Array);
-    let actual = ProllyMap.changedKeys(old, newMap);
+    let actual = prolly.Map.changedKeys(old, newMap);
     expect(actual).to.deep.equal(expectedUint8Arrays);
-    actual = ProllyMap.changedKeys(newMap, old);
+    actual = prolly.Map.changedKeys(newMap, old);
     expect(actual).to.deep.equal(expectedUint8Arrays);
   };
 
@@ -252,14 +250,14 @@ test('changed keys', () => {
   t({a: 'a1', b: 'b1'}, {a: 'a2', b: 'b2'}, ['a', 'b']);
 });
 
-function makeProllyMap(m: Record<string, string>): ProllyMap {
+function makeProllyMap(m: Record<string, string>): prolly.Map {
   const entries = Object.entries(m);
   entries.sort((a, b) => stringCompare(a[0], b[0]));
   const pending: Map<string, Uint8Array | null> = new Map();
   for (const [key, value] of entries) {
     pending.set(key, stringToUint8Array(value));
   }
-  return new ProllyMap(undefined, pending);
+  return new prolly.Map(undefined, pending);
 }
 
 test('pending changes keys', async () => {
@@ -270,7 +268,7 @@ test('pending changes keys', async () => {
   const entries = [...base_map].map(([key, val]) => ({key, val}));
 
   const base = await Leaf.new(entries);
-  const map = new ProllyMap(base, new Map());
+  const map = new prolly.Map(base, new Map());
 
   map.put(stringToUint8Array('c'), stringToUint8Array('c'));
   expect(map.pendingChangedKeys()).to.deep.equal(['c']);

@@ -1,13 +1,13 @@
 import {expect} from '@esm-bundle/chai';
-import {Store as DagStore} from '../dag/store';
-import {MemStore} from '../kv/mem-store';
-import {b} from '../kv/store-test-util';
-import {DEFAULT_HEAD_NAME} from './commit';
-import {fromWhence, whenceHead} from './read';
-import {initDB, Write} from './write';
+import * as dag from '../dag/mod.js';
+import {MemStore} from '../kv/mod.js';
+import {b} from '../test-util.js';
+import {DEFAULT_HEAD_NAME} from './commit.js';
+import {fromWhence, whenceHead} from './read.js';
+import {initDB, Write} from './write.js';
 
 test('basics', async () => {
-  const ds = new DagStore(new MemStore());
+  const ds = new dag.Store(new MemStore());
   await initDB(await ds.write(), DEFAULT_HEAD_NAME);
   const w = await Write.newLocal(
     whenceHead(DEFAULT_HEAD_NAME),

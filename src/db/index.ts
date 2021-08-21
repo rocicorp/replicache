@@ -1,28 +1,30 @@
-import type {Read as DagRead} from '../dag/read';
-import type {Write} from '../dag/write';
+import type * as dag from '../dag/mod';
 import type {JSONValue} from '../json';
-import {Map as ProllyMap} from '../prolly/map';
+import * as prolly from '../prolly/mod.js';
 import {RWLock} from '../rw-lock';
 import type {IndexRecord} from './commit';
-import {stringToUint8Array} from './util';
+import {stringToUint8Array} from '../test-util';
 
 export class Index {
   readonly meta: IndexRecord;
-  private _map: ProllyMap | undefined;
+  private _map: prolly.Map | undefined;
   private _rwLock = new RWLock();
 
-  constructor(meta: IndexRecord, map: ProllyMap | undefined) {
+  constructor(meta: IndexRecord, map: prolly.Map | undefined) {
     this.meta = meta;
     this._map = map;
   }
 
   async withMap<T>(
-    dagRead: DagRead,
-    cb: (map: ProllyMap) => T | Promise<T>,
+    dagRead: dag.Read,
+    cb: (map: prolly.Map) => T | Promise<T>,
   ): Promise<T> {
     if (!this._map) {
       await this._rwLock.withWrite(async () => {
-        return (this._map = await ProllyMap.load(this.meta.valueHash, dagRead));
+        return (this._map = await prolly.Map.load(
+          this.meta.valueHash,
+          dagRead,
+        ));
       });
     }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -31,7 +33,7 @@ export class Index {
 
   // Note: does not update self.meta.value_hash (doesn't need to at this point as flush
   // is only called during commit.)
-  flush(write: Write): Promise<string> {
+  flush(write: dag.Write): Promise<string> {
     return this._rwLock.withWrite(() => {
       if (this._map) {
         return this._map.flush(write);
@@ -42,14 +44,14 @@ export class Index {
 
   clear(): Promise<void> {
     return this._rwLock.withWrite(() => {
-      this._map = ProllyMap.new();
+      this._map = prolly.Map.new();
     });
   }
 }
 
 // Index or de-index a single primary entry.
 export function indexValue(
-  index: ProllyMap,
+  index: prolly.Map,
   op: IndexOperation,
   key: Uint8Array,
   val: Uint8Array,

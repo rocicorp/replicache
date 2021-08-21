@@ -1,6 +1,6 @@
-import type {Write as DagWrite} from '../dag/write';
+import type * as dag from '../dag/mod';
 import type {JSONValue} from '../json';
-import {Map as ProllyMap} from '../prolly/mod';
+import * as prolly from '../prolly/mod';
 import {
   Commit,
   IndexDefinition,
@@ -9,7 +9,7 @@ import {
   newSnapshot as commitNewSnapshot,
 } from './commit';
 import {Read, readCommit, readIndexes, Whence} from './read';
-import {stringToUint8Array} from './util';
+import {stringToUint8Array} from '../test-util';
 import {Index, IndexOperation, indexValue} from './index';
 import {startsWith} from './starts-with';
 import {scanRaw} from './scan';
@@ -42,15 +42,15 @@ const enum MetaType {
 }
 
 export class Write {
-  private readonly _dagWrite: DagWrite;
-  map: ProllyMap;
+  private readonly _dagWrite: dag.Write;
+  map: prolly.Map;
   private readonly _basis: Commit | undefined;
   private readonly _meta: Meta;
   readonly indexes: Map<string, Index>;
 
   constructor(
-    dagWrite: DagWrite,
-    map: ProllyMap,
+    dagWrite: dag.Write,
+    map: prolly.Map,
     basis: Commit | undefined,
     meta: Meta,
     indexes: Map<string, Index>,
@@ -67,7 +67,7 @@ export class Write {
     mutatorName: string,
     mutatorArgs: string,
     originalHash: string | undefined,
-    dagWrite: DagWrite,
+    dagWrite: dag.Write,
   ): Promise<Write> {
     const [, basis, map] = await readCommit(whence, dagWrite.read());
     const mutationID = basis.nextMutationID();
@@ -91,7 +91,7 @@ export class Write {
     whence: Whence,
     mutationID: number,
     cookie: JSONValue,
-    dagWrite: DagWrite,
+    dagWrite: dag.Write,
     indexes: Map<string, Index>,
   ): Promise<Write> {
     const [, basis, map] = await readCommit(whence, dagWrite.read());
@@ -106,7 +106,7 @@ export class Write {
 
   static async newIndexChange(
     whence: Whence,
-    dagWrite: DagWrite,
+    dagWrite: dag.Write,
   ): Promise<Write> {
     const [, basis, map] = await readCommit(whence, dagWrite.read());
     const lastMutationID = basis.mutationID();
@@ -179,7 +179,7 @@ export class Write {
       throw new Error('Not allowed');
     }
 
-    this.map = ProllyMap.new();
+    this.map = prolly.Map.new();
     for (const idx of this.indexes.values()) {
       // TODO(arv): Parallelize this.
       await idx.clear();
@@ -216,7 +216,7 @@ export class Write {
       }
     }
 
-    const indexMap = ProllyMap.new();
+    const indexMap = prolly.Map.new();
     for (const entry of scanRaw(this.map, {
       prefix: keyPrefix,
       limit: undefined,
@@ -362,7 +362,7 @@ export class Write {
 
 async function updateIndexes(
   indexes: Map<string, Index>,
-  dagWrite: DagWrite,
+  dagWrite: dag.Write,
   op: IndexOperation,
   key: Uint8Array,
   val: Uint8Array,
@@ -392,12 +392,12 @@ async function updateIndexes(
 type ChangedKeysMap = Map<string, string[]>;
 
 export async function initDB(
-  dagWrite: DagWrite,
+  dagWrite: dag.Write,
   headName: string,
 ): Promise<string> {
   const w = new Write(
     dagWrite,
-    ProllyMap.new(),
+    prolly.Map.new(),
     undefined,
     {type: MetaType.Snapshot, lastMutationID: 0, cookie: null},
     new Map(),

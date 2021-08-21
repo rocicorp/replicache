@@ -1,11 +1,11 @@
-import type {Store as KVStore} from '../kv/store.js';
+import type * as kv from '../kv/mod.js';
 import {Read} from './read.js';
 import {Write} from './write.js';
 
 export class Store {
-  private readonly _kv: KVStore;
+  private readonly _kv: kv.Store;
 
-  constructor(kv: KVStore) {
+  constructor(kv: kv.Store) {
     this._kv = kv;
   }
 

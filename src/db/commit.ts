@@ -11,6 +11,7 @@ import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
 import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
 import type {JSONValue} from '../json';
 import {assertNotNull} from '../assert-not-null';
+import * as utf8 from '../utf8.js';
 
 export const DEFAULT_HEAD_NAME = 'main';
 
@@ -253,7 +254,7 @@ export class SnapshotMeta {
   }
 
   cookieJSONValue(): JSONValue {
-    return JSON.parse(textDecoder.decode(this.cookieJSON()));
+    return JSON.parse(utf8.decode(this.cookieJSON()));
   }
 }
 
@@ -428,8 +429,6 @@ async function newImpl(
   return new Commit(chunk);
 }
 
-const textDecoder = new TextDecoder();
-
 function validate(data: Uint8Array) {
   const buf = new flatbuffers.ByteBuffer(data);
   const root = CommitFB.getRootAsCommit(buf);
@@ -500,7 +499,7 @@ function validateSnapshotMeta(meta: SnapshotMetaFB) {
   if (cookieJSON === null) {
     throw new Error('Missing cookie');
   }
-  const s = textDecoder.decode(cookieJSON);
+  const s = utf8.decode(cookieJSON);
   JSON.parse(s);
 }
 

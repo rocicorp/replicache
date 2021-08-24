@@ -1,9 +1,10 @@
 import {getRootAsMeta} from './meta.js';
 import type * as kv from '../kv/mod.js';
-import {HeadChange, encoder, toLittleEndian, fromLittleEndian} from './dag.js';
+import {HeadChange, toLittleEndian, fromLittleEndian} from './dag.js';
 import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key.js';
 import {Read} from './read.js';
 import type {Chunk} from './chunk.js';
+import * as utf8 from '../utf8.js';
 
 export class Write {
   private readonly _kvw: kv.Write;
@@ -39,7 +40,7 @@ export class Write {
     if (hash === undefined) {
       p1 = this._kvw.del(hk);
     } else {
-      p1 = this._kvw.put(hk, encoder.encode(hash));
+      p1 = this._kvw.put(hk, utf8.encode(hash));
     }
 
     const v = this._changedHeads.get(name);

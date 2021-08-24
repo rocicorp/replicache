@@ -1,8 +1,9 @@
 import {expect} from '@esm-bundle/chai';
 import {convert, scan, ScanItem, ScanOptions, ScanResultType} from './scan';
 import * as prolly from '../prolly/mod.js';
-import {b, stringToUint8Array} from '../test-util';
+import {b} from '../test-util';
 import {encodeIndexKey} from './index';
+import * as utf8 from '../utf8.js';
 
 test('scan', () => {
   const t = (opts: ScanOptions, expected: string[]) => {
@@ -24,7 +25,7 @@ test('scan', () => {
       }
       actual.push(sr.item.key);
     }
-    const expected2 = expected.map(stringToUint8Array);
+    const expected2 = expected.map(utf8.encode);
     expect(actual).to.deep.equal(expected2, testDesc);
   };
 
@@ -320,7 +321,7 @@ test('exclusive regular map', () => {
     const testDesc = `keys: ${keys}, startKey: ${startKey}, expected: ${expected}`;
     const map = prolly.Map.new();
     for (const key of keys) {
-      map.put(stringToUint8Array(key), b`value`);
+      map.put(utf8.encode(key), b`value`);
     }
     const opts = {
       prefix: undefined,
@@ -337,7 +338,7 @@ test('exclusive regular map', () => {
       if (sr.type === ScanResultType.Error) {
         throw sr.error;
       }
-      got.push(new TextDecoder().decode(sr.item.key));
+      got.push(utf8.decode(sr.item.key));
     }
     expect(got).to.deep.equal(expected, testDesc);
   };
@@ -360,7 +361,7 @@ test('exclusive index map', () => {
     const map = prolly.Map.new();
     for (const entry of entries) {
       const encoded = encodeIndexKey({
-        secondary: stringToUint8Array(entry[0]),
+        secondary: utf8.encode(entry[0]),
         primary: entry[1],
       });
       map.put(encoded, b`value`);
@@ -378,7 +379,7 @@ test('exclusive index map', () => {
       if (sr.type === ScanResultType.Error) {
         throw sr.error;
       }
-      got.push([new TextDecoder().decode(sr.item.secondaryKey), sr.item.key]);
+      got.push([utf8.decode(sr.item.secondaryKey), sr.item.key]);
     }
     expect(got).to.deep.equal(expected, test_desc);
   };
@@ -583,7 +584,7 @@ test('exclusive index map', () => {
 function makeProllyMap(entries: Iterable<[string, string]>): prolly.Map {
   const map = prolly.Map.new();
   for (const [k, v] of entries) {
-    map.put(stringToUint8Array(k), stringToUint8Array(v));
+    map.put(utf8.encode(k), utf8.encode(v));
   }
   return map;
 }

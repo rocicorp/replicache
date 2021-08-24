@@ -28,7 +28,6 @@ import {
 import {LocalMeta as LocalMetaFB} from './generated/commit/local-meta';
 import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
 import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
-import {stringToUint8Array} from '../test-util';
 import {b} from '../test-util';
 
 test('base snapshot', async () => {
@@ -208,7 +207,7 @@ test('load roundtrip', async () => {
   );
 
   const cookie = {foo: 'bar'};
-  const cookieBytes = stringToUint8Array(JSON.stringify(cookie));
+  const cookieBytes = b`${JSON.stringify(cookie)}`;
   for (const basisHash of [undefined, '', 'hash']) {
     t(
       await makeCommit(
@@ -278,8 +277,7 @@ test('accessors', async () => {
 
   const snapshot = fromChunk(
     await makeCommit(
-      b =>
-        makeSnapshotMeta(b, 2, stringToUint8Array(JSON.stringify('cookie 2'))),
+      fb => makeSnapshotMeta(fb, 2, b`${JSON.stringify('cookie 2')}`),
       'basis_hash 2',
       'value_hash 2',
       ['value_hash 2', 'basis_hash 2'],

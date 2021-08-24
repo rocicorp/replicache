@@ -6,8 +6,6 @@ import {PeekIterator} from './peek-iterator';
 import {stringCompare} from './string-compare';
 import * as utf8 from '../utf8';
 
-const textDecoder = new TextDecoder();
-
 class ProllyMap {
   private _base: Leaf | undefined;
   // TODO: Should really be a BTreeMap because we want ordering... Will do hacky sort
@@ -33,7 +31,7 @@ class ProllyMap {
   }
 
   has(key: Uint8Array): boolean {
-    const ks = textDecoder.decode(key);
+    const ks = utf8.decode(key);
     const p = this._pending.get(ks);
     if (p !== undefined) {
       // if null the key was deleted.
@@ -51,7 +49,7 @@ class ProllyMap {
   }
 
   get(key: Uint8Array): Uint8Array | undefined {
-    const ks = textDecoder.decode(key);
+    const ks = utf8.decode(key);
     const p = this._pending.get(ks);
     switch (p) {
       case null:
@@ -77,12 +75,12 @@ class ProllyMap {
   put(key: Uint8Array, val: Uint8Array): void {
     // TODO(arv): Consider storing the Uint8Array key in the value if we want to
     // keep using Uint8Array keys.
-    const ks = textDecoder.decode(key);
+    const ks = utf8.decode(key);
     this._pending.set(ks, val);
   }
 
   del(key: Uint8Array): void {
-    const ks = textDecoder.decode(key);
+    const ks = utf8.decode(key);
     this._pending.set(ks, null);
   }
 
@@ -153,7 +151,7 @@ class ProllyMap {
     for (const [key, pendingVal] of entries) {
       if (pendingVal !== null) {
         // TODO(arv): Use strings for keys.
-        const baseVal = this._baseGet(textEncoder.encode(key));
+        const baseVal = this._baseGet(utf8.encode(key));
         if (baseVal !== undefined) {
           if (arrayCompare(baseVal, pendingVal) !== 0) {
             keys.push(key);
@@ -163,7 +161,7 @@ class ProllyMap {
         }
       } else {
         // pending was deleted.
-        if (this._baseHas(textEncoder.encode(key))) {
+        if (this._baseHas(utf8.encode(key))) {
           keys.push(key);
         }
       }
@@ -184,8 +182,6 @@ type DeletableEntry = {
   val: Uint8Array | null;
 };
 
-const textEncoder = new TextEncoder();
-
 // TODO(arv): Refactor to use generator(s)?
 class Iter implements IterableIterator<Entry> {
   private readonly _base: PeekIterator<Entry>;
@@ -200,7 +196,7 @@ class Iter implements IterableIterator<Entry> {
     const p: [string, Uint8Array | null][] = [...pending];
     p.sort((a, b) => stringCompare(a[0], b[0]));
     const entries: DeletableEntry[] = p.map(([key, val]) => ({
-      key: textEncoder.encode(key),
+      key: utf8.encode(key),
       val,
     }));
     this._pending = new PeekIterator(entries.values());

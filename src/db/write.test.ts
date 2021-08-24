@@ -4,10 +4,11 @@ import * as dag from '../dag/mod';
 import {MemStore} from '../kv/mod';
 import {DEFAULT_HEAD_NAME} from './commit';
 import {readCommit, readIndexes, whenceHead} from './read';
-import {b, stringToUint8Array} from '../test-util';
+import {b} from '../test-util';
 import {initDB, Write} from './write';
 import * as prolly from '../prolly/mod.js';
 import {encodeIndexKey} from './index';
+import * as utf8 from '../utf8.js';
 
 test('basics', async () => {
   const ds = new dag.Store(new MemStore());
@@ -189,10 +190,7 @@ test('create and drop index', async () => {
           dagWrite,
         );
         for (let i = 0; i < 3; i++) {
-          await w.put(
-            stringToUint8Array(`k${i}`),
-            stringToUint8Array(JSON.stringify({s: `s${i}`})),
-          );
+          await w.put(b`k${i}`, utf8.encode(JSON.stringify({s: `s${i}`})));
         }
         await w.commit(DEFAULT_HEAD_NAME);
       });
@@ -218,10 +216,7 @@ test('create and drop index', async () => {
           dagWrite,
         );
         for (let i = 0; i < 3; i++) {
-          await w.put(
-            stringToUint8Array(`k${i}`),
-            stringToUint8Array(JSON.stringify({s: `s${i}`})),
-          );
+          await w.put(b`k${i}`, utf8.encode(JSON.stringify({s: `s${i}`})));
         }
         await w.commit(DEFAULT_HEAD_NAME);
       });
@@ -242,8 +237,8 @@ test('create and drop index', async () => {
       for (let i = 0; i < 3; i++) {
         expect(entries[i].key).to.deep.equal(
           encodeIndexKey({
-            secondary: stringToUint8Array(`s${i}`),
-            primary: stringToUint8Array(`k${i}`),
+            secondary: b`s${i}`,
+            primary: b`k${i}`,
           }),
         );
       }

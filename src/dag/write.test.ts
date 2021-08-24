@@ -6,6 +6,7 @@ import {Write} from './write.js';
 import type * as kv from '../kv/mod.js';
 import {fromLittleEndian} from './dag.js';
 import {Read} from './read.js';
+import * as utf8 from '../utf8.js';
 
 test('put chunk', async () => {
   const t = async (data: Uint8Array, refs: string[]) => {
@@ -54,9 +55,8 @@ test('set head', async () => {
       const w = new Write(kvw);
       await w.setHead(name, hash);
       if (hash !== undefined) {
-        expect(hash).to.equal(
-          new TextDecoder().decode(await kvw.get(headKey(name))),
-        );
+        const h = await kvw.get(headKey(name));
+        expect(hash).to.equal(h && utf8.decode(h));
       } else {
         expect(await kvw.get(headKey(name))).to.be.undefined;
       }

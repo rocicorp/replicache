@@ -3,6 +3,7 @@ import type {JSONValue} from './json.js';
 import {throwIfClosed} from './transaction-closed-error.js';
 import {ScanOptions, toRPC} from './scan-options.js';
 import {asyncIterableToArray} from './async-iterable-to-array.js';
+import * as utf8 from './utf8.js';
 
 interface IdCloser {
   close(): void;
@@ -146,8 +147,7 @@ async function load<V>(
   invoke: Invoke,
 ): Promise<V[]> {
   const items: V[] = [];
-  const decoder = new TextDecoder();
-  const parse = (v: Uint8Array) => JSON.parse(decoder.decode(v));
+  const parse = (v: Uint8Array) => JSON.parse(utf8.decode(v));
   type MaybeIndexName = {indexName?: string};
   const key = (primaryKey: string, secondaryKey: string | null) =>
     (options as MaybeIndexName)?.indexName !== undefined

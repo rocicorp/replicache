@@ -1,12 +1,13 @@
 import {expect} from '@esm-bundle/chai';
-import {Hash} from './hash';
+import {Hash} from './hash.js';
+import * as utf8 from './utf8.js';
 
 test('test of', async () => {
   const h = Hash.empty();
   expect(h.isEmpty()).to.be.true;
   expect(h.toString()).to.equal('00000000000000000000000000000000');
 
-  const h2 = await Hash.of(new TextEncoder().encode('abc'));
+  const h2 = await Hash.of(utf8.encode('abc'));
   expect(h2.isEmpty()).to.be.false;
   expect(h2.toString()).to.equal('rmnjb8cjc5tblj21ed4qs821649eduie');
 

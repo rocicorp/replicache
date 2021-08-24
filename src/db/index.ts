@@ -1,9 +1,9 @@
 import type * as dag from '../dag/mod';
 import type {JSONValue} from '../json';
 import * as prolly from '../prolly/mod.js';
+import * as utf8 from '../utf8.js';
 import {RWLock} from '../rw-lock';
 import type {IndexRecord} from './commit';
-import {stringToUint8Array} from '../test-util';
 
 export class Index {
   readonly meta: IndexRecord;
@@ -77,7 +77,7 @@ export function getIndexKeys(
 ): Uint8Array[] {
   // TODO: It's crazy to decode the entire value just to evaluate the json pointer.
   // There should be some way to shortcut this. Halp @arv.
-  const value: JSONValue = JSON.parse(new TextDecoder().decode(val));
+  const value: JSONValue = JSON.parse(utf8.decode(val));
   const target = evaluateJSONPointer(value, jsonPointer);
   if (target === undefined) {
     throw new Error(`No value at path: ${jsonPointer}`);
@@ -100,7 +100,7 @@ export function getIndexKeys(
 
   return strings.map(v =>
     encodeIndexKey({
-      secondary: stringToUint8Array(v),
+      secondary: utf8.encode(v),
       primary: key,
     }),
   );

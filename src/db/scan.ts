@@ -5,7 +5,7 @@ import {PeekIterator} from '../prolly/peek-iterator';
 import {startsWith} from './starts-with';
 import {take, takeWhile} from './iter-util';
 import {decodeIndexKey, encodeIndexScanKey} from '.';
-import {stringToUint8Array} from '../test-util';
+import * as utf8 from '../utf8';
 
 // TODO(arv): Unify with src/scan-options.ts
 
@@ -122,23 +122,17 @@ export function convert(source: ScanOptions): ScanOptionsInternal {
   let prefix: Uint8Array | undefined;
   if (source.prefix !== undefined) {
     if (source.indexName !== undefined) {
-      prefix = encodeIndexScanKey(
-        stringToUint8Array(source.prefix),
-        undefined,
-        false,
-      );
+      prefix = encodeIndexScanKey(utf8.encode(source.prefix), undefined, false);
     } else {
-      prefix = stringToUint8Array(source.prefix);
+      prefix = utf8.encode(source.prefix);
     }
   }
 
   let startKey: Uint8Array | undefined;
   if (source.indexName !== undefined) {
     startKey = encodeIndexScanKey(
-      stringToUint8Array(source.startSecondaryKey ?? ''),
-      source.startKey === undefined
-        ? undefined
-        : stringToUint8Array(source.startKey),
+      utf8.encode(source.startSecondaryKey ?? ''),
+      source.startKey === undefined ? undefined : utf8.encode(source.startKey),
       source.startExclusive ?? false,
     );
   } else {
@@ -146,7 +140,7 @@ export function convert(source: ScanOptions): ScanOptionsInternal {
     if (source.startExclusive ?? false) {
       sk += '\u0000';
     }
-    startKey = stringToUint8Array(sk);
+    startKey = utf8.encode(sk);
   }
   return {
     prefix,

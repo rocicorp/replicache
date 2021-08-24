@@ -1,8 +1,7 @@
 import type * as kv from '../kv/mod.js';
 import {Chunk} from './chunk.js';
 import {chunkDataKey, chunkMetaKey, headKey} from './key.js';
-
-const decoder = new TextDecoder();
+import * as utf8 from '../utf8.js';
 
 export class Read {
   private readonly _kv: kv.Read;
@@ -30,6 +29,6 @@ export class Read {
     if (data === undefined) {
       return undefined;
     }
-    return decoder.decode(data);
+    return utf8.decode(data);
   }
 }

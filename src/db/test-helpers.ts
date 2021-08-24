@@ -1,9 +1,10 @@
-import type * as dag from '../dag/mod';
-import {Commit, DEFAULT_HEAD_NAME} from './commit';
 import {expect} from '@esm-bundle/chai';
-import {readCommit, readIndexes, whenceHead} from './read';
-import {stringToUint8Array} from '../test-util';
-import {initDB, Write} from './write';
+import type * as dag from '../dag/mod.js';
+import {Commit, DEFAULT_HEAD_NAME} from './commit.js';
+import {readCommit, readIndexes, whenceHead} from './read.js';
+import {initDB, Write} from './write.js';
+import * as utf8 from '../utf8.js';
+import {b} from '../test-util.js';
 
 export type Chain = Commit[];
 
@@ -32,11 +33,7 @@ export async function createGenesis(store: dag.Store): Promise<Commit> {
 export async function addLocal(chain: Chain, store: dag.Store): Promise<Chain> {
   expect(chain).to.have.length.greaterThan(0);
   const i = chain.length;
-  const commit = await createLocal(
-    [[stringToUint8Array('local'), stringToUint8Array(`"${i}"`)]],
-    store,
-    i,
-  );
+  const commit = await createLocal([[b`local`, b`"${i}"`]], store, i);
 
   chain.push(commit);
   return chain;
@@ -88,7 +85,7 @@ export async function createIndex(
       whenceHead(DEFAULT_HEAD_NAME),
       dagWrite,
     );
-    await w.createIndex(name, stringToUint8Array(prefix), jsonPointer);
+    await w.createIndex(name, utf8.encode(prefix), jsonPointer);
     await w.commit(DEFAULT_HEAD_NAME);
   });
   return store.withRead(async dagRead => {
@@ -119,7 +116,7 @@ export async function addSnapshot(
 
     if (map) {
       for (const [k, v] of map) {
-        await w.put(stringToUint8Array(k), stringToUint8Array(v));
+        await w.put(utf8.encode(k), utf8.encode(v));
       }
     }
     await w.commit(DEFAULT_HEAD_NAME);

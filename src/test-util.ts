@@ -22,10 +22,6 @@ export function deletaAllDatabases(): void {
   dbsToDrop.clear();
 }
 
-export function stringToUint8Array(str: string): Uint8Array {
-  return utf8.encode(str);
-}
-
 export function b(
   templatePart: TemplateStringsArray,
   ...placeholderValues: unknown[]

@@ -4,7 +4,8 @@ import {MemStore} from '../kv/mod.js';
 import {Leaf} from './leaf.js';
 import {stringCompare} from './string-compare.js';
 import * as prolly from './mod.js';
-import {stringToUint8Array} from '../test-util.js';
+import * as utf8 from '../utf8.js';
+import {b} from '../test-util.js';
 
 async function makeMap(
   base: string[] | undefined,
@@ -16,14 +17,14 @@ async function makeMap(
     entries &&
     (await Leaf.new(
       entries.map(s => ({
-        key: stringToUint8Array(s),
-        val: stringToUint8Array(s),
+        key: utf8.encode(s),
+        val: utf8.encode(s),
       })),
     ));
 
   const pm = new Map();
   for (const p of pending) {
-    const v = stringToUint8Array(p);
+    const v = utf8.encode(p);
     v.reverse();
     pm.set(p, v);
   }
@@ -35,7 +36,7 @@ async function makeMap(
 
 test('has', async () => {
   const t = (map: prolly.Map, test: string, expected: boolean) => {
-    const actual = map.has(stringToUint8Array(test));
+    const actual = map.has(utf8.encode(test));
     expect(actual).to.equal(expected);
   };
 
@@ -68,8 +69,8 @@ test('has', async () => {
 
 test('get', async () => {
   const t = (map: prolly.Map, test: string, expected: string | undefined) => {
-    const actual = map.get(stringToUint8Array(test));
-    expect(actual).to.deep.equal(expected && stringToUint8Array(expected));
+    const actual = map.get(utf8.encode(test));
+    expect(actual).to.deep.equal(expected && utf8.encode(expected));
   };
 
   // Empty
@@ -113,9 +114,9 @@ test('put', async () => {
     expected: string | undefined,
   ) => {
     const map = await makeMap(base, pending, deleted);
-    map.put(stringToUint8Array(put), stringToUint8Array('x'));
-    const actual = map.get(stringToUint8Array(put));
-    expect(actual).to.deep.equal(expected && stringToUint8Array(expected));
+    map.put(utf8.encode(put), b`x`);
+    const actual = map.get(utf8.encode(put));
+    expect(actual).to.deep.equal(expected && utf8.encode(expected));
   };
 
   // Empty
@@ -141,8 +142,8 @@ test('del', async () => {
     del: string,
   ) => {
     const map = await makeMap(base, pending, deleted);
-    map.del(stringToUint8Array(del));
-    const has = map.has(stringToUint8Array(del));
+    map.del(utf8.encode(del));
+    const has = map.has(utf8.encode(del));
     expect(has).to.be.false;
   };
 
@@ -170,7 +171,7 @@ test('iter flush', async () => {
     expected1: string[],
   ) => {
     const map = await makeMap(base, pending, deleted);
-    const expected = expected1.map(stringToUint8Array);
+    const expected = expected1.map(utf8.encode);
 
     const t = (map: prolly.Map, expected: Uint8Array[]) => {
       const actual = [...map].map(item => item.key);
@@ -254,35 +255,35 @@ function makeProllyMap(m: Record<string, string>): prolly.Map {
   entries.sort((a, b) => stringCompare(a[0], b[0]));
   const pending: Map<string, Uint8Array | null> = new Map();
   for (const [key, value] of entries) {
-    pending.set(key, stringToUint8Array(value));
+    pending.set(key, utf8.encode(value));
   }
   return new prolly.Map(undefined, pending);
 }
 
 test('pending changes keys', async () => {
   const base_map = new Map();
-  base_map.set(stringToUint8Array('a'), stringToUint8Array('a'));
-  base_map.set(stringToUint8Array('b'), stringToUint8Array('b'));
+  base_map.set(b`a`, b`a`);
+  base_map.set(b`b`, b`b`);
 
   const entries = [...base_map].map(([key, val]) => ({key, val}));
 
   const base = await Leaf.new(entries);
   const map = new prolly.Map(base, new Map());
 
-  map.put(stringToUint8Array('c'), stringToUint8Array('c'));
+  map.put(b`c`, b`c`);
   expect(map.pendingChangedKeys()).to.deep.equal(['c']);
 
   // Set b to b again... should be a nop
-  map.put(stringToUint8Array('b'), stringToUint8Array('b'));
+  map.put(b`b`, b`b`);
   expect(map.pendingChangedKeys()).to.deep.equal(['c']);
 
   // Remove c from pending
-  map.del(stringToUint8Array('c'));
+  map.del(b`c`);
   expect(map.pendingChangedKeys()).to.deep.equal([]);
 
-  map.del(stringToUint8Array('d'));
+  map.del(b`d`);
   expect(map.pendingChangedKeys()).to.deep.equal([]);
 
-  map.put(stringToUint8Array('b'), stringToUint8Array('2'));
+  map.put(b`b`, b`2`);
   expect(map.pendingChangedKeys()).to.deep.equal(['b']);
 });

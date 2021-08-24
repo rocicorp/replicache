@@ -9,10 +9,10 @@ import {
   newSnapshot as commitNewSnapshot,
 } from './commit';
 import {Read, readCommit, readIndexes, Whence} from './read';
-import {stringToUint8Array} from '../test-util';
 import {Index, IndexOperation, indexValue} from './index';
 import {startsWith} from './starts-with';
 import {scanRaw} from './scan';
+import * as utf8 from '../utf8.js';
 
 type IndexChangeMeta = {
   type: MetaType.IndexChange;
@@ -235,12 +235,7 @@ export class Write {
           jsonPointer,
         );
       } catch (e) {
-        console.info(
-          'Not indexing value',
-          new TextDecoder().decode(entry.val),
-          ':',
-          e,
-        );
+        console.info('Not indexing value', utf8.decode(entry.val), ':', e);
       }
     }
 
@@ -310,7 +305,7 @@ export class Write {
           basisHash,
           mutationID,
           mutatorName,
-          stringToUint8Array(mutatorArgs),
+          utf8.encode(mutatorArgs),
           originalHash,
           valueHash,
           indexMetas,
@@ -322,7 +317,7 @@ export class Write {
         commit = await commitNewSnapshot(
           basisHash,
           lastMutationID,
-          stringToUint8Array(JSON.stringify(cookie)),
+          utf8.encode(JSON.stringify(cookie)),
           valueHash,
           indexMetas,
         );
@@ -377,12 +372,7 @@ async function updateIndexes(
         try {
           indexValue(map, op, key, val, idx.meta.definition.jsonPointer);
         } catch (e) {
-          console.info(
-            'Not indexing value',
-            new TextDecoder().decode(val),
-            ':',
-            e,
-          );
+          console.info('Not indexing value', utf8.decode(val), ':', e);
         }
       });
     }

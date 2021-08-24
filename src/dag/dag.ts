@@ -1,6 +1,3 @@
-export const decoder = new TextDecoder();
-export const encoder = new TextEncoder();
-
 export type HeadChange = {
   new: string | undefined;
   old: string | undefined;

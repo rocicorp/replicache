@@ -45,7 +45,7 @@ export class Meta {
     return offset ? this.bb!.readUint8(this.bb_pos + offset) : MetaTyped.NONE;
   }
 
-  typed<T extends flatbuffers.Table>(obj: any): any | null {
+  typed(obj: any): any | null {
     const offset = this.bb!.__offset(this.bb_pos, 10);
     return offset ? this.bb!.__union(obj, this.bb_pos + offset) : null;
   }

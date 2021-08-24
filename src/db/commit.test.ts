@@ -4,13 +4,10 @@ import {Chunk} from '../dag/mod.js';
 import * as dag from '../dag/mod.js';
 import {MemStore} from '../kv/mod.js';
 import {
-  baseSnapshot,
-  chain as commitChain,
   Commit,
   fromChunk,
   IndexChangeMeta,
   LocalMeta,
-  localMutations,
   newIndexChange as commitNewIndexChange,
   newLocal as commitNewLocal,
   newSnapshot as commitNewSnapshot,
@@ -40,9 +37,9 @@ test('base snapshot', async () => {
   await addGenesis(chain, store);
   let genesisHash = chain[0].chunk.hash;
   await store.withRead(async dagRead => {
-    expect((await baseSnapshot(genesisHash, dagRead)).chunk.hash).to.equal(
-      genesisHash,
-    );
+    expect(
+      (await Commit.baseSnapshot(genesisHash, dagRead)).chunk.hash,
+    ).to.equal(genesisHash);
   });
 
   await addLocal(chain, store);
@@ -51,8 +48,8 @@ test('base snapshot', async () => {
   genesisHash = chain[0].chunk.hash;
   await store.withRead(async dagRead => {
     expect(
-      (await baseSnapshot(chain[chain.length - 1].chunk.hash, dagRead)).chunk
-        .hash,
+      (await Commit.baseSnapshot(chain[chain.length - 1].chunk.hash, dagRead))
+        .chunk.hash,
     ).to.equal(genesisHash);
   });
 
@@ -60,8 +57,8 @@ test('base snapshot', async () => {
   const baseHash = await store.withRead(async dagRead => {
     const baseHash = await dagRead.getHead('main');
     expect(
-      (await baseSnapshot(chain[chain.length - 1].chunk.hash, dagRead)).chunk
-        .hash,
+      (await Commit.baseSnapshot(chain[chain.length - 1].chunk.hash, dagRead))
+        .chunk.hash,
     ).to.equal(baseHash);
     return baseHash;
   });
@@ -70,8 +67,8 @@ test('base snapshot', async () => {
   await addLocal(chain, store);
   await store.withRead(async dagRead => {
     expect(
-      (await baseSnapshot(chain[chain.length - 1].chunk.hash, dagRead)).chunk
-        .hash,
+      (await Commit.baseSnapshot(chain[chain.length - 1].chunk.hash, dagRead))
+        .chunk.hash,
     ).to.equal(baseHash);
   });
 });
@@ -82,7 +79,9 @@ test('local mutations', async () => {
   await addGenesis(chain, store);
   const genesisHash = chain[0].chunk.hash;
   await store.withRead(async dagRead => {
-    expect(await localMutations(genesisHash, dagRead)).to.have.lengthOf(0);
+    expect(await Commit.localMutations(genesisHash, dagRead)).to.have.lengthOf(
+      0,
+    );
   });
 
   await addLocal(chain, store);
@@ -91,7 +90,7 @@ test('local mutations', async () => {
   await addIndexChange(chain, store);
   const headHash = chain[chain.length - 1].chunk.hash;
   const commits = await store.withRead(dagRead =>
-    localMutations(headHash, dagRead),
+    Commit.localMutations(headHash, dagRead),
   );
   expect(commits).to.have.lengthOf(2);
   expect(commits[0]).to.deep.equal(chain[3]);
@@ -104,7 +103,7 @@ test('chain', async () => {
   await addGenesis(chain, store);
 
   let got = await store.withRead(dagRead =>
-    commitChain(chain[chain.length - 1].chunk.hash, dagRead),
+    Commit.chain(chain[chain.length - 1].chunk.hash, dagRead),
   );
 
   expect(got).to.have.lengthOf(1);
@@ -114,7 +113,7 @@ test('chain', async () => {
   await addLocal(chain, store);
   await addIndexChange(chain, store);
   const headHash = chain[chain.length - 1].chunk.hash;
-  got = await store.withRead(dagRead => commitChain(headHash, dagRead));
+  got = await store.withRead(dagRead => Commit.chain(headHash, dagRead));
   expect(got).to.have.lengthOf(3);
   expect(got[0]).to.deep.equal(chain[3]);
   expect(got[1]).to.deep.equal(chain[2]);

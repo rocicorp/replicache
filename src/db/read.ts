@@ -8,7 +8,7 @@ import {
   ScanOptionsInternal,
   ScanResult,
 } from './scan';
-import {Commit, fromHash as commitFromHash} from './commit';
+import {Commit} from './commit';
 
 export class Read {
   private readonly _dagRead: dag.Read;
@@ -111,7 +111,7 @@ export async function readCommit(
     }
   }
 
-  const commit = await commitFromHash(hash, read);
+  const commit = await Commit.fromHash(hash, read);
   const map = await prolly.Map.load(commit.valueHash(), read);
   return [hash, commit, map];
 }

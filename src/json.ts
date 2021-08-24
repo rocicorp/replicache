@@ -1,3 +1,5 @@
+import {throwInvalidType} from './asserts';
+
 /** The values that can be represented in JSON */
 export type JSONValue =
   | null
@@ -88,4 +90,41 @@ export function deepEqual(
     }
   }
   return true;
+}
+
+export function assertJSONValue(v: unknown): asserts v is JSONValue {
+  switch (typeof v) {
+    case 'boolean':
+    case 'number':
+    case 'string':
+      return;
+    case 'object':
+      if (v === null) {
+        return;
+      }
+      if (Array.isArray(v)) {
+        return assertJSONArray(v);
+      }
+      return assertJSONObject(v as Record<string, unknown>);
+  }
+  throwInvalidType(v, 'JSON value');
+}
+
+function assertJSONObject(v: Record<string, unknown>): asserts v is JSONObject {
+  for (const val of Object.values(v)) {
+    // we allow undefined values because in TypeScript there is no way to
+    // express optional missing properties vs properties with the value
+    // undefined.
+    if (val !== undefined) {
+      assertJSONValue(val);
+    }
+  }
+}
+function assertJSONArray(v: unknown[]): asserts v is JSONValue[] {
+  for (let i = 0; i < v.length; i++) {
+    const val = v[i];
+    if (val !== undefined) {
+      assertJSONValue(val);
+    }
+  }
 }

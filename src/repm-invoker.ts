@@ -149,20 +149,20 @@ export type CommitTransactionResponse = {
   changedKeys: ChangedKeysMap;
 };
 
-type BeginTryPullRequest = {
+export type BeginTryPullRequest = {
   pullURL: string;
   pullAuth: string;
   schemaVersion: string;
   puller: Puller;
 };
 
-type BeginTryPullResponse = {
+export type BeginTryPullResponse = {
   httpRequestInfo: HTTPRequestInfo;
   syncHead: string;
   requestID: string;
 };
 
-type TryPushRequest = {
+export type TryPushRequest = {
   pushURL: string;
   pushAuth: string;
   schemaVersion: string;
@@ -173,12 +173,26 @@ type TryPushResponse = {
   httpRequestInfo?: HTTPRequestInfo;
 };
 
+export function assertHTTPRequestInfo(
+  // eslint-disable-next-line
+  v: any,
+): asserts v is HTTPRequestInfo {
+  if (
+    typeof v !== 'object' ||
+    v === null ||
+    typeof v.httpStatusCode !== 'number' ||
+    typeof v.errorMessage !== 'string'
+  ) {
+    throw new Error('Invalid HTTPRequestInfo');
+  }
+}
+
 export type HTTPRequestInfo = {
   httpStatusCode: number;
   errorMessage: string;
 };
 
-type MaybeEndTryPullRequest = {
+export type MaybeEndTryPullRequest = {
   requestID: string;
   syncHead: string;
 };
@@ -187,14 +201,14 @@ type MaybeEndTryPullRequest = {
  * ReplayMutation is used int the RPC between EndPull so that we can replay
  * mutations ontop of the current state. It is never exposed to the public.
  */
-type ReplayMutation = {
+export type ReplayMutation = {
   id: number;
   name: string;
   args: string;
   original: string;
 };
 
-type MaybeEndTryPullResponse = {
+export type MaybeEndTryPullResponse = {
   replayMutations?: ReplayMutation[];
   syncHead: string;
   changedKeys: ChangedKeysMap;

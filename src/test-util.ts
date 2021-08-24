@@ -1,5 +1,6 @@
 // Test utils
 import type {ReplicacheTest} from './replicache.js';
+import * as utf8 from './utf8';
 
 export const reps: Set<ReplicacheTest> = new Set();
 
@@ -21,12 +22,17 @@ export function deletaAllDatabases(): void {
   dbsToDrop.clear();
 }
 
-const textEncoder = new TextEncoder();
-
 export function stringToUint8Array(str: string): Uint8Array {
-  return textEncoder.encode(str);
+  return utf8.encode(str);
 }
 
-export function b(x: TemplateStringsArray): Uint8Array {
-  return textEncoder.encode(x[0]);
+export function b(
+  templatePart: TemplateStringsArray,
+  ...placeholderValues: unknown[]
+): Uint8Array {
+  let s = templatePart[0];
+  for (let i = 1; i < templatePart.length; i++) {
+    s += String(placeholderValues[i - 1]) + templatePart[i];
+  }
+  return utf8.encode(s);
 }

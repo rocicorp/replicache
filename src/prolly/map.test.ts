@@ -232,11 +232,10 @@ test('changed keys', () => {
     const old = makeProllyMap(o);
     const newMap = makeProllyMap(n);
     expected.sort();
-    const expectedUint8Arrays = expected.map(stringToUint8Array);
     let actual = prolly.Map.changedKeys(old, newMap);
-    expect(actual).to.deep.equal(expectedUint8Arrays);
+    expect(actual).to.deep.equal(expected);
     actual = prolly.Map.changedKeys(newMap, old);
-    expect(actual).to.deep.equal(expectedUint8Arrays);
+    expect(actual).to.deep.equal(expected);
   };
 
   t({}, {}, []);

@@ -34,6 +34,7 @@ export default {
         'src/db/*.test.ts',
         'src/kv/*.test.ts',
         'src/prolly/*.test.ts',
+        'src/sync/*.test.ts',
       ],
       browsers: [firefox, chromium, webkit],
     },

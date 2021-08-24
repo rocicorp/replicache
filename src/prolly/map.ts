@@ -4,6 +4,7 @@ import {Leaf} from './leaf';
 import type {Entry} from './mod';
 import {PeekIterator} from './peek-iterator';
 import {stringCompare} from './string-compare';
+import * as utf8 from '../utf8';
 
 const textDecoder = new TextDecoder();
 
@@ -101,10 +102,10 @@ class ProllyMap {
     return this._base.chunk.hash;
   }
 
-  static changedKeys(am: ProllyMap, bm: ProllyMap): Uint8Array[] {
+  static changedKeys(am: ProllyMap, bm: ProllyMap): string[] {
     const itA = am.entries();
     const itB = bm.entries();
-    const keys = [];
+    const keys: string[] = [];
 
     let a = itA.next();
     let b = itB.next();
@@ -114,27 +115,27 @@ class ProllyMap {
       }
 
       if (a.done && !b.done) {
-        keys.push(b.value.key);
+        keys.push(utf8.decode(b.value.key));
         b = itB.next();
       } else if (!a.done && b.done) {
-        keys.push(a.value.key);
+        keys.push(utf8.decode(a.value.key));
         a = itA.next();
       } else if (!a.done && !b.done) {
         const ord = arrayCompare(a.value.key, b.value.key);
         switch (ord) {
           case -1:
-            keys.push(a.value.key);
+            keys.push(utf8.decode(a.value.key));
             a = itA.next();
             break;
           case 0:
             if (arrayCompare(a.value.val, b.value.val) !== 0) {
-              keys.push(a.value.key);
+              keys.push(utf8.decode(a.value.key));
             }
             a = itA.next();
             b = itB.next();
             break;
           case +1:
-            keys.push(b.value.key);
+            keys.push(utf8.decode(b.value.key));
             b = itB.next();
             break;
         }

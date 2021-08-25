@@ -114,12 +114,10 @@ type PutResponse = unknown;
 type DelRequest = TransactionRequest & {key: string};
 type DelResponse = {ok: boolean};
 
-type RebaseOpts =
-  | Record<string, unknown>
-  | {
-      basis: string;
-      original: string;
-    };
+export type RebaseOpts = {
+  basis: string;
+  original: string;
+};
 
 export type OpenTransactionRequest = {
   name?: string;

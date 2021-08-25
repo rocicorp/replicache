@@ -4,31 +4,35 @@ import {chunkDataKey, chunkMetaKey, headKey} from './key.js';
 import * as utf8 from '../utf8.js';
 
 export class Read {
-  private readonly _kv: kv.Read;
+  private readonly _kvr: kv.Read;
 
   constructor(kv: kv.Read) {
-    this._kv = kv;
+    this._kvr = kv;
   }
 
   async hasChunk(hash: string): Promise<boolean> {
-    return await this._kv.has(chunkDataKey(hash));
+    return await this._kvr.has(chunkDataKey(hash));
   }
 
   async getChunk(hash: string): Promise<Chunk | undefined> {
-    const data = await this._kv.get(chunkDataKey(hash));
+    const data = await this._kvr.get(chunkDataKey(hash));
     if (data === undefined) {
       return undefined;
     }
 
-    const meta = await this._kv.get(chunkMetaKey(hash));
+    const meta = await this._kvr.get(chunkMetaKey(hash));
     return Chunk.read(hash, data, meta);
   }
 
   async getHead(name: string): Promise<string | undefined> {
-    const data = await this._kv.get(headKey(name));
+    const data = await this._kvr.get(headKey(name));
     if (data === undefined) {
       return undefined;
     }
     return utf8.decode(data);
+  }
+
+  close(): void {
+    this._kvr.release();
   }
 }

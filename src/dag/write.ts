@@ -151,4 +151,8 @@ export class Write {
       this._mutatedChunks.delete(hash);
     }
   }
+
+  close(): void {
+    this._kvw.release();
+  }
 }

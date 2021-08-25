@@ -353,6 +353,10 @@ export class Write {
 
     return [commit.chunk.hash, keyChanges];
   }
+
+  close(): void {
+    this._dagWrite.close();
+  }
 }
 
 async function updateIndexes(

@@ -52,6 +52,14 @@ export class Read {
       }
     }
   }
+
+  close(): void {
+    this._dagRead.close();
+  }
+
+  asRead(): this {
+    return this;
+  }
 }
 
 const enum WhenceType {

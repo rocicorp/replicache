@@ -11,7 +11,7 @@ import {
 } from '../db/test-helpers';
 import {MemStore} from '../kv/mod';
 import type {HTTPRequestInfo} from '../repm-invoker';
-import {SYNC_HEAD_NAME} from './mod';
+import {SYNC_HEAD_NAME} from './sync-head-name';
 import {InternalPusher, push, PushRequest, PUSH_VERSION} from './push';
 
 type FakePusherArgs = {

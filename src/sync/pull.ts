@@ -1,8 +1,8 @@
-import type * as dag from '../dag/mod';
-import * as db from '../db/mod';
-import * as utf8 from '../utf8';
-import type {JSONValue} from '../json';
-import {assertPullResponse, Puller, PullResponse} from '../puller';
+import type * as dag from '../dag/mod.js';
+import * as db from '../db/mod.js';
+import * as utf8 from '../utf8.js';
+import type {JSONValue} from '../json.js';
+import {assertPullResponse, Puller, PullResponse} from '../puller.js';
 import {
   assertHTTPRequestInfo,
   BeginTryPullRequest,
@@ -12,11 +12,11 @@ import {
   MaybeEndTryPullRequest,
   MaybeEndTryPullResponse,
   ReplayMutation,
-} from '../repm-invoker';
+} from '../repm-invoker.js';
 import {callJSRequest} from './js-request';
-import {SYNC_HEAD_NAME} from './mod';
-import * as patch from './patch';
-import * as prolly from '../prolly/mod';
+import {SYNC_HEAD_NAME} from './sync-head-name.js';
+import * as patch from './patch.js';
+import * as prolly from '../prolly/mod.js';
 
 export const PULL_VERSION = 0;
 
@@ -129,7 +129,7 @@ export async function beginPull(
     if (
       pullResp.patch.length === 0 &&
       pullResp.lastMutationID === baseLastMutationID &&
-      pullResp.cookie === baseCookie
+      (pullResp.cookie ?? null) === baseCookie
     ) {
       const syncHead = '';
       return {
@@ -154,7 +154,7 @@ export async function beginPull(
     const dbWrite = await db.Write.newSnapshot(
       db.whenceHash(baseSnapshot.chunk.hash),
       pullResp.lastMutationID,
-      pullResp.cookie,
+      pullResp.cookie ?? null,
       dagWrite,
       new Map(), // Note: created with no indexes
     );

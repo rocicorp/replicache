@@ -1,11 +1,12 @@
 import type {JSONValue} from './json.js';
-import type {ScanOptionsRPC} from './scan-options.js';
+// import type {ScanOptionsRPC} from './scan-options.js';
 import init, {dispatch} from './wasm/release/replicache_client.js';
 import type {InitOutput} from './wasm/release/replicache_client.js';
 import type {Puller} from './puller.js';
 import type {Pusher} from './pusher.js';
 import type * as kv from './kv/mod.js';
 import type * as dag from './dag/mod.js';
+import type * as db from './db/mod.js';
 
 /**
  * This type is used for the [[ReplicacheOptions.wasmModule]] property.
@@ -96,7 +97,7 @@ type TransactionRequest = {
 };
 
 export type ScanRequest = TransactionRequest & {
-  opts?: ScanOptionsRPC;
+  opts?: db.ScanOptions;
   receiver: (
     primaryKey: string,
     secondaryKey: string | null,

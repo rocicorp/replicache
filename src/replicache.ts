@@ -1,13 +1,10 @@
 import {deepEqual} from './json.js';
 import type {JSONValue} from './json.js';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
-import {REPMWasmInvoker, RPC} from './repm-invoker.js';
 import type {Pusher} from './pusher.js';
 import type {Puller} from './puller.js';
 import type {
   ChangedKeysMap,
-  Invoke,
-  Invoker,
   OpenResponse,
   OpenTransactionRequest,
 } from './repm-invoker.js';
@@ -34,7 +31,7 @@ import {
 } from './subscriptions.js';
 import {IDBStore, MemStore} from './kv/mod.js';
 import type * as kv from './kv/mod.js';
-import * as dag from './dag/mod.js';
+import * as embed from './embed/mod.js';
 
 type BeginPullResult = {
   requestID: string;
@@ -135,7 +132,6 @@ export class Replicache<MD extends MutatorDefs = {}>
   /** The name of the Replicache database. */
   readonly name: string;
 
-  private readonly _repmInvoker: Invoker;
   private readonly _useMemstore: boolean;
 
   /** The schema version of the data understood by this application. */
@@ -265,7 +261,6 @@ export class Replicache<MD extends MutatorDefs = {}>
       schemaVersion = '',
       pullInterval = 60_000,
       useMemstore = false,
-      wasmModule,
       mutators = {} as MD,
       requestOptions = {},
       puller = defaultPuller,
@@ -276,7 +271,6 @@ export class Replicache<MD extends MutatorDefs = {}>
     this.pullURL = pullURL;
     this.pushURL = pushURL;
     this.name = name;
-    this._repmInvoker = new REPMWasmInvoker(wasmModule);
     this.schemaVersion = schemaVersion;
     this.pullInterval = pullInterval;
     this.pushDelay = pushDelay;
@@ -326,13 +320,13 @@ export class Replicache<MD extends MutatorDefs = {}>
     // wait for it to finish closing.
     await closingInstances.get(this.name);
 
-    const dagStore = new dag.Store(this._store);
-
-    const openResponse = await this._repmInvoker.invoke(this.name, RPC.Open, {
-      useMemstore: this._useMemstore,
-      store: this._store,
-      dag: dagStore,
-    });
+    // const dagStore = new dag.Store(this._store);
+    const openResponse = await embed.open(this.name, this._store);
+    // const openResponse = await this._repmInvoker.invoke(this.name, RPC.Open, {
+    //   useMemstore: this._useMemstore,
+    //   store: this._store,
+    //   dag: dagStore,
+    // });
     this._openResolve(openResponse);
 
     if (hasBroadcastChannel) {
@@ -346,7 +340,9 @@ export class Replicache<MD extends MutatorDefs = {}>
     await this._root;
 
     if (!this._closed) {
-      await this._invoke(RPC.SetLogLevel, {level: this._logLevel});
+      // await this._invoke(RPC.SetLogLevel, {level: this._logLevel});
+      await this._openResponse;
+      await embed.setLogLevel(this._logLevel);
     }
     this.pull();
     this._push();
@@ -397,7 +393,9 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   async close(): Promise<void> {
     this._closed = true;
-    const p = this._invoke(RPC.Close);
+    await this._openResponse;
+    const p = embed.close(this.name);
+    // const p = this._invoke(RPC.Close);
     closingInstances.set(this.name, p);
 
     this._pullConnectionLoop.close();
@@ -424,8 +422,10 @@ export class Replicache<MD extends MutatorDefs = {}>
     if (this._closed) {
       return undefined;
     }
-    const res = await this._invoke(RPC.GetRoot);
-    return res.root;
+    await this._openResponse;
+    return await embed.getRoot(this.name);
+    // const res = await this._invoke(RPC.GetRoot);
+    // return res.root;
   }
 
   private _onStorage = (e: StorageEvent) => {
@@ -498,13 +498,13 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
   }
 
-  private _invoke: Invoke = async (
-    rpc: RPC,
-    args?: JSONValue,
-  ): Promise<JSONValue> => {
-    await this._openResponse;
-    return await this._repmInvoker.invoke(this.name, rpc, args);
-  };
+  // private _invoke: Invoke = async (
+  //   rpc: RPC,
+  //   args?: JSONValue,
+  // ): Promise<JSONValue> => {
+  //   await this._openResponse;
+  //   return await this._repmInvoker.invoke(this.name, rpc, args);
+  // };
 
   /** Get a single value from the database. */
   get(key: string): Promise<JSONValue | undefined> {
@@ -535,9 +535,9 @@ export class Replicache<MD extends MutatorDefs = {}>
   ): ScanResult<K> {
     return new ScanResult<K>(
       options,
-      this._invoke,
+      this._openResponse,
       async () => {
-        const tx = new ReadTransactionImpl(this._invoke);
+        const tx = new ReadTransactionImpl(this.name, this._openResponse);
         await tx.open({});
         return tx;
       },
@@ -552,7 +552,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): Promise<[K, JSONValue][]> {
-    const tx = new ReadTransactionImpl(this._invoke);
+    const tx = new ReadTransactionImpl(this.name, this._openResponse);
     try {
       await tx.open({});
       return await tx.scanAll(options);
@@ -585,7 +585,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   private async _indexOp(
     f: (tx: IndexTransactionImpl) => Promise<void>,
   ): Promise<void> {
-    const tx = new IndexTransactionImpl(this._invoke);
+    const tx = new IndexTransactionImpl(this.name, this._openResponse);
     try {
       await tx.open({});
       await f(tx);
@@ -602,10 +602,17 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
 
     let {syncHead} = beginPullResult;
+    const {requestID} = beginPullResult;
 
-    const {replayMutations, changedKeys} = await this._invoke(
-      RPC.MaybeEndTryPull,
-      beginPullResult,
+    // const {replayMutations, changedKeys} = await this._invoke(
+    //   RPC.MaybeEndTryPull,
+    //   beginPullResult,
+    // );
+    await this._openResponse;
+    const {replayMutations, changedKeys} = await embed.maybeEndTryPull(
+      this.name,
+      requestID,
+      syncHead,
     );
     if (!replayMutations || replayMutations.length === 0) {
       // All done.
@@ -716,17 +723,24 @@ export class Replicache<MD extends MutatorDefs = {}>
       let pushResponse;
       try {
         this._changeSyncCounters(1, 0);
-        pushResponse = await this._invoke(RPC.TryPush, {
+        await this._openResponse;
+        pushResponse = await embed.tryPush(this.name, {
           pushURL: this.pushURL,
           pushAuth: this.auth,
           schemaVersion: this.schemaVersion,
           pusher: this.pusher,
         });
+        // pushResponse = await this._invoke(RPC.TryPush, {
+        //   pushURL: this.pushURL,
+        //   pushAuth: this.auth,
+        //   schemaVersion: this.schemaVersion,
+        //   pusher: this.pusher,
+        // });
       } finally {
         this._changeSyncCounters(-1, 0);
       }
 
-      const {httpRequestInfo} = pushResponse;
+      const httpRequestInfo = pushResponse;
 
       if (httpRequestInfo) {
         const reauth = checkStatus(
@@ -784,12 +798,19 @@ export class Replicache<MD extends MutatorDefs = {}>
   }
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
-    const beginPullResponse = await this._invoke(RPC.BeginTryPull, {
+    await this._openResponse;
+    const beginPullResponse = await embed.beginTryPull(this.name, {
       pullAuth: this.auth,
       pullURL: this.pullURL,
       schemaVersion: this.schemaVersion,
       puller: this.puller,
     });
+    // const beginPullResponse = await this._invoke(RPC.BeginTryPull, {
+    //   pullAuth: this.auth,
+    //   pullURL: this.pullURL,
+    //   schemaVersion: this.schemaVersion,
+    //   puller: this.puller,
+    // });
 
     const {httpRequestInfo, syncHead, requestID} = beginPullResponse;
 
@@ -960,7 +981,7 @@ export class Replicache<MD extends MutatorDefs = {}>
    * and `scan`.
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
-    const tx = new ReadTransactionImpl(this._invoke);
+    const tx = new ReadTransactionImpl(this.name, this._openResponse);
     await tx.open({});
     try {
       return await body(tx);
@@ -1051,7 +1072,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
 
     let result: R;
-    const tx = new WriteTransactionImpl(this._invoke);
+    const tx = new WriteTransactionImpl(this.name, this._openResponse);
     await tx.open(actualInvokeArgs);
     try {
       result = await mutatorImpl(tx, args);

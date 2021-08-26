@@ -26,7 +26,7 @@ import type {
   MaybeEndTryPullRequest,
   MaybeEndTryPullResponse,
 } from '../repm-invoker';
-import {SYNC_HEAD_NAME} from './mod';
+import {SYNC_HEAD_NAME} from './sync-head-name';
 import {
   beginPull,
   InternalPuller,
@@ -301,7 +301,7 @@ test('begin try pull', async () => {
         lastMutationID: baseLastMutationID,
       },
       expNewSyncHead: {
-        cookie: goodPullResp.cookie,
+        cookie: goodPullResp.cookie ?? null,
         lastMutationID: baseLastMutationID,
         valueMap: goodPullRespValueMap,
         indexes: ['2'],
@@ -320,7 +320,7 @@ test('begin try pull', async () => {
         patch: [],
       },
       expNewSyncHead: {
-        cookie: goodPullResp.cookie,
+        cookie: goodPullResp.cookie ?? null,
         lastMutationID: goodPullResp.lastMutationID,
         valueMap: baseValueMap,
         indexes: ['2'],
@@ -338,7 +338,7 @@ test('begin try pull', async () => {
         ...goodPullResp,
       },
       expNewSyncHead: {
-        cookie: goodPullResp.cookie,
+        cookie: goodPullResp.cookie ?? null,
         lastMutationID: goodPullResp.lastMutationID,
         valueMap: goodPullRespValueMap,
         indexes: ['2'],

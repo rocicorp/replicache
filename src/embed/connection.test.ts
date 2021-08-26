@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod.js';
-import * as db from '../db/mod.js';
+import type * as db from '../db/mod.js';
 import * as sync from '../sync/mod.js';
 import * as utf8 from '../utf8.js';
 import {MemStore} from '../kv/mem-store.js';

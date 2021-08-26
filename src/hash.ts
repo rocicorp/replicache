@@ -1,6 +1,10 @@
+import * as c from './sha512.js';
+
 export const BYTE_LENGTH = 20;
 
 const charTable = '0123456789abcdefghijklmnopqrstuv';
+
+const tempBuffer = new Uint8Array(64);
 
 export class Hash {
   private readonly _sum: Uint8Array;
@@ -9,9 +13,15 @@ export class Hash {
     this._sum = sum;
   }
 
-  static async of(sum: Uint8Array): Promise<Hash> {
-    const buffer = await crypto.subtle.digest('SHA-512', sum);
-    return new Hash(new Uint8Array(buffer, 0, BYTE_LENGTH));
+  // static async of(sum: Uint8Array): Promise<Hash> {
+  //   const buffer = await crypto.subtle.digest('SHA-512', sum);
+  //   return new Hash(new Uint8Array(buffer, 0, BYTE_LENGTH));
+  // }
+
+  static of(sum: Uint8Array): Hash {
+    new c.Sha512().update(sum).digest(tempBuffer);
+    // slice creates a new buffer
+    return new Hash(tempBuffer.slice(0, BYTE_LENGTH));
   }
 
   isEmpty(): boolean {

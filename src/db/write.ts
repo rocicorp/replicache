@@ -344,10 +344,10 @@ export class Write {
       }
     }
 
-    await Promise.all([
-      this._dagWrite.putChunk(commit.chunk),
-      this._dagWrite.setHead(headName, commit.chunk.hash),
-    ]);
+    // await Promise.all([
+    await this._dagWrite.putChunk(commit.chunk);
+    await this._dagWrite.setHead(headName, commit.chunk.hash);
+    // ]);
 
     await this._dagWrite.commit();
 

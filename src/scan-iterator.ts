@@ -1,9 +1,9 @@
-import {Invoke, RPC, ScanRequest} from './repm-invoker.js';
 import type {JSONValue} from './json.js';
 import {throwIfClosed} from './transaction-closed-error.js';
-import {ScanOptions, toRPC} from './scan-options.js';
+import {ScanOptions, toRPC2} from './scan-options.js';
 import {asyncIterableToArray} from './async-iterable-to-array.js';
 import * as utf8 from './utf8.js';
+import * as embed from './embed/mod.js';
 
 interface IdCloser {
   close(): void;
@@ -18,7 +18,7 @@ type ScanIterableKind = typeof VALUE | typeof KEY | typeof ENTRY;
 
 type Args = [
   options: ScanOptions | undefined,
-  invoke: Invoke,
+  openResponse: Promise<unknown>,
   getTransaction: () => Promise<IdCloser> | IdCloser,
   shouldCloseTransaction: boolean,
 ];
@@ -120,14 +120,15 @@ export class AsyncIterableIteratorToArrayWrapper<V>
 async function* scanIterator<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
-  invoke: Invoke,
+  openResponse: Promise<unknown>,
   getTransaction: () => Promise<IdCloser> | IdCloser,
   shouldCloseTransaction: boolean,
 ): AsyncGenerator<V> {
   const transaction = await getTransaction();
   throwIfClosed(transaction);
 
-  const items = await load<V>(kind, options, transaction.id, invoke);
+  await openResponse;
+  const items = await load<V>(kind, options, transaction.id);
 
   try {
     for (const item of items) {
@@ -144,7 +145,6 @@ async function load<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
   transactionID: number,
-  invoke: Invoke,
 ): Promise<V[]> {
   const items: V[] = [];
   const parse = (v: Uint8Array) => JSON.parse(utf8.decode(v));
@@ -174,13 +174,14 @@ async function load<V>(
     }
   };
 
-  const args: ScanRequest = {
-    transactionId: transactionID,
-    opts: toRPC(options),
-    receiver,
-  };
+  // const args: ScanRequest = {
+  //   transactionId: transactionID,
+  //   opts: toRPC(options),
+  //   receiver,
+  // };
 
-  await invoke(RPC.Scan, args);
+  await embed.scan(transactionID, toRPC2(options), receiver);
+  // await invoke(RPC.Scan, args);
 
   return items;
 }

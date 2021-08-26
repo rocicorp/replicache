@@ -26,10 +26,7 @@ export class Read {
 
   async getHead(name: string): Promise<string | undefined> {
     const data = await this._kvr.get(headKey(name));
-    if (data === undefined) {
-      return undefined;
-    }
-    return utf8.decode(data);
+    return data && utf8.decode(data);
   }
 
   close(): void {

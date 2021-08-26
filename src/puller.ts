@@ -18,7 +18,7 @@ export type Puller = (request: Request) => Promise<PullerResult>;
  * the JSON you should return from your pull server endpoint.
  */
 export type PullResponse = {
-  cookie: JSONValue;
+  cookie?: JSONValue;
   lastMutationID: number;
   patch: PatchOperation[];
 };
@@ -28,7 +28,9 @@ export function assertPullResponse(v: unknown): asserts v is PullResponse {
     throw new Error('PullResponse must be an object');
   }
   const v2 = v as Partial<PullResponse>;
-  assertJSONValue(v2.cookie);
+  if (v2.cookie !== undefined) {
+    assertJSONValue(v2.cookie);
+  }
   assertNumber(v2.lastMutationID);
   assertPatchOperations(v2.patch);
 }

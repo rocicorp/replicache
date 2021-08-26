@@ -12,23 +12,23 @@ import {
   newLocal as commitNewLocal,
   newSnapshot as commitNewSnapshot,
   SnapshotMeta,
-} from './commit';
-import {IndexDefinition as IndexDefinitionFB} from './generated/commit/index-definition';
-import {IndexRecord as IndexRecordFB} from './generated/commit/index-record';
-import {Meta as MetaFB} from './generated/commit/meta';
-import {MetaTyped as MetaTypedFB} from './generated/commit/meta-typed';
-import {Commit as CommitFB} from './generated/commit/commit';
+} from './commit.js';
+import {IndexDefinition as IndexDefinitionFB} from './generated/commit/index-definition.js';
+import {IndexRecord as IndexRecordFB} from './generated/commit/index-record.js';
+import {Meta as MetaFB} from './generated/commit/meta.js';
+import {MetaTyped as MetaTypedFB} from './generated/commit/meta-typed.js';
+import {Commit as CommitFB} from './generated/commit/commit.js';
 import {
-  addGenesis as addGenesis,
+  addGenesis,
   addIndexChange,
   addLocal,
   addSnapshot,
   Chain,
-} from './test-helpers';
-import {LocalMeta as LocalMetaFB} from './generated/commit/local-meta';
-import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
-import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
-import {b} from '../test-util';
+} from './test-helpers.js';
+import {LocalMeta as LocalMetaFB} from './generated/commit/local-meta.js';
+import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta.js';
+import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta.js';
+import {b} from '../test-util.js';
 
 test('base snapshot', async () => {
   const store = new dag.Store(new MemStore());

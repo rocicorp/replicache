@@ -214,7 +214,7 @@ test('Reads then writes', async () => {
   ]);
 });
 
-test.only('Reads then writes (withRead)', async () => {
+test('Reads then writes (withRead)', async () => {
   const lock = new RWLock();
 
   const log: string[] = [];

@@ -1542,7 +1542,7 @@ testWithBothStores('pullInterval in constructor', async () => {
   await rep.close();
 });
 
-testWithBothStores('closeTransaction after rep.scan', async () => {
+test.only('closeTransaction after rep.scan', async () => {
   const rep = await replicacheForTesting('test5', {mutators: {addData}});
   const add = rep.mutate.addData;
   await add({

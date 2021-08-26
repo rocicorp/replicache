@@ -89,7 +89,7 @@ export async function close(dbName: string): Promise<void> {
 
 async function init(store: dag.Store): Promise<void> {
   await store.withWrite(async dagWrite => {
-    const head = dagWrite.read().getHead(db.DEFAULT_HEAD_NAME);
+    const head = await dagWrite.read().getHead(db.DEFAULT_HEAD_NAME);
     if (!head) {
       await db.initDB(dagWrite, db.DEFAULT_HEAD_NAME);
     }
@@ -257,7 +257,7 @@ export async function commitImpl(
   return {ref: hash, changedKeys};
 }
 
-export async function closeTransactio(transactionID: number): Promise<void> {
+export async function closeTransaction(transactionID: number): Promise<void> {
   const txn = getTransaction(transactionID, transactionsMap);
   txn.close();
   transactionsMap.delete(transactionID);
@@ -268,8 +268,8 @@ export async function getRoot(
   headName: string = db.DEFAULT_HEAD_NAME,
 ): Promise<string> {
   // TODO(arv): I don't think we ever call this with a headName.
-  const connection = getConnection(dbName);
-  return await db.getRoot(connection.store, headName);
+  const {store} = getConnection(dbName);
+  return await db.getRoot(store, headName);
 }
 
 export function has(transactionID: number, key: string): boolean {
@@ -312,12 +312,18 @@ export async function put(
   value: string,
 ): Promise<void> {
   const txn = getWriteTransaction(transactionID, transactionsMap);
-  await txn.put(utf8.encode(key), utf8.encode(JSON.stringify(value)));
+  await txn.put(utf8.encode(key), utf8.encode(value));
 }
 
-export async function del(transactionID: number, key: string): Promise<void> {
+export async function del(
+  transactionID: number,
+  key: string,
+): Promise<boolean> {
   const txn = getWriteTransaction(transactionID, transactionsMap);
-  await txn.del(utf8.encode(key));
+  const keyBytes = utf8.encode(key);
+  const had = await txn.asRead().has(keyBytes);
+  await txn.del(keyBytes);
+  return had;
 }
 
 export async function createIndex(

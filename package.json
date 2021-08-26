@@ -62,6 +62,7 @@
     "out/replicache.dev.wasm"
   ],
   "dependencies": {
-    "flatbuffers": "^2.0.3"
+    "flatbuffers": "^2.0.3",
+    "sha512-universal": "^1.1.2"
   }
 }

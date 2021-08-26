@@ -17,8 +17,9 @@ export class Chunk {
     this.meta = meta;
   }
 
-  static async new(data: Uint8Array, refs: string[]): Promise<Chunk> {
-    const hash = await Hash.of(data);
+  static new(data: Uint8Array, refs: string[]): Chunk {
+    // XXX
+    const hash = Hash.of(data);
     const meta = createMeta(refs);
     return new Chunk(hash.toString(), data, meta);
   }

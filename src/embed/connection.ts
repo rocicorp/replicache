@@ -222,8 +222,12 @@ export async function openIndexTransaction(dbName: string): Promise<number> {
   const start = Date.now();
   isTesting && logCall('openIndexTransaction', dbName);
 
+  const transactionID = transactionCounter++;
   const connection = getConnection(dbName);
-  const lc = connection.lc.addContext('rpc', 'openIndexTransaction');
+
+  const lc = connection.lc
+    .addContext('rpc', 'openIndexTransaction')
+    .addContext('txid', transactionID);
   lc.debug?.('->');
   const {store} = connection;
 
@@ -245,11 +249,8 @@ export async function openIndexTransaction(dbName: string): Promise<number> {
       dagWrite.close();
     }
   }
-  const transactionID = transactionCounter++;
-  transactionsMap.set(transactionID, {
-    txn,
-    lc: lc.addContext('txid', transactionID),
-  });
+  transactionsMap.set(transactionID, {txn, lc});
+  lc.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', transactionID);
   return transactionID;
 }
 

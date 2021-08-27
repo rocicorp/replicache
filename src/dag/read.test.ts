@@ -47,7 +47,7 @@ test('get chunk', async () => {
       }
       expect(await r.getChunk(chunkHash)).to.deep.equal(expected);
       if (expected) {
-        expect((await r.getChunk(chunkHash))?.equals(expected)).to.be.true;
+        expect(await r.getChunk(chunkHash)).to.deep.equal(expected);
       } else {
         expect(await r.getChunk(chunkHash)).to.be.undefined;
       }

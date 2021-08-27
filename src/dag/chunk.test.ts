@@ -25,12 +25,10 @@ test('round trip', async () => {
 test('equals', async () => {
   const eq = (a: Chunk, b: Chunk) => {
     expect(a).to.deep.equal(b);
-    expect(a.equals(b)).to.be.true;
   };
 
   const neq = (a: Chunk, b: Chunk) => {
     expect(a).to.not.deep.equal(b);
-    expect(a.equals(b)).to.be.false;
   };
 
   eq(Chunk.new(new Uint8Array([]), []), Chunk.new(new Uint8Array([]), []));

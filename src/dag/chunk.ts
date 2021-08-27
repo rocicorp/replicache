@@ -36,10 +36,6 @@ export class Chunk {
     }
   }
 
-  equals(b: Chunk): boolean {
-    return this.hash === b.hash && arrayishEquals(this.meta, b.meta);
-  }
-
   static read(
     hash: string,
     data: Uint8Array,
@@ -63,22 +59,4 @@ function createMeta(refs: string[]): Uint8Array | undefined {
   const m = Meta.createMeta(builder, refsOffset);
   builder.finish(m);
   return builder.asUint8Array();
-}
-
-function arrayishEquals<T>(
-  a: ArrayLike<T> | undefined,
-  b: ArrayLike<T> | undefined,
-): boolean {
-  if (a === b) {
-    return true;
-  }
-  if (a === undefined || b === undefined || a.length !== b.length) {
-    return false;
-  }
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) {
-      return false;
-    }
-  }
-  return true;
 }

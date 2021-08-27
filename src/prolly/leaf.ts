@@ -13,7 +13,7 @@ export class Leaf {
     this.chunk = chunk;
   }
 
-  static async new(entries: Iterable<Entry>): Promise<Leaf> {
+  static new(entries: Iterable<Entry>): Leaf {
     const builder = new flatbuffers.Builder();
     const leafEntries = [];
     for (const entry of entries) {
@@ -31,7 +31,7 @@ export class Leaf {
     builder.finish(root);
     const data = builder.asUint8Array();
 
-    const chunk = await Chunk.new(data, []);
+    const chunk = Chunk.new(data, []);
     return new Leaf(chunk);
   }
 

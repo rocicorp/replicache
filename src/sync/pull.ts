@@ -2,7 +2,12 @@ import type * as dag from '../dag/mod.js';
 import * as db from '../db/mod.js';
 import * as utf8 from '../utf8.js';
 import type {JSONValue} from '../json.js';
-import {assertPullResponse, Puller, PullResponse} from '../puller.js';
+import {
+  assertPullResponse,
+  Puller,
+  PullError,
+  PullResponse,
+} from '../puller.js';
 import {
   assertHTTPRequestInfo,
   BeginTryPullRequest,
@@ -327,9 +332,13 @@ export class JSPuller implements InternalPuller {
       pullReq;
 
     const body = {clientID, cookie, lastMutationID, pullVersion, schemaVersion};
-    const res = await callJSRequest(this._puller, url, body, auth, requestID);
-    assertResult(res);
-    return [res.response, res.httpRequestInfo];
+    try {
+      const res = await callJSRequest(this._puller, url, body, auth, requestID);
+      assertResult(res);
+      return [res.response, res.httpRequestInfo];
+    } catch (e) {
+      throw new PullError(e);
+    }
   }
 }
 

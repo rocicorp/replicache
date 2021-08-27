@@ -4,7 +4,11 @@ import type {
   CommitTransactionResponse,
   CloseTransactionResponse,
 } from './repm-invoker.js';
-import {KeyTypeForScanOptions, ScanOptions, toRPC2} from './scan-options.js';
+import {
+  KeyTypeForScanOptions,
+  ScanOptions,
+  toDbScanOptions,
+} from './scan-options.js';
 import {ScanResult} from './scan-iterator.js';
 import {throwIfClosed} from './transaction-closed-error.js';
 import {asyncIterableToArray} from './async-iterable-to-array.js';
@@ -94,47 +98,26 @@ export class ReadTransactionImpl implements ReadTransaction {
 
   async get(key: string): Promise<JSONValue | undefined> {
     throwIfClosed(this);
-    await this._openResponse;
     return await embed.get(this._transactionId, key);
-    // const result = await this._invoke(RPC.Get, {
-    //   transactionId: this._transactionId,
-    //   key,
-    // });
-    // if (!result.has) {
-    //   return undefined;
-    // }
-    // return JSON.parse(result.value);
   }
 
   async has(key: string): Promise<boolean> {
     throwIfClosed(this);
-    await this._openResponse;
     return await embed.has(this._transactionId, key);
-    // const result = await this._invoke(RPC.Has, {
-    //   transactionId: this._transactionId,
-    //   key,
-    // });
-    // return result['has'];
   }
 
   async isEmpty(): Promise<boolean> {
     throwIfClosed(this);
 
     let empty = true;
-    await this._openResponse;
     await embed.scan(this._transactionId, {limit: 1}, () => (empty = false));
-    // await this._invoke(RPC.Scan, {
-    //   transactionId: this._transactionId,
-    //   opts: {limit: 1},
-    //   receiver: () => (empty = false),
-    // });
     return empty;
   }
 
   scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): ScanResult<K> {
-    return new ScanResult(options, this._openResponse, () => this, false);
+    return new ScanResult(options, () => this, false);
   }
 
   async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
@@ -165,17 +148,11 @@ export class ReadTransactionImpl implements ReadTransaction {
     } else {
       this._transactionId = await embed.openIndexTransaction(this._dbName);
     }
-    // const {transactionId} = await this._invoke(this._openTransactionName, args);
-    // this._transactionId = transactionId;
   }
 
   async close(): Promise<CloseTransactionResponse> {
     this._closed = true;
-    await this._openResponse;
     return await embed.closeTransaction(this._transactionId);
-    // return await this._invoke(RPC.CloseTransaction, {
-    //   transactionId: this._transactionId,
-    // });
   }
 }
 
@@ -209,7 +186,7 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
   scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): ScanResult<K> {
-    this._scans.push(toRPC2(options));
+    this._scans.push(toDbScanOptions(options));
     return this._tx.scan(options);
   }
 
@@ -218,7 +195,7 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
   async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): Promise<[K, JSONValue][]> {
-    this._scans.push(toRPC2(options));
+    this._scans.push(toDbScanOptions(options));
     return this._tx.scanAll(options);
   }
 
@@ -256,36 +233,19 @@ export class WriteTransactionImpl
 {
   async put(key: string, value: JSONValue): Promise<void> {
     throwIfClosed(this);
-    await this._openResponse;
     await embed.put(this.id, key, JSON.stringify(value));
-    // await this._invoke(RPC.Put, {
-    //   transactionId: this.id,
-    //   key,
-    //   value: JSON.stringify(value),
-    // });
   }
 
   async del(key: string): Promise<boolean> {
     throwIfClosed(this);
-    await this._openResponse;
     return await embed.del(this.id, key);
-    // const result = await this._invoke(RPC.Del, {
-    //   transactionId: this.id,
-    //   key,
-    // });
-    // return result.ok;
   }
 
   async commit(
     generateChangedKeys: boolean,
   ): Promise<CommitTransactionResponse> {
     this._closed = true;
-    await this._openResponse;
-    return await embed.commit(this.id, generateChangedKeys);
-    // return await this._invoke(RPC.CommitTransaction, {
-    //   transactionId: this.id,
-    //   generateChangedKeys,
-    // });
+    return await embed.commitTransaction(this.id, generateChangedKeys);
   }
 }
 
@@ -345,38 +305,21 @@ export class IndexTransactionImpl
 
   async createIndex(options: CreateIndexDefinition): Promise<void> {
     throwIfClosed(this);
-    await this._openResponse;
     await embed.createIndex(
       this.id,
       options.name,
       options.prefix ?? options.keyPrefix ?? '',
       options.jsonPointer,
     );
-    // await this._invoke(RPC.CreateIndex, {
-    //   transactionId: this.id,
-    //   name: options.name,
-    //   keyPrefix: options.prefix ?? options.keyPrefix ?? '',
-    //   jsonPointer: options.jsonPointer,
-    // });
   }
 
   async dropIndex(name: string): Promise<void> {
     throwIfClosed(this);
-    await this._openResponse;
     await embed.dropIndex(this.id, name);
-    // await this._invoke(RPC.DropIndex, {
-    //   transactionId: this.id,
-    //   name,
-    // });
   }
 
   async commit(): Promise<CommitTransactionResponse> {
     this._closed = true;
-    await this._openResponse;
-    return await embed.commit(this.id, false);
-    // return await this._invoke(RPC.CommitTransaction, {
-    //   transactionId: this.id,
-    //   generateChangedKeys: false,
-    // });
+    return await embed.commitTransaction(this.id, false);
   }
 }

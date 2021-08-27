@@ -1,5 +1,4 @@
 import {expect} from '@esm-bundle/chai';
-
 import {decodeIndexKey, scanOptionsMatchesKey} from './subscriptions.js';
 
 test(`decodeIndexKey`, () => {
@@ -22,12 +21,9 @@ test('scanOptionsMatchesKey', () => {
 
   expect(scanOptionsMatchesKey({prefix: 'p'}, '', 'a')).to.be.false;
 
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  expect(scanOptionsMatchesKey({start_key: 'sk'}, '', 'a')).to.be.false;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  expect(scanOptionsMatchesKey({start_key: 'sk'}, '', 'skate')).to.be.true;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  expect(scanOptionsMatchesKey({start_key: 'a'}, '', 'b')).to.be.true;
+  expect(scanOptionsMatchesKey({startKey: 'sk'}, '', 'a')).to.be.false;
+  expect(scanOptionsMatchesKey({startKey: 'sk'}, '', 'skate')).to.be.true;
+  expect(scanOptionsMatchesKey({startKey: 'a'}, '', 'b')).to.be.true;
 
   expect(
     scanOptionsMatchesKey(
@@ -46,24 +42,21 @@ test('scanOptionsMatchesKey', () => {
 
   expect(
     scanOptionsMatchesKey(
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      {prefix: 'sa', indexName: 'idx', start_secondary_key: 'sab'},
+      {prefix: 'sa', indexName: 'idx', startSecondaryKey: 'sab'},
       'idx',
       '\u0000sab\u0000p',
     ),
   ).to.be.true;
   expect(
     scanOptionsMatchesKey(
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      {prefix: 'sa', indexName: 'idx', start_secondary_key: 'sab'},
+      {prefix: 'sa', indexName: 'idx', startSecondaryKey: 'sab'},
       'idx',
       '\u0000sac\u0000p',
     ),
   ).to.be.true;
   expect(
     scanOptionsMatchesKey(
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      {prefix: 'sa', indexName: 'idx', start_secondary_key: 'sac'},
+      {prefix: 'sa', indexName: 'idx', startSecondaryKey: 'sac'},
       'idx',
       '\u0000sab\u0000p',
     ),
@@ -71,57 +64,48 @@ test('scanOptionsMatchesKey', () => {
 
   expect(
     scanOptionsMatchesKey(
-      /* eslint-disable @typescript-eslint/naming-convention */
       {
         prefix: 'sa',
         indexName: 'idx',
-
-        start_secondary_key: 'sab',
-        start_key: 'pa',
+        startSecondaryKey: 'sab',
+        startKey: 'pa',
       },
-      /* eslint-enable @typescript-eslint/naming-convention */
       'idx',
       '\u0000sac\u0000pa',
     ),
   ).to.be.true;
   expect(
     scanOptionsMatchesKey(
-      /* eslint-disable @typescript-eslint/naming-convention */
       {
         prefix: 'sa',
         indexName: 'idx',
-        start_secondary_key: 'sab',
-        start_key: 'pab',
+        startSecondaryKey: 'sab',
+        startKey: 'pab',
       },
-      /* eslint-enable @typescript-eslint/naming-convention */
       'idx',
       '\u0000sac\u0000pab',
     ),
   ).to.be.true;
   expect(
     scanOptionsMatchesKey(
-      /* eslint-disable @typescript-eslint/naming-convention */
       {
         prefix: 'sa',
         indexName: 'idx',
-        start_secondary_key: 'sab',
-        start_key: 'pab',
+        startSecondaryKey: 'sab',
+        startKey: 'pab',
       },
-      /* eslint-enable @typescript-eslint/naming-convention */
       'idx',
       '\u0000sac\u0000pac',
     ),
   ).to.be.true;
   expect(
     scanOptionsMatchesKey(
-      /* eslint-disable @typescript-eslint/naming-convention */
       {
         prefix: 'sa',
         indexName: 'idx',
-        start_secondary_key: 'sab',
-        start_key: 'pac',
+        startSecondaryKey: 'sab',
+        startKey: 'pac',
       },
-      /* eslint-enable @typescript-eslint/naming-convention */
       'idx',
       '\u0000sac\u0000pab',
     ),

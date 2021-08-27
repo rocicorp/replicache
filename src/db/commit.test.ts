@@ -387,7 +387,7 @@ async function makeCommit(
   );
   builder.finish(commit);
   const data = builder.asUint8Array();
-  return await Chunk.new(data, refs);
+  return Chunk.new(data, refs);
 }
 
 function makeLocalMeta(

@@ -88,3 +88,15 @@ function assertPatchOperation(p: unknown): asserts p is PatchOperation {
       );
   }
 }
+
+/**
+ * This error is thrown when the puller fails for any reason.
+ */
+export class PullError extends Error {
+  name = 'PullError';
+  cause?: Error;
+  constructor(cause?: Error) {
+    super('Failed to pull');
+    this.cause = cause;
+  }
+}

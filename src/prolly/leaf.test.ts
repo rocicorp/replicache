@@ -6,9 +6,9 @@ import * as flatbuffers from 'flatbuffers';
 import {LeafEntry as LeafEntryFB} from './generated/leaf/leaf-entry';
 import {Leaf as LeafFB} from './generated/leaf/leaf';
 
-async function makeLeaf(
+function makeLeaf(
   kv: (Uint8Array | number[] | undefined)[] | undefined,
-): Promise<Chunk> {
+): Chunk {
   const builder = new flatbuffers.Builder();
   let entriesVec = 0;
 
@@ -26,10 +26,10 @@ async function makeLeaf(
   }
   const leaf = LeafFB.createLeaf(builder, entriesVec);
   builder.finish(leaf);
-  return await Chunk.new(builder.asUint8Array(), []);
+  return Chunk.new(builder.asUint8Array(), []);
 }
 
-test('try from', async () => {
+test('try from', () => {
   const t = (input: Chunk, expected: Entry) => {
     const leaf = Leaf.load(input);
     const actual = leaf.entries().next().value;
@@ -37,17 +37,17 @@ test('try from', async () => {
   };
 
   // zero-length keys and vals are supported.
-  t(await makeLeaf([u8s(), u8s()]), {
+  t(makeLeaf([u8s(), u8s()]), {
     key: u8s(),
     val: u8s(),
   });
 
   // normal non-zero keys and values too.
-  t(await makeLeaf([u8s(1), u8s(1)]), {
+  t(makeLeaf([u8s(1), u8s(1)]), {
     key: u8s(1),
     val: u8s(1),
   });
-  t(await makeLeaf([u8s(1, 2), u8s(3, 4)]), {
+  t(makeLeaf([u8s(1, 2), u8s(3, 4)]), {
     key: u8s(1, 2),
     val: u8s(3, 4),
   });
@@ -67,10 +67,10 @@ test('leaf iter', async () => {
 
   // None is flattened to empty iterator.
   t(undefined, []);
-  t(await makeLeaf([]), []);
+  t(makeLeaf([]), []);
 
   // Single entry
-  t(await makeLeaf([[1], [2]]), [
+  t(makeLeaf([[1], [2]]), [
     {
       key: u8s(1),
       val: u8s(2),
@@ -78,7 +78,7 @@ test('leaf iter', async () => {
   ]);
 
   // multiple entries
-  t(await makeLeaf([[], [], [1], [1]]), [
+  t(makeLeaf([[], [], [1], [1]]), [
     {
       key: u8s(),
       val: u8s(),
@@ -97,7 +97,7 @@ test('round trip', async () => {
     {key: k0, val: k0},
     {key: k1, val: k1},
   ];
-  const expected = await Leaf.new(expected1);
+  const expected = Leaf.new(expected1);
   const actual = Leaf.load(
     Chunk.read(expected.chunk.hash, expected.chunk.data, undefined),
   );
@@ -112,7 +112,7 @@ test('load', async () => {
   ) => {
     let err;
     try {
-      const chunk = await makeLeaf(kv);
+      const chunk = makeLeaf(kv);
       Leaf.load(chunk);
     } catch (e) {
       err = e;

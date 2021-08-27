@@ -26,7 +26,7 @@ test('has chunk', async () => {
 test('get chunk', async () => {
   const t = async (data: Uint8Array, refs: string[], getSameChunk: boolean) => {
     const kv = new MemStore();
-    const chunk = await Chunk.new(data, refs);
+    const chunk = Chunk.new(data, refs);
     await kv.withWrite(async kvw => {
       await kvw.put(chunkDataKey(chunk.hash), chunk.data);
       if (chunk.meta) {

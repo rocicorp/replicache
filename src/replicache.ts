@@ -1,8 +1,8 @@
 import {deepEqual} from './json.js';
 import type {JSONValue} from './json.js';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
-import type {Pusher} from './pusher.js';
-import type {Puller} from './puller.js';
+import {Pusher, PushError} from './pusher.js';
+import {Puller, PullError} from './puller.js';
 import type {
   ChangedKeysMap,
   OpenResponse,
@@ -342,7 +342,9 @@ export class Replicache<MD extends MutatorDefs = {}>
     if (!this._closed) {
       // await this._invoke(RPC.SetLogLevel, {level: this._logLevel});
       await this._openResponse;
-      await embed.setLogLevel(this._logLevel);
+      if (!this._closed) {
+        await embed.setLogLevel(this._logLevel);
+      }
     }
     this.pull();
     this._push();
@@ -393,10 +395,10 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   async close(): Promise<void> {
     this._closed = true;
+    const {promise, resolve} = resolver();
+    closingInstances.set(this.name, promise);
     await this._openResponse;
     const p = embed.close(this.name);
-    // const p = this._invoke(RPC.Close);
-    closingInstances.set(this.name, p);
 
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
@@ -416,6 +418,7 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     await p;
     closingInstances.delete(this.name);
+    resolve();
   }
 
   private async _getRoot(): Promise<string | undefined> {
@@ -424,8 +427,6 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
     await this._openResponse;
     return await embed.getRoot(this.name);
-    // const res = await this._invoke(RPC.GetRoot);
-    // return res.root;
   }
 
   private _onStorage = (e: StorageEvent) => {
@@ -498,14 +499,6 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
   }
 
-  // private _invoke: Invoke = async (
-  //   rpc: RPC,
-  //   args?: JSONValue,
-  // ): Promise<JSONValue> => {
-  //   await this._openResponse;
-  //   return await this._repmInvoker.invoke(this.name, rpc, args);
-  // };
-
   /** Get a single value from the database. */
   get(key: string): Promise<JSONValue | undefined> {
     return this.query(tx => tx.get(key));
@@ -535,7 +528,6 @@ export class Replicache<MD extends MutatorDefs = {}>
   ): ScanResult<K> {
     return new ScanResult<K>(
       options,
-      this._openResponse,
       async () => {
         const tx = new ReadTransactionImpl(this.name, this._openResponse);
         await tx.open({});
@@ -604,11 +596,6 @@ export class Replicache<MD extends MutatorDefs = {}>
     let {syncHead} = beginPullResult;
     const {requestID} = beginPullResult;
 
-    // const {replayMutations, changedKeys} = await this._invoke(
-    //   RPC.MaybeEndTryPull,
-    //   beginPullResult,
-    // );
-    await this._openResponse;
     const {replayMutations, changedKeys} = await embed.maybeEndTryPull(
       this.name,
       requestID,
@@ -701,11 +688,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       // because repc doesn't provide sufficient information, so we treat all
       // errors that aren't (b) as (a).
 
-      // TODO(arv): Use Error.prototype.cause
-      // (https://github.com/tc39/proposal-error-cause) and check for a
-      // structured error in the cause chain. On the Rust side we should create
-      // a structured error that we can instanceof check instead
-      if (/Pu(sh|ll)Failed\(JsError\(JsValue\(/.test(e + '')) {
+      if (e instanceof PushError || e instanceof PullError) {
         online = false;
       }
       this._logger.info?.(`${name} returned: ${e}`);
@@ -730,12 +713,6 @@ export class Replicache<MD extends MutatorDefs = {}>
           schemaVersion: this.schemaVersion,
           pusher: this.pusher,
         });
-        // pushResponse = await this._invoke(RPC.TryPush, {
-        //   pushURL: this.pushURL,
-        //   pushAuth: this.auth,
-        //   schemaVersion: this.schemaVersion,
-        //   pusher: this.pusher,
-        // });
       } finally {
         this._changeSyncCounters(-1, 0);
       }
@@ -805,12 +782,6 @@ export class Replicache<MD extends MutatorDefs = {}>
       schemaVersion: this.schemaVersion,
       puller: this.puller,
     });
-    // const beginPullResponse = await this._invoke(RPC.BeginTryPull, {
-    //   pullAuth: this.auth,
-    //   pullURL: this.pullURL,
-    //   schemaVersion: this.schemaVersion,
-    //   puller: this.puller,
-    // });
 
     const {httpRequestInfo, syncHead, requestID} = beginPullResponse;
 

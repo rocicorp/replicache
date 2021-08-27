@@ -13,7 +13,7 @@ test('put chunk', async () => {
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
-      const c = await Chunk.new(data, refs);
+      const c = Chunk.new(data, refs);
       await w.putChunk(c);
 
       const kd = chunkDataKey(c.hash);
@@ -113,7 +113,7 @@ test('commit rollback', async () => {
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
-      const c = await Chunk.new(new Uint8Array([0, 1]), []);
+      const c = Chunk.new(new Uint8Array([0, 1]), []);
       await w.putChunk(c);
 
       key = chunkDataKey(c.hash);
@@ -144,7 +144,7 @@ test('commit rollback', async () => {
 test('roundtrip', async () => {
   const t = async (name: string, data: Uint8Array, refs: string[]) => {
     const kv = new MemStore();
-    const c = await Chunk.new(data, refs);
+    const c = Chunk.new(data, refs);
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
       await w.putChunk(c);

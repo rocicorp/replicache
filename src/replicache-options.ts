@@ -1,6 +1,5 @@
 import type {Pusher} from './pusher.js';
 import type {Puller} from './puller.js';
-import type {InitInput} from './repm-invoker.js';
 import type {LogLevel} from './logger.js';
 import type {MutatorDefs, RequestOptions} from './replicache';
 import type * as kv from './kv/mod.js';
@@ -95,8 +94,9 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * ```js
    * wasmModule: '/static/replicache.wasm',
    * ```
+   * @deprecated This is no longer needed.
    */
-  wasmModule?: InitInput | undefined;
+  wasmModule?: unknown;
 
   /**
    * Allows using an in memory store instead of IndexedDB. This is useful for

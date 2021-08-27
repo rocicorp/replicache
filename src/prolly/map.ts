@@ -93,7 +93,7 @@ class ProllyMap {
   }
 
   async flush(write: dag.Write): Promise<string> {
-    const newBase = await Leaf.new(this);
+    const newBase = Leaf.new(this);
     await write.putChunk(newBase.chunk);
     this._base = newBase;
     this._pending.clear();

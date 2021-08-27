@@ -7,20 +7,20 @@ import * as prolly from './mod.js';
 import * as utf8 from '../utf8.js';
 import {b} from '../test-util.js';
 
-async function makeMap(
+function makeMap(
   base: string[] | undefined,
   pending: string[],
   deleted: string[],
-): Promise<prolly.Map> {
+): prolly.Map {
   const entries = base && base.sort();
   const leaf =
     entries &&
-    (await Leaf.new(
+    Leaf.new(
       entries.map(s => ({
         key: utf8.encode(s),
         val: utf8.encode(s),
       })),
-    ));
+    );
 
   const pm = new Map();
   for (const p of pending) {
@@ -34,29 +34,29 @@ async function makeMap(
   return new prolly.Map(leaf, pm);
 }
 
-test('has', async () => {
+test('has', () => {
   const t = (map: prolly.Map, test: string, expected: boolean) => {
     const actual = map.has(utf8.encode(test));
     expect(actual).to.equal(expected);
   };
 
-  t(await makeMap(undefined, [], []), 'foo', false);
+  t(makeMap(undefined, [], []), 'foo', false);
 
   // basic base-only cases
-  t(await makeMap(['foo', 'bar'], [], []), 'foo', true);
-  t(await makeMap(['foo', 'bar'], [], []), 'baz', false);
+  t(makeMap(['foo', 'bar'], [], []), 'foo', true);
+  t(makeMap(['foo', 'bar'], [], []), 'baz', false);
 
   // basic+pending
-  t(await makeMap(['foo', 'bar'], ['baz'], []), 'foo', true);
-  t(await makeMap(['foo', 'bar'], ['foo', 'bar'], []), 'bar', true);
-  t(await makeMap(['foo', 'bar'], ['baz'], []), 'baz', true);
-  t(await makeMap(['foo', 'bar'], ['baz'], []), 'qux', false);
+  t(makeMap(['foo', 'bar'], ['baz'], []), 'foo', true);
+  t(makeMap(['foo', 'bar'], ['foo', 'bar'], []), 'bar', true);
+  t(makeMap(['foo', 'bar'], ['baz'], []), 'baz', true);
+  t(makeMap(['foo', 'bar'], ['baz'], []), 'qux', false);
 
   // deletes
-  t(await makeMap(['foo', 'bar'], [], ['bar']), 'foo', true);
-  t(await makeMap(['foo', 'bar'], [], ['bar']), 'bar', false);
+  t(makeMap(['foo', 'bar'], [], ['bar']), 'foo', true);
+  t(makeMap(['foo', 'bar'], [], ['bar']), 'bar', false);
   t(
-    await makeMap(
+    makeMap(
       ['foo', 'bar'],
       [],
       // Should not be possible, but whatever
@@ -74,27 +74,27 @@ test('get', async () => {
   };
 
   // Empty
-  t(await makeMap(undefined, [], []), 'foo', undefined);
+  t(makeMap(undefined, [], []), 'foo', undefined);
 
   // Base-only
-  t(await makeMap(['foo', 'bar'], [], []), 'foo', 'foo');
-  t(await makeMap(['foo', 'bar'], [], []), 'baz', undefined);
+  t(makeMap(['foo', 'bar'], [], []), 'foo', 'foo');
+  t(makeMap(['foo', 'bar'], [], []), 'baz', undefined);
 
   // Pending-only
-  t(await makeMap(undefined, ['foo', 'bar'], []), 'foo', 'oof');
-  t(await makeMap(undefined, ['foo', 'bar'], []), 'baz', undefined);
+  t(makeMap(undefined, ['foo', 'bar'], []), 'foo', 'oof');
+  t(makeMap(undefined, ['foo', 'bar'], []), 'baz', undefined);
 
   // basic+pending
-  t(await makeMap(['foo', 'bar'], ['baz'], []), 'foo', 'foo');
-  t(await makeMap(['foo', 'bar'], ['foo', 'bar'], []), 'bar', 'rab');
-  t(await makeMap(['foo', 'bar'], ['baz'], []), 'baz', 'zab');
-  t(await makeMap(['foo', 'bar'], ['baz'], []), 'qux', undefined);
+  t(makeMap(['foo', 'bar'], ['baz'], []), 'foo', 'foo');
+  t(makeMap(['foo', 'bar'], ['foo', 'bar'], []), 'bar', 'rab');
+  t(makeMap(['foo', 'bar'], ['baz'], []), 'baz', 'zab');
+  t(makeMap(['foo', 'bar'], ['baz'], []), 'qux', undefined);
 
   // deletes
-  t(await makeMap(['foo', 'bar'], [], ['bar']), 'foo', 'foo');
-  t(await makeMap(['foo', 'bar'], [], ['bar']), 'bar', undefined);
+  t(makeMap(['foo', 'bar'], [], ['bar']), 'foo', 'foo');
+  t(makeMap(['foo', 'bar'], [], ['bar']), 'bar', undefined);
   t(
-    await makeMap(
+    makeMap(
       ['foo', 'bar'],
       [],
       // Should not be possible, but whatever
@@ -113,7 +113,7 @@ test('put', async () => {
     put: string,
     expected: string | undefined,
   ) => {
-    const map = await makeMap(base, pending, deleted);
+    const map = makeMap(base, pending, deleted);
     map.put(utf8.encode(put), b`x`);
     const actual = map.get(utf8.encode(put));
     expect(actual).to.deep.equal(expected && utf8.encode(expected));
@@ -141,7 +141,7 @@ test('del', async () => {
     deleted: string[],
     del: string,
   ) => {
-    const map = await makeMap(base, pending, deleted);
+    const map = makeMap(base, pending, deleted);
     map.del(utf8.encode(del));
     const has = map.has(utf8.encode(del));
     expect(has).to.be.false;
@@ -170,7 +170,7 @@ test('iter flush', async () => {
     deleted: string[],
     expected1: string[],
   ) => {
-    const map = await makeMap(base, pending, deleted);
+    const map = makeMap(base, pending, deleted);
     const expected = expected1.map(utf8.encode);
 
     const t = (map: prolly.Map, expected: Uint8Array[]) => {
@@ -267,7 +267,7 @@ test('pending changes keys', async () => {
 
   const entries = [...base_map].map(([key, val]) => ({key, val}));
 
-  const base = await Leaf.new(entries);
+  const base = Leaf.new(entries);
   const map = new prolly.Map(base, new Map());
 
   map.put(b`c`, b`c`);

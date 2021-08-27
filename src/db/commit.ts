@@ -425,7 +425,7 @@ async function newImpl(
     strongRefs.push(index.valueHash);
   }
 
-  const chunk = await Chunk.new(data, strongRefs);
+  const chunk = Chunk.new(data, strongRefs);
   return new Commit(chunk);
 }
 

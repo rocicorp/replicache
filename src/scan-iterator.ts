@@ -1,6 +1,6 @@
 import type {JSONValue} from './json.js';
 import {throwIfClosed} from './transaction-closed-error.js';
-import {ScanOptions, toRPC2} from './scan-options.js';
+import {ScanOptions, toDbScanOptions} from './scan-options.js';
 import {asyncIterableToArray} from './async-iterable-to-array.js';
 import * as utf8 from './utf8.js';
 import * as embed from './embed/mod.js';
@@ -18,7 +18,6 @@ type ScanIterableKind = typeof VALUE | typeof KEY | typeof ENTRY;
 
 type Args = [
   options: ScanOptions | undefined,
-  openResponse: Promise<unknown>,
   getTransaction: () => Promise<IdCloser> | IdCloser,
   shouldCloseTransaction: boolean,
 ];
@@ -120,14 +119,12 @@ export class AsyncIterableIteratorToArrayWrapper<V>
 async function* scanIterator<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
-  openResponse: Promise<unknown>,
   getTransaction: () => Promise<IdCloser> | IdCloser,
   shouldCloseTransaction: boolean,
 ): AsyncGenerator<V> {
   const transaction = await getTransaction();
   throwIfClosed(transaction);
 
-  await openResponse;
   const items = await load<V>(kind, options, transaction.id);
 
   try {
@@ -174,14 +171,7 @@ async function load<V>(
     }
   };
 
-  // const args: ScanRequest = {
-  //   transactionId: transactionID,
-  //   opts: toRPC(options),
-  //   receiver,
-  // };
-
-  await embed.scan(transactionID, toRPC2(options), receiver);
-  // await invoke(RPC.Scan, args);
+  await embed.scan(transactionID, toDbScanOptions(options), receiver);
 
   return items;
 }

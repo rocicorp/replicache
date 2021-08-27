@@ -1,74 +1,8 @@
-import type {JSONValue} from './json.js';
-// import type {ScanOptionsRPC} from './scan-options.js';
-import init, {dispatch} from './wasm/release/replicache_client.js';
-import type {InitOutput} from './wasm/release/replicache_client.js';
 import type {Puller} from './puller.js';
 import type {Pusher} from './pusher.js';
 import type * as kv from './kv/mod.js';
 import type * as dag from './dag/mod.js';
 import type * as db from './db/mod.js';
-
-/**
- * This type is used for the [[ReplicacheOptions.wasmModule]] property.
- */
-export type InitInput =
-  | string
-  | RequestInfo
-  | URL
-  | Response
-  | BufferSource
-  | WebAssembly.Module;
-
-export type Invoker = {
-  readonly invoke: REPMInvoke;
-};
-
-export interface Invoke {
-  <RPC extends keyof InvokeMapNoArgs>(rpc: RPC): Promise<InvokeMapNoArgs[RPC]>;
-  <RPC extends keyof InvokeMap>(rpc: RPC, args: InvokeMap[RPC][0]): Promise<
-    InvokeMap[RPC][1]
-  >;
-}
-
-export interface REPMInvoke {
-  <R extends keyof InvokeMapNoArgs>(dbName: string, rpc: R): Promise<
-    InvokeMapNoArgs[R]
-  >;
-  <R extends keyof InvokeMap>(
-    dbName: string,
-    rpc: R,
-    args: InvokeMap[R][0],
-  ): Promise<InvokeMap[R][1]>;
-  (dbName: string, rpc: RPC, args?: JSONValue): Promise<JSONValue>;
-}
-
-let wasmModuleOutput: Promise<InitOutput> | undefined;
-
-export class REPMWasmInvoker {
-  constructor(wasmModuleOrPath?: InitInput) {
-    if (!wasmModuleOutput) {
-      // Hack around Webpack invalid support for import.meta.url and wasm
-      // loaders. We use the new URL pattern to tell Webpack to use a runtime
-      // URL and not a compile time file: URL.
-      if (!wasmModuleOrPath) {
-        wasmModuleOrPath = new URL(
-          './wasm/release/replicache_client_bg.wasm',
-          import.meta.url,
-        );
-      }
-      wasmModuleOutput = init(wasmModuleOrPath);
-    }
-  }
-
-  invoke: REPMInvoke = async (
-    dbName: string,
-    rpc: RPC,
-    args: JSONValue = {},
-  ): Promise<JSONValue> => {
-    await wasmModuleOutput;
-    return await dispatch(dbName, rpc, args);
-  };
-}
 
 type OpenRequest = {
   useMemstore: boolean;

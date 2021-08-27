@@ -20,15 +20,16 @@ export type {
   ScanOptionIndexedStartKey,
   ScanOptions,
 } from './scan-options.js';
-export type {HTTPRequestInfo, InitInput} from './repm-invoker.js';
+export type {HTTPRequestInfo} from './repm-invoker.js';
 export type {LogLevel} from './logger.js';
 export type {
   PatchOperation,
   Puller,
   PullResponse,
   PullerResult,
+  PullError,
 } from './puller.js';
-export type {Pusher} from './pusher.js';
+export type {Pusher, PushError} from './pusher.js';
 
 export type {
   Store as ExperimentalKVStore,

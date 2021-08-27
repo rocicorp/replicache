@@ -7,7 +7,7 @@ import {
   HTTPRequestInfo,
   TryPushRequest,
 } from '../repm-invoker';
-import type {Pusher} from '../pusher';
+import {Pusher, PushError} from '../pusher';
 import {callJSRequest} from './js-request';
 
 export const PUSH_VERSION = 0;
@@ -66,7 +66,7 @@ export async function push(
   // want tail first (in mutation id order).
   pending.reverse();
 
-  let http_request_info: HTTPRequestInfo | undefined = undefined;
+  let httpRequestInfo: HTTPRequestInfo | undefined = undefined;
   if (pending.length > 0) {
     const push_mutations: Mutation[] = [];
     for (const commit of pending) {
@@ -91,12 +91,12 @@ export async function push(
       requestID,
     );
 
-    http_request_info = reqInfo;
+    httpRequestInfo = reqInfo;
 
     // debug!(lc, "...Push complete in {}ms", push_timer.elapsed_ms());
   }
 
-  return http_request_info;
+  return httpRequestInfo;
 }
 
 // TODO(arv): This abstraction can be removed.
@@ -116,8 +116,12 @@ export class JSPusher implements InternalPusher {
 
     const body = {clientID, mutations, pushVersion, schemaVersion};
 
-    const res = await callJSRequest(this._pusher, url, body, auth, requestID);
-    assertHTTPRequestInfo(res);
-    return res;
+    try {
+      const res = await callJSRequest(this._pusher, url, body, auth, requestID);
+      assertHTTPRequestInfo(res);
+      return res;
+    } catch (e) {
+      throw new PushError(e);
+    }
   }
 }

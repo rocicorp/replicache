@@ -78,53 +78,7 @@ export type ScanOptionIndexedStartKey =
   | [secondary: string, primary?: string]
   | string;
 
-// export interface ScanOptionsRPC {
-//   /* eslint-disable @typescript-eslint/naming-convention */
-//   prefix?: string;
-//   start_secondary_key?: string;
-//   start_key?: string;
-//   start_exclusive?: boolean;
-//   limit?: number;
-//   indexName?: string;
-//   /* eslint-enable @typescript-eslint/naming-convention */
-// }
-
-// export function toRPC(options?: ScanOptions): ScanOptionsRPC {
-//   if (!options) {
-//     return {};
-//   }
-//   let key: string | ScanOptionIndexedStartKey | undefined;
-//   let exclusive: boolean | undefined;
-//   let primary: string | undefined;
-//   let secondary: string | undefined;
-//   type MaybeIndexName = {indexName?: string};
-//   if (options.start) {
-//     ({key, exclusive} = options.start);
-//     if ((options as MaybeIndexName).indexName) {
-//       if (typeof key === 'string') {
-//         secondary = key;
-//       } else {
-//         secondary = key[0];
-//         primary = key[1];
-//       }
-//     } else {
-//       primary = key as string;
-//     }
-//   }
-
-//   return {
-//     /* eslint-disable @typescript-eslint/naming-convention */
-//     prefix: options.prefix,
-//     start_secondary_key: secondary,
-//     start_key: primary,
-//     start_exclusive: exclusive,
-//     limit: options.limit,
-//     indexName: (options as MaybeIndexName).indexName,
-//     /* eslint-enable @typescript-eslint/naming-convention */
-//   };
-// }
-
-export function toRPC2(options?: ScanOptions): db.ScanOptions {
+export function toDbScanOptions(options?: ScanOptions): db.ScanOptions {
   if (!options) {
     return {};
   }

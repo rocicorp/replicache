@@ -8,13 +8,11 @@ import type {JSONValue} from './json.js';
 
 import {assert, expect} from '@esm-bundle/chai';
 import * as sinon from 'sinon';
-import type {SinonSpy} from 'sinon';
 
 // fetch-mock has invalid d.ts file so we removed that on npm install.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 import fetchMock from 'fetch-mock/esm/client.js';
-import {Invoke, RPC} from './repm-invoker.js';
 import type {ScanOptions} from './scan-options.js';
 
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
@@ -28,14 +26,17 @@ import {
 import {sleep} from './sleep.js';
 import {MemStore} from './kv/mem-store.js';
 import type * as kv from './kv/mod.js';
+import * as embed from './embed/mod.js';
 
 let clock: SinonFakeTimers;
 setup(function () {
   clock = useFakeTimers(0);
+  embed.setIsTesting(true);
 });
 
 teardown(function () {
   clock.restore();
+  embed.setIsTesting(false);
 });
 
 async function tickAFewTimes(n = 10, time = 10) {
@@ -75,10 +76,6 @@ async function replicacheForTesting<MD extends MutatorDefs = {}>(
     pushURL,
     name,
     useMemstore,
-    wasmModule: new URL(
-      './wasm/debug/replicache_client_bg.wasm',
-      import.meta.url,
-    ).href,
     ...rest,
   });
   reps.add(rep);
@@ -97,14 +94,6 @@ async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
 }
 
 const emptyHash = '';
-
-function spyInvoke(
-  rep: Replicache,
-): SinonSpy<Parameters<Invoke>, ReturnType<Invoke>> {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  return sinon.spy(rep, '_invoke');
-}
 
 teardown(async () => {
   fetchMock.restore();
@@ -1312,7 +1301,7 @@ testWithBothStores('pull', async () => {
   });
   beginPullResult = await rep.beginPull();
   ({syncHead} = beginPullResult);
-  expect(syncHead).equal('vadlsm00t0h5n05204h6srdjama32lft');
+  expect(syncHead).equal('vr1ndod1d2g86sddobj7lrdna20j7me9');
 
   await createTodo({
     id: id2,
@@ -1542,7 +1531,7 @@ testWithBothStores('pullInterval in constructor', async () => {
   await rep.close();
 });
 
-test.only('closeTransaction after rep.scan', async () => {
+testWithBothStores('closeTransaction after rep.scan', async () => {
   const rep = await replicacheForTesting('test5', {mutators: {addData}});
   const add = rep.mutate.addData;
   await add({
@@ -1550,16 +1539,15 @@ test.only('closeTransaction after rep.scan', async () => {
     'a/1': 1,
   });
 
-  const spy = spyInvoke(rep);
-  spy.resetHistory();
+  embed.clearTestLog();
 
   function expectCalls(l: JSONValue[]) {
     expect(l).to.deep.equal(log);
-    const rpcs = spy.args.map(([rpc]) => rpc);
-    expect(rpcs).to.deep.equal([
-      RPC.OpenTransaction,
-      RPC.Scan,
-      RPC.CloseTransaction,
+    const names = embed.testLog.map(({name}) => name);
+    expect(names).to.deep.equal([
+      'openTransaction',
+      'scan',
+      'closeTransaction',
     ]);
   }
 
@@ -1572,7 +1560,7 @@ test.only('closeTransaction after rep.scan', async () => {
 
   // One more time with return in loop...
   log.length = 0;
-  spy.resetHistory();
+  embed.clearTestLog();
   await (async () => {
     if (!rep) {
       fail();
@@ -1587,7 +1575,7 @@ test.only('closeTransaction after rep.scan', async () => {
 
   // ... and with a break.
   log.length = 0;
-  spy.resetHistory();
+  embed.clearTestLog();
   {
     const it = rep.scan();
     for await (const v of it) {
@@ -1599,7 +1587,7 @@ test.only('closeTransaction after rep.scan', async () => {
 
   // ... and with a throw.
   log.length = 0;
-  spy.resetHistory();
+  embed.clearTestLog();
   (
     await expectPromiseToReject(
       (async () => {
@@ -1619,7 +1607,7 @@ test.only('closeTransaction after rep.scan', async () => {
 
   // ... and with a throw.
   log.length = 0;
-  spy.resetHistory();
+  embed.clearTestLog();
   (
     await expectPromiseToReject(
       (async () => {
@@ -1911,7 +1899,7 @@ test.skip('mutator optional args [type checking only]', async () => {
   // });
 });
 
-testWithBothStores('logLevel', async () => {
+test.skip('logLevel', async () => {
   const info = sinon.stub(console, 'log');
   const debug = sinon.stub(console, 'debug');
 
@@ -2214,7 +2202,7 @@ testWithBothStores('push timing', async () => {
     useMemstore: true,
     mutators: {addData},
   });
-  const spy = spyInvoke(rep);
+  embed.clearTestLog();
 
   const add = rep.mutate.addData;
 
@@ -2223,11 +2211,11 @@ testWithBothStores('push timing', async () => {
   await tickAFewTimes();
 
   const tryPushCalls = () =>
-    spy.args.filter(([rpc]) => rpc === RPC.TryPush).length;
+    embed.testLog.filter(({name}) => name === 'tryPush').length;
 
   expect(tryPushCalls()).to.equal(1);
 
-  spy.resetHistory();
+  embed.clearTestLog();
 
   // This will schedule push in pushDelay ms
   await add({a: 1});
@@ -2240,7 +2228,7 @@ testWithBothStores('push timing', async () => {
   await clock.tickAsync(pushDelay + 10);
 
   expect(tryPushCalls()).to.equal(1);
-  spy.resetHistory();
+  embed.clearTestLog();
 
   const p1 = add({e: 5});
   const p2 = add({f: 6});
@@ -2259,7 +2247,7 @@ testWithBothStores('push timing', async () => {
   expect(tryPushCalls()).to.equal(1);
 });
 
-test('push and pull concurrently', async () => {
+testWithBothStores('push and pull concurrently', async () => {
   const pushURL = 'https://push.com/push';
   const pullURL = 'https://pull.com/pull';
 
@@ -2270,7 +2258,7 @@ test('push and pull concurrently', async () => {
     pushDelay: 10,
     mutators: {addData},
   });
-  const spy = spyInvoke(rep);
+  embed.clearTestLog();
 
   const add = rep.mutate.addData;
 
@@ -2286,22 +2274,22 @@ test('push and pull concurrently', async () => {
   });
 
   await add({a: 0});
-  spy.resetHistory();
+  embed.clearTestLog();
 
   await add({b: 1});
   const pullP1 = rep.pull();
 
   await clock.tickAsync(10);
 
-  const rpcs = () => spy.args.map(a => a[0]);
+  const rpcs = () => embed.testLog.map(({name}) => name);
 
   // Only one push at a time but we want push and pull to be concurrent.
-  expect(rpcs().map(x => RPC[x])).to.deep.equal([
-    'OpenTransaction',
-    'Put',
-    'CommitTransaction',
-    'BeginTryPull',
-    'TryPush',
+  expect(rpcs()).to.deep.equal([
+    'openTransaction',
+    'put',
+    'commitTransaction',
+    'beginTryPull',
+    'tryPush',
   ]);
 
   await tickAFewTimes();
@@ -2313,12 +2301,12 @@ test('push and pull concurrently', async () => {
 
   expect(reqs).to.deep.equal([pullURL, pushURL]);
 
-  expect(rpcs().map(x => RPC[x])).to.deep.equal([
-    'OpenTransaction',
-    'Put',
-    'CommitTransaction',
-    'BeginTryPull',
-    'TryPush',
+  expect(rpcs()).to.deep.equal([
+    'openTransaction',
+    'put',
+    'commitTransaction',
+    'beginTryPull',
+    'tryPush',
   ]);
 });
 
@@ -2901,6 +2889,7 @@ class MemStoreWithCounters implements kv.Store {
   }
 
   withRead<R>(fn: (read: kv.Read) => R | Promise<R>): Promise<R> {
+    this.readCount++;
     return this.store.withRead(fn);
   }
 
@@ -2910,6 +2899,7 @@ class MemStoreWithCounters implements kv.Store {
   }
 
   withWrite<R>(fn: (write: kv.Write) => R | Promise<R>): Promise<R> {
+    this.writeCount++;
     return this.store.withWrite(fn);
   }
 

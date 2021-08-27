@@ -14,6 +14,22 @@ import type {
 } from '../repm-invoker';
 import type {JSONValue} from '../json';
 
+let isTesting = false;
+
+export function setIsTesting(b: boolean): void {
+  isTesting = b;
+}
+
+export const testLog: {name: string; args: unknown[]}[] = [];
+
+export function clearTestLog(): void {
+  testLog.length = 0;
+}
+
+function logCall(name: string, ...args: unknown[]): void {
+  testLog.push({name, args});
+}
+
 type ConnectionMap = Map<string, {store: dag.Store; clientID: string}>;
 
 const connections: ConnectionMap = new Map();
@@ -55,6 +71,7 @@ function getWriteTransaction(
 }
 
 export async function open(dbName: string, kvStore: kv.Store): Promise<string> {
+  isTesting && logCall('open', dbName);
   if (dbName === '') {
     throw new Error('dbName must be non-empty');
   }
@@ -72,11 +89,15 @@ export async function open(dbName: string, kvStore: kv.Store): Promise<string> {
   // Call concurrently with initClientID?
   await init(store);
 
+  // TODO(arv): Maybe store an opened promise too and let all embed calls wait
+  // for it.
+
   connections.set(dbName, {store, clientID});
   return clientID;
 }
 
 export async function close(dbName: string): Promise<void> {
+  isTesting && logCall('close', dbName);
   const connection = connections.get(dbName);
   if (!connection) {
     return;
@@ -102,6 +123,7 @@ export async function openTransaction(
   args: string | undefined,
   rebaseOpts: RebaseOpts | undefined,
 ): Promise<number> {
+  isTesting && logCall('openTransaction', dbName, name, args, rebaseOpts);
   const {store} = getConnection(dbName);
   return openTransactionImpl(store, transactionsMap, name, args, rebaseOpts);
 }
@@ -166,6 +188,7 @@ export async function openTransactionImpl(
 }
 
 export async function openIndexTransaction(dbName: string): Promise<number> {
+  isTesting && logCall('openIndexTransaction', dbName);
   const connection = getConnection(dbName);
   const {store} = connection;
 
@@ -230,10 +253,11 @@ async function validateRebase(
   // https://github.com/rocicorp/repc/issues/151
 }
 
-export async function commit(
+export async function commitTransaction(
   transactionID: number,
   generateChangedKeys: boolean,
 ): Promise<CommitTransactionResponse> {
+  isTesting && logCall('commitTransaction', transactionID, generateChangedKeys);
   return commitImpl(transactionsMap, transactionID, generateChangedKeys);
 }
 
@@ -258,6 +282,7 @@ export async function commitImpl(
 }
 
 export async function closeTransaction(transactionID: number): Promise<void> {
+  isTesting && logCall('closeTransaction', transactionID);
   const txn = getTransaction(transactionID, transactionsMap);
   txn.close();
   transactionsMap.delete(transactionID);
@@ -267,17 +292,20 @@ export async function getRoot(
   dbName: string,
   headName: string = db.DEFAULT_HEAD_NAME,
 ): Promise<string> {
+  isTesting && logCall('getRoot', dbName, headName);
   // TODO(arv): I don't think we ever call this with a headName.
   const {store} = getConnection(dbName);
   return await db.getRoot(store, headName);
 }
 
 export function has(transactionID: number, key: string): boolean {
+  isTesting && logCall('has', transactionID, key);
   const txn = getTransaction(transactionID, transactionsMap);
   return txn.asRead().has(utf8.encode(key));
 }
 
 export function get(transactionID: number, key: string): JSONValue | undefined {
+  isTesting && logCall('get', transactionID, key);
   const txn = getTransaction(transactionID, transactionsMap);
   const buf = txn.asRead().get(utf8.encode(key));
   if (buf === undefined) {
@@ -296,6 +324,7 @@ export async function scan(
     value: Uint8Array,
   ) => void,
 ): Promise<void> {
+  isTesting && logCall('scan', transactionID, scanOptions, receiver);
   const txn = getTransaction(transactionID, transactionsMap);
   await txn.asRead().scan(scanOptions, sr => {
     if (sr.type === db.ScanResultType.Error) {
@@ -311,6 +340,7 @@ export async function put(
   key: string,
   value: string,
 ): Promise<void> {
+  isTesting && logCall('put', transactionID, key, value);
   const txn = getWriteTransaction(transactionID, transactionsMap);
   await txn.put(utf8.encode(key), utf8.encode(value));
 }
@@ -319,6 +349,7 @@ export async function del(
   transactionID: number,
   key: string,
 ): Promise<boolean> {
+  isTesting && logCall('del', transactionID, key);
   const txn = getWriteTransaction(transactionID, transactionsMap);
   const keyBytes = utf8.encode(key);
   const had = await txn.asRead().has(keyBytes);
@@ -332,6 +363,8 @@ export async function createIndex(
   keyPrefix: string,
   jsonPointer: string,
 ): Promise<void> {
+  isTesting &&
+    logCall('createIndex', transactionID, name, keyPrefix, jsonPointer);
   const txn = getWriteTransaction(transactionID, transactionsMap);
   await txn.createIndex(name, utf8.encode(keyPrefix), jsonPointer);
 }
@@ -340,6 +373,7 @@ export async function dropIndex(
   transactionID: number,
   name: string,
 ): Promise<void> {
+  isTesting && logCall('dropIndex', transactionID, name);
   const txn = getWriteTransaction(transactionID, transactionsMap);
   await txn.dropIndex(name);
 }
@@ -349,6 +383,7 @@ export async function maybeEndTryPull(
   requestID: string,
   syncHead: string,
 ): Promise<MaybeEndTryPullResponse> {
+  isTesting && logCall('maybeEndTryPull', dbName, requestID, syncHead);
   const connection = getConnection(dbName);
   const {store} = connection;
   // ctx.lc.add_context("request_id", &req.request_id);
@@ -356,7 +391,8 @@ export async function maybeEndTryPull(
 }
 
 export function setLogLevel(level: 'debug' | 'info' | 'error'): void {
-  console.log('TODO set level', level);
+  isTesting && logCall('setLogLevel', level);
+  // console.log('TODO set level', level);\
   // TODO(arv): Implement me
 }
 
@@ -364,6 +400,7 @@ export async function tryPush(
   dbName: string,
   req: TryPushRequest,
 ): Promise<HTTPRequestInfo | undefined> {
+  isTesting && logCall('tryPush', dbName, req);
   const connection = getConnection(dbName);
   const {clientID, store} = connection;
   const jsPusher = new sync.JSPusher(req.pusher);
@@ -376,6 +413,7 @@ export async function beginTryPull(
   dbName: string,
   req: BeginTryPullRequest,
 ): Promise<BeginTryPullResponse> {
+  isTesting && logCall('beginTryPull', dbName, req);
   const connection = getConnection(dbName);
   const {clientID, store} = connection;
   const jsPuller = new sync.JSPuller(req.puller);

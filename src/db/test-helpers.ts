@@ -5,7 +5,7 @@ import {readCommit, readIndexes, whenceHead} from './read.js';
 import {initDB, Write} from './write.js';
 import * as utf8 from '../utf8.js';
 import {b} from '../test-util.js';
-import {LogContext} from '../rlog/logger.js';
+import {LogContext} from '../logger.js';
 
 export type Chain = Commit[];
 

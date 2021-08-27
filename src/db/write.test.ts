@@ -6,10 +6,10 @@ import {DEFAULT_HEAD_NAME} from './commit';
 import {readCommit, readIndexes, whenceHead} from './read';
 import {b} from '../test-util';
 import {initDB, Write} from './write';
-import * as prolly from '../prolly/mod.js';
+import * as prolly from '../prolly/mod';
 import {encodeIndexKey} from './index';
-import * as utf8 from '../utf8.js';
-import {LogContext} from '../rlog/logger';
+import * as utf8 from '../utf8';
+import {LogContext} from '../logger';
 
 test('basics', async () => {
   const ds = new dag.Store(new MemStore());

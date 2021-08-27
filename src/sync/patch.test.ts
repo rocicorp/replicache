@@ -7,7 +7,7 @@ import type {JSONValue} from '../json';
 import {addGenesis, Chain} from '../db/test-helpers';
 import {apply} from './patch';
 import {assertPatchOperations} from '../puller';
-import {LogContext} from '../rlog/logger';
+import {LogContext} from '../logger';
 
 test('patch', async () => {
   const store = new dag.Store(new MemStore());

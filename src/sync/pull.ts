@@ -22,7 +22,7 @@ import {callJSRequest} from './js-request';
 import {SYNC_HEAD_NAME} from './sync-head-name.js';
 import * as patch from './patch.js';
 import * as prolly from '../prolly/mod.js';
-import type {LogContext} from '../rlog/logger.js';
+import type {LogContext} from '../logger.js';
 
 export const PULL_VERSION = 0;
 

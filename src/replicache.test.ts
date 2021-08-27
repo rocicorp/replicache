@@ -1363,7 +1363,7 @@ testWithBothStores('reauth pull', async () => {
   );
 
   {
-    const consoleInfoStub = sinon.stub(console, 'log');
+    const consoleInfoStub = sinon.stub(console, 'info');
     const getAuthFake = sinon.fake(() => 'boo');
     rep.getAuth = getAuthFake;
 
@@ -1408,7 +1408,7 @@ testWithBothStores('reauth push', async () => {
   {
     await tickAFewTimes();
 
-    const consoleInfoStub = sinon.stub(console, 'log');
+    const consoleInfoStub = sinon.stub(console, 'info');
     const getPushAuthFake = sinon.fake(() => 'boo');
     rep.getPushAuth = getPushAuthFake;
 
@@ -1900,7 +1900,7 @@ test.skip('mutator optional args [type checking only]', async () => {
 });
 
 testWithBothStores('logLevel', async () => {
-  const info = sinon.stub(console, 'log');
+  const info = sinon.stub(console, 'info');
   const debug = sinon.stub(console, 'debug');
 
   // Just testing that we get some output
@@ -2818,7 +2818,7 @@ test('online', async () => {
     log.push(b);
   };
 
-  const info = sinon.stub(console, 'log');
+  const info = sinon.stub(console, 'info');
 
   fetchMock.post(pushURL, async () => {
     await sleep(10);

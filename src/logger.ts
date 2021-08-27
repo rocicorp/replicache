@@ -21,28 +21,59 @@ export type LogLevel = 'error' | 'info' | 'debug';
 export function getLogger(prefix: string[], level: LogLevel): Logger {
   const logger: Logger = {};
   const impl =
-    (name: 'debug' | 'log' | 'error') =>
+    (name: LogLevel) =>
     (...args: unknown[]) =>
       console[name](...prefix, ...args);
+  /* eslint-disable no-fallthrough , @typescript-eslint/ban-ts-comment */
   switch (level) {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    // eslint-disable-next-line no-fallthrough
     case 'debug':
       logger.debug = impl('debug');
-
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    // eslint-disable-next-line no-fallthrough
     case 'info':
-      // Use log instead of info because that is what repc uses.
-      logger.info = impl('log');
-
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    // eslint-disable-next-line no-fallthrough
+      logger.info = impl('info');
     case 'error':
       logger.error = impl('error');
   }
+  /* eslint-ensable @typescript-eslint/ban-ts-comment, no-fallthrough */
+
   return logger;
+}
+
+export class LogContext implements Logger {
+  private readonly _s;
+
+  readonly debug?: (...args: unknown[]) => void = undefined;
+  readonly info?: (...args: unknown[]) => void = undefined;
+  readonly error?: (...args: unknown[]) => void = undefined;
+
+  constructor(level: LogLevel = 'info', s = '') {
+    this._s = s;
+
+    const impl =
+      (name: LogLevel) =>
+      (...args: unknown[]) =>
+        console[name](this._s, ...args);
+
+    /* eslint-disable no-fallthrough , @typescript-eslint/ban-ts-comment */
+    switch (level) {
+      // @ts-ignore
+      case 'debug':
+        this.debug = impl('debug');
+      // @ts-ignore
+      case 'info':
+        this.info = impl('info');
+      case 'error':
+        this.error = impl('error');
+    }
+    /* eslint-ensable @typescript-eslint/ban-ts-comment, no-fallthrough */
+  }
+
+  addContext(key: string, value: unknown): LogContext {
+    return new LogContext(this._logLevel, `${this._s}${key}=${value} `);
+  }
+
+  private get _logLevel(): LogLevel {
+    return this.debug ? 'debug' : this.info ? 'info' : 'error';
+  }
 }

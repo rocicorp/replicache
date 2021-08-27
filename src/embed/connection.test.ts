@@ -7,7 +7,7 @@ import {MemStore} from '../kv/mem-store.js';
 import {addGenesis, addLocal, Chain} from '../db/test-helpers.js';
 import {addSyncSnapshot} from '../sync/test-helpers.js';
 import {commitImpl, openTransactionImpl} from './connection.js';
-import {LogContext} from '../rlog/logger.js';
+import {LogContext} from '../logger.js';
 
 test('open transaction rebase opts', async () => {
   const store = new dag.Store(new MemStore());

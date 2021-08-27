@@ -36,7 +36,7 @@ import {
 } from './pull';
 import * as utf8 from '../utf8';
 import {b} from '../test-util';
-import {LogContext} from '../rlog/logger';
+import {LogContext} from '../logger';
 
 test('begin try pull', async () => {
   const store = new dag.Store(new MemStore());

@@ -13,7 +13,7 @@ import {MemStore} from '../kv/mod';
 import type {HTTPRequestInfo} from '../repm-invoker';
 import {SYNC_HEAD_NAME} from './sync-head-name';
 import {InternalPusher, push, PushRequest, PUSH_VERSION} from './push';
-import {LogContext} from '../rlog/logger';
+import {LogContext} from '../logger';
 
 type FakePusherArgs = {
   expPush: boolean;

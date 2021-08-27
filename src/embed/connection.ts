@@ -13,7 +13,7 @@ import type {
   TryPushRequest,
 } from '../repm-invoker';
 import type {JSONValue} from '../json';
-import {LogContext} from '../rlog/logger';
+import {LogContext} from '../logger';
 import type {LogLevel} from '../logger';
 
 // TODO(arv): Use esbuild --define:TESTING=false

@@ -9,7 +9,7 @@ import {
 } from '../repm-invoker';
 import {Pusher, PushError} from '../pusher';
 import {callJSRequest} from './js-request';
-import type {LogContext} from '../rlog/logger';
+import type {LogContext} from '../logger';
 
 export const PUSH_VERSION = 0;
 

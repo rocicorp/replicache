@@ -1,6 +1,6 @@
 import type * as db from '../db/mod';
 import type {PatchOperation} from '../puller';
-import type {LogContext} from '../rlog/logger';
+import type {LogContext} from '../logger';
 import * as utf8 from '../utf8';
 
 export async function apply(

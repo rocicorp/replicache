@@ -12,8 +12,8 @@ import {Read, readCommit, readIndexes, Whence} from './read';
 import {Index, IndexOperation, indexValue} from './index';
 import {startsWith} from './starts-with';
 import {scanRaw} from './scan';
-import * as utf8 from '../utf8.js';
-import type {LogContext} from '../rlog/logger';
+import * as utf8 from '../utf8';
+import type {LogContext} from '../logger';
 
 type IndexChangeMeta = {
   type: MetaType.IndexChange;

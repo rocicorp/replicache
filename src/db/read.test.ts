@@ -1,7 +1,7 @@
 import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod.js';
 import {MemStore} from '../kv/mod.js';
-import {LogContext} from '../rlog/logger.js';
+import {LogContext} from '../logger.js';
 import {b} from '../test-util.js';
 import {DEFAULT_HEAD_NAME} from './commit.js';
 import {fromWhence, whenceHead} from './read.js';

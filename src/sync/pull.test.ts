@@ -1,5 +1,5 @@
 import {expect} from '@esm-bundle/chai';
-import {assertNotUndefined} from '../assert-not-null';
+import {assertNotUndefined} from '../asserts';
 import {assertObject, assertString} from '../asserts';
 import * as dag from '../dag/mod';
 import {fromChunk} from '../db/commit';

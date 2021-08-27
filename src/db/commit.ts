@@ -10,7 +10,7 @@ import {IndexRecord as IndexRecordFB} from './generated/commit/index-record';
 import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
 import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
 import type {JSONValue} from '../json';
-import {assertNotNull} from '../assert-not-null';
+import {assertNotNull} from '../asserts';
 import * as utf8 from '../utf8.js';
 
 export const DEFAULT_HEAD_NAME = 'main';

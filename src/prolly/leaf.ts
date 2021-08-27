@@ -4,7 +4,7 @@ import * as flatbuffers from 'flatbuffers';
 import {Leaf as LeafFB} from './generated/leaf/leaf';
 import {LeafEntry as LeafEntryFB} from './generated/leaf/leaf-entry';
 import {arrayCompare} from './array-compare';
-import {assertNotNull} from '../assert-not-null';
+import {assertNotNull} from '../asserts';
 
 export class Leaf {
   readonly chunk: Chunk;

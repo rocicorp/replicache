@@ -1,5 +1,5 @@
 import {expect} from '@esm-bundle/chai';
-import {assertNotUndefined} from '../assert-not-null';
+import {assertNotUndefined} from '../asserts';
 import * as dag from '../dag/mod';
 import {MemStore} from '../kv/mod';
 import {DEFAULT_HEAD_NAME} from './commit';

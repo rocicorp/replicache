@@ -9,9 +9,11 @@ import {initDB, Write} from './write';
 import * as prolly from '../prolly/mod.js';
 import {encodeIndexKey} from './index';
 import * as utf8 from '../utf8.js';
+import {LogContext} from '../rlog/logger';
 
 test('basics', async () => {
   const ds = new dag.Store(new MemStore());
+  const lc = new LogContext();
   await initDB(await ds.write(), DEFAULT_HEAD_NAME);
 
   // Put.
@@ -23,7 +25,7 @@ test('basics', async () => {
       undefined,
       dagWrite,
     );
-    await w.put(b`foo`, b`bar`);
+    await w.put(lc, b`foo`, b`bar`);
     // Assert we can read the same value from within this transaction.
     const r = w.asRead();
     const val = r.get(b`foo`);
@@ -54,7 +56,7 @@ test('basics', async () => {
       undefined,
       dagWrite,
     );
-    await w.del(b`foo`);
+    await w.del(lc, b`foo`);
     // Assert it is gone while still within this transaction.
     const r = w.asRead();
     const val = r.get(b`foo`);
@@ -79,6 +81,7 @@ test('basics', async () => {
 
 test('index commit type constraints', async () => {
   const ds = new dag.Store(new MemStore());
+  const lc = new LogContext();
   await initDB(await ds.write(), DEFAULT_HEAD_NAME);
 
   // Test that local changes cannot create or drop an index.
@@ -92,7 +95,7 @@ test('index commit type constraints', async () => {
 
   let err;
   try {
-    await w.createIndex('foo', b``, '');
+    await w.createIndex(lc, 'foo', b``, '');
   } catch (e) {
     err = e;
   }
@@ -113,6 +116,7 @@ test('index commit type constraints', async () => {
 
 test('clear', async () => {
   const ds = new dag.Store(new MemStore());
+  const lc = new LogContext();
   await ds.withWrite(dagWrite => initDB(dagWrite, DEFAULT_HEAD_NAME));
   await ds.withWrite(async dagWrite => {
     const w = await Write.newLocal(
@@ -122,7 +126,7 @@ test('clear', async () => {
       undefined,
       dagWrite,
     );
-    await w.put(b`foo`, b`"bar"`);
+    await w.put(lc, b`foo`, b`"bar"`);
     await w.commit(DEFAULT_HEAD_NAME);
   });
 
@@ -131,7 +135,7 @@ test('clear', async () => {
       whenceHead(DEFAULT_HEAD_NAME),
       dagWrite,
     );
-    await w.createIndex('idx', b``, '');
+    await w.createIndex(lc, 'idx', b``, '');
     await w.commit(DEFAULT_HEAD_NAME);
   });
 
@@ -143,7 +147,7 @@ test('clear', async () => {
       undefined,
       dagWrite,
     );
-    await w.put(b`hot`, b`"dog"`);
+    await w.put(lc, b`hot`, b`"dog"`);
 
     expect([...w.map]).to.have.lengthOf(2);
     let index = w.indexes.get('idx');
@@ -178,6 +182,7 @@ test('clear', async () => {
 test('create and drop index', async () => {
   const t = async (writeBeforeIndexing: boolean) => {
     const ds = new dag.Store(new MemStore());
+    const lc = new LogContext();
     await ds.withWrite(dagWrite => initDB(dagWrite, DEFAULT_HEAD_NAME));
 
     if (writeBeforeIndexing) {
@@ -190,7 +195,7 @@ test('create and drop index', async () => {
           dagWrite,
         );
         for (let i = 0; i < 3; i++) {
-          await w.put(b`k${i}`, utf8.encode(JSON.stringify({s: `s${i}`})));
+          await w.put(lc, b`k${i}`, utf8.encode(JSON.stringify({s: `s${i}`})));
         }
         await w.commit(DEFAULT_HEAD_NAME);
       });
@@ -202,7 +207,7 @@ test('create and drop index', async () => {
         whenceHead(DEFAULT_HEAD_NAME),
         dagWrite,
       );
-      await w.createIndex(indexName, b``, '/s');
+      await w.createIndex(lc, indexName, b``, '/s');
       await w.commit(DEFAULT_HEAD_NAME);
     });
 
@@ -216,7 +221,7 @@ test('create and drop index', async () => {
           dagWrite,
         );
         for (let i = 0; i < 3; i++) {
-          await w.put(b`k${i}`, utf8.encode(JSON.stringify({s: `s${i}`})));
+          await w.put(lc, b`k${i}`, utf8.encode(JSON.stringify({s: `s${i}`})));
         }
         await w.commit(DEFAULT_HEAD_NAME);
       });

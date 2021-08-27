@@ -13,6 +13,7 @@ import {MemStore} from '../kv/mod';
 import type {HTTPRequestInfo} from '../repm-invoker';
 import {SYNC_HEAD_NAME} from './sync-head-name';
 import {InternalPusher, push, PushRequest, PUSH_VERSION} from './push';
+import {LogContext} from '../rlog/logger';
 
 type FakePusherArgs = {
   expPush: boolean;
@@ -75,6 +76,7 @@ class FakePusher implements InternalPusher, FakePusherArgs {
 
 test('try push', async () => {
   const store = new dag.Store(new MemStore());
+  const lc = new LogContext();
   const chain: Chain = [];
   await addGenesis(chain, store);
   await addSnapshot(chain, store, [['foo', 'bar']]);
@@ -241,7 +243,7 @@ test('try push', async () => {
     });
 
     const clientID = 'test_client_id';
-    const batchPushInfo = await push(requestID, store, clientID, pusher, {
+    const batchPushInfo = await push(requestID, store, lc, clientID, pusher, {
       pushURL,
       pushAuth,
       schemaVersion: pushSchemaVersion,

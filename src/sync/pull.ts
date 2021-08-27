@@ -22,6 +22,7 @@ import {callJSRequest} from './js-request';
 import {SYNC_HEAD_NAME} from './sync-head-name.js';
 import * as patch from './patch.js';
 import * as prolly from '../prolly/mod.js';
+import type {LogContext} from '../rlog/logger.js';
 
 export const PULL_VERSION = 0;
 
@@ -51,6 +52,7 @@ export async function beginPull(
   puller: InternalPuller,
   requestID: string,
   store: dag.Store,
+  lc: LogContext,
 ): Promise<BeginTryPullResponse> {
   const {pullURL, pullAuth, schemaVersion} = beginPullReq;
 
@@ -72,8 +74,8 @@ export async function beginPull(
     pullVersion: PULL_VERSION,
     schemaVersion,
   };
-  // debug!(lc, "Starting pull...");
-  // let pull_timer = rlog.Timer.new();
+  lc.debug?.('Starting pull...');
+  const pullStart = Date.now();
   const [pullResp, httpRequestInfo] = await puller.pull(
     pullReq,
     pullURL,
@@ -81,20 +83,15 @@ export async function beginPull(
     requestID,
   );
 
-  // debug!(
-  //   lc.clone(),
-  //   "...Pull {} in {}ms",
-  //   if pullResp.is_some() {
-  //       "complete"
-  //   } else {
-  //       "failed"
-  //   },
-  //   pull_timer.elapsed_ms()
-  // );
+  lc.debug?.(
+    `...Pull ${pullResp ? 'complete' : 'failed'} in `,
+    Date.now() - pullStart,
+    'ms',
+  );
 
   // If Puller did not get a pull response we still want to return the HTTP
   // request info to the JS SDK.
-  if (pullResp === undefined) {
+  if (!pullResp) {
     return {
       httpRequestInfo,
       syncHead: '',
@@ -169,10 +166,10 @@ export async function beginPull(
     //      only a small diff from what we want.
     for (const m of indexRecords) {
       const def = m.definition;
-      await dbWrite.createIndex(def.name, def.keyPrefix, def.jsonPointer);
+      await dbWrite.createIndex(lc, def.name, def.keyPrefix, def.jsonPointer);
     }
 
-    await patch.apply(dbWrite, pullResp.patch);
+    await patch.apply(lc, dbWrite, pullResp.patch);
 
     const commitHash = await dbWrite.commit(SYNC_HEAD_NAME);
 
@@ -189,6 +186,7 @@ export async function beginPull(
 
 export async function maybeEndTryPull(
   store: dag.Store,
+  lc: LogContext,
   maybeEndPullReq: MaybeEndTryPullRequest,
 ): Promise<MaybeEndTryPullResponse> {
   // Ensure sync head is what the caller thinks it is.
@@ -290,22 +288,21 @@ export async function maybeEndTryPull(
     await dagWrite.setHead(SYNC_HEAD_NAME, undefined);
     await dagWrite.commit();
 
-    // if log_enabled!(log.Level.Debug) {
-    //     let (old_last_mutation_id, old_cookie) = Commit.snapshot_meta_parts(mainSnapshot)
-    //         .map_err(|e| InternalProgrammerError(format!("{:?}", e)))?;
-    //     let (new_last_mutation_id, new_cookie) = Commit.snapshot_meta_parts(sync_snapshot)
-    //         .map_err(|e| InternalProgrammerError(format!("{:?}", e)))?;
-    //     debug!(
-    //         lc.clone(),
-    //         "Successfully pulled new snapshot w/last_mutation_id={} (prev. {}), cookie={} (prev. {}), and value_hash={} (prev. {}).",
-    //         new_last_mutation_id,
-    //         old_last_mutation_id,
-    //         new_cookie,
-    //         old_cookie,
-    //         syncHead.value_hash(),
-    //         mainSnapshot.value_hash()
-    //     );
-    // }
+    if (lc.debug) {
+      const [oldLastMutationID, oldCookie] =
+        db.Commit.snapshotMetaParts(mainSnapshot);
+      const [newLastMutationID, newCookie] =
+        db.Commit.snapshotMetaParts(syncSnapshot);
+      lc.debug(
+        'Successfully pulled new snapshot w/last_mutation_id={} (prev. {}), cookie={} (prev. {}), and value_hash={} (prev. {}).',
+        newLastMutationID,
+        oldLastMutationID,
+        newCookie,
+        oldCookie,
+        syncHead.valueHash(),
+        mainSnapshot.valueHash(),
+      );
+    }
 
     return {
       syncHead: syncHeadHash,

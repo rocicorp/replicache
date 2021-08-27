@@ -36,6 +36,7 @@ import {
 } from './pull';
 import * as utf8 from '../utf8';
 import {b} from '../test-util';
+import {LogContext} from '../rlog/logger';
 
 test('begin try pull', async () => {
   const store = new dag.Store(new MemStore());
@@ -448,6 +449,7 @@ test('begin try pull', async () => {
         fakePuller,
         requestID,
         store,
+        new LogContext(),
       );
     } catch (e) {
       result = e.message;
@@ -600,6 +602,7 @@ test('maybe end try pull', async () => {
 
   for (const [i, c] of cases.entries()) {
     const store = new dag.Store(new MemStore());
+    const lc = new LogContext();
     const chain: Chain = [];
     await addGenesis(chain, store);
     // Add pending commits to the main chain.
@@ -620,7 +623,7 @@ test('maybe end try pull', async () => {
         dagWrite,
         db.readIndexes(chain[0]),
       );
-      await w.put(b`key/${i}`, b`${i}`);
+      await w.put(lc, b`key/${i}`, b`${i}`);
       return await w.commit(SYNC_HEAD_NAME);
     });
 
@@ -659,7 +662,7 @@ test('maybe end try pull', async () => {
     };
     let result: MaybeEndTryPullResponse | string;
     try {
-      result = await maybeEndTryPull(store, req);
+      result = await maybeEndTryPull(store, lc, req);
     } catch (e) {
       result = e.message;
     }
@@ -781,6 +784,7 @@ test('changed keys', async () => {
     expectedChangedKeysMap: ChangedKeysMap,
   ) => {
     const store = new dag.Store(new MemStore());
+    const lc = new LogContext();
     const chain: Chain = [];
     await addGenesis(chain, store);
 
@@ -844,13 +848,14 @@ test('changed keys', async () => {
       fakePuller,
       requestID,
       store,
+      new LogContext(),
     );
 
     const req: MaybeEndTryPullRequest = {
       requestID,
       syncHead: pullResult.syncHead,
     };
-    const result = await maybeEndTryPull(store, req);
+    const result = await maybeEndTryPull(store, lc, req);
 
     expect(result.changedKeys).to.deep.equal(expectedChangedKeysMap);
   };

@@ -7,9 +7,11 @@ import type {JSONValue} from '../json';
 import {addGenesis, Chain} from '../db/test-helpers';
 import {apply} from './patch';
 import {assertPatchOperations} from '../puller';
+import {LogContext} from '../rlog/logger';
 
 test('patch', async () => {
   const store = new dag.Store(new MemStore());
+  const lc = new LogContext();
 
   type Case = {
     name: string;
@@ -164,14 +166,14 @@ test('patch', async () => {
         dagWrite,
         db.readIndexes(chain[0]),
       );
-      await dbWrite.put(utf8.encode('key'), utf8.encode('value'));
+      await dbWrite.put(lc, utf8.encode('key'), utf8.encode('value'));
 
       const ops = c.patch;
 
       let err;
       try {
         assertPatchOperations(ops);
-        await apply(dbWrite, ops);
+        await apply(lc, dbWrite, ops);
       } catch (e) {
         err = e;
       }

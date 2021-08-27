@@ -1,8 +1,10 @@
 import type * as db from '../db/mod';
 import type {PatchOperation} from '../puller';
+import type {LogContext} from '../rlog/logger';
 import * as utf8 from '../utf8';
 
 export async function apply(
+  lc: LogContext,
   dbWrite: db.Write,
   patch: PatchOperation[],
 ): Promise<void> {
@@ -11,12 +13,12 @@ export async function apply(
       case 'put': {
         const key = utf8.encode(p.key);
         const value = utf8.encode(JSON.stringify(p.value));
-        await dbWrite.put(key, value);
+        await dbWrite.put(lc, key, value);
         break;
       }
       case 'del': {
         const key = utf8.encode(p.key);
-        await dbWrite.del(key);
+        await dbWrite.del(lc, key);
         break;
       }
       case 'clear':

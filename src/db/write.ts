@@ -13,6 +13,7 @@ import {Index, IndexOperation, indexValue} from './index';
 import {startsWith} from './starts-with';
 import {scanRaw} from './scan';
 import * as utf8 from '../utf8.js';
+import type {LogContext} from '../rlog/logger';
 
 type IndexChangeMeta = {
   type: MetaType.IndexChange;
@@ -131,13 +132,14 @@ export class Write {
     );
   }
 
-  async put(key: Uint8Array, val: Uint8Array): Promise<void> {
+  async put(lc: LogContext, key: Uint8Array, val: Uint8Array): Promise<void> {
     if (this._meta.type === MetaType.IndexChange) {
       throw new Error('Not allowed');
     }
     const oldVal = this.map.get(key);
     if (oldVal !== undefined) {
       await updateIndexes(
+        lc,
         this.indexes,
         this._dagWrite,
         IndexOperation.Remove,
@@ -146,6 +148,7 @@ export class Write {
       );
     }
     await updateIndexes(
+      lc,
       this.indexes,
       this._dagWrite,
       IndexOperation.Add,
@@ -156,7 +159,7 @@ export class Write {
     this.map.put(key, val);
   }
 
-  async del(key: Uint8Array): Promise<void> {
+  async del(lc: LogContext, key: Uint8Array): Promise<void> {
     if (this._meta.type === MetaType.IndexChange) {
       throw new Error('Not allowed');
     }
@@ -164,6 +167,7 @@ export class Write {
     const oldVal = this.map.get(key);
     if (oldVal !== undefined) {
       await updateIndexes(
+        lc,
         this.indexes,
         this._dagWrite,
         IndexOperation.Remove,
@@ -187,6 +191,7 @@ export class Write {
   }
 
   async createIndex(
+    lc: LogContext,
     name: string,
     keyPrefix: Uint8Array,
     jsonPointer: string,
@@ -235,7 +240,7 @@ export class Write {
           jsonPointer,
         );
       } catch (e) {
-        console.info('Not indexing value', utf8.decode(entry.val), ':', e);
+        lc.info?.('Not indexing value', utf8.decode(entry.val), ':', e);
       }
     }
 
@@ -360,6 +365,7 @@ export class Write {
 }
 
 async function updateIndexes(
+  lc: LogContext,
   indexes: Map<string, Index>,
   dagWrite: dag.Write,
   op: IndexOperation,
@@ -376,7 +382,7 @@ async function updateIndexes(
         try {
           indexValue(map, op, key, val, idx.meta.definition.jsonPointer);
         } catch (e) {
-          console.info('Not indexing value', utf8.decode(val), ':', e);
+          lc.info?.('Not indexing value', utf8.decode(val), ':', e);
         }
       });
     }

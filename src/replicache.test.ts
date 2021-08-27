@@ -1899,7 +1899,7 @@ test.skip('mutator optional args [type checking only]', async () => {
   // });
 });
 
-test.skip('logLevel', async () => {
+testWithBothStores('logLevel', async () => {
   const info = sinon.stub(console, 'log');
   const debug = sinon.stub(console, 'debug');
 
@@ -1925,11 +1925,13 @@ test.skip('logLevel', async () => {
 
   rep = await replicacheForTesting('log-level', {logLevel: 'debug'});
   await rep.query(() => 42);
-  expect(info.callCount).to.be.greaterThan(0);
+  expect(info.callCount).to.equal(0);
   expect(debug.callCount).to.be.greaterThan(0);
 
   expect(
-    info.getCalls().some(call => call.firstArg.includes('OpenTransaction')),
+    debug
+      .getCalls()
+      .some(call => call.firstArg.includes('db=log-level rpc=openTransaction')),
   ).to.equal(true);
   expect(
     debug.getCalls().some(call => call.firstArg.includes('PULL')),
@@ -1939,9 +1941,6 @@ test.skip('logLevel', async () => {
   ).to.equal(true);
 
   await rep.close();
-
-  // Restoring since we are not yet scoped to a Replicache db instance.
-  rep = await replicacheForTesting('log-level', {logLevel: 'info'});
 });
 
 // Only used for type checking

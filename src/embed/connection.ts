@@ -13,6 +13,10 @@ import type {
   TryPushRequest,
 } from '../repm-invoker';
 import type {JSONValue} from '../json';
+import {LogContext} from '../rlog/logger';
+import type {LogLevel} from '../logger';
+
+// TODO(arv): Use esbuild --define:TESTING=false
 
 let isTesting = false;
 
@@ -30,7 +34,10 @@ function logCall(name: string, ...args: unknown[]): void {
   testLog.push({name, args});
 }
 
-type ConnectionMap = Map<string, {store: dag.Store; clientID: string}>;
+type ConnectionMap = Map<
+  string,
+  {store: dag.Store; clientID: string; lc: LogContext}
+>;
 
 const connections: ConnectionMap = new Map();
 
@@ -45,33 +52,44 @@ function getConnection(dbName: string) {
 }
 
 type Transaction = db.Write | db.Read;
-type TransactionsMap = Map<number, Transaction>;
+type TransactionsMap = Map<number, {txn: Transaction; lc: LogContext}>;
 const transactionsMap: TransactionsMap = new Map();
 
 function getTransaction(
   transactionID: number,
   map: TransactionsMap,
-): Transaction {
-  const txn = map.get(transactionID);
-  if (!txn) {
+): {txn: Transaction; lc: LogContext} {
+  const val = map.get(transactionID);
+  if (!val) {
     throw new Error(`Transaction ${transactionID} is not open`);
   }
-  return txn;
+  return val;
 }
 
 function getWriteTransaction(
   transactionID: number,
   map: TransactionsMap,
-): db.Write {
-  const txn = getTransaction(transactionID, map);
+): {txn: db.Write; lc: LogContext} {
+  const {txn, lc} = getTransaction(transactionID, map);
   if (txn instanceof db.Read) {
     throw new Error('Transaction is read-only');
   }
-  return txn;
+  return {txn, lc};
 }
 
-export async function open(dbName: string, kvStore: kv.Store): Promise<string> {
+export async function open(
+  dbName: string,
+  kvStore: kv.Store,
+  level: LogLevel,
+): Promise<string> {
+  const start = Date.now();
   isTesting && logCall('open', dbName);
+
+  const lc = new LogContext(level).addContext('db', dbName);
+
+  const lc2 = lc.addContext('rpc', 'open');
+  lc2.debug?.('->', kvStore, level);
+
   if (dbName === '') {
     throw new Error('dbName must be non-empty');
   }
@@ -92,20 +110,25 @@ export async function open(dbName: string, kvStore: kv.Store): Promise<string> {
   // TODO(arv): Maybe store an opened promise too and let all embed calls wait
   // for it.
 
-  connections.set(dbName, {store, clientID});
+  connections.set(dbName, {store, clientID, lc});
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', clientID);
   return clientID;
 }
 
 export async function close(dbName: string): Promise<void> {
+  const start = Date.now();
   isTesting && logCall('close', dbName);
+
   const connection = connections.get(dbName);
   if (!connection) {
     return;
   }
-
+  const lc = connection.lc.addContext('rpc', 'close');
+  lc.debug?.('->');
   const {store} = connection;
   await store.close();
   connections.delete(dbName);
+  lc.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
 async function init(store: dag.Store): Promise<void> {
@@ -124,17 +147,28 @@ export async function openTransaction(
   rebaseOpts: RebaseOpts | undefined,
 ): Promise<number> {
   isTesting && logCall('openTransaction', dbName, name, args, rebaseOpts);
-  const {store} = getConnection(dbName);
-  return openTransactionImpl(store, transactionsMap, name, args, rebaseOpts);
+  const {store, lc} = getConnection(dbName);
+  return openTransactionImpl(
+    lc,
+    store,
+    transactionsMap,
+    name,
+    args,
+    rebaseOpts,
+  );
 }
 
 export async function openTransactionImpl(
+  lc: LogContext,
   store: dag.Store,
-  transactions: Map<number, Transaction>,
+  transactions: Map<number, {txn: Transaction; lc: LogContext}>,
   name: string | undefined,
   args: string | undefined,
   rebaseOpts: RebaseOpts | undefined,
 ): Promise<number> {
+  const start = Date.now();
+  lc = lc.addContext('rpc', 'openTransaction');
+  lc.debug?.('->', store, transactions, name, args, rebaseOpts);
   let txn: Transaction;
 
   if (name !== undefined) {
@@ -142,18 +176,14 @@ export async function openTransactionImpl(
     if (args === undefined) {
       throw new Error('args are required');
     }
-    // let lock_timer = rlog.Timer.new();
-    // debug!(ctx.lc, "Waiting for write lock...");
+
+    const lockStart = Date.now();
+    lc.debug?.('Waiting for write lock...');
 
     const dagWrite = await store.write();
+    lc.debug?.('...Write lock acquired in', Date.now() - lockStart, 'ms');
     let ok = false;
     try {
-      // txn = await store.withWrite(async dagWrite => {
-      //   debug!(
-      //     ctx.lc,
-      //     "...Write lock acquired in {}ms",
-      //     lock_timer.elapsed_ms()
-      // );
       let whence: db.Whence | undefined;
       let originalHash: string | undefined;
       if (rebaseOpts === undefined) {
@@ -183,31 +213,44 @@ export async function openTransactionImpl(
   }
 
   const transactionID = transactionCounter++;
-  transactions.set(transactionID, txn);
+  transactions.set(transactionID, {txn, lc});
+  lc.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', transactionID);
   return transactionID;
 }
 
 export async function openIndexTransaction(dbName: string): Promise<number> {
+  const start = Date.now();
   isTesting && logCall('openIndexTransaction', dbName);
+
   const connection = getConnection(dbName);
+  const lc = connection.lc.addContext('rpc', 'openIndexTransaction');
+  lc.debug?.('->');
   const {store} = connection;
 
-  // let lock_timer = rlog.Timer.new();
-  // debug!(ctx.lc, "Waiting for write lock...");
-  return await store.withWrite(async dagWrite => {
-    // debug!(
-    //     ctx.lc,
-    //     "...Write lock acquired in {}ms",
-    //     lock_timer.elapsed_ms()
-    // );
-    const write = await db.Write.newIndexChange(
+  let txn;
+  const lockStart = Date.now();
+  lc.debug?.('Waiting for write lock...');
+  const dagWrite = await store.write();
+  lc.debug?.('...Write lock acquired in', Date.now() - lockStart, 'ms');
+  let ok = false;
+  try {
+    txn = await db.Write.newIndexChange(
       db.whenceHead(db.DEFAULT_HEAD_NAME),
       dagWrite,
     );
-    const transactionID = transactionCounter++;
-    transactionsMap.set(transactionID, write);
-    return transactionID;
+
+    ok = true;
+  } finally {
+    if (!ok) {
+      dagWrite.close();
+    }
+  }
+  const transactionID = transactionCounter++;
+  transactionsMap.set(transactionID, {
+    txn,
+    lc: lc.addContext('txid', transactionID),
   });
+  return transactionID;
 }
 
 async function validateRebase(
@@ -266,7 +309,10 @@ export async function commitImpl(
   transactionID: number,
   generateChangedKeys: boolean,
 ): Promise<CommitTransactionResponse> {
-  const txn = getWriteTransaction(transactionID, transactionsMap);
+  const start = Date.now();
+  const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
+  const lc2 = lc.addContext('rpc', 'commitTransaction');
+  lc2.debug?.('->', generateChangedKeys);
   transactionsMap.delete(transactionID);
 
   if (txn instanceof db.Read) {
@@ -278,41 +324,72 @@ export async function commitImpl(
     headName,
     generateChangedKeys,
   );
+  lc2.debug?.(
+    '<- elapsed=',
+    Date.now() - start,
+    'ms, result.ref=',
+    hash,
+    ', result.changedKeys=',
+    changedKeys,
+  );
   return {ref: hash, changedKeys};
 }
 
 export async function closeTransaction(transactionID: number): Promise<void> {
+  const start = Date.now();
   isTesting && logCall('closeTransaction', transactionID);
-  const txn = getTransaction(transactionID, transactionsMap);
+
+  const {txn, lc} = getTransaction(transactionID, transactionsMap);
+  const lc2 = lc.addContext('rpc', 'closeTransaction');
+  lc2.debug?.('->');
   txn.close();
   transactionsMap.delete(transactionID);
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
 export async function getRoot(
   dbName: string,
   headName: string = db.DEFAULT_HEAD_NAME,
 ): Promise<string> {
+  const start = Date.now();
   isTesting && logCall('getRoot', dbName, headName);
+
   // TODO(arv): I don't think we ever call this with a headName.
-  const {store} = getConnection(dbName);
-  return await db.getRoot(store, headName);
+  const {store, lc} = getConnection(dbName);
+  const lc2 = lc.addContext('rpc', 'getRoot');
+  lc2.debug?.('->', headName);
+  const result = await db.getRoot(store, headName);
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
+  return result;
 }
 
 export function has(transactionID: number, key: string): boolean {
+  const start = Date.now();
   isTesting && logCall('has', transactionID, key);
-  const txn = getTransaction(transactionID, transactionsMap);
-  return txn.asRead().has(utf8.encode(key));
+
+  const {txn, lc} = getTransaction(transactionID, transactionsMap);
+  const lc2 = lc.addContext('rpc', 'has');
+  lc2.debug?.('->', key);
+  const result = txn.asRead().has(utf8.encode(key));
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
+  return result;
 }
 
 export function get(transactionID: number, key: string): JSONValue | undefined {
+  const start = Date.now();
   isTesting && logCall('get', transactionID, key);
-  const txn = getTransaction(transactionID, transactionsMap);
+
+  const {txn, lc} = getTransaction(transactionID, transactionsMap);
+  const lc2 = lc.addContext('rpc', 'get');
+  lc2.debug?.('->', key);
   const buf = txn.asRead().get(utf8.encode(key));
   if (buf === undefined) {
     return undefined;
   }
   const s = utf8.decode(buf);
-  return JSON.parse(s);
+  const result = JSON.parse(s);
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
+  return result;
 }
 
 export async function scan(
@@ -324,15 +401,21 @@ export async function scan(
     value: Uint8Array,
   ) => void,
 ): Promise<void> {
+  const start = Date.now();
   isTesting && logCall('scan', transactionID, scanOptions, receiver);
-  const txn = getTransaction(transactionID, transactionsMap);
+
+  const {txn, lc} = getTransaction(transactionID, transactionsMap);
+  const lc2 = lc.addContext('rpc', 'scan');
+  lc2.debug?.('->', scanOptions);
   await txn.asRead().scan(scanOptions, sr => {
     if (sr.type === db.ScanResultType.Error) {
+      // repc didn't throw here, It just did error logging.
       throw sr.error;
     }
     const {val, key, secondaryKey} = sr.item;
     receiver(utf8.decode(key), utf8.decode(secondaryKey), val);
   });
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
 export async function put(
@@ -340,20 +423,30 @@ export async function put(
   key: string,
   value: string,
 ): Promise<void> {
+  const start = Date.now();
   isTesting && logCall('put', transactionID, key, value);
-  const txn = getWriteTransaction(transactionID, transactionsMap);
-  await txn.put(utf8.encode(key), utf8.encode(value));
+
+  const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
+  const lc2 = lc.addContext('rpc', 'put');
+  lc2.debug?.('->', key, value);
+  await txn.put(lc2, utf8.encode(key), utf8.encode(value));
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
 export async function del(
   transactionID: number,
   key: string,
 ): Promise<boolean> {
+  const start = Date.now();
   isTesting && logCall('del', transactionID, key);
-  const txn = getWriteTransaction(transactionID, transactionsMap);
+
+  const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
+  const lc2 = lc.addContext('rpc', 'del');
+  lc2.debug?.('->', key);
   const keyBytes = utf8.encode(key);
   const had = await txn.asRead().has(keyBytes);
-  await txn.del(keyBytes);
+  await txn.del(lc, keyBytes);
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', had);
   return had;
 }
 
@@ -363,19 +456,28 @@ export async function createIndex(
   keyPrefix: string,
   jsonPointer: string,
 ): Promise<void> {
+  const start = Date.now();
   isTesting &&
     logCall('createIndex', transactionID, name, keyPrefix, jsonPointer);
-  const txn = getWriteTransaction(transactionID, transactionsMap);
-  await txn.createIndex(name, utf8.encode(keyPrefix), jsonPointer);
+  const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
+  const lc2 = lc.addContext('rpc', 'createIndex');
+  lc2.debug?.('->', name, keyPrefix, jsonPointer);
+  await txn.createIndex(lc, name, utf8.encode(keyPrefix), jsonPointer);
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
 export async function dropIndex(
   transactionID: number,
   name: string,
 ): Promise<void> {
+  const start = Date.now();
   isTesting && logCall('dropIndex', transactionID, name);
-  const txn = getWriteTransaction(transactionID, transactionsMap);
+
+  const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
+  const lc2 = lc.addContext('rpc', 'dropIndex');
+  lc2.debug?.('->', name);
   await txn.dropIndex(name);
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
 export async function maybeEndTryPull(
@@ -383,41 +485,70 @@ export async function maybeEndTryPull(
   requestID: string,
   syncHead: string,
 ): Promise<MaybeEndTryPullResponse> {
+  const start = Date.now();
   isTesting && logCall('maybeEndTryPull', dbName, requestID, syncHead);
-  const connection = getConnection(dbName);
-  const {store} = connection;
-  // ctx.lc.add_context("request_id", &req.request_id);
-  return await sync.maybeEndTryPull(store, {requestID, syncHead});
-}
 
-export function setLogLevel(level: 'debug' | 'info' | 'error'): void {
-  isTesting && logCall('setLogLevel', level);
-  // console.log('TODO set level', level);\
-  // TODO(arv): Implement me
+  const connection = getConnection(dbName);
+  const {store, lc} = connection;
+  const lc2 = lc
+    .addContext('rpc', 'maybeEndTryPull')
+    .addContext('request_id', requestID);
+  lc2.debug?.('->', syncHead);
+  const result = await sync.maybeEndTryPull(store, lc2, {requestID, syncHead});
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
+  return result;
 }
 
 export async function tryPush(
   dbName: string,
   req: TryPushRequest,
 ): Promise<HTTPRequestInfo | undefined> {
+  const start = Date.now();
   isTesting && logCall('tryPush', dbName, req);
+
   const connection = getConnection(dbName);
-  const {clientID, store} = connection;
-  const jsPusher = new sync.JSPusher(req.pusher);
+  const {clientID, store, lc} = connection;
   const requestID = sync.newRequestID(clientID);
-  // ctx.lc.add_context("request_id", &request_id);
-  return await sync.push(requestID, store, clientID, jsPusher, req);
+  const lc2 = lc
+    .addContext('rpc', 'tryPush')
+    .addContext('request_id', requestID);
+  lc2.debug?.('->', req);
+  const jsPusher = new sync.JSPusher(req.pusher);
+  const result = await sync.push(
+    requestID,
+    store,
+    lc2,
+    clientID,
+    jsPusher,
+    req,
+  );
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
+  return result;
 }
 
 export async function beginTryPull(
   dbName: string,
   req: BeginTryPullRequest,
 ): Promise<BeginTryPullResponse> {
+  const start = Date.now();
   isTesting && logCall('beginTryPull', dbName, req);
+
   const connection = getConnection(dbName);
-  const {clientID, store} = connection;
-  const jsPuller = new sync.JSPuller(req.puller);
+  const {clientID, store, lc} = connection;
   const requestID = sync.newRequestID(clientID);
-  // ctx.lc.add_context("request_id", &request_id);
-  return await sync.beginPull(clientID, req, jsPuller, requestID, store);
+  const lc2 = lc
+    .addContext('rpc', 'beginTryPull')
+    .addContext('request_id', requestID);
+  lc2.debug?.('->', req);
+  const jsPuller = new sync.JSPuller(req.puller);
+  const result = await sync.beginPull(
+    clientID,
+    req,
+    jsPuller,
+    requestID,
+    store,
+    lc2,
+  );
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
+  return result;
 }

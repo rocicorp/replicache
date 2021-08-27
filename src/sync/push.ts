@@ -9,6 +9,7 @@ import {
 } from '../repm-invoker';
 import {Pusher, PushError} from '../pusher';
 import {callJSRequest} from './js-request';
+import type {LogContext} from '../rlog/logger';
 
 export const PUSH_VERSION = 0;
 
@@ -48,6 +49,7 @@ export function convert(lm: db.LocalMeta): Mutation {
 export async function push(
   requestID: string,
   store: dag.Store,
+  lc: LogContext,
   clientID: string,
   pusher: InternalPusher,
   req: TryPushRequest,
@@ -82,8 +84,8 @@ export async function push(
       pushVersion: PUSH_VERSION,
       schemaVersion: req.schemaVersion,
     };
-    // debug!(lc, "Starting push...");
-    // let pushTimer = rlog.Timer.new();
+    lc.debug?.('Starting push...');
+    const pushStart = Date.now();
     const reqInfo = await pusher.push(
       pushReq,
       req.pushURL,
@@ -93,7 +95,7 @@ export async function push(
 
     httpRequestInfo = reqInfo;
 
-    // debug!(lc, "...Push complete in {}ms", push_timer.elapsed_ms());
+    lc.debug?.('...Push complete in ', Date.now() - pushStart, 'ms');
   }
 
   return httpRequestInfo;

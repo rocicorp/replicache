@@ -320,13 +320,11 @@ export class Replicache<MD extends MutatorDefs = {}>
     // wait for it to finish closing.
     await closingInstances.get(this.name);
 
-    // const dagStore = new dag.Store(this._store);
-    const openResponse = await embed.open(this.name, this._store);
-    // const openResponse = await this._repmInvoker.invoke(this.name, RPC.Open, {
-    //   useMemstore: this._useMemstore,
-    //   store: this._store,
-    //   dag: dagStore,
-    // });
+    const openResponse = await embed.open(
+      this.name,
+      this._store,
+      this._logLevel,
+    );
     this._openResolve(openResponse);
 
     if (hasBroadcastChannel) {
@@ -339,13 +337,6 @@ export class Replicache<MD extends MutatorDefs = {}>
     this._root = this._getRoot();
     await this._root;
 
-    if (!this._closed) {
-      // await this._invoke(RPC.SetLogLevel, {level: this._logLevel});
-      await this._openResponse;
-      if (!this._closed) {
-        await embed.setLogLevel(this._logLevel);
-      }
-    }
     this.pull();
     this._push();
     return openResponse;

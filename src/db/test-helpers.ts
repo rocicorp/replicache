@@ -5,6 +5,7 @@ import {readCommit, readIndexes, whenceHead} from './read.js';
 import {initDB, Write} from './write.js';
 import * as utf8 from '../utf8.js';
 import {b} from '../test-util.js';
+import {LogContext} from '../rlog/logger.js';
 
 export type Chain = Commit[];
 
@@ -44,6 +45,7 @@ export async function createLocal(
   store: dag.Store,
   i: number,
 ): Promise<Commit> {
+  const lc = new LogContext();
   await store.withWrite(async dagWrite => {
     const w = await Write.newLocal(
       whenceHead(DEFAULT_HEAD_NAME),
@@ -53,7 +55,7 @@ export async function createLocal(
       dagWrite,
     );
     for (const [key, val] of entries) {
-      await w.put(key, val);
+      await w.put(lc, key, val);
     }
     await w.commit(DEFAULT_HEAD_NAME);
   });
@@ -80,12 +82,13 @@ export async function createIndex(
   jsonPointer: string,
   store: dag.Store,
 ): Promise<Commit> {
+  const lc = new LogContext();
   await store.withWrite(async dagWrite => {
     const w = await Write.newIndexChange(
       whenceHead(DEFAULT_HEAD_NAME),
       dagWrite,
     );
-    await w.createIndex(name, utf8.encode(prefix), jsonPointer);
+    await w.createIndex(lc, name, utf8.encode(prefix), jsonPointer);
     await w.commit(DEFAULT_HEAD_NAME);
   });
   return store.withRead(async dagRead => {
@@ -104,6 +107,7 @@ export async function addSnapshot(
   map: [string, string][] | undefined,
 ): Promise<Chain> {
   expect(chain).to.have.length.greaterThan(0);
+  const lc = new LogContext();
   const cookie = `cookie_${chain.length}`;
   await store.withWrite(async dagWrite => {
     const w = await Write.newSnapshot(
@@ -116,7 +120,7 @@ export async function addSnapshot(
 
     if (map) {
       for (const [k, v] of map) {
-        await w.put(utf8.encode(k), utf8.encode(v));
+        await w.put(lc, utf8.encode(k), utf8.encode(v));
       }
     }
     await w.commit(DEFAULT_HEAD_NAME);

@@ -7,24 +7,26 @@ import {MemStore} from '../kv/mem-store.js';
 import {addGenesis, addLocal, Chain} from '../db/test-helpers.js';
 import {addSyncSnapshot} from '../sync/test-helpers.js';
 import {commitImpl, openTransactionImpl} from './connection.js';
+import {LogContext} from '../rlog/logger.js';
 
 test('open transaction rebase opts', async () => {
   const store = new dag.Store(new MemStore());
+  const lc = new LogContext();
 
   const txns = new Map();
-  const main_chain: Chain = [];
-  await addGenesis(main_chain, store);
-  await addLocal(main_chain, store);
-  const sync_chain = await addSyncSnapshot(main_chain, store, 0);
-  const original = main_chain[1];
+  const mainChain: Chain = [];
+  await addGenesis(mainChain, store);
+  await addLocal(mainChain, store);
+  const syncChain = await addSyncSnapshot(mainChain, store, 0);
+  const original = mainChain[1];
   let meta = original.meta();
   if (!meta.isLocal()) {
     throw new Error('not local');
   }
   let lm = meta.typed() as db.LocalMeta;
-  const original_hash = original.chunk.hash;
-  const original_name = lm.mutatorName();
-  const original_args = utf8.decode(lm.mutatorArgsJSON());
+  const originalHash = original.chunk.hash;
+  const originalName = lm.mutatorName();
+  const originalArgs = utf8.decode(lm.mutatorArgsJSON());
 
   // drop(meta);
   // drop(original);
@@ -33,13 +35,14 @@ test('open transaction rebase opts', async () => {
   try {
     // Error: rebase commit's basis must be sync head.
     result = await openTransactionImpl(
+      lc,
       store,
       txns,
-      original_name,
-      original_args,
+      originalName,
+      originalArgs,
       {
-        basis: original_hash, // <-- not the sync head
-        original: original_hash,
+        basis: originalHash, // <-- not the sync head
+        original: originalHash,
       },
     );
   } catch (e) {
@@ -53,13 +56,14 @@ test('open transaction rebase opts', async () => {
   // Error: rebase commit's name should not change.
   try {
     result = await openTransactionImpl(
+      lc,
       store,
       txns,
       'different',
-      original_args,
+      originalArgs,
       {
-        basis: sync_chain[0].chunk.hash,
-        original: original_hash,
+        basis: syncChain[0].chunk.hash,
+        original: originalHash,
       },
     );
   } catch (e) {
@@ -75,8 +79,8 @@ test('open transaction rebase opts', async () => {
   // https://github.com/rocicorp/repc/issues/151
 
   // Ensure it doesn't let us rebase with a different mutation id.
-  await addLocal(main_chain, store);
-  const new_local = main_chain[main_chain.length - 1];
+  await addLocal(mainChain, store);
+  const new_local = mainChain[mainChain.length - 1];
   meta = new_local.meta();
   if (!meta.isLocal()) {
     throw new Error('not local');
@@ -87,12 +91,13 @@ test('open transaction rebase opts', async () => {
   const new_local_args = utf8.decode(lm.mutatorArgsJSON());
   try {
     result = await openTransactionImpl(
+      lc,
       store,
       txns,
       new_local_name,
       new_local_args,
       {
-        basis: sync_chain[0].chunk.hash,
+        basis: syncChain[0].chunk.hash,
         original: new_local_hash,
       },
     );
@@ -106,13 +111,14 @@ test('open transaction rebase opts', async () => {
 
   // Correct rebase_opt (test this last because it affects the chain).
   const otr = await openTransactionImpl(
+    lc,
     store,
     txns,
-    original_name,
-    original_args,
+    originalName,
+    originalArgs,
     {
-      basis: sync_chain[0].chunk.hash,
-      original: original_hash,
+      basis: syncChain[0].chunk.hash,
+      original: originalHash,
     },
   );
   const ctr = await commitImpl(txns, otr, false);

@@ -16,32 +16,13 @@ The build script copies to a new directory, so you need to re-run `npm run build
 
 # Building a release
 
-```
-go get github.com/rocicorp/repc/tool/bump
-bump --root=. replicache <semver>
-npm install
-git add package-lock.json
-git commit --amend --no-edit
-# push to github and merge
-# pull merged commit
-git tag v<semver>
-git push origin v<semver>
-# update release notes on github
-npm publish
-```
-
-## Update docs
-
-The docs are built from the `stable` branch so we need to rebase that to get it
-to deploy a new version.
+## Run Automated Tests
 
 ```
-git checkout stable
-git rebase main
-git push origin stable
+npm run test
 ```
 
-## Verify that release works
+## Manual Testing
 
 To test that a release works before creating the release we use a tarball dependency.
 
@@ -127,7 +108,38 @@ Open two windows and make sure that the changes are reflected in each window.
 
 ### Integration Guide
 
-Walk through the integration guide and make sure things still work.
+Walk through [the integration guide](https://doc.replicache.dev/guide/intro) and make sure things still work.
+
+## Build the Release
+
+```
+go get github.com/rocicorp/repc/tool/bump
+bump --root=. replicache <semver>
+npm install
+git add package-lock.json
+git commit --amend --no-edit
+# push to github and merge
+# pull merged commit
+git tag v<semver>
+git push origin v<semver>
+# update release notes on github
+npm publish
+```
+
+## Check for API Changes
+
+If there are any API changes, ensure they have been discussed before release.
+
+## Update docs
+
+The docs are built from the `stable` branch so we need to rebase that to get it
+to deploy a new version.
+
+```
+git checkout stable
+git rebase main
+git push origin stable
+```
 
 # Performance Monitoring
 

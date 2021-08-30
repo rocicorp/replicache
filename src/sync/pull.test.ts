@@ -37,6 +37,11 @@ import {
 import * as utf8 from '../utf8';
 import {b} from '../test-util';
 import {LogContext} from '../logger';
+import {initHasher} from '../hash';
+
+setup(async () => {
+  await initHasher();
+});
 
 test('begin try pull', async () => {
   const store = new dag.Store(new MemStore());

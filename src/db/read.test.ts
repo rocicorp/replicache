@@ -1,11 +1,16 @@
 import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod.js';
+import {initHasher} from '../hash.js';
 import {MemStore} from '../kv/mod.js';
 import {LogContext} from '../logger.js';
 import {b} from '../test-util.js';
 import {DEFAULT_HEAD_NAME} from './commit.js';
 import {fromWhence, whenceHead} from './read.js';
 import {initDB, Write} from './write.js';
+
+setup(async () => {
+  await initHasher();
+});
 
 test('basics', async () => {
   const ds = new dag.Store(new MemStore());

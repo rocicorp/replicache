@@ -59,6 +59,7 @@
     "out/replicache.dev.wasm"
   ],
   "dependencies": {
-    "flatbuffers": "^2.0.3"
+    "flatbuffers": "^2.0.3",
+    "hash-wasm": "^4.9.0"
   }
 }

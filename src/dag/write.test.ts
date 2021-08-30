@@ -7,6 +7,11 @@ import type * as kv from '../kv/mod.js';
 import {fromLittleEndian} from './dag.js';
 import {Read} from './read.js';
 import * as utf8 from '../utf8.js';
+import {initHasher} from '../hash.js';
+
+setup(async () => {
+  await initHasher();
+});
 
 test('put chunk', async () => {
   const t = async (data: Uint8Array, refs: string[]) => {

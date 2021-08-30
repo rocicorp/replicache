@@ -1,8 +1,13 @@
 import {expect} from '@esm-bundle/chai';
+import {initHasher} from '../hash.js';
 import {MemStore} from '../kv/mod.js';
 import {Chunk} from './chunk.js';
 import {chunkDataKey, chunkMetaKey} from './key.js';
 import {Read} from './read.js';
+
+setup(async () => {
+  await initHasher();
+});
 
 test('has chunk', async () => {
   const t = async (hash: string, expectHas: boolean) => {

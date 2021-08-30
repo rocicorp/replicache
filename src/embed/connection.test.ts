@@ -8,6 +8,11 @@ import {addGenesis, addLocal, Chain} from '../db/test-helpers.js';
 import {addSyncSnapshot} from '../sync/test-helpers.js';
 import {commitImpl, openTransactionImpl} from './connection.js';
 import {LogContext} from '../logger.js';
+import {initHasher} from '../hash.js';
+
+setup(async () => {
+  await initHasher();
+});
 
 test('open transaction rebase opts', async () => {
   const store = new dag.Store(new MemStore());

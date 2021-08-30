@@ -14,6 +14,11 @@ import type {HTTPRequestInfo} from '../repm-invoker';
 import {SYNC_HEAD_NAME} from './sync-head-name';
 import {InternalPusher, push, PushRequest, PUSH_VERSION} from './push';
 import {LogContext} from '../logger';
+import {initHasher} from '../hash';
+
+setup(async () => {
+  await initHasher();
+});
 
 type FakePusherArgs = {
   expPush: boolean;

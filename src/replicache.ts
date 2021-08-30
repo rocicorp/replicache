@@ -32,6 +32,7 @@ import {
 import {IDBStore, MemStore} from './kv/mod.js';
 import type * as kv from './kv/mod.js';
 import * as embed from './embed/mod.js';
+import {initHasher} from './hash.js';
 
 type BeginPullResult = {
   requestID: string;
@@ -319,6 +320,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     // If we are currently closing a Replicache instance with the same name,
     // wait for it to finish closing.
     await closingInstances.get(this.name);
+
+    await initHasher();
 
     const openResponse = await embed.open(
       this.name,

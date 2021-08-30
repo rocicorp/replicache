@@ -1,5 +1,10 @@
 import {expect} from '@esm-bundle/chai';
+import {initHasher} from '../hash.js';
 import {Chunk} from './chunk.js';
+
+setup(async () => {
+  await initHasher();
+});
 
 test('round trip', async () => {
   const t = (hash: string, data: Uint8Array, refs: string[]) => {

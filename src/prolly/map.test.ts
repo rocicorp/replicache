@@ -6,6 +6,11 @@ import {stringCompare} from './string-compare.js';
 import * as prolly from './mod.js';
 import * as utf8 from '../utf8.js';
 import {b} from '../test-util.js';
+import {initHasher} from '../hash.js';
+
+setup(async () => {
+  await initHasher();
+});
 
 function makeMap(
   base: string[] | undefined,

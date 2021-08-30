@@ -10,6 +10,11 @@ import * as prolly from '../prolly/mod';
 import {encodeIndexKey} from './index';
 import * as utf8 from '../utf8';
 import {LogContext} from '../logger';
+import {initHasher} from '../hash';
+
+setup(async () => {
+  await initHasher();
+});
 
 test('basics', async () => {
   const ds = new dag.Store(new MemStore());

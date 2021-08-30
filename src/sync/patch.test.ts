@@ -8,6 +8,11 @@ import {addGenesis, Chain} from '../db/test-helpers';
 import {apply} from './patch';
 import {assertPatchOperations} from '../puller';
 import {LogContext} from '../logger';
+import {initHasher} from '../hash';
+
+setup(async () => {
+  await initHasher();
+});
 
 test('patch', async () => {
   const store = new dag.Store(new MemStore());

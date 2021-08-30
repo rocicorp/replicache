@@ -29,6 +29,11 @@ import {LocalMeta as LocalMetaFB} from './generated/commit/local-meta.js';
 import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta.js';
 import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta.js';
 import {b} from '../test-util.js';
+import {initHasher} from '../hash.js';
+
+setup(async () => {
+  await initHasher();
+});
 
 test('base snapshot', async () => {
   const store = new dag.Store(new MemStore());

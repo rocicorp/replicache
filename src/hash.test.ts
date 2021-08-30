@@ -1,6 +1,10 @@
 import {expect} from '@esm-bundle/chai';
-import {Hash} from './hash.js';
+import {Hash, initHasher} from './hash.js';
 import * as utf8 from './utf8.js';
+
+setup(async () => {
+  await initHasher();
+});
 
 test('test of', async () => {
   const h = Hash.empty();

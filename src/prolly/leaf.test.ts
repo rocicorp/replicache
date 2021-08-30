@@ -5,6 +5,11 @@ import type {Entry} from './mod';
 import * as flatbuffers from 'flatbuffers';
 import {LeafEntry as LeafEntryFB} from './generated/leaf/leaf-entry';
 import {Leaf as LeafFB} from './generated/leaf/leaf';
+import {initHasher} from '../hash';
+
+setup(async () => {
+  await initHasher();
+});
 
 function makeLeaf(
   kv: (Uint8Array | number[] | undefined)[] | undefined,

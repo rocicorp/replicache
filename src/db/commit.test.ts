@@ -1,8 +1,8 @@
 import {expect} from '@esm-bundle/chai';
 import * as flatbuffers from 'flatbuffers';
-import {Chunk} from '../dag/mod.js';
-import * as dag from '../dag/mod.js';
-import {MemStore} from '../kv/mod.js';
+import {Chunk} from '../dag/mod';
+import * as dag from '../dag/mod';
+import {MemStore} from '../kv/mod';
 import {
   Commit,
   fromChunk,
@@ -12,24 +12,24 @@ import {
   newLocal as commitNewLocal,
   newSnapshot as commitNewSnapshot,
   SnapshotMeta,
-} from './commit.js';
-import {IndexDefinition as IndexDefinitionFB} from './generated/commit/index-definition.js';
-import {IndexRecord as IndexRecordFB} from './generated/commit/index-record.js';
-import {Meta as MetaFB} from './generated/commit/meta.js';
-import {MetaTyped as MetaTypedFB} from './generated/commit/meta-typed.js';
-import {Commit as CommitFB} from './generated/commit/commit.js';
+} from './commit';
+import {IndexDefinition as IndexDefinitionFB} from './generated/commit/index-definition';
+import {IndexRecord as IndexRecordFB} from './generated/commit/index-record';
+import {Meta as MetaFB} from './generated/commit/meta';
+import {MetaTyped as MetaTypedFB} from './generated/commit/meta-typed';
+import {Commit as CommitFB} from './generated/commit/commit';
 import {
   addGenesis,
   addIndexChange,
   addLocal,
   addSnapshot,
   Chain,
-} from './test-helpers.js';
-import {LocalMeta as LocalMetaFB} from './generated/commit/local-meta.js';
-import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta.js';
-import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta.js';
-import {b} from '../test-util.js';
-import {initHasher} from '../hash.js';
+} from './test-helpers';
+import {LocalMeta as LocalMetaFB} from './generated/commit/local-meta';
+import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
+import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
+import {b} from '../test-util';
+import {initHasher} from '../hash';
 
 setup(async () => {
   await initHasher();

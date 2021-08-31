@@ -1,11 +1,11 @@
 import {expect} from '@esm-bundle/chai';
-import type * as dag from '../dag/mod.js';
-import {Commit, DEFAULT_HEAD_NAME} from './commit.js';
-import {readCommit, readIndexes, whenceHead} from './read.js';
-import {initDB, Write} from './write.js';
-import * as utf8 from '../utf8.js';
-import {b} from '../test-util.js';
-import {LogContext} from '../logger.js';
+import type * as dag from '../dag/mod';
+import {Commit, DEFAULT_HEAD_NAME} from './commit';
+import {readCommit, readIndexes, whenceHead} from './read';
+import {initDB, Write} from './write';
+import * as utf8 from '../utf8';
+import {b} from '../test-util';
+import {LogContext} from '../logger';
 
 export type Chain = Commit[];
 

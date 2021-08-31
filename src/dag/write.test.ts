@@ -1,13 +1,13 @@
 import {expect} from '@esm-bundle/chai';
-import {MemStore} from '../kv/mod.js';
-import {Chunk} from './chunk.js';
-import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key.js';
-import {Write} from './write.js';
-import type * as kv from '../kv/mod.js';
-import {fromLittleEndian} from './dag.js';
-import {Read} from './read.js';
-import * as utf8 from '../utf8.js';
-import {initHasher} from '../hash.js';
+import {MemStore} from '../kv/mod';
+import {Chunk} from './chunk';
+import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
+import {Write} from './write';
+import type * as kv from '../kv/mod';
+import {fromLittleEndian} from './dag';
+import {Read} from './read';
+import * as utf8 from '../utf8';
+import {initHasher} from '../hash';
 
 setup(async () => {
   await initHasher();

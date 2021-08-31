@@ -1,8 +1,8 @@
 import {expect} from '@esm-bundle/chai';
-import * as dag from '../dag/mod.js';
-import {MemStore} from '../kv/mod.js';
-import {DEFAULT_HEAD_NAME} from './commit.js';
-import {getRoot} from './root.js';
+import * as dag from '../dag/mod';
+import {MemStore} from '../kv/mod';
+import {DEFAULT_HEAD_NAME} from './commit';
+import {getRoot} from './root';
 
 test('getRoot', async () => {
   const t = async (headVal: string | undefined, expected: string | Error) => {

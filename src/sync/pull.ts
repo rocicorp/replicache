@@ -1,13 +1,8 @@
-import type * as dag from '../dag/mod.js';
-import * as db from '../db/mod.js';
-import * as utf8 from '../utf8.js';
-import type {JSONValue} from '../json.js';
-import {
-  assertPullResponse,
-  Puller,
-  PullError,
-  PullResponse,
-} from '../puller.js';
+import type * as dag from '../dag/mod';
+import * as db from '../db/mod';
+import * as utf8 from '../utf8';
+import type {JSONValue} from '../json';
+import {assertPullResponse, Puller, PullError, PullResponse} from '../puller';
 import {
   assertHTTPRequestInfo,
   BeginTryPullRequest,
@@ -17,12 +12,12 @@ import {
   MaybeEndTryPullRequest,
   MaybeEndTryPullResponse,
   ReplayMutation,
-} from '../repm-invoker.js';
+} from '../repm-invoker';
 import {callJSRequest} from './js-request';
-import {SYNC_HEAD_NAME} from './sync-head-name.js';
-import * as patch from './patch.js';
-import * as prolly from '../prolly/mod.js';
-import type {LogContext} from '../logger.js';
+import {SYNC_HEAD_NAME} from './sync-head-name';
+import * as patch from './patch';
+import * as prolly from '../prolly/mod';
+import type {LogContext} from '../logger';
 
 export const PULL_VERSION = 0;
 

@@ -1,12 +1,12 @@
 import {expect} from '@esm-bundle/chai';
-import * as dag from '../dag/mod.js';
-import {initHasher} from '../hash.js';
-import {MemStore} from '../kv/mod.js';
-import {LogContext} from '../logger.js';
-import {b} from '../test-util.js';
-import {DEFAULT_HEAD_NAME} from './commit.js';
-import {fromWhence, whenceHead} from './read.js';
-import {initDB, Write} from './write.js';
+import * as dag from '../dag/mod';
+import {initHasher} from '../hash';
+import {MemStore} from '../kv/mod';
+import {LogContext} from '../logger';
+import {b} from '../test-util';
+import {DEFAULT_HEAD_NAME} from './commit';
+import {fromWhence, whenceHead} from './read';
+import {initDB, Write} from './write';
 
 setup(async () => {
   await initHasher();

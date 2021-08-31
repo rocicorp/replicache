@@ -1,6 +1,6 @@
-import type {Logger} from './logger.js';
-import {resolver} from './resolver.js';
-import {sleep} from './sleep.js';
+import type {Logger} from './logger';
+import {resolver} from './resolver';
+import {sleep} from './sleep';
 
 export const DEBOUNCE_DELAY_MS = 10;
 

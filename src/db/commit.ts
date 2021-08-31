@@ -2,7 +2,7 @@ import * as flatbuffers from 'flatbuffers';
 import {Chunk} from '../dag/mod';
 import type * as dag from '../dag/mod';
 import {IndexDefinition as IndexDefinitionFB} from './generated/commit/index-definition';
-import {LocalMeta as LocalMetaFB} from './generated/commit/local-meta.js';
+import {LocalMeta as LocalMetaFB} from './generated/commit/local-meta';
 import {Meta as MetaFB} from './generated/commit/meta';
 import {MetaTyped as MetaTypedFB} from './generated/commit/meta-typed';
 import {Commit as CommitFB} from './generated/commit/commit';
@@ -11,7 +11,7 @@ import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
 import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
 import type {JSONValue} from '../json';
 import {assertNotNull} from '../asserts';
-import * as utf8 from '../utf8.js';
+import * as utf8 from '../utf8';
 
 export const DEFAULT_HEAD_NAME = 'main';
 

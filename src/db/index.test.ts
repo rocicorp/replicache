@@ -1,8 +1,8 @@
 import {expect} from '@esm-bundle/chai';
-import type {JSONValue} from '../json.js';
-import {b} from '../test-util.js';
-import {arrayCompare} from '../prolly/array-compare.js';
-import * as prolly from '../prolly/mod.js';
+import type {JSONValue} from '../json';
+import {b} from '../test-util';
+import {arrayCompare} from '../prolly/array-compare';
+import * as prolly from '../prolly/mod';
 import {
   decodeIndexKey,
   encodeIndexKey,
@@ -14,9 +14,9 @@ import {
   indexValue,
   KEY_SEPARATOR,
   KEY_VERSION_0,
-} from './index.js';
-import {startsWith} from './starts-with.js';
-import * as utf8 from '../utf8.js';
+} from './index';
+import {startsWith} from './starts-with';
+import * as utf8 from '../utf8';
 
 test('test index key', () => {
   const testValid = (secondary: string, primary: Uint8Array) => {

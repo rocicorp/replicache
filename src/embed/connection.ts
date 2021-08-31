@@ -2,7 +2,7 @@ import type * as kv from '../kv/mod';
 import * as dag from '../dag/mod';
 import * as db from '../db/mod';
 import * as sync from '../sync/mod';
-import * as utf8 from '../utf8.js';
+import * as utf8 from '../utf8';
 import type {
   BeginTryPullRequest,
   BeginTryPullResponse,

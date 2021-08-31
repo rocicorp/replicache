@@ -7,8 +7,8 @@ import {
   MAX_CONNECTIONS,
   MAX_DELAY_MS,
   MIN_DELAY_MS,
-} from './connection-loop.js';
-import {sleep} from './sleep.js';
+} from './connection-loop';
+import {sleep} from './sleep';
 
 let clock: SinonFakeTimers;
 setup(function () {

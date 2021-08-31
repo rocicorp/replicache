@@ -1,7 +1,7 @@
-import type * as kv from '../kv/mod.js';
-import {Chunk} from './chunk.js';
-import {chunkDataKey, chunkMetaKey, headKey} from './key.js';
-import * as utf8 from '../utf8.js';
+import type * as kv from '../kv/mod';
+import {Chunk} from './chunk';
+import {chunkDataKey, chunkMetaKey, headKey} from './key';
+import * as utf8 from '../utf8';
 
 export class Read {
   private readonly _kvr: kv.Read;

@@ -1,7 +1,7 @@
-import {runAll, TestStore} from './store-test-util.js';
-import {dropStore, IDBStore} from './idb-store.js';
+import {runAll, TestStore} from './store-test-util';
+import {dropStore, IDBStore} from './idb-store';
 import {expect} from '@esm-bundle/chai';
-import {b} from '../test-util.js';
+import {b} from '../test-util';
 
 async function newRandomIDBStore() {
   const name = `test-idbstore-${Math.random()}`;

@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
-import {Hash, initHasher} from './hash.js';
-import * as utf8 from './utf8.js';
+import {Hash, initHasher} from './hash';
+import * as utf8 from './utf8';
 
 setup(async () => {
   await initHasher();

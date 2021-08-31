@@ -1,7 +1,7 @@
 import type * as dag from '../dag/mod';
 import type {JSONValue} from '../json';
-import * as prolly from '../prolly/mod.js';
-import * as utf8 from '../utf8.js';
+import * as prolly from '../prolly/mod';
+import * as utf8 from '../utf8';
 import {RWLock} from '../rw-lock';
 import type {IndexRecord} from './commit';
 

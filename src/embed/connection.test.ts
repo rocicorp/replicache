@@ -1,14 +1,14 @@
 import {expect} from '@esm-bundle/chai';
-import * as dag from '../dag/mod.js';
-import type * as db from '../db/mod.js';
-import * as sync from '../sync/mod.js';
-import * as utf8 from '../utf8.js';
-import {MemStore} from '../kv/mem-store.js';
-import {addGenesis, addLocal, Chain} from '../db/test-helpers.js';
-import {addSyncSnapshot} from '../sync/test-helpers.js';
-import {commitImpl, openTransactionImpl} from './connection.js';
-import {LogContext} from '../logger.js';
-import {initHasher} from '../hash.js';
+import * as dag from '../dag/mod';
+import type * as db from '../db/mod';
+import * as sync from '../sync/mod';
+import * as utf8 from '../utf8';
+import {MemStore} from '../kv/mem-store';
+import {addGenesis, addLocal, Chain} from '../db/test-helpers';
+import {addSyncSnapshot} from '../sync/test-helpers';
+import {commitImpl, openTransactionImpl} from './connection';
+import {LogContext} from '../logger';
+import {initHasher} from '../hash';
 
 setup(async () => {
   await initHasher();

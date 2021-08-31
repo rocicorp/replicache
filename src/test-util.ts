@@ -1,5 +1,5 @@
 // Test utils
-import type {ReplicacheTest} from './replicache.js';
+import type {ReplicacheTest} from './replicache';
 import * as utf8 from './utf8';
 
 export const reps: Set<ReplicacheTest> = new Set();

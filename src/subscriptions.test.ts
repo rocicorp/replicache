@@ -1,5 +1,5 @@
 import {expect} from '@esm-bundle/chai';
-import {decodeIndexKey, scanOptionsMatchesKey} from './subscriptions.js';
+import {decodeIndexKey, scanOptionsMatchesKey} from './subscriptions';
 
 test(`decodeIndexKey`, () => {
   expect(decodeIndexKey('\u0000abc\u0000def')).to.deep.equal(['abc', 'def']);

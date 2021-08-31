@@ -1,10 +1,10 @@
-import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
-import type {MutatorDefs} from './replicache.js';
+import {ReplicacheTest, httpStatusUnauthorized} from './replicache';
+import type {MutatorDefs} from './replicache';
 import type {ReplicacheOptions} from './replicache-options';
-import {Replicache, TransactionClosedError} from './mod.js';
+import {Replicache, TransactionClosedError} from './mod';
 
-import type {ReadTransaction, WriteTransaction} from './mod.js';
-import type {JSONValue} from './json.js';
+import type {ReadTransaction, WriteTransaction} from './mod';
+import type {JSONValue} from './json';
 
 import {assert, expect} from '@esm-bundle/chai';
 import * as sinon from 'sinon';
@@ -12,21 +12,16 @@ import * as sinon from 'sinon';
 // fetch-mock has invalid d.ts file so we removed that on npm install.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
-import fetchMock from 'fetch-mock/esm/client.js';
-import type {ScanOptions} from './scan-options.js';
+import fetchMock from 'fetch-mock/esm/client';
+import type {ScanOptions} from './scan-options';
 
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
-import {asyncIterableToArray} from './async-iterable-to-array.js';
-import {
-  closeAllReps,
-  deletaAllDatabases,
-  reps,
-  dbsToDrop,
-} from './test-util.js';
-import {sleep} from './sleep.js';
-import {MemStore} from './kv/mem-store.js';
-import type * as kv from './kv/mod.js';
-import * as embed from './embed/mod.js';
+import {asyncIterableToArray} from './async-iterable-to-array';
+import {closeAllReps, deletaAllDatabases, reps, dbsToDrop} from './test-util';
+import {sleep} from './sleep';
+import {MemStore} from './kv/mem-store';
+import type * as kv from './kv/mod';
+import * as embed from './embed/mod';
 
 let clock: SinonFakeTimers;
 setup(function () {

@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
-import {sleep} from './sleep.js';
-import {closeAllReps, dbsToDrop, deletaAllDatabases} from './test-util.js';
+import {sleep} from './sleep';
+import {closeAllReps, dbsToDrop, deletaAllDatabases} from './test-util';
 
 teardown(async () => {
   await closeAllReps();

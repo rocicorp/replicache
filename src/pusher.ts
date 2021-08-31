@@ -1,5 +1,5 @@
-import {httpRequest} from './http-request.js';
-import type {HTTPRequestInfo} from './repm-invoker.js';
+import {httpRequest} from './http-request';
+import type {HTTPRequestInfo} from './repm-invoker';
 
 /**
  * Pusher is the function type used to do the fetch part of a push.

@@ -1,4 +1,4 @@
-import type * as db from './db/mod.js';
+import type * as db from './db/mod';
 
 /**
  * Options for [[ReadTransaction.scan|scan]] and

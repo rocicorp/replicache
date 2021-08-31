@@ -1,6 +1,6 @@
-import type * as kv from '../kv/mod.js';
-import {uuid as makeUuid} from './uuid.js';
-import * as utf8 from '../utf8.js';
+import type * as kv from '../kv/mod';
+import {uuid as makeUuid} from './uuid';
+import * as utf8 from '../utf8';
 
 const CID_KEY = 'sys/cid';
 

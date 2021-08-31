@@ -1,9 +1,9 @@
 import {expect} from '@esm-bundle/chai';
 import {convert, scan, ScanItem, ScanOptions, ScanResultType} from './scan';
-import * as prolly from '../prolly/mod.js';
+import * as prolly from '../prolly/mod';
 import {b} from '../test-util';
 import {encodeIndexKey} from './index';
-import * as utf8 from '../utf8.js';
+import * as utf8 from '../utf8';
 
 test('scan', () => {
   const t = (opts: ScanOptions, expected: string[]) => {

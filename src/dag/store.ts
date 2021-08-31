@@ -1,6 +1,6 @@
-import type * as kv from '../kv/mod.js';
-import {Read} from './read.js';
-import {Write} from './write.js';
+import type * as kv from '../kv/mod';
+import {Read} from './read';
+import {Write} from './write';
 
 export class Store {
   private readonly _kv: kv.Store;

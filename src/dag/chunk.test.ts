@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
-import {initHasher} from '../hash.js';
-import {Chunk, getRefsFromMeta} from './chunk.js';
+import {initHasher} from '../hash';
+import {Chunk, getRefsFromMeta} from './chunk';
 
 setup(async () => {
   await initHasher();

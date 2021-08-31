@@ -1,38 +1,38 @@
-import {deepEqual} from './json.js';
-import type {JSONValue} from './json.js';
-import type {KeyTypeForScanOptions, ScanOptions} from './scan-options.js';
-import {Pusher, PushError} from './pusher.js';
-import {Puller, PullError} from './puller.js';
+import {deepEqual} from './json';
+import type {JSONValue} from './json';
+import type {KeyTypeForScanOptions, ScanOptions} from './scan-options';
+import {Pusher, PushError} from './pusher';
+import {Puller, PullError} from './puller';
 import type {
   ChangedKeysMap,
   OpenResponse,
   OpenTransactionRequest,
-} from './repm-invoker.js';
+} from './repm-invoker';
 import {
   CreateIndexDefinition,
   SubscriptionTransactionWrapper,
-} from './transactions.js';
-import {IndexTransactionImpl} from './transactions.js';
-import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
-import {ScanResult} from './scan-iterator.js';
-import type {ReadTransaction, WriteTransaction} from './transactions.js';
-import {ConnectionLoop, MAX_DELAY_MS, MIN_DELAY_MS} from './connection-loop.js';
-import {getLogger} from './logger.js';
-import type {Logger, LogLevel} from './logger.js';
+} from './transactions';
+import {IndexTransactionImpl} from './transactions';
+import {ReadTransactionImpl, WriteTransactionImpl} from './transactions';
+import {ScanResult} from './scan-iterator';
+import type {ReadTransaction, WriteTransaction} from './transactions';
+import {ConnectionLoop, MAX_DELAY_MS, MIN_DELAY_MS} from './connection-loop';
+import {getLogger} from './logger';
+import type {Logger, LogLevel} from './logger';
 import {defaultPuller} from './puller';
 import {defaultPusher} from './pusher';
-import {resolver} from './resolver.js';
-import type {ReplicacheOptions} from './replicache-options.js';
-import {PullDelegate, PushDelegate} from './connection-loop-delegates.js';
-import type {Subscription} from './subscriptions.js';
+import {resolver} from './resolver';
+import type {ReplicacheOptions} from './replicache-options';
+import {PullDelegate, PushDelegate} from './connection-loop-delegates';
+import type {Subscription} from './subscriptions';
 import {
   subscriptionsForChangedKeys,
   subscriptionsForIndexDefinitionChanged,
-} from './subscriptions.js';
-import {IDBStore, MemStore} from './kv/mod.js';
-import type * as kv from './kv/mod.js';
-import * as embed from './embed/mod.js';
-import {initHasher} from './hash.js';
+} from './subscriptions';
+import {IDBStore, MemStore} from './kv/mod';
+import type * as kv from './kv/mod';
+import * as embed from './embed/mod';
+import {initHasher} from './hash';
 
 type BeginPullResult = {
   requestID: string;

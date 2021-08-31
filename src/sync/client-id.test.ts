@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
-import {MemStore} from '../kv/mod.js';
-import {init} from './client-id.js';
+import {MemStore} from '../kv/mod';
+import {init} from './client-id';
 
 test('init client ID', async () => {
   const ms = new MemStore();

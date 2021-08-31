@@ -1,8 +1,8 @@
-import type {Puller} from './puller.js';
-import type {Pusher} from './pusher.js';
-import type * as kv from './kv/mod.js';
-import type * as dag from './dag/mod.js';
-import type * as db from './db/mod.js';
+import type {Puller} from './puller';
+import type {Pusher} from './pusher';
+import type * as kv from './kv/mod';
+import type * as dag from './dag/mod';
+import type * as db from './db/mod';
 
 type OpenRequest = {
   useMemstore: boolean;

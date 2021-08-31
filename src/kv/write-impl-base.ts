@@ -1,4 +1,4 @@
-import type {Read} from './store.js';
+import type {Read} from './store';
 
 export const deleteSentinel = null;
 export type DeleteSentinel = typeof deleteSentinel;

@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
-import {RWLock} from './rw-lock.js';
-import {sleep} from './sleep.js';
+import {RWLock} from './rw-lock';
+import {sleep} from './sleep';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 
 let clock: SinonFakeTimers;

@@ -1,6 +1,6 @@
 import {Index} from './index';
-import type * as dag from '../dag/mod.js';
-import * as prolly from '../prolly/mod.js';
+import type * as dag from '../dag/mod';
+import * as prolly from '../prolly/mod';
 import {
   convert,
   scan,

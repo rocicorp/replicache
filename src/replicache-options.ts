@@ -1,8 +1,8 @@
-import type {Pusher} from './pusher.js';
-import type {Puller} from './puller.js';
-import type {LogLevel} from './logger.js';
+import type {Pusher} from './pusher';
+import type {Puller} from './puller';
+import type {LogLevel} from './logger';
 import type {MutatorDefs, RequestOptions} from './replicache';
-import type * as kv from './kv/mod.js';
+import type * as kv from './kv/mod';
 
 /**
  * The options passed to [[Replicache]].

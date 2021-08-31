@@ -1,19 +1,19 @@
-import type {JSONValue} from './json.js';
+import type {JSONValue} from './json';
 import type {
   OpenTransactionRequest,
   CommitTransactionResponse,
   CloseTransactionResponse,
-} from './repm-invoker.js';
+} from './repm-invoker';
 import {
   KeyTypeForScanOptions,
   ScanOptions,
   toDbScanOptions,
-} from './scan-options.js';
-import {ScanResult} from './scan-iterator.js';
-import {throwIfClosed} from './transaction-closed-error.js';
-import {asyncIterableToArray} from './async-iterable-to-array.js';
-import * as embed from './embed/mod.js';
-import type * as db from './db/mod.js';
+} from './scan-options';
+import {ScanResult} from './scan-iterator';
+import {throwIfClosed} from './transaction-closed-error';
+import {asyncIterableToArray} from './async-iterable-to-array';
+import * as embed from './embed/mod';
+import type * as db from './db/mod';
 
 /**
  * ReadTransactions are used with [[Replicache.query]] and

@@ -1,4 +1,4 @@
-import {runAll} from './store-test-util.js';
-import {MemStore} from './mem-store.js';
+import {runAll} from './store-test-util';
+import {MemStore} from './mem-store';
 
 runAll('memstore', () => new MemStore());

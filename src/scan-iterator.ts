@@ -1,9 +1,9 @@
-import type {JSONValue} from './json.js';
-import {throwIfClosed} from './transaction-closed-error.js';
-import {ScanOptions, toDbScanOptions} from './scan-options.js';
-import {asyncIterableToArray} from './async-iterable-to-array.js';
-import * as utf8 from './utf8.js';
-import * as embed from './embed/mod.js';
+import type {JSONValue} from './json';
+import {throwIfClosed} from './transaction-closed-error';
+import {ScanOptions, toDbScanOptions} from './scan-options';
+import {asyncIterableToArray} from './async-iterable-to-array';
+import * as utf8 from './utf8';
+import * as embed from './embed/mod';
 
 interface IdCloser {
   close(): void;

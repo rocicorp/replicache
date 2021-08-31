@@ -1,5 +1,5 @@
-import type {ConnectionLoopDelegate} from './connection-loop.js';
-import type {Logger} from './logger.js';
+import type {ConnectionLoopDelegate} from './connection-loop';
+import type {Logger} from './logger';
 import type {Replicache} from './replicache';
 
 export class ConnectionLoopDelegateImpl implements Logger {

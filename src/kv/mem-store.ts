@@ -1,6 +1,6 @@
-import {RWLock} from '../rw-lock.js';
-import type {Read, Store, Write} from './store.js';
-import {deleteSentinel, WriteImplBase} from './write-impl-base.js';
+import {RWLock} from '../rw-lock';
+import type {Read, Store, Write} from './store';
+import {deleteSentinel, WriteImplBase} from './write-impl-base';
 
 export class MemStore implements Store {
   private readonly _map: Map<string, Uint8Array> = new Map();

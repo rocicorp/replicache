@@ -1,5 +1,5 @@
-import {deleteSentinel, WriteImplBase} from './write-impl-base.js';
-import type {Read, Store, Write} from './store.js';
+import {deleteSentinel, WriteImplBase} from './write-impl-base';
+import type {Read, Store, Write} from './store';
 
 const RELAXED = {durability: 'relaxed'};
 const OBJECT_STORE = 'chunks';

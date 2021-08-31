@@ -1,7 +1,7 @@
-import type {JSONValue} from './json.js';
-import type {ChangedKeysMap} from './repm-invoker.js';
-import type {ReadTransaction} from './transactions.js';
-import type * as db from './db/mod.js';
+import type {JSONValue} from './json';
+import type {ChangedKeysMap} from './repm-invoker';
+import type {ReadTransaction} from './transactions';
+import type * as db from './db/mod';
 
 export type Subscription<R extends JSONValue | undefined, E> = {
   body: (tx: ReadTransaction) => Promise<R>;

@@ -1,9 +1,9 @@
-import type * as kv from '../kv/mod.js';
-import {HeadChange, toLittleEndian, fromLittleEndian} from './dag.js';
-import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key.js';
-import {Read} from './read.js';
-import {Chunk, getRefsFromMeta} from './chunk.js';
-import * as utf8 from '../utf8.js';
+import type * as kv from '../kv/mod';
+import {HeadChange, toLittleEndian, fromLittleEndian} from './dag';
+import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key';
+import {Read} from './read';
+import {Chunk, getRefsFromMeta} from './chunk';
+import * as utf8 from '../utf8';
 
 export class Write {
   private readonly _kvw: kv.Write;

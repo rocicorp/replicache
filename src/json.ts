@@ -1,4 +1,4 @@
-import {throwInvalidType} from './asserts.js';
+import {throwInvalidType} from './asserts';
 
 /** The values that can be represented in JSON */
 export type JSONValue =

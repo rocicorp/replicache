@@ -5,6 +5,10 @@ import {Meta} from './generated/meta/meta.js';
 export class Chunk {
   readonly hash: string;
   readonly data: Uint8Array;
+  /**
+   * Meta is a Meta.fbs containing refs if there are any refs. If there are no
+   * refs we do not write a meta chunk.
+   */
   readonly meta: Uint8Array | undefined;
 
   private constructor(
@@ -23,19 +27,6 @@ export class Chunk {
     return new Chunk(hash.toString(), data, meta);
   }
 
-  *refs(): IterableIterator<string> {
-    if (!this.meta) {
-      return;
-    }
-
-    const buf = new flatbuffers.ByteBuffer(this.meta);
-    const meta = Meta.getRootAsMeta(buf);
-    const length = meta.refsLength();
-    for (let i = 0; i < length; i++) {
-      yield meta.refs(i);
-    }
-  }
-
   static read(
     hash: string,
     data: Uint8Array,
@@ -43,6 +34,13 @@ export class Chunk {
   ): Chunk {
     return new Chunk(hash, data, meta);
   }
+}
+
+export function getRefsFromMeta(meta: Uint8Array): string[] {
+  const buf = new flatbuffers.ByteBuffer(meta);
+  const metaObj = Meta.getRootAsMeta(buf);
+  const length = metaObj.refsLength();
+  return Array.from({length}, (_, i) => metaObj.refs(i));
 }
 
 function createMeta(refs: string[]): Uint8Array | undefined {

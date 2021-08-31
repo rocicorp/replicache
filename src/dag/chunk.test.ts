@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import {initHasher} from '../hash.js';
-import {Chunk} from './chunk.js';
+import {Chunk, getRefsFromMeta} from './chunk.js';
 
 setup(async () => {
   await initHasher();
@@ -11,10 +11,10 @@ test('round trip', async () => {
     const c = Chunk.new(data, refs);
     expect(c.hash).to.equal(hash);
     expect(c.data).to.deep.equal(data);
-    if (refs.length === 0) {
-      expect(c.refs().next()).to.deep.equal({done: true, value: undefined});
+    if (c.meta === undefined) {
+      expect(refs).to.be.empty;
     } else {
-      expect([...c.refs()]).to.deep.equal(refs);
+      expect(getRefsFromMeta(c.meta)).to.deep.equal(refs);
     }
 
     const buf = c.meta;

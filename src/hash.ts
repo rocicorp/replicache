@@ -13,7 +13,7 @@ export class Hash {
   }
 
   /**
-   * Computes as SHA512 hash of the given data.
+   * Computes a SHA512 hash of the given data.
    *
    * You have to await the result of [[initHasher]] before calling this method.
    */

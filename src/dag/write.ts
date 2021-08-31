@@ -1,14 +1,13 @@
-import {getRootAsMeta} from './meta.js';
 import type * as kv from '../kv/mod.js';
 import {HeadChange, toLittleEndian, fromLittleEndian} from './dag.js';
 import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key.js';
 import {Read} from './read.js';
-import type {Chunk} from './chunk.js';
+import {Chunk, getRefsFromMeta} from './chunk.js';
 import * as utf8 from '../utf8.js';
 
 export class Write {
   private readonly _kvw: kv.Write;
-  private readonly _mutatedChunks = new Set<string>();
+  private readonly _newChunks = new Set<string>();
   private readonly _changedHeads = new Map<string, HeadChange>();
 
   constructor(kvw: kv.Write) {
@@ -27,7 +26,7 @@ export class Write {
     if (meta !== undefined) {
       p2 = this._kvw.put(chunkMetaKey(hash), meta);
     }
-    this._mutatedChunks.add(c.hash);
+    this._newChunks.add(c.hash);
     await p1;
     await p2;
   }
@@ -83,7 +82,7 @@ export class Write {
 
     // Now we go through the mutated chunks to see if any of them are still orphaned.
     const ps = [];
-    for (const hash of this._mutatedChunks) {
+    for (const hash of this._newChunks) {
       const count = await this.getRefCount(hash);
       if (count === 0) {
         ps.push(this.removeAllRelatedKeys(hash, false));
@@ -100,13 +99,9 @@ export class Write {
       const metaKey = chunkMetaKey(hash);
       const buf = await this._kvw.get(metaKey);
       if (buf !== undefined) {
-        const meta = getRootAsMeta(buf);
-        const length = meta.refsLength();
-        const ps = [];
-        for (let i = 0; i < length; i++) {
-          const r = meta.refs(i);
-          ps.push(this.changeRefCount(r, delta));
-        }
+        const ps = getRefsFromMeta(buf).map(ref =>
+          this.changeRefCount(ref, delta),
+        );
         await Promise.all(ps);
       }
     }
@@ -148,7 +143,7 @@ export class Write {
     ]);
 
     if (updateMutatedChunks) {
-      this._mutatedChunks.delete(hash);
+      this._newChunks.delete(hash);
     }
   }
 

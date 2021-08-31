@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1630363710204,
+  "lastUpdate": 1630446226994,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -34274,6 +34274,156 @@ window.BENCHMARK_DATA = {
             "range": "±85.6%",
             "unit": "ops/sec",
             "extra": "31 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "de973e7c0da440e622f258e4d8e15e1fe06e67ec",
+          "message": "Fix perf runner (#463)\n\nThe perf runner depends on some npm modules. It also needs to be type\r\nmodule.",
+          "timestamp": "2021-08-31T21:42:02Z",
+          "tree_id": "5b7506b5927f52d039eec7c0b03d2e9b56f4c40b",
+          "url": "https://github.com/rocicorp/replicache/commit/de973e7c0da440e622f258e4d8e15e1fe06e67ec"
+        },
+        "date": 1630446226739,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.64,
+            "range": "±11.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.17,
+            "range": "±10.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.92,
+            "range": "±13.5%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.12,
+            "range": "±12.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 4.17,
+            "range": "±51.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 4,
+            "range": "±61.2%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 4.27,
+            "range": "±58.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 4.23,
+            "range": "±66.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±1231.6%",
+            "unit": "MB/s",
+            "extra": "94 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 98.6,
+            "range": "±439.7%",
+            "unit": "ops/sec",
+            "extra": "50 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 3.89,
+            "range": "±7.8%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 0.62,
+            "range": "±132.8%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 5.45,
+            "range": "±29.6%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 5.68,
+            "range": "±15.2%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 5.32,
+            "range": "±45.1%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription setup 10",
+            "value": 155.56,
+            "range": "±312.9%",
+            "unit": "ops/sec",
+            "extra": "78 samples"
+          },
+          {
+            "name": "subscription setup 100",
+            "value": 112.78,
+            "range": "±122.6%",
+            "unit": "ops/sec",
+            "extra": "57 samples"
+          },
+          {
+            "name": "subscription setup 1000",
+            "value": 52.68,
+            "range": "±136.2%",
+            "unit": "ops/sec",
+            "extra": "27 samples"
           }
         ]
       }

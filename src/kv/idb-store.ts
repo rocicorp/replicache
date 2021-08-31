@@ -23,6 +23,10 @@ export class IDBStore implements Store {
     return new ReadImpl(tx);
   }
 
+  async withRead<R>(fn: (read: Read) => R | Promise<R>): Promise<R> {
+    return fn(await this.read());
+  }
+
   async write(): Promise<Write> {
     const db = await this._db;
     // TS does not have type defs for the third options argument yet.
@@ -30,6 +34,10 @@ export class IDBStore implements Store {
     // @ts-ignore Expected 1-2 arguments, but got 3.ts(2554)
     const tx = db.transaction(OBJECT_STORE, 'readwrite', RELAXED);
     return new WriteImpl(tx);
+  }
+
+  async withWrite<R>(fn: (write: Write) => R | Promise<R>): Promise<R> {
+    return await fn(await this.write());
   }
 
   async close(): Promise<void> {

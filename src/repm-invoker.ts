@@ -1,76 +1,13 @@
-import type {JSONValue} from './json.js';
-import type {ScanOptionsRPC} from './scan-options.js';
-import init, {dispatch} from './wasm/release/replicache_client.js';
-import type {InitOutput} from './wasm/release/replicache_client.js';
 import type {Puller} from './puller.js';
 import type {Pusher} from './pusher.js';
-import type {Store} from './kv/store.js';
-
-/**
- * This type is used for the [[ReplicacheOptions.wasmModule]] property.
- */
-export type InitInput =
-  | string
-  | RequestInfo
-  | URL
-  | Response
-  | BufferSource
-  | WebAssembly.Module;
-
-export type Invoker = {
-  readonly invoke: REPMInvoke;
-};
-
-export interface Invoke {
-  <RPC extends keyof InvokeMapNoArgs>(rpc: RPC): Promise<InvokeMapNoArgs[RPC]>;
-  <RPC extends keyof InvokeMap>(rpc: RPC, args: InvokeMap[RPC][0]): Promise<
-    InvokeMap[RPC][1]
-  >;
-}
-
-export interface REPMInvoke {
-  <R extends keyof InvokeMapNoArgs>(dbName: string, rpc: R): Promise<
-    InvokeMapNoArgs[R]
-  >;
-  <R extends keyof InvokeMap>(
-    dbName: string,
-    rpc: R,
-    args: InvokeMap[R][0],
-  ): Promise<InvokeMap[R][1]>;
-  (dbName: string, rpc: RPC, args?: JSONValue): Promise<JSONValue>;
-}
-
-let wasmModuleOutput: Promise<InitOutput> | undefined;
-
-export class REPMWasmInvoker {
-  constructor(wasmModuleOrPath?: InitInput) {
-    if (!wasmModuleOutput) {
-      // Hack around Webpack invalid support for import.meta.url and wasm
-      // loaders. We use the new URL pattern to tell Webpack to use a runtime
-      // URL and not a compile time file: URL.
-      if (!wasmModuleOrPath) {
-        wasmModuleOrPath = new URL(
-          './wasm/release/replicache_client_bg.wasm',
-          import.meta.url,
-        );
-      }
-      wasmModuleOutput = init(wasmModuleOrPath);
-    }
-  }
-
-  invoke: REPMInvoke = async (
-    dbName: string,
-    rpc: RPC,
-    args: JSONValue = {},
-  ): Promise<JSONValue> => {
-    await wasmModuleOutput;
-    return await dispatch(dbName, rpc, args);
-  };
-}
+import type * as kv from './kv/mod.js';
+import type * as dag from './dag/mod.js';
+import type * as db from './db/mod.js';
 
 type OpenRequest = {
   useMemstore: boolean;
-  store?: Store;
+  store?: kv.Store;
+  dag?: dag.Store;
 };
 export type OpenResponse = string;
 
@@ -94,7 +31,7 @@ type TransactionRequest = {
 };
 
 export type ScanRequest = TransactionRequest & {
-  opts?: ScanOptionsRPC;
+  opts?: db.ScanOptions;
   receiver: (
     primaryKey: string,
     secondaryKey: string | null,
@@ -112,12 +49,10 @@ type PutResponse = unknown;
 type DelRequest = TransactionRequest & {key: string};
 type DelResponse = {ok: boolean};
 
-type RebaseOpts =
-  | Record<string, unknown>
-  | {
-      basis: string;
-      original: string;
-    };
+export type RebaseOpts = {
+  basis: string;
+  original: string;
+};
 
 export type OpenTransactionRequest = {
   name?: string;
@@ -147,20 +82,20 @@ export type CommitTransactionResponse = {
   changedKeys: ChangedKeysMap;
 };
 
-type BeginTryPullRequest = {
+export type BeginTryPullRequest = {
   pullURL: string;
   pullAuth: string;
   schemaVersion: string;
   puller: Puller;
 };
 
-type BeginTryPullResponse = {
+export type BeginTryPullResponse = {
   httpRequestInfo: HTTPRequestInfo;
   syncHead: string;
   requestID: string;
 };
 
-type TryPushRequest = {
+export type TryPushRequest = {
   pushURL: string;
   pushAuth: string;
   schemaVersion: string;
@@ -171,12 +106,26 @@ type TryPushResponse = {
   httpRequestInfo?: HTTPRequestInfo;
 };
 
+export function assertHTTPRequestInfo(
+  // eslint-disable-next-line
+  v: any,
+): asserts v is HTTPRequestInfo {
+  if (
+    typeof v !== 'object' ||
+    v === null ||
+    typeof v.httpStatusCode !== 'number' ||
+    typeof v.errorMessage !== 'string'
+  ) {
+    throw new Error('Invalid HTTPRequestInfo');
+  }
+}
+
 export type HTTPRequestInfo = {
   httpStatusCode: number;
   errorMessage: string;
 };
 
-type MaybeEndTryPullRequest = {
+export type MaybeEndTryPullRequest = {
   requestID: string;
   syncHead: string;
 };
@@ -185,14 +134,14 @@ type MaybeEndTryPullRequest = {
  * ReplayMutation is used int the RPC between EndPull so that we can replay
  * mutations ontop of the current state. It is never exposed to the public.
  */
-type ReplayMutation = {
+export type ReplayMutation = {
   id: number;
   name: string;
   args: string;
   original: string;
 };
 
-type MaybeEndTryPullResponse = {
+export type MaybeEndTryPullResponse = {
   replayMutations?: ReplayMutation[];
   syncHead: string;
   changedKeys: ChangedKeysMap;

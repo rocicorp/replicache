@@ -1,7 +1,7 @@
-import type {JSONValue} from './json';
-import type {ChangedKeysMap} from './repm-invoker';
-import type {ScanOptionsRPC} from './scan-options';
-import type {ReadTransaction} from './transactions';
+import type {JSONValue} from './json.js';
+import type {ChangedKeysMap} from './repm-invoker.js';
+import type {ReadTransaction} from './transactions.js';
+import type * as db from './db/mod.js';
 
 export type Subscription<R extends JSONValue | undefined, E> = {
   body: (tx: ReadTransaction) => Promise<R>;
@@ -10,7 +10,7 @@ export type Subscription<R extends JSONValue | undefined, E> = {
   onDone?: () => void;
   lastValue?: R;
   keys: ReadonlySet<string>;
-  scans: ReadonlyArray<Readonly<ScanOptionsRPC>>;
+  scans: ReadonlyArray<Readonly<db.ScanOptions>>;
 };
 
 function keyMatchesSubscription<V, E>(
@@ -37,17 +37,12 @@ function keyMatchesSubscription<V, E>(
 }
 
 export function scanOptionsMatchesKey(
-  scanOpts: ScanOptionsRPC,
+  scanOpts: db.ScanOptions,
   changeIndexName: string,
   changedKey: string,
 ): boolean {
-  const {
-    indexName,
-    prefix,
-    start_key: startKey,
-    start_exclusive: startExclusive,
-    start_secondary_key: startSecondaryKey,
-  } = scanOpts;
+  const {indexName, prefix, startKey, startExclusive, startSecondaryKey} =
+    scanOpts;
 
   if (!indexName) {
     if (changeIndexName) {

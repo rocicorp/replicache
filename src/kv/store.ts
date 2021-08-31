@@ -16,7 +16,9 @@
  */
 export interface Store {
   read(): Promise<Read>;
+  withRead<R>(f: (read: Read) => R | Promise<R>): Promise<R>;
   write(): Promise<Write>;
+  withWrite<R>(f: (write: Write) => R | Promise<R>): Promise<R>;
   close(): Promise<void>;
 }
 

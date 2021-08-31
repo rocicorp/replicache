@@ -1,0 +1,14 @@
+namespace leaf;
+
+// LeafEntry is a single key/value pair in our map.
+table LeafEntry {
+    key: [ubyte];
+    val: [ubyte];
+}
+
+// Leaf is a leaf level node in the map tree structure.
+table Leaf {
+    entries: [LeafEntry];
+}
+
+root_type Leaf;

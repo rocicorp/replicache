@@ -1,3 +1,5 @@
+import type * as db from './db/mod.js';
+
 /**
  * Options for [[ReadTransaction.scan|scan]] and
  * [[ReadTransaction.scanAll|scanAll]]
@@ -76,18 +78,7 @@ export type ScanOptionIndexedStartKey =
   | [secondary: string, primary?: string]
   | string;
 
-export interface ScanOptionsRPC {
-  /* eslint-disable @typescript-eslint/naming-convention */
-  prefix?: string;
-  start_secondary_key?: string;
-  start_key?: string;
-  start_exclusive?: boolean;
-  limit?: number;
-  indexName?: string;
-  /* eslint-enable @typescript-eslint/naming-convention */
-}
-
-export function toRPC(options?: ScanOptions): ScanOptionsRPC {
+export function toDbScanOptions(options?: ScanOptions): db.ScanOptions {
   if (!options) {
     return {};
   }
@@ -111,13 +102,11 @@ export function toRPC(options?: ScanOptions): ScanOptionsRPC {
   }
 
   return {
-    /* eslint-disable @typescript-eslint/naming-convention */
     prefix: options.prefix,
-    start_secondary_key: secondary,
-    start_key: primary,
-    start_exclusive: exclusive,
+    startSecondaryKey: secondary,
+    startKey: primary,
+    startExclusive: exclusive,
     limit: options.limit,
     indexName: (options as MaybeIndexName).indexName,
-    /* eslint-enable @typescript-eslint/naming-convention */
   };
 }

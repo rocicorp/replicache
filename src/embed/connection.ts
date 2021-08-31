@@ -371,7 +371,7 @@ export function has(transactionID: number, key: string): boolean {
   const {txn, lc} = getTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'has');
   lc2.debug?.('->', key);
-  const result = txn.asRead().has(utf8.encode(key));
+  const result = txn.asRead().has(key);
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
   return result;
 }
@@ -383,7 +383,7 @@ export function get(transactionID: number, key: string): JSONValue | undefined {
   const {txn, lc} = getTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'get');
   lc2.debug?.('->', key);
-  const buf = txn.asRead().get(utf8.encode(key));
+  const buf = txn.asRead().get(key);
   if (buf === undefined) {
     return undefined;
   }
@@ -414,7 +414,7 @@ export async function scan(
       throw sr.error;
     }
     const {val, key, secondaryKey} = sr.item;
-    receiver(utf8.decode(key), utf8.decode(secondaryKey), val);
+    receiver(key, secondaryKey, val);
   });
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
@@ -430,7 +430,7 @@ export async function put(
   const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'put');
   lc2.debug?.('->', key, value);
-  await txn.put(lc2, utf8.encode(key), utf8.encode(value));
+  await txn.put(lc2, key, utf8.encode(value));
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
@@ -444,9 +444,8 @@ export async function del(
   const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'del');
   lc2.debug?.('->', key);
-  const keyBytes = utf8.encode(key);
-  const had = await txn.asRead().has(keyBytes);
-  await txn.del(lc, keyBytes);
+  const had = await txn.asRead().has(key);
+  await txn.del(lc, key);
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', had);
   return had;
 }
@@ -463,7 +462,7 @@ export async function createIndex(
   const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'createIndex');
   lc2.debug?.('->', name, keyPrefix, jsonPointer);
-  await txn.createIndex(lc, name, utf8.encode(keyPrefix), jsonPointer);
+  await txn.createIndex(lc, name, keyPrefix, jsonPointer);
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 

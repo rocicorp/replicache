@@ -34,14 +34,14 @@ export async function createGenesis(store: dag.Store): Promise<Commit> {
 export async function addLocal(chain: Chain, store: dag.Store): Promise<Chain> {
   expect(chain).to.have.length.greaterThan(0);
   const i = chain.length;
-  const commit = await createLocal([[b`local`, b`"${i}"`]], store, i);
+  const commit = await createLocal([[`local`, b`"${i}"`]], store, i);
 
   chain.push(commit);
   return chain;
 }
 
 export async function createLocal(
-  entries: [Uint8Array, Uint8Array][],
+  entries: [string, Uint8Array][],
   store: dag.Store,
   i: number,
 ): Promise<Commit> {
@@ -88,7 +88,7 @@ export async function createIndex(
       whenceHead(DEFAULT_HEAD_NAME),
       dagWrite,
     );
-    await w.createIndex(lc, name, utf8.encode(prefix), jsonPointer);
+    await w.createIndex(lc, name, prefix, jsonPointer);
     await w.commit(DEFAULT_HEAD_NAME);
   });
   return store.withRead(async dagRead => {
@@ -120,7 +120,7 @@ export async function addSnapshot(
 
     if (map) {
       for (const [k, v] of map) {
-        await w.put(lc, utf8.encode(k), utf8.encode(v));
+        await w.put(lc, k, utf8.encode(v));
       }
     }
     await w.commit(DEFAULT_HEAD_NAME);

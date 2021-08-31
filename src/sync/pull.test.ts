@@ -478,7 +478,7 @@ test('begin try pull', async () => {
           db.whenceHash(syncHead.chunk.hash),
           read,
         );
-        const gotValueMap: [Uint8Array, Uint8Array][] = Array.from(
+        const gotValueMap: [string, Uint8Array][] = Array.from(
           map.entries(),
           ({key, val}) => [key, val],
         );
@@ -628,7 +628,7 @@ test('maybe end try pull', async () => {
         dagWrite,
         db.readIndexes(chain[0]),
       );
-      await w.put(lc, b`key/${i}`, b`${i}`);
+      await w.put(lc, `key/${i}`, b`${i}`);
       return await w.commit(SYNC_HEAD_NAME);
     });
 

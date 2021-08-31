@@ -4,7 +4,6 @@ import {Leaf} from './leaf';
 import type {Entry} from './mod';
 import {PeekIterator} from './peek-iterator';
 import {stringCompare} from './string-compare';
-import * as utf8 from '../utf8';
 
 class ProllyMap {
   private _base: Leaf | undefined;
@@ -30,9 +29,8 @@ class ProllyMap {
     return new ProllyMap(base, new Map());
   }
 
-  has(key: Uint8Array): boolean {
-    const ks = utf8.decode(key);
-    const p = this._pending.get(ks);
+  has(key: string): boolean {
+    const p = this._pending.get(key);
     if (p !== undefined) {
       // if null the key was deleted.
       return p !== null;
@@ -41,15 +39,15 @@ class ProllyMap {
     return this._baseHas(key);
   }
 
-  private _baseHas(key: Uint8Array): boolean {
+  private _baseHas(key: string): boolean {
     if (this._base === undefined) {
       return false;
     }
     return this._base.binarySearch(key).found;
   }
 
-  get(key: Uint8Array): Uint8Array | undefined {
-    const ks = utf8.decode(key);
+  get(key: string): Uint8Array | undefined {
+    const ks = key;
     const p = this._pending.get(ks);
     switch (p) {
       case null:
@@ -61,7 +59,7 @@ class ProllyMap {
     }
   }
 
-  private _baseGet(key: Uint8Array): Uint8Array | undefined {
+  private _baseGet(key: string): Uint8Array | undefined {
     if (this._base === undefined) {
       return undefined;
     }
@@ -72,16 +70,12 @@ class ProllyMap {
     return this._base.getEntryByIndex(index).valArray() ?? undefined;
   }
 
-  put(key: Uint8Array, val: Uint8Array): void {
-    // TODO(arv): Consider storing the Uint8Array key in the value if we want to
-    // keep using Uint8Array keys.
-    const ks = utf8.decode(key);
-    this._pending.set(ks, val);
+  put(key: string, val: Uint8Array): void {
+    this._pending.set(key, val);
   }
 
-  del(key: Uint8Array): void {
-    const ks = utf8.decode(key);
-    this._pending.set(ks, null);
+  del(key: string): void {
+    this._pending.set(key, null);
   }
 
   entries(): IterableIterator<Entry> {
@@ -113,27 +107,27 @@ class ProllyMap {
       }
 
       if (a.done && !b.done) {
-        keys.push(utf8.decode(b.value.key));
+        keys.push(b.value.key);
         b = itB.next();
       } else if (!a.done && b.done) {
-        keys.push(utf8.decode(a.value.key));
+        keys.push(a.value.key);
         a = itA.next();
       } else if (!a.done && !b.done) {
-        const ord = arrayCompare(a.value.key, b.value.key);
+        const ord = stringCompare(a.value.key, b.value.key);
         switch (ord) {
           case -1:
-            keys.push(utf8.decode(a.value.key));
+            keys.push(a.value.key);
             a = itA.next();
             break;
           case 0:
             if (arrayCompare(a.value.val, b.value.val) !== 0) {
-              keys.push(utf8.decode(a.value.key));
+              keys.push(a.value.key);
             }
             a = itA.next();
             b = itB.next();
             break;
           case +1:
-            keys.push(utf8.decode(b.value.key));
+            keys.push(b.value.key);
             b = itB.next();
             break;
         }
@@ -151,7 +145,7 @@ class ProllyMap {
     for (const [key, pendingVal] of entries) {
       if (pendingVal !== null) {
         // TODO(arv): Use strings for keys.
-        const baseVal = this._baseGet(utf8.encode(key));
+        const baseVal = this._baseGet(key);
         if (baseVal !== undefined) {
           if (arrayCompare(baseVal, pendingVal) !== 0) {
             keys.push(key);
@@ -161,7 +155,7 @@ class ProllyMap {
         }
       } else {
         // pending was deleted.
-        if (this._baseHas(utf8.encode(key))) {
+        if (this._baseHas(key)) {
           keys.push(key);
         }
       }
@@ -178,7 +172,7 @@ const emptyIterator: Iterator<Entry> = {
 
 type DeletableEntry = {
   // TODO(arv): Use string here
-  key: Uint8Array;
+  key: string;
   val: Uint8Array | null;
 };
 
@@ -196,7 +190,7 @@ class Iter implements IterableIterator<Entry> {
     const p: [string, Uint8Array | null][] = [...pending];
     p.sort((a, b) => stringCompare(a[0], b[0]));
     const entries: DeletableEntry[] = p.map(([key, val]) => ({
-      key: utf8.encode(key),
+      key,
       val,
     }));
     this._pending = new PeekIterator(entries.values());

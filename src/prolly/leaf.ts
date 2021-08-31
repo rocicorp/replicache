@@ -3,8 +3,9 @@ import type {Entry} from './mod';
 import * as flatbuffers from 'flatbuffers';
 import {Leaf as LeafFB} from './generated/leaf/leaf';
 import {LeafEntry as LeafEntryFB} from './generated/leaf/leaf-entry';
-import {arrayCompare} from './array-compare';
 import {assertNotNull} from '../asserts';
+import {stringCompare} from './string-compare';
+import * as utf8 from '../utf8';
 
 export class Leaf {
   readonly chunk: Chunk;
@@ -19,7 +20,7 @@ export class Leaf {
     for (const entry of entries) {
       const leafEntry = LeafEntryFB.createLeafEntry(
         builder,
-        LeafEntryFB.createKeyVector(builder, entry.key),
+        LeafEntryFB.createKeyVector(builder, utf8.encode(entry.key)),
         LeafEntryFB.createValVector(builder, entry.val),
       );
       leafEntries.push(leafEntry);
@@ -45,17 +46,19 @@ export class Leaf {
 
     const entriesLength = root.entriesLength();
 
-    let prev: Uint8Array | null = null;
+    let prev: string | null = null;
     for (let i = 0; i < entriesLength; i++) {
       const entry = root.entries(i);
       assertNotNull(entry);
-      const ek = entry.keyArray();
+      const keyArray = entry.keyArray();
+      assertNotNull(keyArray);
+      const ek = utf8.decode(keyArray);
 
       if (prev !== null) {
         if (!ek) {
           throw new Error('missing key');
         }
-        const ord = arrayCompare(prev, ek);
+        const ord = stringCompare(prev, ek);
         if (ord === 0) {
           throw new Error('duplicate key');
         }
@@ -83,7 +86,7 @@ export class Leaf {
       const entry = root.entries(i)!;
       yield {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        key: entry.keyArray()!,
+        key: utf8.decode(entry.keyArray()!),
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         val: entry.valArray()!,
       };
@@ -102,7 +105,7 @@ export class Leaf {
     return entry;
   }
 
-  binarySearch(key: Uint8Array): {found: boolean; index: number} {
+  binarySearch(key: string): {found: boolean; index: number} {
     const buf = new flatbuffers.ByteBuffer(this.chunk.data);
     const root = LeafFB.getRootAsLeaf(buf);
 
@@ -122,7 +125,7 @@ export class Leaf {
       const entry = root.entries(mid)!;
       // No way that key can be None.
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const cmp = arrayCompare(entry.keyArray()!, key);
+      const cmp = stringCompare(utf8.decode(entry.keyArray()!), key);
       base = cmp > 0 ? base : mid;
       size -= half;
     }
@@ -130,7 +133,7 @@ export class Leaf {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const entry = root.entries(base)!;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const cmp = arrayCompare(entry.keyArray()!, key);
+    const cmp = stringCompare(utf8.decode(entry.keyArray()!), key);
     if (cmp === 0) {
       return {found: true, index: base};
     }

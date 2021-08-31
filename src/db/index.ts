@@ -53,7 +53,7 @@ export class Index {
 export function indexValue(
   index: prolly.Map,
   op: IndexOperation,
-  key: Uint8Array,
+  key: string,
   val: Uint8Array,
   jsonPointer: string,
 ): void {
@@ -71,10 +71,10 @@ export function indexValue(
 
 // Gets the set of index keys for a given primary key and value.
 export function getIndexKeys(
-  key: Uint8Array,
+  key: string,
   val: Uint8Array,
   jsonPointer: string,
-): Uint8Array[] {
+): string[] {
   // TODO: It's crazy to decode the entire value just to evaluate the json pointer.
   // There should be some way to shortcut this. Halp @arv.
   const value: JSONValue = JSON.parse(utf8.decode(val));
@@ -100,19 +100,19 @@ export function getIndexKeys(
 
   return strings.map(v =>
     encodeIndexKey({
-      secondary: utf8.encode(v),
+      secondary: v,
       primary: key,
     }),
   );
 }
 
 // TODO(arv): Share code with subscriptions.ts
-export const KEY_VERSION_0 = new Uint8Array([0]);
-export const KEY_SEPARATOR = new Uint8Array([0]);
+export const KEY_VERSION_0 = '\u0000';
+export const KEY_SEPARATOR = '\u0000';
 
 export type IndexKey = {
-  secondary: Uint8Array;
-  primary: Uint8Array;
+  secondary: string;
+  primary: string;
 };
 
 // An index key is encoded to vec of bytes in the following order:
@@ -125,28 +125,13 @@ export type IndexKey = {
 // A always sorts after B. Appending the primary key ensures index keys with
 // identical secondary keys sort in primary key order. Secondary keys must not
 // contain a zero (null) byte.
-export function encodeIndexKey(indexKey: IndexKey): Uint8Array {
+export function encodeIndexKey(indexKey: IndexKey): string {
   const {secondary, primary} = indexKey;
 
-  if (secondary.includes(0)) {
+  if (secondary.includes('\u0000')) {
     throw new Error('Secondary key cannot contain null byte');
   }
-  const byteLength =
-    KEY_VERSION_0.length +
-    secondary.length +
-    KEY_SEPARATOR.length +
-    primary.length +
-    1; // One extra to allow efficient converting to index scan key
-  const v = new Uint8Array(new ArrayBuffer(byteLength), 0, byteLength - 1);
-  let i = 0;
-  v.set(KEY_VERSION_0, i);
-  i += KEY_VERSION_0.length;
-  v.set(secondary, i);
-  i += secondary.length;
-  v.set(KEY_SEPARATOR, i);
-  i += KEY_SEPARATOR.length;
-  v.set(primary, i);
-  return v;
+  return KEY_VERSION_0 + secondary + KEY_SEPARATOR + primary;
 }
 
 // Returns bytes that can be used to scan for the given secondary index value.
@@ -175,23 +160,22 @@ export function encodeIndexKey(indexKey: IndexKey): Uint8Array {
 // and another zero if it is exclusive ([0, 97, 0] or [0, 97, 0, 0]).
 // This explains why we need the Option around start_key.
 export function encodeIndexScanKey(
-  secondary: Uint8Array,
-  primary: Uint8Array | undefined,
+  secondary: string,
+  primary: string | undefined,
   exclusive: boolean,
-): Uint8Array {
+): string {
   let k = encodeIndexKey({
     secondary,
-    primary: primary || new Uint8Array(0),
+    primary: primary || '',
   });
 
-  let smallest_legal_value = 0x00;
+  let smallestLegalValue = '\u0000';
   if (primary === undefined) {
-    k = k.subarray(0, k.length - 1);
-    smallest_legal_value = 0x01;
+    k = k.slice(0, k.length - 1);
+    smallestLegalValue = '\u0001';
   }
   if (exclusive) {
-    k = new Uint8Array(k.buffer, 0, k.length + 1);
-    k[k.length - 1] = smallest_legal_value;
+    k += smallestLegalValue;
   }
   return k;
 }
@@ -199,26 +183,20 @@ export function encodeIndexScanKey(
 // TODO(arv): Unify with impl in subscriptions.ts
 
 // Decodes an IndexKey encoded by encode_index_key.
-export function decodeIndexKey(encodedIndexKey: Uint8Array): IndexKey {
-  if (encodedIndexKey[0] !== KEY_VERSION_0[0]) {
+export function decodeIndexKey(encodedIndexKey: string): IndexKey {
+  if (encodedIndexKey[0] !== KEY_VERSION_0) {
     throw new Error('Invalid Version');
   }
 
-  const version_len = KEY_VERSION_0.length;
-  const separator_len = KEY_SEPARATOR.length;
-  let separator_offset: number | undefined;
-  for (let i = version_len; i < encodedIndexKey.length; i++) {
-    if (encodedIndexKey[i] === KEY_SEPARATOR[0]) {
-      separator_offset = i;
-      break;
-    }
-  }
-  if (separator_offset === undefined) {
+  const versionLen = KEY_VERSION_0.length;
+  const separatorLen = KEY_SEPARATOR.length;
+  const separatorOffset = encodedIndexKey.indexOf(KEY_SEPARATOR, versionLen);
+  if (separatorOffset === -1) {
     throw new Error('Invalid Formatting');
   }
 
-  const secondary = encodedIndexKey.subarray(version_len, separator_offset);
-  const primary = encodedIndexKey.subarray(separator_offset + separator_len);
+  const secondary = encodedIndexKey.slice(versionLen, separatorOffset);
+  const primary = encodedIndexKey.slice(separatorOffset + separatorLen);
   return {secondary, primary};
 }
 

@@ -21,11 +21,11 @@ export class Read {
     this._indexes = indexes;
   }
 
-  has(key: Uint8Array): boolean {
+  has(key: string): boolean {
     return this._map.has(key);
   }
 
-  get(key: Uint8Array): Uint8Array | undefined {
+  get(key: string): Uint8Array | undefined {
     return this._map.get(key);
   }
 

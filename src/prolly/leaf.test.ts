@@ -12,19 +12,19 @@ setup(async () => {
 });
 
 function makeLeaf(
-  kv: (Uint8Array | number[] | undefined)[] | undefined,
+  kv: [string | undefined, Uint8Array | undefined][] | undefined,
 ): Chunk {
   const builder = new flatbuffers.Builder();
   let entriesVec = 0;
 
   if (kv) {
     const entries: number[] = [];
-    for (let i = 0; i < kv.length / 2; i++) {
-      const key = kv[i * 2];
-      const val = kv[i * 2 + 1];
-      const keyVec = key ? LeafEntryFB.createKeyVector(builder, key) : 0;
+    for (let i = 0; i < kv.length; i++) {
+      const key = kv[i][0];
+      const val = kv[i][1];
+      const keyOffset = key !== undefined ? builder.createString(key) : 0;
       const valVec = val ? LeafEntryFB.createValVector(builder, val) : 0;
-      const entry = LeafEntryFB.createLeafEntry(builder, keyVec, valVec);
+      const entry = LeafEntryFB.createLeafEntry(builder, keyOffset, valVec);
       entries.push(entry);
     }
     entriesVec = LeafFB.createEntriesVector(builder, entries);
@@ -42,18 +42,20 @@ test('try from', () => {
   };
 
   // zero-length keys and vals are supported.
-  t(makeLeaf([u8s(), u8s()]), {
-    key: u8s(),
-    val: u8s(),
-  });
+  // TODO(arv): zero-length leafs are not supported due to bugs in flatbuffer
+  // https://github.com/google/flatbuffers/issues/6798
+  // t(makeLeaf([['', u8s()]]), {
+  //   key: '',
+  //   val: u8s(),
+  // });
 
   // normal non-zero keys and values too.
-  t(makeLeaf([u8s(1), u8s(1)]), {
-    key: u8s(1),
+  t(makeLeaf([['\u0001', u8s(1)]]), {
+    key: '\u0001',
     val: u8s(1),
   });
-  t(makeLeaf([u8s(1, 2), u8s(3, 4)]), {
-    key: u8s(1, 2),
+  t(makeLeaf([['\u0001\u0002', u8s(3, 4)]]), {
+    key: '\u0001\u0002',
     val: u8s(3, 4),
   });
 });
@@ -75,32 +77,38 @@ test('leaf iter', async () => {
   t(makeLeaf([]), []);
 
   // Single entry
-  t(makeLeaf([[1], [2]]), [
+  t(makeLeaf([['\u0001', u8s(2)]]), [
     {
-      key: u8s(1),
+      key: '\u0001',
       val: u8s(2),
     },
   ]);
 
   // multiple entries
-  t(makeLeaf([[], [], [1], [1]]), [
-    {
-      key: u8s(),
-      val: u8s(),
-    },
-    {
-      key: u8s(1),
-      val: u8s(1),
-    },
-  ]);
+  t(
+    makeLeaf([
+      ['a', u8s()],
+      ['b', u8s(1)],
+    ]),
+    [
+      {
+        key: 'a',
+        val: u8s(),
+      },
+      {
+        key: 'b',
+        val: u8s(1),
+      },
+    ],
+  );
 });
 
 test('round trip', async () => {
-  const k0 = u8s(0);
-  const k1 = u8s(1);
+  const k0 = '\u0000';
+  const k1 = '\u0001';
   const expected1 = [
-    {key: k0, val: k0},
-    {key: k1, val: k1},
+    {key: k0, val: u8s(0)},
+    {key: k1, val: u8s(1)},
   ];
   const expected = Leaf.new(expected1);
   const actual = Leaf.load(
@@ -112,7 +120,7 @@ test('round trip', async () => {
 
 test('load', async () => {
   const t = async (
-    kv: (Uint8Array | number[] | undefined)[] | undefined,
+    kv: [string | undefined, Uint8Array | undefined][] | undefined,
     expectedError: string,
   ) => {
     let err;
@@ -132,8 +140,22 @@ test('load', async () => {
   // Cannot detect missing vs empty in TS FB implementation.
   // await t(undefined, 'missing entries');
 
-  await t([undefined, undefined], 'missing key');
-  await t([[], undefined], 'missing val');
-  await t([[1], [], [1], []], 'duplicate key');
-  await t([[1], [], [0], []], 'unsorted key');
+  // TODO(arv): Cannot detect missing keys due to bugs in flatbuffers
+  // https://github.com/google/flatbuffers/issues/6798
+  // await t([[undefined, undefined]], 'missing key');
+  await t([['0', undefined]], 'missing val');
+  await t(
+    [
+      ['\u0001', u8s()],
+      ['\u0001', u8s()],
+    ],
+    'duplicate key',
+  );
+  await t(
+    [
+      ['\u0001', u8s()],
+      ['\u0000', u8s()],
+    ],
+    'unsorted key',
+  );
 });

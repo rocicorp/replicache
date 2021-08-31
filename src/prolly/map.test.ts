@@ -22,7 +22,7 @@ function makeMap(
     entries &&
     Leaf.new(
       entries.map(s => ({
-        key: utf8.encode(s),
+        key: s,
         val: utf8.encode(s),
       })),
     );
@@ -41,7 +41,7 @@ function makeMap(
 
 test('has', () => {
   const t = (map: prolly.Map, test: string, expected: boolean) => {
-    const actual = map.has(utf8.encode(test));
+    const actual = map.has(test);
     expect(actual).to.equal(expected);
   };
 
@@ -74,7 +74,7 @@ test('has', () => {
 
 test('get', async () => {
   const t = (map: prolly.Map, test: string, expected: string | undefined) => {
-    const actual = map.get(utf8.encode(test));
+    const actual = map.get(test);
     expect(actual).to.deep.equal(expected && utf8.encode(expected));
   };
 
@@ -119,8 +119,8 @@ test('put', async () => {
     expected: string | undefined,
   ) => {
     const map = makeMap(base, pending, deleted);
-    map.put(utf8.encode(put), b`x`);
-    const actual = map.get(utf8.encode(put));
+    map.put(put, b`x`);
+    const actual = map.get(put);
     expect(actual).to.deep.equal(expected && utf8.encode(expected));
   };
 
@@ -147,8 +147,8 @@ test('del', async () => {
     del: string,
   ) => {
     const map = makeMap(base, pending, deleted);
-    map.del(utf8.encode(del));
-    const has = map.has(utf8.encode(del));
+    map.del(del);
+    const has = map.has(del);
     expect(has).to.be.false;
   };
 
@@ -173,12 +173,11 @@ test('iter flush', async () => {
     base: string[] | undefined,
     pending: string[],
     deleted: string[],
-    expected1: string[],
+    expected: string[],
   ) => {
     const map = makeMap(base, pending, deleted);
-    const expected = expected1.map(utf8.encode);
 
-    const t = (map: prolly.Map, expected: Uint8Array[]) => {
+    const t = (map: prolly.Map, expected: string[]) => {
       const actual = [...map].map(item => item.key);
       expect(actual).to.deep.equal(expected);
     };
@@ -207,22 +206,22 @@ test('iter flush', async () => {
 
   // Base-only
   await t([], [], [], []);
-  await t([''], [], [], ['']);
-  await t(['', 'foo'], [], [], ['', 'foo']);
+  await t(['0'], [], [], ['0']);
+  await t(['0', 'foo'], [], [], ['0', 'foo']);
 
   // Pending-only
-  await t(undefined, [''], [], ['']);
-  await t(undefined, ['', 'foo'], [], ['', 'foo']);
+  await t(undefined, ['0'], [], ['0']);
+  await t(undefined, ['0', 'foo'], [], ['0', 'foo']);
 
   // basic+pending
-  await t(['', 'foo'], ['bar', 'foo'], [], ['', 'bar', 'foo']);
-  await t([''], ['', 'bar'], [], ['', 'bar']);
+  await t(['0', 'foo'], ['bar', 'foo'], [], ['0', 'bar', 'foo']);
+  await t(['0'], ['0', 'bar'], [], ['0', 'bar']);
   await t(['a', 'b'], ['c', 'd'], [], ['a', 'b', 'c', 'd']);
   await t(['c', 'd'], ['a', 'b'], [], ['a', 'b', 'c', 'd']);
   await t(['b', 'd'], ['a', 'c'], [], ['a', 'b', 'c', 'd']);
 
   // deletes
-  await t([], [], [''], []);
+  await t([], [], ['0'], []);
   await t([], [], ['a'], []);
   await t(['a'], [], ['a'], []);
   await t(['a', 'b'], [], ['a'], ['b']);
@@ -267,28 +266,28 @@ function makeProllyMap(m: Record<string, string>): prolly.Map {
 
 test('pending changes keys', async () => {
   const base_map = new Map();
-  base_map.set(b`a`, b`a`);
-  base_map.set(b`b`, b`b`);
+  base_map.set(`a`, b`a`);
+  base_map.set(`b`, b`b`);
 
   const entries = [...base_map].map(([key, val]) => ({key, val}));
 
   const base = Leaf.new(entries);
   const map = new prolly.Map(base, new Map());
 
-  map.put(b`c`, b`c`);
+  map.put(`c`, b`c`);
   expect(map.pendingChangedKeys()).to.deep.equal(['c']);
 
   // Set b to b again... should be a nop
-  map.put(b`b`, b`b`);
+  map.put(`b`, b`b`);
   expect(map.pendingChangedKeys()).to.deep.equal(['c']);
 
   // Remove c from pending
-  map.del(b`c`);
+  map.del(`c`);
   expect(map.pendingChangedKeys()).to.deep.equal([]);
 
-  map.del(b`d`);
+  map.del(`d`);
   expect(map.pendingChangedKeys()).to.deep.equal([]);
 
-  map.put(b`b`, b`2`);
+  map.put(`b`, b`2`);
   expect(map.pendingChangedKeys()).to.deep.equal(['b']);
 });

@@ -23,11 +23,11 @@ test('basics', async () => {
     undefined,
     await ds.write(),
   );
-  await w.put(lc, b`foo`, b`bar`);
+  await w.put(lc, `foo`, b`bar`);
   await w.commit(DEFAULT_HEAD_NAME);
 
   const dr = await ds.read();
   const r = await fromWhence(whenceHead(DEFAULT_HEAD_NAME), dr);
-  const val = r.get(b`foo`);
+  const val = r.get(`foo`);
   expect(val).to.deep.equal(b`bar`);
 });

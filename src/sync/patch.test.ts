@@ -171,7 +171,7 @@ test('patch', async () => {
         dagWrite,
         db.readIndexes(chain[0]),
       );
-      await dbWrite.put(lc, utf8.encode('key'), utf8.encode('value'));
+      await dbWrite.put(lc, 'key', utf8.encode('value'));
 
       const ops = c.patch;
 
@@ -187,28 +187,12 @@ test('patch', async () => {
         expect(err.message).to.equal(c.expErr);
       }
 
-      // match ops {
-      //     Err(e) => {
-      //         // JSON error
-      //         assert!(c.exp_err.is_some(), "Expected an error for {}", c.name);
-      //         assert!(to_debug(e).contains(c.exp_err.unwrap()), "{}", c.name);
-      //     }
-      //     Ok(ops) => {
-      //         let result = apply(db_write, ops).await;
-      //         if let Some(err_str) = c.exp_err {
-      //             assert!(to_debug(result.unwrap_err()).contains(err_str));
-      //         }
-      //     }
-      // }
-
       if (c.expMap !== undefined) {
         for (const [k, v] of c.expMap) {
-          expect(utf8.encode(v)).to.deep.equal(
-            dbWrite.asRead().get(utf8.encode(k)),
-          );
+          expect(utf8.encode(v)).to.deep.equal(dbWrite.asRead().get(k));
         }
         if (c.expMap.size === 0) {
-          expect(dbWrite.asRead().has(utf8.encode('key'))).to.be.false;
+          expect(dbWrite.asRead().has('key')).to.be.false;
         }
       }
     });

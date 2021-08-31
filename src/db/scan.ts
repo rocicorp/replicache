@@ -1,11 +1,9 @@
-import {arrayCompare} from '../prolly/array-compare';
 import type * as prolly from '../prolly/mod';
 import type {Entry} from '../prolly/mod';
 import {PeekIterator} from '../prolly/peek-iterator';
-import {startsWith} from './starts-with';
 import {take, takeWhile} from './iter-util';
 import {decodeIndexKey, encodeIndexScanKey} from '.';
-import * as utf8 from '../utf8';
+import {stringCompare} from '../prolly/string-compare';
 
 // TODO(arv): Unify with src/scan-options.ts
 
@@ -56,15 +54,15 @@ export type ScanOptions = {
 // of the above-mentioned scan prep; exclusive is implemented by scanning
 // for the next value after the one provided.
 export type ScanOptionsInternal = {
-  prefix?: Uint8Array;
-  startKey?: Uint8Array;
+  prefix?: string;
+  startKey?: string;
   limit?: number;
   indexName?: string;
 };
 
 export type ScanItem = {
-  key: Uint8Array;
-  secondaryKey: Uint8Array;
+  key: string;
+  secondaryKey: string;
   val: Uint8Array;
 };
 
@@ -109,7 +107,7 @@ export function* scan(
         type: ScanResultType.Item,
         item: {
           key: entry.key,
-          secondaryKey: new Uint8Array(0),
+          secondaryKey: '',
           val: entry.val,
         },
       };
@@ -119,20 +117,20 @@ export function* scan(
 
 export function convert(source: ScanOptions): ScanOptionsInternal {
   // If the scan is using an index then we need to generate the scan keys.
-  let prefix: Uint8Array | undefined;
+  let prefix: string | undefined;
   if (source.prefix !== undefined) {
     if (source.indexName !== undefined) {
-      prefix = encodeIndexScanKey(utf8.encode(source.prefix), undefined, false);
+      prefix = encodeIndexScanKey(source.prefix, undefined, false);
     } else {
-      prefix = utf8.encode(source.prefix);
+      prefix = source.prefix;
     }
   }
 
-  let startKey: Uint8Array | undefined;
+  let startKey: string | undefined;
   if (source.indexName !== undefined) {
     startKey = encodeIndexScanKey(
-      utf8.encode(source.startSecondaryKey ?? ''),
-      source.startKey === undefined ? undefined : utf8.encode(source.startKey),
+      source.startSecondaryKey ?? '',
+      source.startKey === undefined ? undefined : source.startKey,
       source.startExclusive ?? false,
     );
   } else {
@@ -140,7 +138,7 @@ export function convert(source: ScanOptions): ScanOptionsInternal {
     if (source.startExclusive ?? false) {
       sk += '\u0000';
     }
-    startKey = utf8.encode(sk);
+    startKey = sk;
   }
   return {
     prefix,
@@ -155,12 +153,12 @@ export function scanRaw(
   opts: ScanOptionsInternal,
 ): IterableIterator<Entry> {
   const it = new PeekIterator(map.entries());
-  const prefix = opts.prefix !== undefined ? opts.prefix : new Uint8Array(0);
+  const prefix = opts.prefix !== undefined ? opts.prefix : '';
   let fromKey = prefix;
 
   const {startKey} = opts;
   if (startKey !== undefined) {
-    const ord = arrayCompare(startKey, fromKey);
+    const ord = stringCompare(startKey, fromKey);
     if (ord === 1) {
       fromKey = startKey;
     }
@@ -170,7 +168,7 @@ export function scanRaw(
     // Note: exclusive implemented at a higher level by appending a 0x01 to the
     // key before passing it to scan.
     const key = it.peek().value.key;
-    const ord = arrayCompare(key, fromKey);
+    const ord = stringCompare(key, fromKey);
     if (ord >= 0) {
       break;
     }
@@ -180,6 +178,6 @@ export function scanRaw(
 
   return take(
     opts.limit ?? Infinity,
-    takeWhile(item => startsWith(prefix, item.key), it),
+    takeWhile(item => item.key.startsWith(prefix), it),
   );
 }

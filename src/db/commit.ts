@@ -10,7 +10,7 @@ import {IndexRecord as IndexRecordFB} from './generated/commit/index-record';
 import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
 import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
 import type {JSONValue} from '../json';
-import {assertNotNull} from '../asserts';
+import {assertNotNull, assertString} from '../asserts';
 import * as utf8 from '../utf8';
 
 export const DEFAULT_HEAD_NAME = 'main';
@@ -64,12 +64,12 @@ export class Commit {
       assertNotNull(definitionFB);
       const jsonPointer = definitionFB.jsonPointer() ?? '';
       const name = definitionFB.name();
-      assertNotNull(name);
+      assertString(name);
       const keyPrefix = definitionFB.keyPrefixArray();
       assertNotNull(keyPrefix);
       const definition: IndexDefinition = {
         name,
-        keyPrefix,
+        keyPrefix: utf8.decode(keyPrefix),
         jsonPointer,
       };
       const valueHash = idx.valueHash();
@@ -261,7 +261,7 @@ export class SnapshotMeta {
 export type IndexDefinition = {
   name: string;
   // keyPrefix describes a subset of the primary key to index
-  keyPrefix: Uint8Array;
+  keyPrefix: string;
   // jsonPointer describes the (sub-)value to index (secondary index)
   jsonPointer: string;
 };
@@ -394,7 +394,7 @@ async function newImpl(
       builder.createString(index.definition.name),
       IndexDefinitionFB.createKeyPrefixVector(
         builder,
-        index.definition.keyPrefix,
+        utf8.encode(index.definition.keyPrefix),
       ),
       builder.createString(index.definition.jsonPointer),
     );

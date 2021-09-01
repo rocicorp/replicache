@@ -260,8 +260,10 @@ export async function maybeEndTryPull(
 
     // Compute diffs (changed keys) for value map and index maps.
     const mainHead = await db.Commit.fromHash(mainHeadHash, dagRead);
-    const mainHeadMap = await prolly.Map.load(mainHead.valueHash(), dagRead);
-    const syncHeadMap = await prolly.Map.load(syncHead.valueHash(), dagRead);
+    const [mainHeadMap, syncHeadMap] = await Promise.all([
+      prolly.Map.load(mainHead.valueHash(), dagRead),
+      prolly.Map.load(syncHead.valueHash(), dagRead),
+    ]);
     const valueChangedKeys = prolly.Map.changedKeys(mainHeadMap, syncHeadMap);
     if (valueChangedKeys.length > 0) {
       changedKeys.set('', valueChangedKeys);
@@ -269,8 +271,10 @@ export async function maybeEndTryPull(
     await addChangedKeysForIndexes(mainHead, syncHead, dagRead, changedKeys);
 
     // No mutations to replay so set the main head to the sync head and sync complete!
-    await dagWrite.setHead(db.DEFAULT_HEAD_NAME, syncHeadHash);
-    await dagWrite.setHead(SYNC_HEAD_NAME, undefined);
+    await Promise.all([
+      dagWrite.setHead(db.DEFAULT_HEAD_NAME, syncHeadHash),
+      dagWrite.setHead(SYNC_HEAD_NAME, undefined),
+    ]);
     await dagWrite.commit();
 
     if (lc.debug) {

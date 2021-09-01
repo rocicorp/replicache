@@ -1,8 +1,12 @@
-const SESSION_ID = (() => {
-  const buf = new Uint8Array(4);
-  crypto.getRandomValues(buf);
-  return Array.from(buf, x => x.toString(16)).join('');
-})();
+let sessionID = '';
+function getSessionID() {
+  if (sessionID === '') {
+    const buf = new Uint8Array(4);
+    crypto.getRandomValues(buf);
+    sessionID = Array.from(buf, x => x.toString(16)).join('');
+  }
+  return sessionID;
+}
 
 const REQUEST_COUNTERS: Map<string, number> = new Map();
 
@@ -22,5 +26,5 @@ export function newRequestID(clientID: string): string {
     counter++;
     REQUEST_COUNTERS.set(clientID, counter);
   }
-  return `${clientID}-${SESSION_ID}-${counter}`;
+  return `${clientID}-${getSessionID()}-${counter}`;
 }

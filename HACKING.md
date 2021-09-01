@@ -1,16 +1,3 @@
-# Sprucing the docs
-
-The live docs at doc.replicache.dev are served from the `stable` channel so that they reflect the stable API.
-
-However, this means that if you do cleanup docs changes that you want to show up immediately, you need to cherry-pick the changes onto stable:
-
-```
-git checkout stable
-git cherry-pick <hash-of-spruce-commit>
-```
-
-During release, below, we reset the stable branch to master, dropping these cherry-picked changes. So it's important to never do work directly on stable.
-
 # Building a release
 
 ## Run Automated Tests
@@ -143,3 +130,18 @@ git push origin stable
 We continuously track performance across a variety of benchmarks. Results here:
 
 https://rocicorp.github.io/replicache/perf/
+
+# Sprucing the docs
+
+The live docs at doc.replicache.dev are served from the `stable` channel so that they reflect the stable API.
+
+However, this means that if you do cleanup docs changes that you want to show up immediately, you need to cherry-pick the changes onto stable:
+
+```
+git checkout stable
+git cherry-pick <hash-of-spruce-commit>
+```
+
+During release, below, we reset the stable branch to master, dropping these cherry-picked changes. So it's important to never do work directly on stable.
+
+

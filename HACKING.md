@@ -1,8 +1,8 @@
-# Updating docs
+# Sprucing the docs
 
-The live docs at doc.replicache.dev are served from the `stable` channel so that they don't pick up wip API changes.
+The live docs at doc.replicache.dev are served from the `stable` channel so that they reflect the stable API.
 
-This means that if you do doc "sprucing" that you want to show up immediately, you need to cherry-pick the changes onto stable:
+However, this means that if you do cleanup docs changes that you want to show up immediately, you need to cherry-pick the changes onto stable:
 
 ```
 git checkout stable

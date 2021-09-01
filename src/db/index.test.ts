@@ -291,15 +291,15 @@ test('index value', () => {
     if (Array.isArray(expected)) {
       indexValue(index, op, utf8.encode(key), value, jsonPointer);
 
-      const actual_val = [...index];
-      expect(expected.length).to.equal(actual_val.length);
+      const actualVal = [...index];
+      expect(expected.length).to.equal(actualVal.length);
       for (let i = 0; i < expected.length; i++) {
         const expEntry = encodeIndexKey({
           secondary: b`s${expected[i]}`,
           primary: b`${expected[i]}`,
         });
-        expect(expEntry).to.deep.equal(actual_val[i].key);
-        expect(index.get(expEntry)).to.deep.equal(actual_val[i].val);
+        expect(expEntry).to.deep.equal(actualVal[i][0]);
+        expect(index.get(expEntry)).to.deep.equal(actualVal[i][1]);
       }
     } else {
       expect(() =>

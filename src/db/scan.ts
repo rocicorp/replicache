@@ -91,14 +91,14 @@ export function* scan(
   for (const entry of scanRaw(map, opts)) {
     if (indexScan) {
       try {
-        const decoded = decodeIndexKey(entry.key);
+        const decoded = decodeIndexKey(entry[0]);
         const {secondary, primary} = decoded;
         yield {
           type: ScanResultType.Item,
           item: {
             key: primary,
             secondaryKey: secondary,
-            val: entry.val,
+            val: entry[1],
           },
         };
       } catch (e) {
@@ -108,9 +108,9 @@ export function* scan(
       yield {
         type: ScanResultType.Item,
         item: {
-          key: entry.key,
+          key: entry[0],
           secondaryKey: new Uint8Array(0),
-          val: entry.val,
+          val: entry[1],
         },
       };
     }
@@ -169,7 +169,7 @@ export function scanRaw(
   while (!it.peek().done) {
     // Note: exclusive implemented at a higher level by appending a 0x01 to the
     // key before passing it to scan.
-    const key = it.peek().value.key;
+    const key = it.peek().value[0];
     const ord = arrayCompare(key, fromKey);
     if (ord >= 0) {
       break;
@@ -180,6 +180,6 @@ export function scanRaw(
 
   return take(
     opts.limit ?? Infinity,
-    takeWhile(item => startsWith(prefix, item.key), it),
+    takeWhile(item => startsWith(prefix, item[0]), it),
   );
 }

@@ -352,7 +352,7 @@ async function addChangedKeysForIndexes(
   changedKeysMap: ChangedKeysMap,
 ) {
   function allKeys(oldMap: prolly.Map): string[] {
-    return Array.from(oldMap.entries(), entry => utf8.decode(entry.key));
+    return Array.from(oldMap.entries(), entry => utf8.decode(entry[0]));
   }
 
   const oldIndexes = db.readIndexes(mainCommit);

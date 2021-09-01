@@ -581,7 +581,7 @@ test('maybe end try pull', async () => {
       interveningSync: false,
       expReplayIDs: [],
       expErr: undefined,
-      expChangedKeys: new Map([['', ['key/1']]]),
+      expChangedKeys: new Map([['', ['key/1', 'local']]]),
     },
     {
       name: '3 pending, 2 to replay',
@@ -682,7 +682,7 @@ test('maybe end try pull', async () => {
         resp.replayMutations?.length,
         `${c.name}: expected ${c.expReplayIDs}, got ${resp.replayMutations}`,
       );
-      expect(resp.changedKeys).to.deep.equal(c.expChangedKeys);
+      expect(resp.changedKeys, c.name).to.deep.equal(c.expChangedKeys);
 
       for (let i = 0; i < c.expReplayIDs.length; i++) {
         const chainIdx = chain.length - c.numNeedingReplay + i;

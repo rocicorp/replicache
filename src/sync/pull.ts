@@ -259,24 +259,14 @@ export async function maybeEndTryPull(
     // TODO check invariants
 
     // Compute diffs (changed keys) for value map and index maps.
-    const mainSnapshotMap = await prolly.Map.load(
-      mainSnapshot.valueHash(),
-      dagRead,
-    );
+    const mainHead = await db.Commit.fromHash(mainHeadHash, dagRead);
+    const mainHeadMap = await prolly.Map.load(mainHead.valueHash(), dagRead);
     const syncHeadMap = await prolly.Map.load(syncHead.valueHash(), dagRead);
-    const valueChangedKeys = prolly.Map.changedKeys(
-      mainSnapshotMap,
-      syncHeadMap,
-    );
+    const valueChangedKeys = prolly.Map.changedKeys(mainHeadMap, syncHeadMap);
     if (valueChangedKeys.length > 0) {
       changedKeys.set('', valueChangedKeys);
     }
-    await addChangedKeysForIndexes(
-      mainSnapshot,
-      syncHead,
-      dagRead,
-      changedKeys,
-    );
+    await addChangedKeysForIndexes(mainHead, syncHead, dagRead, changedKeys);
 
     // No mutations to replay so set the main head to the sync head and sync complete!
     await dagWrite.setHead(db.DEFAULT_HEAD_NAME, syncHeadHash);
@@ -352,8 +342,8 @@ function assertResult(v: any): asserts v is Result {
   assertHTTPRequestInfo(v.httpRequestInfo);
 }
 async function addChangedKeysForIndexes(
-  mainSnapshot: db.Commit,
-  syncHead: db.Commit,
+  mainCommit: db.Commit,
+  syncCommit: db.Commit,
   read: dag.Read,
   changedKeysMap: ChangedKeysMap,
 ) {
@@ -361,8 +351,8 @@ async function addChangedKeysForIndexes(
     return Array.from(oldMap.entries(), entry => utf8.decode(entry[0]));
   }
 
-  const oldIndexes = db.readIndexes(mainSnapshot);
-  const newIndexes = db.readIndexes(syncHead);
+  const oldIndexes = db.readIndexes(mainCommit);
+  const newIndexes = db.readIndexes(syncCommit);
 
   for (const [oldIndexName, oldIndex] of oldIndexes) {
     await oldIndex.withMap(read, async oldMap => {

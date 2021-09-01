@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1630492975492,
+  "lastUpdate": 1630493456613,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -35024,6 +35024,156 @@ window.BENCHMARK_DATA = {
             "range": "±147.4%",
             "unit": "ops/sec",
             "extra": "27 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "cad1df93f2d65ff999787f1134dd1012e5bf9118",
+          "message": "Delay using 'crypto' until run time.\n\nIt's convenient to be able to import Replicache library into Next.js\nserver-side environment, even though it's not yet usable there.\nExisting samples rely on this. Using 'crypto' at parse time defeats\nthis because crypto is not defined in Next.js server env.",
+          "timestamp": "2021-09-01T03:49:19-07:00",
+          "tree_id": "0e7331abc94ba271761cecfaa5804a7a1f814845",
+          "url": "https://github.com/rocicorp/replicache/commit/cad1df93f2d65ff999787f1134dd1012e5bf9118"
+        },
+        "date": 1630493456349,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 4.92,
+            "range": "±18.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.13,
+            "range": "±23.7%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.86,
+            "range": "±10.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.13,
+            "range": "±13.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 4.27,
+            "range": "±49.2%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 3.95,
+            "range": "±58.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 4.26,
+            "range": "±62.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 4.27,
+            "range": "±69.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±1261.1%",
+            "unit": "MB/s",
+            "extra": "97 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 94.6,
+            "range": "±473.7%",
+            "unit": "ops/sec",
+            "extra": "48 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 3.9,
+            "range": "±7.2%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 0.61,
+            "range": "±132.0%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 5.89,
+            "range": "±19.0%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 5.65,
+            "range": "±30.7%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 5.29,
+            "range": "±70.4%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription setup 10",
+            "value": 162.12,
+            "range": "±44.4%",
+            "unit": "ops/sec",
+            "extra": "82 samples"
+          },
+          {
+            "name": "subscription setup 100",
+            "value": 115.91,
+            "range": "±114.5%",
+            "unit": "ops/sec",
+            "extra": "58 samples"
+          },
+          {
+            "name": "subscription setup 1000",
+            "value": 49.54,
+            "range": "±113.8%",
+            "unit": "ops/sec",
+            "extra": "26 samples"
           }
         ]
       }

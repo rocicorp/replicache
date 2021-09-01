@@ -1,18 +1,15 @@
-# Getting binary dependencies
+# Updating docs
 
-`npm install` automatically downloads the correct version of the wasm bundle.
+The live docs at doc.replicache.dev are served from the `stable` channel so that they don't pick up wip API changes.
 
-# Building against a dev version of repc
+This means that if you do doc "sprucing" that you want to show up immediately, you need to cherry-pick the changes onto stable:
 
 ```
-rm -rf bin/repc
-ln -s /path/to/repc/pkg/Release bin/repc
-npm run build
+git checkout stable
+git cherry-pick <hash-of-spruce-commit>
 ```
 
-Note that if you run `npm install` subsequently, you'll nuke that link and have to create it again.
-
-The build script copies to a new directory, so you need to re-run `npm run build` each time you modify `repc`.
+During release, below, we reset the stable branch to master, dropping these cherry-picked changes. So it's important to never do work directly on stable.
 
 # Building a release
 
@@ -137,7 +134,7 @@ to deploy a new version.
 
 ```
 git checkout stable
-git rebase main
+git reset --hard main
 git push origin stable
 ```
 

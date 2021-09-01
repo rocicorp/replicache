@@ -1,10 +1,12 @@
 import type * as dag from '../dag/mod';
 import {arrayCompare} from './array-compare';
 import {Leaf} from './leaf';
-import type {Entry} from './mod';
 import {PeekIterator} from './peek-iterator';
 import {stringCompare} from './string-compare';
 import * as utf8 from '../utf8';
+
+// TODO(arv): Use string for key instead of Uint8Array
+export type Entry = [key: Uint8Array, value: Uint8Array];
 
 class ProllyMap {
   private _base: Leaf | undefined;
@@ -113,27 +115,27 @@ class ProllyMap {
       }
 
       if (a.done && !b.done) {
-        keys.push(utf8.decode(b.value.key));
+        keys.push(utf8.decode(b.value[0]));
         b = itB.next();
       } else if (!a.done && b.done) {
-        keys.push(utf8.decode(a.value.key));
+        keys.push(utf8.decode(a.value[0]));
         a = itA.next();
       } else if (!a.done && !b.done) {
-        const ord = arrayCompare(a.value.key, b.value.key);
+        const ord = arrayCompare(a.value[0], b.value[0]);
         switch (ord) {
           case -1:
-            keys.push(utf8.decode(a.value.key));
+            keys.push(utf8.decode(a.value[0]));
             a = itA.next();
             break;
           case 0:
-            if (arrayCompare(a.value.val, b.value.val) !== 0) {
-              keys.push(utf8.decode(a.value.key));
+            if (arrayCompare(a.value[1], b.value[1]) !== 0) {
+              keys.push(utf8.decode(a.value[0]));
             }
             a = itA.next();
             b = itB.next();
             break;
           case +1:
-            keys.push(utf8.decode(b.value.key));
+            keys.push(utf8.decode(b.value[0]));
             b = itB.next();
             break;
         }
@@ -176,11 +178,8 @@ const emptyIterator: Iterator<Entry> = {
   },
 };
 
-type DeletableEntry = {
-  // TODO(arv): Use string here
-  key: Uint8Array;
-  val: Uint8Array | null;
-};
+// TODO(arv): Use string here
+type DeletableEntry = [key: Uint8Array, val: Uint8Array | null];
 
 // TODO(arv): Refactor to use generator(s)?
 class Iter implements IterableIterator<Entry> {
@@ -195,10 +194,10 @@ class Iter implements IterableIterator<Entry> {
     // Since we do not have a BTreeMap we have to sort the pending entries.
     const p: [string, Uint8Array | null][] = [...pending];
     p.sort((a, b) => stringCompare(a[0], b[0]));
-    const entries: DeletableEntry[] = p.map(([key, val]) => ({
-      key: utf8.encode(key),
+    const entries: DeletableEntry[] = p.map(([key, val]) => [
+      utf8.encode(key),
       val,
-    }));
+    ]);
     this._pending = new PeekIterator(entries.values());
   }
 
@@ -212,7 +211,7 @@ class Iter implements IterableIterator<Entry> {
       if (ni.done) {
         return ni;
       }
-      if (ni.value.val === null) {
+      if (ni.value[1] === null) {
         // Key was deleted
         continue;
       }
@@ -240,8 +239,8 @@ class Iter implements IterableIterator<Entry> {
       return this._nextPending();
     }
 
-    const pendingKey = pendingKeyIterRes.value.key;
-    const baseKey = baseKeyIterRes.value.key;
+    const pendingKey = pendingKeyIterRes.value[0];
+    const baseKey = baseKeyIterRes.value[0];
 
     let r: IteratorResult<DeletableEntry> = {done: true, value: undefined};
     const cmp = arrayCompare(baseKey, pendingKey);

@@ -19,8 +19,8 @@ export class Leaf {
     for (const entry of entries) {
       const leafEntry = LeafEntryFB.createLeafEntry(
         builder,
-        LeafEntryFB.createKeyVector(builder, entry.key),
-        LeafEntryFB.createValVector(builder, entry.val),
+        LeafEntryFB.createKeyVector(builder, entry[0]),
+        LeafEntryFB.createValVector(builder, entry[1]),
       );
       leafEntries.push(leafEntry);
     }
@@ -81,12 +81,12 @@ export class Leaf {
     for (let i = 0; i < root.entriesLength(); i++) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const entry = root.entries(i)!;
-      yield {
+      yield [
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        key: entry.keyArray()!,
+        entry.keyArray()!,
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        val: entry.valArray()!,
-      };
+        entry.valArray()!,
+      ];
     }
   }
 

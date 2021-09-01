@@ -42,20 +42,11 @@ test('try from', () => {
   };
 
   // zero-length keys and vals are supported.
-  t(makeLeaf([u8s(), u8s()]), {
-    key: u8s(),
-    val: u8s(),
-  });
+  t(makeLeaf([u8s(), u8s()]), [u8s(), u8s()]);
 
   // normal non-zero keys and values too.
-  t(makeLeaf([u8s(1), u8s(1)]), {
-    key: u8s(1),
-    val: u8s(1),
-  });
-  t(makeLeaf([u8s(1, 2), u8s(3, 4)]), {
-    key: u8s(1, 2),
-    val: u8s(3, 4),
-  });
+  t(makeLeaf([u8s(1), u8s(1)]), [u8s(1), u8s(1)]);
+  t(makeLeaf([u8s(1, 2), u8s(3, 4)]), [u8s(1, 2), u8s(3, 4)]);
 });
 
 const u8s = (...arr: number[]) => new Uint8Array(arr);
@@ -75,32 +66,21 @@ test('leaf iter', async () => {
   t(makeLeaf([]), []);
 
   // Single entry
-  t(makeLeaf([[1], [2]]), [
-    {
-      key: u8s(1),
-      val: u8s(2),
-    },
-  ]);
+  t(makeLeaf([[1], [2]]), [[u8s(1), u8s(2)]]);
 
   // multiple entries
   t(makeLeaf([[], [], [1], [1]]), [
-    {
-      key: u8s(),
-      val: u8s(),
-    },
-    {
-      key: u8s(1),
-      val: u8s(1),
-    },
+    [u8s(), u8s()],
+    [u8s(1), u8s(1)],
   ]);
 });
 
 test('round trip', async () => {
   const k0 = u8s(0);
   const k1 = u8s(1);
-  const expected1 = [
-    {key: k0, val: k0},
-    {key: k1, val: k1},
+  const expected1: Entry[] = [
+    [k0, k0],
+    [k1, k1],
   ];
   const expected = Leaf.new(expected1);
   const actual = Leaf.load(

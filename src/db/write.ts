@@ -235,12 +235,12 @@ export class Write {
         indexValue(
           indexMap,
           IndexOperation.Add,
-          entry.key,
-          entry.val,
+          entry[0],
+          entry[1],
           jsonPointer,
         );
       } catch (e) {
-        lc.info?.('Not indexing value', utf8.decode(entry.val), ':', e);
+        lc.info?.('Not indexing value', utf8.decode(entry[1]), ':', e);
       }
     }
 

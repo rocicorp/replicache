@@ -480,7 +480,6 @@ test('begin try pull', async () => {
         );
         const gotValueMap: [Uint8Array, Uint8Array][] = Array.from(
           map.entries(),
-          ({key, val}) => [key, val],
         );
         gotValueMap.sort((a, b) => arrayCompare(a[0], b[0]));
         const expValueMap = Array.from(expSyncHead.valueMap, entry =>

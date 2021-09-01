@@ -19,13 +19,7 @@ function makeMap(
 ): prolly.Map {
   const entries = base && base.sort();
   const leaf =
-    entries &&
-    Leaf.new(
-      entries.map(s => ({
-        key: utf8.encode(s),
-        val: utf8.encode(s),
-      })),
-    );
+    entries && Leaf.new(entries.map(s => [utf8.encode(s), utf8.encode(s)]));
 
   const pm = new Map();
   for (const p of pending) {
@@ -179,7 +173,7 @@ test('iter flush', async () => {
     const expected = expected1.map(utf8.encode);
 
     const t = (map: prolly.Map, expected: Uint8Array[]) => {
-      const actual = [...map].map(item => item.key);
+      const actual = [...map].map(item => item[0]);
       expect(actual).to.deep.equal(expected);
     };
 
@@ -266,13 +260,11 @@ function makeProllyMap(m: Record<string, string>): prolly.Map {
 }
 
 test('pending changes keys', async () => {
-  const base_map = new Map();
-  base_map.set(b`a`, b`a`);
-  base_map.set(b`b`, b`b`);
+  const baseMap = new Map();
+  baseMap.set(b`a`, b`a`);
+  baseMap.set(b`b`, b`b`);
 
-  const entries = [...base_map].map(([key, val]) => ({key, val}));
-
-  const base = Leaf.new(entries);
+  const base = Leaf.new(baseMap);
   const map = new prolly.Map(base, new Map());
 
   map.put(b`c`, b`c`);

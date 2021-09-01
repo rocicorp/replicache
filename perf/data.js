@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1630450628019,
+  "lastUpdate": 1630491274875,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -34724,6 +34724,156 @@ window.BENCHMARK_DATA = {
             "range": "±149.7%",
             "unit": "ops/sec",
             "extra": "24 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "a638fcf7b3fac7d355367c2ce6d130c785f8df7b",
+          "message": "Fix: compare to current main commit when computing changes from pull.\n\nWhen computing changed keys for a pull, we were comparing the last snapshot on main to the current state of the sync branch.\n\nThis is not correct, because main will typically have subsequent pending changes which have not been confirmed by server yet. We need to consider these changes too when computing the diff.\n\nFixes #466",
+          "timestamp": "2021-09-01T03:12:50-07:00",
+          "tree_id": "606f9aa8bff59ba68c555ad01a99670703baedad",
+          "url": "https://github.com/rocicorp/replicache/commit/a638fcf7b3fac7d355367c2ce6d130c785f8df7b"
+        },
+        "date": 1630491274618,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.16,
+            "range": "±21.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 4.25,
+            "range": "±16.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.96,
+            "range": "±19.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.96,
+            "range": "±8.2%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 4.13,
+            "range": "±47.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 3.96,
+            "range": "±61.7%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 4.33,
+            "range": "±57.7%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 4.15,
+            "range": "±63.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±1273.0%",
+            "unit": "MB/s",
+            "extra": "94 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 94.58,
+            "range": "±502.7%",
+            "unit": "ops/sec",
+            "extra": "48 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 3.74,
+            "range": "±7.2%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 0.62,
+            "range": "±130.9%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 5.8,
+            "range": "±16.4%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 5.67,
+            "range": "±15.3%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 5.19,
+            "range": "±40.5%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription setup 10",
+            "value": 160.4,
+            "range": "±71.9%",
+            "unit": "ops/sec",
+            "extra": "81 samples"
+          },
+          {
+            "name": "subscription setup 100",
+            "value": 108.95,
+            "range": "±260.7%",
+            "unit": "ops/sec",
+            "extra": "55 samples"
+          },
+          {
+            "name": "subscription setup 1000",
+            "value": 51.1,
+            "range": "±152.3%",
+            "unit": "ops/sec",
+            "extra": "26 samples"
           }
         ]
       }

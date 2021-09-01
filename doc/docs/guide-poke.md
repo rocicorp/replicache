@@ -20,12 +20,6 @@ export NEXT_PUBLIC_REPLICHAT_PUSHER_SECRET=<secret>
 export NEXT_PUBLIC_REPLICHAT_PUSHER_CLUSTER=<cluster>
 ```
 
-Then install the client and server Pusher libs:
-
-```js
-npm install pusher pusher-js
-```
-
 Import the library into `pages/api/replicache-push.js`:
 
 ```js

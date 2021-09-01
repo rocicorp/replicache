@@ -3,19 +3,8 @@ title: Install
 slug: /guide/install
 ---
 
-Nothing to it...
+Install Replicache and a few other utilities we'll use for this sample:
 
 ```bash
-npm install replicache replicache-react nanoid
-```
-
-... well, _almost_ nothing.
-
-Replicache uses [Wasm](https://webassembly.org/) internally. Most bundlers don't deal with this well yet,
-so it's easiest to just serve it as a static asset.
-
-Copy the Replicache Wasm module to your static assets directory:
-
-```bash
-cp node_modules/replicache/out/*.wasm public/
+npm install replicache replicache-react nanoid pg-promise pusher pusher-js
 ```

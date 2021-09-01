@@ -26,10 +26,6 @@ export default function Home() {
     const rep = new Replicache({
       pushURL: '/api/replicache-push',
       pullURL: '/api/replicache-pull',
-      // The .dev.wasm version is nice during development because it has
-      // symbols and additional debugging info. The .wasm version is smaller
-      // and faster.
-      wasmModule: '/replicache.dev.wasm',
     });
     listen(rep);
     setRep(rep);

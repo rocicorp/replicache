@@ -15,13 +15,7 @@ Head over to [Supabase](https://supabase.io) and create a free account and an em
 export REPLICHAT_DB_CONNECTION_STRING=<your connnection string>
 ```
 
-Then, install the Postgres client library:
-
-```bash
-npm install pg-promise
-```
-
-Create a new file `db.js` with this code:
+Then, create a new file `db.js` with this code:
 
 ```js
 import pgInit from 'pg-promise';

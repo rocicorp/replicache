@@ -239,7 +239,7 @@ export class Write {
           jsonPointer,
         );
       } catch (e) {
-        lc.info?.('Not indexing value', JSON.stringify(entry[1]), ':', e);
+        lc.info?.('Not indexing value', entry[1], ':', e);
       }
     }
 
@@ -381,7 +381,7 @@ async function updateIndexes(
         try {
           indexValue(map, op, key, val, idx.meta.definition.jsonPointer);
         } catch (e) {
-          lc.info?.('Not indexing value', JSON.stringify(val), ':', e);
+          lc.info?.('Not indexing value', val, ':', e);
         }
       });
     }

@@ -1055,21 +1055,6 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     return {result, ref};
   }
-
-  /* c8 ignore next 13 */
-  /**
-   * When this is set to `true` the internal Replicache wasm module will log
-   * more things to the console (using `console.debug`). Setting this to false
-   * reduces the amount of logging done by the wasm module.
-   *
-   * If you want to see the verbose logging from Replicache in Devtools/Web
-   * Inspector you also need to change the console log level to `Verbose`.
-   * @deprecated
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async setVerboseWasmLogging(): Promise<void> {
-    // deprecated
-  }
 }
 
 function checkStatus(

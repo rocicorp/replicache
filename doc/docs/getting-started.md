@@ -31,23 +31,6 @@ npm install replicache
   </TabItem>
 </Tabs>
 
-## Serve Wasm Module
-
-Replicache uses [Wasm](https://webassembly.org/) internally. Most bundlers don't deal with this well yet,
-so it's easiest to just serve it as a static asset.
-
-Copy the Replicache Wasm module to your static assets directory:
-
-```bash
-cp node_modules/replicache/out/*.wasm public/
-```
-
-:::note
-
-You should add a [postinstall](https://docs.npmjs.com/cli/v7/using-npm/scripts) script to do this in your app, so that it will stay up to date when you update Replicache.
-
-:::
-
 ## Client Setup
 
 <Tabs
@@ -65,9 +48,6 @@ import {useSubscribe} from 'replicache';
 import {nanoid} from 'nanoid';
 
 const rep = new Replicache({
-  // Put the correct path to replicache.wasm.br on your server here.
-  wasmModule: '/replicache.wasm',
-
   mutators: {
     createTodo: (tx, args) => {
       tx.put(`/todo/${args.id}`, args);
@@ -102,9 +82,6 @@ import {Replicache} from 'replicache';
 import {nanoid} from 'nanoid';
 
 const rep = new Replicache({
-  // Put the correct path to replicache.wasm[.br] on your server here.
-  wasmModule: '/replicache.wasm',
-
   mutators: {
     createTodo: (tx, args) => {
       tx.put(`/todo/${args.id}`, args);

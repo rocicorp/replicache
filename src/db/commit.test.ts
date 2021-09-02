@@ -28,9 +28,10 @@ import {
 import {LocalMeta as LocalMetaFB} from './generated/commit/local-meta';
 import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
 import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
-import {b} from '../test-util';
 import {initHasher} from '../hash';
-
+import type {JSONValue} from '../json';
+import * as utf8 from '../utf8';
+import {b} from '../test-util';
 setup(async () => {
   await initHasher();
 });
@@ -212,17 +213,16 @@ test('load roundtrip', async () => {
   );
 
   const cookie = {foo: 'bar'};
-  const cookieBytes = b`${JSON.stringify(cookie)}`;
   for (const basisHash of [undefined, '', 'hash']) {
     t(
       await makeCommit(
-        fb => makeSnapshotMeta(fb, 0, b`{"foo":"bar"}`),
+        fb => makeSnapshotMeta(fb, 0, {foo: 'bar'}),
         basisHash,
         'vh',
         ['vh'],
         undefined,
       ),
-      await commitNewSnapshot(basisHash, 0, cookieBytes, 'vh', []),
+      await commitNewSnapshot(basisHash, 0, cookie, 'vh', []),
     );
   }
   t(
@@ -282,7 +282,7 @@ test('accessors', async () => {
 
   const snapshot = fromChunk(
     await makeCommit(
-      fb => makeSnapshotMeta(fb, 2, b`${JSON.stringify('cookie 2')}`),
+      fb => makeSnapshotMeta(fb, 2, 'cookie 2'),
       'basis_hash 2',
       'value_hash 2',
       ['value_hash 2', 'basis_hash 2'],
@@ -293,6 +293,7 @@ test('accessors', async () => {
     const sm = snapshot.meta().typed() as SnapshotMeta;
     expect(sm.lastMutationID()).to.equal(2);
     expect(sm.cookieJSON()).to.deep.equal(b`"cookie 2"`);
+    expect(sm.cookieJSONValue()).to.deep.equal('cookie 2');
   } else {
     throw new Error('unexpected type');
   }
@@ -417,14 +418,15 @@ function makeLocalMeta(
 function makeSnapshotMeta(
   builder: flatbuffers.Builder,
   lastMutationId: number,
-  cookieJSON: Uint8Array | undefined,
+  cookieJSON: JSONValue | undefined,
 ): [MetaTypedFB, number] {
+  const cookieBytes = utf8.encode(JSON.stringify(cookieJSON));
   const snapshotMeta = SnapshotMetaFB.createSnapshotMeta(
     builder,
     builder.createLong(lastMutationId, 0),
     cookieJSON === undefined
       ? 0
-      : SnapshotMetaFB.createCookieJsonVector(builder, cookieJSON),
+      : SnapshotMetaFB.createCookieJsonVector(builder, cookieBytes),
   );
   return [MetaTypedFB.SnapshotMeta, snapshotMeta];
 }

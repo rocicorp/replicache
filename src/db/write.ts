@@ -10,7 +10,6 @@ import {
 } from './commit';
 import {Read, readCommit, readIndexes, Whence} from './read';
 import {Index, IndexOperation, indexValue} from './index';
-import {startsWith} from './starts-with';
 import {scanRaw} from './scan';
 import * as utf8 from '../utf8';
 import type {LogContext} from '../logger';
@@ -132,7 +131,7 @@ export class Write {
     );
   }
 
-  async put(lc: LogContext, key: Uint8Array, val: Uint8Array): Promise<void> {
+  async put(lc: LogContext, key: string, val: JSONValue): Promise<void> {
     if (this._meta.type === MetaType.IndexChange) {
       throw new Error('Not allowed');
     }
@@ -159,7 +158,7 @@ export class Write {
     this.map.put(key, val);
   }
 
-  async del(lc: LogContext, key: Uint8Array): Promise<void> {
+  async del(lc: LogContext, key: string): Promise<void> {
     if (this._meta.type === MetaType.IndexChange) {
       throw new Error('Not allowed');
     }
@@ -193,7 +192,7 @@ export class Write {
   async createIndex(
     lc: LogContext,
     name: string,
-    keyPrefix: Uint8Array,
+    keyPrefix: string,
     jsonPointer: string,
   ): Promise<void> {
     if (this._meta.type === MetaType.Local) {
@@ -240,7 +239,7 @@ export class Write {
           jsonPointer,
         );
       } catch (e) {
-        lc.info?.('Not indexing value', utf8.decode(entry[1]), ':', e);
+        lc.info?.('Not indexing value', entry[1], ':', e);
       }
     }
 
@@ -322,7 +321,7 @@ export class Write {
         commit = await commitNewSnapshot(
           basisHash,
           lastMutationID,
-          utf8.encode(JSON.stringify(cookie)),
+          cookie,
           valueHash,
           indexMetas,
         );
@@ -369,11 +368,11 @@ async function updateIndexes(
   indexes: Map<string, Index>,
   dagWrite: dag.Write,
   op: IndexOperation,
-  key: Uint8Array,
-  val: Uint8Array,
+  key: string,
+  val: JSONValue,
 ): Promise<void> {
   for (const idx of indexes.values()) {
-    if (startsWith(idx.meta.definition.keyPrefix, key)) {
+    if (key.startsWith(idx.meta.definition.keyPrefix)) {
       await idx.withMap(dagWrite.read(), map => {
         // Right now all the errors that index_value() returns are customers dev
         // problems: either the value is not json, the pointer is into nowhere, etc.
@@ -382,7 +381,7 @@ async function updateIndexes(
         try {
           indexValue(map, op, key, val, idx.meta.definition.jsonPointer);
         } catch (e) {
-          lc.info?.('Not indexing value', utf8.decode(val), ':', e);
+          lc.info?.('Not indexing value', val, ':', e);
         }
       });
     }

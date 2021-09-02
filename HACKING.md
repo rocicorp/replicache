@@ -143,5 +143,3 @@ git cherry-pick <hash-of-spruce-commit>
 ```
 
 During release, below, we reset the stable branch to master, dropping these cherry-picked changes. So it's important to never do work directly on stable.
-
-

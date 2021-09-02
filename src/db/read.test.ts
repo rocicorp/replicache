@@ -3,7 +3,6 @@ import * as dag from '../dag/mod';
 import {initHasher} from '../hash';
 import {MemStore} from '../kv/mod';
 import {LogContext} from '../logger';
-import {b} from '../test-util';
 import {DEFAULT_HEAD_NAME} from './commit';
 import {fromWhence, whenceHead} from './read';
 import {initDB, Write} from './write';
@@ -23,11 +22,11 @@ test('basics', async () => {
     undefined,
     await ds.write(),
   );
-  await w.put(lc, b`foo`, b`bar`);
+  await w.put(lc, 'foo', 'bar');
   await w.commit(DEFAULT_HEAD_NAME);
 
   const dr = await ds.read();
   const r = await fromWhence(whenceHead(DEFAULT_HEAD_NAME), dr);
-  const val = r.get(b`foo`);
-  expect(val).to.deep.equal(b`bar`);
+  const val = r.get('foo');
+  expect(val).to.deep.equal('bar');
 });

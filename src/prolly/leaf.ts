@@ -1,112 +1,52 @@
 import {Chunk} from '../dag/mod';
 import type {Entry} from './mod';
-import * as flatbuffers from 'flatbuffers';
-import {Leaf as LeafFB} from './generated/leaf/leaf';
-import {LeafEntry as LeafEntryFB} from './generated/leaf/leaf-entry';
-import {arrayCompare} from './array-compare';
-import {assertNotNull} from '../asserts';
+import {stringCompare} from './string-compare';
+import {assertArray, assertString} from '../asserts';
+import {assertJSONValue} from '../json';
 
 export class Leaf {
-  readonly chunk: Chunk;
+  private _chunk: Chunk | undefined;
+  readonly entries: Entry[];
 
-  private constructor(chunk: Chunk) {
-    this.chunk = chunk;
-  }
-
-  static new(entries: Iterable<Entry>): Leaf {
-    const builder = new flatbuffers.Builder();
-    const leafEntries = [];
-    for (const entry of entries) {
-      const leafEntry = LeafEntryFB.createLeafEntry(
-        builder,
-        LeafEntryFB.createKeyVector(builder, entry[0]),
-        LeafEntryFB.createValVector(builder, entry[1]),
-      );
-      leafEntries.push(leafEntry);
-    }
-    const root = LeafFB.createLeaf(
-      builder,
-      LeafFB.createEntriesVector(builder, leafEntries),
-    );
-    builder.finish(root);
-    const data = builder.asUint8Array();
-
-    const chunk = Chunk.new(data, []);
-    return new Leaf(chunk);
+  constructor(entries: Entry[]) {
+    this.entries = entries;
   }
 
   static load(chunk: Chunk): Leaf {
     // Validate at load-time so we can assume data is valid thereafter.
-    const buf = new flatbuffers.ByteBuffer(chunk.data);
-    const root = LeafFB.getRootAsLeaf(buf);
-
-    // Rust has a 'missing entries' error but the TS/JS bindings has no way to
-    // distinguish if the entries is present and empty vs missing.
-
-    const entriesLength = root.entriesLength();
-
-    let prev: Uint8Array | null = null;
-    for (let i = 0; i < entriesLength; i++) {
-      const entry = root.entries(i);
-      assertNotNull(entry);
-      const ek = entry.keyArray();
-
-      if (prev !== null) {
-        if (!ek) {
-          throw new Error('missing key');
-        }
-        const ord = arrayCompare(prev, ek);
-        if (ord === 0) {
-          throw new Error('duplicate key');
-        }
-        if (ord > 0) {
-          throw new Error('unsorted key');
-        }
+    const entries = chunk.data;
+    // Assert that the shape/type is correct
+    assertEntries(entries);
+    // But also assert that entries is sorted and has no duplicate keys.
+    const seen = new Set();
+    for (let i = 0; i < entries.length - 1; i++) {
+      const entry = entries[i];
+      const next = entries[i + 1];
+      if (entry[0] === next[0] || seen.has(entry[0])) {
+        throw new Error('duplicate key');
       }
-      if (!ek) {
-        throw new Error('missing key');
+      if (entry[0] > next[0]) {
+        throw new Error('unsorted key');
       }
-      if (entry.valArray() === null) {
-        throw new Error('missing val');
-      }
-      prev = ek;
+      seen.add(entry[0]);
     }
-
-    return new Leaf(chunk);
+    return new Leaf(entries);
   }
 
-  *entries(): Generator<Entry, void> {
-    const buf = new flatbuffers.ByteBuffer(this.chunk.data);
-    const root = LeafFB.getRootAsLeaf(buf);
-    for (let i = 0; i < root.entriesLength(); i++) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const entry = root.entries(i)!;
-      yield [
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        entry.keyArray()!,
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        entry.valArray()!,
-      ];
+  get chunk(): Chunk {
+    if (this._chunk === undefined) {
+      this._chunk = Chunk.new(this.entries, []);
     }
+    return this._chunk;
   }
 
-  [Symbol.iterator](): Generator<Entry, void> {
-    return this.entries();
+  [Symbol.iterator](): IterableIterator<Entry> {
+    return this.entries.values();
   }
 
-  getEntryByIndex(i: number): LeafEntryFB {
-    const buf = new flatbuffers.ByteBuffer(this.chunk.data);
-    const root = LeafFB.getRootAsLeaf(buf);
-    const entry = root.entries(i);
-    assertNotNull(entry);
-    return entry;
-  }
-
-  binarySearch(key: Uint8Array): {found: boolean; index: number} {
-    const buf = new flatbuffers.ByteBuffer(this.chunk.data);
-    const root = LeafFB.getRootAsLeaf(buf);
-
-    let size = root.entriesLength();
+  binarySearch(key: string): {found: boolean; index: number} {
+    const entries = this.entries;
+    let size = entries.length;
     if (size === 0) {
       return {found: false, index: 0};
     }
@@ -118,22 +58,35 @@ export class Leaf {
       // mid is always in [0, size), that means mid is >= 0 and < size.
       // mid >= 0: by definition
       // mid < size: mid = size / 2 + size / 4 + size / 8 ...
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const entry = root.entries(mid)!;
+      const entry = entries[mid];
       // No way that key can be None.
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const cmp = arrayCompare(entry.keyArray()!, key);
+      const cmp = stringCompare(entry[0], key);
       base = cmp > 0 ? base : mid;
       size -= half;
     }
     // base is always in [0, size) because base <= mid.
+    const entry = entries[base];
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const entry = root.entries(base)!;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const cmp = arrayCompare(entry.keyArray()!, key);
+    const cmp = stringCompare(entry[0], key);
     if (cmp === 0) {
       return {found: true, index: base};
     }
     return {found: false, index: base + cmp};
+  }
+}
+
+function assertEntry(v: unknown): asserts v is Entry {
+  assertArray(v);
+  if (v.length !== 2) {
+    throw new Error('Invalid entry length');
+  }
+  assertString(v[0]);
+  assertJSONValue(v[1]);
+}
+
+function assertEntries(v: unknown): asserts v is Entry[] {
+  assertArray(v);
+  for (const e of v) {
+    assertEntry(e);
   }
 }

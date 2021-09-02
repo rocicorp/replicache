@@ -4,17 +4,18 @@ import {Chunk} from './chunk';
 import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
 import {Write} from './write';
 import type * as kv from '../kv/mod';
-import {fromLittleEndian} from './dag';
 import {Read} from './read';
 import * as utf8 from '../utf8';
 import {initHasher} from '../hash';
+import {assertInstanceof} from '../asserts';
+import type {Value} from '../kv/store';
 
 setup(async () => {
   await initHasher();
 });
 
 test('put chunk', async () => {
-  const t = async (data: Uint8Array, refs: string[]) => {
+  const t = async (data: Value, refs: string[]) => {
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
@@ -39,18 +40,28 @@ test('put chunk', async () => {
   await t(new Uint8Array([]), []);
   await t(new Uint8Array([0]), ['r1']);
   await t(new Uint8Array([0, 1]), ['r1', 'r2']);
+
+  await t(0, []);
+  await t(42, []);
+  await t(true, []);
+  await t(false, []);
+  await t('', []);
+  await t('hello', []);
+  await t([], []);
+  await t([1], []);
+  await t({}, []);
+  await t({a: 42}, []);
 });
 
 async function assertRefCount(kvr: kv.Read, hash: string, count: number) {
-  const buf = await kvr.get(chunkRefCountKey(hash));
+  const value = await kvr.get(chunkRefCountKey(hash));
   if (count === 0) {
-    expect(buf).to.be.undefined;
+    expect(value).to.be.undefined;
   } else {
-    if (buf === undefined) {
-      throw new Error('buf is undefined');
+    if (value === undefined) {
+      throw new Error('value is undefined');
     }
-    const metaCount = fromLittleEndian(buf);
-    expect(metaCount).to.equal(count);
+    expect(value).to.equal(count);
   }
 }
 
@@ -61,6 +72,7 @@ test('set head', async () => {
       await w.setHead(name, hash);
       if (hash !== undefined) {
         const h = await kvw.get(headKey(name));
+        assertInstanceof(h, Uint8Array);
         expect(hash).to.equal(h && utf8.decode(h));
       } else {
         expect(await kvw.get(headKey(name))).to.be.undefined;

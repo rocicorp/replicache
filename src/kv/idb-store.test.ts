@@ -1,7 +1,6 @@
 import {runAll, TestStore} from './store-test-util';
 import {dropStore, IDBStore} from './idb-store';
 import {expect} from '@esm-bundle/chai';
-import {b} from '../test-util';
 
 async function newRandomIDBStore() {
   const name = `test-idbstore-${Math.random()}`;
@@ -19,13 +18,13 @@ test('dropStore', async () => {
 
   // Write a value.
   await store.withWrite(async wt => {
-    await wt.put('foo', b`bar`);
+    await wt.put('foo', 'bar');
     await wt.commit();
   });
 
   // Verify it's there.
   await store.withRead(async rt => {
-    expect(await rt.get('foo')).to.deep.equal(b`bar`);
+    expect(await rt.get('foo')).to.deep.equal('bar');
   });
 
   // Drop db

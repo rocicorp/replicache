@@ -55,7 +55,7 @@ test('open transaction rebase opts', async () => {
   }
   expect(result).to.be.instanceOf(Error);
   expect(result.message).to.equal(
-    'WrongSyncHeadJSLogInfo: sync head is c50qh3sv6pv6g956205g5566ftjd20pr, transaction basis is 5vm3movfjjpjs5sanpmnd4n965kvn04p',
+    'WrongSyncHeadJSLogInfo: sync head is gqk75j4vb3mg47d91rni5gode932hqql, transaction basis is 5h7dkptf44u0231bm0lop6cve7suipit',
   );
 
   // Error: rebase commit's name should not change.

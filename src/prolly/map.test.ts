@@ -4,9 +4,9 @@ import {MemStore} from '../kv/mod';
 import {Leaf} from './leaf';
 import {stringCompare} from './string-compare';
 import * as prolly from './mod';
-import * as utf8 from '../utf8';
-import {b} from '../test-util';
 import {initHasher} from '../hash';
+import type {JSONValue} from '../json';
+import {deleteSentinel, DeleteSentinel} from './map';
 
 setup(async () => {
   await initHasher();
@@ -18,24 +18,22 @@ function makeMap(
   deleted: string[],
 ): prolly.Map {
   const entries = base && base.sort();
-  const leaf =
-    entries && Leaf.new(entries.map(s => [utf8.encode(s), utf8.encode(s)]));
+  const leaf = entries && new Leaf(entries.map(s => [s, s]));
 
   const pm = new Map();
   for (const p of pending) {
-    const v = utf8.encode(p);
-    v.reverse();
+    const v = p.split('').reverse().join('');
     pm.set(p, v);
   }
   for (const p of deleted) {
-    pm.set(p, null);
+    pm.set(p, deleteSentinel);
   }
   return new prolly.Map(leaf, pm);
 }
 
 test('has', () => {
   const t = (map: prolly.Map, test: string, expected: boolean) => {
-    const actual = map.has(utf8.encode(test));
+    const actual = map.has(test);
     expect(actual).to.equal(expected);
   };
 
@@ -68,8 +66,8 @@ test('has', () => {
 
 test('get', async () => {
   const t = (map: prolly.Map, test: string, expected: string | undefined) => {
-    const actual = map.get(utf8.encode(test));
-    expect(actual).to.deep.equal(expected && utf8.encode(expected));
+    const actual = map.get(test);
+    expect(actual).to.deep.equal(expected);
   };
 
   // Empty
@@ -113,9 +111,9 @@ test('put', async () => {
     expected: string | undefined,
   ) => {
     const map = makeMap(base, pending, deleted);
-    map.put(utf8.encode(put), b`x`);
-    const actual = map.get(utf8.encode(put));
-    expect(actual).to.deep.equal(expected && utf8.encode(expected));
+    map.put(put, 'x');
+    const actual = map.get(put);
+    expect(actual).to.deep.equal(expected);
   };
 
   // Empty
@@ -141,8 +139,8 @@ test('del', async () => {
     del: string,
   ) => {
     const map = makeMap(base, pending, deleted);
-    map.del(utf8.encode(del));
-    const has = map.has(utf8.encode(del));
+    map.del(del);
+    const has = map.has(del);
     expect(has).to.be.false;
   };
 
@@ -167,12 +165,11 @@ test('iter flush', async () => {
     base: string[] | undefined,
     pending: string[],
     deleted: string[],
-    expected1: string[],
+    expected: string[],
   ) => {
     const map = makeMap(base, pending, deleted);
-    const expected = expected1.map(utf8.encode);
 
-    const t = (map: prolly.Map, expected: Uint8Array[]) => {
+    const t = (map: prolly.Map, expected: string[]) => {
       const actual = [...map].map(item => item[0]);
       expect(actual).to.deep.equal(expected);
     };
@@ -201,22 +198,22 @@ test('iter flush', async () => {
 
   // Base-only
   await t([], [], [], []);
-  await t([''], [], [], ['']);
-  await t(['', 'foo'], [], [], ['', 'foo']);
+  await t(['0'], [], [], ['0']);
+  await t(['0', 'foo'], [], [], ['0', 'foo']);
 
   // Pending-only
-  await t(undefined, [''], [], ['']);
-  await t(undefined, ['', 'foo'], [], ['', 'foo']);
+  await t(undefined, ['0'], [], ['0']);
+  await t(undefined, ['0', 'foo'], [], ['0', 'foo']);
 
   // basic+pending
-  await t(['', 'foo'], ['bar', 'foo'], [], ['', 'bar', 'foo']);
-  await t([''], ['', 'bar'], [], ['', 'bar']);
+  await t(['0', 'foo'], ['bar', 'foo'], [], ['0', 'bar', 'foo']);
+  await t(['0'], ['0', 'bar'], [], ['0', 'bar']);
   await t(['a', 'b'], ['c', 'd'], [], ['a', 'b', 'c', 'd']);
   await t(['c', 'd'], ['a', 'b'], [], ['a', 'b', 'c', 'd']);
   await t(['b', 'd'], ['a', 'c'], [], ['a', 'b', 'c', 'd']);
 
   // deletes
-  await t([], [], [''], []);
+  await t([], [], ['0'], []);
   await t([], [], ['a'], []);
   await t(['a'], [], ['a'], []);
   await t(['a', 'b'], [], ['a'], ['b']);
@@ -252,35 +249,35 @@ test('changed keys', () => {
 function makeProllyMap(m: Record<string, string>): prolly.Map {
   const entries = Object.entries(m);
   entries.sort((a, b) => stringCompare(a[0], b[0]));
-  const pending: Map<string, Uint8Array | null> = new Map();
+  const pending: Map<string, JSONValue | DeleteSentinel> = new Map();
   for (const [key, value] of entries) {
-    pending.set(key, utf8.encode(value));
+    pending.set(key, value);
   }
   return new prolly.Map(undefined, pending);
 }
 
 test('pending changes keys', async () => {
   const baseMap = new Map();
-  baseMap.set(b`a`, b`a`);
-  baseMap.set(b`b`, b`b`);
+  baseMap.set('a', 'a');
+  baseMap.set('b', 'b');
 
-  const base = Leaf.new(baseMap);
+  const base = new Leaf([...baseMap]);
   const map = new prolly.Map(base, new Map());
 
-  map.put(b`c`, b`c`);
+  map.put('c', 'c');
   expect(map.pendingChangedKeys()).to.deep.equal(['c']);
 
   // Set b to b again... should be a nop
-  map.put(b`b`, b`b`);
+  map.put('b', 'b');
   expect(map.pendingChangedKeys()).to.deep.equal(['c']);
 
   // Remove c from pending
-  map.del(b`c`);
+  map.del('c');
   expect(map.pendingChangedKeys()).to.deep.equal([]);
 
-  map.del(b`d`);
+  map.del('d');
   expect(map.pendingChangedKeys()).to.deep.equal([]);
 
-  map.put(b`b`, b`2`);
+  map.put('b', '2');
   expect(map.pendingChangedKeys()).to.deep.equal(['b']);
 });

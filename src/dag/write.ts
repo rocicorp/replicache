@@ -1,9 +1,14 @@
 import type * as kv from '../kv/mod';
-import {HeadChange, toLittleEndian, fromLittleEndian} from './dag';
 import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key';
 import {Read} from './read';
-import {Chunk, getRefsFromMeta} from './chunk';
+import {assertMeta, Chunk} from './chunk';
 import * as utf8 from '../utf8';
+import {assertNumber} from '../asserts';
+
+type HeadChange = {
+  new: string | undefined;
+  old: string | undefined;
+};
 
 export class Write {
   private readonly _kvw: kv.Write;
@@ -23,7 +28,7 @@ export class Write {
     const key = chunkDataKey(hash);
     const p1 = this._kvw.put(key, data);
     let p2;
-    if (meta !== undefined) {
+    if (meta.length > 0) {
       p2 = this._kvw.put(chunkMetaKey(hash), meta);
     }
     this._newChunks.add(c.hash);
@@ -96,12 +101,10 @@ export class Write {
     const newCount = oldCount + delta;
 
     if ((oldCount === 0 && delta === 1) || (oldCount === 1 && delta === -1)) {
-      const metaKey = chunkMetaKey(hash);
-      const buf = await this._kvw.get(metaKey);
-      if (buf !== undefined) {
-        const ps = getRefsFromMeta(buf).map(ref =>
-          this.changeRefCount(ref, delta),
-        );
+      const meta = await this._kvw.get(chunkMetaKey(hash));
+      if (meta !== undefined) {
+        assertMeta(meta);
+        const ps = meta.map(ref => this.changeRefCount(ref, delta));
         await Promise.all(ps);
       }
     }
@@ -114,22 +117,21 @@ export class Write {
   }
 
   async setRefCount(hash: string, count: number): Promise<void> {
-    // Ref count is represented as a u16 stored as 2 bytes using BE.
     const refCountKey = chunkRefCountKey(hash);
-    const buf = toLittleEndian(count);
     if (count === 0) {
       await this._kvw.del(refCountKey);
     } else {
-      await this._kvw.put(refCountKey, buf);
+      await this._kvw.put(refCountKey, count);
     }
   }
 
   async getRefCount(hash: string): Promise<number> {
-    const buf = await this._kvw.get(chunkRefCountKey(hash));
-    if (buf === undefined) {
+    const value = await this._kvw.get(chunkRefCountKey(hash));
+    if (value === undefined) {
       return 0;
     }
-    return fromLittleEndian(buf);
+    assertNumber(value);
+    return value;
   }
 
   async removeAllRelatedKeys(

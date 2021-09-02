@@ -76,29 +76,6 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
   pushDelay?: number;
 
   /**
-   * By default we will load the Replicache wasm module relative to the
-   * Replicache js files but under some circumstances (like bundling with old
-   * versions of Webpack) it is useful to manually configure where the wasm
-   * module is located on the web server.
-   *
-   * If you provide your own path to the wasm module it probably makes sense to
-   * use a relative URL relative to your current file.
-   *
-   * ```js
-   * wasmModule: new URL('./relative/path/to/replicache.wasm', import.meta.url),
-   * ```
-   *
-   * You might also want to consider using an absolute URL so that we can find
-   * the wasm module no matter where your js file is loaded from:
-   *
-   * ```js
-   * wasmModule: '/static/replicache.wasm',
-   * ```
-   * @deprecated This is no longer needed.
-   */
-  wasmModule?: unknown;
-
-  /**
    * Allows using an in memory store instead of IndexedDB. This is useful for
    * testing for example. Notice that when this is `true` no data is persisted
    * in Replicache and all the data that has not yet been synced when Replicache

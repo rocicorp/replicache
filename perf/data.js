@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1630615822910,
+  "lastUpdate": 1630617694497,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -36224,6 +36224,156 @@ window.BENCHMARK_DATA = {
             "range": "±167.1%",
             "unit": "ops/sec",
             "extra": "28 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "48c699c27abf62565360a771d4fb935f7ab8f95a",
+          "message": "Store JS Values in IDB (#470)\n\n* Store JS Values in IDB\r\n\r\nThis contains a few changes that were all related.\r\n\r\n- Change keys to `string`s (both for `prolly.Map` and `kv.Store`)\r\n- Removes the flatbuffer for prolly/Leaf and uses JSON instead.\r\n- Changes `kv.Value` to `JSONValue | Uint8Array`\r\n- Changes `prolly.Map` value to `JSONValue` (this has wide implications throughout)\r\n- IDB now stores `JSONValue | Uint8Array` directly\r\n\r\n* No need to JSON stringify console log\r\n\r\n* Cleanup",
+          "timestamp": "2021-09-02T21:20:06Z",
+          "tree_id": "2bc3405a6323f175e4a83d8e4b3561785c26a04e",
+          "url": "https://github.com/rocicorp/replicache/commit/48c699c27abf62565360a771d4fb935f7ab8f95a"
+        },
+        "date": 1630617694246,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 6.04,
+            "range": "±10.7%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 5.16,
+            "range": "±4.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 4.15,
+            "range": "±7.5%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.86,
+            "range": "±5.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 5.28,
+            "range": "±74.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 5.14,
+            "range": "±1.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 5.13,
+            "range": "±74.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 5.14,
+            "range": "±1.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±1300.0%",
+            "unit": "MB/s",
+            "extra": "96 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 104.62,
+            "range": "±501.4%",
+            "unit": "ops/sec",
+            "extra": "53 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 5.05,
+            "range": "±9.1%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.05,
+            "range": "±2.7%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 9.44,
+            "range": "±18.2%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 10.03,
+            "range": "±16.5%",
+            "unit": "ops/sec",
+            "extra": "6 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 9.6,
+            "range": "±13.3%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription setup 10",
+            "value": 353.43,
+            "range": "±237.0%",
+            "unit": "ops/sec",
+            "extra": "177 samples"
+          },
+          {
+            "name": "subscription setup 100",
+            "value": 286.51,
+            "range": "±262.5%",
+            "unit": "ops/sec",
+            "extra": "144 samples"
+          },
+          {
+            "name": "subscription setup 1000",
+            "value": 181.56,
+            "range": "±116.0%",
+            "unit": "ops/sec",
+            "extra": "91 samples"
           }
         ]
       }

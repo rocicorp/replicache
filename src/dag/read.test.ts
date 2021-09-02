@@ -34,7 +34,7 @@ test('get chunk', async () => {
     const chunk = Chunk.new(data, refs);
     await kv.withWrite(async kvw => {
       await kvw.put(chunkDataKey(chunk.hash), chunk.data);
-      if (chunk.meta) {
+      if (chunk.meta.length > 0) {
         await kvw.put(chunkMetaKey(chunk.hash), chunk.meta);
       }
       await kvw.commit();

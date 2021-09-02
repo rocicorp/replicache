@@ -123,7 +123,7 @@
         function init() {
           function collectBenchesPerTestCase(entries) {
             const map = new Map();
-            for (const entry of entries) {
+            for (const entry of entries.slice(-50)) {
               const {commit, date, tool, benches} = entry;
               for (const bench of benches) {
                 const result = { commit, date, tool, bench };

@@ -57,7 +57,7 @@ export type RebaseOpts = {
 
 export type OpenTransactionRequest = {
   name?: string;
-  args?: string;
+  args?: JSONValue;
   rebaseOpts?: RebaseOpts;
 };
 type OpenTransactionResponse = {

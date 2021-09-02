@@ -1,9 +1,9 @@
 import type * as kv from '../kv/mod';
 import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key';
 import {Read} from './read';
-import {Chunk, getRefsFromMeta} from './chunk';
+import {assertMeta, Chunk} from './chunk';
 import * as utf8 from '../utf8';
-import {assertInstanceof, assertNumber} from '../asserts';
+import {assertNumber} from '../asserts';
 
 type HeadChange = {
   new: string | undefined;
@@ -28,7 +28,7 @@ export class Write {
     const key = chunkDataKey(hash);
     const p1 = this._kvw.put(key, data);
     let p2;
-    if (meta !== undefined) {
+    if (meta.length > 0) {
       p2 = this._kvw.put(chunkMetaKey(hash), meta);
     }
     this._newChunks.add(c.hash);
@@ -101,13 +101,10 @@ export class Write {
     const newCount = oldCount + delta;
 
     if ((oldCount === 0 && delta === 1) || (oldCount === 1 && delta === -1)) {
-      const metaKey = chunkMetaKey(hash);
-      const buf = await this._kvw.get(metaKey);
-      if (buf !== undefined) {
-        assertInstanceof(buf, Uint8Array);
-        const ps = getRefsFromMeta(buf).map(ref =>
-          this.changeRefCount(ref, delta),
-        );
+      const meta = await this._kvw.get(chunkMetaKey(hash));
+      if (meta !== undefined) {
+        assertMeta(meta);
+        const ps = meta.map(ref => this.changeRefCount(ref, delta));
         await Promise.all(ps);
       }
     }

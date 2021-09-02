@@ -1,19 +1,20 @@
-import * as flatbuffers from 'flatbuffers';
+import {assertString} from '../asserts';
 import {Hash} from '../hash';
 import type {Value} from '../kv/store';
-import {Meta} from './generated/meta/meta';
+
+type Meta = string[];
 
 // TODO(arv): Make this class take a type parameter for the data type?
 export class Chunk {
   readonly hash: string;
   readonly data: Value;
   /**
-   * Meta is a Meta.fbs containing refs if there are any refs. If there are no
-   * refs we do not write a meta chunk.
+   * Meta is an array of refs. If there are no refs we do not write a meta
+   * chunk.
    */
-  readonly meta: Uint8Array | undefined;
+  readonly meta: Meta;
 
-  private constructor(hash: string, data: Value, meta: Uint8Array | undefined) {
+  private constructor(hash: string, data: Value, meta: Meta = []) {
     this.hash = hash;
     this.data = data;
     this.meta = meta;
@@ -23,34 +24,19 @@ export class Chunk {
     // Use hash of JSON stringified data if a JSONValue is passed.
     const sum = ArrayBuffer.isView(data) ? data : JSON.stringify(data);
     const hash = Hash.of(sum);
-    const meta = createMeta(refs);
-    return new Chunk(hash.toString(), data, meta);
+    return new Chunk(hash.toString(), data, refs);
   }
 
-  static read(hash: string, data: Value, meta: Uint8Array | undefined): Chunk {
+  static read(hash: string, data: Value, meta: Meta | undefined): Chunk {
     return new Chunk(hash, data, meta);
   }
 }
 
-export function getRefsFromMeta(meta: Uint8Array): string[] {
-  const buf = new flatbuffers.ByteBuffer(meta);
-  const metaObj = Meta.getRootAsMeta(buf);
-  const length = metaObj.refsLength();
-  return Array.from({length}, (_, i) => metaObj.refs(i));
-}
-
-function createMeta(refs: string[]): Uint8Array | undefined {
-  const refsLength = refs.length;
-  if (refsLength === 0) {
-    return undefined;
+export function assertMeta(v: unknown): asserts v is Meta {
+  if (!Array.isArray(v)) {
+    throw new Error('Meta must be an array');
   }
-
-  const builder = new flatbuffers.Builder();
-  const refsOffset = Meta.createRefsVector(
-    builder,
-    refs.map(r => builder.createString(r)),
-  );
-  const m = Meta.createMeta(builder, refsOffset);
-  builder.finish(m);
-  return builder.asUint8Array();
+  for (const e of v) {
+    assertString(e);
+  }
 }

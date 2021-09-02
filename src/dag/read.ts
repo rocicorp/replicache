@@ -1,5 +1,5 @@
 import type * as kv from '../kv/mod';
-import {Chunk} from './chunk';
+import {assertMeta, Chunk} from './chunk';
 import {chunkDataKey, chunkMetaKey, headKey} from './key';
 import * as utf8 from '../utf8';
 import {assertInstanceof} from '../asserts';
@@ -23,9 +23,12 @@ export class Read {
 
     const meta = await this._kvr.get(chunkMetaKey(hash));
     if (meta !== undefined) {
-      assertInstanceof(meta, Uint8Array);
+      assertMeta(meta);
+      if (meta.length > 0) {
+        return Chunk.read(hash, data, meta);
+      }
     }
-    return Chunk.read(hash, data, meta);
+    return Chunk.read(hash, data, undefined);
   }
 
   async getHead(name: string): Promise<string | undefined> {

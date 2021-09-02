@@ -241,12 +241,7 @@ test('create and drop index', async () => {
       const entries = [...indexMap];
       expect(entries).to.have.lengthOf(3);
       for (let i = 0; i < 3; i++) {
-        expect(entries[i][0]).to.deep.equal(
-          encodeIndexKey({
-            secondary: `s${i}`,
-            primary: `k${i}`,
-          }),
-        );
+        expect(entries[i][0]).to.deep.equal(encodeIndexKey([`s${i}`, `k${i}`]));
       }
     });
 

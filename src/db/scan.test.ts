@@ -1,9 +1,7 @@
 import {expect} from '@esm-bundle/chai';
 import {convert, scan, ScanItem, ScanOptions, ScanResultType} from './scan';
 import * as prolly from '../prolly/mod';
-import {b} from '../test-util';
 import {encodeIndexKey} from './index';
-import * as utf8 from '../utf8';
 
 test('scan', () => {
   const t = (opts: ScanOptions, expected: string[]) => {
@@ -14,9 +12,9 @@ test('scan', () => {
     )}, expected: ${expected}`;
 
     const map = prolly.Map.new();
-    map.put(b`foo`, b`foo`);
-    map.put(b`bar`, b`bar`);
-    map.put(b`baz`, b`baz`);
+    map.put('foo', 'foo');
+    map.put('bar', 'bar');
+    map.put('baz', 'baz');
     const optsInternal = convert(opts);
     const actual = [];
     for (const sr of scan(map, optsInternal)) {
@@ -25,7 +23,7 @@ test('scan', () => {
       }
       actual.push(sr.item.key);
     }
-    const expected2 = expected.map(utf8.encode);
+    const expected2 = expected;
     expect(actual).to.deep.equal(expected2, testDesc);
   };
 
@@ -321,7 +319,7 @@ test('exclusive regular map', () => {
     const testDesc = `keys: ${keys}, startKey: ${startKey}, expected: ${expected}`;
     const map = prolly.Map.new();
     for (const key of keys) {
-      map.put(utf8.encode(key), b`value`);
+      map.put(key, 'value');
     }
     const opts = {
       prefix: undefined,
@@ -338,7 +336,7 @@ test('exclusive regular map', () => {
       if (sr.type === ScanResultType.Error) {
         throw sr.error;
       }
-      got.push(utf8.decode(sr.item.key));
+      got.push(sr.item.key);
     }
     expect(got).to.deep.equal(expected, testDesc);
   };
@@ -351,20 +349,20 @@ test('exclusive regular map', () => {
 
 test('exclusive index map', () => {
   const t = (
-    entries: [string, Uint8Array][],
+    entries: [string, string][],
     startSecondaryKey: string,
     startKey: string | undefined,
-    expected: [string, Uint8Array][],
+    expected: [string, string][],
   ) => {
     const test_desc = `entries: ${entries}, startSecondaryKey ${startSecondaryKey}, startKey: ${startKey}, expected: ${expected}`;
 
     const map = prolly.Map.new();
     for (const entry of entries) {
       const encoded = encodeIndexKey({
-        secondary: utf8.encode(entry[0]),
+        secondary: entry[0],
         primary: entry[1],
       });
-      map.put(encoded, b`value`);
+      map.put(encoded, 'value');
     }
     const opts = {
       prefix: undefined,
@@ -379,18 +377,13 @@ test('exclusive index map', () => {
       if (sr.type === ScanResultType.Error) {
         throw sr.error;
       }
-      got.push([utf8.decode(sr.item.secondaryKey), sr.item.key]);
+      got.push([sr.item.secondaryKey, sr.item.key]);
     }
     expect(got).to.deep.equal(expected, test_desc);
   };
 
   // Test exclusive scanning with startSecondaryKey.
-  const v: Uint8Array[] = [
-    new Uint8Array([]),
-    new Uint8Array([0]),
-    new Uint8Array([1]),
-    new Uint8Array([1, 2]),
-  ];
+  const v: string[] = ['', '\u0000', '\u0001', '\u0001\u0002'];
   for (const pk of v) {
     t(
       [
@@ -458,133 +451,133 @@ test('exclusive index map', () => {
   // with the same secondary value.
   t(
     [
-      ['a', new Uint8Array([])],
-      ['a', new Uint8Array([0])],
-      ['a', new Uint8Array([0, 0])],
-      ['a', new Uint8Array([0, 1])],
-      ['a', new Uint8Array([1])],
+      ['a', ''],
+      ['a', '\u0000'],
+      ['a', '\u0000\u0000'],
+      ['a', '\u0000\u0001'],
+      ['a', '\u0001'],
     ],
     'a',
     '',
     [
-      ['a', new Uint8Array([0])],
-      ['a', new Uint8Array([0, 0])],
-      ['a', new Uint8Array([0, 1])],
-      ['a', new Uint8Array([1])],
+      ['a', '\u0000'],
+      ['a', '\u0000\u0000'],
+      ['a', '\u0000\u0001'],
+      ['a', '\u0001'],
     ],
   );
   t(
     [
-      ['a', new Uint8Array([])],
-      ['a', new Uint8Array([0])],
-      ['a', new Uint8Array([0, 0])],
-      ['a', new Uint8Array([0, 1])],
-      ['a', new Uint8Array([1])],
+      ['a', ''],
+      ['a', '\u0000'],
+      ['a', '\u0000\u0000'],
+      ['a', '\u0000\u0001'],
+      ['a', '\u0001'],
     ],
     'a',
     '\u{0000}',
     [
-      ['a', new Uint8Array([0, 0])],
-      ['a', new Uint8Array([0, 1])],
-      ['a', new Uint8Array([1])],
+      ['a', '\u0000\u0000'],
+      ['a', '\u0000\u0001'],
+      ['a', '\u0001'],
     ],
   );
   t(
     [
-      ['a', new Uint8Array([])],
-      ['a', new Uint8Array([0])],
-      ['a', new Uint8Array([0, 0])],
-      ['a', new Uint8Array([0, 1])],
-      ['a', new Uint8Array([1])],
+      ['a', ''],
+      ['a', '\u0000'],
+      ['a', '\u0000\u0000'],
+      ['a', '\u0000\u0001'],
+      ['a', '\u0001'],
     ],
     'a',
     '\u{0000}\u{0000}',
     [
-      ['a', new Uint8Array([0, 1])],
-      ['a', new Uint8Array([1])],
+      ['a', '\u0000\u0001'],
+      ['a', '\u0001'],
     ],
   );
   t(
     [
-      ['a', new Uint8Array([])],
-      ['a', new Uint8Array([0])],
-      ['a', new Uint8Array([0, 0])],
-      ['a', new Uint8Array([0, 1])],
-      ['a', new Uint8Array([1])],
+      ['a', ''],
+      ['a', '\u0000'],
+      ['a', '\u0000\u0000'],
+      ['a', '\u0000\u0001'],
+      ['a', '\u0001'],
     ],
     'a',
     '\u{0000}\u{0001}',
-    [['a', new Uint8Array([1])]],
+    [['a', '\u0001']],
   );
 
   // t exclusive scanning with startSecondaryKey and startKey,
   // with different secondary values.
   t(
     [
-      ['', new Uint8Array([])],
-      ['a', new Uint8Array([0])],
-      ['aa', new Uint8Array([0, 0])],
-      ['ab', new Uint8Array([0, 1])],
-      ['b', new Uint8Array([1])],
+      ['', ''],
+      ['a', '\u0000'],
+      ['aa', '\u0000\u0000'],
+      ['ab', '\u0000\u0001'],
+      ['b', '\u0001'],
     ],
     '',
     '',
     [
-      ['a', new Uint8Array([0])],
-      ['aa', new Uint8Array([0, 0])],
-      ['ab', new Uint8Array([0, 1])],
-      ['b', new Uint8Array([1])],
+      ['a', '\u0000'],
+      ['aa', '\u0000\u0000'],
+      ['ab', '\u0000\u0001'],
+      ['b', '\u0001'],
     ],
   );
   t(
     [
-      ['', new Uint8Array([])],
-      ['a', new Uint8Array([0])],
-      ['aa', new Uint8Array([0, 0])],
-      ['ab', new Uint8Array([0, 1])],
-      ['b', new Uint8Array([1])],
+      ['', ''],
+      ['a', '\u0000'],
+      ['aa', '\u0000\u0000'],
+      ['ab', '\u0000\u0001'],
+      ['b', '\u0001'],
     ],
     'a',
     '\u{0000}',
     [
-      ['aa', new Uint8Array([0, 0])],
-      ['ab', new Uint8Array([0, 1])],
-      ['b', new Uint8Array([1])],
+      ['aa', '\u0000\u0000'],
+      ['ab', '\u0000\u0001'],
+      ['b', '\u0001'],
     ],
   );
   t(
     [
-      ['', new Uint8Array([])],
-      ['a', new Uint8Array([0])],
-      ['aa', new Uint8Array([0, 0])],
-      ['ab', new Uint8Array([0, 1])],
-      ['b', new Uint8Array([1])],
+      ['', ''],
+      ['a', '\u0000'],
+      ['aa', '\u0000\u0000'],
+      ['ab', '\u0000\u0001'],
+      ['b', '\u0001'],
     ],
     'aa',
     '\u{0000}\u{0000}',
     [
-      ['ab', new Uint8Array([0, 1])],
-      ['b', new Uint8Array([1])],
+      ['ab', '\u0000\u0001'],
+      ['b', '\u0001'],
     ],
   );
   t(
     [
-      ['', new Uint8Array([])],
-      ['a', new Uint8Array([0])],
-      ['aa', new Uint8Array([0, 0])],
-      ['ab', new Uint8Array([0, 1])],
-      ['b', new Uint8Array([1])],
+      ['', ''],
+      ['a', '\u0000'],
+      ['aa', '\u0000\u0000'],
+      ['ab', '\u0000\u0001'],
+      ['b', '\u0001'],
     ],
     'ab',
     '\u{0000}\u{0001}',
-    [['b', new Uint8Array([1])]],
+    [['b', '\u0001']],
   );
 });
 
 function makeProllyMap(entries: Iterable<[string, string]>): prolly.Map {
   const map = prolly.Map.new();
   for (const [k, v] of entries) {
-    map.put(utf8.encode(k), utf8.encode(v));
+    map.put(k, v);
   }
   return map;
 }
@@ -625,14 +618,14 @@ test('scan index startKey', () => {
     },
     [
       {
-        key: b`b`,
-        secondaryKey: b``,
-        val: b`2`,
+        key: 'b',
+        secondaryKey: '',
+        val: '2',
       },
       {
-        key: b`c`,
-        secondaryKey: b``,
-        val: b`3`,
+        key: 'c',
+        secondaryKey: '',
+        val: '3',
       },
     ],
   );
@@ -653,9 +646,9 @@ test('scan index startKey', () => {
     },
     [
       {
-        key: b`c`,
-        secondaryKey: b``,
-        val: b`3`,
+        key: 'c',
+        secondaryKey: '',
+        val: '3',
       },
     ],
   );
@@ -676,14 +669,14 @@ test('scan index startKey', () => {
     },
     [
       {
-        key: b`bp`,
-        secondaryKey: b`bs`,
-        val: b`2`,
+        key: 'bp',
+        secondaryKey: 'bs',
+        val: '2',
       },
       {
-        key: b`cp`,
-        secondaryKey: b`cs`,
-        val: b`3`,
+        key: 'cp',
+        secondaryKey: 'cs',
+        val: '3',
       },
     ],
   );
@@ -704,9 +697,9 @@ test('scan index startKey', () => {
     },
     [
       {
-        key: b`cp`,
-        secondaryKey: b`cs`,
-        val: b`3`,
+        key: 'cp',
+        secondaryKey: 'cs',
+        val: '3',
       },
     ],
   );
@@ -728,14 +721,14 @@ test('scan index startKey', () => {
     },
     [
       {
-        key: b`bp2`,
-        secondaryKey: b`bs`,
-        val: b`3`,
+        key: 'bp2',
+        secondaryKey: 'bs',
+        val: '3',
       },
       {
-        key: b`cp`,
-        secondaryKey: b`cs`,
-        val: b`4`,
+        key: 'cp',
+        secondaryKey: 'cs',
+        val: '4',
       },
     ],
   );
@@ -757,9 +750,9 @@ test('scan index startKey', () => {
     },
     [
       {
-        key: b`cp`,
-        secondaryKey: b`cs`,
-        val: b`4`,
+        key: 'cp',
+        secondaryKey: 'cs',
+        val: '4',
       },
     ],
   );

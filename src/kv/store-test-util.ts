@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import {b} from '../test-util';
-import type {Read, Store, Write} from './store';
+import type {Read, Store, Value, Write} from './store';
 
 export class TestStore implements Store {
   private readonly _store: Store;
@@ -41,7 +41,7 @@ export class TestStore implements Store {
     }
   }
 
-  async put(key: string, value: Uint8Array): Promise<void> {
+  async put(key: string, value: Value): Promise<void> {
     await this.withWrite(async write => {
       await write.put(key, value);
       await write.commit();
@@ -59,7 +59,7 @@ export class TestStore implements Store {
     return this.withRead(read => read.has(key));
   }
 
-  get(key: string): Promise<Uint8Array | undefined> {
+  get(key: string): Promise<Value | undefined> {
     return this.withRead(read => read.get(key));
   }
 }
@@ -92,15 +92,19 @@ async function simpleCommit(store: TestStore): Promise<void> {
   // Start a write transaction, and put a value on it.
   await store.withWrite(async wt => {
     expect(await wt.has('bar')).to.be.false;
-    await wt.put('bar', b`baz`);
-    expect(await wt.get('bar')).to.deep.equal(b`baz`);
+    await wt.put('bar', 'baz');
+    expect(await wt.get('bar')).to.deep.equal('baz');
+    await wt.put('bytes', b`abc`);
+    expect(await wt.get('bytes')).to.deep.equal(b`abc`);
     await wt.commit();
   });
 
   // Verify that the write was effective.
   await store.withRead(async rt => {
     expect(await rt.has('bar')).to.be.true;
-    expect(await rt.get('bar')).to.deep.equal(b`baz`);
+    expect(await rt.get('bar')).to.deep.equal('baz');
+    expect(await rt.has('bytes')).to.be.true;
+    expect(await rt.get('bytes')).to.deep.equal(b`abc`);
   });
 }
 
@@ -108,7 +112,8 @@ async function del(store: TestStore): Promise<void> {
   // Start a write transaction, and put a value on it.
   await store.withWrite(async wt => {
     expect(await wt.has('bar')).to.be.false;
-    await wt.put('bar', b`baz`);
+    await wt.put('bar', 'baz');
+    await wt.put('bytes', b`abc`);
     await wt.commit();
   });
 
@@ -117,6 +122,8 @@ async function del(store: TestStore): Promise<void> {
     expect(await wt.has('bar')).to.be.true;
     await wt.del('bar');
     expect(await wt.has('bar')).to.be.false;
+    await wt.del('bytes');
+    expect(await wt.has('bytes')).to.be.false;
     await wt.commit();
   });
 
@@ -124,6 +131,8 @@ async function del(store: TestStore): Promise<void> {
   await store.withRead(async rt => {
     expect(await rt.has('bar')).to.be.false;
     expect(await rt.get('bar')).to.be.undefined;
+    expect(await rt.has('bytes')).to.be.false;
+    expect(await rt.get('bytes')).to.be.undefined;
   });
 }
 
@@ -143,12 +152,14 @@ async function readOnlyRollback(store: TestStore): Promise<void> {
 async function simpleRollback(store: TestStore): Promise<void> {
   // Start a write transaction and put a value, then abort.
   await store.withWrite(async wt => {
-    await wt.put('bar', b`baz`);
+    await wt.put('bar', 'baz');
+    await wt.put('bytes', b`abc`);
     // no commit, implicit rollback
   });
 
   await store.withRead(async rt => {
     expect(await rt.has('bar')).to.be.false;
+    expect(await rt.has('bytes')).to.be.false;
   });
 }
 
@@ -157,49 +168,49 @@ async function store(store: TestStore): Promise<void> {
   expect(await store.has('foo')).to.be.false;
   expect(await store.get('foo')).to.be.undefined;
 
-  await store.put('foo', b`bar`);
+  await store.put('foo', 'bar');
   expect(await store.has('foo')).to.be.true;
-  expect(await store.get('foo')).to.deep.equal(b`bar`);
+  expect(await store.get('foo')).to.deep.equal('bar');
 
-  await store.put('foo', b`baz`);
+  await store.put('foo', 'baz');
   expect(await store.has('foo')).to.be.true;
-  expect(await store.get('foo')).to.deep.equal(b`baz`);
+  expect(await store.get('foo')).to.deep.equal('baz');
 
-  expect(!(await store.has('baz'))).to.be.true;
+  expect(await store.has('baz')).to.be.false;
   expect(await store.get('baz')).to.be.undefined;
-  await store.put('baz', b`bat`);
+  await store.put('baz', 'bat');
   expect(await store.has('baz')).to.be.true;
-  expect(await store.get('baz')).to.deep.equal(b`bat`);
+  expect(await store.get('baz')).to.deep.equal('bat');
 }
 
 async function readTransaction(store: TestStore): Promise<void> {
-  await store.put('k1', b`v1`);
+  await store.put('k1', 'v1');
 
   await store.withRead(async rt => {
     expect(await rt.has('k1')).to.be.true;
-    expect(b`v1`).to.deep.equal(await rt.get('k1'));
+    expect('v1').to.deep.equal(await rt.get('k1'));
   });
 }
 
 async function writeTransaction(store: TestStore): Promise<void> {
-  await store.put('k1', b`v1`);
-  await store.put('k2', b`v2`);
+  await store.put('k1', 'v1');
+  await store.put('k2', 'v2');
 
   // Test put then commit.
   await store.withWrite(async wt => {
     expect(await wt.has('k1')).to.be.true;
     expect(await wt.has('k2')).to.be.true;
-    await wt.put('k1', b`overwrite`);
+    await wt.put('k1', 'overwrite');
     await wt.commit();
   });
-  expect(await store.get('k1')).to.deep.equal(b`overwrite`);
-  expect(await store.get('k2')).to.deep.equal(b`v2`);
+  expect(await store.get('k1')).to.deep.equal('overwrite');
+  expect(await store.get('k2')).to.deep.equal('v2');
 
   // Test put then rollback.
   await store.withWrite(async wt => {
-    await wt.put('k1', b`should be rolled back`);
+    await wt.put('k1', 'should be rolled back');
   });
-  expect(await store.get('k1')).to.deep.equal(b`overwrite`);
+  expect(await store.get('k1')).to.deep.equal('overwrite');
 
   // Test del then commit.
   await store.withWrite(async wt => {
@@ -219,18 +230,18 @@ async function writeTransaction(store: TestStore): Promise<void> {
 
   // Test overwrite multiple times then commit.
   await store.withWrite(async wt => {
-    await wt.put('k2', b`overwrite`);
+    await wt.put('k2', 'overwrite');
     await wt.del('k2');
-    await wt.put('k2', b`final`);
+    await wt.put('k2', 'final');
     await wt.commit();
   });
-  expect(await store.get('k2')).to.deep.equal(b`final`);
+  expect(await store.get('k2')).to.deep.equal('final');
 
   // Test Read interface on Write.
   await store.withWrite(async wt => {
-    await wt.put('k2', b`new value`);
+    await wt.put('k2', 'new value');
     expect(await wt.has('k2')).to.be.true;
-    expect(await wt.get('k2')).to.deep.equal(b`new value`);
+    expect(await wt.get('k2')).to.deep.equal('new value');
     await wt.commit();
   });
 }
@@ -267,7 +278,7 @@ async function isolation(store: Store): Promise<void> {
     expect(await w.get('k1')).to.be.undefined;
 
     log.push('w1 mutated store');
-    await w.put('k1', b`w1`);
+    await w.put('k1', 'w1');
 
     log.push('w1 end');
     await w.commit();
@@ -277,10 +288,10 @@ async function isolation(store: Store): Promise<void> {
     log.push('w2 start');
     expect(await w.has('k1')).to.be.true;
     log.push('w2 touched store');
-    expect(await w.get('k1')).to.deep.equal(b`w1`);
+    expect(await w.get('k1')).to.deep.equal('w1');
 
     log.push('w2 mutated store');
-    await w.put('k1', b`w2`);
+    await w.put('k1', 'w2');
 
     log.push('w2 end');
     await w.commit();
@@ -290,7 +301,7 @@ async function isolation(store: Store): Promise<void> {
     log.push('r3 start');
     expect(await r.has('k1')).to.be.true;
     log.push('r3 touched store');
-    expect(await r.get('k1')).to.deep.equal(b`w2`);
+    expect(await r.get('k1')).to.deep.equal('w2');
     log.push('r3 end');
     r.release();
   });

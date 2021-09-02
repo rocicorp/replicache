@@ -35,7 +35,6 @@ import {
   PULL_VERSION,
 } from './pull';
 import * as utf8 from '../utf8';
-import {b} from '../test-util';
 import {LogContext} from '../logger';
 import {initHasher} from '../hash';
 
@@ -83,12 +82,12 @@ test('begin try pull', async () => {
       },
     ],
   };
-  const goodPullRespValueMap = new Map([['/new', '"value"']]);
+  const goodPullRespValueMap = new Map([['/new', 'value']]);
 
   type ExpCommit = {
     cookie: JSONValue;
     lastMutationID: number;
-    valueMap: Map<string, string>;
+    valueMap: Map<string, JSONValue>;
     indexes: string[];
   };
 
@@ -397,7 +396,7 @@ test('begin try pull', async () => {
 
     // There was an index added after the snapshot, and one for each local commit.
     // Here we scan to ensure that we get values when scanning using one of the
-    // indexes created. We do this because after calling begin_try_pull we check that
+    // indexes created. We do this because after calling beginTryPull we check that
     // the index no longer returns values, demonstrating that it was rebuilt.
     if (c.numPendingMutations > 0) {
       await store.withRead(async dagRead => {
@@ -413,7 +412,7 @@ test('begin try pull', async () => {
             got = true;
           },
         );
-        expect(got).to.be.true;
+        expect(got, c.name).to.be.true;
       });
     }
 
@@ -478,13 +477,9 @@ test('begin try pull', async () => {
           db.whenceHash(syncHead.chunk.hash),
           read,
         );
-        const gotValueMap: [Uint8Array, Uint8Array][] = Array.from(
-          map.entries(),
-        );
+        const gotValueMap: [string, JSONValue][] = Array.from(map.entries());
         gotValueMap.sort((a, b) => arrayCompare(a[0], b[0]));
-        const expValueMap = Array.from(expSyncHead.valueMap, entry =>
-          entry.map(utf8.encode),
-        );
+        const expValueMap = Array.from(expSyncHead.valueMap);
         expValueMap.sort((a, b) => arrayCompare(a[0], b[0]));
         expect(expValueMap.length).to.equal(gotValueMap.length);
 
@@ -627,7 +622,7 @@ test('maybe end try pull', async () => {
         dagWrite,
         db.readIndexes(chain[0]),
       );
-      await w.put(lc, b`key/${i}`, b`${i}`);
+      await w.put(lc, `key/${i}`, `${i}`);
       return await w.commit(SYNC_HEAD_NAME);
     });
 

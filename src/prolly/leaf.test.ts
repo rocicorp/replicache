@@ -2,54 +2,31 @@ import {expect} from '@esm-bundle/chai';
 import {Chunk} from '../dag/mod';
 import {Leaf} from './leaf';
 import type {Entry} from './mod';
-import * as flatbuffers from 'flatbuffers';
-import {LeafEntry as LeafEntryFB} from './generated/leaf/leaf-entry';
-import {Leaf as LeafFB} from './generated/leaf/leaf';
 import {initHasher} from '../hash';
 
 setup(async () => {
   await initHasher();
 });
 
-function makeLeaf(
-  kv: (Uint8Array | number[] | undefined)[] | undefined,
-): Chunk {
-  const builder = new flatbuffers.Builder();
-  let entriesVec = 0;
-
-  if (kv) {
-    const entries: number[] = [];
-    for (let i = 0; i < kv.length / 2; i++) {
-      const key = kv[i * 2];
-      const val = kv[i * 2 + 1];
-      const keyVec = key ? LeafEntryFB.createKeyVector(builder, key) : 0;
-      const valVec = val ? LeafEntryFB.createValVector(builder, val) : 0;
-      const entry = LeafEntryFB.createLeafEntry(builder, keyVec, valVec);
-      entries.push(entry);
-    }
-    entriesVec = LeafFB.createEntriesVector(builder, entries);
-  }
-  const leaf = LeafFB.createLeaf(builder, entriesVec);
-  builder.finish(leaf);
-  return Chunk.new(builder.asUint8Array(), []);
+function makeLeaf(entries: Entry[]): Chunk {
+  return Chunk.new(entries, []);
 }
 
 test('try from', () => {
   const t = (input: Chunk, expected: Entry) => {
     const leaf = Leaf.load(input);
-    const actual = leaf.entries().next().value;
+    const actual = leaf.entries[0];
     expect(actual).to.deep.equal(expected);
   };
 
   // zero-length keys and vals are supported.
-  t(makeLeaf([u8s(), u8s()]), [u8s(), u8s()]);
+
+  t(makeLeaf([['', '']]), ['', '']);
 
   // normal non-zero keys and values too.
-  t(makeLeaf([u8s(1), u8s(1)]), [u8s(1), u8s(1)]);
-  t(makeLeaf([u8s(1, 2), u8s(3, 4)]), [u8s(1, 2), u8s(3, 4)]);
+  t(makeLeaf([['\u0001', 1]]), ['\u0001', 1]);
+  t(makeLeaf([['\u0001\u0002', [3, 4]]]), ['\u0001\u0002', [3, 4]]);
 });
-
-const u8s = (...arr: number[]) => new Uint8Array(arr);
 
 test('leaf iter', async () => {
   const t = (chunk: Chunk | undefined, expected: Entry[]) => {
@@ -66,23 +43,29 @@ test('leaf iter', async () => {
   t(makeLeaf([]), []);
 
   // Single entry
-  t(makeLeaf([[1], [2]]), [[u8s(1), u8s(2)]]);
+  t(makeLeaf([['\u0001', 2]]), [['\u0001', 2]]);
 
   // multiple entries
-  t(makeLeaf([[], [], [1], [1]]), [
-    [u8s(), u8s()],
-    [u8s(1), u8s(1)],
-  ]);
+  t(
+    makeLeaf([
+      ['a', []],
+      ['b', 1],
+    ]),
+    [
+      ['a', []],
+      ['b', 1],
+    ],
+  );
 });
 
 test('round trip', async () => {
-  const k0 = u8s(0);
-  const k1 = u8s(1);
+  const k0 = '\u0000';
+  const k1 = '\u0001';
   const expected1: Entry[] = [
-    [k0, k0],
-    [k1, k1],
+    [k0, 0],
+    [k1, 1],
   ];
-  const expected = Leaf.new(expected1);
+  const expected = new Leaf(expected1);
   const actual = Leaf.load(
     Chunk.read(expected.chunk.hash, expected.chunk.data, undefined),
   );
@@ -91,13 +74,13 @@ test('round trip', async () => {
 });
 
 test('load', async () => {
-  const t = async (
-    kv: (Uint8Array | number[] | undefined)[] | undefined,
-    expectedError: string,
-  ) => {
+  // This tests invalid data so we can't use valid type annotations.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const t = async (kv: any, expectedError: string) => {
     let err;
     try {
-      const chunk = makeLeaf(kv);
+      // @ts-expect-error Constructor is private
+      const chunk = new Chunk('hash', kv, undefined);
       Leaf.load(chunk);
     } catch (e) {
       err = e;
@@ -109,11 +92,24 @@ test('load', async () => {
     expect(err.message).to.equal(expectedError);
   };
 
-  // Cannot detect missing vs empty in TS FB implementation.
-  // await t(undefined, 'missing entries');
+  await t(undefined, 'Invalid type: undefined, expected array');
 
-  await t([undefined, undefined], 'missing key');
-  await t([[], undefined], 'missing val');
-  await t([[1], [], [1], []], 'duplicate key');
-  await t([[1], [], [0], []], 'unsorted key');
+  await t([[undefined, undefined]], 'Invalid type: undefined, expected string');
+  await t([['0', undefined]], 'Invalid type: undefined, expected JSON value');
+  await t(
+    [
+      ['\u0001', ''],
+      ['\u0001', ''],
+    ],
+    'duplicate key',
+  );
+  await t(
+    [
+      ['\u0001', ''],
+      ['\u0000', ''],
+    ],
+    'unsorted key',
+  );
+
+  await t([['0', 1, 2]], 'Invalid entry length');
 });

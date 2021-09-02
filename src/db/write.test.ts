@@ -4,11 +4,9 @@ import * as dag from '../dag/mod';
 import {MemStore} from '../kv/mod';
 import {DEFAULT_HEAD_NAME} from './commit';
 import {readCommit, readIndexes, whenceHead} from './read';
-import {b} from '../test-util';
 import {initDB, Write} from './write';
 import * as prolly from '../prolly/mod';
 import {encodeIndexKey} from './index';
-import * as utf8 from '../utf8';
 import {LogContext} from '../logger';
 import {initHasher} from '../hash';
 
@@ -30,11 +28,11 @@ test('basics', async () => {
       undefined,
       dagWrite,
     );
-    await w.put(lc, b`foo`, b`bar`);
+    await w.put(lc, 'foo', 'bar');
     // Assert we can read the same value from within this transaction.
     const r = w.asRead();
-    const val = r.get(b`foo`);
-    expect(val).to.deep.equal(b`bar`);
+    const val = r.get('foo');
+    expect(val).to.deep.equal('bar');
     await w.commit(DEFAULT_HEAD_NAME);
   });
 
@@ -48,8 +46,8 @@ test('basics', async () => {
       dagWrite,
     );
     const r = w.asRead();
-    const val = r.get(b`foo`);
-    expect(val).to.deep.equal(b`bar`);
+    const val = r.get('foo');
+    expect(val).to.deep.equal('bar');
   });
 
   // Del.
@@ -61,10 +59,10 @@ test('basics', async () => {
       undefined,
       dagWrite,
     );
-    await w.del(lc, b`foo`);
+    await w.del(lc, 'foo');
     // Assert it is gone while still within this transaction.
     const r = w.asRead();
-    const val = r.get(b`foo`);
+    const val = r.get('foo');
     expect(val).to.be.undefined;
     await w.commit(DEFAULT_HEAD_NAME);
   });
@@ -79,7 +77,7 @@ test('basics', async () => {
       dagWrite,
     );
     const r = w.asRead();
-    const val = r.get(b`foo`);
+    const val = r.get(`foo`);
     expect(val).to.be.undefined;
   });
 });
@@ -100,7 +98,7 @@ test('index commit type constraints', async () => {
 
   let err;
   try {
-    await w.createIndex(lc, 'foo', b``, '');
+    await w.createIndex(lc, 'foo', '', '');
   } catch (e) {
     err = e;
   }
@@ -115,8 +113,6 @@ test('index commit type constraints', async () => {
   }
   expect(err).to.be.an.instanceof(Error);
   expect(err).to.have.property('message', 'Not allowed');
-  // TODO(arv): Release?
-  // w.release()
 });
 
 test('clear', async () => {
@@ -131,7 +127,7 @@ test('clear', async () => {
       undefined,
       dagWrite,
     );
-    await w.put(lc, b`foo`, b`"bar"`);
+    await w.put(lc, 'foo', 'bar');
     await w.commit(DEFAULT_HEAD_NAME);
   });
 
@@ -140,7 +136,7 @@ test('clear', async () => {
       whenceHead(DEFAULT_HEAD_NAME),
       dagWrite,
     );
-    await w.createIndex(lc, 'idx', b``, '');
+    await w.createIndex(lc, 'idx', '', '');
     await w.commit(DEFAULT_HEAD_NAME);
   });
 
@@ -152,7 +148,7 @@ test('clear', async () => {
       undefined,
       dagWrite,
     );
-    await w.put(lc, b`hot`, b`"dog"`);
+    await w.put(lc, 'hot', 'dog');
 
     expect([...w.map]).to.have.lengthOf(2);
     let index = w.indexes.get('idx');
@@ -200,7 +196,7 @@ test('create and drop index', async () => {
           dagWrite,
         );
         for (let i = 0; i < 3; i++) {
-          await w.put(lc, b`k${i}`, utf8.encode(JSON.stringify({s: `s${i}`})));
+          await w.put(lc, `k${i}`, {s: `s${i}`});
         }
         await w.commit(DEFAULT_HEAD_NAME);
       });
@@ -212,7 +208,7 @@ test('create and drop index', async () => {
         whenceHead(DEFAULT_HEAD_NAME),
         dagWrite,
       );
-      await w.createIndex(lc, indexName, b``, '/s');
+      await w.createIndex(lc, indexName, '', '/s');
       await w.commit(DEFAULT_HEAD_NAME);
     });
 
@@ -226,7 +222,7 @@ test('create and drop index', async () => {
           dagWrite,
         );
         for (let i = 0; i < 3; i++) {
-          await w.put(lc, b`k${i}`, utf8.encode(JSON.stringify({s: `s${i}`})));
+          await w.put(lc, `k${i}`, {s: `s${i}`});
         }
         await w.commit(DEFAULT_HEAD_NAME);
       });
@@ -247,8 +243,8 @@ test('create and drop index', async () => {
       for (let i = 0; i < 3; i++) {
         expect(entries[i][0]).to.deep.equal(
           encodeIndexKey({
-            secondary: b`s${i}`,
-            primary: b`k${i}`,
+            secondary: `s${i}`,
+            primary: `k${i}`,
           }),
         );
       }

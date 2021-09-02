@@ -233,7 +233,7 @@ export class WriteTransactionImpl
 {
   async put(key: string, value: JSONValue): Promise<void> {
     throwIfClosed(this);
-    await embed.put(this.id, key, JSON.stringify(value));
+    await embed.put(this.id, key, value);
   }
 
   async del(key: string): Promise<boolean> {

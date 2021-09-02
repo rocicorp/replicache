@@ -2,6 +2,7 @@ import type * as kv from '../kv/mod';
 import {Chunk} from './chunk';
 import {chunkDataKey, chunkMetaKey, headKey} from './key';
 import * as utf8 from '../utf8';
+import {assertInstanceof} from '../asserts';
 
 export class Read {
   private readonly _kvr: kv.Read;
@@ -21,12 +22,19 @@ export class Read {
     }
 
     const meta = await this._kvr.get(chunkMetaKey(hash));
+    if (meta !== undefined) {
+      assertInstanceof(meta, Uint8Array);
+    }
     return Chunk.read(hash, data, meta);
   }
 
   async getHead(name: string): Promise<string | undefined> {
     const data = await this._kvr.get(headKey(name));
-    return data && utf8.decode(data);
+    if (data === undefined) {
+      return undefined;
+    }
+    assertInstanceof(data, Uint8Array);
+    return utf8.decode(data);
   }
 
   close(): void {

@@ -1,20 +1,25 @@
 import type * as dag from '../dag/mod';
+import {deepEqual, JSONValue} from '../json';
 import {arrayCompare} from './array-compare';
 import {Leaf} from './leaf';
 import {PeekIterator} from './peek-iterator';
 import {stringCompare} from './string-compare';
-import * as utf8 from '../utf8';
 
-// TODO(arv): Use string for key instead of Uint8Array
-export type Entry = [key: Uint8Array, value: Uint8Array];
+export type Entry = [key: string, value: JSONValue];
+
+export const deleteSentinel = Symbol();
+export type DeleteSentinel = typeof deleteSentinel;
 
 class ProllyMap {
   private _base: Leaf | undefined;
   // TODO: Should really be a BTreeMap because we want ordering... Will do hacky sort
   // for now.
-  private readonly _pending: Map<string, Uint8Array | null>;
+  private readonly _pending: Map<string, JSONValue | DeleteSentinel>;
 
-  constructor(base: Leaf | undefined, pending: Map<string, Uint8Array | null>) {
+  constructor(
+    base: Leaf | undefined,
+    pending: Map<string, JSONValue | DeleteSentinel>,
+  ) {
     this._base = base;
     this._pending = pending;
   }
@@ -32,29 +37,27 @@ class ProllyMap {
     return new ProllyMap(base, new Map());
   }
 
-  has(key: Uint8Array): boolean {
-    const ks = utf8.decode(key);
-    const p = this._pending.get(ks);
+  has(key: string): boolean {
+    const p = this._pending.get(key);
     if (p !== undefined) {
-      // if null the key was deleted.
-      return p !== null;
+      return p !== deleteSentinel;
     }
 
     return this._baseHas(key);
   }
 
-  private _baseHas(key: Uint8Array): boolean {
+  private _baseHas(key: string): boolean {
     if (this._base === undefined) {
       return false;
     }
     return this._base.binarySearch(key).found;
   }
 
-  get(key: Uint8Array): Uint8Array | undefined {
-    const ks = utf8.decode(key);
+  get(key: string): JSONValue | undefined {
+    const ks = key;
     const p = this._pending.get(ks);
     switch (p) {
-      case null:
+      case deleteSentinel:
         return undefined;
       case undefined:
         return this._baseGet(key);
@@ -63,7 +66,7 @@ class ProllyMap {
     }
   }
 
-  private _baseGet(key: Uint8Array): Uint8Array | undefined {
+  private _baseGet(key: string): JSONValue | undefined {
     if (this._base === undefined) {
       return undefined;
     }
@@ -71,19 +74,15 @@ class ProllyMap {
     if (!found) {
       return undefined;
     }
-    return this._base.getEntryByIndex(index).valArray() ?? undefined;
+    return this._base.entries[index][1];
   }
 
-  put(key: Uint8Array, val: Uint8Array): void {
-    // TODO(arv): Consider storing the Uint8Array key in the value if we want to
-    // keep using Uint8Array keys.
-    const ks = utf8.decode(key);
-    this._pending.set(ks, val);
+  put(key: string, val: JSONValue): void {
+    this._pending.set(key, val);
   }
 
-  del(key: Uint8Array): void {
-    const ks = utf8.decode(key);
-    this._pending.set(ks, null);
+  del(key: string): void {
+    this._pending.set(key, deleteSentinel);
   }
 
   entries(): IterableIterator<Entry> {
@@ -95,7 +94,7 @@ class ProllyMap {
   }
 
   async flush(write: dag.Write): Promise<string> {
-    const newBase = Leaf.new(this);
+    const newBase = new Leaf([...this]);
     await write.putChunk(newBase.chunk);
     this._base = newBase;
     this._pending.clear();
@@ -115,27 +114,27 @@ class ProllyMap {
       }
 
       if (a.done && !b.done) {
-        keys.push(utf8.decode(b.value[0]));
+        keys.push(b.value[0]);
         b = itB.next();
       } else if (!a.done && b.done) {
-        keys.push(utf8.decode(a.value[0]));
+        keys.push(a.value[0]);
         a = itA.next();
       } else if (!a.done && !b.done) {
-        const ord = arrayCompare(a.value[0], b.value[0]);
+        const ord = stringCompare(a.value[0], b.value[0]);
         switch (ord) {
           case -1:
-            keys.push(utf8.decode(a.value[0]));
+            keys.push(a.value[0]);
             a = itA.next();
             break;
           case 0:
-            if (arrayCompare(a.value[1], b.value[1]) !== 0) {
-              keys.push(utf8.decode(a.value[0]));
+            if (!deepEqual(a.value[1], b.value[1])) {
+              keys.push(a.value[0]);
             }
             a = itA.next();
             b = itB.next();
             break;
           case +1:
-            keys.push(utf8.decode(b.value[0]));
+            keys.push(b.value[0]);
             b = itB.next();
             break;
         }
@@ -150,12 +149,13 @@ class ProllyMap {
       stringCompare(a[0], b[0]),
     );
 
-    for (const [key, pendingVal] of entries) {
-      if (pendingVal !== null) {
-        // TODO(arv): Use strings for keys.
-        const baseVal = this._baseGet(utf8.encode(key));
+    for (const entry of entries) {
+      const key = entry[0];
+      const pendingVal = entry[1];
+      if (pendingVal !== deleteSentinel) {
+        const baseVal = this._baseGet(key);
         if (baseVal !== undefined) {
-          if (arrayCompare(baseVal, pendingVal) !== 0) {
+          if (!deepEqual(baseVal, pendingVal)) {
             keys.push(key);
           }
         } else {
@@ -163,7 +163,7 @@ class ProllyMap {
         }
       } else {
         // pending was deleted.
-        if (this._baseHas(utf8.encode(key))) {
+        if (this._baseHas(key)) {
           keys.push(key);
         }
       }
@@ -178,26 +178,25 @@ const emptyIterator: Iterator<Entry> = {
   },
 };
 
-// TODO(arv): Use string here
-type DeletableEntry = [key: Uint8Array, val: Uint8Array | null];
+type DeletableEntry = [key: string, val: JSONValue | DeleteSentinel];
 
 // TODO(arv): Refactor to use generator(s)?
 class Iter implements IterableIterator<Entry> {
   private readonly _base: PeekIterator<Entry>;
   private readonly _pending: PeekIterator<DeletableEntry>;
 
-  constructor(base: Leaf | undefined, pending: Map<string, Uint8Array | null>) {
+  constructor(
+    base: Leaf | undefined,
+    pending: Map<string, JSONValue | DeleteSentinel>,
+  ) {
     this._base = new PeekIterator(
       base ? base[Symbol.iterator]() : emptyIterator,
     );
 
     // Since we do not have a BTreeMap we have to sort the pending entries.
-    const p: [string, Uint8Array | null][] = [...pending];
+    const p: [string, JSONValue | DeleteSentinel][] = [...pending];
     p.sort((a, b) => stringCompare(a[0], b[0]));
-    const entries: DeletableEntry[] = p.map(([key, val]) => [
-      utf8.encode(key),
-      val,
-    ]);
+    const entries: DeletableEntry[] = p.map(([key, val]) => [key, val]);
     this._pending = new PeekIterator(entries.values());
   }
 
@@ -211,7 +210,7 @@ class Iter implements IterableIterator<Entry> {
       if (ni.done) {
         return ni;
       }
-      if (ni.value[1] === null) {
+      if (ni.value[1] === deleteSentinel) {
         // Key was deleted
         continue;
       }

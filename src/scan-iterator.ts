@@ -2,7 +2,6 @@ import type {JSONValue} from './json';
 import {throwIfClosed} from './transaction-closed-error';
 import {ScanOptions, toDbScanOptions} from './scan-options';
 import {asyncIterableToArray} from './async-iterable-to-array';
-import * as utf8 from './utf8';
 import * as embed from './embed/mod';
 
 interface IdCloser {
@@ -144,7 +143,6 @@ async function load<V>(
   transactionID: number,
 ): Promise<V[]> {
   const items: V[] = [];
-  const parse = (v: Uint8Array) => JSON.parse(utf8.decode(v));
   type MaybeIndexName = {indexName?: string};
   const key = (primaryKey: string, secondaryKey: string | null) =>
     (options as MaybeIndexName)?.indexName !== undefined
@@ -154,20 +152,17 @@ async function load<V>(
   const receiver = (
     primaryKey: string,
     secondaryKey: string | null,
-    value: Uint8Array,
+    value: JSONValue,
   ) => {
     switch (kind) {
       case VALUE:
-        items.push(parse(value));
+        items.push(value as V);
         return;
       case KEY:
         items.push(key(primaryKey, secondaryKey) as unknown as V);
         return;
       case ENTRY:
-        items.push([
-          key(primaryKey, secondaryKey),
-          parse(value),
-        ] as unknown as V);
+        items.push([key(primaryKey, secondaryKey), value] as unknown as V);
     }
   };
 

@@ -1,6 +1,5 @@
 import {expect} from '@esm-bundle/chai';
 import type {JSONValue} from '../json';
-import {b} from '../test-util';
 import {arrayCompare} from '../prolly/array-compare';
 import * as prolly from '../prolly/mod';
 import {
@@ -15,116 +14,109 @@ import {
   KEY_SEPARATOR,
   KEY_VERSION_0,
 } from './index';
-import {startsWith} from './starts-with';
-import * as utf8 from '../utf8';
+import {stringCompare} from '../prolly/string-compare';
 
 test('test index key', () => {
-  const testValid = (secondary: string, primary: Uint8Array) => {
+  const testValid = (secondary: string, primary: string) => {
     // Ensure the encoded value is what we expect.
     const encoded = encodeIndexKey({
-      secondary: utf8.encode(secondary),
+      secondary,
       primary,
     });
-    expect(KEY_VERSION_0).to.deep.equal(
-      encoded.subarray(0, KEY_VERSION_0.length),
-    );
+    expect(KEY_VERSION_0).to.equal(encoded.slice(0, KEY_VERSION_0.length));
     const secondaryIndex = KEY_VERSION_0.length;
     const separatorIndex = secondaryIndex + secondary.length;
-    expect(encoded.subarray(secondaryIndex, separatorIndex)).to.deep.equal(
-      utf8.encode(secondary),
-    );
+    expect(encoded.slice(secondaryIndex, separatorIndex)).to.equal(secondary);
     const primaryIndex = separatorIndex + KEY_SEPARATOR.length;
-    expect(encoded.subarray(separatorIndex, primaryIndex)).to.deep.equal(
-      KEY_SEPARATOR,
-    );
-    expect(encoded.subarray(primaryIndex)).to.deep.equal(primary);
+    expect(encoded.slice(separatorIndex, primaryIndex)).to.equal(KEY_SEPARATOR);
+    expect(encoded.slice(primaryIndex)).to.equal(primary);
 
     // Ensure we can decode it properly.
     const decoded = decodeIndexKey(encoded);
-    expect(decoded.secondary).to.deep.equal(utf8.encode(secondary));
-    expect(decoded.primary).to.deep.equal(primary);
+    expect(decoded.secondary).to.equal(secondary);
+    expect(decoded.primary).to.equal(primary);
   };
 
-  testValid('', new Uint8Array([]));
-  testValid('', new Uint8Array([0x00]));
-  testValid('', new Uint8Array([0x01]));
-  testValid('a', new Uint8Array([]));
-  testValid('a', new Uint8Array([0x61 /* 'a' */]));
-  testValid('foo', new Uint8Array([0x01, 0x02, 0x03]));
+  testValid('', '');
+  testValid('', '\u0000');
+  testValid('', '\u0001');
+  testValid('a', '');
+  testValid('a', 'a');
+  testValid('foo', '\u0001\u0002\u0003');
 
   const testInvalidEncode = (
     secondary: string,
-    primary: Uint8Array,
+    primary: string,
     expected: string,
   ) => {
     expect(() =>
       encodeIndexKey({
-        secondary: utf8.encode(secondary),
+        secondary,
         primary,
       }),
     ).to.throw(Error, expected);
   };
   testInvalidEncode(
     'no \0 nulls',
-    new Uint8Array([]),
+    '',
     'Secondary key cannot contain null byte',
   );
 
-  const testInvalidDecode = (encoded: Uint8Array, expected: string) => {
+  const testInvalidDecode = (encoded: string, expected: string) => {
     expect(() => decodeIndexKey(encoded)).to.throw(Error, expected);
   };
-  testInvalidDecode(new Uint8Array([]), 'Invalid Version');
-  testInvalidDecode(new Uint8Array([0x01]), 'Invalid Version');
-  testInvalidDecode(new Uint8Array([0x00]), 'Invalid Formatting');
-  testInvalidDecode(new Uint8Array([0x00, 0x01, 0x02]), 'Invalid Formatting');
+  testInvalidDecode('', 'Invalid Version');
+  testInvalidDecode('\u0001', 'Invalid Version');
+  testInvalidDecode('\u0000', 'Invalid Formatting');
+  testInvalidDecode('\u0000\u0001\u0002', 'Invalid Formatting');
 });
 
 test('encode scan key', () => {
-  const t = (secondary: string, primary: Uint8Array) => {
+  const t = (secondary: string, primary: string) => {
     const encodedIndexKey = encodeIndexKey({
-      secondary: utf8.encode(secondary),
+      secondary,
       primary,
     });
     // With exclusive == false
-    let scanKey = encodeIndexScanKey(utf8.encode(secondary), primary, false);
+    let scanKey = encodeIndexScanKey(secondary, primary, false);
 
-    expect(startsWith(encodedIndexKey, scanKey)).to.be.true;
+    expect(scanKey.startsWith(encodedIndexKey)).to.be.true;
 
     expect(arrayCompare(encodedIndexKey, scanKey)).to.greaterThanOrEqual(0);
 
     // With exclusive == true
-    scanKey = encodeIndexScanKey(utf8.encode(secondary), primary, true);
+    scanKey = encodeIndexScanKey(secondary, primary, true);
     expect(arrayCompare(encodedIndexKey, scanKey)).to.equal(-1);
   };
 
-  t('', new Uint8Array([]));
-  t('', new Uint8Array([0x00]));
-  t('', new Uint8Array([0x01]));
-  t('foo', new Uint8Array([]));
-  t('foo', new Uint8Array([0x00]));
-  t('foo', new Uint8Array([0x01]));
+  t('', '');
+  t('', '\u0000');
+  t('', '\u0001');
+  t('foo', '');
+  t('foo', '\u0000');
+  t('foo', '\u0001');
 });
 
 test('index key sort', () => {
-  const t = (left: [string, Uint8Array], right: [string, Uint8Array]) => {
+  const t = (left: [string, string], right: [string, string]) => {
     const a = encodeIndexKey({
-      secondary: utf8.encode(left[0]),
+      secondary: left[0],
       primary: left[1],
     });
     const b = encodeIndexKey({
-      secondary: utf8.encode(right[0]),
+      secondary: right[0],
       primary: right[1],
     });
     expect(arrayCompare(a, b)).to.equal(-1);
   };
 
-  t(['', new Uint8Array([])], ['', new Uint8Array([0x00])]);
-  t(['', new Uint8Array([0x00])], ['a', new Uint8Array([])]);
-  t(['a', new Uint8Array([0x00])], ['aa', new Uint8Array([])]);
-  t(['A', new Uint8Array([])], ['a', new Uint8Array([])]);
-  t(['foo', new Uint8Array([])], ['foobar', new Uint8Array([])]);
-  t(['😀', new Uint8Array([])], ['😜', new Uint8Array([])]);
-  t(['a', new Uint8Array([0xff])], ['aa', new Uint8Array([0x00])]);
+  t(['', ''], ['', '\u0000']);
+  t(['', '\u0000'], ['a', '']);
+  t(['a', '\u0000'], ['aa', '']);
+  t(['A', ''], ['a', '']);
+  t(['foo', ''], ['foobar', '']);
+  t(['😀', ''], ['😜', '']);
+  t(['a', '\u00ff'], ['aa', '\u0000']);
 });
 
 // By design the index key is encoded in a way that doesn't permit collisions,
@@ -132,112 +124,88 @@ test('index key sort', () => {
 // value with secondary index "f" and primary index "oo". This test gives us a
 // tiny extra assurance that this is the case.
 test('index key uniqueness', () => {
-  const t = (left: [string, Uint8Array], right: [string, Uint8Array]) => {
+  const t = (left: [string, string], right: [string, string]) => {
     const a = encodeIndexKey({
-      secondary: utf8.encode(left[0]),
+      secondary: left[0],
       primary: left[1],
     });
     const b = encodeIndexKey({
-      secondary: utf8.encode(right[0]),
+      secondary: right[0],
       primary: right[1],
     });
-    expect(arrayCompare(a, b)).to.not.equal(0);
+    expect(stringCompare(a, b)).to.not.equal(0);
   };
 
-  t(['', new Uint8Array([0x61])], ['a', new Uint8Array([])]);
+  t(['', '\u0061'], ['a', '']);
 });
-
-function jsonU8(v: JSONValue): Uint8Array {
-  return utf8.encode(JSON.stringify(v));
-}
 
 test('get index keys', () => {
   const t = (
     key: string,
-    input: Uint8Array,
+    input: JSONValue,
     jsonPointer: string,
     expected: IndexKey[] | string | RegExp,
   ) => {
     if (Array.isArray(expected)) {
-      const keys = getIndexKeys(utf8.encode(key), input, jsonPointer);
+      const keys = getIndexKeys(key, input, jsonPointer);
       expect(keys).to.deep.equal(expected.map(k => encodeIndexKey(k)));
     } else {
-      expect(() => getIndexKeys(utf8.encode(key), input, jsonPointer)).to.throw(
-        expected,
-      );
+      expect(() => getIndexKeys(key, input, jsonPointer)).to.throw(expected);
     }
   };
 
-  // invalid json
-  t('k', new Uint8Array([]), '/', /unexpected (end of)|(EOF)/i);
-
   // no matching target
-  t('k', b`{}`, '/foo', 'No value at path: /foo');
+  t('k', {}, '/foo', 'No value at path: /foo');
 
   // unsupported target types
-  t('k', jsonU8({unsupported: {}}), '/unsupported', 'Unsupported target type');
-  t(
-    'k',
-    jsonU8({unsupported: null}),
-    '/unsupported',
-    'Unsupported target type',
-  );
-  t(
-    'k',
-    jsonU8({unsupported: true}),
-    '/unsupported',
-    'Unsupported target type',
-  );
-  t('k', jsonU8({unsupported: 42}), '/unsupported', 'Unsupported target type');
-  t(
-    'k',
-    jsonU8({unsupported: 88.8}),
-    '/unsupported',
-    'Unsupported target type',
-  );
-  t('k', jsonU8('no \0 allowed'), '', 'Secondary key cannot contain null byte');
+  t('k', {unsupported: {}}, '/unsupported', 'Unsupported target type');
+  t('k', {unsupported: null}, '/unsupported', 'Unsupported target type');
+  t('k', {unsupported: true}, '/unsupported', 'Unsupported target type');
+  t('k', {unsupported: 42}, '/unsupported', 'Unsupported target type');
+  t('k', {unsupported: 88.8}, '/unsupported', 'Unsupported target type');
+  t('k', 'no \0 allowed', '', 'Secondary key cannot contain null byte');
 
   // success
   // array of string
-  t('k', jsonU8({foo: []}), '/foo', []);
-  t('k', jsonU8({foo: ['bar', '', 'baz']}), '/foo', [
+  t('k', {foo: []}, '/foo', []);
+  t('k', {foo: ['bar', '', 'baz']}, '/foo', [
     {
-      secondary: b`bar`,
-      primary: b`k`,
+      secondary: `bar`,
+      primary: `k`,
     },
     {
-      secondary: b``,
-      primary: b`k`,
+      secondary: ``,
+      primary: `k`,
     },
     {
-      secondary: b`baz`,
-      primary: b`k`,
+      secondary: `baz`,
+      primary: `k`,
     },
   ]);
 
   // string
-  t('foo', jsonU8({foo: 'bar'}), '/foo', [
+  t('foo', {foo: 'bar'}, '/foo', [
     {
-      secondary: b`bar`,
-      primary: b`foo`,
+      secondary: `bar`,
+      primary: `foo`,
     },
   ]);
-  t('foo', jsonU8({foo: {bar: ['hot', 'dog']}}), '/foo/bar/1', [
+  t('foo', {foo: {bar: ['hot', 'dog']}}, '/foo/bar/1', [
     {
-      secondary: b`dog`,
-      primary: b`foo`,
+      secondary: `dog`,
+      primary: `foo`,
     },
   ]);
-  t('', jsonU8({foo: 'bar'}), '/foo', [
+  t('', {foo: 'bar'}, '/foo', [
     {
-      secondary: b`bar`,
-      primary: b``,
+      secondary: `bar`,
+      primary: ``,
     },
   ]);
-  t('/! ', jsonU8({foo: 'bar'}), '/foo', [
+  t('/! ', {foo: 'bar'}, '/foo', [
     {
-      secondary: b`bar`,
-      primary: b`/! `,
+      secondary: `bar`,
+      primary: `/! `,
     },
   ]);
 });
@@ -267,7 +235,7 @@ test('json pointer', () => {
 test('index value', () => {
   const t = (
     key: string,
-    value: Uint8Array,
+    value: JSONValue,
     jsonPointer: string,
     op: IndexOperation,
     expected: number[] | string,
@@ -275,39 +243,39 @@ test('index value', () => {
     const index = prolly.Map.new();
     index.put(
       encodeIndexKey({
-        secondary: b`s1`,
-        primary: b`1`,
+        secondary: 's1',
+        primary: '1',
       }),
-      b`v1`,
+      'v1',
     );
     index.put(
       encodeIndexKey({
-        secondary: b`s2`,
-        primary: b`2`,
+        secondary: 's2',
+        primary: '2',
       }),
-      b`v2`,
+      'v2',
     );
 
     if (Array.isArray(expected)) {
-      indexValue(index, op, utf8.encode(key), value, jsonPointer);
+      indexValue(index, op, key, value, jsonPointer);
 
       const actualVal = [...index];
       expect(expected.length).to.equal(actualVal.length);
       for (let i = 0; i < expected.length; i++) {
         const expEntry = encodeIndexKey({
-          secondary: b`s${expected[i]}`,
-          primary: b`${expected[i]}`,
+          secondary: `s${expected[i]}`,
+          primary: `${expected[i]}`,
         });
         expect(expEntry).to.deep.equal(actualVal[i][0]);
         expect(index.get(expEntry)).to.deep.equal(actualVal[i][1]);
       }
     } else {
-      expect(() =>
-        indexValue(index, op, utf8.encode(key), value, jsonPointer),
-      ).to.throw(expected);
+      expect(() => indexValue(index, op, key, value, jsonPointer)).to.throw(
+        expected,
+      );
     }
   };
 
-  t('3', jsonU8({s: 's3', v: 'v3'}), '/s', IndexOperation.Add, [1, 2, 3]);
-  t('1', jsonU8({s: 's1', v: 'v1'}), '/s', IndexOperation.Remove, [2]);
+  t('3', {s: 's3', v: 'v3'}, '/s', IndexOperation.Add, [1, 2, 3]);
+  t('1', {s: 's1', v: 'v1'}, '/s', IndexOperation.Remove, [2]);
 });

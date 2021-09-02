@@ -1,11 +1,10 @@
-import type {Read} from './store';
+import type {Read, Value} from './store';
 
-export const deleteSentinel = null;
+export const deleteSentinel = Symbol();
 export type DeleteSentinel = typeof deleteSentinel;
 
 export class WriteImplBase {
-  protected readonly _pending: Map<string, Uint8Array | DeleteSentinel> =
-    new Map();
+  protected readonly _pending: Map<string, Value | DeleteSentinel> = new Map();
   private readonly _read: Read;
 
   constructor(read: Read) {
@@ -23,7 +22,7 @@ export class WriteImplBase {
     }
   }
 
-  async get(key: string): Promise<Uint8Array | undefined> {
+  async get(key: string): Promise<Value | undefined> {
     const v = this._pending.get(key);
     switch (v) {
       case deleteSentinel:
@@ -35,7 +34,7 @@ export class WriteImplBase {
     }
   }
 
-  async put(key: string, value: Uint8Array): Promise<void> {
+  async put(key: string, value: Value): Promise<void> {
     this._pending.set(key, value);
   }
 

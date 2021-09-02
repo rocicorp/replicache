@@ -2,7 +2,6 @@ import {expect} from '@esm-bundle/chai';
 import {MemStore} from '../kv/mem-store';
 import * as dag from '../dag/mod';
 import * as db from '../db/mod';
-import * as utf8 from '../utf8';
 import type {JSONValue} from '../json';
 import {addGenesis, Chain} from '../db/test-helpers';
 import {apply} from './patch';
@@ -33,7 +32,7 @@ test('patch', async () => {
       expErr: undefined,
       expMap: new Map([
         ['key', 'value'],
-        ['foo', '"bar"'],
+        ['foo', 'bar'],
       ]),
     },
     {
@@ -46,7 +45,7 @@ test('patch', async () => {
       name: 'replace',
       patch: [{op: 'put', key: 'key', value: 'newvalue'}],
       expErr: undefined,
-      expMap: new Map([['key', '"newvalue"']]),
+      expMap: new Map([['key', 'newvalue']]),
     },
     {
       name: 'put empty key',
@@ -54,7 +53,7 @@ test('patch', async () => {
       expErr: undefined,
       expMap: new Map([
         ['key', 'value'],
-        ['', '"empty"'],
+        ['', 'empty'],
       ]),
     },
     {
@@ -66,7 +65,7 @@ test('patch', async () => {
       expErr: undefined,
       expMap: new Map([
         ['key', 'value'],
-        ['', '"changed"'],
+        ['', 'changed'],
       ]),
     },
     {
@@ -93,9 +92,9 @@ test('patch', async () => {
       ],
       expErr: undefined,
       expMap: new Map([
-        ['foo', '"bar"'],
-        ['key', '"newvalue"'],
-        ['baz', '"baz"'],
+        ['foo', 'bar'],
+        ['key', 'newvalue'],
+        ['baz', 'baz'],
       ]),
     },
     {
@@ -104,7 +103,7 @@ test('patch', async () => {
       expErr: undefined,
       expMap: new Map([
         ['key', 'value'],
-        ['~1', '"bar"'],
+        ['~1', 'bar'],
       ]),
     },
     {
@@ -113,7 +112,7 @@ test('patch', async () => {
       expErr: undefined,
       expMap: new Map([
         ['key', 'value'],
-        ['~0', '"bar"'],
+        ['~0', 'bar'],
       ]),
     },
     {
@@ -122,7 +121,7 @@ test('patch', async () => {
       expErr: undefined,
       expMap: new Map([
         ['key', 'value'],
-        ['/', '"bar"'],
+        ['/', 'bar'],
       ]),
     },
     {
@@ -171,7 +170,7 @@ test('patch', async () => {
         dagWrite,
         db.readIndexes(chain[0]),
       );
-      await dbWrite.put(lc, utf8.encode('key'), utf8.encode('value'));
+      await dbWrite.put(lc, 'key', 'value');
 
       const ops = c.patch;
 
@@ -187,28 +186,12 @@ test('patch', async () => {
         expect(err.message).to.equal(c.expErr);
       }
 
-      // match ops {
-      //     Err(e) => {
-      //         // JSON error
-      //         assert!(c.exp_err.is_some(), "Expected an error for {}", c.name);
-      //         assert!(to_debug(e).contains(c.exp_err.unwrap()), "{}", c.name);
-      //     }
-      //     Ok(ops) => {
-      //         let result = apply(db_write, ops).await;
-      //         if let Some(err_str) = c.exp_err {
-      //             assert!(to_debug(result.unwrap_err()).contains(err_str));
-      //         }
-      //     }
-      // }
-
       if (c.expMap !== undefined) {
         for (const [k, v] of c.expMap) {
-          expect(utf8.encode(v)).to.deep.equal(
-            dbWrite.asRead().get(utf8.encode(k)),
-          );
+          expect(v).to.deep.equal(dbWrite.asRead().get(k));
         }
         if (c.expMap.size === 0) {
-          expect(dbWrite.asRead().has(utf8.encode('key'))).to.be.false;
+          expect(dbWrite.asRead().has('key')).to.be.false;
         }
       }
     });

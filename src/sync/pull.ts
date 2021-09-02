@@ -1,6 +1,5 @@
 import type * as dag from '../dag/mod';
 import * as db from '../db/mod';
-import * as utf8 from '../utf8';
 import type {JSONValue} from '../json';
 import {assertPullResponse, Puller, PullError, PullResponse} from '../puller';
 import {
@@ -230,7 +229,7 @@ export async function maybeEndTryPull(
       const replayMutations: ReplayMutation[] = [];
       for (const c of pending) {
         let name: string;
-        let args: Uint8Array;
+        let args: JSONValue;
         if (c.meta().isLocal()) {
           const lm = c.meta().typed() as db.LocalMeta;
           name = lm.mutatorName();
@@ -241,7 +240,7 @@ export async function maybeEndTryPull(
         replayMutations.push({
           id: c.mutationID(),
           name,
-          args: utf8.decode(args),
+          args,
           original: c.chunk.hash,
         });
       }

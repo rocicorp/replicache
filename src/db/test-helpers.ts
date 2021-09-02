@@ -49,7 +49,7 @@ export async function createLocal(
     const w = await Write.newLocal(
       whenceHead(DEFAULT_HEAD_NAME),
       `mutator_name_${i}`,
-      JSON.stringify([i]),
+      [i],
       undefined,
       dagWrite,
     );

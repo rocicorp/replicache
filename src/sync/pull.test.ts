@@ -34,7 +34,6 @@ import {
   PullRequest,
   PULL_VERSION,
 } from './pull';
-import * as utf8 from '../utf8';
 import {LogContext} from '../logger';
 import {initHasher} from '../hash';
 
@@ -634,11 +633,11 @@ test('maybe end try pull', async () => {
       const chainIndex = i + 1; // chain[0] is genesis
       const original = chain[chainIndex];
       let mutatorName: string;
-      let mutatorArgs: string;
+      let mutatorArgs: JSONValue;
       if (original.meta().isLocal()) {
         const lm = original.meta().typed() as db.LocalMeta;
         mutatorName = lm.mutatorName();
-        mutatorArgs = utf8.decode(lm.mutatorArgsJSON());
+        mutatorArgs = lm.mutatorArgsJSON();
       } else {
         throw new Error('impossible');
       }
@@ -691,7 +690,7 @@ test('maybe end try pull', async () => {
             }`,
           );
           const gotArgs = resp.replayMutations?.[i].args;
-          const expArgs = utf8.decode(lm.mutatorArgsJSON());
+          const expArgs = lm.mutatorArgsJSON();
           expect(expArgs).to.deep.equal(gotArgs);
         } else {
           throw new Error('inconceivable');

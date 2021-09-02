@@ -1,7 +1,6 @@
 import type {JSONValue} from '../json';
 import * as db from '../db/mod';
 import type * as dag from '../dag/mod';
-import * as utf8 from '../utf8';
 import {
   assertHTTPRequestInfo,
   HTTPRequestInfo,
@@ -38,7 +37,7 @@ export interface InternalPusher {
 }
 
 export function convert(lm: db.LocalMeta): Mutation {
-  const args = JSON.parse(utf8.decode(lm.mutatorArgsJSON()));
+  const args = lm.mutatorArgsJSON();
   return {
     id: lm.mutationID(),
     name: lm.mutatorName(),
@@ -70,17 +69,17 @@ export async function push(
 
   let httpRequestInfo: HTTPRequestInfo | undefined = undefined;
   if (pending.length > 0) {
-    const push_mutations: Mutation[] = [];
+    const pushMutations: Mutation[] = [];
     for (const commit of pending) {
       if (commit.meta().isLocal()) {
-        push_mutations.push(convert(commit.meta().typed() as db.LocalMeta));
+        pushMutations.push(convert(commit.meta().typed() as db.LocalMeta));
       } else {
         throw new Error('Internal non local pending commit');
       }
     }
     const pushReq = {
       clientID,
-      mutations: push_mutations,
+      mutations: pushMutations,
       pushVersion: PUSH_VERSION,
       schemaVersion: req.schemaVersion,
     };

@@ -141,7 +141,7 @@ test('load roundtrip', async () => {
   for (const basisHash of [undefined, '', 'hash']) {
     t(
       await makeCommit(
-        b => makeLocalMeta(b, 0, 'mutname', new Uint8Array(), 'original'),
+        b => makeLocalMeta(b, 0, 'mutname', 42, 'original'),
         basisHash,
         'value',
         basisHash === undefined ? ['value'] : ['value', basisHash],
@@ -151,7 +151,7 @@ test('load roundtrip', async () => {
         basisHash,
         0,
         'mutname',
-        new Uint8Array(),
+        42,
         'original',
         'value',
         [],
@@ -161,7 +161,7 @@ test('load roundtrip', async () => {
 
   t(
     await makeCommit(
-      b => makeLocalMeta(b, 0, undefined, new Uint8Array([]), ''),
+      b => makeLocalMeta(b, 0, undefined, 43, ''),
       '',
       'value-hash',
       ['', ''],
@@ -183,27 +183,19 @@ test('load roundtrip', async () => {
   for (const basisHash of [undefined, '', 'hash']) {
     t(
       await makeCommit(
-        b => makeLocalMeta(b, 0, 'mutname', new Uint8Array([]), undefined),
+        b => makeLocalMeta(b, 0, 'mutname', 44, undefined),
         basisHash,
         'vh',
         basisHash === undefined ? ['vh'] : ['vh', basisHash],
         undefined,
       ),
-      await commitNewLocal(
-        basisHash,
-        0,
-        'mutname',
-        new Uint8Array([]),
-        undefined,
-        'vh',
-        [],
-      ),
+      await commitNewLocal(basisHash, 0, 'mutname', 44, undefined, 'vh', []),
     );
   }
 
   t(
     await makeCommit(
-      b => makeLocalMeta(b, 0, 'mutname', new Uint8Array([]), ''),
+      b => makeLocalMeta(b, 0, 'mutname', 45, ''),
       '',
       undefined,
       ['', ''],
@@ -253,14 +245,7 @@ test('load roundtrip', async () => {
 test('accessors', async () => {
   const local = fromChunk(
     await makeCommit(
-      b =>
-        makeLocalMeta(
-          b,
-          1,
-          'foo_mutator',
-          new Uint8Array([42]),
-          'original_hash',
-        ),
+      b => makeLocalMeta(b, 1, 'foo_mutator', 42, 'original_hash'),
       'basis_hash',
       'value_hash',
       ['value_hash', 'basis_hash'],
@@ -271,7 +256,7 @@ test('accessors', async () => {
     const lm = local.meta().typed() as LocalMeta;
     expect(lm.mutationID()).to.equal(1);
     expect(lm.mutatorName()).to.equal('foo_mutator');
-    expect(lm.mutatorArgsJSON()).to.deep.equal(new Uint8Array([42]));
+    expect(lm.mutatorArgsJSON()).to.equal(42);
     expect(lm.originalHash()).to.equal('original_hash');
   } else {
     throw new Error('unexpected type');
@@ -400,7 +385,7 @@ function makeLocalMeta(
   builder: flatbuffers.Builder,
   mutation_id: number,
   mutatorName: string | undefined,
-  mutatorArgsJson: Uint8Array | undefined,
+  mutatorArgsJson: JSONValue | undefined,
   originalHash: string | undefined,
 ): [MetaTypedFB, number] {
   const localMeta = LocalMetaFB.createLocalMeta(
@@ -409,7 +394,10 @@ function makeLocalMeta(
     mutatorName === undefined ? 0 : builder.createString(mutatorName),
     mutatorArgsJson === undefined
       ? 0
-      : LocalMetaFB.createMutatorArgsJsonVector(builder, mutatorArgsJson),
+      : LocalMetaFB.createMutatorArgsJsonVector(
+          builder,
+          utf8.encode(JSON.stringify(mutatorArgsJson)),
+        ),
     originalHash === undefined ? 0 : builder.createString(originalHash),
   );
   return [MetaTypedFB.LocalMeta, localMeta];

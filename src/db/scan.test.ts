@@ -358,10 +358,7 @@ test('exclusive index map', () => {
 
     const map = prolly.Map.new();
     for (const entry of entries) {
-      const encoded = encodeIndexKey({
-        secondary: entry[0],
-        primary: entry[1],
-      });
+      const encoded = encodeIndexKey(entry);
       map.put(encoded, 'value');
     }
     const opts = {

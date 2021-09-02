@@ -70,7 +70,7 @@ export function indexValue(
 
 // Gets the set of index keys for a given primary key and value.
 export function getIndexKeys(
-  key: string,
+  primary: string,
   value: JSONValue,
   jsonPointer: string,
 ): string[] {
@@ -94,22 +94,13 @@ export function getIndexKeys(
     }
   }
 
-  return strings.map(v =>
-    encodeIndexKey({
-      secondary: v,
-      primary: key,
-    }),
-  );
+  return strings.map(secondary => encodeIndexKey([secondary, primary]));
 }
 
-// TODO(arv): Share code with subscriptions.ts
 export const KEY_VERSION_0 = '\u0000';
 export const KEY_SEPARATOR = '\u0000';
 
-export type IndexKey = {
-  secondary: string;
-  primary: string;
-};
+export type IndexKey = [secondary: string, primary: string];
 
 // An index key is encoded to vec of bytes in the following order:
 //   - key version byte(s), followed by
@@ -122,7 +113,8 @@ export type IndexKey = {
 // identical secondary keys sort in primary key order. Secondary keys must not
 // contain a zero (null) byte.
 export function encodeIndexKey(indexKey: IndexKey): string {
-  const {secondary, primary} = indexKey;
+  const secondary = indexKey[0];
+  const primary = indexKey[1];
 
   if (secondary.includes('\u0000')) {
     throw new Error('Secondary key cannot contain null byte');
@@ -160,10 +152,7 @@ export function encodeIndexScanKey(
   primary: string | undefined,
   exclusive: boolean,
 ): string {
-  let k = encodeIndexKey({
-    secondary,
-    primary: primary || '',
-  });
+  let k = encodeIndexKey([secondary, primary || '']);
 
   let smallestLegalValue = '\u0000';
   if (primary === undefined) {
@@ -176,24 +165,22 @@ export function encodeIndexScanKey(
   return k;
 }
 
-// TODO(arv): Unify with impl in subscriptions.ts
-
 // Decodes an IndexKey encoded by encode_index_key.
 export function decodeIndexKey(encodedIndexKey: string): IndexKey {
   if (encodedIndexKey[0] !== KEY_VERSION_0) {
-    throw new Error('Invalid Version');
+    throw new Error('Invalid version');
   }
 
   const versionLen = KEY_VERSION_0.length;
   const separatorLen = KEY_SEPARATOR.length;
   const separatorOffset = encodedIndexKey.indexOf(KEY_SEPARATOR, versionLen);
   if (separatorOffset === -1) {
-    throw new Error('Invalid Formatting');
+    throw new Error('Invalid formatting');
   }
 
   const secondary = encodedIndexKey.slice(versionLen, separatorOffset);
   const primary = encodedIndexKey.slice(separatorOffset + separatorLen);
-  return {secondary, primary};
+  return [secondary, primary];
 }
 
 export function evaluateJSONPointer(

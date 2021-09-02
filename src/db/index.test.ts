@@ -19,10 +19,7 @@ import {stringCompare} from '../prolly/string-compare';
 test('test index key', () => {
   const testValid = (secondary: string, primary: string) => {
     // Ensure the encoded value is what we expect.
-    const encoded = encodeIndexKey({
-      secondary,
-      primary,
-    });
+    const encoded = encodeIndexKey([secondary, primary]);
     expect(KEY_VERSION_0).to.equal(encoded.slice(0, KEY_VERSION_0.length));
     const secondaryIndex = KEY_VERSION_0.length;
     const separatorIndex = secondaryIndex + secondary.length;
@@ -33,8 +30,8 @@ test('test index key', () => {
 
     // Ensure we can decode it properly.
     const decoded = decodeIndexKey(encoded);
-    expect(decoded.secondary).to.equal(secondary);
-    expect(decoded.primary).to.equal(primary);
+    expect(decoded[0]).to.equal(secondary);
+    expect(decoded[1]).to.equal(primary);
   };
 
   testValid('', '');
@@ -49,12 +46,10 @@ test('test index key', () => {
     primary: string,
     expected: string,
   ) => {
-    expect(() =>
-      encodeIndexKey({
-        secondary,
-        primary,
-      }),
-    ).to.throw(Error, expected);
+    expect(() => encodeIndexKey([secondary, primary])).to.throw(
+      Error,
+      expected,
+    );
   };
   testInvalidEncode(
     'no \0 nulls',
@@ -65,18 +60,15 @@ test('test index key', () => {
   const testInvalidDecode = (encoded: string, expected: string) => {
     expect(() => decodeIndexKey(encoded)).to.throw(Error, expected);
   };
-  testInvalidDecode('', 'Invalid Version');
-  testInvalidDecode('\u0001', 'Invalid Version');
-  testInvalidDecode('\u0000', 'Invalid Formatting');
-  testInvalidDecode('\u0000\u0001\u0002', 'Invalid Formatting');
+  testInvalidDecode('', 'Invalid version');
+  testInvalidDecode('\u0001', 'Invalid version');
+  testInvalidDecode('\u0000', 'Invalid formatting');
+  testInvalidDecode('\u0000\u0001\u0002', 'Invalid formatting');
 });
 
 test('encode scan key', () => {
   const t = (secondary: string, primary: string) => {
-    const encodedIndexKey = encodeIndexKey({
-      secondary,
-      primary,
-    });
+    const encodedIndexKey = encodeIndexKey([secondary, primary]);
     // With exclusive == false
     let scanKey = encodeIndexScanKey(secondary, primary, false);
 
@@ -98,15 +90,9 @@ test('encode scan key', () => {
 });
 
 test('index key sort', () => {
-  const t = (left: [string, string], right: [string, string]) => {
-    const a = encodeIndexKey({
-      secondary: left[0],
-      primary: left[1],
-    });
-    const b = encodeIndexKey({
-      secondary: right[0],
-      primary: right[1],
-    });
+  const t = (left: IndexKey, right: IndexKey) => {
+    const a = encodeIndexKey(left);
+    const b = encodeIndexKey(right);
     expect(arrayCompare(a, b)).to.equal(-1);
   };
 
@@ -124,15 +110,9 @@ test('index key sort', () => {
 // value with secondary index "f" and primary index "oo". This test gives us a
 // tiny extra assurance that this is the case.
 test('index key uniqueness', () => {
-  const t = (left: [string, string], right: [string, string]) => {
-    const a = encodeIndexKey({
-      secondary: left[0],
-      primary: left[1],
-    });
-    const b = encodeIndexKey({
-      secondary: right[0],
-      primary: right[1],
-    });
+  const t = (left: IndexKey, right: IndexKey) => {
+    const a = encodeIndexKey(left);
+    const b = encodeIndexKey(right);
     expect(stringCompare(a, b)).to.not.equal(0);
   };
 
@@ -169,45 +149,16 @@ test('get index keys', () => {
   // array of string
   t('k', {foo: []}, '/foo', []);
   t('k', {foo: ['bar', '', 'baz']}, '/foo', [
-    {
-      secondary: `bar`,
-      primary: `k`,
-    },
-    {
-      secondary: ``,
-      primary: `k`,
-    },
-    {
-      secondary: `baz`,
-      primary: `k`,
-    },
+    ['bar', 'k'],
+    ['', 'k'],
+    ['baz', 'k'],
   ]);
 
   // string
-  t('foo', {foo: 'bar'}, '/foo', [
-    {
-      secondary: `bar`,
-      primary: `foo`,
-    },
-  ]);
-  t('foo', {foo: {bar: ['hot', 'dog']}}, '/foo/bar/1', [
-    {
-      secondary: `dog`,
-      primary: `foo`,
-    },
-  ]);
-  t('', {foo: 'bar'}, '/foo', [
-    {
-      secondary: `bar`,
-      primary: ``,
-    },
-  ]);
-  t('/! ', {foo: 'bar'}, '/foo', [
-    {
-      secondary: `bar`,
-      primary: `/! `,
-    },
-  ]);
+  t('foo', {foo: 'bar'}, '/foo', [['bar', 'foo']]);
+  t('foo', {foo: {bar: ['hot', 'dog']}}, '/foo/bar/1', [['dog', 'foo']]);
+  t('', {foo: 'bar'}, '/foo', [['bar', '']]);
+  t('/! ', {foo: 'bar'}, '/foo', [['bar', '/! ']]);
 });
 
 test('json pointer', () => {
@@ -241,20 +192,8 @@ test('index value', () => {
     expected: number[] | string,
   ) => {
     const index = prolly.Map.new();
-    index.put(
-      encodeIndexKey({
-        secondary: 's1',
-        primary: '1',
-      }),
-      'v1',
-    );
-    index.put(
-      encodeIndexKey({
-        secondary: 's2',
-        primary: '2',
-      }),
-      'v2',
-    );
+    index.put(encodeIndexKey(['s1', '1']), 'v1');
+    index.put(encodeIndexKey(['s2', '2']), 'v2');
 
     if (Array.isArray(expected)) {
       indexValue(index, op, key, value, jsonPointer);
@@ -262,10 +201,7 @@ test('index value', () => {
       const actualVal = [...index];
       expect(expected.length).to.equal(actualVal.length);
       for (let i = 0; i < expected.length; i++) {
-        const expEntry = encodeIndexKey({
-          secondary: `s${expected[i]}`,
-          primary: `${expected[i]}`,
-        });
+        const expEntry = encodeIndexKey([`s${expected[i]}`, `${expected[i]}`]);
         expect(expEntry).to.deep.equal(actualVal[i][0]);
         expect(index.get(expEntry)).to.deep.equal(actualVal[i][1]);
       }
@@ -278,4 +214,13 @@ test('index value', () => {
 
   t('3', {s: 's3', v: 'v3'}, '/s', IndexOperation.Add, [1, 2, 3]);
   t('1', {s: 's1', v: 'v1'}, '/s', IndexOperation.Remove, [2]);
+});
+
+test(`decodeIndexKey`, () => {
+  expect(decodeIndexKey('\u0000abc\u0000def')).to.deep.equal(['abc', 'def']);
+  expect(decodeIndexKey('\u0000abc\u0000')).to.deep.equal(['abc', '']);
+  expect(decodeIndexKey('\u0000\u0000def')).to.deep.equal(['', 'def']);
+
+  expect(() => decodeIndexKey('abc')).to.throw('Invalid version');
+  expect(() => decodeIndexKey('\u0000abc')).to.throw('Invalid formatting');
 });

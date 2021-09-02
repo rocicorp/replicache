@@ -17,7 +17,7 @@ export class Hash {
    *
    * You have to await the result of [[initHasher]] before calling this method.
    */
-  static of(sum: Uint8Array): Hash {
+  static of(sum: Uint8Array | string): Hash {
     if (!hasher) {
       throw new Error('Hash.of() requires await initHasher');
     }

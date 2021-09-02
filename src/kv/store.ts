@@ -1,3 +1,5 @@
+import type {JSONValue} from '../json';
+
 /**
  * Store defines a transactional key/value store that Replicache stores all data
  * within.
@@ -39,14 +41,16 @@ export interface Release {
  */
 export interface Read extends Release {
   has(key: string): Promise<boolean>;
-  get(key: string): Promise<Uint8Array | undefined>;
+  get(key: string): Promise<Value | undefined>;
 }
 
 /**
  * @experimental
  */
 export interface Write extends Read {
-  put(key: string, value: Uint8Array): Promise<void>;
+  put(key: string, value: Value): Promise<void>;
   del(key: string): Promise<void>;
   commit(): Promise<void>;
 }
+
+export type Value = Uint8Array | JSONValue;

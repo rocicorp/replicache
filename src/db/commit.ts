@@ -10,7 +10,7 @@ import {IndexRecord as IndexRecordFB} from './generated/commit/index-record';
 import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
 import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
 import type {JSONValue} from '../json';
-import {assertNotNull} from '../asserts';
+import {assertInstanceof, assertNotNull, assertString} from '../asserts';
 import * as utf8 from '../utf8';
 
 export const DEFAULT_HEAD_NAME = 'main';
@@ -22,7 +22,9 @@ export class Commit {
   }
 
   commit(): CommitFB {
-    const buf = new flatbuffers.ByteBuffer(this.chunk.data);
+    const {data} = this.chunk;
+    assertInstanceof(data, Uint8Array);
+    const buf = new flatbuffers.ByteBuffer(data);
     return CommitFB.getRootAsCommit(buf);
   }
 
@@ -64,12 +66,12 @@ export class Commit {
       assertNotNull(definitionFB);
       const jsonPointer = definitionFB.jsonPointer() ?? '';
       const name = definitionFB.name();
-      assertNotNull(name);
+      assertString(name);
       const keyPrefix = definitionFB.keyPrefixArray();
       assertNotNull(keyPrefix);
       const definition: IndexDefinition = {
         name,
-        keyPrefix,
+        keyPrefix: utf8.decode(keyPrefix),
         jsonPointer,
       };
       const valueHash = idx.valueHash();
@@ -261,7 +263,7 @@ export class SnapshotMeta {
 export type IndexDefinition = {
   name: string;
   // keyPrefix describes a subset of the primary key to index
-  keyPrefix: Uint8Array;
+  keyPrefix: string;
   // jsonPointer describes the (sub-)value to index (secondary index)
   jsonPointer: string;
 };
@@ -308,15 +310,16 @@ export function newLocal(
 export function newSnapshot(
   basisHash: string | undefined,
   lastMutationID: number,
-  cookieJSON: Uint8Array,
+  cookieJSON: JSONValue,
   valueHash: string,
   indexes: IndexRecord[],
 ): Promise<Commit> {
   const builder = new flatbuffers.Builder();
+  const cookieBytes = utf8.encode(JSON.stringify(cookieJSON));
   const snapshotMeta = SnapshotMetaFB.createSnapshotMeta(
     builder,
     builder.createLong(lastMutationID, 0),
-    SnapshotMetaFB.createCookieJsonVector(builder, cookieJSON),
+    SnapshotMetaFB.createCookieJsonVector(builder, cookieBytes),
   );
   return newImpl(
     builder,
@@ -352,7 +355,9 @@ export function newIndexChange(
 }
 
 export function fromChunk(chunk: Chunk): Commit {
-  validate(chunk.data);
+  const {data} = chunk;
+  assertInstanceof(data, Uint8Array);
+  validate(data);
   return new Commit(chunk);
 }
 
@@ -394,7 +399,7 @@ async function newImpl(
       builder.createString(index.definition.name),
       IndexDefinitionFB.createKeyPrefixVector(
         builder,
-        index.definition.keyPrefix,
+        utf8.encode(index.definition.keyPrefix),
       ),
       builder.createString(index.definition.jsonPointer),
     );

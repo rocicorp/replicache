@@ -2,7 +2,6 @@ import type * as kv from '../kv/mod';
 import * as dag from '../dag/mod';
 import * as db from '../db/mod';
 import * as sync from '../sync/mod';
-import * as utf8 from '../utf8';
 import type {
   BeginTryPullRequest,
   BeginTryPullResponse,
@@ -371,7 +370,7 @@ export function has(transactionID: number, key: string): boolean {
   const {txn, lc} = getTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'has');
   lc2.debug?.('->', key);
-  const result = txn.asRead().has(utf8.encode(key));
+  const result = txn.asRead().has(key);
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
   return result;
 }
@@ -383,14 +382,9 @@ export function get(transactionID: number, key: string): JSONValue | undefined {
   const {txn, lc} = getTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'get');
   lc2.debug?.('->', key);
-  const buf = txn.asRead().get(utf8.encode(key));
-  if (buf === undefined) {
-    return undefined;
-  }
-  const s = utf8.decode(buf);
-  const result = JSON.parse(s);
-  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
-  return result;
+  const value = txn.asRead().get(key);
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', value);
+  return value;
 }
 
 export async function scan(
@@ -399,7 +393,7 @@ export async function scan(
   receiver: (
     primaryKey: string,
     secondaryKey: string | null,
-    value: Uint8Array,
+    value: JSONValue,
   ) => void,
 ): Promise<void> {
   const start = Date.now();
@@ -414,7 +408,7 @@ export async function scan(
       throw sr.error;
     }
     const {val, key, secondaryKey} = sr.item;
-    receiver(utf8.decode(key), utf8.decode(secondaryKey), val);
+    receiver(key, secondaryKey, val);
   });
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
@@ -422,7 +416,7 @@ export async function scan(
 export async function put(
   transactionID: number,
   key: string,
-  value: string,
+  value: JSONValue,
 ): Promise<void> {
   const start = Date.now();
   isTesting && logCall('put', transactionID, key, value);
@@ -430,7 +424,7 @@ export async function put(
   const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'put');
   lc2.debug?.('->', key, value);
-  await txn.put(lc2, utf8.encode(key), utf8.encode(value));
+  await txn.put(lc2, key, value);
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
@@ -444,9 +438,8 @@ export async function del(
   const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'del');
   lc2.debug?.('->', key);
-  const keyBytes = utf8.encode(key);
-  const had = await txn.asRead().has(keyBytes);
-  await txn.del(lc, keyBytes);
+  const had = await txn.asRead().has(key);
+  await txn.del(lc, key);
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', had);
   return had;
 }
@@ -463,7 +456,7 @@ export async function createIndex(
   const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'createIndex');
   lc2.debug?.('->', name, keyPrefix, jsonPointer);
-  await txn.createIndex(lc, name, utf8.encode(keyPrefix), jsonPointer);
+  await txn.createIndex(lc, name, keyPrefix, jsonPointer);
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 

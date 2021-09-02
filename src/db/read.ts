@@ -9,6 +9,7 @@ import {
   ScanResult,
 } from './scan';
 import {Commit} from './commit';
+import type {JSONValue} from '../json';
 
 export class Read {
   private readonly _dagRead: dag.Read;
@@ -21,11 +22,11 @@ export class Read {
     this._indexes = indexes;
   }
 
-  has(key: Uint8Array): boolean {
+  has(key: string): boolean {
     return this._map.has(key);
   }
 
-  get(key: Uint8Array): Uint8Array | undefined {
+  get(key: string): JSONValue | undefined {
     return this._map.get(key);
   }
 

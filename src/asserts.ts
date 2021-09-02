@@ -51,3 +51,12 @@ export function assertNotUndefined<T>(v: T | undefined): asserts v is T {
     throw new Error('Expected non undefined value');
   }
 }
+
+export function assertInstanceof<T>(
+  v: unknown,
+  t: new (...args: unknown[]) => T,
+): asserts v is T {
+  if (!(v instanceof t)) {
+    throw new Error(`Expected instanceof ${t.name}`);
+  }
+}

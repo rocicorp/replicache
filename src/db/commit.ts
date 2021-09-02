@@ -225,10 +225,10 @@ export class LocalMeta {
     return this.fb.mutatorName()!;
   }
 
-  mutatorArgsJSON(): Uint8Array {
+  mutatorArgsJSON(): JSONValue {
     // Already validated!
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return this.fb.mutatorArgsJsonArray()!;
+    return JSON.parse(utf8.decode(this.fb.mutatorArgsJsonArray()!));
   }
 
   originalHash(): string | undefined {
@@ -282,7 +282,7 @@ export function newLocal(
   basisHash: string | undefined,
   mutationID: number,
   mutatorName: string,
-  mutatorArgsJSON: Uint8Array,
+  mutatorArgsJSON: JSONValue,
   originalHash: string | undefined,
   valueHash: string,
   indexes: IndexRecord[],
@@ -292,7 +292,10 @@ export function newLocal(
     builder,
     flatbuffers.createLong(mutationID, 0),
     builder.createString(mutatorName),
-    LocalMetaFB.createMutatorArgsJsonVector(builder, mutatorArgsJSON),
+    LocalMetaFB.createMutatorArgsJsonVector(
+      builder,
+      utf8.encode(JSON.stringify(mutatorArgsJSON)),
+    ),
     originalHash ? builder.createString(originalHash) : 0,
   );
 

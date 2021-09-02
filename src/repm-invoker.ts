@@ -3,6 +3,7 @@ import type {Pusher} from './pusher';
 import type * as kv from './kv/mod';
 import type * as dag from './dag/mod';
 import type * as db from './db/mod';
+import type {JSONValue} from './json';
 
 type OpenRequest = {
   useMemstore: boolean;
@@ -56,7 +57,7 @@ export type RebaseOpts = {
 
 export type OpenTransactionRequest = {
   name?: string;
-  args?: string;
+  args?: JSONValue;
   rebaseOpts?: RebaseOpts;
 };
 type OpenTransactionResponse = {
@@ -137,7 +138,7 @@ export type MaybeEndTryPullRequest = {
 export type ReplayMutation = {
   id: number;
   name: string;
-  args: string;
+  args: JSONValue;
   original: string;
 };
 

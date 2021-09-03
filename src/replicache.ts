@@ -607,7 +607,7 @@ export class Replicache<MD extends MutatorDefs = {}>
         syncHead,
         mutation.original,
         mutation.name,
-        JSON.parse(mutation.args),
+        mutation.args,
       );
     }
 
@@ -1023,7 +1023,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     }: {invokeArgs?: OpenTransactionRequest; isReplay: boolean},
   ): Promise<{result: R; ref: string}> {
     let actualInvokeArgs: OpenTransactionRequest = {
-      args: args !== undefined ? JSON.stringify(args) : 'null',
+      args: args === undefined ? null : args,
       name,
     };
     if (invokeArgs !== undefined) {

@@ -7,5 +7,6 @@
   "prettier.arrowParens": "avoid",
   "prettier.bracketSpacing": false,
   "prettier.singleQuote": true,
-  "prettier.trailingComma": "all"
+  "prettier.trailingComma": "all",
+  "typescript.tsdk": "node_modules/typescript/lib"
 }

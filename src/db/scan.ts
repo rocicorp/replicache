@@ -90,7 +90,8 @@ export function* scan(
     if (indexScan) {
       try {
         const decoded = decodeIndexKey(entry[0]);
-        const {secondary, primary} = decoded;
+        const secondary = decoded[0];
+        const primary = decoded[1];
         yield {
           type: ScanResultType.Item,
           item: {

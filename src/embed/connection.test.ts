@@ -2,7 +2,6 @@ import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
 import type * as db from '../db/mod';
 import * as sync from '../sync/mod';
-import * as utf8 from '../utf8';
 import {MemStore} from '../kv/mem-store';
 import {addGenesis, addLocal, Chain} from '../db/test-helpers';
 import {addSyncSnapshot} from '../sync/test-helpers';
@@ -31,10 +30,7 @@ test('open transaction rebase opts', async () => {
   let lm = meta.typed() as db.LocalMeta;
   const originalHash = original.chunk.hash;
   const originalName = lm.mutatorName();
-  const originalArgs = utf8.decode(lm.mutatorArgsJSON());
-
-  // drop(meta);
-  // drop(original);
+  const originalArgs = lm.mutatorArgsJSON();
 
   let result;
   try {
@@ -91,19 +87,19 @@ test('open transaction rebase opts', async () => {
     throw new Error('not local');
   }
   lm = meta.typed() as db.LocalMeta;
-  const new_local_hash = new_local.chunk.hash;
-  const new_local_name = lm.mutatorName();
-  const new_local_args = utf8.decode(lm.mutatorArgsJSON());
+  const newLocalHash = new_local.chunk.hash;
+  const newLocalName = lm.mutatorName();
+  const newLocalArgs = lm.mutatorArgsJSON();
   try {
     result = await openTransactionImpl(
       lc,
       store,
       txns,
-      new_local_name,
-      new_local_args,
+      newLocalName,
+      newLocalArgs,
       {
         basis: syncChain[0].chunk.hash,
-        original: new_local_hash,
+        original: newLocalHash,
       },
     );
   } catch (e) {

@@ -1,17 +1,5 @@
 import {expect} from '@esm-bundle/chai';
-import {decodeIndexKey, scanOptionsMatchesKey} from './subscriptions';
-
-test(`decodeIndexKey`, () => {
-  expect(decodeIndexKey('\u0000abc\u0000def')).to.deep.equal(['abc', 'def']);
-  expect(decodeIndexKey('\u0000abc\u0000')).to.deep.equal(['abc', '']);
-  expect(decodeIndexKey('\u0000\u0000def')).to.deep.equal(['', 'def']);
-
-  expect(() => decodeIndexKey('abc')).to.throw('Invalid version');
-  expect(() => decodeIndexKey('\u0000abc')).to.throw('Invalid formatting');
-  expect(() => decodeIndexKey('\u0000abc\u0000def\u0000ghi')).to.throw(
-    'Invalid formatting',
-  );
-});
+import {scanOptionsMatchesKey} from './subscriptions';
 
 test('scanOptionsMatchesKey', () => {
   expect(scanOptionsMatchesKey({}, '', 'a')).to.be.true;

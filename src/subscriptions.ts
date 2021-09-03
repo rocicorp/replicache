@@ -1,7 +1,7 @@
 import type {JSONValue} from './json';
 import type {ChangedKeysMap} from './repm-invoker';
 import type {ReadTransaction} from './transactions';
-import type * as db from './db/mod';
+import * as db from './db/mod';
 
 export type Subscription<R extends JSONValue | undefined, E> = {
   body: (tx: ReadTransaction) => Promise<R>;
@@ -79,7 +79,8 @@ export function scanOptionsMatchesKey(
     return true;
   }
 
-  const [changedKeySecondary, changedKeyPrimary] = decodeIndexKey(changedKey);
+  const [changedKeySecondary, changedKeyPrimary] =
+    db.decodeIndexKey(changedKey);
 
   if (prefix) {
     if (!changedKeySecondary.startsWith(prefix)) {
@@ -104,26 +105,6 @@ export function scanOptionsMatchesKey(
   }
 
   return true;
-}
-
-const KEY_VERSION_0 = '\u0000';
-const KEY_SEPARATOR = '\u0000';
-
-// When working with indexes the changed keys are encoded. This is a port of the Rust code in Repc.
-// Make sure these are in sync.
-export function decodeIndexKey(
-  encodedIndexKey: string,
-): [secondary: string, primary: string] {
-  if (!encodedIndexKey.startsWith(KEY_VERSION_0)) {
-    throw new Error('Invalid version');
-  }
-  const parts = encodedIndexKey
-    .slice(KEY_VERSION_0.length)
-    .split(KEY_SEPARATOR);
-  if (parts.length !== 2) {
-    throw new Error('Invalid formatting: ' + encodedIndexKey);
-  }
-  return parts as [string, string];
 }
 
 export function* subscriptionsForChangedKeys<V, E>(

@@ -142,7 +142,7 @@ async function init(store: dag.Store): Promise<void> {
 export async function openTransaction(
   dbName: string,
   name: string | undefined,
-  args: string | undefined,
+  args: JSONValue | undefined,
   rebaseOpts: RebaseOpts | undefined,
 ): Promise<number> {
   isTesting && logCall('openTransaction', dbName, name, args, rebaseOpts);
@@ -162,7 +162,7 @@ export async function openTransactionImpl(
   store: dag.Store,
   transactions: Map<number, {txn: Transaction; lc: LogContext}>,
   name: string | undefined,
-  args: string | undefined,
+  args: JSONValue | undefined,
   rebaseOpts: RebaseOpts | undefined,
 ): Promise<number> {
   const start = Date.now();
@@ -258,7 +258,7 @@ async function validateRebase(
   dagRead: dag.Read,
   mutatorName: string,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _args: string,
+  _args: JSONValue,
 ) {
   // Ensure the rebase commit is going on top of the current sync head.
   const syncHeadHash = await dagRead.getHead(sync.SYNC_HEAD_NAME);

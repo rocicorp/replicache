@@ -11,7 +11,6 @@ import {
 import {Read, readCommit, readIndexes, Whence} from './read';
 import {Index, IndexOperation, indexValue} from './index';
 import {scanRaw} from './scan';
-import * as utf8 from '../utf8';
 import type {LogContext} from '../logger';
 
 type IndexChangeMeta = {
@@ -22,7 +21,7 @@ type IndexChangeMeta = {
 type LocalMeta = {
   type: MetaType.Local;
   mutatorName: string;
-  mutatorArgs: string;
+  mutatorArgs: JSONValue;
   mutationID: number;
   originalHash: string | undefined;
 };
@@ -65,7 +64,7 @@ export class Write {
   static async newLocal(
     whence: Whence,
     mutatorName: string,
-    mutatorArgs: string,
+    mutatorArgs: JSONValue,
     originalHash: string | undefined,
     dagWrite: dag.Write,
   ): Promise<Write> {
@@ -309,7 +308,7 @@ export class Write {
           basisHash,
           mutationID,
           mutatorName,
-          utf8.encode(mutatorArgs),
+          mutatorArgs,
           originalHash,
           valueHash,
           indexMetas,

@@ -92,6 +92,26 @@ export function deepEqual(
   return true;
 }
 
+export function deepFreeze<T extends JSONValue>(value: T): T {
+  if (Object.isFrozen(value)) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    Object.freeze(value);
+    for (const v of value) {
+      deepFreeze(v);
+    }
+  } else if (typeof value === 'object' && value !== null) {
+    Object.freeze(value);
+    for (const v of Object.values(value)) {
+      if (v !== undefined) {
+        deepFreeze(v);
+      }
+    }
+  }
+  return value;
+}
+
 export function assertJSONValue(v: unknown): asserts v is JSONValue {
   switch (typeof v) {
     case 'boolean':

@@ -1,3 +1,4 @@
+import {deepFreeze} from '../json';
 import type {Read, Value} from './store';
 
 export const deleteSentinel = Symbol();
@@ -35,7 +36,7 @@ export class WriteImplBase {
   }
 
   async put(key: string, value: Value): Promise<void> {
-    this._pending.set(key, value);
+    this._pending.set(key, value instanceof Uint8Array ? value : deepFreeze(value));
   }
 
   async del(key: string): Promise<void> {

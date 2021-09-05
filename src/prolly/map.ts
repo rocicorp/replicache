@@ -1,9 +1,10 @@
 import type * as dag from '../dag/mod';
-import {deepEqual, JSONValue} from '../json';
+import {deepEqual, deepFreeze, JSONValue} from '../json';
 import {arrayCompare} from './array-compare';
 import {Leaf} from './leaf';
 import {PeekIterator} from './peek-iterator';
 import {stringCompare} from './string-compare';
+import cloneDeep from 'lodash-es/cloneDeep';
 
 export type Entry = [key: string, value: JSONValue];
 
@@ -60,9 +61,9 @@ class ProllyMap {
       case deleteSentinel:
         return undefined;
       case undefined:
-        return this._baseGet(key);
+        return cloneDeep(this._baseGet(key));
       default:
-        return p;
+        return cloneDeep(p);
     }
   }
 
@@ -78,7 +79,7 @@ class ProllyMap {
   }
 
   put(key: string, val: JSONValue): void {
-    this._pending.set(key, val);
+    this._pending.set(key, deepFreeze(val));
   }
 
   del(key: string): void {
@@ -214,7 +215,7 @@ class Iter implements IterableIterator<Entry> {
         // Key was deleted
         continue;
       }
-      return ni as IteratorResult<Entry>;
+      return cloneDeep(ni) as IteratorResult<Entry>;
     }
   }
 

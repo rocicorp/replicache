@@ -281,3 +281,40 @@ test('pending changes keys', async () => {
   map.put('b', '2');
   expect(map.pendingChangedKeys()).to.deep.equal(['b']);
 });
+
+test('caller mutates read data', async () => {
+  const t = ({readViaGet, putMutated}: {
+    readViaGet: boolean, // or scan
+    putMutated: boolean,
+  }) => {
+    const original = {foo: 'bar'};
+    const map = new prolly.Map(new Leaf([['foo', original]]), new Map());
+    const mutated = readViaGet ? map.get('foo') : map.entries().next().value[1];
+
+    // We expect to get back a different object each time right now (this may change in the future).
+    expect(mutated).is.not.equal(original);
+    expect(mutated).to.deep.equal(original);
+
+    // Mutate the returned object
+    mutated.foo = 'baz';
+
+    // Write the object
+    if (putMutated) {
+      map.put('foo', mutated);
+    }
+
+    const actual = map.get('foo');
+    if (putMutated) {
+      expect(map.pendingChangedKeys()).to.deep.equal(['foo']);
+      expect(actual).to.deep.equal(mutated);
+    } else {
+      expect(map.pendingChangedKeys()).to.deep.equal([]);
+      expect(actual).to.deep.equal(original);
+    }
+  };
+
+  t({readViaGet: true, putMutated: false});
+  t({readViaGet: false, putMutated: false});
+  t({readViaGet: true, putMutated: true});
+  t({readViaGet: false, putMutated: true});
+});

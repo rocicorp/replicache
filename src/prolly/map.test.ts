@@ -1,12 +1,10 @@
 import {expect} from '@esm-bundle/chai';
 import {Store} from '../dag/mod';
 import {MemStore} from '../kv/mod';
-import {Leaf} from './leaf';
 import {stringCompare} from './string-compare';
 import * as prolly from './mod';
 import {initHasher} from '../hash';
 import type {JSONValue} from '../json';
-import {deleteSentinel, DeleteSentinel} from './map';
 
 setup(async () => {
   await initHasher();
@@ -17,18 +15,15 @@ function makeMap(
   pending: string[],
   deleted: string[],
 ): prolly.Map {
-  const entries = base && base.sort();
-  const leaf = entries && new Leaf(entries.map(s => [s, s]));
-
-  const pm = new Map();
+  const pm = new prolly.Map(base && Object.fromEntries(base.map(s => [s, s])));
   for (const p of pending) {
     const v = p.split('').reverse().join('');
-    pm.set(p, v);
+    pm.put(p, v);
   }
   for (const p of deleted) {
-    pm.set(p, deleteSentinel);
+    pm.del(p);
   }
-  return new prolly.Map(leaf, pm);
+  return pm;
 }
 
 test('has', () => {

@@ -9,12 +9,24 @@ export type JSONValue =
   | Array<JSONValue>
   | JSONObject;
 
+/** Like `JSONValue` but deeply immutable */
+export type ImmutableJSONValue =
+  | null
+  | string
+  | boolean
+  | number
+  | ReadonlyArray<ImmutableJSONValue>
+  | ImmutableJSONObject;
+
 /**
  * A JSON object. We allow undefined values because in TypeScript there is no
  * way to express optional missing properties vs properties with the value
  * `undefined`.
  */
 export type JSONObject = Partial<{[key: string]: JSONValue}>;
+
+/** Like `JSONObject` but deeply immutable. */
+export type ImmutableJSONObject = Readonly<Partial<{[key: string]: ImmutableJSONValue}>>;
 
 /**
  * Checks deep equality of two JSON value with (almost) same semantics as
@@ -28,8 +40,8 @@ export type JSONObject = Partial<{[key: string]: JSONValue}>;
  * ```
  */
 export function deepEqual(
-  a: JSONValue | undefined,
-  b: JSONValue | undefined,
+  a: ImmutableJSONValue | undefined,
+  b: ImmutableJSONValue | undefined,
 ): boolean {
   if (a === b) {
     return true;
@@ -75,8 +87,9 @@ export function deepEqual(
     return false;
   }
 
-  // We know b is an object here but type inference is not smart enough.
-  b = b as JSONObject;
+  // We know a and b are objects here but type inference is not smart enough.
+  a = a as ImmutableJSONObject;
+  b = b as ImmutableJSONObject;
 
   const aKeys = Object.keys(a);
   const bKeys = Object.keys(b);
@@ -92,10 +105,7 @@ export function deepEqual(
   return true;
 }
 
-export function deepFreeze<T extends JSONValue>(value: T): T {
-  if (Object.isFrozen(value)) {
-    return value;
-  }
+export function deepFreeze<T extends JSONValue>(value: T): ImmutableJSONValue {
   if (Array.isArray(value)) {
     Object.freeze(value);
     for (const v of value) {
@@ -109,7 +119,7 @@ export function deepFreeze<T extends JSONValue>(value: T): T {
       }
     }
   }
-  return value;
+  return value as ImmutableJSONValue;
 }
 
 export function assertJSONValue(v: unknown): asserts v is JSONValue {

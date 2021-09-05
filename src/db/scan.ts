@@ -3,7 +3,7 @@ import type {Entry} from '../prolly/mod';
 import {PeekIterator} from '../prolly/peek-iterator';
 import {take, takeWhile} from './iter-util';
 import {decodeIndexKey, encodeIndexScanKey} from '.';
-import type {JSONValue} from '../json';
+import type {ReadonlyJSONValue} from '../json';
 
 // TODO(arv): Unify with src/scan-options.ts
 
@@ -63,7 +63,7 @@ export type ScanOptionsInternal = {
 export type ScanItem = {
   key: string;
   secondaryKey: string;
-  val: JSONValue;
+  val: ReadonlyJSONValue;
 };
 
 export const enum ScanResultType {

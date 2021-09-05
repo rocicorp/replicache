@@ -1,5 +1,5 @@
-import {assert} from '@esm-bundle/chai';
-import {deepEqual} from './json';
+import {assert, expect} from '@esm-bundle/chai';
+import {deepEqual, deepFreeze} from './json';
 import type {JSONValue} from './json';
 
 const {fail} = assert;
@@ -53,4 +53,17 @@ test('JSON deep equal', () => {
   }
 
   t({a: 1, b: 2}, {b: 2, a: 1});
+});
+
+test('JSON deepFreeze', async () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const obj: any = deepFreeze({obj: {}, arr: []});
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const arr: any = deepFreeze([{}, []]);
+  expect(() => (obj.foo = 'bar')).throws();
+  expect(() => (obj.obj.foo = 'bar')).throws();
+  expect(() => (obj.arr[0] = 'bar')).throws();
+  expect(() => (arr[0] = 'bar')).throws();
+  expect(() => (arr[0].foo = 'bar')).throws();
+  expect(() => (arr[1][0] = 'bar')).throws();
 });

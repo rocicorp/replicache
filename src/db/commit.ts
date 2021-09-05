@@ -9,7 +9,7 @@ import {Commit as CommitFB} from './generated/commit/commit';
 import {IndexRecord as IndexRecordFB} from './generated/commit/index-record';
 import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
 import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
-import type {JSONValue} from '../json';
+import type {ReadonlyJSONValue, JSONValue} from '../json';
 import {assertInstanceof, assertNotNull, assertString} from '../asserts';
 import * as utf8 from '../utf8';
 
@@ -282,7 +282,7 @@ export function newLocal(
   basisHash: string | undefined,
   mutationID: number,
   mutatorName: string,
-  mutatorArgsJSON: JSONValue,
+  mutatorArgsJSON: ReadonlyJSONValue,
   originalHash: string | undefined,
   valueHash: string,
   indexes: IndexRecord[],
@@ -313,7 +313,7 @@ export function newLocal(
 export function newSnapshot(
   basisHash: string | undefined,
   lastMutationID: number,
-  cookieJSON: JSONValue,
+  cookieJSON: ReadonlyJSONValue,
   valueHash: string,
   indexes: IndexRecord[],
 ): Promise<Commit> {

@@ -1,6 +1,6 @@
 import type * as dag from '../dag/mod';
 import * as db from '../db/mod';
-import type {JSONValue} from '../json';
+import {deepThaw, ReadonlyJSONValue} from '../json';
 import {assertPullResponse, Puller, PullError, PullResponse} from '../puller';
 import {
   assertHTTPRequestInfo,
@@ -22,7 +22,7 @@ export const PULL_VERSION = 0;
 
 export type PullRequest = {
   clientID: string;
-  cookie: JSONValue;
+  cookie: ReadonlyJSONValue;
   lastMutationID: number;
   pullVersion: number;
   // schema_version can optionally be used by the customer's app
@@ -229,7 +229,7 @@ export async function maybeEndTryPull(
       const replayMutations: ReplayMutation[] = [];
       for (const c of pending) {
         let name: string;
-        let args: JSONValue;
+        let args: ReadonlyJSONValue;
         if (c.meta().isLocal()) {
           const lm = c.meta().typed() as db.LocalMeta;
           name = lm.mutatorName();
@@ -240,7 +240,7 @@ export async function maybeEndTryPull(
         replayMutations.push({
           id: c.mutationID(),
           name,
-          args,
+          args: deepThaw(args),
           original: c.chunk.hash,
         });
       }

@@ -14,7 +14,7 @@ import {
   Chain,
   createIndex,
 } from '../db/test-helpers';
-import type {JSONValue} from '../json';
+import type {ReadonlyJSONValue, JSONValue} from '../json';
 import {MemStore} from '../kv/mod';
 import {arrayCompare} from '../prolly/array-compare';
 import type {PatchOperation, PullResponse} from '../puller';
@@ -476,7 +476,9 @@ test('begin try pull', async () => {
           db.whenceHash(syncHead.chunk.hash),
           read,
         );
-        const gotValueMap: [string, JSONValue][] = Array.from(map.entries());
+        const gotValueMap: [string, ReadonlyJSONValue][] = Array.from(
+          map.entries(),
+        );
         gotValueMap.sort((a, b) => arrayCompare(a[0], b[0]));
         const expValueMap = Array.from(expSyncHead.valueMap);
         expValueMap.sort((a, b) => arrayCompare(a[0], b[0]));

@@ -9,7 +9,7 @@ import {
   ScanResult,
 } from './scan';
 import {Commit} from './commit';
-import type {JSONValue} from '../json';
+import type {ReadonlyJSONValue} from '../json';
 
 export class Read {
   private readonly _dagRead: dag.Read;
@@ -26,7 +26,7 @@ export class Read {
     return this._map.has(key);
   }
 
-  get(key: string): JSONValue | undefined {
+  get(key: string): ReadonlyJSONValue | undefined {
     return this._map.get(key);
   }
 

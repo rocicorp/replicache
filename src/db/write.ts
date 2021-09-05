@@ -1,5 +1,5 @@
 import type * as dag from '../dag/mod';
-import type {JSONValue} from '../json';
+import type {ReadonlyJSONValue} from '../json';
 import * as prolly from '../prolly/mod';
 import {
   Commit,
@@ -21,7 +21,7 @@ type IndexChangeMeta = {
 type LocalMeta = {
   type: MetaType.Local;
   mutatorName: string;
-  mutatorArgs: JSONValue;
+  mutatorArgs: ReadonlyJSONValue;
   mutationID: number;
   originalHash: string | undefined;
 };
@@ -29,7 +29,7 @@ type LocalMeta = {
 type SnapshotMeta = {
   type: MetaType.Snapshot;
   lastMutationID: number;
-  cookie: JSONValue;
+  cookie: ReadonlyJSONValue;
 };
 
 type Meta = SnapshotMeta | LocalMeta | IndexChangeMeta;
@@ -64,7 +64,7 @@ export class Write {
   static async newLocal(
     whence: Whence,
     mutatorName: string,
-    mutatorArgs: JSONValue,
+    mutatorArgs: ReadonlyJSONValue,
     originalHash: string | undefined,
     dagWrite: dag.Write,
   ): Promise<Write> {
@@ -89,7 +89,7 @@ export class Write {
   static async newSnapshot(
     whence: Whence,
     mutationID: number,
-    cookie: JSONValue,
+    cookie: ReadonlyJSONValue,
     dagWrite: dag.Write,
     indexes: Map<string, Index>,
   ): Promise<Write> {
@@ -130,7 +130,11 @@ export class Write {
     );
   }
 
-  async put(lc: LogContext, key: string, val: JSONValue): Promise<void> {
+  async put(
+    lc: LogContext,
+    key: string,
+    val: ReadonlyJSONValue,
+  ): Promise<void> {
     if (this._meta.type === MetaType.IndexChange) {
       throw new Error('Not allowed');
     }
@@ -368,7 +372,7 @@ async function updateIndexes(
   dagWrite: dag.Write,
   op: IndexOperation,
   key: string,
-  val: JSONValue,
+  val: ReadonlyJSONValue,
 ): Promise<void> {
   for (const idx of indexes.values()) {
     if (key.startsWith(idx.meta.definition.keyPrefix)) {

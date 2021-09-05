@@ -1,11 +1,11 @@
 import type * as dag from '../dag/mod';
-import {deepEqual, JSONValue} from '../json';
+import {deepEqual, ReadonlyJSONValue} from '../json';
 import {arrayCompare} from './array-compare';
 import {Leaf} from './leaf';
 import {PeekIterator} from './peek-iterator';
 import {stringCompare} from './string-compare';
 
-export type Entry = [key: string, value: JSONValue];
+export type Entry = [key: string, value: ReadonlyJSONValue];
 
 export const deleteSentinel = Symbol();
 export type DeleteSentinel = typeof deleteSentinel;
@@ -14,11 +14,11 @@ class ProllyMap {
   private _base: Leaf | undefined;
   // TODO: Should really be a BTreeMap because we want ordering... Will do hacky sort
   // for now.
-  private readonly _pending: Map<string, JSONValue | DeleteSentinel>;
+  private readonly _pending: Map<string, ReadonlyJSONValue | DeleteSentinel>;
 
   constructor(
     base: Leaf | undefined,
-    pending: Map<string, JSONValue | DeleteSentinel>,
+    pending: Map<string, ReadonlyJSONValue | DeleteSentinel>,
   ) {
     this._base = base;
     this._pending = pending;
@@ -53,7 +53,7 @@ class ProllyMap {
     return this._base.binarySearch(key).found;
   }
 
-  get(key: string): JSONValue | undefined {
+  get(key: string): ReadonlyJSONValue | undefined {
     const ks = key;
     const p = this._pending.get(ks);
     switch (p) {
@@ -66,7 +66,7 @@ class ProllyMap {
     }
   }
 
-  private _baseGet(key: string): JSONValue | undefined {
+  private _baseGet(key: string): ReadonlyJSONValue | undefined {
     if (this._base === undefined) {
       return undefined;
     }
@@ -77,7 +77,7 @@ class ProllyMap {
     return this._base.entries[index][1];
   }
 
-  put(key: string, val: JSONValue): void {
+  put(key: string, val: ReadonlyJSONValue): void {
     this._pending.set(key, val);
   }
 
@@ -178,7 +178,10 @@ const emptyIterator: Iterator<Entry> = {
   },
 };
 
-type DeletableEntry = [key: string, val: JSONValue | DeleteSentinel];
+type DeletableEntry = readonly [
+  key: string,
+  val: ReadonlyJSONValue | DeleteSentinel,
+];
 
 // TODO(arv): Refactor to use generator(s)?
 class Iter implements IterableIterator<Entry> {
@@ -187,14 +190,14 @@ class Iter implements IterableIterator<Entry> {
 
   constructor(
     base: Leaf | undefined,
-    pending: Map<string, JSONValue | DeleteSentinel>,
+    pending: Map<string, ReadonlyJSONValue | DeleteSentinel>,
   ) {
     this._base = new PeekIterator(
       base ? base[Symbol.iterator]() : emptyIterator,
     );
 
     // Since we do not have a BTreeMap we have to sort the pending entries.
-    const p: [string, JSONValue | DeleteSentinel][] = [...pending];
+    const p: [string, ReadonlyJSONValue | DeleteSentinel][] = [...pending];
     p.sort((a, b) => stringCompare(a[0], b[0]));
     const entries: DeletableEntry[] = p.map(([key, val]) => [key, val]);
     this._pending = new PeekIterator(entries.values());

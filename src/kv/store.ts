@@ -1,6 +1,6 @@
-import type {JSONValue} from '../json';
+import type {ReadonlyJSONValue} from '../json';
 
-export type Value = Uint8Array | JSONValue;
+export type Value = Uint8Array | ReadonlyJSONValue;
 
 /**
  * Store defines a transactional key/value store that Replicache stores all data

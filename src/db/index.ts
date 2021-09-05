@@ -1,5 +1,6 @@
 import type * as dag from '../dag/mod';
-import type {JSONValue} from '../json';
+import type {DeepReadonly} from '../deep-readonly';
+import type {ReadonlyJSONValue, JSONObject} from '../json';
 import * as prolly from '../prolly/mod';
 import {RWLock} from '../rw-lock';
 import type {IndexRecord} from './commit';
@@ -53,7 +54,7 @@ export function indexValue(
   index: prolly.Map,
   op: IndexOperation,
   key: string,
-  val: JSONValue,
+  val: ReadonlyJSONValue,
   jsonPointer: string,
 ): void {
   for (const entry of getIndexKeys(key, val, jsonPointer)) {
@@ -71,7 +72,7 @@ export function indexValue(
 // Gets the set of index keys for a given primary key and value.
 export function getIndexKeys(
   primary: string,
-  value: JSONValue,
+  value: ReadonlyJSONValue,
   jsonPointer: string,
 ): string[] {
   const target = evaluateJSONPointer(value, jsonPointer);
@@ -184,9 +185,9 @@ export function decodeIndexKey(encodedIndexKey: string): IndexKey {
 }
 
 export function evaluateJSONPointer(
-  value: JSONValue,
+  value: ReadonlyJSONValue,
   pointer: string,
-): JSONValue | undefined {
+): ReadonlyJSONValue | undefined {
   function parseIndex(s: string): number | undefined {
     if (s.startsWith('+') || (s.startsWith('0') && s.length !== 1)) {
       return undefined;
@@ -218,6 +219,7 @@ export function evaluateJSONPointer(
     } else if (target === null) {
       return undefined;
     } else if (typeof target === 'object') {
+      target = target as DeepReadonly<JSONObject>;
       targetOpt = target[token];
     }
     if (targetOpt === undefined) {

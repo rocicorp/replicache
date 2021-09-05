@@ -11,7 +11,7 @@ import type {
   RebaseOpts,
   TryPushRequest,
 } from '../repm-invoker';
-import type {JSONValue} from '../json';
+import {deepFreeze, ReadonlyJSONValue, JSONValue, deepThaw} from '../json';
 import {LogContext} from '../logger';
 import type {LogLevel} from '../logger';
 
@@ -162,7 +162,7 @@ export async function openTransactionImpl(
   store: dag.Store,
   transactions: Map<number, {txn: Transaction; lc: LogContext}>,
   name: string | undefined,
-  args: JSONValue | undefined,
+  args: ReadonlyJSONValue | undefined,
   rebaseOpts: RebaseOpts | undefined,
 ): Promise<number> {
   const start = Date.now();
@@ -258,7 +258,7 @@ async function validateRebase(
   dagRead: dag.Read,
   mutatorName: string,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _args: JSONValue,
+  _args: ReadonlyJSONValue,
 ) {
   // Ensure the rebase commit is going on top of the current sync head.
   const syncHeadHash = await dagRead.getHead(sync.SYNC_HEAD_NAME);
@@ -383,8 +383,9 @@ export function get(transactionID: number, key: string): JSONValue | undefined {
   const lc2 = lc.addContext('rpc', 'get');
   lc2.debug?.('->', key);
   const value = txn.asRead().get(key);
-  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', value);
-  return value;
+  const thawed = value && deepThaw(value);
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', thawed);
+  return thawed;
 }
 
 export async function scan(
@@ -408,7 +409,7 @@ export async function scan(
       throw sr.error;
     }
     const {val, key, secondaryKey} = sr.item;
-    receiver(key, secondaryKey, val);
+    receiver(key, secondaryKey, deepThaw(val));
   });
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
@@ -424,7 +425,7 @@ export async function put(
   const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'put');
   lc2.debug?.('->', key, value);
-  await txn.put(lc2, key, value);
+  await txn.put(lc2, key, deepFreeze(value));
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 

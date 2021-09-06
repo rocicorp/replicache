@@ -25,7 +25,9 @@ export class IDBStore implements Store {
   }
 
   async withRead<R>(fn: (read: Read) => R | Promise<R>): Promise<R> {
-    return fn(await this.read());
+    const db = await this._db;
+    const tx = db.transaction(OBJECT_STORE, 'readonly');
+    return fn(new ReadImpl(tx));
   }
 
   async write(): Promise<Write> {
@@ -38,7 +40,12 @@ export class IDBStore implements Store {
   }
 
   async withWrite<R>(fn: (write: Write) => R | Promise<R>): Promise<R> {
-    return await fn(await this.write());
+    const db = await this._db;
+    // TS does not have type defs for the third options argument yet.
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore Expected 1-2 arguments, but got 3.ts(2554)
+    const tx = db.transaction(OBJECT_STORE, 'readwrite', RELAXED);
+    return fn(new WriteImpl(tx));
   }
 
   async close(): Promise<void> {

@@ -107,6 +107,10 @@ git commit --amend --no-edit
 git tag v<semver>
 git push origin v<semver>
 # update release notes on github
+
+# note: this will push the release to the "latest" tag, which means it's what
+# people will get when they `npm install`. If this is a beta release, you should
+# add the `--tag=beta` flag to this command.
 npm publish
 ```
 

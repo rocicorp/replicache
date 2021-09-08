@@ -38,22 +38,19 @@ export function b(
 export function defineTestFunctions(self: Window & typeof globalThis): void {
   // Mocha functions aren't available when importing from a new page.
   if (typeof self.suiteSetup !== 'function') {
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    const noop = function () {};
+    const noop = () => undefined;
 
     self.setup = noop;
     self.teardown = noop;
     self.suiteSetup = noop;
     self.suiteTeardown = noop;
 
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    const suite = function () {};
+    const suite = () => undefined;
     suite.only = noop;
     suite.skip = noop;
     self.suite = suite as unknown as Mocha.SuiteFunction;
 
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    const test = function () {};
+    const test = () => undefined;
     test.only = noop;
     test.skip = noop;
     test.retries = noop;
@@ -72,55 +69,65 @@ type Response = {
 
 type LogResponse = {
   level: string;
-  message: string;
+  data: unknown[];
 };
 
 export async function initializeNewTab(event: MessageEvent): Promise<void> {
   const {tabId, path} = event.data;
+  const {opener} = window;
+  if (opener === null) {
+    return;
+  }
 
   ['error', 'warn', 'info', 'debug', 'log'].forEach(level => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore No index signature of type 'string' was found on 'Console'.
     console[level] = (...data: unknown[]) => {
-      window.opener.postMessage(
-        {tabId, id: 'log', result: {level, message: data.join(' ')}},
-        window.origin,
-      );
+      opener.postMessage({tabId, id: 'log', result: {level, data}}, origin);
     };
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
   let module: typeof import('./test-util');
   if (path !== undefined) {
     try {
-      module = await import(window.origin + '/' + path);
+      module = await import(new URL('/' + path, location.href).toString());
     } catch (e) {
       console.log('Error importing ' + path + ':', e);
     }
   }
 
   const handle = async (event: MessageEvent) => {
-    if (event.source === null || event.source != window.opener) {
+    const {source, data} = event;
+    const {id, expr} = data;
+    const response: Response = {tabId, id};
+
+    if (source === null || source !== opener) {
       return;
     }
-    const {id, expr} = event.data;
-    const response: Response = {tabId, id};
     if (expr) {
       try {
-        response.result = await AsyncFunction(
+        response.result = await Function(
           'module',
-          '"use strict"; Object.assign(self, module); {' + expr + '}',
+          `"use strict";
+           Object.assign(self, module);
+           return (async () => { ${expr} })();`,
         )(module);
       } catch (e) {
         response.error = e;
       }
     }
-    event.source.postMessage(response);
+    opener.postMessage(response, origin);
   };
 
-  window.addEventListener('message', handle, false);
+  addEventListener('message', handle, false);
   void handle(event);
+}
+
+function withTimeout<T = void>(promise: Promise<T>, ms: number) {
+  const timeout = new Promise((_resolve, reject) => {
+    setTimeout(() => reject(new Error(`Timeout after ${ms}ms.`)), ms);
+  });
+  return Promise.race([promise, timeout]);
 }
 
 export type Tab = {
@@ -129,34 +136,36 @@ export type Tab = {
 };
 
 // Registered callbacks for listener(), by tabId and call id.
-const callbacks: Record<
+type TabCallbacks = Map<
   string,
-  Record<
-    string,
-    {
-      resolve: (res: unknown) => void;
-      reject?: (err: unknown) => void;
-    }
-  >
-> = {};
+  {
+    resolve: (res: unknown) => void;
+    reject?: (err: unknown) => void;
+  }
+>;
+const callbacks: Map<string, TabCallbacks> = new Map();
 
 function listener(event: MessageEvent<Response>): void {
   const {tabId, id, result, error} = event.data;
-  const tabCallbacks = callbacks[tabId];
+  const tabCallbacks = callbacks.get(tabId);
   if (tabCallbacks === undefined) {
     return;
   }
-  if (id == 'log') {
+  if (id === 'log') {
     const levels: Record<string, typeof console.log> = {
       error: console.error,
       warn: console.warn,
       info: console.info,
       debug: console.debug,
     };
-    const {level, message} = result as LogResponse;
-    (levels[level] ?? console.log)('Page:', message);
+    const {level, data} = result as LogResponse;
+    (levels[level] ?? console.log)('Tab:', ...data);
   } else {
-    const {resolve, reject} = tabCallbacks[id];
+    const callback = tabCallbacks.get(id);
+    if (callback === undefined) {
+      return;
+    }
+    const {resolve, reject} = callback;
     if (error !== undefined && reject !== undefined) {
       reject(error);
     } else {
@@ -165,22 +174,23 @@ function listener(event: MessageEvent<Response>): void {
   }
 }
 
-export async function newTab(filename?: string): Promise<Tab> {
+export async function newTab(path?: string): Promise<Tab> {
   const tabId = uuid();
   const {promise, resolve} = resolver<unknown>();
 
   if (!Object.keys(callbacks).length) {
-    window.addEventListener('message', listener, false);
+    addEventListener('message', listener, false);
   }
-  callbacks[tabId] = {init: {resolve}};
-  const tabCallbacks = callbacks[tabId];
+  const tabCallbacks: TabCallbacks = new Map([['init', {resolve}]]);
+  callbacks.set(tabId, tabCallbacks);
 
-  // Open a new tab to a URL that doesn't run anything on load.
-  const tab = window.open(
-    document.location.origin + '/src/test-util.ts',
+  // Open a tab to a page on the same domain that doesn't run anything on load.
+  const tab = open(
+    new URL('/src/test-util.ts', location.href).toString(),
     '_blank',
+    'rel="noopener"',
   );
-  if (tab == null) {
+  if (tab === null) {
     throw new Error('Failed to open window');
   }
 
@@ -189,39 +199,39 @@ export async function newTab(filename?: string): Promise<Tab> {
   script.type = 'text/javascript';
   script.text = `
     const initialize = async (event) => {
-      let testutil = await import(window.origin + '/src/test-util.ts');
+      let testutil = await import(new URL('/src/test-util.ts', location.href));
       testutil.initializeNewTab(event);
-      window.removeEventListener('message', initialize, false);
+      removeEventListener('message', initialize, false);
     };
-    window.addEventListener("message", initialize, false);
+    addEventListener("message", initialize, false);
   `;
   tab.document.head.appendChild(script);
 
   // Start initialization process, waiting for page to become live.
   const interval = setInterval(() => {
-    tab.postMessage({id: 'init', tabId, path: filename}, window.origin);
+    tab.postMessage({id: 'init', tabId, path}, origin);
   }, 100);
-  await promise;
+  await withTimeout(promise, 3000);
   clearInterval(interval);
 
   return {
     run: async (expr: string) => {
       const id = uuid();
       const {promise, resolve, reject} = resolver<unknown>();
-      tabCallbacks[id] = {resolve, reject};
-      if (expr.search('return ') == -1) {
+      tabCallbacks.set(id, {resolve, reject});
+      if (expr.search('return ') === -1) {
         expr = 'return ' + expr;
       }
-      tab.postMessage({id, expr}, window.origin);
-      const result = await promise;
-      delete callbacks[id];
+      tab.postMessage({id, expr}, origin);
+      const result = await withTimeout(promise, 1000);
+      tabCallbacks.delete(id);
       return result;
     },
     close: () => {
       tab.close();
-      delete callbacks[tabId];
+      callbacks.delete(tabId);
       if (!Object.keys(callbacks).length) {
-        window.removeEventListener('message', listener);
+        removeEventListener('message', listener);
       }
     },
   };

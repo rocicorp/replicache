@@ -13,14 +13,14 @@ suiteTeardown(() => {
 });
 
 test('storage', async () => {
-  window.localStorage.setItem('test', 'original');
-  window.sessionStorage.setItem('test', 'original');
+  localStorage.setItem('test', 'original');
+  sessionStorage.setItem('test', 'original');
 
-  await tab.run('window.sessionStorage.setItem("test", "modified")');
-  expect(window.sessionStorage.getItem('test')).to.equal('original');
+  await tab.run('sessionStorage.setItem("test", "modified")');
+  expect(sessionStorage.getItem('test')).to.equal('original');
 
-  await tab.run('window.localStorage.setItem("test", "modified")');
-  expect(window.localStorage.getItem('test')).to.equal('modified');
+  await tab.run('localStorage.setItem("test", "modified")');
+  expect(localStorage.getItem('test')).to.equal('modified');
 });
 
 export async function lockIfAvailable(name: string): Promise<boolean> {

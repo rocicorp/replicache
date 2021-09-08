@@ -20,32 +20,30 @@ export class IDBStore implements Store {
 
   async read(): Promise<Read> {
     const db = await this._db;
-    const tx = db.transaction(OBJECT_STORE, 'readonly');
-    return new ReadImpl(tx);
+    return readImpl(db);
   }
 
   async withRead<R>(fn: (read: Read) => R | Promise<R>): Promise<R> {
+    // We abstract on `readImpl` to work around an issue in Safari. Safari does
+    // not allow any microtask between a transaction is created until it is
+    // first used. We used to use `await read()` here instead of `await
+    // this._db` but then there is a microtask between the creation of the
+    // transaction and the return of this function. By doing `await this._db`
+    // here we only await the db and no await is involved with the transaction.
+    // See https://github.com/jakearchibald/idb-keyval/commit/1af0a00b1a70a678d2f9cf5e74c55a22e57324c5#r55989916
     const db = await this._db;
-    const tx = db.transaction(OBJECT_STORE, 'readonly');
-    return fn(new ReadImpl(tx));
+    return fn(readImpl(db));
   }
 
   async write(): Promise<Write> {
     const db = await this._db;
-    // TS does not have type defs for the third options argument yet.
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore Expected 1-2 arguments, but got 3.ts(2554)
-    const tx = db.transaction(OBJECT_STORE, 'readwrite', RELAXED);
-    return new WriteImpl(tx);
+    return writeImpl(db);
   }
 
   async withWrite<R>(fn: (write: Write) => R | Promise<R>): Promise<R> {
+    // See comment in `withRead`.
     const db = await this._db;
-    // TS does not have type defs for the third options argument yet.
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore Expected 1-2 arguments, but got 3.ts(2554)
-    const tx = db.transaction(OBJECT_STORE, 'readwrite', RELAXED);
-    return fn(new WriteImpl(tx));
+    return fn(writeImpl(db));
   }
 
   async close(): Promise<void> {
@@ -124,6 +122,19 @@ class WriteImpl extends WriteImplBase {
   release(): void {
     // We rely on IDB locking so no need to do anything here.
   }
+}
+
+function writeImpl(db: IDBDatabase) {
+  // TS does not have type defs for the third options argument yet.
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore Expected 1-2 arguments, but got 3.ts(2554)
+  const tx = db.transaction(OBJECT_STORE, 'readwrite', RELAXED);
+  return new WriteImpl(tx);
+}
+
+function readImpl(db: IDBDatabase) {
+  const tx = db.transaction(OBJECT_STORE, 'readonly');
+  return new ReadImpl(tx);
 }
 
 function objectStore(tx: IDBTransaction): IDBObjectStore {

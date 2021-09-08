@@ -733,7 +733,7 @@ export class Replicache<MD extends MutatorDefs = {}>
             ? this.getAuth()
             : // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               this.getPushAuth!());
-          if (auth != null) {
+          if (auth !== null) {
             this.auth = auth;
             // Try again now instead of waiting for next push.
             return await this._invokePush(maxAuthTries - 1);
@@ -800,7 +800,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       } finally {
         this._changeSyncCounters(0, 1);
       }
-      if (auth != null) {
+      if (auth !== null) {
         this.auth = auth;
         // Try again now instead of waiting for next pull.
         return await this._beginPull(maxAuthTries - 1);

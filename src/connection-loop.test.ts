@@ -11,11 +11,11 @@ import {
 import {sleep} from './sleep';
 
 let clock: SinonFakeTimers;
-setup(function () {
+setup(() => {
   clock = useFakeTimers(0);
 });
 
-teardown(function () {
+teardown(() => {
   clock.restore();
   loop?.close();
   loop = undefined;

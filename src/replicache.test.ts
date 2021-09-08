@@ -24,12 +24,12 @@ import type * as kv from './kv/mod';
 import * as embed from './embed/mod';
 
 let clock: SinonFakeTimers;
-setup(function () {
+setup(() => {
   clock = useFakeTimers(0);
   embed.setIsTesting(true);
 });
 
-teardown(function () {
+teardown(() => {
   clock.restore();
   embed.setIsTesting(false);
 });

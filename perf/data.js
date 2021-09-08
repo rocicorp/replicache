@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1630902645283,
+  "lastUpdate": 1631064993015,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -37874,6 +37874,156 @@ window.BENCHMARK_DATA = {
             "range": "±119.6%",
             "unit": "ops/sec",
             "extra": "82 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "42f36257ff97496beea3d5c162f5d9d57d1fc1bc",
+          "message": "FIX: Add workaround for Safari IDB issue\n\nSafari closes a transaction in the next microtask if there are no\r\npending actions. We therefore restructure the code a bit to ensure there\r\nis no await in between creating the transaction and returning the\r\nwrapper for it.\r\n\r\nFixes #486\r\n\r\nThanks to @jakearchibald for the background on this issue.\r\n\r\nCo-authored-by: Erik Arvidsson <arv@roci.dev>",
+          "timestamp": "2021-09-08T01:34:39Z",
+          "tree_id": "571e8ad3330ec1b24c1eed3237e8149c84d22ef6",
+          "url": "https://github.com/rocicorp/replicache/commit/42f36257ff97496beea3d5c162f5d9d57d1fc1bc"
+        },
+        "date": 1631064992764,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 6.39,
+            "range": "±9.2%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 5.49,
+            "range": "±8.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 4.15,
+            "range": "±10.2%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 2.88,
+            "range": "±7.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 4.92,
+            "range": "±74.7%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 5.11,
+            "range": "±3.5%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 5.1,
+            "range": "±76.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 5.17,
+            "range": "±1.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±1347.2%",
+            "unit": "MB/s",
+            "extra": "97 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 106.7,
+            "range": "±500.0%",
+            "unit": "ops/sec",
+            "extra": "54 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 5.07,
+            "range": "±6.0%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.06,
+            "range": "±2.3%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 8.87,
+            "range": "±11.6%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 9.06,
+            "range": "±9.7%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 8.8,
+            "range": "±15.8%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription setup 10",
+            "value": 320.03,
+            "range": "±110.0%",
+            "unit": "ops/sec",
+            "extra": "162 samples"
+          },
+          {
+            "name": "subscription setup 100",
+            "value": 257.85,
+            "range": "±145.7%",
+            "unit": "ops/sec",
+            "extra": "129 samples"
+          },
+          {
+            "name": "subscription setup 1000",
+            "value": 167.77,
+            "range": "±96.4%",
+            "unit": "ops/sec",
+            "extra": "84 samples"
           }
         ]
       }

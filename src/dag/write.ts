@@ -2,7 +2,6 @@ import type * as kv from '../kv/mod';
 import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key';
 import {Read} from './read';
 import {assertMeta, Chunk} from './chunk';
-import * as utf8 from '../utf8';
 import {assertNumber} from '../asserts';
 import {READ_FLATBUFFERS} from './config';
 
@@ -45,7 +44,7 @@ export class Write {
     if (hash === undefined) {
       p1 = this._kvw.del(hk);
     } else {
-      p1 = this._kvw.put(hk, utf8.encode(hash));
+      p1 = this._kvw.put(hk, hash);
     }
 
     const v = this._changedHeads.get(name);

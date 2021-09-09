@@ -2,7 +2,7 @@ import type * as kv from '../kv/mod';
 import {assertMeta, Chunk} from './chunk';
 import {chunkDataKey, chunkMetaKey, headKey} from './key';
 import * as utf8 from '../utf8';
-import {assertInstanceof} from '../asserts';
+import {assertString} from '../asserts';
 import {READ_FLATBUFFERS} from './config';
 import * as flatbuffers from 'flatbuffers';
 import {Meta as MetaFB} from './generated/meta/meta.js';
@@ -44,8 +44,11 @@ export class Read {
     if (data === undefined) {
       return undefined;
     }
-    assertInstanceof(data, Uint8Array);
-    return utf8.decode(data);
+    if (READ_FLATBUFFERS && data instanceof Uint8Array) {
+      return utf8.decode(data);
+    }
+    assertString(data);
+    return data;
   }
 
   close(): void {

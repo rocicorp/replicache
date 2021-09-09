@@ -5,9 +5,7 @@ import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
 import {toLittleEndian, Write} from './write';
 import type * as kv from '../kv/mod';
 import {Read} from './read';
-import * as utf8 from '../utf8';
 import {initHasher} from '../hash';
-import {assertInstanceof} from '../asserts';
 import type {Value} from '../kv/store';
 
 setup(async () => {
@@ -72,8 +70,7 @@ test('set head', async () => {
       await w.setHead(name, hash);
       if (hash !== undefined) {
         const h = await kvw.get(headKey(name));
-        assertInstanceof(h, Uint8Array);
-        expect(hash).to.equal(h && utf8.decode(h));
+        expect(h).to.equal(hash);
       } else {
         expect(await kvw.get(headKey(name))).to.be.undefined;
       }

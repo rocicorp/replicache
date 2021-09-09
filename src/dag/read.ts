@@ -3,6 +3,9 @@ import {assertMeta, Chunk} from './chunk';
 import {chunkDataKey, chunkMetaKey, headKey} from './key';
 import * as utf8 from '../utf8';
 import {assertInstanceof} from '../asserts';
+import {READ_FLATBUFFERS} from './config';
+import * as flatbuffers from 'flatbuffers';
+import {Meta as MetaFB} from './generated/meta/meta.js';
 
 export class Read {
   private readonly _kvr: kv.Read;
@@ -21,14 +24,19 @@ export class Read {
       return undefined;
     }
 
-    const meta = await this._kvr.get(chunkMetaKey(hash));
-    if (meta !== undefined) {
-      assertMeta(meta);
-      if (meta.length > 0) {
-        return Chunk.read(hash, data, meta);
+    const refsVal = await this._kvr.get(chunkMetaKey(hash));
+    let refs: string[];
+    if (refsVal !== undefined) {
+      if (READ_FLATBUFFERS && refsVal instanceof Uint8Array) {
+        refs = readMetaFlatbufferAsRefs(refsVal);
+      } else {
+        assertMeta(refsVal);
+        refs = refsVal;
       }
+    } else {
+      refs = [];
     }
-    return Chunk.read(hash, data, undefined);
+    return Chunk.read(hash, data, refs);
   }
 
   async getHead(name: string): Promise<string | undefined> {
@@ -43,4 +51,15 @@ export class Read {
   close(): void {
     this._kvr.release();
   }
+}
+
+function readMetaFlatbufferAsRefs(data: Uint8Array): string[] {
+  const buf = new flatbuffers.ByteBuffer(data);
+  const meta = MetaFB.getRootAsMeta(buf);
+  const length = meta.refsLength();
+  const refs: string[] = [];
+  for (let i = 0; i < length; i++) {
+    refs.push(meta.refs(i));
+  }
+  return refs;
 }

@@ -2,7 +2,7 @@ import {assertString} from '../asserts';
 import {Hash} from '../hash';
 import type {Value} from '../kv/store';
 
-type Meta = string[];
+type Refs = string[];
 
 // TODO(arv): Make this class take a type parameter for the data type?
 export class Chunk {
@@ -12,9 +12,9 @@ export class Chunk {
    * Meta is an array of refs. If there are no refs we do not write a meta
    * chunk.
    */
-  readonly meta: Meta;
+  readonly meta: Refs;
 
-  private constructor(hash: string, data: Value, meta: Meta = []) {
+  private constructor(hash: string, data: Value, meta: Refs = []) {
     this.hash = hash;
     this.data = data;
     this.meta = meta;
@@ -27,12 +27,12 @@ export class Chunk {
     return new Chunk(hash.toString(), data, refs);
   }
 
-  static read(hash: string, data: Value, meta: Meta | undefined): Chunk {
-    return new Chunk(hash, data, meta);
+  static read(hash: string, data: Value, refs: Refs): Chunk {
+    return new Chunk(hash, data, refs);
   }
 }
 
-export function assertMeta(v: unknown): asserts v is Meta {
+export function assertMeta(v: unknown): asserts v is Refs {
   if (!Array.isArray(v)) {
     throw new Error('Meta must be an array');
   }

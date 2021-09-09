@@ -1,8 +1,11 @@
 import {Chunk} from '../dag/mod';
 import type {Entry} from './mod';
 import {stringCompare} from './string-compare';
-import {assertArray, assertString} from '../asserts';
+import {assertArray, assertNotNull, assertString} from '../asserts';
 import {assertJSONValue} from '../json';
+import * as flatbuffers from 'flatbuffers';
+import {Leaf as LeafFB} from './generated/leaf/leaf';
+import * as utf8 from '../utf8';
 
 export class Leaf {
   private _chunk: Chunk | undefined;
@@ -14,9 +17,16 @@ export class Leaf {
 
   static load(chunk: Chunk): Leaf {
     // Validate at load-time so we can assume data is valid thereafter.
-    const entries = chunk.data;
-    // Assert that the shape/type is correct
-    assertEntries(entries);
+    let entries: Entry[];
+    const data = chunk.data;
+    if (data instanceof Uint8Array) {
+      entries = getEntriesFromFlatbuffer(data);
+    } else {
+      // Assert that the shape/type is correct
+      assertEntries(data);
+      entries = data;
+    }
+
     // But also assert that entries is sorted and has no duplicate keys.
     const seen = new Set();
     for (let i = 0; i < entries.length - 1; i++) {
@@ -89,4 +99,22 @@ function assertEntries(v: unknown): asserts v is Entry[] {
   for (const e of v) {
     assertEntry(e);
   }
+}
+
+export function getEntriesFromFlatbuffer(data: Uint8Array): Entry[] {
+  const buf = new flatbuffers.ByteBuffer(data);
+  const root = LeafFB.getRootAsLeaf(buf);
+  const entries: Entry[] = [];
+  for (let i = 0; i < root.entriesLength(); i++) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const entry = root.entries(i)!;
+    const keyArray = entry.keyArray();
+    assertNotNull(keyArray);
+    const key = utf8.decode(keyArray);
+    const valArray = entry.valArray();
+    assertNotNull(valArray);
+    const val = JSON.parse(utf8.decode(valArray));
+    entries.push([key, val]);
+  }
+  return entries;
 }

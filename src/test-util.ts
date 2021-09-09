@@ -211,7 +211,7 @@ export async function newTab(path?: string): Promise<Tab> {
   const interval = setInterval(() => {
     tab.postMessage({id: 'init', tabId, path}, origin);
   }, 100);
-  await withTimeout(promise, 3000);
+  await withTimeout(promise, 10000);
   clearInterval(interval);
 
   return {
@@ -223,7 +223,7 @@ export async function newTab(path?: string): Promise<Tab> {
         expr = 'return ' + expr;
       }
       tab.postMessage({id, expr}, origin);
-      const result = await withTimeout(promise, 1000);
+      const result = await withTimeout(promise, 5000);
       tabCallbacks.delete(id);
       return result;
     },

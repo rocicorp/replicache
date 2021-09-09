@@ -2,7 +2,7 @@ import {expect} from '@esm-bundle/chai';
 import {MemStore} from '../kv/mod';
 import {Chunk} from './chunk';
 import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
-import {Write} from './write';
+import {toLittleEndian, Write} from './write';
 import type * as kv from '../kv/mod';
 import {Read} from './read';
 import * as utf8 from '../utf8';
@@ -121,6 +121,23 @@ test('set head', async () => {
   await kv.withRead(async kvr => {
     await assertRefCount(kvr, 'h1', 0);
     await assertRefCount(kvr, '', 0);
+  });
+});
+
+test('ref count as Uint8Array', async () => {
+  const kv = new MemStore();
+  const h1 = 'fakehash1';
+  const h2 = 'fakehash2';
+  await kv.withWrite(async kvw => {
+    await kvw.put(chunkRefCountKey(h1), 1);
+    await kvw.put(chunkRefCountKey(h2), toLittleEndian(2));
+    await kvw.commit();
+  });
+
+  await kv.withWrite(async kvw => {
+    const w = new Write(kvw);
+    expect(await w.getRefCount(h1)).to.equal(1);
+    expect(await w.getRefCount(h2)).to.equal(2);
   });
 });
 

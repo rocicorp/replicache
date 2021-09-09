@@ -67,7 +67,7 @@ test('round trip', async () => {
   ];
   const expected = new Leaf(expected1);
   const actual = Leaf.load(
-    Chunk.read(expected.chunk.hash, expected.chunk.data, undefined),
+    Chunk.read(expected.chunk.hash, expected.chunk.data, []),
   );
   expect(expected).to.deep.equal(actual);
   expect([...actual]).to.have.lengthOf(2);

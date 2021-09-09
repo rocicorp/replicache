@@ -10,7 +10,7 @@ export function callJSRequest<Body, Return>(
       // eslint-disable-next-line @typescript-eslint/naming-convention
       'Content-type': 'application/json',
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      Authorization: auth,
+      'Authorization': auth,
       // eslint-disable-next-line @typescript-eslint/naming-convention
       'X-Replicache-RequestID': requestID,
     },

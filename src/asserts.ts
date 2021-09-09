@@ -27,8 +27,7 @@ export function assertArray(v: unknown): asserts v is unknown[] {
 
 export function invalidType(v: unknown, t: string): string {
   let s = 'Invalid type: ';
-  if (v == null) {
-    // includes undefined too because `==`
+  if (v === null || v === undefined) {
     s += v;
   } else {
     s += `${typeof v} \`${v}\``;

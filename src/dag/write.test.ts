@@ -6,7 +6,6 @@ import {toLittleEndian, Write} from './write';
 import type * as kv from '../kv/mod';
 import {Read} from './read';
 import {initHasher} from '../hash';
-import {assertString} from '../asserts';
 import type {Value} from '../kv/store';
 
 setup(async () => {

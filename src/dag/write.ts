@@ -4,6 +4,7 @@ import {Read} from './read';
 import {assertMeta, Chunk} from './chunk';
 import * as utf8 from '../utf8';
 import {assertNumber} from '../asserts';
+import {READ_FLATBUFFERS} from './config';
 
 type HeadChange = {
   new: string | undefined;
@@ -130,6 +131,11 @@ export class Write {
     if (value === undefined) {
       return 0;
     }
+    if (READ_FLATBUFFERS) {
+      if (value instanceof Uint8Array) {
+        return fromLittleEndian(value);
+      }
+    }
     assertNumber(value);
     return value;
   }
@@ -152,4 +158,21 @@ export class Write {
   close(): void {
     this._kvw.release();
   }
+}
+
+export function toLittleEndian(count: number): Uint8Array {
+  if (count < 0 || count > 0xffff) {
+    throw new Error('Ref count out of range');
+  }
+  const buf = new Uint8Array(2);
+  buf[0] = count & 0xff;
+  buf[1] = (count >> 8) & 0xff;
+  return buf;
+}
+
+export function fromLittleEndian(buf: Uint8Array): number {
+  if (buf.length !== 2) {
+    throw new Error('Ref count must be 2 bytes');
+  }
+  return buf[0] | (buf[1] << 8);
 }

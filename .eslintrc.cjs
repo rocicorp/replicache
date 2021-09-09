@@ -17,7 +17,9 @@ module.exports = {
         leadingUnderscore: 'forbid',
       },
     ],
-    'object-shorthand': 'error',
+    'eqeqeq': 'error',
     'no-var': 'error',
+    'object-shorthand': 'error',
+    'prefer-arrow-callback': 'error',
   },
 };

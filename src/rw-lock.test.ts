@@ -4,11 +4,11 @@ import {sleep} from './sleep';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 
 let clock: SinonFakeTimers;
-setup(function () {
+setup(() => {
   clock = useFakeTimers(0);
 });
 
-teardown(function () {
+teardown(() => {
   clock.restore();
 });
 

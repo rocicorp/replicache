@@ -203,7 +203,7 @@ export async function maybeEndTryPull(
     const mainSnapshot = await db.Commit.baseSnapshot(mainHeadHash, dagRead);
 
     const meta = syncSnapshot.meta();
-    const syncSnapshotBasis = meta.basisHash();
+    const syncSnapshotBasis = meta.basisHash;
     if (syncSnapshot === null) {
       throw new Error('Sync snapshot with no basis');
     }
@@ -230,10 +230,10 @@ export async function maybeEndTryPull(
       for (const c of pending) {
         let name: string;
         let args: ReadonlyJSONValue;
-        if (c.meta().isLocal()) {
-          const lm = c.meta().typed() as db.LocalMeta;
-          name = lm.mutatorName();
-          args = lm.mutatorArgsJSON();
+        const lm = c.meta();
+        if (db.isLocalMeta(lm)) {
+          name = lm.mutatorName;
+          args = lm.mutatorArgsJSON;
         } else {
           throw new Error('pending mutation is not local');
         }
@@ -272,7 +272,7 @@ export async function maybeEndTryPull(
     // No mutations to replay so set the main head to the sync head and sync complete!
     await Promise.all([
       dagWrite.setHead(db.DEFAULT_HEAD_NAME, syncHeadHash),
-      dagWrite.setHead(SYNC_HEAD_NAME, undefined),
+      dagWrite.removeHead(SYNC_HEAD_NAME),
     ]);
     await dagWrite.commit();
 

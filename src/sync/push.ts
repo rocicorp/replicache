@@ -1,4 +1,4 @@
-import type {JSONValue} from '../json';
+import type {ReadonlyJSONValue} from '../json';
 import * as db from '../db/mod';
 import type * as dag from '../dag/mod';
 import {
@@ -21,10 +21,11 @@ export type PushRequest = {
   // of mutator args).
   schemaVersion: string;
 };
+
 export type Mutation = {
-  id: number;
-  name: string;
-  args: JSONValue;
+  readonly id: number;
+  readonly name: string;
+  readonly args: ReadonlyJSONValue;
 };
 
 export interface InternalPusher {
@@ -37,11 +38,10 @@ export interface InternalPusher {
 }
 
 export function convert(lm: db.LocalMeta): Mutation {
-  const args = lm.mutatorArgsJSON();
   return {
-    id: lm.mutationID(),
-    name: lm.mutatorName(),
-    args,
+    id: lm.mutationID,
+    name: lm.mutatorName,
+    args: lm.mutatorArgsJSON,
   };
 }
 
@@ -71,8 +71,9 @@ export async function push(
   if (pending.length > 0) {
     const pushMutations: Mutation[] = [];
     for (const commit of pending) {
-      if (commit.meta().isLocal()) {
-        pushMutations.push(convert(commit.meta().typed() as db.LocalMeta));
+      const lm = commit.meta();
+      if (db.isLocalMeta(lm)) {
+        pushMutations.push(convert(lm));
       } else {
         throw new Error('Internal non local pending commit');
       }

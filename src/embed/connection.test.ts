@@ -1,7 +1,7 @@
 import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
-import type * as db from '../db/mod';
 import * as sync from '../sync/mod';
+import * as db from '../db/mod';
 import {MemStore} from '../kv/mem-store';
 import {addGenesis, addLocal, Chain} from '../db/test-helpers';
 import {addSyncSnapshot} from '../sync/test-helpers';
@@ -23,14 +23,13 @@ test('open transaction rebase opts', async () => {
   await addLocal(mainChain, store);
   const syncChain = await addSyncSnapshot(mainChain, store, 0);
   const original = mainChain[1];
-  let meta = original.meta();
-  if (!meta.isLocal()) {
+  let lm = original.meta();
+  if (!db.isLocalMeta(lm)) {
     throw new Error('not local');
   }
-  let lm = meta.typed() as db.LocalMeta;
   const originalHash = original.chunk.hash;
-  const originalName = lm.mutatorName();
-  const originalArgs = lm.mutatorArgsJSON();
+  const originalName = lm.mutatorName;
+  const originalArgs = lm.mutatorArgsJSON;
 
   let result;
   try {
@@ -51,7 +50,7 @@ test('open transaction rebase opts', async () => {
   }
   expect(result).to.be.instanceOf(Error);
   expect(result.message).to.equal(
-    'WrongSyncHeadJSLogInfo: sync head is gqk75j4vb3mg47d91rni5gode932hqql, transaction basis is 5h7dkptf44u0231bm0lop6cve7suipit',
+    'WrongSyncHeadJSLogInfo: sync head is isk9fvqti59teker527tq9n2sp605e9g, transaction basis is guqj839dn8u1vevbpj5fot376ln2nc2q',
   );
 
   // Error: rebase commit's name should not change.
@@ -81,15 +80,14 @@ test('open transaction rebase opts', async () => {
 
   // Ensure it doesn't let us rebase with a different mutation id.
   await addLocal(mainChain, store);
-  const new_local = mainChain[mainChain.length - 1];
-  meta = new_local.meta();
-  if (!meta.isLocal()) {
+  const newLocal = mainChain[mainChain.length - 1];
+  lm = newLocal.meta();
+  if (!db.isLocalMeta(lm)) {
     throw new Error('not local');
   }
-  lm = meta.typed() as db.LocalMeta;
-  const newLocalHash = new_local.chunk.hash;
-  const newLocalName = lm.mutatorName();
-  const newLocalArgs = lm.mutatorArgsJSON();
+  const newLocalHash = newLocal.chunk.hash;
+  const newLocalName = lm.mutatorName;
+  const newLocalArgs = lm.mutatorArgsJSON;
   try {
     result = await openTransactionImpl(
       lc,

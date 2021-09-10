@@ -2,10 +2,9 @@ import {expect} from '@esm-bundle/chai';
 import {assertNotUndefined} from '../asserts';
 import {assertObject, assertString} from '../asserts';
 import * as dag from '../dag/mod';
-import {fromChunk} from '../db/commit';
 import * as db from '../db/mod';
 import {Commit, DEFAULT_HEAD_NAME} from '../db/mod';
-import {fromWhence, whenceHead} from '../db/read';
+// import {fromWhence, whenceHead} from '../db/read';
 import {
   addGenesis,
   addIndexChange,
@@ -14,7 +13,7 @@ import {
   Chain,
   createIndex,
 } from '../db/test-helpers';
-import type {ReadonlyJSONValue, JSONValue} from '../json';
+import type {ReadonlyJSONValue} from '../json';
 import {MemStore} from '../kv/mod';
 import {arrayCompare} from '../prolly/array-compare';
 import type {PatchOperation, PullResponse} from '../puller';
@@ -84,9 +83,9 @@ test('begin try pull', async () => {
   const goodPullRespValueMap = new Map([['/new', 'value']]);
 
   type ExpCommit = {
-    cookie: JSONValue;
+    cookie: ReadonlyJSONValue;
     lastMutationID: number;
-    valueMap: Map<string, JSONValue>;
+    valueMap: ReadonlyMap<string, ReadonlyJSONValue>;
     indexes: string[];
   };
 
@@ -385,7 +384,7 @@ test('begin try pull', async () => {
     chain.length = startingNumCommits;
     await store.withWrite(async w => {
       await w.setHead(DEFAULT_HEAD_NAME, chain[chain.length - 1].chunk.hash);
-      await w.setHead(SYNC_HEAD_NAME, undefined);
+      await w.removeHead(SYNC_HEAD_NAME);
       await w.commit();
     });
     for (let i = 0; i < c.numPendingMutations; i++) {
@@ -399,7 +398,10 @@ test('begin try pull', async () => {
     // the index no longer returns values, demonstrating that it was rebuilt.
     if (c.numPendingMutations > 0) {
       await store.withRead(async dagRead => {
-        const read = await fromWhence(whenceHead(DEFAULT_HEAD_NAME), dagRead);
+        const read = await db.fromWhence(
+          db.whenceHead(DEFAULT_HEAD_NAME),
+          dagRead,
+        );
         let got = false;
 
         await read.scan(
@@ -466,7 +468,7 @@ test('begin try pull', async () => {
         assertString(syncHeadHash);
         const chunk = await read.getChunk(syncHeadHash);
         assertNotUndefined(chunk);
-        const syncHead = fromChunk(chunk);
+        const syncHead = db.fromChunk(chunk);
         const [gotLastMutationID, gotCookie] =
           Commit.snapshotMetaParts(syncHead);
         expect(expSyncHead.lastMutationID).to.equal(gotLastMutationID);
@@ -503,7 +505,7 @@ test('begin try pull', async () => {
         // change's index ("2").
         if (expSyncHead.indexes.length > 1) {
           await store.withRead(async dagRead => {
-            const read = await fromWhence(
+            const read = await db.fromWhence(
               db.whenceHead(SYNC_HEAD_NAME),
               dagRead,
             );
@@ -635,11 +637,11 @@ test('maybe end try pull', async () => {
       const chainIndex = i + 1; // chain[0] is genesis
       const original = chain[chainIndex];
       let mutatorName: string;
-      let mutatorArgs: JSONValue;
-      if (original.meta().isLocal()) {
-        const lm = original.meta().typed() as db.LocalMeta;
-        mutatorName = lm.mutatorName();
-        mutatorArgs = lm.mutatorArgsJSON();
+      let mutatorArgs: ReadonlyJSONValue;
+      const lm = original.meta();
+      if (db.isLocalMeta(lm)) {
+        mutatorName = lm.mutatorName;
+        mutatorArgs = lm.mutatorArgsJSON;
       } else {
         throw new Error('impossible');
       }
@@ -683,16 +685,14 @@ test('maybe end try pull', async () => {
       for (let i = 0; i < c.expReplayIDs.length; i++) {
         const chainIdx = chain.length - c.numNeedingReplay + i;
         expect(c.expReplayIDs[i]).to.equal(resp.replayMutations?.[i].id);
-        if (chain[chainIdx].meta().isLocal()) {
-          const lm = chain[chainIdx].meta().typed() as db.LocalMeta;
-          expect(lm.mutatorName()).to.equal(
+        const lm = chain[chainIdx].meta();
+        if (db.isLocalMeta(lm)) {
+          expect(lm.mutatorName).to.equal(
             resp.replayMutations?.[i].name,
-            `${c.name}: expected ${lm.mutatorName()}, got ${
-              resp.replayMutations?.[i].name
-            }`,
+            `${c.name}: expected ${lm.mutatorName}, got ${resp.replayMutations?.[i].name}`,
           );
           const gotArgs = resp.replayMutations?.[i].args;
-          const expArgs = lm.mutatorArgsJSON();
+          const expArgs = lm.mutatorArgsJSON;
           expect(expArgs).to.deep.equal(gotArgs);
         } else {
           throw new Error('inconceivable');

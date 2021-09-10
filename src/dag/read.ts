@@ -25,7 +25,7 @@ export class Read {
     }
 
     const refsVal = await this._kvr.get(chunkMetaKey(hash));
-    let refs: string[];
+    let refs: readonly string[];
     if (refsVal !== undefined) {
       if (READ_FLATBUFFERS && refsVal instanceof Uint8Array) {
         refs = readMetaFlatbufferAsRefs(refsVal);

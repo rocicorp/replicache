@@ -25,7 +25,7 @@ test('basics', async () => {
       whenceHead(DEFAULT_HEAD_NAME),
       'mutator_name',
       JSON.stringify([]),
-      undefined,
+      null,
       dagWrite,
     );
     await w.put(lc, 'foo', 'bar');
@@ -42,7 +42,7 @@ test('basics', async () => {
       whenceHead(DEFAULT_HEAD_NAME),
       'mutator_name',
       JSON.stringify(null),
-      undefined,
+      null,
       dagWrite,
     );
     const r = w.asRead();
@@ -56,7 +56,7 @@ test('basics', async () => {
       whenceHead(DEFAULT_HEAD_NAME),
       'mutator_name',
       JSON.stringify([]),
-      undefined,
+      null,
       dagWrite,
     );
     await w.del(lc, 'foo');
@@ -73,7 +73,7 @@ test('basics', async () => {
       whenceHead(DEFAULT_HEAD_NAME),
       'mutator_name',
       JSON.stringify(null),
-      undefined,
+      null,
       dagWrite,
     );
     const r = w.asRead();
@@ -92,7 +92,7 @@ test('index commit type constraints', async () => {
     whenceHead(DEFAULT_HEAD_NAME),
     'mutator_name',
     JSON.stringify([]),
-    undefined,
+    null,
     await ds.write(),
   );
 
@@ -124,7 +124,7 @@ test('clear', async () => {
       whenceHead(DEFAULT_HEAD_NAME),
       'mutator_name',
       JSON.stringify([]),
-      undefined,
+      null,
       dagWrite,
     );
     await w.put(lc, 'foo', 'bar');
@@ -145,7 +145,7 @@ test('clear', async () => {
       whenceHead(DEFAULT_HEAD_NAME),
       'mutator_name',
       JSON.stringify([]),
-      undefined,
+      null,
       dagWrite,
     );
     await w.put(lc, 'hot', 'dog');
@@ -192,7 +192,7 @@ test('create and drop index', async () => {
           whenceHead(DEFAULT_HEAD_NAME),
           'mutator_name',
           JSON.stringify([]),
-          undefined,
+          null,
           dagWrite,
         );
         for (let i = 0; i < 3; i++) {
@@ -218,7 +218,7 @@ test('create and drop index', async () => {
           whenceHead(DEFAULT_HEAD_NAME),
           'mutator_name',
           JSON.stringify([]),
-          undefined,
+          null,
           dagWrite,
         );
         for (let i = 0; i < 3; i++) {

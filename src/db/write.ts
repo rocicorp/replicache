@@ -4,6 +4,7 @@ import * as prolly from '../prolly/mod';
 import {
   Commit,
   IndexDefinition,
+  IndexRecord,
   newIndexChange as commitNewIndexChange,
   newLocal as commitNewLocal,
   newSnapshot as commitNewSnapshot,
@@ -23,7 +24,7 @@ type LocalMeta = {
   mutatorName: string;
   mutatorArgs: ReadonlyJSONValue;
   mutationID: number;
-  originalHash: string | undefined;
+  originalHash: string | null;
 };
 
 type SnapshotMeta = {
@@ -65,7 +66,7 @@ export class Write {
     whence: Whence,
     mutatorName: string,
     mutatorArgs: ReadonlyJSONValue,
-    originalHash: string | undefined,
+    originalHash: string | null,
     dagWrite: dag.Write,
   ): Promise<Write> {
     const [, basis, map] = await readCommit(whence, dagWrite.read());
@@ -125,8 +126,7 @@ export class Write {
 
   isRebase(): boolean {
     return (
-      this._meta.type === MetaType.Local &&
-      this._meta.originalHash !== undefined
+      this._meta.type === MetaType.Local && this._meta.originalHash !== null
     );
   }
 
@@ -282,7 +282,7 @@ export class Write {
       ? this.map.pendingChangedKeys()
       : [];
     const valueHash = await this.map.flush(this._dagWrite);
-    const indexMetas = [];
+    const indexRecords: IndexRecord[] = [];
     const keyChanges = new Map();
     if (valueChangedKeys.length > 0) {
       keyChanges.set('', valueChangedKeys);
@@ -298,11 +298,13 @@ export class Write {
         }
       }
       const valueHash = await index.flush(this._dagWrite);
-      const {meta} = index;
-      meta.valueHash = valueHash;
-      indexMetas.push(meta);
+      const indexRecord: IndexRecord = {
+        definition: index.meta.definition,
+        valueHash,
+      };
+      indexRecords.push(indexRecord);
     }
-    const basisHash = this._basis && this._basis.chunk.hash;
+    const basisHash = this._basis ? this._basis.chunk.hash : null;
     let commit;
     const meta = this._meta;
     switch (meta.type) {
@@ -315,7 +317,7 @@ export class Write {
           mutatorArgs,
           originalHash,
           valueHash,
-          indexMetas,
+          indexRecords,
         );
         break;
       }
@@ -326,7 +328,7 @@ export class Write {
           lastMutationID,
           cookie,
           valueHash,
-          indexMetas,
+          indexRecords,
         );
         break;
       }
@@ -345,7 +347,7 @@ export class Write {
           basisHash,
           lastMutationID,
           valueHash,
-          indexMetas,
+          indexRecords,
         );
         break;
       }

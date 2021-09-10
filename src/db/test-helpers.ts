@@ -50,7 +50,7 @@ export async function createLocal(
       whenceHead(DEFAULT_HEAD_NAME),
       `mutator_name_${i}`,
       [i],
-      undefined,
+      null,
       dagWrite,
     );
     for (const [key, val] of entries) {

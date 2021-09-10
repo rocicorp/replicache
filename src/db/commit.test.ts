@@ -1,23 +1,19 @@
 import {expect} from '@esm-bundle/chai';
-import * as flatbuffers from 'flatbuffers';
 import {Chunk} from '../dag/mod';
 import * as dag from '../dag/mod';
 import {MemStore} from '../kv/mod';
 import {
   Commit,
+  CommitData,
   fromChunk,
   IndexChangeMeta,
-  LocalMeta,
+  Meta,
+  MetaTyped,
   newIndexChange as commitNewIndexChange,
   newLocal as commitNewLocal,
   newSnapshot as commitNewSnapshot,
   SnapshotMeta,
 } from './commit';
-import {IndexDefinition as IndexDefinitionFB} from './generated/commit/index-definition';
-import {IndexRecord as IndexRecordFB} from './generated/commit/index-record';
-import {Meta as MetaFB} from './generated/commit/meta';
-import {MetaTyped as MetaTypedFB} from './generated/commit/meta-typed';
-import {Commit as CommitFB} from './generated/commit/commit';
 import {
   addGenesis,
   addIndexChange,
@@ -25,13 +21,19 @@ import {
   addSnapshot,
   Chain,
 } from './test-helpers';
-import {LocalMeta as LocalMetaFB} from './generated/commit/local-meta';
-import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
-import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
 import {initHasher} from '../hash';
 import type {JSONValue} from '../json';
+import * as flatbuffers from 'flatbuffers';
+import {IndexDefinition as IndexDefinitionFB} from './generated/commit/index-definition';
+import {LocalMeta as LocalMetaFB} from './generated/commit/local-meta';
+import {Meta as MetaFB} from './generated/commit/meta';
+import {MetaTyped as MetaTypedFB} from './generated/commit/meta-typed';
+import {Commit as CommitFB} from './generated/commit/commit';
+import {IndexRecord as IndexRecordFB} from './generated/commit/index-record';
+import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
+import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
 import * as utf8 from '../utf8';
-import {b} from '../test-util';
+
 setup(async () => {
   await initHasher();
 });
@@ -126,26 +128,64 @@ test('chain', async () => {
 });
 
 test('load roundtrip', async () => {
-  const t = (chunk: Chunk, expected: Commit | Error) => {
-    if (expected instanceof Error) {
-      expect(() => fromChunk(chunk)).to.throw(
-        expected.constructor,
-        expected.message,
-      );
-    } else {
-      const actual = fromChunk(chunk);
-      expect(actual).to.deep.equal(expected);
+  const SKIP_FLATBUFFERS = true;
+
+  const t = (
+    chunk: Chunk,
+    expected: Commit | Error,
+    skipFlatbuffers = false,
+  ) => {
+    {
+      if (expected instanceof Error) {
+        expect(() => fromChunk(chunk)).to.throw(
+          expected.constructor,
+          expected.message,
+        );
+      } else {
+        const actual = fromChunk(chunk);
+        expect(actual).to.deep.equal(expected);
+      }
+
+      if (skipFlatbuffers) {
+        return;
+      }
+
+      {
+        // Flatbuffers
+        const {data} = chunk;
+        // @ts-expect-error We are testing invalid data here.
+        const buf = flatbufferFromCommitData(data);
+        const c = Chunk.read(chunk.hash, buf, chunk.meta);
+        if (expected instanceof Error) {
+          expect(() => fromChunk(c)).to.throw(
+            expected.constructor,
+            expected.message,
+          );
+        } else {
+          if (expected.chunk.data.meta.basisHash === '') {
+            // Flatbuffers cannot distinguis between null and empty string.
+            return;
+          }
+          // debugger;
+          const actual = fromChunk(c);
+          expect(actual.chunk.data).to.deep.equal(expected.chunk.data);
+        }
+      }
     }
   };
-
-  for (const basisHash of [undefined, '', 'hash']) {
+  for (const basisHash of [null, '', 'hash']) {
     t(
       await makeCommit(
-        b => makeLocalMeta(b, 0, 'mutname', 42, 'original'),
-        basisHash,
+        {
+          type: MetaTyped.LocalMeta,
+          basisHash,
+          mutationID: 0,
+          mutatorName: 'mutname',
+          mutatorArgsJSON: 42,
+          originalHash: 'original',
+        },
         'value',
-        basisHash === undefined ? ['value'] : ['value', basisHash],
-        [],
+        basisHash === null ? ['value'] : ['value', basisHash],
       ),
       await commitNewLocal(
         basisHash,
@@ -161,81 +201,106 @@ test('load roundtrip', async () => {
 
   t(
     await makeCommit(
-      b => makeLocalMeta(b, 0, undefined, 43, ''),
-      '',
+      {
+        type: MetaTyped.LocalMeta,
+        basisHash: 'basis',
+        mutationID: 0,
+        mutatorName: '',
+        mutatorArgsJSON: 43,
+        originalHash: '',
+      },
       'value-hash',
       ['', ''],
-      undefined,
     ),
     new Error('Missing mutator name'),
   );
   t(
     await makeCommit(
-      b => makeLocalMeta(b, 0, '', undefined, ''),
-      '',
+      {
+        type: MetaTyped.LocalMeta,
+        basisHash: '',
+        mutationID: 0,
+        // @ts-expect-error We are testing invalid types
+        mutatorName: undefined,
+        mutatorArgsJSON: 43,
+        originalHash: '',
+      },
       'value-hash',
       ['', ''],
-      undefined,
     ),
-    new Error('Missing mutator name'),
+    new Error('Invalid type: undefined, expected string'),
+    SKIP_FLATBUFFERS,
   );
 
-  for (const basisHash of [undefined, '', 'hash']) {
+  for (const basisHash of [null, '', 'hash']) {
     t(
       await makeCommit(
-        b => makeLocalMeta(b, 0, 'mutname', 44, undefined),
-        basisHash,
+        {
+          type: MetaTyped.LocalMeta,
+          basisHash,
+          mutationID: 0,
+          mutatorName: 'mutname',
+          mutatorArgsJSON: 44,
+          originalHash: null,
+        },
         'vh',
-        basisHash === undefined ? ['vh'] : ['vh', basisHash],
-        undefined,
+        basisHash === null ? ['vh'] : ['vh', basisHash],
       ),
-      await commitNewLocal(basisHash, 0, 'mutname', 44, undefined, 'vh', []),
+      await commitNewLocal(basisHash, 0, 'mutname', 44, null, 'vh', []),
     );
   }
 
   t(
     await makeCommit(
-      b => makeLocalMeta(b, 0, 'mutname', 45, ''),
-      '',
+      {
+        type: MetaTyped.LocalMeta,
+        basisHash: '',
+        mutationID: 0,
+        mutatorName: 'mutname',
+        mutatorArgsJSON: 45,
+        originalHash: '',
+      },
+
+      //@ts-expect-error we are testing invalid types
       undefined,
       ['', ''],
-      undefined,
     ),
-    new Error('Missing value hash'),
+    new Error('Invalid type: undefined, expected string'),
+    SKIP_FLATBUFFERS,
   );
 
   const cookie = {foo: 'bar'};
-  for (const basisHash of [undefined, '', 'hash']) {
+  for (const basisHash of [null, '', 'hash']) {
     t(
       await makeCommit(
-        fb => makeSnapshotMeta(fb, 0, {foo: 'bar'}),
-        basisHash,
+        makeSnapshotMeta(basisHash ?? null, 0, {foo: 'bar'}),
         'vh',
         ['vh'],
-        undefined,
       ),
       await commitNewSnapshot(basisHash, 0, cookie, 'vh', []),
     );
   }
   t(
     await makeCommit(
-      b => makeSnapshotMeta(b, 0, undefined),
-      '',
+      makeSnapshotMeta(
+        '',
+        0,
+        // @ts-expect-error we are testing invalid types
+        undefined,
+      ),
       'vh',
       ['vh', ''],
-      undefined,
     ),
-    new Error('Missing cookie'),
+    new Error('Invalid type: undefined, expected JSON value'),
+    SKIP_FLATBUFFERS,
   );
 
-  for (const basisHash of [undefined, '', 'hash']) {
+  for (const basisHash of [null, '', 'hash']) {
     t(
       await makeCommit(
-        b => makeIndexChangeMeta(b, 0),
-        basisHash,
+        makeIndexChangeMeta(basisHash, 0),
         'value',
-        basisHash === undefined ? ['value'] : ['value', basisHash],
-        [],
+        basisHash === null ? ['value'] : ['value', basisHash],
       ),
       await commitNewIndexChange(basisHash, 0, 'value', []),
     );
@@ -245,187 +310,185 @@ test('load roundtrip', async () => {
 test('accessors', async () => {
   const local = fromChunk(
     await makeCommit(
-      b => makeLocalMeta(b, 1, 'foo_mutator', 42, 'original_hash'),
-      'basis_hash',
+      {
+        basisHash: 'basis_hash',
+        type: MetaTyped.LocalMeta,
+        mutationID: 1,
+        mutatorName: 'foo_mutator',
+        mutatorArgsJSON: 42,
+        originalHash: 'original_hash',
+      },
       'value_hash',
       ['value_hash', 'basis_hash'],
-      undefined,
     ),
   );
-  if (local.meta().typed().type === MetaTypedFB.LocalMeta) {
-    const lm = local.meta().typed() as LocalMeta;
-    expect(lm.mutationID()).to.equal(1);
-    expect(lm.mutatorName()).to.equal('foo_mutator');
-    expect(lm.mutatorArgsJSON()).to.equal(42);
-    expect(lm.originalHash()).to.equal('original_hash');
+  const lm = local.meta();
+  if (lm.type === MetaTyped.LocalMeta) {
+    expect(lm.mutationID).to.equal(1);
+    expect(lm.mutatorName).to.equal('foo_mutator');
+    expect(lm.mutatorArgsJSON).to.equal(42);
+    expect(lm.originalHash).to.equal('original_hash');
   } else {
     throw new Error('unexpected type');
   }
-  expect(local.meta().basisHash()).to.equal('basis_hash');
+  expect(local.meta().basisHash).to.equal('basis_hash');
   expect(local.valueHash()).to.equal('value_hash');
   expect(local.nextMutationID()).to.equal(2);
 
   const snapshot = fromChunk(
     await makeCommit(
-      fb => makeSnapshotMeta(fb, 2, 'cookie 2'),
-      'basis_hash 2',
+      makeSnapshotMeta('basis_hash_2', 2, 'cookie 2'),
       'value_hash 2',
-      ['value_hash 2', 'basis_hash 2'],
-      undefined,
+      ['value_hash 2', 'basis_hash_2'],
     ),
   );
-  if (snapshot.meta().typed().type === MetaTypedFB.SnapshotMeta) {
-    const sm = snapshot.meta().typed() as SnapshotMeta;
-    expect(sm.lastMutationID()).to.equal(2);
-    expect(sm.cookieJSON()).to.deep.equal(b`"cookie 2"`);
-    expect(sm.cookieJSONValue()).to.deep.equal('cookie 2');
+  const sm = snapshot.meta();
+  if (sm.type === MetaTyped.SnapshotMeta) {
+    expect(sm.lastMutationID).to.equal(2);
+    expect(sm.cookieJSON).to.deep.equal('cookie 2');
+    expect(sm.cookieJSON).to.deep.equal('cookie 2');
   } else {
     throw new Error('unexpected type');
   }
-  expect(snapshot.meta().basisHash()).to.equal('basis_hash 2');
+  expect(snapshot.meta().basisHash).to.equal('basis_hash_2');
   expect(snapshot.valueHash()).to.equal('value_hash 2');
   expect(snapshot.nextMutationID()).to.equal(3);
 
   const indexChange = fromChunk(
-    await makeCommit(
-      b => makeIndexChangeMeta(b, 3),
-      'basis_hash 3',
+    await makeCommit(makeIndexChangeMeta('basis_hash 3', 3), 'value_hash 3', [
       'value_hash 3',
-      ['value_hash 3', 'basis_hash 3'],
-      undefined,
-    ),
+      'basis_hash 3',
+    ]),
   );
-  if (indexChange.meta().typed().type === MetaTypedFB.IndexChangeMeta) {
-    const ic = indexChange.meta().typed() as IndexChangeMeta;
-    expect(ic.lastMutationID()).to.equal(3);
+  const ic = indexChange.meta();
+  if (ic.type === MetaTyped.IndexChangeMeta) {
+    expect(ic.lastMutationID).to.equal(3);
   } else {
     throw new Error('unexpected type');
   }
-  expect(indexChange.meta().basisHash()).to.equal('basis_hash 3');
+  expect(indexChange.meta().basisHash).to.equal('basis_hash 3');
   expect(indexChange.valueHash()).to.equal('value_hash 3');
   expect(indexChange.mutationID()).to.equal(3);
 });
 
-type MakeIndexDefinition = {
-  name: string | undefined;
-  keyPrefix: Uint8Array | undefined;
-  jsonPointer: string | undefined;
-};
-
-type MakeIndex = {
-  definition: MakeIndexDefinition | undefined;
-  valueHash: string | undefined;
-};
-
 async function makeCommit(
-  typedMetaBuilder: (
-    builder: flatbuffers.Builder,
-  ) => [MetaTypedFB, number] | undefined,
-  basisHash: string | undefined,
-  valueHash: string | undefined,
+  meta: Meta,
+  valueHash: string,
   refs: string[],
-  indexes: MakeIndex[] | undefined,
 ): Promise<Chunk> {
-  const builder = new flatbuffers.Builder();
-  const typedMeta = typedMetaBuilder?.(builder);
-  const meta = MetaFB.createMeta(
-    builder,
-    basisHash !== undefined ? builder.createString(basisHash) : 0,
-    typedMeta !== undefined ? typedMeta[0] : MetaTypedFB.NONE,
-    typedMeta !== undefined ? typedMeta[1] : 0,
-  );
-
-  function makeIndex(
-    builder: flatbuffers.Builder,
-    makeIndex: MakeIndex,
-  ): number {
-    const definition =
-      makeIndex.definition === undefined
-        ? 0
-        : IndexDefinitionFB.createIndexDefinition(
-            builder,
-            makeIndex.definition.name === undefined
-              ? 0
-              : builder.createString(makeIndex.definition.name),
-            makeIndex.definition.keyPrefix === undefined
-              ? 0
-              : IndexDefinitionFB.createKeyPrefixVector(
-                  builder,
-                  makeIndex.definition.keyPrefix,
-                ),
-            makeIndex.definition.jsonPointer === undefined
-              ? 0
-              : builder.createString(makeIndex.definition.jsonPointer),
-          );
-    return IndexRecordFB.createIndexRecord(
-      builder,
-      definition,
-      valueHash === undefined ? 0 : builder.createString(valueHash),
-    );
-  }
-
-  const fbIndexes: number[] = [];
-  if (indexes !== undefined) {
-    for (const mi of indexes) {
-      fbIndexes.push(makeIndex(builder, mi));
-    }
-  }
-  const commit = CommitFB.createCommit(
-    builder,
+  const data: CommitData = {
     meta,
-    valueHash === undefined ? 0 : builder.createString(valueHash),
-    CommitFB.createIndexesVector(builder, fbIndexes),
-  );
-  builder.finish(commit);
-  const data = builder.asUint8Array();
+    valueHash,
+    indexes: [],
+  };
+
   return Chunk.new(data, refs);
 }
 
-function makeLocalMeta(
-  builder: flatbuffers.Builder,
-  mutation_id: number,
-  mutatorName: string | undefined,
-  mutatorArgsJson: JSONValue | undefined,
-  originalHash: string | undefined,
-): [MetaTypedFB, number] {
-  const localMeta = LocalMetaFB.createLocalMeta(
-    builder,
-    builder.createLong(mutation_id, 0),
-    mutatorName === undefined ? 0 : builder.createString(mutatorName),
-    mutatorArgsJson === undefined
-      ? 0
-      : LocalMetaFB.createMutatorArgsJsonVector(
-          builder,
-          utf8.encode(JSON.stringify(mutatorArgsJson)),
-        ),
-    originalHash === undefined ? 0 : builder.createString(originalHash),
-  );
-  return [MetaTypedFB.LocalMeta, localMeta];
-}
-
 function makeSnapshotMeta(
-  builder: flatbuffers.Builder,
-  lastMutationId: number,
-  cookieJSON: JSONValue | undefined,
-): [MetaTypedFB, number] {
-  const cookieBytes = utf8.encode(JSON.stringify(cookieJSON));
-  const snapshotMeta = SnapshotMetaFB.createSnapshotMeta(
-    builder,
-    builder.createLong(lastMutationId, 0),
-    cookieJSON === undefined
-      ? 0
-      : SnapshotMetaFB.createCookieJsonVector(builder, cookieBytes),
-  );
-  return [MetaTypedFB.SnapshotMeta, snapshotMeta];
+  basisHash: string | null,
+  lastMutationID: number,
+  cookieJSON: JSONValue,
+): SnapshotMeta {
+  return {
+    type: MetaTyped.SnapshotMeta,
+    basisHash,
+    lastMutationID,
+    cookieJSON,
+  };
 }
 
 function makeIndexChangeMeta(
-  builder: flatbuffers.Builder,
-  lastMutationId: number,
-): [MetaTypedFB, number] {
-  const indexChangeMeta = IndexChangeMetaFB.createIndexChangeMeta(
+  basisHash: string | null,
+  lastMutationID: number,
+): IndexChangeMeta {
+  return {
+    type: MetaTyped.IndexChangeMeta,
+    basisHash,
+    lastMutationID,
+  };
+}
+
+function flatbufferFromCommitData(data: CommitData): Uint8Array {
+  const builder = new flatbuffers.Builder();
+
+  const {basisHash} = data.meta;
+  const {valueHash, indexes} = data;
+
+  const [unionType, unionValue] = (() => {
+    switch (data.meta.type) {
+      case MetaTyped.LocalMeta: {
+        const {mutationID, mutatorName, mutatorArgsJSON, originalHash} =
+          data.meta;
+        const localMeta = LocalMetaFB.createLocalMeta(
+          builder,
+          flatbuffers.createLong(mutationID, 0),
+          builder.createString(mutatorName),
+          LocalMetaFB.createMutatorArgsJsonVector(
+            builder,
+            utf8.encode(JSON.stringify(mutatorArgsJSON)),
+          ),
+          originalHash ? builder.createString(originalHash) : 0,
+        );
+        return [MetaTypedFB.LocalMeta, localMeta];
+      }
+
+      case MetaTyped.SnapshotMeta: {
+        const {lastMutationID, cookieJSON} = data.meta;
+        const cookieBytes = utf8.encode(JSON.stringify(cookieJSON));
+        const snapshotMeta = SnapshotMetaFB.createSnapshotMeta(
+          builder,
+          builder.createLong(lastMutationID, 0),
+          SnapshotMetaFB.createCookieJsonVector(builder, cookieBytes),
+        );
+        return [MetaTypedFB.SnapshotMeta, snapshotMeta];
+      }
+
+      case MetaTyped.IndexChangeMeta: {
+        const {lastMutationID} = data.meta;
+        const indexChangeMeta = IndexChangeMetaFB.createIndexChangeMeta(
+          builder,
+          builder.createLong(lastMutationID, 0),
+        );
+        return [MetaTypedFB.IndexChangeMeta, indexChangeMeta];
+      }
+    }
+  })();
+
+  const meta = MetaFB.createMeta(
     builder,
-    builder.createLong(lastMutationId, 0),
+    basisHash ? builder.createString(basisHash) : 0,
+    unionType,
+    unionValue,
   );
-  return [MetaTypedFB.IndexChangeMeta, indexChangeMeta];
+
+  const indexRecordsFB = [];
+  for (const index of indexes) {
+    const {name, keyPrefix, jsonPointer} = index.definition;
+    const indexDefinition = IndexDefinitionFB.createIndexDefinition(
+      builder,
+      builder.createString(name),
+      IndexDefinitionFB.createKeyPrefixVector(builder, utf8.encode(keyPrefix)),
+      builder.createString(jsonPointer),
+    );
+
+    const indexRecord = IndexRecordFB.createIndexRecord(
+      builder,
+      indexDefinition,
+      builder.createString(index.valueHash),
+    );
+    indexRecordsFB.push(indexRecord);
+  }
+
+  const commitFB = CommitFB.createCommit(
+    builder,
+    meta,
+    builder.createString(valueHash),
+    CommitFB.createIndexesVector(builder, indexRecordsFB),
+  );
+
+  builder.finish(commitFB);
+  return builder.asUint8Array();
+
+  throw new Error('Function not implemented.');
 }

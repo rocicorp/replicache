@@ -21,7 +21,7 @@ export async function addSyncSnapshot(
 
   let maybeBaseSnapshot: db.Commit | undefined;
   for (let i = chain.length - 1; i > 0; i--) {
-    if (chain[i - 1].meta().isSnapshot()) {
+    if (chain[i - 1].metaIsSnapshot()) {
       maybeBaseSnapshot = chain[i - 1];
       break;
     }

@@ -2,32 +2,36 @@ import {assertString} from '../asserts';
 import {Hash} from '../hash';
 import type {Value} from '../kv/store';
 
-type Refs = string[];
+type Refs = readonly string[];
 
 // TODO(arv): Make this class take a type parameter for the data type?
-export class Chunk {
+export class Chunk<V extends Value = Value> {
   readonly hash: string;
-  readonly data: Value;
+  readonly data: V;
   /**
    * Meta is an array of refs. If there are no refs we do not write a meta
    * chunk.
    */
   readonly meta: Refs;
 
-  private constructor(hash: string, data: Value, meta: Refs = []) {
+  private constructor(hash: string, data: V, meta: Refs = []) {
     this.hash = hash;
     this.data = data;
     this.meta = meta;
   }
 
-  static new(data: Value, refs: string[]): Chunk {
+  static new<V extends Value = Value>(data: V, refs: Refs): Chunk<V> {
     // Use hash of JSON stringified data if a JSONValue is passed.
-    const sum = ArrayBuffer.isView(data) ? data : JSON.stringify(data);
+    const sum = data instanceof Uint8Array ? data : JSON.stringify(data);
     const hash = Hash.of(sum);
     return new Chunk(hash.toString(), data, refs);
   }
 
-  static read(hash: string, data: Value, refs: Refs): Chunk {
+  static read<V extends Value = Value>(
+    hash: string,
+    data: V,
+    refs: Refs,
+  ): Chunk<V> {
     return new Chunk(hash, data, refs);
   }
 }

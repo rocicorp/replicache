@@ -50,7 +50,7 @@ export async function createLocal(
       whenceHead(DEFAULT_HEAD_NAME),
       `mutator_name_${i}`,
       [i],
-      undefined,
+      null,
       dagWrite,
     );
     for (const [key, val] of entries) {
@@ -111,7 +111,7 @@ export async function addSnapshot(
   await store.withWrite(async dagWrite => {
     const w = await Write.newSnapshot(
       whenceHead(DEFAULT_HEAD_NAME),
-      chain[chain.length - 1].nextMutationID(),
+      chain[chain.length - 1].nextMutationID,
       cookie,
       dagWrite,
       readIndexes(chain[chain.length - 1]),

@@ -31,12 +31,23 @@ export class Write {
     if (meta.length > 0) {
       p2 = this._kvw.put(chunkMetaKey(hash), meta);
     }
-    this._newChunks.add(c.hash);
+    this._newChunks.add(hash);
     await p1;
     await p2;
   }
 
-  async setHead(name: string, hash: string | undefined): Promise<void> {
+  setHead(name: string, hash: string): Promise<void> {
+    return this._setHead(name, hash);
+  }
+
+  removeHead(name: string): Promise<void> {
+    return this._setHead(name, undefined);
+  }
+
+  private async _setHead(
+    name: string,
+    hash: string | undefined,
+  ): Promise<void> {
     const oldHash = await this.read().getHead(name);
     const hk = headKey(name);
 

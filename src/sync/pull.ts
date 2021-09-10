@@ -64,7 +64,7 @@ export async function beginPull(
   const pullReq = {
     clientID,
     cookie: baseCookie,
-    lastMutationID: baseSnapshot.mutationID(),
+    lastMutationID: baseSnapshot.mutationID,
     pullVersion: PULL_VERSION,
     schemaVersion,
   };
@@ -139,9 +139,9 @@ export async function beginPull(
     // the last commit on the chain that will not be rebased. We do this here before creating
     // the new snapshot while we still have the dagRead borrowed.
     const chain = await db.Commit.chain(mainHeadPostPull, dagRead);
-    const indexRecords = chain
-      .find(c => c.mutationID() <= pullResp.lastMutationID)
-      ?.indexes();
+    const indexRecords = chain.find(
+      c => c.mutationID <= pullResp.lastMutationID,
+    )?.indexes;
     if (!indexRecords) {
       throw new Error('Internal invalid chain');
     }
@@ -202,8 +202,8 @@ export async function maybeEndTryPull(
     }
     const mainSnapshot = await db.Commit.baseSnapshot(mainHeadHash, dagRead);
 
-    const meta = syncSnapshot.meta();
-    const syncSnapshotBasis = meta.basisHash();
+    const meta = syncSnapshot.meta;
+    const syncSnapshotBasis = meta.basisHash;
     if (syncSnapshot === null) {
       throw new Error('Sync snapshot with no basis');
     }
@@ -215,7 +215,7 @@ export async function maybeEndTryPull(
     // of them if any need to be replayed.
     let pending = await db.Commit.localMutations(mainHeadHash, dagRead);
     const syncHead = await db.Commit.fromHash(syncHeadHash, dagRead);
-    pending = pending.filter(c => c.mutationID() > syncHead.mutationID());
+    pending = pending.filter(c => c.mutationID > syncHead.mutationID);
     // pending() gave us the pending mutations in sync-head-first order whereas
     // caller wants them in the order to replay (lower mutation ids first).
     pending.reverse();
@@ -230,15 +230,15 @@ export async function maybeEndTryPull(
       for (const c of pending) {
         let name: string;
         let args: ReadonlyJSONValue;
-        if (c.meta().isLocal()) {
-          const lm = c.meta().typed() as db.LocalMeta;
-          name = lm.mutatorName();
-          args = lm.mutatorArgsJSON();
+        if (c.isLocal()) {
+          const lm = c.meta;
+          name = lm.mutatorName;
+          args = lm.mutatorArgsJSON;
         } else {
           throw new Error('pending mutation is not local');
         }
         replayMutations.push({
-          id: c.mutationID(),
+          id: c.mutationID,
           name,
           args: deepThaw(args),
           original: c.chunk.hash,
@@ -260,8 +260,8 @@ export async function maybeEndTryPull(
     // Compute diffs (changed keys) for value map and index maps.
     const mainHead = await db.Commit.fromHash(mainHeadHash, dagRead);
     const [mainHeadMap, syncHeadMap] = await Promise.all([
-      prolly.Map.load(mainHead.valueHash(), dagRead),
-      prolly.Map.load(syncHead.valueHash(), dagRead),
+      prolly.Map.load(mainHead.valueHash, dagRead),
+      prolly.Map.load(syncHead.valueHash, dagRead),
     ]);
     const valueChangedKeys = prolly.Map.changedKeys(mainHeadMap, syncHeadMap);
     if (valueChangedKeys.length > 0) {
@@ -272,7 +272,7 @@ export async function maybeEndTryPull(
     // No mutations to replay so set the main head to the sync head and sync complete!
     await Promise.all([
       dagWrite.setHead(db.DEFAULT_HEAD_NAME, syncHeadHash),
-      dagWrite.setHead(SYNC_HEAD_NAME, undefined),
+      dagWrite.removeHead(SYNC_HEAD_NAME),
     ]);
     await dagWrite.commit();
 
@@ -287,8 +287,8 @@ export async function maybeEndTryPull(
         oldLastMutationID,
         newCookie,
         oldCookie,
-        syncHead.valueHash(),
-        mainSnapshot.valueHash(),
+        syncHead.valueHash,
+        mainSnapshot.valueHash,
       );
     }
 

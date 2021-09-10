@@ -19,7 +19,7 @@ test('basics', async () => {
     whenceHead(DEFAULT_HEAD_NAME),
     'mutator_name',
     JSON.stringify([]),
-    undefined,
+    null,
     await ds.write(),
   );
   await w.put(lc, 'foo', 'bar');

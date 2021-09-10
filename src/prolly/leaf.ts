@@ -8,7 +8,7 @@ import {Leaf as LeafFB} from './generated/leaf/leaf';
 import * as utf8 from '../utf8';
 
 export class Leaf {
-  private _chunk: Chunk | undefined;
+  private _chunk: Chunk<Entry[]> | undefined;
   readonly entries: Entry[];
 
   constructor(entries: Entry[]) {
@@ -43,7 +43,7 @@ export class Leaf {
     return new Leaf(entries);
   }
 
-  get chunk(): Chunk {
+  get chunk(): Chunk<Entry[]> {
     if (this._chunk === undefined) {
       this._chunk = Chunk.new(this.entries, []);
     }

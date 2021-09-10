@@ -69,7 +69,7 @@ test('get chunk', async () => {
   await t(new Uint8Array([1]), ['r1', 'r2'], false);
 });
 
-function createMeta(refs: string[]): Uint8Array {
+function createMeta(refs: readonly string[]): Uint8Array {
   const builder = new flatbuffers.Builder();
   const refsOffset = MetaFB.createRefsVector(
     builder,

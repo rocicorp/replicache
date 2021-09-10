@@ -67,7 +67,7 @@ test('set head', async () => {
   const t = async (kv: kv.Store, name: string, hash: string | undefined) => {
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
-      await w.setHead(name, hash);
+      await (hash === undefined ? w.removeHead(name) : w.setHead(name, hash));
       if (hash !== undefined) {
         const h = await kvw.get(headKey(name));
         expect(h).to.equal(hash);

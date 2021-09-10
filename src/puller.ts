@@ -1,6 +1,6 @@
 import {assertArray, assertNumber, assertObject, assertString} from './asserts';
 import {httpRequest} from './http-request';
-import {assertJSONValue, JSONValue} from './json';
+import {assertJSONValue, JSONValue, ReadonlyJSONValue} from './json';
 import type {HTTPRequestInfo} from './repm-invoker';
 
 export type PullerResult = {
@@ -18,7 +18,7 @@ export type Puller = (request: Request) => Promise<PullerResult>;
  * the JSON you should return from your pull server endpoint.
  */
 export type PullResponse = {
-  cookie?: JSONValue;
+  cookie?: ReadonlyJSONValue;
   lastMutationID: number;
   patch: PatchOperation[];
 };

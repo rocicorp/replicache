@@ -71,9 +71,8 @@ export async function push(
   if (pending.length > 0) {
     const pushMutations: Mutation[] = [];
     for (const commit of pending) {
-      const lm = commit.meta();
-      if (db.isLocalMeta(lm)) {
-        pushMutations.push(convert(lm));
+      if (commit.isLocal()) {
+        pushMutations.push(convert(commit.meta));
       } else {
         throw new Error('Internal non local pending commit');
       }

@@ -487,9 +487,7 @@ test('begin try pull', async () => {
         expect(expValueMap.length).to.equal(gotValueMap.length);
 
         // Check we have the expected index definitions.
-        const indexes: string[] = syncHead
-          .indexes()
-          .map(i => i.definition.name);
+        const indexes: string[] = syncHead.indexes.map(i => i.definition.name);
         expect(expSyncHead.indexes.length).to.equal(
           indexes.length,
           `${c.name}: expected indexes ${expSyncHead.indexes}, got ${indexes}`,
@@ -638,8 +636,8 @@ test('maybe end try pull', async () => {
       const original = chain[chainIndex];
       let mutatorName: string;
       let mutatorArgs: ReadonlyJSONValue;
-      const lm = original.meta();
-      if (db.isLocalMeta(lm)) {
+      if (original.isLocal()) {
+        const lm = original.meta;
         mutatorName = lm.mutatorName;
         mutatorArgs = lm.mutatorArgsJSON;
       } else {
@@ -685,8 +683,9 @@ test('maybe end try pull', async () => {
       for (let i = 0; i < c.expReplayIDs.length; i++) {
         const chainIdx = chain.length - c.numNeedingReplay + i;
         expect(c.expReplayIDs[i]).to.equal(resp.replayMutations?.[i].id);
-        const lm = chain[chainIdx].meta();
-        if (db.isLocalMeta(lm)) {
+        const commit = chain[chainIdx];
+        if (commit.isLocal()) {
+          const lm = commit.meta;
           expect(lm.mutatorName).to.equal(
             resp.replayMutations?.[i].name,
             `${c.name}: expected ${lm.mutatorName}, got ${resp.replayMutations?.[i].name}`,

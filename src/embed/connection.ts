@@ -273,8 +273,8 @@ async function validateRebase(
     db.whenceHash(opts.original),
     dagRead,
   );
-  const lm = original.meta();
-  if (db.isLocalMeta(lm)) {
+  if (original.isLocal()) {
+    const lm = original.meta;
     if (lm.mutatorName !== mutatorName) {
       throw new Error(
         `Inconsistent mutator: original: ${lm.mutatorName}, request: ${mutatorName}`,
@@ -286,9 +286,9 @@ async function validateRebase(
 
   // Ensure rebase and original commit mutation ids names match.
   const [, basis] = await db.readCommit(db.whenceHash(opts.basis), dagRead);
-  if (basis.nextMutationID() !== original.mutationID()) {
+  if (basis.nextMutationID !== original.mutationID) {
     throw new Error(
-      `Inconsistent mutation ID: original: ${original.mutationID()}, next: ${basis.nextMutationID()}`,
+      `Inconsistent mutation ID: original: ${original.mutationID}, next: ${basis.nextMutationID}`,
     );
   }
 

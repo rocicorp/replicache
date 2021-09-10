@@ -1,7 +1,7 @@
 export {Write, initDB} from './write';
 export {Read, readIndexes, readCommit} from './read';
 export {whenceHead, whenceHash, fromWhence} from './read';
-export {DEFAULT_HEAD_NAME, Commit, isLocalMeta, fromChunk} from './commit';
+export {DEFAULT_HEAD_NAME, Commit, fromChunk} from './commit';
 export {getRoot} from './root';
 export {ScanResultType} from './scan';
 export {decodeIndexKey} from './index';

@@ -70,7 +70,7 @@ export class Write {
     dagWrite: dag.Write,
   ): Promise<Write> {
     const [, basis, map] = await readCommit(whence, dagWrite.read());
-    const mutationID = basis.nextMutationID();
+    const mutationID = basis.nextMutationID;
     const indexes = readIndexes(basis);
     return new Write(
       dagWrite,
@@ -109,7 +109,7 @@ export class Write {
     dagWrite: dag.Write,
   ): Promise<Write> {
     const [, basis, map] = await readCommit(whence, dagWrite.read());
-    const lastMutationID = basis.mutationID();
+    const lastMutationID = basis.mutationID;
     const indexes = readIndexes(basis);
     return new Write(
       dagWrite,
@@ -335,10 +335,10 @@ export class Write {
       case MetaType.IndexChange: {
         const {lastMutationID} = meta;
         if (this._basis !== undefined) {
-          if (this._basis.mutationID() !== lastMutationID) {
+          if (this._basis.mutationID !== lastMutationID) {
             throw new Error('Index change must not change mutationID');
           }
-          if (this._basis.valueHash() !== valueHash) {
+          if (this._basis.valueHash !== valueHash) {
             throw new Error('Index change must not change valueHash');
           }
         }

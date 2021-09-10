@@ -1,7 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
 import * as sync from '../sync/mod';
-import * as db from '../db/mod';
 import {MemStore} from '../kv/mem-store';
 import {addGenesis, addLocal, Chain} from '../db/test-helpers';
 import {addSyncSnapshot} from '../sync/test-helpers';
@@ -23,10 +22,10 @@ test('open transaction rebase opts', async () => {
   await addLocal(mainChain, store);
   const syncChain = await addSyncSnapshot(mainChain, store, 0);
   const original = mainChain[1];
-  let lm = original.meta();
-  if (!db.isLocalMeta(lm)) {
+  if (!original.isLocal()) {
     throw new Error('not local');
   }
+  let lm = original.meta;
   const originalHash = original.chunk.hash;
   const originalName = lm.mutatorName;
   const originalArgs = lm.mutatorArgsJSON;
@@ -81,10 +80,10 @@ test('open transaction rebase opts', async () => {
   // Ensure it doesn't let us rebase with a different mutation id.
   await addLocal(mainChain, store);
   const newLocal = mainChain[mainChain.length - 1];
-  lm = newLocal.meta();
-  if (!db.isLocalMeta(lm)) {
+  if (!newLocal.isLocal()) {
     throw new Error('not local');
   }
+  lm = newLocal.meta;
   const newLocalHash = newLocal.chunk.hash;
   const newLocalName = lm.mutatorName;
   const newLocalArgs = lm.mutatorArgsJSON;

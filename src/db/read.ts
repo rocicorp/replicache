@@ -121,13 +121,13 @@ export async function readCommit(
   }
 
   const commit = await Commit.fromHash(hash, read);
-  const map = await prolly.Map.load(commit.valueHash(), read);
+  const map = await prolly.Map.load(commit.valueHash, read);
   return [hash, commit, map];
 }
 
 export function readIndexes(commit: Commit): Map<string, Index> {
   const m = new Map();
-  for (const index of commit.indexes()) {
+  for (const index of commit.indexes) {
     m.set(index.definition.name, new Index(index, undefined));
   }
   return m;

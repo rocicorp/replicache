@@ -29,39 +29,36 @@ export const enum MetaTyped {
   SnapshotMeta = 3,
 }
 
-export class Commit {
+export class Commit<M extends Meta = Meta> {
   readonly chunk: Chunk<CommitData>;
 
   constructor(chunk: Chunk<CommitData>) {
     this.chunk = chunk;
   }
 
-  meta(): Meta {
-    return this.chunk.data.meta;
+  get meta(): M {
+    return this.chunk.data.meta as M;
   }
 
-  metaIsLocal(): boolean {
-    return this.meta().type === MetaTyped.LocalMeta;
+  isLocal(): this is Commit<LocalMeta> {
+    return this.meta.type === MetaTyped.LocalMeta;
   }
 
-  metaIsSnapshot(): boolean {
-    return this.meta().type === MetaTyped.SnapshotMeta;
+  isSnapshot(): this is Commit<SnapshotMeta> {
+    return this.meta.type === MetaTyped.SnapshotMeta;
   }
 
-  // meta(): Meta {
-  //   // Already validated!
-  //   // TODO(arv): Make Chunk take a type parameter.
-  //   const meta = (this.chunk.data as CommitData).meta;
-  //   return new Meta(metaFromTyped(meta));
-  // }
+  isIndexChange(): this is Commit<IndexChangeMeta> {
+    return this.meta.type === MetaTyped.IndexChangeMeta;
+  }
 
-  valueHash(): string {
+  get valueHash(): string {
     // Already validated!
-    return (this.chunk.data as CommitData).valueHash;
+    return this.chunk.data.valueHash;
   }
 
-  mutationID(): number {
-    const meta = this.meta();
+  get mutationID(): number {
+    const meta = this.meta;
     switch (meta.type) {
       case MetaTyped.IndexChangeMeta:
       case MetaTyped.SnapshotMeta:
@@ -71,13 +68,13 @@ export class Commit {
     }
   }
 
-  nextMutationID(): number {
-    return this.mutationID() + 1;
+  get nextMutationID(): number {
+    return this.mutationID + 1;
   }
 
-  indexes(): IndexRecord[] {
+  get indexes(): IndexRecord[] {
     // Already validated!
-    return (this.chunk.data as CommitData).indexes;
+    return this.chunk.data.indexes;
   }
 
   /**
@@ -93,15 +90,16 @@ export class Commit {
   static async localMutations(
     fromCommitHash: string,
     dagRead: dag.Read,
-  ): Promise<Commit[]> {
+  ): Promise<Commit<LocalMeta>[]> {
     const commits = await Commit.chain(fromCommitHash, dagRead);
-    return commits.filter(c => isLocalMeta(c.meta()));
+    // Filter does not deal with type narrowing.
+    return commits.filter(c => c.isLocal()) as Commit<LocalMeta>[];
   }
 
   static async baseSnapshot(hash: string, dagRead: dag.Read): Promise<Commit> {
     let commit = await Commit.fromHash(hash, dagRead);
-    while (!commit.metaIsSnapshot()) {
-      const meta = commit.meta();
+    while (!commit.isSnapshot()) {
+      const meta = commit.meta;
       const basisHash = meta.basisHash;
       if (basisHash === null) {
         throw new Error(`Commit ${commit.chunk.hash} has no basis`);
@@ -114,7 +112,7 @@ export class Commit {
   static snapshotMetaParts(
     c: Commit,
   ): [lastMutationID: number, cookie: ReadonlyJSONValue] {
-    const m = c.meta();
+    const m = c.meta;
     if (m.type === MetaTyped.SnapshotMeta) {
       return [m.lastMutationID, m.cookieJSON];
     }
@@ -132,17 +130,14 @@ export class Commit {
   ): Promise<Commit[]> {
     let commit = await Commit.fromHash(fromCommitHash, dagRead);
     const commits = [];
-    while (!commit.metaIsSnapshot()) {
-      const meta = commit.meta();
+    while (!commit.isSnapshot()) {
+      const meta = commit.meta;
       const basisHash = meta.basisHash;
       if (basisHash === null) {
         throw new Error(`Commit ${commit.chunk.hash} has no basis`);
       }
       commits.push(commit);
       commit = await Commit.fromHash(basisHash, dagRead);
-    }
-    if (!commit.metaIsSnapshot()) {
-      throw new Error(`End of chain ${commit.chunk.hash} is not a snapshot`);
     }
     commits.push(commit);
     return commits;
@@ -161,10 +156,6 @@ export type IndexChangeMeta = BasisHash & {
   readonly type: MetaTyped.IndexChangeMeta;
   readonly lastMutationID: number;
 };
-
-export function isIndexChangeMeta(meta: Meta): meta is IndexChangeMeta {
-  return meta.type === MetaTyped.IndexChangeMeta;
-}
 
 function assertIndexChangeMeta(
   v: Record<string, unknown>,
@@ -188,10 +179,6 @@ export type LocalMeta = BasisHash & {
   readonly originalHash: string | null;
 };
 
-export function isLocalMeta(m: Meta): m is LocalMeta {
-  return m.type === MetaTyped.LocalMeta;
-}
-
 function assertLocalMeta(v: Record<string, unknown>): asserts v is LocalMeta {
   // type already asserted
   assertNumber(v.mutationID);
@@ -210,10 +197,6 @@ export type SnapshotMeta = BasisHash & {
   readonly lastMutationID: number;
   readonly cookieJSON: ReadonlyJSONValue;
 };
-
-export function isSnapshotMeta(m: Meta): m is SnapshotMeta {
-  return m.type === MetaTyped.SnapshotMeta;
-}
 
 function assertSnapshot(v: Record<string, unknown>): asserts v is SnapshotMeta {
   // type already asserted
@@ -334,7 +317,6 @@ export function newIndexChange(
   valueHash: string,
   indexes: IndexRecord[],
 ): Promise<Commit> {
-  // TOOD(arv): Use | null above
   const indexChangeMeta: IndexChangeMeta = {
     type: MetaTyped.IndexChangeMeta,
     basisHash,

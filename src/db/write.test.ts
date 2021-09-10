@@ -230,7 +230,7 @@ test('create and drop index', async () => {
 
     await ds.withRead(async dagRead => {
       const [, c] = await readCommit(whenceHead(DEFAULT_HEAD_NAME), dagRead);
-      const indexes = c.indexes();
+      const indexes = c.indexes;
       expect(indexes).to.have.lengthOf(1);
       const idx = indexes[0];
       expect(idx.definition.name).to.equal(indexName);
@@ -257,7 +257,7 @@ test('create and drop index', async () => {
         whenceHead(DEFAULT_HEAD_NAME),
         dagWrite.read(),
       );
-      const indexes = c.indexes();
+      const indexes = c.indexes;
       expect(indexes).to.be.empty;
     });
   };

@@ -322,7 +322,7 @@ test('accessors', async () => {
       ['value_hash', 'basis_hash'],
     ),
   );
-  const lm = local.meta();
+  const lm = local.meta;
   if (lm.type === MetaTyped.LocalMeta) {
     expect(lm.mutationID).to.equal(1);
     expect(lm.mutatorName).to.equal('foo_mutator');
@@ -331,9 +331,9 @@ test('accessors', async () => {
   } else {
     throw new Error('unexpected type');
   }
-  expect(local.meta().basisHash).to.equal('basis_hash');
-  expect(local.valueHash()).to.equal('value_hash');
-  expect(local.nextMutationID()).to.equal(2);
+  expect(local.meta.basisHash).to.equal('basis_hash');
+  expect(local.valueHash).to.equal('value_hash');
+  expect(local.nextMutationID).to.equal(2);
 
   const snapshot = fromChunk(
     await makeCommit(
@@ -342,7 +342,7 @@ test('accessors', async () => {
       ['value_hash 2', 'basis_hash_2'],
     ),
   );
-  const sm = snapshot.meta();
+  const sm = snapshot.meta;
   if (sm.type === MetaTyped.SnapshotMeta) {
     expect(sm.lastMutationID).to.equal(2);
     expect(sm.cookieJSON).to.deep.equal('cookie 2');
@@ -350,9 +350,9 @@ test('accessors', async () => {
   } else {
     throw new Error('unexpected type');
   }
-  expect(snapshot.meta().basisHash).to.equal('basis_hash_2');
-  expect(snapshot.valueHash()).to.equal('value_hash 2');
-  expect(snapshot.nextMutationID()).to.equal(3);
+  expect(snapshot.meta.basisHash).to.equal('basis_hash_2');
+  expect(snapshot.valueHash).to.equal('value_hash 2');
+  expect(snapshot.nextMutationID).to.equal(3);
 
   const indexChange = fromChunk(
     await makeCommit(makeIndexChangeMeta('basis_hash 3', 3), 'value_hash 3', [
@@ -360,15 +360,15 @@ test('accessors', async () => {
       'basis_hash 3',
     ]),
   );
-  const ic = indexChange.meta();
+  const ic = indexChange.meta;
   if (ic.type === MetaTyped.IndexChangeMeta) {
     expect(ic.lastMutationID).to.equal(3);
   } else {
     throw new Error('unexpected type');
   }
-  expect(indexChange.meta().basisHash).to.equal('basis_hash 3');
-  expect(indexChange.valueHash()).to.equal('value_hash 3');
-  expect(indexChange.mutationID()).to.equal(3);
+  expect(indexChange.meta.basisHash).to.equal('basis_hash 3');
+  expect(indexChange.valueHash).to.equal('value_hash 3');
+  expect(indexChange.mutationID).to.equal(3);
 });
 
 async function makeCommit(

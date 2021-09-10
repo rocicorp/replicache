@@ -21,8 +21,9 @@ export async function addSyncSnapshot(
 
   let maybeBaseSnapshot: db.Commit | undefined;
   for (let i = chain.length - 1; i > 0; i--) {
-    if (chain[i - 1].metaIsSnapshot()) {
-      maybeBaseSnapshot = chain[i - 1];
+    const commit = chain[i - 1];
+    if (commit.isSnapshot()) {
+      maybeBaseSnapshot = commit;
       break;
     }
   }
@@ -38,7 +39,7 @@ export async function addSyncSnapshot(
   await store.withWrite(async dagWrite => {
     const w = await db.Write.newSnapshot(
       db.whenceHash(baseSnapshot.chunk.hash),
-      baseSnapshot.mutationID(),
+      baseSnapshot.mutationID,
       cookie,
       dagWrite,
       indexes,

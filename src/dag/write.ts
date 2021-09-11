@@ -147,6 +147,11 @@ export class Write {
       }
     }
     assertNumber(value);
+    if (value < 0 || value > 0xffff || value !== (value | 0)) {
+      throw new Error(
+        `Invalid ref count ${value}. We expect the value to be a Uint16`,
+      );
+    }
     return value;
   }
 

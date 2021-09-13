@@ -184,7 +184,7 @@ export async function openTransactionImpl(
     let ok = false;
     try {
       let whence: db.Whence | undefined;
-      let originalHash: string | undefined;
+      let originalHash: string | null = null;
       if (rebaseOpts === undefined) {
         whence = db.whenceHead(db.DEFAULT_HEAD_NAME);
       } else {
@@ -273,11 +273,11 @@ async function validateRebase(
     db.whenceHash(opts.original),
     dagRead,
   );
-  if (original.meta().isLocal()) {
-    const lm = original.meta().typed() as db.LocalMeta;
-    if (lm.mutatorName() !== mutatorName) {
+  if (original.isLocal()) {
+    const lm = original.meta;
+    if (lm.mutatorName !== mutatorName) {
       throw new Error(
-        `Inconsistent mutator: original: ${lm.mutatorName()}, request: ${mutatorName}`,
+        `Inconsistent mutator: original: ${lm.mutatorName}, request: ${mutatorName}`,
       );
     }
   } else {
@@ -286,9 +286,9 @@ async function validateRebase(
 
   // Ensure rebase and original commit mutation ids names match.
   const [, basis] = await db.readCommit(db.whenceHash(opts.basis), dagRead);
-  if (basis.nextMutationID() !== original.mutationID()) {
+  if (basis.nextMutationID !== original.mutationID) {
     throw new Error(
-      `Inconsistent mutation ID: original: ${original.mutationID()}, next: ${basis.nextMutationID()}`,
+      `Inconsistent mutation ID: original: ${original.mutationID}, next: ${basis.nextMutationID}`,
     );
   }
 

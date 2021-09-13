@@ -2,7 +2,6 @@ import type * as kv from '../kv/mod';
 import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key';
 import {Read} from './read';
 import {assertMeta, Chunk} from './chunk';
-import * as utf8 from '../utf8';
 import {assertNumber} from '../asserts';
 import {READ_FLATBUFFERS} from './config';
 
@@ -32,12 +31,23 @@ export class Write {
     if (meta.length > 0) {
       p2 = this._kvw.put(chunkMetaKey(hash), meta);
     }
-    this._newChunks.add(c.hash);
+    this._newChunks.add(hash);
     await p1;
     await p2;
   }
 
-  async setHead(name: string, hash: string | undefined): Promise<void> {
+  setHead(name: string, hash: string): Promise<void> {
+    return this._setHead(name, hash);
+  }
+
+  removeHead(name: string): Promise<void> {
+    return this._setHead(name, undefined);
+  }
+
+  private async _setHead(
+    name: string,
+    hash: string | undefined,
+  ): Promise<void> {
     const oldHash = await this.read().getHead(name);
     const hk = headKey(name);
 
@@ -45,7 +55,7 @@ export class Write {
     if (hash === undefined) {
       p1 = this._kvw.del(hk);
     } else {
-      p1 = this._kvw.put(hk, utf8.encode(hash));
+      p1 = this._kvw.put(hk, hash);
     }
 
     const v = this._changedHeads.get(name);
@@ -137,6 +147,11 @@ export class Write {
       }
     }
     assertNumber(value);
+    if (value < 0 || value > 0xffff || value !== (value | 0)) {
+      throw new Error(
+        `Invalid ref count ${value}. We expect the value to be a Uint16`,
+      );
+    }
     return value;
   }
 

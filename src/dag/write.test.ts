@@ -5,9 +5,7 @@ import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
 import {toLittleEndian, Write} from './write';
 import type * as kv from '../kv/mod';
 import {Read} from './read';
-import * as utf8 from '../utf8';
 import {initHasher} from '../hash';
-import {assertInstanceof} from '../asserts';
 import type {Value} from '../kv/store';
 
 setup(async () => {
@@ -69,11 +67,10 @@ test('set head', async () => {
   const t = async (kv: kv.Store, name: string, hash: string | undefined) => {
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
-      await w.setHead(name, hash);
+      await (hash === undefined ? w.removeHead(name) : w.setHead(name, hash));
       if (hash !== undefined) {
         const h = await kvw.get(headKey(name));
-        assertInstanceof(h, Uint8Array);
-        expect(hash).to.equal(h && utf8.decode(h));
+        expect(h).to.equal(hash);
       } else {
         expect(await kvw.get(headKey(name))).to.be.undefined;
       }
@@ -139,6 +136,55 @@ test('ref count as Uint8Array', async () => {
     expect(await w.getRefCount(h1)).to.equal(1);
     expect(await w.getRefCount(h2)).to.equal(2);
   });
+});
+
+test('ref count invalid', async () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const t = async (v: any, expectError?: string) => {
+    const kv = new MemStore();
+    const h = 'fakehash1';
+    await kv.withWrite(async kvw => {
+      await kvw.put(chunkRefCountKey(h), v);
+      await kvw.commit();
+    });
+    await kv.withWrite(async kvw => {
+      const w = new Write(kvw);
+      let err;
+      try {
+        await w.getRefCount(h);
+      } catch (e) {
+        err = e;
+      }
+      if (expectError) {
+        expect(err)
+          .to.be.instanceof(Error)
+          .with.property('message', expectError);
+      } else {
+        expect(err, 'No error expected').to.be.undefined;
+      }
+    });
+  };
+
+  await t(0);
+  await t(1);
+  await t(42);
+  await t(0xffff);
+  await t(-1, 'Invalid ref count -1. We expect the value to be a Uint16');
+  await t(-1, 'Invalid ref count -1. We expect the value to be a Uint16');
+  await t(1.5, 'Invalid ref count 1.5. We expect the value to be a Uint16');
+  await t(NaN, 'Invalid ref count NaN. We expect the value to be a Uint16');
+  await t(
+    Infinity,
+    'Invalid ref count Infinity. We expect the value to be a Uint16',
+  );
+  await t(
+    -Infinity,
+    'Invalid ref count -Infinity. We expect the value to be a Uint16',
+  );
+  await t(
+    2 ** 16,
+    'Invalid ref count 65536. We expect the value to be a Uint16',
+  );
 });
 
 test('commit rollback', async () => {

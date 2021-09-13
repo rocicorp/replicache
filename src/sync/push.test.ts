@@ -200,7 +200,7 @@ test('try push', async () => {
     chain.length = startingNumCommits;
     await store.withWrite(async w => {
       await w.setHead(DEFAULT_HEAD_NAME, chain[chain.length - 1].chunk.hash);
-      await w.setHead(SYNC_HEAD_NAME, undefined);
+      await w.removeHead(SYNC_HEAD_NAME);
       await w.commit();
     });
     for (let i = 0; i < c.numPendingMutations; i++) {

@@ -2,10 +2,11 @@ import {expect} from '@esm-bundle/chai';
 import {initHasher} from '../hash';
 import {MemStore} from '../kv/mod';
 import {Chunk} from './chunk';
-import {chunkDataKey, chunkMetaKey} from './key';
+import {chunkDataKey, chunkMetaKey, headKey} from './key';
 import {Read} from './read';
 import {Meta as MetaFB} from './generated/meta/meta';
 import * as flatbuffers from 'flatbuffers';
+import * as utf8 from '../utf8';
 
 setup(async () => {
   await initHasher();
@@ -67,7 +68,8 @@ test('get chunk', async () => {
   await t(new Uint8Array([1]), [], true);
   await t(new Uint8Array([1]), ['r1', 'r2'], false);
 });
-function createMeta(refs: string[]): Uint8Array {
+
+function createMeta(refs: readonly string[]): Uint8Array {
   const builder = new flatbuffers.Builder();
   const refsOffset = MetaFB.createRefsVector(
     builder,
@@ -77,3 +79,31 @@ function createMeta(refs: string[]): Uint8Array {
   builder.finish(m);
   return builder.asUint8Array();
 }
+
+test('get head with Uint8Array support', async () => {
+  const kv = new MemStore();
+  const h1 = 'v1';
+  const h2 = 'v2';
+  const h3 = 'v3';
+  await kv.withWrite(async kvw => {
+    await kvw.put(headKey(h1), 'h1');
+    await kvw.put(headKey(h2), utf8.encode('h2'));
+    await kvw.put(headKey(h3), 42);
+    await kvw.commit();
+  });
+
+  await kv.withRead(async kvr => {
+    const r = new Read(kvr);
+    expect(await r.getHead(h1)).to.equal('h1');
+    expect(await r.getHead(h2)).to.equal('h2');
+    let err;
+    try {
+      await r.getHead(h3);
+    } catch (e) {
+      err = e;
+    }
+    expect(err)
+      .to.be.instanceOf(Error)
+      .with.property('message', 'Invalid type: number `42`, expected string');
+  });
+});

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1631320016819,
+  "lastUpdate": 1631553845262,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -39374,6 +39374,156 @@ window.BENCHMARK_DATA = {
             "range": "±164.8%",
             "unit": "ops/sec",
             "extra": "86 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "whiten@georgetown.edu",
+            "name": "Nate White",
+            "username": "whiten"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6a79be3ecff3ad218699bc8ce515e068361bccd1",
+          "message": "Add utility to open a window and run code in it for tests. (#492)\n\nUse this to start a test for navigator.locks, verifying that it works on\r\nall browsers we care about.\r\n\r\nWhen test-util.ts newTab() is called, a new browser window is opened,\r\nwith all console logs from it funnelled back to the main test process. A\r\nmodule (usually that of the current test) may be loaded and all exported\r\nsymbols made available, allowing type-checked Typescript code to be\r\nexecuted easily. The run() method on the resulting tab may then be\r\ncalled to execute snippets of code, allowing for testing of interaction\r\nbetween two windows at the same origin.\r\n\r\nExample:\r\n\r\n```\r\nimport {newTab} from './test-util';\r\n\r\ntest('storage', async () => {\r\n  const tab = await newPage();\r\n  await tab.run('window.localStorage.setItem(\"test\", \"modified\")');\r\n  expect(window.localStorage.getItem('test')).to.equal('modified');\r\n}\r\n```",
+          "timestamp": "2021-09-13T10:22:33-07:00",
+          "tree_id": "0c7b8b3f161d258040c1c840183abbdc783d117c",
+          "url": "https://github.com/rocicorp/replicache/commit/6a79be3ecff3ad218699bc8ce515e068361bccd1"
+        },
+        "date": 1631553844970,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 8.38,
+            "range": "±9.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 6.47,
+            "range": "±6.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 4.56,
+            "range": "±5.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 3.1,
+            "range": "±5.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.35,
+            "range": "±72.7%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 5.96,
+            "range": "±2.7%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 6.22,
+            "range": "±77.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 5.78,
+            "range": "±77.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±1448.6%",
+            "unit": "MB/s",
+            "extra": "99 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 118.98,
+            "range": "±456.7%",
+            "unit": "ops/sec",
+            "extra": "60 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 5.05,
+            "range": "±7.1%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.09,
+            "range": "±2.6%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 9.06,
+            "range": "±12.0%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 9.12,
+            "range": "±10.1%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 9.02,
+            "range": "±15.3%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription setup 10",
+            "value": 316.61,
+            "range": "±113.3%",
+            "unit": "ops/sec",
+            "extra": "159 samples"
+          },
+          {
+            "name": "subscription setup 100",
+            "value": 240.56,
+            "range": "±429.7%",
+            "unit": "ops/sec",
+            "extra": "121 samples"
+          },
+          {
+            "name": "subscription setup 1000",
+            "value": 158.54,
+            "range": "±178.6%",
+            "unit": "ops/sec",
+            "extra": "80 samples"
           }
         ]
       }

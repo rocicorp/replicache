@@ -29,6 +29,7 @@ export default {
         'src/replicache.test.ts',
         'src/hash.test.ts',
         'src/subscriptions.test.ts',
+        'src/web-lock.test.ts',
 
         'src/dag/*.test.ts',
         'src/db/*.test.ts',

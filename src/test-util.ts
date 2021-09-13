@@ -205,7 +205,7 @@ export async function newTab(
   const tabCallbacks: TabCallbacks = new Map([['init', {resolve}]]);
   callbacks.set(tabId, tabCallbacks);
 
-  const params = {tabId};
+  const params: Record<string, string> = {tabId};
   if (path !== undefined) {
     params['path'] = path;
   }

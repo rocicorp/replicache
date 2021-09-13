@@ -1,12 +1,17 @@
 <html>
   <head>
     <script type="application/javascript">
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabId = urlParams.get('tabId');
       const initialize = async event => {
+        if (event.key != tabId + '-out') {
+          return;
+        }
         const testutil = await import('/src/test-util.ts');
-        testutil.initializeNewTab(event);
-        removeEventListener('message', initialize, false);
+        testutil.initializeNewTab(tabId, urlParams.get('path'), event);
+        removeEventListener('storage', initialize, false);
       };
-      addEventListener('message', initialize, false);
+      addEventListener('storage', initialize, false);
     </script>
   </head>
 </html>

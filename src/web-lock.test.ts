@@ -4,8 +4,13 @@ import {newTab, Tab} from './test-util';
 
 let tab: Tab;
 
+function isFirefox(): boolean {
+  return navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+}
+
 suiteSetup(async () => {
-  tab = await newTab('src/web-lock.test.ts');
+  // TODO(nate): Debug why tests don't work with `noopener` on Firefox.
+  tab = await newTab('src/web-lock.test.ts', {opener: isFirefox()});
 });
 
 suiteTeardown(() => {

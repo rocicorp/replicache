@@ -83,14 +83,17 @@ export async function initializeNewTab(event: MessageEvent): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore No index signature of type 'string' was found on 'Console'.
     console[level] = (...data: unknown[]) => {
-      opener.postMessage({tabId, id: 'log', result: {level, data}}, origin);
+      opener.postMessage(
+        {tabId, id: 'log', result: {level, data}},
+        window.origin,
+      );
     };
   });
 
   let module: typeof import('./test-util');
   if (path !== undefined) {
     try {
-      module = await import(new URL('/' + path, location.href).toString());
+      module = await import('/' + path);
     } catch (e) {
       console.log('Error importing ' + path + ':', e);
     }
@@ -116,7 +119,7 @@ export async function initializeNewTab(event: MessageEvent): Promise<void> {
         response.error = e;
       }
     }
-    opener.postMessage(response, origin);
+    opener.postMessage(response, window.origin);
   };
 
   addEventListener('message', handle, false);
@@ -184,32 +187,18 @@ export async function newTab(path?: string): Promise<Tab> {
   const tabCallbacks: TabCallbacks = new Map([['init', {resolve}]]);
   callbacks.set(tabId, tabCallbacks);
 
-  // Open a tab to a page on the same domain that doesn't run anything on load.
   const tab = open(
-    new URL('/src/test-util.ts', location.href).toString(),
+    '/src/testutil-new-tab.html',
     '_blank',
-    'rel="noopener"',
+    // 'noopener', TODO(nate): Enable this once working.
   );
   if (tab === null) {
     throw new Error('Failed to open window');
   }
 
-  // Add a script element to import this file and call initializeNewTab().
-  const script = document.createElement('script');
-  script.type = 'text/javascript';
-  script.text = `
-    const initialize = async (event) => {
-      let testutil = await import(new URL('/src/test-util.ts', location.href));
-      testutil.initializeNewTab(event);
-      removeEventListener('message', initialize, false);
-    };
-    addEventListener("message", initialize, false);
-  `;
-  tab.document.head.appendChild(script);
-
   // Start initialization process, waiting for page to become live.
   const interval = setInterval(() => {
-    tab.postMessage({id: 'init', tabId, path}, origin);
+    tab.postMessage({id: 'init', tabId, path}, window.origin);
   }, 100);
   await withTimeout(promise, 10000);
   clearInterval(interval);
@@ -222,7 +211,7 @@ export async function newTab(path?: string): Promise<Tab> {
       if (expr.search('return ') === -1) {
         expr = 'return ' + expr;
       }
-      tab.postMessage({id, expr}, origin);
+      tab.postMessage({id, expr}, window.origin);
       const result = await withTimeout(promise, 5000);
       tabCallbacks.delete(id);
       return result;

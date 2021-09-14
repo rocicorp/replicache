@@ -23,16 +23,6 @@ import {
 } from './test-helpers';
 import {initHasher} from '../hash';
 import type {JSONValue} from '../json';
-import * as flatbuffers from 'flatbuffers';
-import {IndexDefinition as IndexDefinitionFB} from './generated/commit/index-definition';
-import {LocalMeta as LocalMetaFB} from './generated/commit/local-meta';
-import {Meta as MetaFB} from './generated/commit/meta';
-import {MetaTyped as MetaTypedFB} from './generated/commit/meta-typed';
-import {Commit as CommitFB} from './generated/commit/commit';
-import {IndexRecord as IndexRecordFB} from './generated/commit/index-record';
-import {SnapshotMeta as SnapshotMetaFB} from './generated/commit/snapshot-meta';
-import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-change-meta';
-import * as utf8 from '../utf8';
 
 setup(async () => {
   await initHasher();
@@ -128,13 +118,7 @@ test('chain', async () => {
 });
 
 test('load roundtrip', async () => {
-  const SKIP_FLATBUFFERS = true;
-
-  const t = (
-    chunk: Chunk,
-    expected: Commit | Error,
-    skipFlatbuffers = false,
-  ) => {
+  const t = (chunk: Chunk, expected: Commit | Error) => {
     {
       if (expected instanceof Error) {
         expect(() => fromChunk(chunk)).to.throw(
@@ -144,32 +128,6 @@ test('load roundtrip', async () => {
       } else {
         const actual = fromChunk(chunk);
         expect(actual).to.deep.equal(expected);
-      }
-
-      if (skipFlatbuffers) {
-        return;
-      }
-
-      {
-        // Flatbuffers
-        const {data} = chunk;
-        // @ts-expect-error We are testing invalid data here.
-        const buf = flatbufferFromCommitData(data);
-        const c = Chunk.read(chunk.hash, buf, chunk.meta);
-        if (expected instanceof Error) {
-          expect(() => fromChunk(c)).to.throw(
-            expected.constructor,
-            expected.message,
-          );
-        } else {
-          if (expected.chunk.data.meta.basisHash === '') {
-            // Flatbuffers cannot distinguis between null and empty string.
-            return;
-          }
-          // debugger;
-          const actual = fromChunk(c);
-          expect(actual.chunk.data).to.deep.equal(expected.chunk.data);
-        }
       }
     }
   };
@@ -229,7 +187,6 @@ test('load roundtrip', async () => {
       ['', ''],
     ),
     new Error('Invalid type: undefined, expected string'),
-    SKIP_FLATBUFFERS,
   );
 
   for (const basisHash of [null, '', 'hash']) {
@@ -266,7 +223,6 @@ test('load roundtrip', async () => {
       ['', ''],
     ),
     new Error('Invalid type: undefined, expected string'),
-    SKIP_FLATBUFFERS,
   );
 
   const cookie = {foo: 'bar'};
@@ -292,7 +248,6 @@ test('load roundtrip', async () => {
       ['vh', ''],
     ),
     new Error('Invalid type: undefined, expected JSON value'),
-    SKIP_FLATBUFFERS,
   );
 
   for (const basisHash of [null, '', 'hash']) {
@@ -407,88 +362,4 @@ function makeIndexChangeMeta(
     basisHash,
     lastMutationID,
   };
-}
-
-function flatbufferFromCommitData(data: CommitData): Uint8Array {
-  const builder = new flatbuffers.Builder();
-
-  const {basisHash} = data.meta;
-  const {valueHash, indexes} = data;
-
-  const [unionType, unionValue] = (() => {
-    switch (data.meta.type) {
-      case MetaTyped.LocalMeta: {
-        const {mutationID, mutatorName, mutatorArgsJSON, originalHash} =
-          data.meta;
-        const localMeta = LocalMetaFB.createLocalMeta(
-          builder,
-          flatbuffers.createLong(mutationID, 0),
-          builder.createString(mutatorName),
-          LocalMetaFB.createMutatorArgsJsonVector(
-            builder,
-            utf8.encode(JSON.stringify(mutatorArgsJSON)),
-          ),
-          originalHash ? builder.createString(originalHash) : 0,
-        );
-        return [MetaTypedFB.LocalMeta, localMeta];
-      }
-
-      case MetaTyped.SnapshotMeta: {
-        const {lastMutationID, cookieJSON} = data.meta;
-        const cookieBytes = utf8.encode(JSON.stringify(cookieJSON));
-        const snapshotMeta = SnapshotMetaFB.createSnapshotMeta(
-          builder,
-          builder.createLong(lastMutationID, 0),
-          SnapshotMetaFB.createCookieJsonVector(builder, cookieBytes),
-        );
-        return [MetaTypedFB.SnapshotMeta, snapshotMeta];
-      }
-
-      case MetaTyped.IndexChangeMeta: {
-        const {lastMutationID} = data.meta;
-        const indexChangeMeta = IndexChangeMetaFB.createIndexChangeMeta(
-          builder,
-          builder.createLong(lastMutationID, 0),
-        );
-        return [MetaTypedFB.IndexChangeMeta, indexChangeMeta];
-      }
-    }
-  })();
-
-  const meta = MetaFB.createMeta(
-    builder,
-    basisHash ? builder.createString(basisHash) : 0,
-    unionType,
-    unionValue,
-  );
-
-  const indexRecordsFB = [];
-  for (const index of indexes) {
-    const {name, keyPrefix, jsonPointer} = index.definition;
-    const indexDefinition = IndexDefinitionFB.createIndexDefinition(
-      builder,
-      builder.createString(name),
-      IndexDefinitionFB.createKeyPrefixVector(builder, utf8.encode(keyPrefix)),
-      builder.createString(jsonPointer),
-    );
-
-    const indexRecord = IndexRecordFB.createIndexRecord(
-      builder,
-      indexDefinition,
-      builder.createString(index.valueHash),
-    );
-    indexRecordsFB.push(indexRecord);
-  }
-
-  const commitFB = CommitFB.createCommit(
-    builder,
-    meta,
-    builder.createString(valueHash),
-    CommitFB.createIndexesVector(builder, indexRecordsFB),
-  );
-
-  builder.finish(commitFB);
-  return builder.asUint8Array();
-
-  throw new Error('Function not implemented.');
 }

@@ -3,7 +3,6 @@ import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key';
 import {Read} from './read';
 import {assertMeta, Chunk} from './chunk';
 import {assertNumber} from '../asserts';
-import {READ_FLATBUFFERS} from './config';
 
 type HeadChange = {
   new: string | undefined;
@@ -140,11 +139,6 @@ export class Write {
     const value = await this._kvw.get(chunkRefCountKey(hash));
     if (value === undefined) {
       return 0;
-    }
-    if (READ_FLATBUFFERS) {
-      if (value instanceof Uint8Array) {
-        return fromLittleEndian(value);
-      }
     }
     assertNumber(value);
     if (value < 0 || value > 0xffff || value !== (value | 0)) {

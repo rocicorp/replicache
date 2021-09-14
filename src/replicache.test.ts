@@ -2877,6 +2877,13 @@ class MemStoreWithCounters implements kv.Store {
   readCount = 0;
   writeCount = 0;
   closeCount = 0;
+
+  resetCounters() {
+    this.readCount = 0;
+    this.writeCount = 0;
+    this.closeCount = 0;
+  }
+
   read() {
     this.readCount++;
     return this.store.read();
@@ -2909,25 +2916,28 @@ test('experiment KV Store', async () => {
     mutators: {addData},
   });
 
-  expect(store.readCount).to.equal(3);
-  expect(store.writeCount).to.equal(3);
+  expect(store.readCount).to.equal(4);
+  expect(store.writeCount).to.equal(4);
   expect(store.closeCount).to.equal(0);
+  store.resetCounters();
 
   const b = await rep.query(tx => tx.has('foo'));
   expect(b).to.be.false;
 
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(3);
+  expect(store.readCount).to.equal(1);
+  expect(store.writeCount).to.equal(0);
   expect(store.closeCount).to.equal(0);
+  store.resetCounters();
 
   await rep.mutate.addData({foo: 'bar'});
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(4);
+  expect(store.readCount).to.equal(0);
+  expect(store.writeCount).to.equal(1);
   expect(store.closeCount).to.equal(0);
+  store.resetCounters();
 
   await rep.close();
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(4);
+  expect(store.readCount).to.equal(0);
+  expect(store.writeCount).to.equal(0);
   expect(store.closeCount).to.equal(1);
 });
 
@@ -2938,9 +2948,10 @@ test('subscription coalescing', async () => {
     mutators: {addData},
   });
 
-  expect(store.readCount).to.equal(3);
-  expect(store.writeCount).to.equal(3);
+  expect(store.readCount).to.equal(4);
+  expect(store.writeCount).to.equal(4);
   expect(store.closeCount).to.equal(0);
+  store.resetCounters();
 
   const log: string[] = [];
   const ca = rep.subscribe(tx => tx.has('a'), {
@@ -2962,9 +2973,10 @@ test('subscription coalescing', async () => {
   await tickUntil(() => log.length === 3);
   expect(log).to.deep.equal(['a', 'b', 'c']);
 
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(3);
+  expect(store.readCount).to.equal(1);
+  expect(store.writeCount).to.equal(0);
   expect(store.closeCount).to.equal(0);
+  store.resetCounters();
 
   ca();
   cb();
@@ -2981,14 +2993,15 @@ test('subscription coalescing', async () => {
     },
   });
 
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(3);
+  expect(store.readCount).to.equal(0);
+  expect(store.writeCount).to.equal(0);
   expect(store.closeCount).to.equal(0);
+  store.resetCounters();
 
   await rep.mutate.addData({a: 1});
 
-  expect(store.readCount).to.equal(5);
-  expect(store.writeCount).to.equal(4);
+  expect(store.readCount).to.equal(1);
+  expect(store.writeCount).to.equal(1);
   expect(store.closeCount).to.equal(0);
 
   expect(log).to.deep.equal(['d', 'e']);

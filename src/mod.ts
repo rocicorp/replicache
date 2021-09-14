@@ -12,7 +12,12 @@ export type {
   ScanResult,
   AsyncIterableIteratorToArrayWrapper,
 } from './scan-iterator';
-export type {JSONObject, JSONValue} from './json';
+export type {
+  JSONObject,
+  JSONValue,
+  ReadonlyJSONValue,
+  ReadonlyJSONObject,
+} from './json';
 export type {
   KeyTypeForScanOptions,
   ScanIndexOptions,

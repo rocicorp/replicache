@@ -19,14 +19,12 @@ import type * as db from './db/mod';
  * [[Replicache.subscribe]] and allows read operations on the
  * database.
  */
-export interface ReadTransaction<
-  Value extends ReadonlyJSONValue = ReadonlyJSONValue,
-> {
+export interface ReadTransaction {
   /**
    * Get a single value from the database. If the `key` is not present this
    * returns `undefined`.
    */
-  get(key: string): Promise<Value | undefined>;
+  get(key: string): Promise<ReadonlyJSONValue | undefined>;
 
   /** Determines if a single `key` is present in the database. */
   has(key: string): Promise<boolean>;
@@ -46,7 +44,7 @@ export interface ReadTransaction<
    * If the [[ScanResult]] is used after the `ReadTransaction` has been closed it
    * will throw a [[TransactionClosedError]].
    */
-  scan(): ScanResult<string, Value>;
+  scan(): ScanResult<string, ReadonlyJSONValue>;
 
   /**
    * Gets many values from the database. This returns a [[ScanResult]] which
@@ -62,7 +60,7 @@ export interface ReadTransaction<
    */
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
-  ): ScanResult<Key, Value>;
+  ): ScanResult<Key, ReadonlyJSONValue>;
 }
 
 const enum OpenTransactionType {
@@ -200,7 +198,7 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
  * [[ReplicacheOptions.mutators]] and allows read and write operations on the
  * database.
  */
-export interface WriteTransaction extends ReadTransaction<JSONValue> {
+export interface WriteTransaction extends ReadTransaction {
   /**
    * Sets a single `value` in the database. The `value` will be encoded using
    * `JSON.stringify`.
@@ -212,6 +210,19 @@ export interface WriteTransaction extends ReadTransaction<JSONValue> {
    * `key` to remove.
    */
   del(key: string): Promise<boolean>;
+
+  /**
+   * Overrides [[ReadTransaction.get]] to return a mutable [[JSONValue]].
+   */
+  get(key: string): Promise<JSONValue | undefined>;
+
+  /**
+   * Overrides [[ReadTransaction.scan]] to return a mutable [[JSONValue]].
+   */
+  scan(): ScanResult<string, JSONValue>;
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, JSONValue>;
 }
 
 export class WriteTransactionImpl

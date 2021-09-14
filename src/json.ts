@@ -1,6 +1,5 @@
 import {cloneDeep} from 'lodash-es';
 import {throwInvalidType} from './asserts';
-import type {DeepReadonly} from './deep-readonly';
 
 /** The values that can be represented in JSON */
 export type JSONValue =
@@ -19,7 +18,18 @@ export type JSONValue =
 export type JSONObject = Partial<{[key: string]: JSONValue}>;
 
 /** Like [[JSONValue]] but deeply readonly */
-export type ReadonlyJSONValue = DeepReadonly<JSONValue>;
+export type ReadonlyJSONValue =
+  | null
+  | string
+  | boolean
+  | number
+  | ReadonlyArray<ReadonlyJSONValue>
+  | ReadonlyJSONObject;
+
+/** Like [[JSONObject]] but deeply readonly */
+export type ReadonlyJSONObject = Partial<{
+  readonly [key: string]: ReadonlyJSONValue;
+}>;
 
 /**
  * Checks deep equality of two JSON value with (almost) same semantics as
@@ -81,8 +91,8 @@ export function deepEqual(
   }
 
   // We know a and b are objects here but type inference is not smart enough.
-  a = a as DeepReadonly<JSONObject>;
-  b = b as DeepReadonly<JSONObject>;
+  a = a as ReadonlyJSONObject;
+  b = b as ReadonlyJSONObject;
 
   const aKeys = Object.keys(a);
   const bKeys = Object.keys(b);

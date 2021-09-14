@@ -77,7 +77,10 @@ export async function initializeNewTab(
   event: StorageEvent,
 ): Promise<void> {
   const send = (message: unknown) => {
-    localStorage.setItem(tabId + '-in', JSON.stringify(message));
+    localStorage.setItem(
+      tabId + '-in-' + performance.now(),
+      JSON.stringify(message),
+    );
   };
 
   ['error', 'warn', 'info', 'debug', 'log'].forEach(level => {
@@ -98,7 +101,7 @@ export async function initializeNewTab(
   }
 
   const handle = async (event: StorageEvent) => {
-    if (event.key !== tabId + '-out' || event.newValue === null) {
+    if (!event.key?.startsWith(tabId) || event.newValue === null) {
       return;
     }
     const {id, expr} = JSON.parse(event.newValue);
@@ -118,12 +121,11 @@ export async function initializeNewTab(
         response.error = e;
       }
     }
-
     send(response);
   };
 
   addEventListener('storage', handle, false);
-  void handle(event);
+  await handle(event);
 }
 
 function withTimeout<T = void>(promise: Promise<T>, ms: number) {
@@ -149,21 +151,16 @@ type TabCallbacks = Map<
 const callbacks: Map<string, TabCallbacks> = new Map();
 
 function listener(event: StorageEvent): void {
-  if (
-    event.newValue === null ||
-    event.key === null ||
-    !event.key.endsWith('-in')
-  ) {
+  if (event.newValue === null || event.key === null) {
     return;
   }
-  const tabId = event.key.substr(0, event.key.length - 3);
+  const tabId = event.key.substr(0, 36);
   const tabCallbacks = callbacks.get(tabId);
   if (tabCallbacks === undefined) {
     return;
   }
 
   const {id, result, error} = JSON.parse(event.newValue) as Response;
-
   if (id === 'log') {
     const levels: Record<string, typeof console.log> = {
       error: console.error,
@@ -216,14 +213,17 @@ export async function newTab(
   );
 
   const send = (message: unknown) => {
-    localStorage.setItem(tabId + '-out', JSON.stringify(message));
+    localStorage.setItem(
+      tabId + '-out-' + performance.now(),
+      JSON.stringify(message),
+    );
   };
 
   // Start initialization process, waiting for page to become live.
   const interval = setInterval(() => {
     send({id: 'init'});
-  }, 100);
-  await withTimeout(promise, 10000);
+  }, 50);
+  await withTimeout(promise, 25000);
   clearInterval(interval);
 
   return {

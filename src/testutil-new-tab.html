@@ -4,12 +4,12 @@
       const urlParams = new URLSearchParams(window.location.search);
       const tabId = urlParams.get('tabId');
       const initialize = async event => {
-        if (event.key != tabId + '-out') {
+        removeEventListener('storage', initialize, false);
+        if (!event.key?.startsWith(tabId)) {
           return;
         }
         const testutil = await import('/src/test-util.ts');
-        testutil.initializeNewTab(tabId, urlParams.get('path'), event);
-        removeEventListener('storage', initialize, false);
+        await testutil.initializeNewTab(tabId, urlParams.get('path'), event);
       };
       addEventListener('storage', initialize, false);
     </script>

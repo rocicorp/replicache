@@ -135,7 +135,7 @@ test('load roundtrip', async () => {
     t(
       await makeCommit(
         {
-          type: MetaTyped.LocalMeta,
+          type: MetaTyped.Local,
           basisHash,
           mutationID: 0,
           mutatorName: 'mutname',
@@ -160,7 +160,7 @@ test('load roundtrip', async () => {
   t(
     await makeCommit(
       {
-        type: MetaTyped.LocalMeta,
+        type: MetaTyped.Local,
         basisHash: 'basis',
         mutationID: 0,
         mutatorName: '',
@@ -175,7 +175,7 @@ test('load roundtrip', async () => {
   t(
     await makeCommit(
       {
-        type: MetaTyped.LocalMeta,
+        type: MetaTyped.Local,
         basisHash: '',
         mutationID: 0,
         // @ts-expect-error We are testing invalid types
@@ -193,7 +193,7 @@ test('load roundtrip', async () => {
     t(
       await makeCommit(
         {
-          type: MetaTyped.LocalMeta,
+          type: MetaTyped.Local,
           basisHash,
           mutationID: 0,
           mutatorName: 'mutname',
@@ -210,7 +210,7 @@ test('load roundtrip', async () => {
   t(
     await makeCommit(
       {
-        type: MetaTyped.LocalMeta,
+        type: MetaTyped.Local,
         basisHash: '',
         mutationID: 0,
         mutatorName: 'mutname',
@@ -267,7 +267,7 @@ test('accessors', async () => {
     await makeCommit(
       {
         basisHash: 'basis_hash',
-        type: MetaTyped.LocalMeta,
+        type: MetaTyped.Local,
         mutationID: 1,
         mutatorName: 'foo_mutator',
         mutatorArgsJSON: 42,
@@ -278,7 +278,7 @@ test('accessors', async () => {
     ),
   );
   const lm = local.meta;
-  if (lm.type === MetaTyped.LocalMeta) {
+  if (lm.type === MetaTyped.Local) {
     expect(lm.mutationID).to.equal(1);
     expect(lm.mutatorName).to.equal('foo_mutator');
     expect(lm.mutatorArgsJSON).to.equal(42);
@@ -298,7 +298,7 @@ test('accessors', async () => {
     ),
   );
   const sm = snapshot.meta;
-  if (sm.type === MetaTyped.SnapshotMeta) {
+  if (sm.type === MetaTyped.Snapshot) {
     expect(sm.lastMutationID).to.equal(2);
     expect(sm.cookieJSON).to.deep.equal('cookie 2');
     expect(sm.cookieJSON).to.deep.equal('cookie 2');
@@ -316,7 +316,7 @@ test('accessors', async () => {
     ]),
   );
   const ic = indexChange.meta;
-  if (ic.type === MetaTyped.IndexChangeMeta) {
+  if (ic.type === MetaTyped.IndexChange) {
     expect(ic.lastMutationID).to.equal(3);
   } else {
     throw new Error('unexpected type');
@@ -346,7 +346,7 @@ function makeSnapshotMeta(
   cookieJSON: JSONValue,
 ): SnapshotMeta {
   return {
-    type: MetaTyped.SnapshotMeta,
+    type: MetaTyped.Snapshot,
     basisHash,
     lastMutationID,
     cookieJSON,
@@ -358,7 +358,7 @@ function makeIndexChangeMeta(
   lastMutationID: number,
 ): IndexChangeMeta {
   return {
-    type: MetaTyped.IndexChangeMeta,
+    type: MetaTyped.IndexChange,
     basisHash,
     lastMutationID,
   };

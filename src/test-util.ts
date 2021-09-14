@@ -1,5 +1,6 @@
 // Test utils
 import type {ReplicacheTest} from './replicache';
+import type {JSONObject, JSONValue} from './json';
 import * as utf8 from './utf8';
 import {resolver} from './resolver';
 import {uuid} from './sync/uuid';
@@ -61,32 +62,33 @@ export function defineTestFunctions(self: Window & typeof globalThis): void {
 defineTestFunctions(self);
 
 type Response = {
-  tabId: string;
   id: string;
-  result?: unknown;
-  error?: unknown;
+  result?: JSONValue;
+  error?: JSONValue;
 };
 
 type LogResponse = {
   level: string;
-  data: unknown[];
+  data: JSONValue[];
 };
 
-export async function initializeNewTab(event: MessageEvent): Promise<void> {
-  const {tabId, path} = event.data;
-  const {opener} = window;
-  if (opener === null) {
-    return;
-  }
+export async function initializeNewTab(
+  tabId: string,
+  path: string,
+  event: StorageEvent,
+): Promise<void> {
+  const send = (message: JSONObject) => {
+    localStorage.setItem(
+      tabId + '-in-' + performance.now(),
+      JSON.stringify(message),
+    );
+  };
 
   ['error', 'warn', 'info', 'debug', 'log'].forEach(level => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore No index signature of type 'string' was found on 'Console'.
-    console[level] = (...data: unknown[]) => {
-      opener.postMessage(
-        {tabId, id: 'log', result: {level, data}},
-        window.origin,
-      );
+    console[level] = (...data) => {
+      send({id: 'log', result: {level, data}});
     };
   });
 
@@ -99,15 +101,16 @@ export async function initializeNewTab(event: MessageEvent): Promise<void> {
     }
   }
 
-  const handle = async (event: MessageEvent) => {
-    const {source, data} = event;
-    const {id, expr} = data;
-    const response: Response = {tabId, id};
-
-    if (source === null || source !== opener) {
+  const handle = async (event: StorageEvent) => {
+    if (!event.key?.startsWith(tabId) || event.newValue === null) {
       return;
     }
-    if (expr) {
+    const {id, expr} = JSON.parse(event.newValue);
+    const response: Response = {id};
+
+    if (id === 'close') {
+      window.close();
+    } else if (expr) {
       try {
         response.result = await Function(
           'module',
@@ -116,14 +119,14 @@ export async function initializeNewTab(event: MessageEvent): Promise<void> {
            return (async () => { ${expr} })();`,
         )(module);
       } catch (e) {
-        response.error = e;
+        response.error = `${e}`;
       }
     }
-    opener.postMessage(response, window.origin);
+    send(response);
   };
 
-  addEventListener('message', handle, false);
-  void handle(event);
+  addEventListener('storage', handle, false);
+  await handle(event);
 }
 
 function withTimeout<T = void>(promise: Promise<T>, ms: number) {
@@ -148,12 +151,17 @@ type TabCallbacks = Map<
 >;
 const callbacks: Map<string, TabCallbacks> = new Map();
 
-function listener(event: MessageEvent<Response>): void {
-  const {tabId, id, result, error} = event.data;
+function listener(event: StorageEvent): void {
+  if (event.newValue === null || event.key === null) {
+    return;
+  }
+  const tabId = event.key.substr(0, 36);
   const tabCallbacks = callbacks.get(tabId);
   if (tabCallbacks === undefined) {
     return;
   }
+
+  const {id, result, error} = JSON.parse(event.newValue) as Response;
   if (id === 'log') {
     const levels: Record<string, typeof console.log> = {
       error: console.error,
@@ -177,30 +185,46 @@ function listener(event: MessageEvent<Response>): void {
   }
 }
 
-export async function newTab(path?: string): Promise<Tab> {
+export type NewTabOptions = {
+  /** Don't pass `noopener` when opening the new window. */
+  opener?: boolean;
+};
+
+export async function newTab(
+  path?: string,
+  options?: NewTabOptions,
+): Promise<Tab> {
   const tabId = uuid();
   const {promise, resolve} = resolver<unknown>();
 
   if (!Object.keys(callbacks).length) {
-    addEventListener('message', listener, false);
+    addEventListener('storage', listener, false);
   }
   const tabCallbacks: TabCallbacks = new Map([['init', {resolve}]]);
   callbacks.set(tabId, tabCallbacks);
 
-  const tab = open(
-    '/src/testutil-new-tab.html',
-    '_blank',
-    // 'noopener', TODO(nate): Enable this once working.
-  );
-  if (tab === null) {
-    throw new Error('Failed to open window');
+  const params: Record<string, string> = {tabId};
+  if (path !== undefined) {
+    params['path'] = path;
   }
+  open(
+    '/src/test-util-new-tab.html?' + new URLSearchParams(params).toString(),
+    '_blank',
+    options?.opener ? '' : 'noopener',
+  );
+
+  const send = (message: JSONObject) => {
+    localStorage.setItem(
+      tabId + '-out-' + performance.now(),
+      JSON.stringify(message),
+    );
+  };
 
   // Start initialization process, waiting for page to become live.
   const interval = setInterval(() => {
-    tab.postMessage({id: 'init', tabId, path}, window.origin);
-  }, 100);
-  await withTimeout(promise, 10000);
+    send({id: 'init'});
+  }, 50);
+  await withTimeout(promise, 25000);
   clearInterval(interval);
 
   return {
@@ -211,16 +235,16 @@ export async function newTab(path?: string): Promise<Tab> {
       if (expr.search('return ') === -1) {
         expr = 'return ' + expr;
       }
-      tab.postMessage({id, expr}, window.origin);
+      send({id, expr});
       const result = await withTimeout(promise, 5000);
       tabCallbacks.delete(id);
       return result;
     },
     close: () => {
-      tab.close();
+      send({id: 'close'});
       callbacks.delete(tabId);
       if (!Object.keys(callbacks).length) {
-        removeEventListener('message', listener);
+        removeEventListener('storage', listener);
       }
     },
   };

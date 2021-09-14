@@ -202,10 +202,6 @@ async function testScanResult<K, V>(
   });
 
   await rep.query(async tx => {
-    expect(await tx.scanAll(options)).to.deep.equal(entries);
-  });
-
-  await rep.query(async tx => {
     expect(await tx.scan(options).toArray()).to.deep.equal(
       entries.map(([, v]) => v),
     );
@@ -1646,7 +1642,10 @@ testWithBothStores('index', async () => {
     [['4', 'a/4'], {a: '4'}],
   ]);
   await rep.dropIndex('aIndex');
-  await expectPromiseToReject(rep.scanAll({indexName: 'aIndex'}));
+  const x = rep.scan({indexName: 'aIndex'});
+  (await expectPromiseToReject(x.values().next())).to.be
+    .instanceOf(Error)
+    .with.property('message', 'Unknown index name: aIndex');
 
   await rep.createIndex({name: 'aIndex', jsonPointer: '/a'});
   await testScanResult(rep, {indexName: 'aIndex'}, [
@@ -1657,7 +1656,9 @@ testWithBothStores('index', async () => {
     [['4', 'a/4'], {a: '4'}],
   ]);
   await rep.dropIndex('aIndex');
-  await expectPromiseToReject(rep.scanAll({indexName: 'aIndex'}));
+  (await expectPromiseToReject(rep.scan({indexName: 'aIndex'}).toArray())).to.be
+    .instanceOf(Error)
+    .with.property('message', 'Unknown index name: aIndex');
 
   await rep.createIndex({name: 'bc', keyPrefix: 'c/', jsonPointer: '/bc'});
   await testScanResult(rep, {indexName: 'bc'}, [[['8', 'c/0'], {bc: '8'}]]);
@@ -2041,14 +2042,8 @@ test.skip('Key type for scans [type checking only]', async () => {
   // @ts-expect-error Type 'number' is not assignable to type 'string | undefined'.ts(2322)
   rep.scan({indexName: 'n', start: {key: ['s', 42]}});
 
-  // @ts-expect-error Type 'number' is not assignable to type 'string | undefined'.ts(2322)
-  await rep.scanAll({indexName: 'n', start: {key: ['s', 42]}});
-
   // @ts-expect-error Type '[string]' is not assignable to type 'string'.ts(2322)
   rep.scan({start: {key: ['s']}});
-
-  // @ts-expect-error Type '[string]' is not assignable to type 'string'.ts(2322)
-  await rep.scanAll({start: {key: ['s']}});
 });
 
 test('mem store', async () => {
@@ -2474,10 +2469,6 @@ test.skip('scan with index [type checking only]', async () => {
   (await rep.scan({}).keys().toArray()) as string[];
   (await rep.scan().keys().toArray()) as string[];
 
-  (await rep.scanAll({})) as [string, JSONValue][];
-  (await rep.scanAll()) as [string, JSONValue][];
-  (await rep.scanAll({indexName: 'i'})) as [[string, string], JSONValue][];
-
   await rep.query(async tx => {
     (await tx.scan({indexName: 'a'}).keys().toArray()) as [
       secondary: string,
@@ -2486,10 +2477,6 @@ test.skip('scan with index [type checking only]', async () => {
 
     (await tx.scan({}).keys().toArray()) as string[];
     (await tx.scan().keys().toArray()) as string[];
-
-    (await tx.scanAll({})) as [string, JSONValue][];
-    (await tx.scanAll()) as [string, JSONValue][];
-    (await tx.scanAll({indexName: 'i'})) as [[string, string], JSONValue][];
   });
 });
 

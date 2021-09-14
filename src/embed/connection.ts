@@ -11,7 +11,7 @@ import type {
   RebaseOpts,
   TryPushRequest,
 } from '../repm-invoker';
-import {deepFreeze, ReadonlyJSONValue, JSONValue, deepThaw} from '../json';
+import {ReadonlyJSONValue, JSONValue, deepClone} from '../json';
 import {LogContext} from '../logger';
 import type {LogLevel} from '../logger';
 import {migrate} from '../migrate/migrate';
@@ -378,7 +378,11 @@ export function has(transactionID: number, key: string): boolean {
   return result;
 }
 
-export function get(transactionID: number, key: string): JSONValue | undefined {
+export function get(
+  transactionID: number,
+  key: string,
+  shouldClone: boolean,
+): ReadonlyJSONValue | JSONValue | undefined {
   const start = Date.now();
   isTesting && logCall('get', transactionID, key);
 
@@ -386,9 +390,10 @@ export function get(transactionID: number, key: string): JSONValue | undefined {
   const lc2 = lc.addContext('rpc', 'get');
   lc2.debug?.('->', key);
   const value = txn.asRead().get(key);
-  const thawed = value && deepThaw(value);
-  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', thawed);
-  return thawed;
+
+  const result = value && (shouldClone ? deepClone(value) : value);
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
+  return result;
 }
 
 export async function scan(
@@ -397,8 +402,9 @@ export async function scan(
   receiver: (
     primaryKey: string,
     secondaryKey: string | null,
-    value: JSONValue,
+    value: JSONValue | ReadonlyJSONValue,
   ) => void,
+  shouldClone: boolean,
 ): Promise<void> {
   const start = Date.now();
   isTesting && logCall('scan', transactionID, scanOptions, receiver);
@@ -412,7 +418,7 @@ export async function scan(
       throw sr.error;
     }
     const {val, key, secondaryKey} = sr.item;
-    receiver(key, secondaryKey, deepThaw(val));
+    receiver(key, secondaryKey, shouldClone ? deepClone(val) : val);
   });
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
@@ -428,7 +434,7 @@ export async function put(
   const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'put');
   lc2.debug?.('->', key, value);
-  await txn.put(lc2, key, deepFreeze(value));
+  await txn.put(lc2, key, deepClone(value));
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 

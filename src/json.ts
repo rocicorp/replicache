@@ -98,24 +98,7 @@ export function deepEqual(
   return true;
 }
 
-export function deepFreeze<T extends JSONValue>(value: T): ReadonlyJSONValue {
-  if (Array.isArray(value)) {
-    Object.freeze(value);
-    for (const v of value) {
-      deepFreeze(v);
-    }
-  } else if (typeof value === 'object' && value !== null) {
-    Object.freeze(value);
-    for (const v of Object.values(value)) {
-      if (v !== undefined) {
-        deepFreeze(v);
-      }
-    }
-  }
-  return value as ReadonlyJSONValue;
-}
-
-export function deepThaw(value: ReadonlyJSONValue): JSONValue {
+export function deepClone(value: ReadonlyJSONValue): JSONValue {
   return cloneDeep(value) as JSONValue;
 }
 

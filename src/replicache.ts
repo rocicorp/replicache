@@ -1,4 +1,4 @@
-import {deepEqual} from './json';
+import {deepEqual, ReadonlyJSONValue} from './json';
 import type {JSONValue} from './json';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options';
 import {Pusher, PushError} from './pusher';
@@ -494,7 +494,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   }
 
   /** Get a single value from the database. */
-  get(key: string): Promise<JSONValue | undefined> {
+  get(key: string): Promise<ReadonlyJSONValue | undefined> {
     return this.query(tx => tx.get(key));
   }
 
@@ -517,17 +517,18 @@ export class Replicache<MD extends MutatorDefs = {}>
    * that name. A scan over an index uses a tuple for the key consisting of
    * `[secondary: string, primary: string]`.
    */
-  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): ScanResult<K> {
-    return new ScanResult<K>(
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, ReadonlyJSONValue> {
+    return new ScanResult<Key>(
       options,
       async () => {
         const tx = new ReadTransactionImpl(this.name, this._openResponse);
         await tx.open({});
         return tx;
       },
-      true,
+      true, // shouldCloseTransaction
+      false, // shouldClone
     );
   }
 
@@ -880,7 +881,7 @@ export class Replicache<MD extends MutatorDefs = {}>
    * If an error occurs in the `body` the `onError` function is called if
    * present. Otherwise, the error is thrown.
    */
-  subscribe<R extends JSONValue | undefined, E>(
+  subscribe<R extends ReadonlyJSONValue | undefined, E>(
     body: (tx: ReadTransaction) => Promise<R>,
     {
       onData,
@@ -929,7 +930,10 @@ export class Replicache<MD extends MutatorDefs = {}>
    * and `scan`.
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
-    const tx = new ReadTransactionImpl(this.name, this._openResponse);
+    const tx = new ReadTransactionImpl<ReadonlyJSONValue>(
+      this.name,
+      this._openResponse,
+    );
     await tx.open({});
     try {
       return await body(tx);
@@ -1071,7 +1075,9 @@ export class ReplicacheTest<
 
 const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';
 
-async function closeIgnoreError(tx: ReadTransactionImpl) {
+async function closeIgnoreError<Value extends ReadonlyJSONValue>(
+  tx: ReadTransactionImpl<Value>,
+) {
   try {
     await tx.close();
   } catch (ex) {

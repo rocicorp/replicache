@@ -4,7 +4,7 @@ import type {ReplicacheOptions} from './replicache-options';
 import {Replicache, TransactionClosedError} from './mod';
 
 import type {ReadTransaction, WriteTransaction} from './mod';
-import type {JSONValue} from './json';
+import type {JSONValue, ReadonlyJSONValue} from './json';
 
 import {assert, expect} from '@esm-bundle/chai';
 import * as sinon from 'sinon';
@@ -342,7 +342,7 @@ testWithBothStores('scan', async () => {
 });
 
 testWithBothStores('subscribe', async () => {
-  const log: [string, JSONValue][] = [];
+  const log: [string, ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe', {
     mutators: {
@@ -356,7 +356,7 @@ testWithBothStores('subscribe', async () => {
       return await tx.scan({prefix: 'a/'}).entries().toArray();
     },
     {
-      onData: (values: Iterable<[string, JSONValue]>) => {
+      onData: (values: Iterable<[string, ReadonlyJSONValue]>) => {
         for (const entry of values) {
           log.push(entry);
         }
@@ -407,7 +407,7 @@ for (const prefixPropertyName of ['prefix', 'keyPrefix']) {
   testWithBothStores(
     `subscribe with index {prefixPropertyName: ${prefixPropertyName}}`,
     async () => {
-      const log: [[string, string], JSONValue][] = [];
+      const log: [[string, string], ReadonlyJSONValue][] = [];
 
       const rep = await replicacheForTesting('subscribe-with-index', {
         mutators: {
@@ -429,7 +429,7 @@ for (const prefixPropertyName of ['prefix', 'keyPrefix']) {
           return await tx.scan({indexName: 'i1'}).entries().toArray();
         },
         {
-          onData: (values: Iterable<[[string, string], JSONValue]>) => {
+          onData: (values: Iterable<[[string, string], ReadonlyJSONValue]>) => {
             onDataCallCount++;
             for (const entry of values) {
               log.push(entry);
@@ -544,7 +544,7 @@ for (const prefixPropertyName of ['prefix', 'keyPrefix']) {
 }
 
 testWithBothStores('subscribe with index and start', async () => {
-  const log: [[string, string], JSONValue][] = [];
+  const log: [[string, string], ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index-and-start', {
     mutators: {
@@ -568,7 +568,7 @@ testWithBothStores('subscribe with index and start', async () => {
         .toArray();
     },
     {
-      onData: (values: Iterable<[[string, string], JSONValue]>) => {
+      onData: (values: Iterable<[[string, string], ReadonlyJSONValue]>) => {
         onDataCallCount++;
         for (const entry of values) {
           log.push(entry);
@@ -652,7 +652,7 @@ testWithBothStores('subscribe with index and start', async () => {
 });
 
 testWithBothStores('subscribe with index and prefix', async () => {
-  const log: [[string, string], JSONValue][] = [];
+  const log: [[string, string], ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index-and-prefix', {
     mutators: {
@@ -673,7 +673,7 @@ testWithBothStores('subscribe with index and prefix', async () => {
       return await tx.scan({indexName: 'i1', prefix: 'b'}).entries().toArray();
     },
     {
-      onData: (values: Iterable<[[string, string], JSONValue]>) => {
+      onData: (values: Iterable<[[string, string], ReadonlyJSONValue]>) => {
         onDataCallCount++;
         for (const entry of values) {
           log.push(entry);
@@ -809,7 +809,7 @@ testWithBothStores('subscribe with isEmpty and prefix', async () => {
 });
 
 testWithBothStores('subscribe change keys', async () => {
-  const log: JSONValue[][] = [];
+  const log: ReadonlyJSONValue[][] = [];
 
   const rep = await replicacheForTesting('subscribe-change-keys', {
     mutators: {
@@ -832,7 +832,7 @@ testWithBothStores('subscribe change keys', async () => {
       return rv;
     },
     {
-      onData: (values: JSONValue[]) => {
+      onData: (values: ReadonlyJSONValue[]) => {
         onDataCallCount++;
         log.push(values);
       },
@@ -905,7 +905,7 @@ testWithBothStores('subscribe close', async () => {
     mutators: {addData},
   });
 
-  const log: (JSONValue | undefined)[] = [];
+  const log: (ReadonlyJSONValue | undefined)[] = [];
 
   const cancel = rep.subscribe((tx: ReadTransaction) => tx.get('k'), {
     onData: value => log.push(value),
@@ -1543,7 +1543,7 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
   }
 
   const it = rep.scan();
-  const log: JSONValue[] = [];
+  const log: ReadonlyJSONValue[] = [];
   for await (const v of it) {
     log.push(v);
   }
@@ -2575,7 +2575,7 @@ testWithBothStores('subscribe pull and index update', async () => {
   const indexName = 'idx1';
   await rep.createIndex({name: indexName, jsonPointer: '/id'});
 
-  const log: JSONValue[] = [];
+  const log: ReadonlyJSONValue[] = [];
   let queryCallCount = 0;
 
   const cancel = rep.subscribe(

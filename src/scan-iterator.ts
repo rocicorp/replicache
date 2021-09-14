@@ -1,4 +1,4 @@
-import type {JSONValue} from './json';
+import type {JSONValue, ReadonlyJSONValue} from './json';
 import {throwIfClosed} from './transaction-closed-error';
 import {ScanOptions, toDbScanOptions} from './scan-options';
 import {asyncIterableToArray} from './async-iterable-to-array';
@@ -19,6 +19,7 @@ type Args = [
   options: ScanOptions | undefined,
   getTransaction: () => Promise<IdCloser> | IdCloser,
   shouldCloseTransaction: boolean,
+  shouldClone: boolean,
 ];
 
 /**
@@ -27,7 +28,9 @@ type Args = [
  * await` loop. There are also methods to iterate over the [[keys]],
  * [[entries]] or [[values]].
  */
-export class ScanResult<K> implements AsyncIterable<JSONValue> {
+export class ScanResult<K, V extends ReadonlyJSONValue = JSONValue>
+  implements AsyncIterable<V>
+{
   private readonly _args: Args;
 
   /** @internal */
@@ -36,12 +39,12 @@ export class ScanResult<K> implements AsyncIterable<JSONValue> {
   }
 
   /** The default AsyncIterable. This is the same as [[values]]. */
-  [Symbol.asyncIterator](): AsyncIterableIteratorToArrayWrapper<JSONValue> {
+  [Symbol.asyncIterator](): AsyncIterableIteratorToArrayWrapper<V> {
     return this.values();
   }
 
   /** Async iterator over the valus of the [[ReadTransaction.scan|scan]] call. */
-  values(): AsyncIterableIteratorToArrayWrapper<JSONValue> {
+  values(): AsyncIterableIteratorToArrayWrapper<V> {
     return new AsyncIterableIteratorToArrayWrapper(this._newIterator(VALUE));
   }
 
@@ -60,16 +63,16 @@ export class ScanResult<K> implements AsyncIterable<JSONValue> {
    * [[ReadTransaction.scan|scan]] is over an index the key is a tuple of
    * `[secondaryKey: string, primaryKey]`
    */
-  entries(): AsyncIterableIteratorToArrayWrapper<[K, JSONValue]> {
+  entries(): AsyncIterableIteratorToArrayWrapper<[K, V]> {
     return new AsyncIterableIteratorToArrayWrapper(this._newIterator(ENTRY));
   }
 
   /** Returns all the values as an array. Same as `values().toArray()` */
-  toArray(): Promise<JSONValue[]> {
+  toArray(): Promise<V[]> {
     return this.values().toArray();
   }
 
-  private _newIterator<V>(kind: ScanIterableKind): AsyncIterableIterator<V> {
+  private _newIterator<T>(kind: ScanIterableKind): AsyncIterableIterator<T> {
     return scanIterator(kind, ...this._args);
   }
 }
@@ -120,12 +123,13 @@ async function* scanIterator<V>(
   options: ScanOptions | undefined,
   getTransaction: () => Promise<IdCloser> | IdCloser,
   shouldCloseTransaction: boolean,
+  shouldClone: boolean,
 ): AsyncGenerator<V> {
   const transaction = await getTransaction();
   throwIfClosed(transaction);
 
   try {
-    const items = await load<V>(kind, options, transaction.id);
+    const items: V[] = await load(kind, options, transaction.id, shouldClone);
     for (const item of items) {
       yield item;
     }
@@ -140,6 +144,7 @@ async function load<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
   transactionID: number,
+  shouldClone: boolean,
 ): Promise<V[]> {
   const items: V[] = [];
   type MaybeIndexName = {indexName?: string};
@@ -151,11 +156,11 @@ async function load<V>(
   const receiver = (
     primaryKey: string,
     secondaryKey: string | null,
-    value: JSONValue,
+    value: ReadonlyJSONValue,
   ) => {
     switch (kind) {
       case VALUE:
-        items.push(value as V);
+        items.push(value as unknown as V);
         return;
       case KEY:
         items.push(key(primaryKey, secondaryKey) as unknown as V);
@@ -165,7 +170,12 @@ async function load<V>(
     }
   };
 
-  await embed.scan(transactionID, toDbScanOptions(options), receiver);
+  await embed.scan(
+    transactionID,
+    toDbScanOptions(options),
+    receiver,
+    shouldClone,
+  );
 
   return items;
 }

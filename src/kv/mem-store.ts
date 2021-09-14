@@ -3,7 +3,8 @@ import type {Read, Store, Value, Write} from './store';
 import {deleteSentinel, WriteImplBase} from './write-impl-base';
 
 export class MemStore implements Store {
-  private readonly _map: Map<string, Value> = new Map();
+  // protected to allow test sub class to use it.
+  protected readonly _map: Map<string, Value> = new Map();
   private readonly _rwLock = new RWLock();
 
   async read(): Promise<Read> {

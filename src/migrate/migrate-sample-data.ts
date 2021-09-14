@@ -1,8 +1,8 @@
 // This was copied from a running replicacha-sample-chat running using version
 
-import {Store} from '../dag/mod';
+import * as dag from '../dag/mod';
 import {addGenesis, addLocal, Chain} from '../db/test-helpers';
-import {MemStore} from '../kv/mod';
+import {TestMemStore} from '../kv/test-mem-store';
 import {addSyncSnapshot} from '../sync/test-helpers';
 import {toJS} from './snippet';
 
@@ -164,11 +164,13 @@ export const chatSampleV1 = {
   'c/tjtt1mu0fds839fic6l08bg6pjj6qkra/r': 1,
   'h/main': 'p115b9rblk4futgrb5m26d8n3eimfh2f',
   'sys/cid': '8e99b4d7-abf5-496d-8304-e921e0fd60ba',
+  'sys/storage-format-version': 1,
 };
 
+// This was used to generate test data below.
 export async function getTestData(): Promise<void> {
-  const kv = new MemStore();
-  const store = new Store(kv);
+  const kv = new TestMemStore();
+  const store = new dag.Store(kv);
 
   const mainChain: Chain = [];
 
@@ -177,8 +179,7 @@ export async function getTestData(): Promise<void> {
   await addSyncSnapshot(mainChain, store, 0);
   await addLocal(mainChain, store);
 
-  // @ts-expect-error We are accessing the private _map here.
-  const o = Object.fromEntries(kv._map.entries());
+  const o = Object.fromEntries(kv.entries());
   console.log(toJS(o));
 }
 
@@ -356,6 +357,7 @@ export const testDataV1 = {
   ],
   'c/e0vv0irhobdvsifog3v0prpkniapg1iv/r': 1,
   'c/od2vk77iok5pjbp2d4mjv8u5bcjk0u4e/r': 1,
+  'sys/storage-format-version': 1,
 };
 
 export const testIndexDataV0 = {

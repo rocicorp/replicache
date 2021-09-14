@@ -180,7 +180,7 @@ test('migrateCommit', async () => {
 
   const commit: CommitData = {
     meta: {
-      type: MetaTyped.SnapshotMeta,
+      type: MetaTyped.Snapshot,
       basisHash: null,
       cookieJSON: null,
       lastMutationID: 0,

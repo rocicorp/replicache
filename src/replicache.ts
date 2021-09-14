@@ -532,23 +532,6 @@ export class Replicache<MD extends MutatorDefs = {}>
   }
 
   /**
-   * Convenience form of `scan()` which returns all the entries as an array.
-   * @deprecated Use `scan().entries().toArray()` instead.
-   */
-  async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): Promise<[K, JSONValue][]> {
-    const tx = new ReadTransactionImpl(this.name, this._openResponse);
-    try {
-      await tx.open({});
-      return await tx.scanAll(options);
-    } finally {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      closeIgnoreError(tx);
-    }
-  }
-
-  /**
    * Creates a persistent secondary index in Replicache which can be used with scan.
    *
    * If the named index already exists with the same definition this returns success

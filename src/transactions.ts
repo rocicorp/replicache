@@ -11,7 +11,6 @@ import {
 } from './scan-options';
 import {ScanResult} from './scan-iterator';
 import {throwIfClosed} from './transaction-closed-error';
-import {asyncIterableToArray} from './async-iterable-to-array';
 import * as embed from './embed/mod';
 import type * as db from './db/mod';
 
@@ -62,20 +61,6 @@ export interface ReadTransaction {
   scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
     options?: O,
   ): ScanResult<K>;
-
-  /**
-   * Convenience form of [[scan]] which returns all the entries as an array.
-   * @deprecated Use `scan().entries().toArray()` instead
-   */
-  scanAll(): Promise<[string, JSONValue][]>;
-
-  /**
-   * Convenience form of [[scan]] which returns all the entries as an array.
-   * @deprecated Use `scan().entries().toArray()` instead
-   */
-  scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): Promise<[K, JSONValue][]>;
 }
 
 const enum OpenTransactionType {
@@ -118,14 +103,6 @@ export class ReadTransactionImpl implements ReadTransaction {
     options?: O,
   ): ScanResult<K> {
     return new ScanResult(options, () => this, false);
-  }
-
-  async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): Promise<[K, JSONValue][]> {
-    return asyncIterableToArray(
-      this.scan(options).entries() as AsyncIterable<[K, JSONValue]>,
-    );
   }
 
   get id(): number {
@@ -188,15 +165,6 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
   ): ScanResult<K> {
     this._scans.push(toDbScanOptions(options));
     return this._tx.scan(options);
-  }
-
-  /** @deprecated Use [[scan]] instead */
-  /* c8 ignore next 6 */
-  async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): Promise<[K, JSONValue][]> {
-    this._scans.push(toDbScanOptions(options));
-    return this._tx.scanAll(options);
   }
 
   get keys(): ReadonlySet<string> {

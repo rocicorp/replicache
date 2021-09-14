@@ -124,9 +124,8 @@ async function* scanIterator<V>(
   const transaction = await getTransaction();
   throwIfClosed(transaction);
 
-  const items = await load<V>(kind, options, transaction.id);
-
   try {
+    const items = await load<V>(kind, options, transaction.id);
     for (const item of items) {
       yield item;
     }

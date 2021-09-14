@@ -14,6 +14,7 @@ import type {
 import {deepFreeze, ReadonlyJSONValue, JSONValue, deepThaw} from '../json';
 import {LogContext} from '../logger';
 import type {LogLevel} from '../logger';
+import {migrate} from '../migrate/migrate';
 
 // TODO(arv): Use esbuild --define:TESTING=false
 
@@ -98,18 +99,20 @@ export async function open(
     );
   }
 
-  const store = new dag.Store(kvStore);
+  await migrate(kvStore);
+
+  const dagStore = new dag.Store(kvStore);
   // TODO(arv): Maybe store the clientID as a promise instead to prevent race
   // conditions?
   const clientID = await sync.initClientID(kvStore);
 
   // Call concurrently with initClientID?
-  await init(store);
+  await init(dagStore);
 
   // TODO(arv): Maybe store an opened promise too and let all embed calls wait
   // for it.
 
-  connections.set(dbName, {store, clientID, lc});
+  connections.set(dbName, {store: dagStore, clientID, lc});
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', clientID);
   return clientID;
 }
@@ -130,8 +133,8 @@ export async function close(dbName: string): Promise<void> {
   lc.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
-async function init(store: dag.Store): Promise<void> {
-  await store.withWrite(async dagWrite => {
+async function init(dagStore: dag.Store): Promise<void> {
+  await dagStore.withWrite(async dagWrite => {
     const head = await dagWrite.read().getHead(db.DEFAULT_HEAD_NAME);
     if (!head) {
       await db.initDB(dagWrite, db.DEFAULT_HEAD_NAME);

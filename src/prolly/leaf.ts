@@ -6,6 +6,7 @@ import {assertJSONValue} from '../json';
 import * as flatbuffers from 'flatbuffers';
 import {Leaf as LeafFB} from './generated/leaf/leaf';
 import * as utf8 from '../utf8';
+import {LeafEntry as LeafEntryFB} from './generated/leaf/leaf-entry';
 
 export class Leaf {
   private _chunk: Chunk<Entry[]> | undefined;
@@ -20,7 +21,7 @@ export class Leaf {
     let entries: Entry[];
     const data = chunk.data;
     if (data instanceof Uint8Array) {
-      entries = getEntriesFromFlatbuffer(data);
+      entries = entriesFromFlatbuffer(data);
     } else {
       // Assert that the shape/type is correct
       assertEntries(data);
@@ -101,7 +102,7 @@ function assertEntries(v: unknown): asserts v is Entry[] {
   }
 }
 
-export function getEntriesFromFlatbuffer(data: Uint8Array): Entry[] {
+export function entriesFromFlatbuffer(data: Uint8Array): Entry[] {
   const buf = new flatbuffers.ByteBuffer(data);
   const root = LeafFB.getRootAsLeaf(buf);
   const entries: Entry[] = [];
@@ -117,4 +118,26 @@ export function getEntriesFromFlatbuffer(data: Uint8Array): Entry[] {
     entries.push([key, val]);
   }
   return entries;
+}
+
+export function entriesToFlatbuffer(entries: Entry[]): Uint8Array {
+  const builder = new flatbuffers.Builder();
+  const leafEntries = [];
+  for (const entry of entries) {
+    const leafEntry = LeafEntryFB.createLeafEntry(
+      builder,
+      LeafEntryFB.createKeyVector(builder, utf8.encode(entry[0])),
+      LeafEntryFB.createValVector(
+        builder,
+        utf8.encode(JSON.stringify(entry[1])),
+      ),
+    );
+    leafEntries.push(leafEntry);
+  }
+  const root = LeafFB.createLeaf(
+    builder,
+    LeafFB.createEntriesVector(builder, leafEntries),
+  );
+  builder.finish(root);
+  return builder.asUint8Array();
 }

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1631639893601,
+  "lastUpdate": 1631653016322,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -39674,6 +39674,156 @@ window.BENCHMARK_DATA = {
             "range": "±138.9%",
             "unit": "ops/sec",
             "extra": "85 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "whiten@georgetown.edu",
+            "name": "Nate White",
+            "username": "whiten"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8552634b6a69592124ac3c9bde4cc618dc93bc2e",
+          "message": "Rework newTab() utility to work with 'noopener'. (#508)\n\nThis reimplements its internal message system to use localStorage events\r\nrather than postMessage(). This does not mean that postMessage can't be\r\nused for tests that pass {opener: true} to newTab, but makes the\r\nunderlying mechanism work regardless.",
+          "timestamp": "2021-09-14T13:55:27-07:00",
+          "tree_id": "183b311dde6509fde0cf28dc9712d198f8fe5328",
+          "url": "https://github.com/rocicorp/replicache/commit/8552634b6a69592124ac3c9bde4cc618dc93bc2e"
+        },
+        "date": 1631653016046,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 8.13,
+            "range": "±9.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 6.68,
+            "range": "±3.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 4.32,
+            "range": "±10.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 3.27,
+            "range": "±3.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.34,
+            "range": "±74.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.08,
+            "range": "±4.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 6.3,
+            "range": "±75.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 6.2,
+            "range": "±0.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±1272.2%",
+            "unit": "MB/s",
+            "extra": "99 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 116.05,
+            "range": "±510.8%",
+            "unit": "ops/sec",
+            "extra": "59 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 5.14,
+            "range": "±6.1%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.11,
+            "range": "±1.9%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 9.68,
+            "range": "±14.8%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 9.94,
+            "range": "±13.8%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 9.51,
+            "range": "±28.7%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription setup 10",
+            "value": 324.44,
+            "range": "±86.2%",
+            "unit": "ops/sec",
+            "extra": "163 samples"
+          },
+          {
+            "name": "subscription setup 100",
+            "value": 262.11,
+            "range": "±420.0%",
+            "unit": "ops/sec",
+            "extra": "132 samples"
+          },
+          {
+            "name": "subscription setup 1000",
+            "value": 166.11,
+            "range": "±126.4%",
+            "unit": "ops/sec",
+            "extra": "84 samples"
           }
         ]
       }

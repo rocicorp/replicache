@@ -1,4 +1,4 @@
-import type {JSONValue} from './json';
+import type {JSONValue, ReadonlyJSONValue} from './json';
 import type {
   OpenTransactionRequest,
   CommitTransactionResponse,
@@ -24,7 +24,7 @@ export interface ReadTransaction {
    * Get a single value from the database. If the `key` is not present this
    * returns `undefined`.
    */
-  get(key: string): Promise<JSONValue | undefined>;
+  get(key: string): Promise<ReadonlyJSONValue | undefined>;
 
   /** Determines if a single `key` is present in the database. */
   has(key: string): Promise<boolean>;
@@ -44,7 +44,7 @@ export interface ReadTransaction {
    * If the [[ScanResult]] is used after the `ReadTransaction` has been closed it
    * will throw a [[TransactionClosedError]].
    */
-  scan(): ScanResult<string>;
+  scan(): ScanResult<string, ReadonlyJSONValue>;
 
   /**
    * Gets many values from the database. This returns a [[ScanResult]] which
@@ -58,9 +58,9 @@ export interface ReadTransaction {
    * If the [[ScanResult]] is used after the `ReadTransaction` has been closed it
    * will throw a [[TransactionClosedError]].
    */
-  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): ScanResult<K>;
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, ReadonlyJSONValue>;
 }
 
 const enum OpenTransactionType {
@@ -68,41 +68,58 @@ const enum OpenTransactionType {
   Index,
 }
 
-export class ReadTransactionImpl implements ReadTransaction {
+export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
+  implements ReadTransaction
+{
   private _transactionId = -1;
   protected _closed = false;
   protected readonly _openTransactionType: OpenTransactionType =
     OpenTransactionType.Normal;
   private readonly _dbName: string;
   protected readonly _openResponse: Promise<unknown>;
+  protected readonly _shouldClone: boolean = false;
 
   constructor(dbName: string, openResponse: Promise<unknown>) {
     this._dbName = dbName;
     this._openResponse = openResponse;
   }
 
-  async get(key: string): Promise<JSONValue | undefined> {
+  async get(key: string): Promise<Value | undefined> {
+    // TODO(arv): Change this to a non async function.
     throwIfClosed(this);
-    return await embed.get(this._transactionId, key);
+    return embed.get(this._transactionId, key, this._shouldClone) as
+      | Value
+      | undefined;
   }
 
   async has(key: string): Promise<boolean> {
+    // TODO(arv): Change this to a non async function.
     throwIfClosed(this);
-    return await embed.has(this._transactionId, key);
+    return embed.has(this._transactionId, key);
   }
 
   async isEmpty(): Promise<boolean> {
     throwIfClosed(this);
 
     let empty = true;
-    await embed.scan(this._transactionId, {limit: 1}, () => (empty = false));
+    await embed.scan(
+      this._transactionId,
+      {limit: 1},
+      () => (empty = false),
+      false, // shouldClone
+    );
     return empty;
   }
 
-  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): ScanResult<K> {
-    return new ScanResult(options, () => this, false);
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, Value> {
+    return new ScanResult(
+      options,
+      () => this,
+      false, // shouldCloseTransaction
+      this._shouldClone,
+    );
   }
 
   get id(): number {
@@ -150,7 +167,7 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
     return this._tx.isEmpty();
   }
 
-  get(key: string): Promise<JSONValue | undefined> {
+  get(key: string): Promise<ReadonlyJSONValue | undefined> {
     this._keys.add(key);
     return this._tx.get(key);
   }
@@ -160,9 +177,9 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
     return this._tx.has(key);
   }
 
-  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): ScanResult<K> {
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, ReadonlyJSONValue> {
     this._scans.push(toDbScanOptions(options));
     return this._tx.scan(options);
   }
@@ -193,12 +210,27 @@ export interface WriteTransaction extends ReadTransaction {
    * `key` to remove.
    */
   del(key: string): Promise<boolean>;
+
+  /**
+   * Overrides [[ReadTransaction.get]] to return a mutable [[JSONValue]].
+   */
+  get(key: string): Promise<JSONValue | undefined>;
+
+  /**
+   * Overrides [[ReadTransaction.scan]] to return a mutable [[JSONValue]].
+   */
+  scan(): ScanResult<string, JSONValue>;
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, JSONValue>;
 }
 
 export class WriteTransactionImpl
-  extends ReadTransactionImpl
+  extends ReadTransactionImpl<JSONValue>
   implements WriteTransaction
 {
+  protected readonly _shouldClone: boolean = true;
+
   async put(key: string, value: JSONValue): Promise<void> {
     throwIfClosed(this);
     await embed.put(this.id, key, value);
@@ -266,7 +298,7 @@ export interface CreateIndexDefinition {
 }
 
 export class IndexTransactionImpl
-  extends ReadTransactionImpl
+  extends ReadTransactionImpl<ReadonlyJSONValue>
   implements IndexTransaction
 {
   protected readonly _openTransactionType = OpenTransactionType.Index;

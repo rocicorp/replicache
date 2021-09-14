@@ -1,6 +1,6 @@
 import type * as dag from '../dag/mod';
 import * as db from '../db/mod';
-import {deepThaw, ReadonlyJSONValue} from '../json';
+import {deepClone, ReadonlyJSONValue} from '../json';
 import {assertPullResponse, Puller, PullError, PullResponse} from '../puller';
 import {
   assertHTTPRequestInfo,
@@ -240,7 +240,7 @@ export async function maybeEndTryPull(
         replayMutations.push({
           id: c.mutationID,
           name,
-          args: deepThaw(args),
+          args: deepClone(args),
           original: c.chunk.hash,
         });
       }

@@ -1,5 +1,6 @@
 import type {ReadonlyJSONValue} from '../json';
 
+// TODO(arv): Remove Uint8Array
 export type Value = Uint8Array | ReadonlyJSONValue;
 
 /**

@@ -5,7 +5,7 @@ import {newTab, Tab} from './test-util';
 let tab: Tab;
 
 function isFirefox(): boolean {
-  return navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+  return /firefox/i.test(navigator.userAgent);
 }
 
 suiteSetup(async () => {

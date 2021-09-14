@@ -1,5 +1,6 @@
 // Test utils
 import type {ReplicacheTest} from './replicache';
+import type {JSONObject, JSONValue} from './json';
 import * as utf8 from './utf8';
 import {resolver} from './resolver';
 import {uuid} from './sync/uuid';
@@ -62,13 +63,13 @@ defineTestFunctions(self);
 
 type Response = {
   id: string;
-  result?: unknown;
-  error?: unknown;
+  result?: JSONValue;
+  error?: JSONValue;
 };
 
 type LogResponse = {
   level: string;
-  data: unknown[];
+  data: JSONValue[];
 };
 
 export async function initializeNewTab(
@@ -76,7 +77,7 @@ export async function initializeNewTab(
   path: string,
   event: StorageEvent,
 ): Promise<void> {
-  const send = (message: unknown) => {
+  const send = (message: JSONObject) => {
     localStorage.setItem(
       tabId + '-in-' + performance.now(),
       JSON.stringify(message),
@@ -86,7 +87,7 @@ export async function initializeNewTab(
   ['error', 'warn', 'info', 'debug', 'log'].forEach(level => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore No index signature of type 'string' was found on 'Console'.
-    console[level] = (...data: unknown[]) => {
+    console[level] = (...data) => {
       send({id: 'log', result: {level, data}});
     };
   });
@@ -118,7 +119,7 @@ export async function initializeNewTab(
            return (async () => { ${expr} })();`,
         )(module);
       } catch (e) {
-        response.error = e;
+        response.error = `${e}`;
       }
     }
     send(response);
@@ -207,12 +208,12 @@ export async function newTab(
     params['path'] = path;
   }
   open(
-    '/src/testutil-new-tab.html?' + new URLSearchParams(params).toString(),
+    '/src/test-util-new-tab.html?' + new URLSearchParams(params).toString(),
     '_blank',
     options?.opener ? '' : 'noopener',
   );
 
-  const send = (message: unknown) => {
+  const send = (message: JSONObject) => {
     localStorage.setItem(
       tabId + '-out-' + performance.now(),
       JSON.stringify(message),

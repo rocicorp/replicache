@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1631660203785,
+  "lastUpdate": 1631660946773,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -40124,6 +40124,156 @@ window.BENCHMARK_DATA = {
             "range": "±120.4%",
             "unit": "ops/sec",
             "extra": "88 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5fff81fe4637d4f37e2842dbf7bea22999df1d50",
+          "message": "Feat: Use ReadonlyJSONValue in read transactions (#512)\n\n* Feat: Use ReadonlyJSONValue in read transactions\r\n\r\nBREAKING CHANGE: If you are using TypeScript you might need to update\r\nyour type annotations to use ReadonlyJSONValue instead of JSONValue in a\r\nfew places.\r\n\r\nReadTransaction return the underlying value as ReadonlyJSONValue. This\r\nis because you should not mutate these since they may be cached\r\ninternally.\r\n\r\nWriteTransaction returns a clone of the value and is safe to mutate.\r\n\r\nWriteTransaction `put` clones the value to ensure that internal valie is\r\nnot mutated.\r\n\r\nFixes #480",
+          "timestamp": "2021-09-14T23:07:41Z",
+          "tree_id": "4d1eb70c796862d98f959b3ced3f3ad14d2a29e1",
+          "url": "https://github.com/rocicorp/replicache/commit/5fff81fe4637d4f37e2842dbf7bea22999df1d50"
+        },
+        "date": 1631660946486,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 7.95,
+            "range": "±10.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 6.37,
+            "range": "±3.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 4.57,
+            "range": "±3.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 3.23,
+            "range": "±3.2%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.39,
+            "range": "±76.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 5.95,
+            "range": "±6.4%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 6.56,
+            "range": "±76.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 6.11,
+            "range": "±80.5%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±1186.1%",
+            "unit": "MB/s",
+            "extra": "97 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 122.02,
+            "range": "±504.7%",
+            "unit": "ops/sec",
+            "extra": "62 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 5.15,
+            "range": "±4.1%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.1,
+            "range": "±2.2%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 10.62,
+            "range": "±16.6%",
+            "unit": "ops/sec",
+            "extra": "6 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 10.91,
+            "range": "±13.5%",
+            "unit": "ops/sec",
+            "extra": "6 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 10.52,
+            "range": "±24.5%",
+            "unit": "ops/sec",
+            "extra": "6 samples"
+          },
+          {
+            "name": "subscription setup 10",
+            "value": 370.37,
+            "range": "±103.8%",
+            "unit": "ops/sec",
+            "extra": "186 samples"
+          },
+          {
+            "name": "subscription setup 100",
+            "value": 301.52,
+            "range": "±138.7%",
+            "unit": "ops/sec",
+            "extra": "151 samples"
+          },
+          {
+            "name": "subscription setup 1000",
+            "value": 189.55,
+            "range": "±141.7%",
+            "unit": "ops/sec",
+            "extra": "95 samples"
           }
         ]
       }

@@ -11,7 +11,6 @@ import {
 } from './scan-options';
 import {ScanResult} from './scan-iterator';
 import {throwIfClosed} from './transaction-closed-error';
-import {asyncIterableToArray} from './async-iterable-to-array';
 import * as embed from './embed/mod';
 import type * as db from './db/mod';
 

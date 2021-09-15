@@ -186,10 +186,11 @@ export class Write {
     }
 
     this.map = prolly.Map.new();
+    const ps = [];
     for (const idx of this.indexes.values()) {
-      // TODO(arv): Parallelize this.
-      await idx.clear();
+      ps.push(idx.clear());
     }
+    await Promise.all(ps);
   }
 
   async createIndex(

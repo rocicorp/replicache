@@ -45,31 +45,31 @@ class ProllyMap {
   }
 
   has(key: string): boolean {
-    return binarySearch(key, this._readonlyEntries).found;
+    return binarySearch(key, this._readonlyEntries) >= 0;
   }
 
   get(key: string): ReadonlyJSONValue | undefined {
-    const res = binarySearch(key, this._readonlyEntries);
-    if (!res.found) {
+    const index = binarySearch(key, this._readonlyEntries);
+    if (index < 0) {
       return undefined;
     }
-    return this._readonlyEntries[res.index][1];
+    return this._readonlyEntries[index][1];
   }
 
   put(key: string, val: ReadonlyJSONValue): void {
     const entries = this._mutableEntries;
-    const {found, index} = binarySearch(key, entries);
-    if (found) {
+    const index = binarySearch(key, entries);
+    if (index >= 0) {
       entries[index] = [key, val];
     } else {
-      entries.splice(index, 0, [key, val]);
+      entries.splice(-index - 1, 0, [key, val]);
     }
     this._pendingChangedKeys.add(key);
   }
 
   del(key: string): void {
-    const {found, index} = binarySearch(key, this._readonlyEntries);
-    if (found) {
+    const index = binarySearch(key, this._readonlyEntries);
+    if (index >= 0) {
       this._mutableEntries.splice(index, 1);
       this._pendingChangedKeys.add(key);
     }
@@ -185,13 +185,15 @@ function assertEntries(
   }
 }
 
-function binarySearch(
-  key: string,
-  entries: ReadonlyArray<Entry>,
-): {found: boolean; index: number} {
+// If the key is in entries then the return value is the index of the key. If
+// the key is not in entries then the return value is the index to insert the
+// key at. Except that we return the negative index -1. The way to think about
+// this is that if we need to insert at 0 we return -1. This is modelled after
+// the Java API.
+function binarySearch(key: string, entries: ReadonlyArray<Entry>): number {
   let size = entries.length;
   if (size === 0) {
-    return {found: false, index: 0};
+    return -1;
   }
   let base = 0;
 
@@ -212,9 +214,10 @@ function binarySearch(
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const cmp = stringCompare(entry[0], key);
   if (cmp === 0) {
-    return {found: true, index: base};
+    return base;
   }
-  return {found: false, index: base + (cmp === -1 ? 1 : 0)};
+  const index = base + (cmp === -1 ? 1 : 0);
+  return -index - 1;
 }
 
 export function entriesFromFlatbuffer(data: Uint8Array): Entry[] {

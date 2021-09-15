@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import type {JSONValue} from '../json';
-import {stringCompare} from '../prolly/array-compare';
+import {stringCompare} from '../prolly/string-compare';
 import * as prolly from '../prolly/mod';
 import {
   decodeIndexKey,
@@ -14,7 +14,6 @@ import {
   KEY_SEPARATOR,
   KEY_VERSION_0,
 } from './index';
-import {stringCompare} from '../prolly/string-compare';
 
 test('test index key', () => {
   const testValid = (secondary: string, primary: string) => {

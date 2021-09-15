@@ -3,11 +3,11 @@ import * as dag from '../dag/mod';
 import * as db from '../db/mod';
 import * as sync from '../sync/mod';
 import type {
-  BeginTryPullRequest,
-  BeginTryPullResponse,
+  BeginPullRequest,
+  BeginPullResponse,
   CommitTransactionResponse,
   HTTPRequestInfo,
-  MaybeEndTryPullResponse,
+  MaybeEndPullResponse,
   RebaseOpts,
   TryPushRequest,
 } from '../repm-invoker';
@@ -484,21 +484,21 @@ export async function dropIndex(
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
-export async function maybeEndTryPull(
+export async function maybeEndPull(
   dbName: string,
   requestID: string,
   syncHead: string,
-): Promise<MaybeEndTryPullResponse> {
+): Promise<MaybeEndPullResponse> {
   const start = Date.now();
-  isTesting && logCall('maybeEndTryPull', dbName, requestID, syncHead);
+  isTesting && logCall('maybeEndPull', dbName, requestID, syncHead);
 
   const connection = getConnection(dbName);
   const {store, lc} = connection;
   const lc2 = lc
-    .addContext('rpc', 'maybeEndTryPull')
+    .addContext('rpc', 'maybeEndPull')
     .addContext('request_id', requestID);
   lc2.debug?.('->', syncHead);
-  const result = await sync.maybeEndTryPull(store, lc2, {requestID, syncHead});
+  const result = await sync.maybeEndPull(store, lc2, {requestID, syncHead});
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
   return result;
 }
@@ -530,18 +530,18 @@ export async function tryPush(
   return result;
 }
 
-export async function beginTryPull(
+export async function beginPull(
   dbName: string,
-  req: BeginTryPullRequest,
-): Promise<BeginTryPullResponse> {
+  req: BeginPullRequest,
+): Promise<BeginPullResponse> {
   const start = Date.now();
-  isTesting && logCall('beginTryPull', dbName, req);
+  isTesting && logCall('beginPull', dbName, req);
 
   const connection = getConnection(dbName);
   const {clientID, store, lc} = connection;
   const requestID = sync.newRequestID(clientID);
   const lc2 = lc
-    .addContext('rpc', 'beginTryPull')
+    .addContext('rpc', 'beginPull')
     .addContext('request_id', requestID);
   lc2.debug?.('->', req);
   const jsPuller = new sync.JSPuller(req.puller);

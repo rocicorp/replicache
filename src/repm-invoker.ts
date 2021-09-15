@@ -83,14 +83,14 @@ export type CommitTransactionResponse = {
   changedKeys: ChangedKeysMap;
 };
 
-export type BeginTryPullRequest = {
+export type BeginPullRequest = {
   pullURL: string;
   pullAuth: string;
   schemaVersion: string;
   puller: Puller;
 };
 
-export type BeginTryPullResponse = {
+export type BeginPullResponse = {
   httpRequestInfo: HTTPRequestInfo;
   syncHead: string;
   requestID: string;
@@ -126,7 +126,7 @@ export type HTTPRequestInfo = {
   errorMessage: string;
 };
 
-export type MaybeEndTryPullRequest = {
+export type MaybeEndPullRequest = {
   requestID: string;
   syncHead: string;
 };
@@ -142,7 +142,7 @@ export type ReplayMutation = {
   original: string;
 };
 
-export type MaybeEndTryPullResponse = {
+export type MaybeEndPullResponse = {
   replayMutations?: ReplayMutation[];
   syncHead: string;
   changedKeys: ChangedKeysMap;
@@ -185,8 +185,8 @@ export type InvokeMap = {
     CommitTransactionResponse,
   ];
 
-  [RPC.BeginTryPull]: [BeginTryPullRequest, BeginTryPullResponse];
-  [RPC.MaybeEndTryPull]: [MaybeEndTryPullRequest, MaybeEndTryPullResponse];
+  [RPC.BeginPull]: [BeginPullRequest, BeginPullResponse];
+  [RPC.MaybeEndPull]: [MaybeEndPullRequest, MaybeEndPullResponse];
   [RPC.TryPush]: [TryPushRequest, TryPushResponse];
 
   [RPC.SetLogLevel]: [SetLogLevelRequest, SetLogLevelResponse];
@@ -207,7 +207,7 @@ export type InvokeMapNoArgs = {
 };
 
 export enum RPC {
-  BeginTryPull = 1,
+  BeginPull = 1,
   Close,
   CloseTransaction,
   CommitTransaction,
@@ -218,7 +218,7 @@ export enum RPC {
   Get,
   GetRoot,
   Has,
-  MaybeEndTryPull,
+  MaybeEndPull,
   Open,
   OpenIndexTransaction,
   OpenTransaction,

@@ -2289,7 +2289,7 @@ testWithBothStores('push and pull concurrently', async () => {
     'openTransaction',
     'put',
     'commitTransaction',
-    'beginTryPull',
+    'beginPull',
     'tryPush',
   ]);
 
@@ -2306,7 +2306,7 @@ testWithBothStores('push and pull concurrently', async () => {
     'openTransaction',
     'put',
     'commitTransaction',
-    'beginTryPull',
+    'beginPull',
     'tryPush',
   ]);
 });

@@ -574,7 +574,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     let {syncHead} = beginPullResult;
     const {requestID} = beginPullResult;
 
-    const {replayMutations, changedKeys} = await embed.maybeEndTryPull(
+    const {replayMutations, changedKeys} = await embed.maybeEndPull(
       this.name,
       requestID,
       syncHead,
@@ -754,7 +754,7 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
     await this._openResponse;
-    const beginPullResponse = await embed.beginTryPull(this.name, {
+    const beginPullResponse = await embed.beginPull(this.name, {
       pullAuth: this.auth,
       pullURL: this.pullURL,
       schemaVersion: this.schemaVersion,

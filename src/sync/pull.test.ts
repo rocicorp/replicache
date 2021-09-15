@@ -17,18 +17,18 @@ import type {ReadonlyJSONValue} from '../json';
 import {MemStore} from '../kv/mod';
 import type {PatchOperation, PullResponse} from '../puller';
 import type {
-  BeginTryPullRequest,
-  BeginTryPullResponse,
+  BeginPullRequest,
+  BeginPullResponse,
   ChangedKeysMap,
   HTTPRequestInfo,
-  MaybeEndTryPullRequest,
-  MaybeEndTryPullResponse,
+  MaybeEndPullRequest,
+  MaybeEndPullResponse,
 } from '../repm-invoker';
 import {SYNC_HEAD_NAME} from './sync-head-name';
 import {
   beginPull,
   InternalPuller,
-  maybeEndTryPull,
+  maybeEndPull,
   PullRequest,
   PULL_VERSION,
 } from './pull';
@@ -93,9 +93,9 @@ test('begin try pull', async () => {
     name: string;
     numPendingMutations: number;
     pullResult: PullResponse | string;
-    // BeginTryPull expectations.
+    // BeginPull expectations.
     expNewSyncHead: ExpCommit | undefined;
-    expBeginTryPullResult: BeginTryPullResponse | string;
+    expBeginPullResult: BeginPullResponse | string;
   };
 
   const expPullReq: PullRequest = {
@@ -117,7 +117,7 @@ test('begin try pull', async () => {
         valueMap: goodPullRespValueMap,
         indexes: ['2'],
       },
-      expBeginTryPullResult: {
+      expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
         requestID,
@@ -136,7 +136,7 @@ test('begin try pull', async () => {
         valueMap: goodPullRespValueMap,
         indexes: ['2', '4'],
       },
-      expBeginTryPullResult: {
+      expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
         requestID,
@@ -155,7 +155,7 @@ test('begin try pull', async () => {
         valueMap: goodPullRespValueMap,
         indexes: ['2'],
       },
-      expBeginTryPullResult: {
+      expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
         requestID,
@@ -171,7 +171,7 @@ test('begin try pull', async () => {
         valueMap: goodPullRespValueMap,
         indexes: ['2', '4', '6'],
       },
-      expBeginTryPullResult: {
+      expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
         requestID,
@@ -190,7 +190,7 @@ test('begin try pull', async () => {
         valueMap: goodPullRespValueMap,
         indexes: ['2', '4'],
       },
-      expBeginTryPullResult: {
+      expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
         requestID,
@@ -208,7 +208,7 @@ test('begin try pull', async () => {
         patch: [],
       },
       expNewSyncHead: undefined,
-      expBeginTryPullResult: {
+      expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
         requestID,
@@ -228,7 +228,7 @@ test('begin try pull', async () => {
         valueMap: goodPullRespValueMap,
         indexes: ['2'],
       },
-      expBeginTryPullResult: {
+      expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
         requestID,
@@ -249,7 +249,7 @@ test('begin try pull', async () => {
         valueMap: baseValueMap,
         indexes: ['2'],
       },
-      expBeginTryPullResult: {
+      expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
         requestID,
@@ -270,7 +270,7 @@ test('begin try pull', async () => {
         valueMap: baseValueMap,
         indexes: ['2'],
       },
-      expBeginTryPullResult: {
+      expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
         requestID,
@@ -289,7 +289,7 @@ test('begin try pull', async () => {
         valueMap: goodPullRespValueMap,
         indexes: ['2'],
       },
-      expBeginTryPullResult: {
+      expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
         requestID,
@@ -309,7 +309,7 @@ test('begin try pull', async () => {
         valueMap: goodPullRespValueMap,
         indexes: ['2'],
       },
-      expBeginTryPullResult: {
+      expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
         requestID,
@@ -328,7 +328,7 @@ test('begin try pull', async () => {
         valueMap: baseValueMap,
         indexes: ['2'],
       },
-      expBeginTryPullResult: {
+      expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
         requestID,
@@ -346,7 +346,7 @@ test('begin try pull', async () => {
         valueMap: goodPullRespValueMap,
         indexes: ['2'],
       },
-      expBeginTryPullResult: {
+      expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
         requestID,
@@ -360,7 +360,7 @@ test('begin try pull', async () => {
         lastMutationID: 0,
       },
       expNewSyncHead: undefined,
-      expBeginTryPullResult:
+      expBeginPullResult:
         'base lastMutationID 1 is > than client view lastMutationID 0; ignoring client view',
     },
     {
@@ -368,7 +368,7 @@ test('begin try pull', async () => {
       numPendingMutations: 0,
       pullResult: 'FetchNotOk(500)',
       expNewSyncHead: undefined,
-      expBeginTryPullResult: {
+      expBeginPullResult: {
         httpRequestInfo: {
           errorMessage: 'Fetch not OK',
           httpStatusCode: 500,
@@ -394,7 +394,7 @@ test('begin try pull', async () => {
 
     // There was an index added after the snapshot, and one for each local commit.
     // Here we scan to ensure that we get values when scanning using one of the
-    // indexes created. We do this because after calling beginTryPull we check that
+    // indexes created. We do this because after calling beginPull we check that
     // the index no longer returns values, demonstrating that it was rebuilt.
     if (c.numPendingMutations > 0) {
       await store.withRead(async dagRead => {
@@ -436,7 +436,7 @@ test('begin try pull', async () => {
       err: pullErr,
     });
 
-    const beginTryPullReq: BeginTryPullRequest = {
+    const beginPullReq: BeginPullRequest = {
       pullURL,
       pullAuth,
       schemaVersion,
@@ -446,11 +446,11 @@ test('begin try pull', async () => {
       },
     };
 
-    let result: BeginTryPullResponse | string;
+    let result: BeginPullResponse | string;
     try {
       result = await beginPull(
         clientID,
-        beginTryPullReq,
+        beginPullReq,
         fakePuller,
         requestID,
         store,
@@ -525,23 +525,23 @@ test('begin try pull', async () => {
         expect(got_head).to.be.undefined;
         // In a nop sync we except Beginpull to succeed but sync_head will
         // be empty.
-        if (typeof c.expBeginTryPullResult !== 'string') {
+        if (typeof c.expBeginPullResult !== 'string') {
           assertObject(result);
           expect(result.syncHead).to.be.empty;
         }
       }
 
-      expect(typeof result).to.equal(typeof c.expBeginTryPullResult);
+      expect(typeof result).to.equal(typeof c.expBeginPullResult);
       if (typeof result === 'object') {
-        assertObject(c.expBeginTryPullResult);
+        assertObject(c.expBeginPullResult);
         expect(result.httpRequestInfo).to.deep.equal(
-          c.expBeginTryPullResult.httpRequestInfo,
+          c.expBeginPullResult.httpRequestInfo,
         );
         // syncHead is checked above based on the expSyncHead
-        expect(result.requestID).to.equal(c.expBeginTryPullResult.requestID);
+        expect(result.requestID).to.equal(c.expBeginPullResult.requestID);
       } else {
         // use to_debug since some errors cannot be made PartialEq
-        expect(result).to.equal(c.expBeginTryPullResult);
+        expect(result).to.equal(c.expBeginPullResult);
       }
     });
   }
@@ -654,13 +654,13 @@ test('maybe end try pull', async () => {
     }
     const syncHead = basisHash;
 
-    const req: MaybeEndTryPullRequest = {
+    const req: MaybeEndPullRequest = {
       requestID: 'request_id',
       syncHead,
     };
-    let result: MaybeEndTryPullResponse | string;
+    let result: MaybeEndPullResponse | string;
     try {
-      result = await maybeEndTryPull(store, lc, req);
+      result = await maybeEndPull(store, lc, req);
     } catch (e) {
       result = e.message;
     }
@@ -829,7 +829,7 @@ test('changed keys', async () => {
       err: undefined,
     });
 
-    const beginTryPullReq: BeginTryPullRequest = {
+    const beginPullReq: BeginPullRequest = {
       pullURL,
       pullAuth,
       schemaVersion,
@@ -841,18 +841,18 @@ test('changed keys', async () => {
 
     const pullResult = await beginPull(
       clientID,
-      beginTryPullReq,
+      beginPullReq,
       fakePuller,
       requestID,
       store,
       new LogContext(),
     );
 
-    const req: MaybeEndTryPullRequest = {
+    const req: MaybeEndPullRequest = {
       requestID,
       syncHead: pullResult.syncHead,
     };
-    const result = await maybeEndTryPull(store, lc, req);
+    const result = await maybeEndPull(store, lc, req);
 
     expect(result.changedKeys).to.deep.equal(expectedChangedKeysMap);
   };

@@ -18,10 +18,10 @@ export type Value = ReadonlyJSONValue;
  * @experimental This interface is experimental and might be removed or changed
  * in the future without following semver versioning. Please be cautious.
  */
-export interface Store<Value = ReadonlyJSONValue> {
-  read(): Promise<Read<Value>>;
+export interface Store {
+  read(): Promise<Read>;
   withRead<R>(f: (read: Read) => R | Promise<R>): Promise<R>;
-  write(): Promise<Write<Value>>;
+  write(): Promise<Write>;
   withWrite<R>(f: (write: Write) => R | Promise<R>): Promise<R>;
   close(): Promise<void>;
 }
@@ -41,7 +41,7 @@ export interface Release {
  * @experimental This interface is experimental and might be removed or changed
  * in the future without following semver versioning. Please be cautious.
  */
-export interface Read<Value = ReadonlyJSONValue> extends Release {
+export interface Read extends Release {
   has(key: string): Promise<boolean>;
   get(key: string): Promise<Value | undefined>;
 }
@@ -49,7 +49,7 @@ export interface Read<Value = ReadonlyJSONValue> extends Release {
 /**
  * @experimental
  */
-export interface Write<Value = ReadonlyJSONValue> extends Read<Value> {
+export interface Write extends Read {
   put(key: string, value: Value): Promise<void>;
   del(key: string): Promise<void>;
   commit(): Promise<void>;

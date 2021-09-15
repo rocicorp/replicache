@@ -46,6 +46,7 @@ test('migrateClientID', async () => {
 
   const cid = 'test-client-id';
   await kv.withWrite(async w => {
+    // @ts-expect-error - allow invalid value type
     await w.put(sync.CID_KEY, utf8.encode(cid));
     await w.commit();
   });
@@ -72,6 +73,7 @@ test('migrateMetaKeyValue', async () => {
 
     const buf = dag.metaToFlatbuffer(expected);
     await kv.withWrite(async w => {
+      // @ts-expect-error Allow writing Uint8Array
       await w.put(dag.chunkMetaKey(hash), buf);
       await w.commit();
     });
@@ -103,6 +105,7 @@ test('migrateRefCountKeyValue', async () => {
   const t = async (count: number) => {
     const buf = dag.toLittleEndian(count);
     await kv.withWrite(async w => {
+      // @ts-expect-error Allow writing Uint8Array
       await w.put(dag.chunkRefCountKey(hash), buf);
       await w.commit();
     });
@@ -126,6 +129,7 @@ test('migrateHeadKeyValue', async () => {
   const name = 'head-name';
   const hash = 'fakehash';
   await kv.withWrite(async w => {
+    // @ts-expect-error. Allow writing Uint8Array.
     await w.put(dag.headKey(name), utf8.encode(hash));
     await w.commit();
   });
@@ -146,6 +150,7 @@ test('migrateProllyMap', async () => {
 
     const buf = prolly.entriesToFlatbuffer(entries);
     await kv.withWrite(async w => {
+      // @ts-expect-error. Allow writing Uint8Array.
       await w.put(dag.chunkDataKey(hash), buf);
       await w.commit();
     });
@@ -194,13 +199,19 @@ test('migrateCommit', async () => {
   await kv.withWrite(async w => {
     await w.put(
       dag.chunkDataKey(entriesHash),
+      // @ts-expect-error. Allow writing Uint8Array.
       prolly.entriesToFlatbuffer(entries),
     );
     await w.put(
       dag.chunkDataKey(commitHash),
+      // @ts-expect-error. Allow writing Uint8Array.
       db.commitDataToFlatbuffer(commit),
     );
-    await w.put(dag.chunkMetaKey(commitHash), dag.metaToFlatbuffer(refs));
+    await w.put(
+      dag.chunkMetaKey(commitHash),
+      // @ts-expect-error. Allow writing Uint8Array.
+      dag.metaToFlatbuffer(refs),
+    );
     await w.commit();
   });
 

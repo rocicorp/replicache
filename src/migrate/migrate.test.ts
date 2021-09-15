@@ -17,7 +17,7 @@ setup(async () => {
 });
 
 async function testMigrate(
-  inputdata: Record<string, Value>,
+  inputdata: Record<string, Uint8Array>,
   expected: Record<string, Value>,
 ): Promise<void> {
   const kv = new TestMemStore();
@@ -43,10 +43,11 @@ test('test data sample with index', async () => {
 
 async function writeSampleData(
   kv: Store,
-  data: Record<string, Value>,
+  data: Record<string, Value | Uint8Array>,
 ): Promise<void> {
   return kv.withWrite(async w => {
     for (const [key, value] of Object.entries(data)) {
+      // @ts-expect-error Allow writing Uint8Array
       await w.put(key, value);
     }
     await w.commit();

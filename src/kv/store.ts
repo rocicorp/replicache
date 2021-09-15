@@ -1,7 +1,6 @@
 import type {ReadonlyJSONValue} from '../json';
 
-// TODO(arv): Remove Uint8Array
-export type Value = Uint8Array | ReadonlyJSONValue;
+export type Value = ReadonlyJSONValue;
 
 /**
  * Store defines a transactional key/value store that Replicache stores all data

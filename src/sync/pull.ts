@@ -4,12 +4,12 @@ import {deepClone, ReadonlyJSONValue} from '../json';
 import {assertPullResponse, Puller, PullError, PullResponse} from '../puller';
 import {
   assertHTTPRequestInfo,
-  BeginTryPullRequest,
-  BeginTryPullResponse,
+  BeginPullRequest,
+  BeginPullResponse,
   ChangedKeysMap,
   HTTPRequestInfo,
-  MaybeEndTryPullRequest,
-  MaybeEndTryPullResponse,
+  MaybeEndPullRequest,
+  MaybeEndPullResponse,
   ReplayMutation,
 } from '../repm-invoker';
 import {callJSRequest} from './js-request';
@@ -42,12 +42,12 @@ export interface InternalPuller {
 
 export async function beginPull(
   clientID: string,
-  beginPullReq: BeginTryPullRequest,
+  beginPullReq: BeginPullRequest,
   puller: InternalPuller,
   requestID: string,
   store: dag.Store,
   lc: LogContext,
-): Promise<BeginTryPullResponse> {
+): Promise<BeginPullResponse> {
   const {pullURL, pullAuth, schemaVersion} = beginPullReq;
 
   const baseSnapshot = await store.withRead(async dagRead => {
@@ -178,11 +178,11 @@ export async function beginPull(
   });
 }
 
-export async function maybeEndTryPull(
+export async function maybeEndPull(
   store: dag.Store,
   lc: LogContext,
-  maybeEndPullReq: MaybeEndTryPullRequest,
-): Promise<MaybeEndTryPullResponse> {
+  maybeEndPullReq: MaybeEndPullRequest,
+): Promise<MaybeEndPullResponse> {
   // Ensure sync head is what the caller thinks it is.
   return await store.withWrite(async dagWrite => {
     const dagRead = dagWrite.read();

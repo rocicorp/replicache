@@ -4,6 +4,7 @@ import {MemStore} from '../kv/mod';
 import {stringCompare} from './string-compare';
 import * as prolly from './mod';
 import {initHasher} from '../hash';
+import {binarySearch, Entry} from './map';
 
 setup(async () => {
   await initHasher();
@@ -211,4 +212,34 @@ test('load errors', async () => {
   );
 
   await t([['0', 1, 2]], 'Invalid entry length');
+});
+
+test('binary search', () => {
+  const t = (needle: string, haystack: string[], expectedIndex: number) => {
+    const entries: ReadonlyArray<Entry> = haystack.sort().map(k => [k, k]);
+    expect(binarySearch(needle, entries)).to.equal(expectedIndex);
+  };
+
+  t('a', [], -1);
+
+  t('b', ['b'], 0);
+
+  t('a', ['b'], -1);
+  t('c', ['b'], -2);
+
+  t('b', ['b', 'd'], 0);
+  t('d', ['b', 'd'], 1);
+
+  t('a', ['b', 'd'], -1);
+  t('c', ['b', 'd'], -2);
+  t('e', ['b', 'd'], -3);
+
+  t('b', ['b', 'd', 'f'], 0);
+  t('d', ['b', 'd', 'f'], 1);
+  t('f', ['b', 'd', 'f'], 2);
+
+  t('a', ['b', 'd', 'f'], -1);
+  t('c', ['b', 'd', 'f'], -2);
+  t('e', ['b', 'd', 'f'], -3);
+  t('g', ['b', 'd', 'f'], -4);
 });

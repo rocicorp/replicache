@@ -190,7 +190,10 @@ function assertEntries(
 // key at. Except that we return the negative index -1. The way to think about
 // this is that if we need to insert at 0 we return -1. This is modelled after
 // the Java API.
-function binarySearch(key: string, entries: ReadonlyArray<Entry>): number {
+export function binarySearch(
+  key: string,
+  entries: ReadonlyArray<Entry>,
+): number {
   let size = entries.length;
   if (size === 0) {
     return -1;

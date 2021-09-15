@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1631739961943,
+  "lastUpdate": 1631743313340,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -41324,6 +41324,156 @@ window.BENCHMARK_DATA = {
             "range": "±217.0%",
             "unit": "ops/sec",
             "extra": "95 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "489bbd5fd2233dd4a09a622ca1cf50c9c637e6e0",
+          "message": "refactor: Simplify Prolly Map (#518)\n\nThere was actually a bug in binary search as well. Doh!\r\n\r\nThere is a slight change in semantics now. The changed keys now includes\r\nno-op puts. In other words we do not check for equality with the old\r\nvalue. This leads to a possibly larger changed keys but which might lead\r\nto the subscription body being run more often than needed.\r\n\r\nFixes #481",
+          "timestamp": "2021-09-15T22:00:29Z",
+          "tree_id": "16d35775d32d4ad16c279db749d1ff45ba636531",
+          "url": "https://github.com/rocicorp/replicache/commit/489bbd5fd2233dd4a09a622ca1cf50c9c637e6e0"
+        },
+        "date": 1631743313073,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 8.57,
+            "range": "±11.5%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 6.56,
+            "range": "±7.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 4.81,
+            "range": "±5.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 3.27,
+            "range": "±2.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.45,
+            "range": "±78.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.11,
+            "range": "±2.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 6.43,
+            "range": "±80.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 6.11,
+            "range": "±81.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "write single byte",
+            "value": 0,
+            "range": "±1222.2%",
+            "unit": "MB/s",
+            "extra": "96 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 122.8,
+            "range": "±423.4%",
+            "unit": "ops/sec",
+            "extra": "62 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 5.08,
+            "range": "±14.8%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.1,
+            "range": "±3.7%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 10.43,
+            "range": "±19.5%",
+            "unit": "ops/sec",
+            "extra": "6 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 11.05,
+            "range": "±8.5%",
+            "unit": "ops/sec",
+            "extra": "6 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 9.73,
+            "range": "±12.8%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription setup 10",
+            "value": 331.93,
+            "range": "±128.6%",
+            "unit": "ops/sec",
+            "extra": "166 samples"
+          },
+          {
+            "name": "subscription setup 100",
+            "value": 265.68,
+            "range": "±263.6%",
+            "unit": "ops/sec",
+            "extra": "133 samples"
+          },
+          {
+            "name": "subscription setup 1000",
+            "value": 176.73,
+            "range": "±240.8%",
+            "unit": "ops/sec",
+            "extra": "89 samples"
           }
         ]
       }

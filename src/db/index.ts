@@ -1,6 +1,5 @@
 import type * as dag from '../dag/mod';
-import type {DeepReadonly} from '../deep-readonly';
-import type {ReadonlyJSONValue, JSONObject} from '../json';
+import type {ReadonlyJSONValue, ReadonlyJSONObject} from '../json';
 import * as prolly from '../prolly/mod';
 import {RWLock} from '../rw-lock';
 import type {IndexRecord} from './commit';
@@ -219,7 +218,7 @@ export function evaluateJSONPointer(
     } else if (target === null) {
       return undefined;
     } else if (typeof target === 'object') {
-      target = target as DeepReadonly<JSONObject>;
+      target = target as ReadonlyJSONObject;
       targetOpt = target[token];
     }
     if (targetOpt === undefined) {

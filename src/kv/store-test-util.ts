@@ -1,5 +1,4 @@
 import {expect} from '@esm-bundle/chai';
-import {b} from '../test-util';
 import type {Read, Store, Value, Write} from './store';
 
 export class TestStore implements Store {
@@ -94,8 +93,8 @@ async function simpleCommit(store: TestStore): Promise<void> {
     expect(await wt.has('bar')).to.be.false;
     await wt.put('bar', 'baz');
     expect(await wt.get('bar')).to.deep.equal('baz');
-    await wt.put('bytes', b`abc`);
-    expect(await wt.get('bytes')).to.deep.equal(b`abc`);
+    await wt.put('other', 'abc');
+    expect(await wt.get('other')).to.deep.equal('abc');
     await wt.commit();
   });
 
@@ -103,8 +102,8 @@ async function simpleCommit(store: TestStore): Promise<void> {
   await store.withRead(async rt => {
     expect(await rt.has('bar')).to.be.true;
     expect(await rt.get('bar')).to.deep.equal('baz');
-    expect(await rt.has('bytes')).to.be.true;
-    expect(await rt.get('bytes')).to.deep.equal(b`abc`);
+    expect(await rt.has('other')).to.be.true;
+    expect(await rt.get('other')).to.deep.equal('abc');
   });
 }
 
@@ -113,7 +112,7 @@ async function del(store: TestStore): Promise<void> {
   await store.withWrite(async wt => {
     expect(await wt.has('bar')).to.be.false;
     await wt.put('bar', 'baz');
-    await wt.put('bytes', b`abc`);
+    await wt.put('other', 'abc');
     await wt.commit();
   });
 
@@ -122,8 +121,8 @@ async function del(store: TestStore): Promise<void> {
     expect(await wt.has('bar')).to.be.true;
     await wt.del('bar');
     expect(await wt.has('bar')).to.be.false;
-    await wt.del('bytes');
-    expect(await wt.has('bytes')).to.be.false;
+    await wt.del('other');
+    expect(await wt.has('other')).to.be.false;
     await wt.commit();
   });
 
@@ -131,8 +130,8 @@ async function del(store: TestStore): Promise<void> {
   await store.withRead(async rt => {
     expect(await rt.has('bar')).to.be.false;
     expect(await rt.get('bar')).to.be.undefined;
-    expect(await rt.has('bytes')).to.be.false;
-    expect(await rt.get('bytes')).to.be.undefined;
+    expect(await rt.has('other')).to.be.false;
+    expect(await rt.get('other')).to.be.undefined;
   });
 }
 
@@ -153,13 +152,13 @@ async function simpleRollback(store: TestStore): Promise<void> {
   // Start a write transaction and put a value, then abort.
   await store.withWrite(async wt => {
     await wt.put('bar', 'baz');
-    await wt.put('bytes', b`abc`);
+    await wt.put('other', 'abc');
     // no commit, implicit rollback
   });
 
   await store.withRead(async rt => {
     expect(await rt.has('bar')).to.be.false;
-    expect(await rt.has('bytes')).to.be.false;
+    expect(await rt.has('other')).to.be.false;
   });
 }
 

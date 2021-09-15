@@ -4,7 +4,6 @@ import type {Value} from '../kv/store';
 
 type Refs = readonly string[];
 
-// TODO(arv): Make this class take a type parameter for the data type?
 export class Chunk<V extends Value = Value> {
   readonly hash: string;
   readonly data: V;
@@ -21,9 +20,7 @@ export class Chunk<V extends Value = Value> {
   }
 
   static new<V extends Value = Value>(data: V, refs: Refs): Chunk<V> {
-    // Use hash of JSON stringified data if a JSONValue is passed.
-    const sum = data instanceof Uint8Array ? data : JSON.stringify(data);
-    const hash = Hash.of(sum);
+    const hash = Hash.of(JSON.stringify(data));
     return new Chunk(hash.toString(), data, refs);
   }
 

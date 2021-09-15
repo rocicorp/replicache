@@ -4,7 +4,6 @@ import {
   ConnectionLoop,
   ConnectionLoopDelegate,
   DEBOUNCE_DELAY_MS,
-  MAX_CONNECTIONS,
   MAX_DELAY_MS,
   MIN_DELAY_MS,
 } from './connection-loop';
@@ -66,7 +65,7 @@ function createLoop(
 
     watchdogTimer: null,
     debounceDelay: DEBOUNCE_DELAY_MS,
-    maxConnections: MAX_CONNECTIONS,
+    maxConnections: 3,
     maxDelayMs: MAX_DELAY_MS,
     ...partialDelegate,
     get minDelayMs() {
@@ -589,7 +588,7 @@ test('mutate minDelayMs', async () => {
       return minDelayMs;
     },
     maxDelayMs: 60_000,
-    maxConnections: MAX_CONNECTIONS,
+    maxConnections: 3,
     watchdogTimer: null,
   });
 

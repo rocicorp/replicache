@@ -59,3 +59,7 @@ export function assertInstanceof<T>(
     throw new Error(`Expected instanceof ${t.name}`);
   }
 }
+
+export function assertUint8Array(v: unknown): asserts v is Uint8Array {
+  assertInstanceof(v, Uint8Array);
+}

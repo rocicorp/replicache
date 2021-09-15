@@ -4,7 +4,7 @@ import type {ReplicacheOptions} from './replicache-options';
 import {Replicache, TransactionClosedError} from './mod';
 
 import type {ReadTransaction, WriteTransaction} from './mod';
-import type {JSONValue} from './json';
+import type {JSONValue, ReadonlyJSONValue} from './json';
 
 import {assert, expect} from '@esm-bundle/chai';
 import * as sinon from 'sinon';
@@ -202,10 +202,6 @@ async function testScanResult<K, V>(
   });
 
   await rep.query(async tx => {
-    expect(await tx.scanAll(options)).to.deep.equal(entries);
-  });
-
-  await rep.query(async tx => {
     expect(await tx.scan(options).toArray()).to.deep.equal(
       entries.map(([, v]) => v),
     );
@@ -346,7 +342,7 @@ testWithBothStores('scan', async () => {
 });
 
 testWithBothStores('subscribe', async () => {
-  const log: [string, JSONValue][] = [];
+  const log: [string, ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe', {
     mutators: {
@@ -360,7 +356,7 @@ testWithBothStores('subscribe', async () => {
       return await tx.scan({prefix: 'a/'}).entries().toArray();
     },
     {
-      onData: (values: Iterable<[string, JSONValue]>) => {
+      onData: (values: Iterable<[string, ReadonlyJSONValue]>) => {
         for (const entry of values) {
           log.push(entry);
         }
@@ -411,7 +407,7 @@ for (const prefixPropertyName of ['prefix', 'keyPrefix']) {
   testWithBothStores(
     `subscribe with index {prefixPropertyName: ${prefixPropertyName}}`,
     async () => {
-      const log: [[string, string], JSONValue][] = [];
+      const log: [[string, string], ReadonlyJSONValue][] = [];
 
       const rep = await replicacheForTesting('subscribe-with-index', {
         mutators: {
@@ -433,7 +429,7 @@ for (const prefixPropertyName of ['prefix', 'keyPrefix']) {
           return await tx.scan({indexName: 'i1'}).entries().toArray();
         },
         {
-          onData: (values: Iterable<[[string, string], JSONValue]>) => {
+          onData: (values: Iterable<[[string, string], ReadonlyJSONValue]>) => {
             onDataCallCount++;
             for (const entry of values) {
               log.push(entry);
@@ -548,7 +544,7 @@ for (const prefixPropertyName of ['prefix', 'keyPrefix']) {
 }
 
 testWithBothStores('subscribe with index and start', async () => {
-  const log: [[string, string], JSONValue][] = [];
+  const log: [[string, string], ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index-and-start', {
     mutators: {
@@ -572,7 +568,7 @@ testWithBothStores('subscribe with index and start', async () => {
         .toArray();
     },
     {
-      onData: (values: Iterable<[[string, string], JSONValue]>) => {
+      onData: (values: Iterable<[[string, string], ReadonlyJSONValue]>) => {
         onDataCallCount++;
         for (const entry of values) {
           log.push(entry);
@@ -656,7 +652,7 @@ testWithBothStores('subscribe with index and start', async () => {
 });
 
 testWithBothStores('subscribe with index and prefix', async () => {
-  const log: [[string, string], JSONValue][] = [];
+  const log: [[string, string], ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index-and-prefix', {
     mutators: {
@@ -677,7 +673,7 @@ testWithBothStores('subscribe with index and prefix', async () => {
       return await tx.scan({indexName: 'i1', prefix: 'b'}).entries().toArray();
     },
     {
-      onData: (values: Iterable<[[string, string], JSONValue]>) => {
+      onData: (values: Iterable<[[string, string], ReadonlyJSONValue]>) => {
         onDataCallCount++;
         for (const entry of values) {
           log.push(entry);
@@ -813,7 +809,7 @@ testWithBothStores('subscribe with isEmpty and prefix', async () => {
 });
 
 testWithBothStores('subscribe change keys', async () => {
-  const log: JSONValue[][] = [];
+  const log: ReadonlyJSONValue[][] = [];
 
   const rep = await replicacheForTesting('subscribe-change-keys', {
     mutators: {
@@ -836,7 +832,7 @@ testWithBothStores('subscribe change keys', async () => {
       return rv;
     },
     {
-      onData: (values: JSONValue[]) => {
+      onData: (values: ReadonlyJSONValue[]) => {
         onDataCallCount++;
         log.push(values);
       },
@@ -909,7 +905,7 @@ testWithBothStores('subscribe close', async () => {
     mutators: {addData},
   });
 
-  const log: (JSONValue | undefined)[] = [];
+  const log: (ReadonlyJSONValue | undefined)[] = [];
 
   const cancel = rep.subscribe((tx: ReadTransaction) => tx.get('k'), {
     onData: value => log.push(value),
@@ -1547,7 +1543,7 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
   }
 
   const it = rep.scan();
-  const log: JSONValue[] = [];
+  const log: ReadonlyJSONValue[] = [];
   for await (const v of it) {
     log.push(v);
   }
@@ -1646,7 +1642,10 @@ testWithBothStores('index', async () => {
     [['4', 'a/4'], {a: '4'}],
   ]);
   await rep.dropIndex('aIndex');
-  await expectPromiseToReject(rep.scanAll({indexName: 'aIndex'}));
+  const x = rep.scan({indexName: 'aIndex'});
+  (await expectPromiseToReject(x.values().next())).to.be
+    .instanceOf(Error)
+    .with.property('message', 'Unknown index name: aIndex');
 
   await rep.createIndex({name: 'aIndex', jsonPointer: '/a'});
   await testScanResult(rep, {indexName: 'aIndex'}, [
@@ -1657,7 +1656,9 @@ testWithBothStores('index', async () => {
     [['4', 'a/4'], {a: '4'}],
   ]);
   await rep.dropIndex('aIndex');
-  await expectPromiseToReject(rep.scanAll({indexName: 'aIndex'}));
+  (await expectPromiseToReject(rep.scan({indexName: 'aIndex'}).toArray())).to.be
+    .instanceOf(Error)
+    .with.property('message', 'Unknown index name: aIndex');
 
   await rep.createIndex({name: 'bc', keyPrefix: 'c/', jsonPointer: '/bc'});
   await testScanResult(rep, {indexName: 'bc'}, [[['8', 'c/0'], {bc: '8'}]]);
@@ -2041,14 +2042,8 @@ test.skip('Key type for scans [type checking only]', async () => {
   // @ts-expect-error Type 'number' is not assignable to type 'string | undefined'.ts(2322)
   rep.scan({indexName: 'n', start: {key: ['s', 42]}});
 
-  // @ts-expect-error Type 'number' is not assignable to type 'string | undefined'.ts(2322)
-  await rep.scanAll({indexName: 'n', start: {key: ['s', 42]}});
-
   // @ts-expect-error Type '[string]' is not assignable to type 'string'.ts(2322)
   rep.scan({start: {key: ['s']}});
-
-  // @ts-expect-error Type '[string]' is not assignable to type 'string'.ts(2322)
-  await rep.scanAll({start: {key: ['s']}});
 });
 
 test('mem store', async () => {
@@ -2474,10 +2469,6 @@ test.skip('scan with index [type checking only]', async () => {
   (await rep.scan({}).keys().toArray()) as string[];
   (await rep.scan().keys().toArray()) as string[];
 
-  (await rep.scanAll({})) as [string, JSONValue][];
-  (await rep.scanAll()) as [string, JSONValue][];
-  (await rep.scanAll({indexName: 'i'})) as [[string, string], JSONValue][];
-
   await rep.query(async tx => {
     (await tx.scan({indexName: 'a'}).keys().toArray()) as [
       secondary: string,
@@ -2486,10 +2477,6 @@ test.skip('scan with index [type checking only]', async () => {
 
     (await tx.scan({}).keys().toArray()) as string[];
     (await tx.scan().keys().toArray()) as string[];
-
-    (await tx.scanAll({})) as [string, JSONValue][];
-    (await tx.scanAll()) as [string, JSONValue][];
-    (await tx.scanAll({indexName: 'i'})) as [[string, string], JSONValue][];
   });
 });
 
@@ -2588,7 +2575,7 @@ testWithBothStores('subscribe pull and index update', async () => {
   const indexName = 'idx1';
   await rep.createIndex({name: indexName, jsonPointer: '/id'});
 
-  const log: JSONValue[] = [];
+  const log: ReadonlyJSONValue[] = [];
   let queryCallCount = 0;
 
   const cancel = rep.subscribe(
@@ -2877,6 +2864,13 @@ class MemStoreWithCounters implements kv.Store {
   readCount = 0;
   writeCount = 0;
   closeCount = 0;
+
+  resetCounters() {
+    this.readCount = 0;
+    this.writeCount = 0;
+    this.closeCount = 0;
+  }
+
   read() {
     this.readCount++;
     return this.store.read();
@@ -2909,25 +2903,28 @@ test('experiment KV Store', async () => {
     mutators: {addData},
   });
 
-  expect(store.readCount).to.equal(3);
-  expect(store.writeCount).to.equal(3);
+  expect(store.readCount).to.equal(4);
+  expect(store.writeCount).to.equal(4);
   expect(store.closeCount).to.equal(0);
+  store.resetCounters();
 
   const b = await rep.query(tx => tx.has('foo'));
   expect(b).to.be.false;
 
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(3);
+  expect(store.readCount).to.equal(1);
+  expect(store.writeCount).to.equal(0);
   expect(store.closeCount).to.equal(0);
+  store.resetCounters();
 
   await rep.mutate.addData({foo: 'bar'});
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(4);
+  expect(store.readCount).to.equal(0);
+  expect(store.writeCount).to.equal(1);
   expect(store.closeCount).to.equal(0);
+  store.resetCounters();
 
   await rep.close();
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(4);
+  expect(store.readCount).to.equal(0);
+  expect(store.writeCount).to.equal(0);
   expect(store.closeCount).to.equal(1);
 });
 
@@ -2938,9 +2935,10 @@ test('subscription coalescing', async () => {
     mutators: {addData},
   });
 
-  expect(store.readCount).to.equal(3);
-  expect(store.writeCount).to.equal(3);
+  expect(store.readCount).to.equal(4);
+  expect(store.writeCount).to.equal(4);
   expect(store.closeCount).to.equal(0);
+  store.resetCounters();
 
   const log: string[] = [];
   const ca = rep.subscribe(tx => tx.has('a'), {
@@ -2962,9 +2960,10 @@ test('subscription coalescing', async () => {
   await tickUntil(() => log.length === 3);
   expect(log).to.deep.equal(['a', 'b', 'c']);
 
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(3);
+  expect(store.readCount).to.equal(1);
+  expect(store.writeCount).to.equal(0);
   expect(store.closeCount).to.equal(0);
+  store.resetCounters();
 
   ca();
   cb();
@@ -2981,14 +2980,15 @@ test('subscription coalescing', async () => {
     },
   });
 
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(3);
+  expect(store.readCount).to.equal(0);
+  expect(store.writeCount).to.equal(0);
   expect(store.closeCount).to.equal(0);
+  store.resetCounters();
 
   await rep.mutate.addData({a: 1});
 
-  expect(store.readCount).to.equal(5);
-  expect(store.writeCount).to.equal(4);
+  expect(store.readCount).to.equal(1);
+  expect(store.writeCount).to.equal(1);
   expect(store.closeCount).to.equal(0);
 
   expect(log).to.deep.equal(['d', 'e']);

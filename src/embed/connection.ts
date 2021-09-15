@@ -11,9 +11,10 @@ import type {
   RebaseOpts,
   TryPushRequest,
 } from '../repm-invoker';
-import {deepFreeze, ReadonlyJSONValue, JSONValue, deepThaw} from '../json';
+import {ReadonlyJSONValue, JSONValue, deepClone} from '../json';
 import {LogContext} from '../logger';
 import type {LogLevel} from '../logger';
+import {migrate} from '../migrate/migrate';
 
 // TODO(arv): Use esbuild --define:TESTING=false
 
@@ -98,18 +99,20 @@ export async function open(
     );
   }
 
-  const store = new dag.Store(kvStore);
+  await migrate(kvStore);
+
+  const dagStore = new dag.Store(kvStore);
   // TODO(arv): Maybe store the clientID as a promise instead to prevent race
   // conditions?
   const clientID = await sync.initClientID(kvStore);
 
   // Call concurrently with initClientID?
-  await init(store);
+  await init(dagStore);
 
   // TODO(arv): Maybe store an opened promise too and let all embed calls wait
   // for it.
 
-  connections.set(dbName, {store, clientID, lc});
+  connections.set(dbName, {store: dagStore, clientID, lc});
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', clientID);
   return clientID;
 }
@@ -130,8 +133,8 @@ export async function close(dbName: string): Promise<void> {
   lc.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
-async function init(store: dag.Store): Promise<void> {
-  await store.withWrite(async dagWrite => {
+async function init(dagStore: dag.Store): Promise<void> {
+  await dagStore.withWrite(async dagWrite => {
     const head = await dagWrite.read().getHead(db.DEFAULT_HEAD_NAME);
     if (!head) {
       await db.initDB(dagWrite, db.DEFAULT_HEAD_NAME);
@@ -375,7 +378,11 @@ export function has(transactionID: number, key: string): boolean {
   return result;
 }
 
-export function get(transactionID: number, key: string): JSONValue | undefined {
+export function get(
+  transactionID: number,
+  key: string,
+  shouldClone: boolean,
+): ReadonlyJSONValue | JSONValue | undefined {
   const start = Date.now();
   isTesting && logCall('get', transactionID, key);
 
@@ -383,9 +390,10 @@ export function get(transactionID: number, key: string): JSONValue | undefined {
   const lc2 = lc.addContext('rpc', 'get');
   lc2.debug?.('->', key);
   const value = txn.asRead().get(key);
-  const thawed = value && deepThaw(value);
-  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', thawed);
-  return thawed;
+
+  const result = value && (shouldClone ? deepClone(value) : value);
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
+  return result;
 }
 
 export async function scan(
@@ -394,8 +402,9 @@ export async function scan(
   receiver: (
     primaryKey: string,
     secondaryKey: string | null,
-    value: JSONValue,
+    value: JSONValue | ReadonlyJSONValue,
   ) => void,
+  shouldClone: boolean,
 ): Promise<void> {
   const start = Date.now();
   isTesting && logCall('scan', transactionID, scanOptions, receiver);
@@ -409,7 +418,7 @@ export async function scan(
       throw sr.error;
     }
     const {val, key, secondaryKey} = sr.item;
-    receiver(key, secondaryKey, deepThaw(val));
+    receiver(key, secondaryKey, shouldClone ? deepClone(val) : val);
   });
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
@@ -425,7 +434,7 @@ export async function put(
   const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'put');
   lc2.debug?.('->', key, value);
-  await txn.put(lc2, key, deepFreeze(value));
+  await txn.put(lc2, key, deepClone(value));
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 

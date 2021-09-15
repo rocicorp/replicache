@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import type {JSONValue} from '../json';
-import {arrayCompare} from '../prolly/array-compare';
+import {stringCompare} from '../prolly/string-compare';
 import * as prolly from '../prolly/mod';
 import {
   decodeIndexKey,
@@ -14,7 +14,6 @@ import {
   KEY_SEPARATOR,
   KEY_VERSION_0,
 } from './index';
-import {stringCompare} from '../prolly/string-compare';
 
 test('test index key', () => {
   const testValid = (secondary: string, primary: string) => {
@@ -74,11 +73,11 @@ test('encode scan key', () => {
 
     expect(scanKey.startsWith(encodedIndexKey)).to.be.true;
 
-    expect(arrayCompare(encodedIndexKey, scanKey)).to.greaterThanOrEqual(0);
+    expect(stringCompare(encodedIndexKey, scanKey)).to.greaterThanOrEqual(0);
 
     // With exclusive == true
     scanKey = encodeIndexScanKey(secondary, primary, true);
-    expect(arrayCompare(encodedIndexKey, scanKey)).to.equal(-1);
+    expect(stringCompare(encodedIndexKey, scanKey)).to.equal(-1);
   };
 
   t('', '');
@@ -93,7 +92,7 @@ test('index key sort', () => {
   const t = (left: IndexKey, right: IndexKey) => {
     const a = encodeIndexKey(left);
     const b = encodeIndexKey(right);
-    expect(arrayCompare(a, b)).to.equal(-1);
+    expect(stringCompare(a, b)).to.equal(-1);
   };
 
   t(['', ''], ['', '\u0000']);
@@ -191,7 +190,7 @@ test('index value', () => {
     op: IndexOperation,
     expected: number[] | string,
   ) => {
-    const index = prolly.Map.new();
+    const index = new prolly.Map([]);
     index.put(encodeIndexKey(['s1', '1']), 'v1');
     index.put(encodeIndexKey(['s2', '2']), 'v2');
 

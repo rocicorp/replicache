@@ -372,11 +372,15 @@ testWithBothStores('subscribe', async () => {
   expect(log).to.deep.equal([['a/0', 0]]);
   expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
 
-  // Put with same value should not invoke the subscription.
+  // Changing a entry to the same value We used to do a deepEqual check here but
+  // we removed that. This means that we will invoke the query body even if
+  // nothing really changed. However, we consider writing the same value to be
+  // pretty unlikely and it is semantically correct to call the query body "too
+  // much".
   log.length = 0;
   await add({'a/0': 0});
   expect(log).to.deep.equal([]);
-  expect(queryCallCount).to.equal(2);
+  expect(queryCallCount).to.equal(3);
 
   log.length = 0;
   await add({'a/1': 1});
@@ -384,7 +388,7 @@ testWithBothStores('subscribe', async () => {
     ['a/0', 0],
     ['a/1', 1],
   ]);
-  expect(queryCallCount).to.equal(3);
+  expect(queryCallCount).to.equal(4);
 
   log.length = 0;
   log.length = 0;
@@ -393,14 +397,14 @@ testWithBothStores('subscribe', async () => {
     ['a/0', 0],
     ['a/1', 11],
   ]);
-  expect(queryCallCount).to.equal(4);
+  expect(queryCallCount).to.equal(5);
 
   log.length = 0;
   cancel();
   await add({'a/1': 12});
   await Promise.resolve();
   expect(log).to.have.length(0);
-  expect(queryCallCount).to.equal(4);
+  expect(queryCallCount).to.equal(5);
 });
 
 for (const prefixPropertyName of ['prefix', 'keyPrefix']) {
@@ -641,11 +645,15 @@ testWithBothStores('subscribe with index and start', async () => {
   expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
   expect(onDataCallCount).to.equal(3);
 
-  // Changing a entry to the same value
+  // Changing a entry to the same value We used to do a deepEqual check here but
+  // we removed that. This means that we will invoke the query body even if
+  // nothing really changed. However, we consider writing the same value to be
+  // pretty unlikely and it is semantically correct to call the query body "too
+  // much".
   await rep.mutate.addData({
     a2: {id: 'a-2', x: 2},
   });
-  expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
+  expect(queryCallCount).to.equal(4); // One for initial subscribe and one for the add.
   expect(onDataCallCount).to.equal(3);
 
   cancel();
@@ -732,11 +740,15 @@ testWithBothStores('subscribe with index and prefix', async () => {
   expect(queryCallCount).to.equal(4);
   expect(onDataCallCount).to.equal(4);
 
-  // Changing a entry to the same value
+  // Changing a entry to the same value We used to do a deepEqual check here but
+  // we removed that. This means that we will invoke the query body even if
+  // nothing really changed. However, we consider writing the same value to be
+  // pretty unlikely and it is semantically correct to call the query body "too
+  // much".
   await rep.mutate.addData({
     b: {id: 'bx3', x: 3},
   });
-  expect(queryCallCount).to.equal(4); // One for initial subscribe and one for the add.
+  expect(queryCallCount).to.equal(5); // One for initial subscribe and one for the add.
   expect(onDataCallCount).to.equal(4);
 
   cancel();

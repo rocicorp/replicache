@@ -185,7 +185,7 @@ export class Write {
       throw new Error('Not allowed');
     }
 
-    this.map = prolly.Map.new();
+    this.map = new prolly.Map([]);
     const ps = [];
     for (const idx of this.indexes.values()) {
       ps.push(idx.clear());
@@ -224,7 +224,7 @@ export class Write {
       }
     }
 
-    const indexMap = prolly.Map.new();
+    const indexMap = new prolly.Map([]);
     for (const entry of scanRaw(this.map, {
       prefix: keyPrefix,
       limit: undefined,
@@ -402,7 +402,7 @@ export async function initDB(
 ): Promise<string> {
   const w = new Write(
     dagWrite,
-    prolly.Map.new(),
+    new prolly.Map([]),
     undefined,
     {type: MetaType.Snapshot, lastMutationID: 0, cookie: null},
     new Map(),

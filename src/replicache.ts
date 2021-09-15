@@ -871,7 +871,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   }
 
   /**
-   * Subcribe to changes to the underlying data. Every time the underlying data
+   * Subscribe to changes to the underlying data. Every time the underlying data
    * changes `body` is called and if the result of `body` changes compared to
    * last time `onData` is called. The function is also called once the first
    * time the subscription is added.

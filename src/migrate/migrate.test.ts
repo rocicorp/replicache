@@ -17,7 +17,7 @@ setup(async () => {
 });
 
 async function testMigrate(
-  inputdata: Record<string, Value | Uint8Array>,
+  inputdata: Record<string, Uint8Array>,
   expected: Record<string, Value>,
 ): Promise<void> {
   const kv = new TestMemStore();

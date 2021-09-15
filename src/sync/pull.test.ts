@@ -15,7 +15,6 @@ import {
 } from '../db/test-helpers';
 import type {ReadonlyJSONValue} from '../json';
 import {MemStore} from '../kv/mod';
-import {arrayCompare} from '../prolly/array-compare';
 import type {PatchOperation, PullResponse} from '../puller';
 import type {
   BeginTryPullRequest,
@@ -35,6 +34,7 @@ import {
 } from './pull';
 import {LogContext} from '../logger';
 import {initHasher} from '../hash';
+import {stringCompare} from '../prolly/string-compare';
 
 setup(async () => {
   await initHasher();
@@ -478,12 +478,10 @@ test('begin try pull', async () => {
           db.whenceHash(syncHead.chunk.hash),
           read,
         );
-        const gotValueMap: [string, ReadonlyJSONValue][] = Array.from(
-          map.entries(),
-        );
-        gotValueMap.sort((a, b) => arrayCompare(a[0], b[0]));
+        const gotValueMap = Array.from(map.entries());
+        gotValueMap.sort((a, b) => stringCompare(a[0], b[0]));
         const expValueMap = Array.from(expSyncHead.valueMap);
-        expValueMap.sort((a, b) => arrayCompare(a[0], b[0]));
+        expValueMap.sort((a, b) => stringCompare(a[0], b[0]));
         expect(expValueMap.length).to.equal(gotValueMap.length);
 
         // Check we have the expected index definitions.

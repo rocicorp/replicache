@@ -61,12 +61,8 @@ class ReadImpl {
     return (await wrap(objectStore(this._tx).count(key))) > 0;
   }
 
-  async get(key: string): Promise<Value | undefined> {
-    const v = await wrap(objectStore(this._tx).get(key));
-    if (v instanceof Uint8Array) {
-      return v;
-    }
-    return v;
+  get(key: string): Promise<Value | undefined> {
+    return wrap(objectStore(this._tx).get(key));
   }
 
   release(): void {

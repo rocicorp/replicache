@@ -1,7 +1,6 @@
 import type {ReadonlyJSONValue} from '../json';
 
-// TODO(arv): Remove Uint8Array
-export type Value = Uint8Array | ReadonlyJSONValue;
+export type Value = ReadonlyJSONValue;
 
 /**
  * Store defines a transactional key/value store that Replicache stores all data
@@ -19,10 +18,10 @@ export type Value = Uint8Array | ReadonlyJSONValue;
  * @experimental This interface is experimental and might be removed or changed
  * in the future without following semver versioning. Please be cautious.
  */
-export interface Store {
-  read(): Promise<Read>;
+export interface Store<Value = ReadonlyJSONValue> {
+  read(): Promise<Read<Value>>;
   withRead<R>(f: (read: Read) => R | Promise<R>): Promise<R>;
-  write(): Promise<Write>;
+  write(): Promise<Write<Value>>;
   withWrite<R>(f: (write: Write) => R | Promise<R>): Promise<R>;
   close(): Promise<void>;
 }
@@ -42,7 +41,7 @@ export interface Release {
  * @experimental This interface is experimental and might be removed or changed
  * in the future without following semver versioning. Please be cautious.
  */
-export interface Read extends Release {
+export interface Read<Value = ReadonlyJSONValue> extends Release {
   has(key: string): Promise<boolean>;
   get(key: string): Promise<Value | undefined>;
 }
@@ -50,7 +49,7 @@ export interface Read extends Release {
 /**
  * @experimental
  */
-export interface Write extends Read {
+export interface Write<Value = ReadonlyJSONValue> extends Read<Value> {
   put(key: string, value: Value): Promise<void>;
   del(key: string): Promise<void>;
   commit(): Promise<void>;

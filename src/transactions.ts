@@ -85,7 +85,6 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
   }
 
   async get(key: string): Promise<Value | undefined> {
-    // TODO(arv): Change this to a non async function.
     throwIfClosed(this);
     return embed.get(this._transactionId, key, this._shouldClone) as
       | Value
@@ -93,7 +92,6 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
   }
 
   async has(key: string): Promise<boolean> {
-    // TODO(arv): Change this to a non async function.
     throwIfClosed(this);
     return embed.has(this._transactionId, key);
   }

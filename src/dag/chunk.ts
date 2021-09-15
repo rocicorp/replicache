@@ -4,7 +4,6 @@ import type {Value} from '../kv/store';
 
 type Refs = readonly string[];
 
-// TODO(arv): Make this class take a type parameter for the data type?
 export class Chunk<V extends Value = Value> {
   readonly hash: string;
   readonly data: V;

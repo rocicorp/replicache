@@ -15,7 +15,7 @@ test('has chunk', async () => {
     const k = 'present';
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
-      await kvw.put(chunkDataKey(k), new Uint8Array([0, 1]));
+      await kvw.put(chunkDataKey(k), [0, 1]);
       await kvw.commit();
     });
 

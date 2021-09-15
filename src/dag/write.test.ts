@@ -35,10 +35,6 @@ test('put chunk', async () => {
     });
   };
 
-  await t(new Uint8Array([]), []);
-  await t(new Uint8Array([0]), ['r1']);
-  await t(new Uint8Array([0, 1]), ['r1', 'r2']);
-
   await t(0, []);
   await t(42, []);
   await t(true, []);
@@ -176,7 +172,7 @@ test('commit rollback', async () => {
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
-      const c = Chunk.new(new Uint8Array([0, 1]), []);
+      const c = Chunk.new([0, 1], []);
       await w.putChunk(c);
 
       key = chunkDataKey(c.hash);
@@ -205,7 +201,7 @@ test('commit rollback', async () => {
 });
 
 test('roundtrip', async () => {
-  const t = async (name: string, data: Uint8Array, refs: string[]) => {
+  const t = async (name: string, data: Value, refs: string[]) => {
     const kv = new MemStore();
     const c = Chunk.new(data, refs);
     await kv.withWrite(async kvw => {
@@ -231,7 +227,15 @@ test('roundtrip', async () => {
     });
   };
 
-  await t('', new Uint8Array([]), []);
-  await t('n1', new Uint8Array([0]), ['r1']);
-  await t('n2', new Uint8Array([0, 1]), ['r1', 'r2']);
+  await t('', 0, []);
+  await t('n1', 1, ['r1']);
+  await t('n2', 42, ['r1', 'r2']);
+
+  await t('', true, []);
+  await t('', false, []);
+  await t('', [], []);
+  await t('', {}, []);
+  await t('', null, []);
+  await t('', [0], []);
+  await t('', {a: true}, []);
 });

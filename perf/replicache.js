@@ -14,7 +14,7 @@ import {makeRandomStrings} from './data.js';
 /**
  * @param {unknown} b
  */
-function assert(b) {
+export function assert(b) {
   // console.assert is not working inside playwright?
   if (!b) {
     throw new Error('Assertion failed');

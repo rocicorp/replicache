@@ -9,6 +9,7 @@ import {
   benchmarkSubscribeSetup,
 } from './replicache.js';
 import {benchmarkIDBRead, benchmarkIDBWrite} from './idb.js';
+import {benchmarks as lockBenchmarks} from './lock.ts';
 
 /**
  * @typedef {{
@@ -138,7 +139,7 @@ const benchmarks = [
   benchmarkSubscribeSetup({count: 10}),
   benchmarkSubscribeSetup({count: 100}),
   benchmarkSubscribeSetup({count: 1000}),
-];
+].concat(lockBenchmarks());
 
 for (let b of [benchmarkIDBRead, benchmarkIDBWrite]) {
   for (let numKeys of [1, 10, 100, 1000]) {

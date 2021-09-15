@@ -2,6 +2,7 @@
 
 import * as playwright from 'playwright';
 import {startDevServer} from '@web/dev-server';
+import {esbuildPlugin} from '@web/dev-server-esbuild';
 import getPort from 'get-port';
 import * as os from 'os';
 import * as path from 'path';
@@ -10,12 +11,18 @@ import {promises as fs} from 'fs';
 async function main() {
   const verbose = process.argv.includes('--verbose');
   const devtools = process.argv.includes('--devtools');
+  let groups = ['replicache'];
+  if (process.argv.includes('--lock')) {
+    groups = ['lock'];
+  }
   const port = await getPort();
   const server = await startDevServer({
     config: {
+      nodeResolve: true,
       rootDir: process.cwd(),
       port,
       watch: false,
+      plugins: [esbuildPlugin({ts: true})],
     },
     readCliArgs: false,
     readFileConfig: false,
@@ -58,10 +65,10 @@ async function main() {
     return;
   }
 
-  const replicacheBenchmarks = benchmarks.filter(
-    ({group}) => group === 'replicache',
+  const selectedBenchmarks = benchmarks.filter(({group}) =>
+    groups.includes(group),
   );
-  for (const benchmark of replicacheBenchmarks) {
+  for (const benchmark of selectedBenchmarks) {
     const testResult = await page.evaluate(
       // @ts-ignore
       // eslint-disable-next-line no-undef

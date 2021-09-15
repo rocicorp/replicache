@@ -18,15 +18,9 @@ export class Leaf {
 
   static load(chunk: Chunk): Leaf {
     // Validate at load-time so we can assume data is valid thereafter.
-    let entries: Entry[];
-    const data = chunk.data;
-    if (data instanceof Uint8Array) {
-      entries = entriesFromFlatbuffer(data);
-    } else {
-      // Assert that the shape/type is correct
-      assertEntries(data);
-      entries = data;
-    }
+    const entries = chunk.data;
+    // Assert that the shape/type is correct
+    assertEntries(entries);
 
     // But also assert that entries is sorted and has no duplicate keys.
     const seen = new Set();

@@ -204,14 +204,13 @@ function binarySearch(key: string, entries: ReadonlyArray<Entry>): number {
     // mid >= 0: by definition
     // mid < size: mid = size / 2 + size / 4 + size / 8 ...
     const entry = entries[mid];
-    // No way that key can be None.
     const cmp = stringCompare(entry[0], key);
     base = cmp > 0 ? base : mid;
     size -= half;
   }
+
   // base is always in [0, size) because base <= mid.
   const entry = entries[base];
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const cmp = stringCompare(entry[0], key);
   if (cmp === 0) {
     return base;

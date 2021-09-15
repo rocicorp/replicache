@@ -43,7 +43,7 @@ export class Index {
 
   clear(): Promise<void> {
     return this._rwLock.withWrite(() => {
-      this._map = prolly.Map.new();
+      this._map = new prolly.Map([]);
     });
   }
 }

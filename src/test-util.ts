@@ -74,7 +74,7 @@ type LogResponse = {
 
 export async function initializeNewTab(
   tabId: string,
-  path: string,
+  path: string | null,
   event: StorageEvent,
 ): Promise<void> {
   const send = (message: JSONObject) => {
@@ -93,7 +93,7 @@ export async function initializeNewTab(
   });
 
   let module: typeof import('./test-util');
-  if (path !== undefined) {
+  if (path) {
     try {
       module = await import('/' + path);
     } catch (e) {

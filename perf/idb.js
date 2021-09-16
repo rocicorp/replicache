@@ -1,6 +1,6 @@
-import {openDB, deleteDB} from '../node_modules/idb/with-async-ittr.js';
-import xbytes from '../node_modules/xbytes/dist/index.mjs';
-import {randomData} from './data.js';
+import {openDB, deleteDB} from '../node_modules/idb/with-async-ittr';
+import xbytes from '../node_modules/xbytes/dist/index';
+import {randomData} from './data';
 
 /**
  * @param {{dataType: import("./data").RandomDataType; group: string; valSize: number; numKeys: number;}} opts

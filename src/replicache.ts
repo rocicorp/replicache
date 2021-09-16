@@ -3,11 +3,7 @@ import type {JSONValue} from './json';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options';
 import {Pusher, PushError} from './pusher';
 import {Puller, PullError} from './puller';
-import type {
-  ChangedKeysMap,
-  OpenResponse,
-  OpenTransactionRequest,
-} from './repm-invoker';
+import type {ChangedKeysMap, OpenResponse, RebaseOpts} from './repm-invoker';
 import {
   CreateIndexDefinition,
   SubscriptionTransactionWrapper,
@@ -524,7 +520,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       options,
       async () => {
         const tx = new ReadTransactionImpl(this.name, this._openResponse);
-        await tx.open({});
+        await tx.open();
         return tx;
       },
       true, // shouldCloseTransaction
@@ -557,7 +553,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   ): Promise<void> {
     const tx = new IndexTransactionImpl(this.name, this._openResponse);
     try {
-      await tx.open({});
+      await tx.open();
       await f(tx);
     } finally {
       await tx.commit();
@@ -618,12 +614,14 @@ export class Replicache<MD extends MutatorDefs = {}>
         // no op
       };
     }
-    const res = await this._mutate(name, mutatorImpl, args, {
-      invokeArgs: {
-        rebaseOpts: {basis, original},
-      },
-      isReplay: true,
-    });
+    const res = await this._mutate(
+      name,
+      mutatorImpl,
+      args,
+      {basis, original},
+      true, // isReplay
+    );
+
     return res.ref;
   }
 
@@ -934,7 +932,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       this.name,
       this._openResponse,
     );
-    await tx.open({});
+    await tx.open();
     try {
       return await body(tx);
     } finally {
@@ -984,7 +982,15 @@ export class Replicache<MD extends MutatorDefs = {}>
     );
 
     return async (args?: Args): Promise<Return> =>
-      (await this._mutate(name, mutatorImpl, args, {isReplay: false})).result;
+      (
+        await this._mutate(
+          name,
+          mutatorImpl,
+          args,
+          undefined, // rebaseOpts
+          false, // isReplay
+        )
+      ).result;
   }
 
   private _registerMutators<
@@ -1004,19 +1010,9 @@ export class Replicache<MD extends MutatorDefs = {}>
     name: string,
     mutatorImpl: (tx: WriteTransaction, args?: A) => MaybePromise<R>,
     args: A | undefined,
-    {
-      invokeArgs,
-      isReplay,
-    }: {invokeArgs?: OpenTransactionRequest; isReplay: boolean},
+    rebaseOpts: RebaseOpts | undefined,
+    isReplay: boolean,
   ): Promise<{result: R; ref: string}> {
-    let actualInvokeArgs: OpenTransactionRequest = {
-      args: args === undefined ? null : args,
-      name,
-    };
-    if (invokeArgs !== undefined) {
-      actualInvokeArgs = {...actualInvokeArgs, ...invokeArgs};
-    }
-
     // Ensure that we run initial pending subscribe functions before starting a
     // write transaction.
     if (this._hasPendingSubscriptionRuns) {
@@ -1024,8 +1020,14 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
 
     let result: R;
-    const tx = new WriteTransactionImpl(this.name, this._openResponse);
-    await tx.open(actualInvokeArgs);
+    const tx = new WriteTransactionImpl(
+      this.name,
+      this._openResponse,
+      name,
+      args ?? null,
+      rebaseOpts,
+    );
+    await tx.open();
     try {
       result = await mutatorImpl(tx, args);
     } catch (ex) {

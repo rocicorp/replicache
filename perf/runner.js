@@ -87,7 +87,7 @@ async function main() {
   await fs.rm(userDataDir, {recursive: true});
 
   // context.close does not terminate! Give it a second.
-  Promise.race([context.close(), wait(1000)]);
+  await Promise.race([context.close(), wait(1000)]);
 }
 
 main().catch(err => {

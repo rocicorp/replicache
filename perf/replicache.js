@@ -1,7 +1,7 @@
 const valSize = 1024;
 
-import {Replicache} from '../out/replicache.mjs';
-import {makeRandomStrings} from './data.js';
+import {Replicache} from '../out/replicache';
+import {makeRandomStrings} from './data';
 
 /**
  * @typedef {import('./perf').Benchmark} Benchmark

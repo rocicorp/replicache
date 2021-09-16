@@ -7,9 +7,9 @@ import {
   benchmarkWriteReadRoundTrip,
   benchmarkSubscribe,
   benchmarkSubscribeSetup,
-} from './replicache.js';
-import {benchmarkIDBRead, benchmarkIDBWrite} from './idb.js';
-import {benchmarks as lockBenchmarks} from './lock.ts';
+} from './replicache';
+import {benchmarkIDBRead, benchmarkIDBWrite} from './idb';
+import {benchmarks as lockBenchmarks} from './lock';
 
 /**
  * @typedef {{
@@ -60,7 +60,7 @@ async function runBenchmark(benchmark, format) {
       },
       i,
     );
-    if (t1 == 0) {
+    if (t1 === 0) {
       t1 = performance.now();
     }
     const dur = t1 - t0;
@@ -139,7 +139,8 @@ const benchmarks = [
   benchmarkSubscribeSetup({count: 10}),
   benchmarkSubscribeSetup({count: 100}),
   benchmarkSubscribeSetup({count: 1000}),
-].concat(lockBenchmarks());
+  ...lockBenchmarks(),
+];
 
 for (let b of [benchmarkIDBRead, benchmarkIDBWrite]) {
   for (let numKeys of [1, 10, 100, 1000]) {
@@ -157,7 +158,7 @@ for (let b of [benchmarkIDBRead, benchmarkIDBWrite]) {
         10 * mb,
         100 * mb,
       ];
-      const group = dataType == 'arraybuffer' ? 'idb' : 'idb-extras';
+      const group = dataType === 'arraybuffer' ? 'idb' : 'idb-extras';
       for (let valSize of sizes) {
         if (valSize > 10 * mb) {
           if (numKeys > 1) {

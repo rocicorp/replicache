@@ -1,31 +1,9 @@
 import type {Puller} from './puller';
 import type {Pusher} from './pusher';
-import type * as kv from './kv/mod';
-import type * as dag from './dag/mod';
 import type * as db from './db/mod';
 import type {JSONValue} from './json';
 
-type OpenRequest = {
-  useMemstore: boolean;
-  store?: kv.Store;
-  dag?: dag.Store;
-};
 export type OpenResponse = string;
-
-type GetRequest = TransactionRequest & {
-  key: string;
-};
-type GetResponse = {
-  has?: boolean;
-  value: string;
-};
-
-type HasRequest = TransactionRequest & {
-  key: string;
-};
-type HasResponse = {
-  has: boolean;
-};
 
 type TransactionRequest = {
   transactionId: number;
@@ -41,15 +19,6 @@ export type ScanRequest = TransactionRequest & {
 };
 export type ScanResponse = unknown;
 
-type PutRequest = TransactionRequest & {
-  key: string;
-  value: string;
-};
-type PutResponse = unknown;
-
-type DelRequest = TransactionRequest & {key: string};
-type DelResponse = {ok: boolean};
-
 export type RebaseOpts = {
   basis: string;
   original: string;
@@ -60,19 +29,8 @@ export type OpenTransactionRequest = {
   args?: JSONValue;
   rebaseOpts?: RebaseOpts;
 };
-type OpenTransactionResponse = {
-  transactionId: number;
-};
 
-type OpenIndexTransactionRequest = unknown;
-type OpenIndexTransactionResponse = OpenTransactionResponse;
-
-type CloseTransactionRequest = TransactionRequest;
 export type CloseTransactionResponse = unknown;
-
-type CommitTransactionRequest = TransactionRequest & {
-  generateChangedKeys: boolean;
-};
 
 // The changed keys in different indexes. The key of the map is the index name.
 // "" is used for the primary index.
@@ -101,10 +59,6 @@ export type TryPushRequest = {
   pushAuth: string;
   schemaVersion: string;
   pusher: Pusher;
-};
-
-type TryPushResponse = {
-  httpRequestInfo?: HTTPRequestInfo;
 };
 
 export function assertHTTPRequestInfo(
@@ -147,83 +101,3 @@ export type MaybeEndPullResponse = {
   syncHead: string;
   changedKeys: ChangedKeysMap;
 };
-
-type SetLogLevelRequest = {level: 'debug' | 'info' | 'error'};
-
-type SetLogLevelResponse = unknown;
-
-type CreateIndexRequest = TransactionRequest & {
-  name: string;
-  keyPrefix: string;
-  jsonPointer: string;
-};
-
-type CreateIndexResponse = unknown;
-
-type DropIndexRequest = TransactionRequest & {
-  name: string;
-};
-
-type DropIndexResponse = unknown;
-
-export type InvokeMap = {
-  [RPC.Open]: [OpenRequest, OpenResponse];
-  [RPC.Get]: [GetRequest, GetResponse];
-  [RPC.Has]: [HasRequest, HasResponse];
-  [RPC.Scan]: [ScanRequest, ScanResponse];
-  [RPC.Put]: [PutRequest, PutResponse];
-  [RPC.Del]: [DelRequest, DelResponse];
-
-  [RPC.OpenTransaction]: [OpenTransactionRequest, OpenTransactionResponse];
-  [RPC.OpenIndexTransaction]: [
-    OpenIndexTransactionRequest,
-    OpenIndexTransactionResponse,
-  ];
-  [RPC.CloseTransaction]: [CloseTransactionRequest, CloseTransactionResponse];
-  [RPC.CommitTransaction]: [
-    CommitTransactionRequest,
-    CommitTransactionResponse,
-  ];
-
-  [RPC.BeginPull]: [BeginPullRequest, BeginPullResponse];
-  [RPC.MaybeEndPull]: [MaybeEndPullRequest, MaybeEndPullResponse];
-  [RPC.TryPush]: [TryPushRequest, TryPushResponse];
-
-  [RPC.SetLogLevel]: [SetLogLevelRequest, SetLogLevelResponse];
-
-  [RPC.CreateIndex]: [CreateIndexRequest, CreateIndexResponse];
-  [RPC.DropIndex]: [DropIndexRequest, DropIndexResponse];
-};
-
-type CloseResponse = '';
-
-type GetRootResponse = {
-  root: string;
-};
-
-export type InvokeMapNoArgs = {
-  [RPC.Close]: CloseResponse;
-  [RPC.GetRoot]: GetRootResponse;
-};
-
-export enum RPC {
-  BeginPull = 1,
-  Close,
-  CloseTransaction,
-  CommitTransaction,
-  CreateIndex,
-  Debug,
-  Del,
-  DropIndex,
-  Get,
-  GetRoot,
-  Has,
-  MaybeEndPull,
-  Open,
-  OpenIndexTransaction,
-  OpenTransaction,
-  Put,
-  Scan,
-  SetLogLevel,
-  TryPush,
-}

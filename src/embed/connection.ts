@@ -299,14 +299,7 @@ export async function commitTransaction(
   generateChangedKeys: boolean,
 ): Promise<CommitTransactionResponse> {
   isTesting && logCall('commitTransaction', generateChangedKeys);
-  return commitImpl(txn, lc, generateChangedKeys);
-}
 
-export async function commitImpl(
-  txn: db.Write,
-  lc: LogContext,
-  generateChangedKeys: boolean,
-): Promise<CommitTransactionResponse> {
   const start = Date.now();
   // const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'commitTransaction');

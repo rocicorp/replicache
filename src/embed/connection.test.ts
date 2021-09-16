@@ -4,7 +4,7 @@ import * as sync from '../sync/mod';
 import {MemStore} from '../kv/mem-store';
 import {addGenesis, addLocal, Chain} from '../db/test-helpers';
 import {addSyncSnapshot} from '../sync/test-helpers';
-import {commitImpl, openWriteTransactionImpl} from './connection';
+import {commitTransaction, openWriteTransactionImpl} from './connection';
 import {LogContext} from '../logger';
 import {initHasher} from '../hash';
 
@@ -115,7 +115,7 @@ test('open transaction rebase opts', async () => {
     },
   );
   const {txn} = otr;
-  const ctr = await commitImpl(txn, lc, false);
+  const ctr = await commitTransaction(txn, lc, false);
 
   await store.withWrite(async dagWrite => {
     const sync_head_hash = await dagWrite.read().getHead(sync.SYNC_HEAD_NAME);

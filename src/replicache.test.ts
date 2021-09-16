@@ -1548,7 +1548,7 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
     expect(l).to.deep.equal(log);
     const names = embed.testLog.map(({name}) => name);
     expect(names).to.deep.equal([
-      'openTransaction',
+      `openReadTransaction`,
       'scan',
       'closeTransaction',
     ]);
@@ -1939,7 +1939,9 @@ testWithBothStores('logLevel', async () => {
   expect(
     debug
       .getCalls()
-      .some(call => call.firstArg.includes('db=log-level rpc=openTransaction')),
+      .some(call =>
+        call.firstArg.includes('db=log-level rpc=openReadTransaction'),
+      ),
   ).to.equal(true);
   expect(
     debug.getCalls().some(call => call.firstArg.includes('PULL')),
@@ -2286,7 +2288,7 @@ testWithBothStores('push and pull concurrently', async () => {
 
   // Only one push at a time but we want push and pull to be concurrent.
   expect(rpcs()).to.deep.equal([
-    'openTransaction',
+    'openWriteTransaction',
     'put',
     'commitTransaction',
     'beginPull',
@@ -2303,7 +2305,7 @@ testWithBothStores('push and pull concurrently', async () => {
   expect(reqs).to.deep.equal([pullURL, pushURL]);
 
   expect(rpcs()).to.deep.equal([
-    'openTransaction',
+    'openWriteTransaction',
     'put',
     'commitTransaction',
     'beginPull',

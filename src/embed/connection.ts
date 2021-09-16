@@ -142,16 +142,26 @@ async function init(dagStore: dag.Store): Promise<void> {
   });
 }
 
-export async function openTransaction(
+export async function openReadTransaction(dbName: string): Promise<number> {
+  isTesting && logCall('openReadTransaction', dbName);
+  const {store, lc} = getConnection(dbName);
+  return openReadTransactionImpl(
+    lc.addContext('rpc', 'openReadTransaction'),
+    store,
+    transactionsMap,
+  );
+}
+
+export async function openWriteTransaction(
   dbName: string,
-  name: string | undefined,
-  args: JSONValue | undefined,
+  name: string,
+  args: ReadonlyJSONValue,
   rebaseOpts: RebaseOpts | undefined,
 ): Promise<number> {
-  isTesting && logCall('openTransaction', dbName, name, args, rebaseOpts);
+  isTesting && logCall('openWriteTransaction', dbName, name, args, rebaseOpts);
   const {store, lc} = getConnection(dbName);
-  return openTransactionImpl(
-    lc,
+  return openWriteTransactionImpl(
+    lc.addContext('rpc', 'openWriteTransaction'),
     store,
     transactionsMap,
     name,
@@ -160,59 +170,59 @@ export async function openTransaction(
   );
 }
 
-export async function openTransactionImpl(
+export async function openWriteTransactionImpl(
   lc: LogContext,
   store: dag.Store,
   transactions: Map<number, {txn: Transaction; lc: LogContext}>,
-  name: string | undefined,
-  args: ReadonlyJSONValue | undefined,
+  name: string,
+  args: ReadonlyJSONValue,
   rebaseOpts: RebaseOpts | undefined,
 ): Promise<number> {
   const start = Date.now();
-  lc = lc.addContext('rpc', 'openTransaction');
   lc.debug?.('->', store, transactions, name, args, rebaseOpts);
   let txn: Transaction;
 
-  if (name !== undefined) {
-    const mutatorName = name;
-    if (args === undefined) {
-      throw new Error('args are required');
+  const lockStart = Date.now();
+  lc.debug?.('Waiting for write lock...');
+
+  const dagWrite = await store.write();
+  lc.debug?.('...Write lock acquired in', Date.now() - lockStart, 'ms');
+  let ok = false;
+  try {
+    let whence: db.Whence | undefined;
+    let originalHash: string | null = null;
+    if (rebaseOpts === undefined) {
+      whence = db.whenceHead(db.DEFAULT_HEAD_NAME);
+    } else {
+      await validateRebase(rebaseOpts, dagWrite.read(), name, args);
+      whence = db.whenceHash(rebaseOpts.basis);
+      originalHash = rebaseOpts.original;
     }
 
-    const lockStart = Date.now();
-    lc.debug?.('Waiting for write lock...');
-
-    const dagWrite = await store.write();
-    lc.debug?.('...Write lock acquired in', Date.now() - lockStart, 'ms');
-    let ok = false;
-    try {
-      let whence: db.Whence | undefined;
-      let originalHash: string | null = null;
-      if (rebaseOpts === undefined) {
-        whence = db.whenceHead(db.DEFAULT_HEAD_NAME);
-      } else {
-        await validateRebase(rebaseOpts, dagWrite.read(), mutatorName, args);
-        whence = db.whenceHash(rebaseOpts.basis);
-        originalHash = rebaseOpts.original;
-      }
-
-      txn = await db.Write.newLocal(
-        whence,
-        mutatorName,
-        args,
-        originalHash,
-        dagWrite,
-      );
-      ok = true;
-    } finally {
-      if (!ok) {
-        dagWrite.close();
-      }
+    txn = await db.Write.newLocal(whence, name, args, originalHash, dagWrite);
+    ok = true;
+  } finally {
+    if (!ok) {
+      dagWrite.close();
     }
-  } else {
-    const dagRead = await store.read();
-    txn = await db.fromWhence(db.whenceHead(db.DEFAULT_HEAD_NAME), dagRead);
   }
+
+  const transactionID = transactionCounter++;
+  transactions.set(transactionID, {txn, lc});
+  lc.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', transactionID);
+  return transactionID;
+}
+
+export async function openReadTransactionImpl(
+  lc: LogContext,
+  store: dag.Store,
+  transactions: Map<number, {txn: Transaction; lc: LogContext}>,
+): Promise<number> {
+  const start = Date.now();
+  lc.debug?.('->', store, transactions);
+
+  const dagRead = await store.read();
+  const txn = await db.fromWhence(db.whenceHead(db.DEFAULT_HEAD_NAME), dagRead);
 
   const transactionID = transactionCounter++;
   transactions.set(transactionID, {txn, lc});

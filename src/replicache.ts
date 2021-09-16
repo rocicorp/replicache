@@ -1,4 +1,4 @@
-import {deepEqual, ReadonlyJSONValue} from './json';
+import {deepClone, deepEqual, ReadonlyJSONValue} from './json';
 import type {JSONValue} from './json';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options';
 import {Pusher, PushError} from './pusher';
@@ -1024,7 +1024,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       this.name,
       this._openResponse,
       name,
-      args ?? null,
+      deepClone(args ?? null),
       rebaseOpts,
     );
     await tx.open();

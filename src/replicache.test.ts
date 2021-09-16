@@ -3015,14 +3015,15 @@ function findPropertyValue(
   propertyValue: unknown,
 ): unknown | undefined {
   if (typeof obj === 'object' && obj !== null) {
+    const rec = obj as Record<string, unknown>;
+    if (rec[propertyName] === propertyValue) {
+      return rec;
+    }
+
     let values: Iterable<unknown>;
     if (obj instanceof Set || obj instanceof Map || obj instanceof Array) {
       values = obj.values();
     } else {
-      const rec = obj as Record<string, unknown>;
-      if (rec[propertyName] === propertyValue) {
-        return rec;
-      }
       values = Object.values(rec);
     }
     for (const v of values) {

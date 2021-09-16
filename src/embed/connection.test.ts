@@ -16,7 +16,6 @@ test('open transaction rebase opts', async () => {
   const store = new dag.Store(new MemStore());
   const lc = new LogContext();
 
-  const txns = new Map();
   const mainChain: Chain = [];
   await addGenesis(mainChain, store);
   await addLocal(mainChain, store);
@@ -36,7 +35,6 @@ test('open transaction rebase opts', async () => {
     result = await openWriteTransactionImpl(
       lc,
       store,
-      txns,
       originalName,
       originalArgs,
       {
@@ -57,7 +55,6 @@ test('open transaction rebase opts', async () => {
     result = await openWriteTransactionImpl(
       lc,
       store,
-      txns,
       'different',
       originalArgs,
       {
@@ -91,7 +88,6 @@ test('open transaction rebase opts', async () => {
     result = await openWriteTransactionImpl(
       lc,
       store,
-      txns,
       newLocalName,
       newLocalArgs,
       {
@@ -111,7 +107,6 @@ test('open transaction rebase opts', async () => {
   const otr = await openWriteTransactionImpl(
     lc,
     store,
-    txns,
     originalName,
     originalArgs,
     {
@@ -119,7 +114,8 @@ test('open transaction rebase opts', async () => {
       original: originalHash,
     },
   );
-  const ctr = await commitImpl(txns, otr, false);
+  const {txn} = otr;
+  const ctr = await commitImpl(txn, lc, false);
 
   await store.withWrite(async dagWrite => {
     const sync_head_hash = await dagWrite.read().getHead(sync.SYNC_HEAD_NAME);

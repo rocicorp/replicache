@@ -52,30 +52,28 @@ function getConnection(dbName: string) {
 }
 
 type Transaction = db.Write | db.Read;
-type TransactionsMap = Map<number, {txn: Transaction; lc: LogContext}>;
-const transactionsMap: TransactionsMap = new Map();
 
-function getTransaction(
-  transactionID: number,
-  map: TransactionsMap,
-): {txn: Transaction; lc: LogContext} {
-  const val = map.get(transactionID);
-  if (!val) {
-    throw new Error(`Transaction ${transactionID} is not open`);
-  }
-  return val;
-}
+// function getTransaction(
+//   transactionID: number,
+//   map: TransactionsMap,
+// ): {txn: Transaction; lc: LogContext} {
+//   const val = map.get(transactionID);
+//   if (!val) {
+//     throw new Error(`Transaction ${transactionID} is not open`);
+//   }
+//   return val;
+// }
 
-function getWriteTransaction(
-  transactionID: number,
-  map: TransactionsMap,
-): {txn: db.Write; lc: LogContext} {
-  const {txn, lc} = getTransaction(transactionID, map);
-  if (txn instanceof db.Read) {
-    throw new Error('Transaction is read-only');
-  }
-  return {txn, lc};
-}
+// function getWriteTransaction(
+//   transactionID: number,
+//   map: TransactionsMap,
+// ): {txn: db.Write; lc: LogContext} {
+//   const {txn, lc} = getTransaction(transactionID, map);
+//   if (txn instanceof db.Read) {
+//     throw new Error('Transaction is read-only');
+//   }
+//   return {txn, lc};
+// }
 
 export async function open(
   dbName: string,
@@ -142,13 +140,14 @@ async function init(dagStore: dag.Store): Promise<void> {
   });
 }
 
-export async function openReadTransaction(dbName: string): Promise<number> {
+export async function openReadTransaction(
+  dbName: string,
+): Promise<{id: number; txn: db.Read; lc: LogContext}> {
   isTesting && logCall('openReadTransaction', dbName);
   const {store, lc} = getConnection(dbName);
   return openReadTransactionImpl(
     lc.addContext('rpc', 'openReadTransaction'),
     store,
-    transactionsMap,
   );
 }
 
@@ -157,13 +156,12 @@ export async function openWriteTransaction(
   name: string,
   args: ReadonlyJSONValue,
   rebaseOpts: RebaseOpts | undefined,
-): Promise<number> {
+): Promise<{id: number; txn: db.Write; lc: LogContext}> {
   isTesting && logCall('openWriteTransaction', dbName, name, args, rebaseOpts);
   const {store, lc} = getConnection(dbName);
   return openWriteTransactionImpl(
     lc.addContext('rpc', 'openWriteTransaction'),
     store,
-    transactionsMap,
     name,
     args,
     rebaseOpts,
@@ -173,14 +171,13 @@ export async function openWriteTransaction(
 export async function openWriteTransactionImpl(
   lc: LogContext,
   store: dag.Store,
-  transactions: Map<number, {txn: Transaction; lc: LogContext}>,
   name: string,
   args: ReadonlyJSONValue,
   rebaseOpts: RebaseOpts | undefined,
-): Promise<number> {
+): Promise<{id: number; txn: db.Write; lc: LogContext}> {
   const start = Date.now();
-  lc.debug?.('->', store, transactions, name, args, rebaseOpts);
-  let txn: Transaction;
+  lc.debug?.('->', store, name, args, rebaseOpts);
+  let txn: db.Write;
 
   const lockStart = Date.now();
   lc.debug?.('Waiting for write lock...');
@@ -208,29 +205,28 @@ export async function openWriteTransactionImpl(
   }
 
   const transactionID = transactionCounter++;
-  transactions.set(transactionID, {txn, lc});
   lc.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', transactionID);
-  return transactionID;
+  return {id: transactionID, txn, lc};
 }
 
 export async function openReadTransactionImpl(
   lc: LogContext,
   store: dag.Store,
-  transactions: Map<number, {txn: Transaction; lc: LogContext}>,
-): Promise<number> {
+): Promise<{id: number; txn: db.Read; lc: LogContext}> {
   const start = Date.now();
-  lc.debug?.('->', store, transactions);
+  lc.debug?.('->', store);
 
   const dagRead = await store.read();
   const txn = await db.fromWhence(db.whenceHead(db.DEFAULT_HEAD_NAME), dagRead);
 
   const transactionID = transactionCounter++;
-  transactions.set(transactionID, {txn, lc});
   lc.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', transactionID);
-  return transactionID;
+  return {id: transactionID, txn, lc};
 }
 
-export async function openIndexTransaction(dbName: string): Promise<number> {
+export async function openIndexTransaction(
+  dbName: string,
+): Promise<{id: number; txn: db.Write; lc: LogContext}> {
   const start = Date.now();
   isTesting && logCall('openIndexTransaction', dbName);
 
@@ -261,9 +257,8 @@ export async function openIndexTransaction(dbName: string): Promise<number> {
       dagWrite.close();
     }
   }
-  transactionsMap.set(transactionID, {txn, lc});
   lc.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', transactionID);
-  return transactionID;
+  return {id: transactionID, txn, lc};
 }
 
 async function validateRebase(
@@ -310,23 +305,23 @@ async function validateRebase(
 }
 
 export async function commitTransaction(
-  transactionID: number,
+  txn: db.Write,
+  lc: LogContext,
   generateChangedKeys: boolean,
 ): Promise<CommitTransactionResponse> {
-  isTesting && logCall('commitTransaction', transactionID, generateChangedKeys);
-  return commitImpl(transactionsMap, transactionID, generateChangedKeys);
+  isTesting && logCall('commitTransaction', generateChangedKeys);
+  return commitImpl(txn, lc, generateChangedKeys);
 }
 
 export async function commitImpl(
-  transactionsMap: TransactionsMap,
-  transactionID: number,
+  txn: db.Write,
+  lc: LogContext,
   generateChangedKeys: boolean,
 ): Promise<CommitTransactionResponse> {
   const start = Date.now();
-  const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
+  // const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'commitTransaction');
   lc2.debug?.('->', generateChangedKeys);
-  transactionsMap.delete(transactionID);
 
   if (txn instanceof db.Read) {
     throw new Error('Transaction is read-only');
@@ -348,15 +343,17 @@ export async function commitImpl(
   return {ref: hash, changedKeys};
 }
 
-export async function closeTransaction(transactionID: number): Promise<void> {
+export async function closeTransaction(
+  txn: db.Read,
+  lc: LogContext,
+): Promise<void> {
   const start = Date.now();
-  isTesting && logCall('closeTransaction', transactionID);
+  isTesting && logCall('closeTransaction');
 
-  const {txn, lc} = getTransaction(transactionID, transactionsMap);
+  // const {txn, lc} = getTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'closeTransaction');
   lc2.debug?.('->');
   txn.close();
-  transactionsMap.delete(transactionID);
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
@@ -376,11 +373,10 @@ export async function getRoot(
   return result;
 }
 
-export function has(transactionID: number, key: string): boolean {
+export function has(txn: Transaction, lc: LogContext, key: string): boolean {
   const start = Date.now();
-  isTesting && logCall('has', transactionID, key);
+  isTesting && logCall('has', txn, lc, key);
 
-  const {txn, lc} = getTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'has');
   lc2.debug?.('->', key);
   const result = txn.asRead().has(key);
@@ -389,14 +385,14 @@ export function has(transactionID: number, key: string): boolean {
 }
 
 export function get(
-  transactionID: number,
+  txn: Transaction,
+  lc: LogContext,
   key: string,
   shouldClone: boolean,
 ): ReadonlyJSONValue | JSONValue | undefined {
   const start = Date.now();
-  isTesting && logCall('get', transactionID, key);
+  isTesting && logCall('get', txn, lc, key, shouldClone);
 
-  const {txn, lc} = getTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'get');
   lc2.debug?.('->', key);
   const value = txn.asRead().get(key);
@@ -407,7 +403,8 @@ export function get(
 }
 
 export async function scan(
-  transactionID: number,
+  txn: Transaction,
+  lc: LogContext,
   scanOptions: db.ScanOptions,
   receiver: (
     primaryKey: string,
@@ -417,9 +414,8 @@ export async function scan(
   shouldClone: boolean,
 ): Promise<void> {
   const start = Date.now();
-  isTesting && logCall('scan', transactionID, scanOptions, receiver);
+  isTesting && logCall('scan', txn, lc, scanOptions, receiver, shouldClone);
 
-  const {txn, lc} = getTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'scan');
   lc2.debug?.('->', scanOptions);
   await txn.asRead().scan(scanOptions, sr => {
@@ -434,14 +430,14 @@ export async function scan(
 }
 
 export async function put(
-  transactionID: number,
+  txn: db.Write,
+  lc: LogContext,
   key: string,
   value: JSONValue,
 ): Promise<void> {
   const start = Date.now();
-  isTesting && logCall('put', transactionID, key, value);
+  isTesting && logCall('put', txn, lc, key, value);
 
-  const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'put');
   lc2.debug?.('->', key, value);
   await txn.put(lc2, key, deepClone(value));
@@ -449,13 +445,13 @@ export async function put(
 }
 
 export async function del(
-  transactionID: number,
+  txn: db.Write,
+  lc: LogContext,
   key: string,
 ): Promise<boolean> {
   const start = Date.now();
-  isTesting && logCall('del', transactionID, key);
+  isTesting && logCall('del', txn, lc, key);
 
-  const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'del');
   lc2.debug?.('->', key);
   const had = await txn.asRead().has(key);
@@ -465,15 +461,14 @@ export async function del(
 }
 
 export async function createIndex(
-  transactionID: number,
+  txn: db.Write,
+  lc: LogContext,
   name: string,
   keyPrefix: string,
   jsonPointer: string,
 ): Promise<void> {
   const start = Date.now();
-  isTesting &&
-    logCall('createIndex', transactionID, name, keyPrefix, jsonPointer);
-  const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
+  isTesting && logCall('createIndex', txn, lc, name, keyPrefix, jsonPointer);
   const lc2 = lc.addContext('rpc', 'createIndex');
   lc2.debug?.('->', name, keyPrefix, jsonPointer);
   await txn.createIndex(lc, name, keyPrefix, jsonPointer);
@@ -481,13 +476,13 @@ export async function createIndex(
 }
 
 export async function dropIndex(
-  transactionID: number,
+  txn: db.Write,
+  lc: LogContext,
   name: string,
 ): Promise<void> {
   const start = Date.now();
-  isTesting && logCall('dropIndex', transactionID, name);
+  isTesting && logCall('dropIndex', txn, lc, name);
 
-  const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'dropIndex');
   lc2.debug?.('->', name);
   await txn.dropIndex(name);

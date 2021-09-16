@@ -1077,9 +1077,11 @@ export class ReplicacheTest<
 
 const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';
 
-async function closeIgnoreError<Value extends ReadonlyJSONValue>(
-  tx: ReadTransactionImpl<Value>,
-) {
+interface Closer {
+  close(): Promise<void>;
+}
+
+async function closeIgnoreError(tx: Closer) {
   try {
     await tx.close();
   } catch (ex) {

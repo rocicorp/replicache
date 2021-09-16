@@ -1,9 +1,5 @@
 import type {JSONValue, ReadonlyJSONValue} from './json';
-import type {
-  CommitTransactionResponse,
-  CloseTransactionResponse,
-  RebaseOpts,
-} from './repm-invoker';
+import type {CommitTransactionResponse, RebaseOpts} from './repm-invoker';
 import {
   KeyTypeForScanOptions,
   ScanOptions,
@@ -13,6 +9,8 @@ import {ScanResult} from './scan-iterator';
 import {throwIfClosed} from './transaction-closed-error';
 import * as embed from './embed/mod';
 import type * as db from './db/mod';
+import type {LogContext} from './logger';
+import {assertNotUndefined} from './asserts';
 
 /**
  * ReadTransactions are used with [[Replicache.query]] and
@@ -72,6 +70,9 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
   protected readonly _openResponse: Promise<unknown>;
   protected readonly _shouldClone: boolean = false;
 
+  protected _transaction: db.Read | db.Write | undefined = undefined;
+  protected _lc: LogContext | undefined = undefined;
+
   constructor(dbName: string, openResponse: Promise<unknown>) {
     this._dbName = dbName;
     this._openResponse = openResponse;
@@ -79,22 +80,28 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
 
   async get(key: string): Promise<Value | undefined> {
     throwIfClosed(this);
-    return embed.get(this._transactionId, key, this._shouldClone) as
+    assertNotUndefined(this._transaction);
+    assertNotUndefined(this._lc);
+    return embed.get(this._transaction, this._lc, key, this._shouldClone) as
       | Value
       | undefined;
   }
 
   async has(key: string): Promise<boolean> {
     throwIfClosed(this);
-    return embed.has(this._transactionId, key);
+    assertNotUndefined(this._transaction);
+    assertNotUndefined(this._lc);
+    return embed.has(this._transaction, this._lc, key);
   }
 
   async isEmpty(): Promise<boolean> {
     throwIfClosed(this);
-
+    assertNotUndefined(this._transaction);
+    assertNotUndefined(this._lc);
     let empty = true;
     await embed.scan(
-      this._transactionId,
+      this._transaction,
+      this._lc,
       {limit: 1},
       () => (empty = false),
       false, // shouldClone
@@ -123,12 +130,27 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
 
   async open(): Promise<void> {
     await this._openResponse;
-    this._transactionId = await embed.openReadTransaction(this._dbName);
+    const {id, txn, lc} = await embed.openReadTransaction(this._dbName);
+    this._transactionId = id;
+    this._transaction = txn;
+    this._lc = lc;
   }
 
-  async close(): Promise<CloseTransactionResponse> {
+  async close(): Promise<void> {
     this._closed = true;
-    return await embed.closeTransaction(this._transactionId);
+    assertNotUndefined(this._transaction);
+    assertNotUndefined(this._lc);
+    return await embed.closeTransaction(this._transaction.asRead(), this._lc);
+  }
+
+  lc(): LogContext {
+    assertNotUndefined(this._lc);
+    return this._lc;
+  }
+
+  dbTxn(): db.Read | db.Write {
+    assertNotUndefined(this._transaction);
+    return this._transaction;
   }
 }
 
@@ -216,6 +238,8 @@ export class WriteTransactionImpl
   private readonly _args: JSONValue;
   private readonly _rebaseOpts: RebaseOpts | undefined;
 
+  protected _transaction: db.Write | undefined = undefined;
+
   constructor(
     dbName: string,
     openResponse: Promise<unknown>,
@@ -231,29 +255,42 @@ export class WriteTransactionImpl
 
   async put(key: string, value: JSONValue): Promise<void> {
     throwIfClosed(this);
-    await embed.put(this.id, key, value);
+    assertNotUndefined(this._transaction);
+    assertNotUndefined(this._lc);
+    await embed.put(this._transaction, this._lc, key, value);
   }
 
   async del(key: string): Promise<boolean> {
     throwIfClosed(this);
-    return await embed.del(this.id, key);
+    assertNotUndefined(this._transaction);
+    assertNotUndefined(this._lc);
+    return await embed.del(this._transaction, this._lc, key);
   }
 
   async commit(
     generateChangedKeys: boolean,
   ): Promise<CommitTransactionResponse> {
     this._closed = true;
-    return await embed.commitTransaction(this.id, generateChangedKeys);
+    assertNotUndefined(this._transaction);
+    assertNotUndefined(this._lc);
+    return await embed.commitTransaction(
+      this._transaction,
+      this._lc,
+      generateChangedKeys,
+    );
   }
 
   async open(): Promise<void> {
     await this._openResponse;
-    this._transactionId = await embed.openWriteTransaction(
+    const {id, txn, lc} = await embed.openWriteTransaction(
       this._dbName,
       this._name,
       this._args,
       this._rebaseOpts,
     );
+    this._transactionId = id;
+    this._transaction = txn;
+    this._lc = lc;
   }
 }
 
@@ -309,10 +346,15 @@ export class IndexTransactionImpl
   extends ReadTransactionImpl<ReadonlyJSONValue>
   implements IndexTransaction
 {
+  protected _transaction: db.Write | undefined = undefined;
+
   async createIndex(options: CreateIndexDefinition): Promise<void> {
     throwIfClosed(this);
+    assertNotUndefined(this._transaction);
+    assertNotUndefined(this._lc);
     await embed.createIndex(
-      this.id,
+      this._transaction,
+      this._lc,
       options.name,
       options.prefix ?? options.keyPrefix ?? '',
       options.jsonPointer,
@@ -321,16 +363,23 @@ export class IndexTransactionImpl
 
   async dropIndex(name: string): Promise<void> {
     throwIfClosed(this);
-    await embed.dropIndex(this.id, name);
+    assertNotUndefined(this._transaction);
+    assertNotUndefined(this._lc);
+    await embed.dropIndex(this._transaction, this._lc, name);
   }
 
   async commit(): Promise<CommitTransactionResponse> {
     this._closed = true;
-    return await embed.commitTransaction(this.id, false);
+    assertNotUndefined(this._transaction);
+    assertNotUndefined(this._lc);
+    return await embed.commitTransaction(this._transaction, this._lc, false);
   }
 
   async open(): Promise<void> {
     await this._openResponse;
-    this._transactionId = await embed.openIndexTransaction(this._dbName);
+    const {id, txn, lc} = await embed.openIndexTransaction(this._dbName);
+    this._transactionId = id;
+    this._transaction = txn;
+    this._lc = lc;
   }
 }

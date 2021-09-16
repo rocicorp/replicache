@@ -16,6 +16,7 @@ import {benchmarks as lockBenchmarks} from './lock';
  *   name: string;
  *   group: string;
  *   byteSize?: number;
+ *   skip?: () => Promise<boolean> | boolean;
  *   setup?: () => Promise<void> | void;
  *   teardown?: () => Promise<void> | void;
  *   run: (b: Bencher, i: number) => Promise<void> | void;
@@ -41,6 +42,10 @@ async function runBenchmark(benchmark, format) {
   /** @type number[] */
   const times = [];
   let sum = 0;
+
+  if (benchmark.skip && (await benchmark.skip())) {
+    return;
+  }
 
   if (benchmark.setup) {
     await benchmark.setup();

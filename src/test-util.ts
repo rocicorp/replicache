@@ -59,6 +59,13 @@ export function defineTestFunctions(self: Window & typeof globalThis): void {
   }
 }
 
+export function isFirefox(): boolean {
+  return true;
+  console.error('Calling isFirefox', navigator.userAgent);
+  console.log('Calling isFirefox', navigator.userAgent);
+  return /firefox/i.test(navigator.userAgent);
+}
+
 defineTestFunctions(self);
 
 type Response = {

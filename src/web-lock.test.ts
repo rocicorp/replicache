@@ -1,12 +1,8 @@
 import 'navigator.locks';
 import {expect} from '@esm-bundle/chai';
-import {newTab, Tab} from './test-util';
+import {newTab, Tab, isFirefox} from './test-util';
 
 let tab: Tab;
-
-function isFirefox(): boolean {
-  return /firefox/i.test(navigator.userAgent);
-}
 
 suiteSetup(async () => {
   // TODO(nate): Debug why tests don't work with `noopener` on Firefox.

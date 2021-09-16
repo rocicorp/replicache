@@ -212,14 +212,10 @@ function findBenchmarks(groups) {
   return benchmarks.filter(b => groups.includes(b.group));
 }
 
-// @ts-ignore
 window.benchmarks = benchmarks;
-// @ts-ignore
 window.findBenchmarks = findBenchmarks;
-// @ts-ignore
 window.runBenchmarkByNameAndGroup = runBenchmarkByNameAndGroup;
 
-// @ts-ignore
 window.runAll = async function (groups) {
   const out = /** @type {HTMLPreElement} */ (
     /** @type {unknown} */ document.getElementById('out')

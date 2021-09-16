@@ -84,9 +84,7 @@ export function benchmarkReadTransaction(opts) {
       await this.rep.query(async (/** @type ReadTransaction */ tx) => {
         for (let i = 0; i < opts.numKeys; i++) {
           // use the values to be confident we're not optimizing away.
-          // @ts-ignore
           getCount += (await tx.get(`key${i}`)).length;
-          // @ts-ignore
           hasCount = (await tx.has(`key${i}`)) === true ? 1 : 0;
         }
       });
@@ -122,7 +120,6 @@ export function benchmarkScan(opts) {
         let count = 0;
         for await (const value of tx.scan()) {
           // use the value to be confident we're not optimizing away.
-          // @ts-ignore
           count += value.length;
         }
         console.log(count);
@@ -256,7 +253,6 @@ export function benchmarkWriteReadRoundTrip() {
  */
 export function sleep(ms) {
   return new Promise(resolve => {
-    // @ts-ignore
     setTimeout(() => resolve(), ms);
   });
 }

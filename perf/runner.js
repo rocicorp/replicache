@@ -70,7 +70,6 @@ async function main() {
   );
   for (const benchmark of selectedBenchmarks) {
     const testResult = await page.evaluate(
-      // @ts-ignore
       // eslint-disable-next-line no-undef
       ({name, group}) => runBenchmarkByNameAndGroup(name, group),
       benchmark,

@@ -12,8 +12,7 @@ import type {
   TryPushRequest,
 } from '../repm-invoker';
 import {ReadonlyJSONValue, JSONValue, deepClone} from '../json';
-import {LogContext} from '../logger';
-import type {LogLevel} from '../logger';
+import type {LogContext} from '../logger';
 import {migrate} from '../migrate/migrate';
 
 // TODO(arv): Use esbuild --define:TESTING=false
@@ -34,10 +33,7 @@ function logCall(name: string, ...args: unknown[]): void {
   testLog.push({name, args});
 }
 
-type ConnectionMap = Map<
-  string,
-  {store: dag.Store; clientID: string; lc: LogContext}
->;
+type ConnectionMap = Map<string, {store: dag.Store; clientID: string}>;
 
 const connections: ConnectionMap = new Map();
 
@@ -78,15 +74,13 @@ type Transaction = db.Write | db.Read;
 export async function open(
   dbName: string,
   kvStore: kv.Store,
-  level: LogLevel,
+  lc: LogContext,
 ): Promise<string> {
   const start = Date.now();
   isTesting && logCall('open', dbName);
 
-  const lc = new LogContext(level).addContext('db', dbName);
-
   const lc2 = lc.addContext('rpc', 'open');
-  lc2.debug?.('->', kvStore, level);
+  lc2.debug?.('->', kvStore);
 
   if (dbName === '') {
     throw new Error('dbName must be non-empty');
@@ -110,12 +104,12 @@ export async function open(
   // TODO(arv): Maybe store an opened promise too and let all embed calls wait
   // for it.
 
-  connections.set(dbName, {store: dagStore, clientID, lc});
+  connections.set(dbName, {store: dagStore, clientID});
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', clientID);
   return clientID;
 }
 
-export async function close(dbName: string): Promise<void> {
+export async function close(dbName: string, lc: LogContext): Promise<void> {
   const start = Date.now();
   isTesting && logCall('close', dbName);
 
@@ -123,7 +117,7 @@ export async function close(dbName: string): Promise<void> {
   if (!connection) {
     return;
   }
-  const lc = connection.lc.addContext('rpc', 'close');
+  lc = lc.addContext('rpc', 'close');
   lc.debug?.('->');
   const {store} = connection;
   await store.close();
@@ -142,9 +136,10 @@ async function init(dagStore: dag.Store): Promise<void> {
 
 export async function openReadTransaction(
   dbName: string,
-): Promise<{id: number; txn: db.Read; lc: LogContext}> {
+  lc: LogContext,
+): Promise<{id: number; txn: db.Read}> {
   isTesting && logCall('openReadTransaction', dbName);
-  const {store, lc} = getConnection(dbName);
+  const {store} = getConnection(dbName);
   return openReadTransactionImpl(
     lc.addContext('rpc', 'openReadTransaction'),
     store,
@@ -156,16 +151,11 @@ export async function openWriteTransaction(
   name: string,
   args: ReadonlyJSONValue,
   rebaseOpts: RebaseOpts | undefined,
+  lc: LogContext,
 ): Promise<{id: number; txn: db.Write; lc: LogContext}> {
   isTesting && logCall('openWriteTransaction', dbName, name, args, rebaseOpts);
-  const {store, lc} = getConnection(dbName);
-  return openWriteTransactionImpl(
-    lc.addContext('rpc', 'openWriteTransaction'),
-    store,
-    name,
-    args,
-    rebaseOpts,
-  );
+  const {store} = getConnection(dbName);
+  return openWriteTransactionImpl(lc, store, name, args, rebaseOpts);
 }
 
 export async function openWriteTransactionImpl(
@@ -226,6 +216,7 @@ export async function openReadTransactionImpl(
 
 export async function openIndexTransaction(
   dbName: string,
+  lc: LogContext,
 ): Promise<{id: number; txn: db.Write; lc: LogContext}> {
   const start = Date.now();
   isTesting && logCall('openIndexTransaction', dbName);
@@ -233,9 +224,7 @@ export async function openIndexTransaction(
   const transactionID = transactionCounter++;
   const connection = getConnection(dbName);
 
-  const lc = connection.lc
-    .addContext('rpc', 'openIndexTransaction')
-    .addContext('txid', transactionID);
+  lc = lc.addContext('txid', transactionID);
   lc.debug?.('->');
   const {store} = connection;
 
@@ -357,15 +346,13 @@ export async function closeTransaction(
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
-export async function getRoot(
-  dbName: string,
-  headName: string = db.DEFAULT_HEAD_NAME,
-): Promise<string> {
+export async function getRoot(dbName: string, lc: LogContext): Promise<string> {
   const start = Date.now();
-  isTesting && logCall('getRoot', dbName, headName);
+  isTesting && logCall('getRoot', dbName);
 
-  // TODO(arv): I don't think we ever call this with a headName.
-  const {store, lc} = getConnection(dbName);
+  const headName = db.DEFAULT_HEAD_NAME;
+
+  const {store} = getConnection(dbName);
   const lc2 = lc.addContext('rpc', 'getRoot');
   lc2.debug?.('->', headName);
   const result = await db.getRoot(store, headName);
@@ -493,12 +480,13 @@ export async function maybeEndPull(
   dbName: string,
   requestID: string,
   syncHead: string,
+  lc: LogContext,
 ): Promise<MaybeEndPullResponse> {
   const start = Date.now();
   isTesting && logCall('maybeEndPull', dbName, requestID, syncHead);
 
   const connection = getConnection(dbName);
-  const {store, lc} = connection;
+  const {store} = connection;
   const lc2 = lc
     .addContext('rpc', 'maybeEndPull')
     .addContext('request_id', requestID);
@@ -511,12 +499,13 @@ export async function maybeEndPull(
 export async function tryPush(
   dbName: string,
   req: TryPushRequest,
+  lc: LogContext,
 ): Promise<HTTPRequestInfo | undefined> {
   const start = Date.now();
   isTesting && logCall('tryPush', dbName, req);
 
   const connection = getConnection(dbName);
-  const {clientID, store, lc} = connection;
+  const {clientID, store} = connection;
   const requestID = sync.newRequestID(clientID);
   const lc2 = lc
     .addContext('rpc', 'tryPush')
@@ -538,12 +527,13 @@ export async function tryPush(
 export async function beginPull(
   dbName: string,
   req: BeginPullRequest,
+  lc: LogContext,
 ): Promise<BeginPullResponse> {
   const start = Date.now();
   isTesting && logCall('beginPull', dbName, req);
 
   const connection = getConnection(dbName);
-  const {clientID, store, lc} = connection;
+  const {clientID, store} = connection;
   const requestID = sync.newRequestID(clientID);
   const lc2 = lc
     .addContext('rpc', 'beginPull')

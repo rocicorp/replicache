@@ -13,8 +13,8 @@ import {ReadTransactionImpl, WriteTransactionImpl} from './transactions';
 import {ScanResult} from './scan-iterator';
 import type {ReadTransaction, WriteTransaction} from './transactions';
 import {ConnectionLoop, MAX_DELAY_MS, MIN_DELAY_MS} from './connection-loop';
-import {getLogger} from './logger';
-import type {Logger, LogLevel} from './logger';
+import {getLogger, LogContext} from './logger';
+import type {Logger} from './logger';
 import {defaultPuller} from './puller';
 import {defaultPusher} from './pusher';
 import {resolver} from './resolver';
@@ -136,7 +136,6 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   private _closed = false;
   private _online = true;
-  private readonly _logLevel: LogLevel;
   private readonly _logger: Logger;
   private readonly _openResponse: Promise<OpenResponse>;
   private readonly _openResolve: (resp: OpenResponse) => void;
@@ -191,6 +190,7 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   private readonly _store: kv.Store;
   private _hasPendingSubscriptionRuns = false;
+  private readonly _lc: LogContext;
 
   /**
    * The options used to control the [[pull]] and push request behavior. This
@@ -304,10 +304,11 @@ export class Replicache<MD extends MutatorDefs = {}>
       ),
     );
 
-    this._logLevel = logLevel;
     this._logger = getLogger([], logLevel);
 
     this.mutate = this._registerMutators(mutators);
+
+    this._lc = new LogContext(logLevel).addContext('db', name);
 
     this._clientIDPromise = this._open();
   }
@@ -319,11 +320,7 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     await initHasher();
 
-    const openResponse = await embed.open(
-      this.name,
-      this._store,
-      this._logLevel,
-    );
+    const openResponse = await embed.open(this.name, this._store, this._lc);
     this._openResolve(openResponse);
 
     if (hasBroadcastChannel) {
@@ -388,7 +385,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     const {promise, resolve} = resolver();
     closingInstances.set(this.name, promise);
     await this._openResponse;
-    const p = embed.close(this.name);
+    const p = embed.close(this.name, this._lc);
 
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
@@ -416,7 +413,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       return undefined;
     }
     await this._openResponse;
-    return await embed.getRoot(this.name);
+    return await embed.getRoot(this.name, this._lc);
   }
 
   private _onStorage = (e: StorageEvent) => {
@@ -519,7 +516,11 @@ export class Replicache<MD extends MutatorDefs = {}>
     return new ScanResult<Key>(
       options,
       async () => {
-        const tx = new ReadTransactionImpl(this.name, this._openResponse);
+        const tx = new ReadTransactionImpl(
+          this.name,
+          this._openResponse,
+          this._lc,
+        );
         await tx.open();
         return tx;
       },
@@ -551,7 +552,11 @@ export class Replicache<MD extends MutatorDefs = {}>
   private async _indexOp(
     f: (tx: IndexTransactionImpl) => Promise<void>,
   ): Promise<void> {
-    const tx = new IndexTransactionImpl(this.name, this._openResponse);
+    const tx = new IndexTransactionImpl(
+      this.name,
+      this._openResponse,
+      this._lc,
+    );
     try {
       await tx.open();
       await f(tx);
@@ -574,6 +579,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       this.name,
       requestID,
       syncHead,
+      this._lc,
     );
     if (!replayMutations || replayMutations.length === 0) {
       // All done.
@@ -683,12 +689,16 @@ export class Replicache<MD extends MutatorDefs = {}>
       try {
         this._changeSyncCounters(1, 0);
         await this._openResponse;
-        pushResponse = await embed.tryPush(this.name, {
-          pushURL: this.pushURL,
-          pushAuth: this.auth,
-          schemaVersion: this.schemaVersion,
-          pusher: this.pusher,
-        });
+        pushResponse = await embed.tryPush(
+          this.name,
+          {
+            pushURL: this.pushURL,
+            pushAuth: this.auth,
+            schemaVersion: this.schemaVersion,
+            pusher: this.pusher,
+          },
+          this._lc,
+        );
       } finally {
         this._changeSyncCounters(-1, 0);
       }
@@ -752,12 +762,16 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
     await this._openResponse;
-    const beginPullResponse = await embed.beginPull(this.name, {
-      pullAuth: this.auth,
-      pullURL: this.pullURL,
-      schemaVersion: this.schemaVersion,
-      puller: this.puller,
-    });
+    const beginPullResponse = await embed.beginPull(
+      this.name,
+      {
+        pullAuth: this.auth,
+        pullURL: this.pullURL,
+        schemaVersion: this.schemaVersion,
+        puller: this.puller,
+      },
+      this._lc,
+    );
 
     const {httpRequestInfo, syncHead, requestID} = beginPullResponse;
 
@@ -931,6 +945,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     const tx = new ReadTransactionImpl<ReadonlyJSONValue>(
       this.name,
       this._openResponse,
+      this._lc,
     );
     await tx.open();
     try {
@@ -1026,6 +1041,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       name,
       deepClone(args ?? null),
       rebaseOpts,
+      this._lc,
     );
     await tx.open();
     try {

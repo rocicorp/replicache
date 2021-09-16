@@ -71,11 +71,17 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
   protected readonly _shouldClone: boolean = false;
 
   protected _transaction: db.Read | db.Write | undefined = undefined;
-  protected _lc: LogContext | undefined = undefined;
+  protected readonly _lc: LogContext;
 
-  constructor(dbName: string, openResponse: Promise<unknown>) {
+  constructor(
+    dbName: string,
+    openResponse: Promise<unknown>,
+    lc: LogContext,
+    rpcName = 'openReadTransaction',
+  ) {
     this._dbName = dbName;
     this._openResponse = openResponse;
+    this._lc = lc.addContext('rpc', rpcName);
   }
 
   async get(key: string): Promise<Value | undefined> {
@@ -130,21 +136,18 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
 
   async open(): Promise<void> {
     await this._openResponse;
-    const {id, txn, lc} = await embed.openReadTransaction(this._dbName);
+    const {id, txn} = await embed.openReadTransaction(this._dbName, this._lc);
     this._transactionId = id;
     this._transaction = txn;
-    this._lc = lc;
   }
 
   async close(): Promise<void> {
     this._closed = true;
     assertNotUndefined(this._transaction);
-    assertNotUndefined(this._lc);
     return await embed.closeTransaction(this._transaction.asRead(), this._lc);
   }
 
   lc(): LogContext {
-    assertNotUndefined(this._lc);
     return this._lc;
   }
 
@@ -246,8 +249,9 @@ export class WriteTransactionImpl
     name: string,
     args: JSONValue,
     rebaseOpts: RebaseOpts | undefined,
+    lc: LogContext,
   ) {
-    super(dbName, openResponse);
+    super(dbName, openResponse, lc, 'openWriteTransaction');
     this._name = name;
     this._args = args;
     this._rebaseOpts = rebaseOpts;
@@ -282,15 +286,15 @@ export class WriteTransactionImpl
 
   async open(): Promise<void> {
     await this._openResponse;
-    const {id, txn, lc} = await embed.openWriteTransaction(
+    const {id, txn} = await embed.openWriteTransaction(
       this._dbName,
       this._name,
       this._args,
       this._rebaseOpts,
+      this._lc,
     );
     this._transactionId = id;
     this._transaction = txn;
-    this._lc = lc;
   }
 }
 
@@ -348,6 +352,10 @@ export class IndexTransactionImpl
 {
   protected _transaction: db.Write | undefined = undefined;
 
+  constructor(dbName: string, openResponse: Promise<unknown>, lc: LogContext) {
+    super(dbName, openResponse, lc, 'openIndexTransaction');
+  }
+
   async createIndex(options: CreateIndexDefinition): Promise<void> {
     throwIfClosed(this);
     assertNotUndefined(this._transaction);
@@ -377,9 +385,8 @@ export class IndexTransactionImpl
 
   async open(): Promise<void> {
     await this._openResponse;
-    const {id, txn, lc} = await embed.openIndexTransaction(this._dbName);
+    const {id, txn} = await embed.openIndexTransaction(this._dbName, this._lc);
     this._transactionId = id;
     this._transaction = txn;
-    this._lc = lc;
   }
 }

@@ -691,6 +691,7 @@ export class Replicache<MD extends MutatorDefs = {}>
         await this._openResponse;
         pushResponse = await embed.tryPush(
           this.name,
+          await this._clientIDPromise,
           {
             pushURL: this.pushURL,
             pushAuth: this.auth,
@@ -764,6 +765,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     await this._openResponse;
     const beginPullResponse = await embed.beginPull(
       this.name,
+      await this._clientIDPromise,
       {
         pullAuth: this.auth,
         pullURL: this.pullURL,

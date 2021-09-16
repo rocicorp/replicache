@@ -33,7 +33,7 @@ function logCall(name: string, ...args: unknown[]): void {
   testLog.push({name, args});
 }
 
-type ConnectionMap = Map<string, {store: dag.Store; clientID: string}>;
+type ConnectionMap = Map<string, {store: dag.Store}>;
 
 const connections: ConnectionMap = new Map();
 
@@ -48,28 +48,6 @@ function getConnection(dbName: string) {
 }
 
 type Transaction = db.Write | db.Read;
-
-// function getTransaction(
-//   transactionID: number,
-//   map: TransactionsMap,
-// ): {txn: Transaction; lc: LogContext} {
-//   const val = map.get(transactionID);
-//   if (!val) {
-//     throw new Error(`Transaction ${transactionID} is not open`);
-//   }
-//   return val;
-// }
-
-// function getWriteTransaction(
-//   transactionID: number,
-//   map: TransactionsMap,
-// ): {txn: db.Write; lc: LogContext} {
-//   const {txn, lc} = getTransaction(transactionID, map);
-//   if (txn instanceof db.Read) {
-//     throw new Error('Transaction is read-only');
-//   }
-//   return {txn, lc};
-// }
 
 export async function open(
   dbName: string,
@@ -104,7 +82,7 @@ export async function open(
   // TODO(arv): Maybe store an opened promise too and let all embed calls wait
   // for it.
 
-  connections.set(dbName, {store: dagStore, clientID});
+  connections.set(dbName, {store: dagStore});
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', clientID);
   return clientID;
 }
@@ -491,6 +469,7 @@ export async function maybeEndPull(
 
 export async function tryPush(
   dbName: string,
+  clientID: string,
   req: TryPushRequest,
   lc: LogContext,
 ): Promise<HTTPRequestInfo | undefined> {
@@ -498,7 +477,7 @@ export async function tryPush(
   isTesting && logCall('tryPush', dbName, req);
 
   const connection = getConnection(dbName);
-  const {clientID, store} = connection;
+  const {store} = connection;
   const requestID = sync.newRequestID(clientID);
   const lc2 = lc
     .addContext('rpc', 'tryPush')
@@ -519,6 +498,7 @@ export async function tryPush(
 
 export async function beginPull(
   dbName: string,
+  clientID: string,
   req: BeginPullRequest,
   lc: LogContext,
 ): Promise<BeginPullResponse> {
@@ -526,7 +506,7 @@ export async function beginPull(
   isTesting && logCall('beginPull', dbName, req);
 
   const connection = getConnection(dbName);
-  const {clientID, store} = connection;
+  const {store} = connection;
   const requestID = sync.newRequestID(clientID);
   const lc2 = lc
     .addContext('rpc', 'beginPull')

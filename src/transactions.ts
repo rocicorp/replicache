@@ -1,8 +1,8 @@
-import type {JSONValue} from './json';
+import type {JSONValue, ReadonlyJSONValue} from './json';
 import type {
-  OpenTransactionRequest,
   CommitTransactionResponse,
   CloseTransactionResponse,
+  RebaseOpts,
 } from './repm-invoker';
 import {
   KeyTypeForScanOptions,
@@ -24,7 +24,7 @@ export interface ReadTransaction {
    * Get a single value from the database. If the `key` is not present this
    * returns `undefined`.
    */
-  get(key: string): Promise<JSONValue | undefined>;
+  get(key: string): Promise<ReadonlyJSONValue | undefined>;
 
   /** Determines if a single `key` is present in the database. */
   has(key: string): Promise<boolean>;
@@ -44,7 +44,7 @@ export interface ReadTransaction {
    * If the [[ScanResult]] is used after the `ReadTransaction` has been closed it
    * will throw a [[TransactionClosedError]].
    */
-  scan(): ScanResult<string>;
+  scan(): ScanResult<string, ReadonlyJSONValue>;
 
   /**
    * Gets many values from the database. This returns a [[ScanResult]] which
@@ -58,51 +58,59 @@ export interface ReadTransaction {
    * If the [[ScanResult]] is used after the `ReadTransaction` has been closed it
    * will throw a [[TransactionClosedError]].
    */
-  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): ScanResult<K>;
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, ReadonlyJSONValue>;
 }
 
-const enum OpenTransactionType {
-  Normal,
-  Index,
-}
-
-export class ReadTransactionImpl implements ReadTransaction {
-  private _transactionId = -1;
+export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
+  implements ReadTransaction
+{
+  protected _transactionId = -1;
   protected _closed = false;
-  protected readonly _openTransactionType: OpenTransactionType =
-    OpenTransactionType.Normal;
-  private readonly _dbName: string;
+  protected readonly _dbName: string;
   protected readonly _openResponse: Promise<unknown>;
+  protected readonly _shouldClone: boolean = false;
 
   constructor(dbName: string, openResponse: Promise<unknown>) {
     this._dbName = dbName;
     this._openResponse = openResponse;
   }
 
-  async get(key: string): Promise<JSONValue | undefined> {
+  async get(key: string): Promise<Value | undefined> {
     throwIfClosed(this);
-    return await embed.get(this._transactionId, key);
+    return embed.get(this._transactionId, key, this._shouldClone) as
+      | Value
+      | undefined;
   }
 
   async has(key: string): Promise<boolean> {
     throwIfClosed(this);
-    return await embed.has(this._transactionId, key);
+    return embed.has(this._transactionId, key);
   }
 
   async isEmpty(): Promise<boolean> {
     throwIfClosed(this);
 
     let empty = true;
-    await embed.scan(this._transactionId, {limit: 1}, () => (empty = false));
+    await embed.scan(
+      this._transactionId,
+      {limit: 1},
+      () => (empty = false),
+      false, // shouldClone
+    );
     return empty;
   }
 
-  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): ScanResult<K> {
-    return new ScanResult(options, () => this, false);
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, Value> {
+    return new ScanResult(
+      options,
+      () => this,
+      false, // shouldCloseTransaction
+      this._shouldClone,
+    );
   }
 
   get id(): number {
@@ -113,18 +121,9 @@ export class ReadTransactionImpl implements ReadTransaction {
     return this._closed;
   }
 
-  async open(args: OpenTransactionRequest): Promise<void> {
+  async open(): Promise<void> {
     await this._openResponse;
-    if (this._openTransactionType === OpenTransactionType.Normal) {
-      this._transactionId = await embed.openTransaction(
-        this._dbName,
-        args.name,
-        args.args,
-        args.rebaseOpts,
-      );
-    } else {
-      this._transactionId = await embed.openIndexTransaction(this._dbName);
-    }
+    this._transactionId = await embed.openReadTransaction(this._dbName);
   }
 
   async close(): Promise<CloseTransactionResponse> {
@@ -150,7 +149,7 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
     return this._tx.isEmpty();
   }
 
-  get(key: string): Promise<JSONValue | undefined> {
+  get(key: string): Promise<ReadonlyJSONValue | undefined> {
     this._keys.add(key);
     return this._tx.get(key);
   }
@@ -160,9 +159,9 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
     return this._tx.has(key);
   }
 
-  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): ScanResult<K> {
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, ReadonlyJSONValue> {
     this._scans.push(toDbScanOptions(options));
     return this._tx.scan(options);
   }
@@ -193,12 +192,43 @@ export interface WriteTransaction extends ReadTransaction {
    * `key` to remove.
    */
   del(key: string): Promise<boolean>;
+
+  /**
+   * Overrides [[ReadTransaction.get]] to return a mutable [[JSONValue]].
+   */
+  get(key: string): Promise<JSONValue | undefined>;
+
+  /**
+   * Overrides [[ReadTransaction.scan]] to return a mutable [[JSONValue]].
+   */
+  scan(): ScanResult<string, JSONValue>;
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, JSONValue>;
 }
 
 export class WriteTransactionImpl
-  extends ReadTransactionImpl
+  extends ReadTransactionImpl<JSONValue>
   implements WriteTransaction
 {
+  protected readonly _shouldClone: boolean = true;
+  private readonly _name: string;
+  private readonly _args: JSONValue;
+  private readonly _rebaseOpts: RebaseOpts | undefined;
+
+  constructor(
+    dbName: string,
+    openResponse: Promise<unknown>,
+    name: string,
+    args: JSONValue,
+    rebaseOpts: RebaseOpts | undefined,
+  ) {
+    super(dbName, openResponse);
+    this._name = name;
+    this._args = args;
+    this._rebaseOpts = rebaseOpts;
+  }
+
   async put(key: string, value: JSONValue): Promise<void> {
     throwIfClosed(this);
     await embed.put(this.id, key, value);
@@ -214,6 +244,16 @@ export class WriteTransactionImpl
   ): Promise<CommitTransactionResponse> {
     this._closed = true;
     return await embed.commitTransaction(this.id, generateChangedKeys);
+  }
+
+  async open(): Promise<void> {
+    await this._openResponse;
+    this._transactionId = await embed.openWriteTransaction(
+      this._dbName,
+      this._name,
+      this._args,
+      this._rebaseOpts,
+    );
   }
 }
 
@@ -266,11 +306,9 @@ export interface CreateIndexDefinition {
 }
 
 export class IndexTransactionImpl
-  extends ReadTransactionImpl
+  extends ReadTransactionImpl<ReadonlyJSONValue>
   implements IndexTransaction
 {
-  protected readonly _openTransactionType = OpenTransactionType.Index;
-
   async createIndex(options: CreateIndexDefinition): Promise<void> {
     throwIfClosed(this);
     await embed.createIndex(
@@ -289,5 +327,10 @@ export class IndexTransactionImpl
   async commit(): Promise<CommitTransactionResponse> {
     this._closed = true;
     return await embed.commitTransaction(this.id, false);
+  }
+
+  async open(): Promise<void> {
+    await this._openResponse;
+    this._transactionId = await embed.openIndexTransaction(this._dbName);
   }
 }

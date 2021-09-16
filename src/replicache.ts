@@ -1,13 +1,9 @@
-import {deepEqual} from './json';
+import {deepEqual, ReadonlyJSONValue} from './json';
 import type {JSONValue} from './json';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options';
 import {Pusher, PushError} from './pusher';
 import {Puller, PullError} from './puller';
-import type {
-  ChangedKeysMap,
-  OpenResponse,
-  OpenTransactionRequest,
-} from './repm-invoker';
+import type {ChangedKeysMap, OpenResponse, RebaseOpts} from './repm-invoker';
 import {
   CreateIndexDefinition,
   SubscriptionTransactionWrapper,
@@ -494,7 +490,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   }
 
   /** Get a single value from the database. */
-  get(key: string): Promise<JSONValue | undefined> {
+  get(key: string): Promise<ReadonlyJSONValue | undefined> {
     return this.query(tx => tx.get(key));
   }
 
@@ -517,17 +513,18 @@ export class Replicache<MD extends MutatorDefs = {}>
    * that name. A scan over an index uses a tuple for the key consisting of
    * `[secondary: string, primary: string]`.
    */
-  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): ScanResult<K> {
-    return new ScanResult<K>(
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, ReadonlyJSONValue> {
+    return new ScanResult<Key>(
       options,
       async () => {
         const tx = new ReadTransactionImpl(this.name, this._openResponse);
-        await tx.open({});
+        await tx.open();
         return tx;
       },
-      true,
+      true, // shouldCloseTransaction
+      false, // shouldClone
     );
   }
 
@@ -556,7 +553,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   ): Promise<void> {
     const tx = new IndexTransactionImpl(this.name, this._openResponse);
     try {
-      await tx.open({});
+      await tx.open();
       await f(tx);
     } finally {
       await tx.commit();
@@ -573,7 +570,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     let {syncHead} = beginPullResult;
     const {requestID} = beginPullResult;
 
-    const {replayMutations, changedKeys} = await embed.maybeEndTryPull(
+    const {replayMutations, changedKeys} = await embed.maybeEndPull(
       this.name,
       requestID,
       syncHead,
@@ -617,12 +614,14 @@ export class Replicache<MD extends MutatorDefs = {}>
         // no op
       };
     }
-    const res = await this._mutate(name, mutatorImpl, args, {
-      invokeArgs: {
-        rebaseOpts: {basis, original},
-      },
-      isReplay: true,
-    });
+    const res = await this._mutate(
+      name,
+      mutatorImpl,
+      args,
+      {basis, original},
+      true, // isReplay
+    );
+
     return res.ref;
   }
 
@@ -753,7 +752,7 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
     await this._openResponse;
-    const beginPullResponse = await embed.beginTryPull(this.name, {
+    const beginPullResponse = await embed.beginPull(this.name, {
       pullAuth: this.auth,
       pullURL: this.pullURL,
       schemaVersion: this.schemaVersion,
@@ -870,7 +869,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   }
 
   /**
-   * Subcribe to changes to the underlying data. Every time the underlying data
+   * Subscribe to changes to the underlying data. Every time the underlying data
    * changes `body` is called and if the result of `body` changes compared to
    * last time `onData` is called. The function is also called once the first
    * time the subscription is added.
@@ -880,7 +879,7 @@ export class Replicache<MD extends MutatorDefs = {}>
    * If an error occurs in the `body` the `onError` function is called if
    * present. Otherwise, the error is thrown.
    */
-  subscribe<R extends JSONValue | undefined, E>(
+  subscribe<R extends ReadonlyJSONValue | undefined, E>(
     body: (tx: ReadTransaction) => Promise<R>,
     {
       onData,
@@ -929,8 +928,11 @@ export class Replicache<MD extends MutatorDefs = {}>
    * and `scan`.
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
-    const tx = new ReadTransactionImpl(this.name, this._openResponse);
-    await tx.open({});
+    const tx = new ReadTransactionImpl<ReadonlyJSONValue>(
+      this.name,
+      this._openResponse,
+    );
+    await tx.open();
     try {
       return await body(tx);
     } finally {
@@ -980,7 +982,15 @@ export class Replicache<MD extends MutatorDefs = {}>
     );
 
     return async (args?: Args): Promise<Return> =>
-      (await this._mutate(name, mutatorImpl, args, {isReplay: false})).result;
+      (
+        await this._mutate(
+          name,
+          mutatorImpl,
+          args,
+          undefined, // rebaseOpts
+          false, // isReplay
+        )
+      ).result;
   }
 
   private _registerMutators<
@@ -1000,19 +1010,9 @@ export class Replicache<MD extends MutatorDefs = {}>
     name: string,
     mutatorImpl: (tx: WriteTransaction, args?: A) => MaybePromise<R>,
     args: A | undefined,
-    {
-      invokeArgs,
-      isReplay,
-    }: {invokeArgs?: OpenTransactionRequest; isReplay: boolean},
+    rebaseOpts: RebaseOpts | undefined,
+    isReplay: boolean,
   ): Promise<{result: R; ref: string}> {
-    let actualInvokeArgs: OpenTransactionRequest = {
-      args: args === undefined ? null : args,
-      name,
-    };
-    if (invokeArgs !== undefined) {
-      actualInvokeArgs = {...actualInvokeArgs, ...invokeArgs};
-    }
-
     // Ensure that we run initial pending subscribe functions before starting a
     // write transaction.
     if (this._hasPendingSubscriptionRuns) {
@@ -1020,8 +1020,14 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
 
     let result: R;
-    const tx = new WriteTransactionImpl(this.name, this._openResponse);
-    await tx.open(actualInvokeArgs);
+    const tx = new WriteTransactionImpl(
+      this.name,
+      this._openResponse,
+      name,
+      args ?? null,
+      rebaseOpts,
+    );
+    await tx.open();
     try {
       result = await mutatorImpl(tx, args);
     } catch (ex) {
@@ -1071,7 +1077,9 @@ export class ReplicacheTest<
 
 const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';
 
-async function closeIgnoreError(tx: ReadTransactionImpl) {
+async function closeIgnoreError<Value extends ReadonlyJSONValue>(
+  tx: ReadTransactionImpl<Value>,
+) {
   try {
     await tx.close();
   } catch (ex) {

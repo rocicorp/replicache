@@ -11,7 +11,7 @@ test('scan', () => {
       2,
     )}, expected: ${expected}`;
 
-    const map = prolly.Map.new();
+    const map = new prolly.Map([]);
     map.put('foo', 'foo');
     map.put('bar', 'bar');
     map.put('baz', 'baz');
@@ -317,7 +317,7 @@ test('scan', () => {
 test('exclusive regular map', () => {
   const t = (keys: string[], startKey: string, expected: string[]) => {
     const testDesc = `keys: ${keys}, startKey: ${startKey}, expected: ${expected}`;
-    const map = prolly.Map.new();
+    const map = new prolly.Map([]);
     for (const key of keys) {
       map.put(key, 'value');
     }
@@ -356,7 +356,7 @@ test('exclusive index map', () => {
   ) => {
     const test_desc = `entries: ${entries}, startSecondaryKey ${startSecondaryKey}, startKey: ${startKey}, expected: ${expected}`;
 
-    const map = prolly.Map.new();
+    const map = new prolly.Map([]);
     for (const entry of entries) {
       const encoded = encodeIndexKey(entry);
       map.put(encoded, 'value');
@@ -572,7 +572,7 @@ test('exclusive index map', () => {
 });
 
 function makeProllyMap(entries: Iterable<[string, string]>): prolly.Map {
-  const map = prolly.Map.new();
+  const map = new prolly.Map([]);
   for (const [k, v] of entries) {
     map.put(k, v);
   }

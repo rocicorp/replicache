@@ -4,7 +4,7 @@ import * as sync from '../sync/mod';
 import {MemStore} from '../kv/mem-store';
 import {addGenesis, addLocal, Chain} from '../db/test-helpers';
 import {addSyncSnapshot} from '../sync/test-helpers';
-import {commitImpl, openTransactionImpl} from './connection';
+import {commitImpl, openWriteTransactionImpl} from './connection';
 import {LogContext} from '../logger';
 import {initHasher} from '../hash';
 
@@ -33,7 +33,7 @@ test('open transaction rebase opts', async () => {
   let result;
   try {
     // Error: rebase commit's basis must be sync head.
-    result = await openTransactionImpl(
+    result = await openWriteTransactionImpl(
       lc,
       store,
       txns,
@@ -54,7 +54,7 @@ test('open transaction rebase opts', async () => {
 
   // Error: rebase commit's name should not change.
   try {
-    result = await openTransactionImpl(
+    result = await openWriteTransactionImpl(
       lc,
       store,
       txns,
@@ -88,7 +88,7 @@ test('open transaction rebase opts', async () => {
   const newLocalName = lm.mutatorName;
   const newLocalArgs = lm.mutatorArgsJSON;
   try {
-    result = await openTransactionImpl(
+    result = await openWriteTransactionImpl(
       lc,
       store,
       txns,
@@ -108,7 +108,7 @@ test('open transaction rebase opts', async () => {
   );
 
   // Correct rebase_opt (test this last because it affects the chain).
-  const otr = await openTransactionImpl(
+  const otr = await openWriteTransactionImpl(
     lc,
     store,
     txns,

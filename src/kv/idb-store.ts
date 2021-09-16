@@ -1,6 +1,5 @@
 import {deleteSentinel, WriteImplBase} from './write-impl-base';
 import type {Read, Store, Value, Write} from './store';
-import {deepFreeze} from '../json';
 
 const RELAXED = {durability: 'relaxed'};
 const OBJECT_STORE = 'chunks';
@@ -62,13 +61,8 @@ class ReadImpl {
     return (await wrap(objectStore(this._tx).count(key))) > 0;
   }
 
-  async get(key: string): Promise<Value | undefined> {
-    const v = await wrap(objectStore(this._tx).get(key));
-    if (v instanceof Uint8Array) {
-      return v;
-    } else {
-      return deepFreeze(v);
-    }
+  get(key: string): Promise<Value | undefined> {
+    return wrap(objectStore(this._tx).get(key));
   }
 
   release(): void {

@@ -3,15 +3,15 @@ import * as dag from '../dag/mod';
 import * as db from '../db/mod';
 import * as sync from '../sync/mod';
 import type {
-  BeginTryPullRequest,
-  BeginTryPullResponse,
+  BeginPullRequest,
+  BeginPullResponse,
   CommitTransactionResponse,
   HTTPRequestInfo,
-  MaybeEndTryPullResponse,
+  MaybeEndPullResponse,
   RebaseOpts,
   TryPushRequest,
 } from '../repm-invoker';
-import {deepFreeze, ReadonlyJSONValue, JSONValue, deepThaw} from '../json';
+import {ReadonlyJSONValue, JSONValue, deepClone} from '../json';
 import {LogContext} from '../logger';
 import type {LogLevel} from '../logger';
 import {migrate} from '../migrate/migrate';
@@ -142,16 +142,26 @@ async function init(dagStore: dag.Store): Promise<void> {
   });
 }
 
-export async function openTransaction(
+export async function openReadTransaction(dbName: string): Promise<number> {
+  isTesting && logCall('openReadTransaction', dbName);
+  const {store, lc} = getConnection(dbName);
+  return openReadTransactionImpl(
+    lc.addContext('rpc', 'openReadTransaction'),
+    store,
+    transactionsMap,
+  );
+}
+
+export async function openWriteTransaction(
   dbName: string,
-  name: string | undefined,
-  args: JSONValue | undefined,
+  name: string,
+  args: ReadonlyJSONValue,
   rebaseOpts: RebaseOpts | undefined,
 ): Promise<number> {
-  isTesting && logCall('openTransaction', dbName, name, args, rebaseOpts);
+  isTesting && logCall('openWriteTransaction', dbName, name, args, rebaseOpts);
   const {store, lc} = getConnection(dbName);
-  return openTransactionImpl(
-    lc,
+  return openWriteTransactionImpl(
+    lc.addContext('rpc', 'openWriteTransaction'),
     store,
     transactionsMap,
     name,
@@ -160,59 +170,59 @@ export async function openTransaction(
   );
 }
 
-export async function openTransactionImpl(
+export async function openWriteTransactionImpl(
   lc: LogContext,
   store: dag.Store,
   transactions: Map<number, {txn: Transaction; lc: LogContext}>,
-  name: string | undefined,
-  args: ReadonlyJSONValue | undefined,
+  name: string,
+  args: ReadonlyJSONValue,
   rebaseOpts: RebaseOpts | undefined,
 ): Promise<number> {
   const start = Date.now();
-  lc = lc.addContext('rpc', 'openTransaction');
   lc.debug?.('->', store, transactions, name, args, rebaseOpts);
   let txn: Transaction;
 
-  if (name !== undefined) {
-    const mutatorName = name;
-    if (args === undefined) {
-      throw new Error('args are required');
+  const lockStart = Date.now();
+  lc.debug?.('Waiting for write lock...');
+
+  const dagWrite = await store.write();
+  lc.debug?.('...Write lock acquired in', Date.now() - lockStart, 'ms');
+  let ok = false;
+  try {
+    let whence: db.Whence | undefined;
+    let originalHash: string | null = null;
+    if (rebaseOpts === undefined) {
+      whence = db.whenceHead(db.DEFAULT_HEAD_NAME);
+    } else {
+      await validateRebase(rebaseOpts, dagWrite.read(), name, args);
+      whence = db.whenceHash(rebaseOpts.basis);
+      originalHash = rebaseOpts.original;
     }
 
-    const lockStart = Date.now();
-    lc.debug?.('Waiting for write lock...');
-
-    const dagWrite = await store.write();
-    lc.debug?.('...Write lock acquired in', Date.now() - lockStart, 'ms');
-    let ok = false;
-    try {
-      let whence: db.Whence | undefined;
-      let originalHash: string | null = null;
-      if (rebaseOpts === undefined) {
-        whence = db.whenceHead(db.DEFAULT_HEAD_NAME);
-      } else {
-        await validateRebase(rebaseOpts, dagWrite.read(), mutatorName, args);
-        whence = db.whenceHash(rebaseOpts.basis);
-        originalHash = rebaseOpts.original;
-      }
-
-      txn = await db.Write.newLocal(
-        whence,
-        mutatorName,
-        args,
-        originalHash,
-        dagWrite,
-      );
-      ok = true;
-    } finally {
-      if (!ok) {
-        dagWrite.close();
-      }
+    txn = await db.Write.newLocal(whence, name, args, originalHash, dagWrite);
+    ok = true;
+  } finally {
+    if (!ok) {
+      dagWrite.close();
     }
-  } else {
-    const dagRead = await store.read();
-    txn = await db.fromWhence(db.whenceHead(db.DEFAULT_HEAD_NAME), dagRead);
   }
+
+  const transactionID = transactionCounter++;
+  transactions.set(transactionID, {txn, lc});
+  lc.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', transactionID);
+  return transactionID;
+}
+
+export async function openReadTransactionImpl(
+  lc: LogContext,
+  store: dag.Store,
+  transactions: Map<number, {txn: Transaction; lc: LogContext}>,
+): Promise<number> {
+  const start = Date.now();
+  lc.debug?.('->', store, transactions);
+
+  const dagRead = await store.read();
+  const txn = await db.fromWhence(db.whenceHead(db.DEFAULT_HEAD_NAME), dagRead);
 
   const transactionID = transactionCounter++;
   transactions.set(transactionID, {txn, lc});
@@ -378,7 +388,11 @@ export function has(transactionID: number, key: string): boolean {
   return result;
 }
 
-export function get(transactionID: number, key: string): JSONValue | undefined {
+export function get(
+  transactionID: number,
+  key: string,
+  shouldClone: boolean,
+): ReadonlyJSONValue | JSONValue | undefined {
   const start = Date.now();
   isTesting && logCall('get', transactionID, key);
 
@@ -386,9 +400,10 @@ export function get(transactionID: number, key: string): JSONValue | undefined {
   const lc2 = lc.addContext('rpc', 'get');
   lc2.debug?.('->', key);
   const value = txn.asRead().get(key);
-  const thawed = value && deepThaw(value);
-  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', thawed);
-  return thawed;
+
+  const result = value && (shouldClone ? deepClone(value) : value);
+  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
+  return result;
 }
 
 export async function scan(
@@ -397,8 +412,9 @@ export async function scan(
   receiver: (
     primaryKey: string,
     secondaryKey: string | null,
-    value: JSONValue,
+    value: JSONValue | ReadonlyJSONValue,
   ) => void,
+  shouldClone: boolean,
 ): Promise<void> {
   const start = Date.now();
   isTesting && logCall('scan', transactionID, scanOptions, receiver);
@@ -412,7 +428,7 @@ export async function scan(
       throw sr.error;
     }
     const {val, key, secondaryKey} = sr.item;
-    receiver(key, secondaryKey, deepThaw(val));
+    receiver(key, secondaryKey, shouldClone ? deepClone(val) : val);
   });
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
@@ -428,7 +444,7 @@ export async function put(
   const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'put');
   lc2.debug?.('->', key, value);
-  await txn.put(lc2, key, deepFreeze(value));
+  await txn.put(lc2, key, deepClone(value));
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
@@ -478,21 +494,21 @@ export async function dropIndex(
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
-export async function maybeEndTryPull(
+export async function maybeEndPull(
   dbName: string,
   requestID: string,
   syncHead: string,
-): Promise<MaybeEndTryPullResponse> {
+): Promise<MaybeEndPullResponse> {
   const start = Date.now();
-  isTesting && logCall('maybeEndTryPull', dbName, requestID, syncHead);
+  isTesting && logCall('maybeEndPull', dbName, requestID, syncHead);
 
   const connection = getConnection(dbName);
   const {store, lc} = connection;
   const lc2 = lc
-    .addContext('rpc', 'maybeEndTryPull')
+    .addContext('rpc', 'maybeEndPull')
     .addContext('request_id', requestID);
   lc2.debug?.('->', syncHead);
-  const result = await sync.maybeEndTryPull(store, lc2, {requestID, syncHead});
+  const result = await sync.maybeEndPull(store, lc2, {requestID, syncHead});
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
   return result;
 }
@@ -524,18 +540,18 @@ export async function tryPush(
   return result;
 }
 
-export async function beginTryPull(
+export async function beginPull(
   dbName: string,
-  req: BeginTryPullRequest,
-): Promise<BeginTryPullResponse> {
+  req: BeginPullRequest,
+): Promise<BeginPullResponse> {
   const start = Date.now();
-  isTesting && logCall('beginTryPull', dbName, req);
+  isTesting && logCall('beginPull', dbName, req);
 
   const connection = getConnection(dbName);
   const {clientID, store, lc} = connection;
   const requestID = sync.newRequestID(clientID);
   const lc2 = lc
-    .addContext('rpc', 'beginTryPull')
+    .addContext('rpc', 'beginPull')
     .addContext('request_id', requestID);
   lc2.debug?.('->', req);
   const jsPuller = new sync.JSPuller(req.puller);

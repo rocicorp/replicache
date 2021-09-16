@@ -7,10 +7,6 @@ export const DEBOUNCE_DELAY_MS = 10;
 export const MIN_DELAY_MS = 30;
 export const MAX_DELAY_MS = 60_000;
 
-// Max numbers of outstanding connections. This is pretty arbitrary but assuming
-// a request takes 100ms then we get a response every 33ms which is 30 FPS.
-export const MAX_CONNECTIONS = 3;
-
 type SendRecord = {duration: number; ok: boolean};
 
 export interface ConnectionLoopDelegate extends Logger {

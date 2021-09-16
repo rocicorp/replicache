@@ -4,7 +4,7 @@ import type {ReplicacheOptions} from './replicache-options';
 import {Replicache, TransactionClosedError} from './mod';
 
 import type {ReadTransaction, WriteTransaction} from './mod';
-import type {JSONValue} from './json';
+import type {JSONValue, ReadonlyJSONValue} from './json';
 
 import {assert, expect} from '@esm-bundle/chai';
 import * as sinon from 'sinon';
@@ -342,7 +342,7 @@ testWithBothStores('scan', async () => {
 });
 
 testWithBothStores('subscribe', async () => {
-  const log: [string, JSONValue][] = [];
+  const log: [string, ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe', {
     mutators: {
@@ -356,7 +356,7 @@ testWithBothStores('subscribe', async () => {
       return await tx.scan({prefix: 'a/'}).entries().toArray();
     },
     {
-      onData: (values: Iterable<[string, JSONValue]>) => {
+      onData: (values: Iterable<[string, ReadonlyJSONValue]>) => {
         for (const entry of values) {
           log.push(entry);
         }
@@ -372,11 +372,15 @@ testWithBothStores('subscribe', async () => {
   expect(log).to.deep.equal([['a/0', 0]]);
   expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
 
-  // Put with same value should not invoke the subscription.
+  // Changing a entry to the same value We used to do a deepEqual check here but
+  // we removed that. This means that we will invoke the query body even if
+  // nothing really changed. However, we consider writing the same value to be
+  // pretty unlikely and it is semantically correct to call the query body "too
+  // much".
   log.length = 0;
   await add({'a/0': 0});
   expect(log).to.deep.equal([]);
-  expect(queryCallCount).to.equal(2);
+  expect(queryCallCount).to.equal(3);
 
   log.length = 0;
   await add({'a/1': 1});
@@ -384,7 +388,7 @@ testWithBothStores('subscribe', async () => {
     ['a/0', 0],
     ['a/1', 1],
   ]);
-  expect(queryCallCount).to.equal(3);
+  expect(queryCallCount).to.equal(4);
 
   log.length = 0;
   log.length = 0;
@@ -393,21 +397,21 @@ testWithBothStores('subscribe', async () => {
     ['a/0', 0],
     ['a/1', 11],
   ]);
-  expect(queryCallCount).to.equal(4);
+  expect(queryCallCount).to.equal(5);
 
   log.length = 0;
   cancel();
   await add({'a/1': 12});
   await Promise.resolve();
   expect(log).to.have.length(0);
-  expect(queryCallCount).to.equal(4);
+  expect(queryCallCount).to.equal(5);
 });
 
 for (const prefixPropertyName of ['prefix', 'keyPrefix']) {
   testWithBothStores(
     `subscribe with index {prefixPropertyName: ${prefixPropertyName}}`,
     async () => {
-      const log: [[string, string], JSONValue][] = [];
+      const log: [[string, string], ReadonlyJSONValue][] = [];
 
       const rep = await replicacheForTesting('subscribe-with-index', {
         mutators: {
@@ -429,7 +433,7 @@ for (const prefixPropertyName of ['prefix', 'keyPrefix']) {
           return await tx.scan({indexName: 'i1'}).entries().toArray();
         },
         {
-          onData: (values: Iterable<[[string, string], JSONValue]>) => {
+          onData: (values: Iterable<[[string, string], ReadonlyJSONValue]>) => {
             onDataCallCount++;
             for (const entry of values) {
               log.push(entry);
@@ -544,7 +548,7 @@ for (const prefixPropertyName of ['prefix', 'keyPrefix']) {
 }
 
 testWithBothStores('subscribe with index and start', async () => {
-  const log: [[string, string], JSONValue][] = [];
+  const log: [[string, string], ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index-and-start', {
     mutators: {
@@ -568,7 +572,7 @@ testWithBothStores('subscribe with index and start', async () => {
         .toArray();
     },
     {
-      onData: (values: Iterable<[[string, string], JSONValue]>) => {
+      onData: (values: Iterable<[[string, string], ReadonlyJSONValue]>) => {
         onDataCallCount++;
         for (const entry of values) {
           log.push(entry);
@@ -641,18 +645,22 @@ testWithBothStores('subscribe with index and start', async () => {
   expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
   expect(onDataCallCount).to.equal(3);
 
-  // Changing a entry to the same value
+  // Changing a entry to the same value We used to do a deepEqual check here but
+  // we removed that. This means that we will invoke the query body even if
+  // nothing really changed. However, we consider writing the same value to be
+  // pretty unlikely and it is semantically correct to call the query body "too
+  // much".
   await rep.mutate.addData({
     a2: {id: 'a-2', x: 2},
   });
-  expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
+  expect(queryCallCount).to.equal(4); // One for initial subscribe and one for the add.
   expect(onDataCallCount).to.equal(3);
 
   cancel();
 });
 
 testWithBothStores('subscribe with index and prefix', async () => {
-  const log: [[string, string], JSONValue][] = [];
+  const log: [[string, string], ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index-and-prefix', {
     mutators: {
@@ -673,7 +681,7 @@ testWithBothStores('subscribe with index and prefix', async () => {
       return await tx.scan({indexName: 'i1', prefix: 'b'}).entries().toArray();
     },
     {
-      onData: (values: Iterable<[[string, string], JSONValue]>) => {
+      onData: (values: Iterable<[[string, string], ReadonlyJSONValue]>) => {
         onDataCallCount++;
         for (const entry of values) {
           log.push(entry);
@@ -732,11 +740,15 @@ testWithBothStores('subscribe with index and prefix', async () => {
   expect(queryCallCount).to.equal(4);
   expect(onDataCallCount).to.equal(4);
 
-  // Changing a entry to the same value
+  // Changing a entry to the same value We used to do a deepEqual check here but
+  // we removed that. This means that we will invoke the query body even if
+  // nothing really changed. However, we consider writing the same value to be
+  // pretty unlikely and it is semantically correct to call the query body "too
+  // much".
   await rep.mutate.addData({
     b: {id: 'bx3', x: 3},
   });
-  expect(queryCallCount).to.equal(4); // One for initial subscribe and one for the add.
+  expect(queryCallCount).to.equal(5); // One for initial subscribe and one for the add.
   expect(onDataCallCount).to.equal(4);
 
   cancel();
@@ -809,7 +821,7 @@ testWithBothStores('subscribe with isEmpty and prefix', async () => {
 });
 
 testWithBothStores('subscribe change keys', async () => {
-  const log: JSONValue[][] = [];
+  const log: ReadonlyJSONValue[][] = [];
 
   const rep = await replicacheForTesting('subscribe-change-keys', {
     mutators: {
@@ -832,7 +844,7 @@ testWithBothStores('subscribe change keys', async () => {
       return rv;
     },
     {
-      onData: (values: JSONValue[]) => {
+      onData: (values: ReadonlyJSONValue[]) => {
         onDataCallCount++;
         log.push(values);
       },
@@ -905,7 +917,7 @@ testWithBothStores('subscribe close', async () => {
     mutators: {addData},
   });
 
-  const log: (JSONValue | undefined)[] = [];
+  const log: (ReadonlyJSONValue | undefined)[] = [];
 
   const cancel = rep.subscribe((tx: ReadTransaction) => tx.get('k'), {
     onData: value => log.push(value),
@@ -1536,14 +1548,14 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
     expect(l).to.deep.equal(log);
     const names = embed.testLog.map(({name}) => name);
     expect(names).to.deep.equal([
-      'openTransaction',
+      `openReadTransaction`,
       'scan',
       'closeTransaction',
     ]);
   }
 
   const it = rep.scan();
-  const log: JSONValue[] = [];
+  const log: ReadonlyJSONValue[] = [];
   for await (const v of it) {
     log.push(v);
   }
@@ -1927,7 +1939,9 @@ testWithBothStores('logLevel', async () => {
   expect(
     debug
       .getCalls()
-      .some(call => call.firstArg.includes('db=log-level rpc=openTransaction')),
+      .some(call =>
+        call.firstArg.includes('db=log-level rpc=openReadTransaction'),
+      ),
   ).to.equal(true);
   expect(
     debug.getCalls().some(call => call.firstArg.includes('PULL')),
@@ -2274,10 +2288,10 @@ testWithBothStores('push and pull concurrently', async () => {
 
   // Only one push at a time but we want push and pull to be concurrent.
   expect(rpcs()).to.deep.equal([
-    'openTransaction',
+    'openWriteTransaction',
     'put',
     'commitTransaction',
-    'beginTryPull',
+    'beginPull',
     'tryPush',
   ]);
 
@@ -2291,10 +2305,10 @@ testWithBothStores('push and pull concurrently', async () => {
   expect(reqs).to.deep.equal([pullURL, pushURL]);
 
   expect(rpcs()).to.deep.equal([
-    'openTransaction',
+    'openWriteTransaction',
     'put',
     'commitTransaction',
-    'beginTryPull',
+    'beginPull',
     'tryPush',
   ]);
 });
@@ -2575,7 +2589,7 @@ testWithBothStores('subscribe pull and index update', async () => {
   const indexName = 'idx1';
   await rep.createIndex({name: indexName, jsonPointer: '/id'});
 
-  const log: JSONValue[] = [];
+  const log: ReadonlyJSONValue[] = [];
   let queryCallCount = 0;
 
   const cancel = rep.subscribe(

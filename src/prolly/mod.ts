@@ -1,3 +1,7 @@
-export {Map} from './map';
-export {entriesFromFlatbuffer, entriesToFlatbuffer} from './leaf';
+export {
+  Map,
+  fromChunk,
+  entriesFromFlatbuffer,
+  entriesToFlatbuffer,
+} from './map';
 export type {Entry} from './map';

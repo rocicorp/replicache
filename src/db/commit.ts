@@ -26,9 +26,9 @@ export const DEFAULT_HEAD_NAME = 'main';
 
 export const enum MetaTyped {
   NONE = 0,
-  IndexChangeMeta = 1,
-  LocalMeta = 2,
-  SnapshotMeta = 3,
+  IndexChange = 1,
+  Local = 2,
+  Snapshot = 3,
 }
 
 export class Commit<M extends Meta = Meta> {
@@ -43,15 +43,15 @@ export class Commit<M extends Meta = Meta> {
   }
 
   isLocal(): this is Commit<LocalMeta> {
-    return this.meta.type === MetaTyped.LocalMeta;
+    return this.meta.type === MetaTyped.Local;
   }
 
   isSnapshot(): this is Commit<SnapshotMeta> {
-    return this.meta.type === MetaTyped.SnapshotMeta;
+    return this.meta.type === MetaTyped.Snapshot;
   }
 
   isIndexChange(): this is Commit<IndexChangeMeta> {
-    return this.meta.type === MetaTyped.IndexChangeMeta;
+    return this.meta.type === MetaTyped.IndexChange;
   }
 
   get valueHash(): string {
@@ -62,10 +62,10 @@ export class Commit<M extends Meta = Meta> {
   get mutationID(): number {
     const meta = this.meta;
     switch (meta.type) {
-      case MetaTyped.IndexChangeMeta:
-      case MetaTyped.SnapshotMeta:
+      case MetaTyped.IndexChange:
+      case MetaTyped.Snapshot:
         return meta.lastMutationID;
-      case MetaTyped.LocalMeta:
+      case MetaTyped.Local:
         return meta.mutationID;
     }
   }
@@ -115,7 +115,7 @@ export class Commit<M extends Meta = Meta> {
     c: Commit,
   ): [lastMutationID: number, cookie: ReadonlyJSONValue] {
     const m = c.meta;
-    if (m.type === MetaTyped.SnapshotMeta) {
+    if (m.type === MetaTyped.Snapshot) {
       return [m.lastMutationID, m.cookieJSON];
     }
     throw new Error('Snapshot meta expected');
@@ -159,7 +159,7 @@ type BasisHash = {
 };
 
 export type IndexChangeMeta = BasisHash & {
-  readonly type: MetaTyped.IndexChangeMeta;
+  readonly type: MetaTyped.IndexChange;
   readonly lastMutationID: number;
 };
 
@@ -178,7 +178,7 @@ function assertIndexChangeMeta(
 }
 
 export type LocalMeta = BasisHash & {
-  readonly type: MetaTyped.LocalMeta;
+  readonly type: MetaTyped.Local;
   readonly mutationID: number;
   readonly mutatorName: string;
   readonly mutatorArgsJSON: ReadonlyJSONValue;
@@ -199,7 +199,7 @@ function assertLocalMeta(v: Record<string, unknown>): asserts v is LocalMeta {
 }
 
 export type SnapshotMeta = BasisHash & {
-  readonly type: MetaTyped.SnapshotMeta;
+  readonly type: MetaTyped.Snapshot;
   readonly lastMutationID: number;
   readonly cookieJSON: ReadonlyJSONValue;
 };
@@ -220,13 +220,13 @@ function assertMeta(v: unknown): asserts v is Meta {
 
   assertNumber(v.type);
   switch (v.type) {
-    case MetaTyped.IndexChangeMeta:
+    case MetaTyped.IndexChange:
       assertIndexChangeMeta(v);
       break;
-    case MetaTyped.LocalMeta:
+    case MetaTyped.Local:
       assertLocalMeta(v);
       break;
-    case MetaTyped.SnapshotMeta:
+    case MetaTyped.Snapshot:
       assertSnapshot(v);
       break;
     default:
@@ -275,7 +275,7 @@ export function newLocal(
   indexes: IndexRecord[],
 ): Promise<Commit> {
   const localMeta: LocalMeta = {
-    type: MetaTyped.LocalMeta,
+    type: MetaTyped.Local,
     basisHash,
     mutationID,
     mutatorName,
@@ -299,7 +299,7 @@ export function newSnapshot(
   indexes: IndexRecord[],
 ): Promise<Commit> {
   const snapshotMeta: SnapshotMeta = {
-    type: MetaTyped.SnapshotMeta,
+    type: MetaTyped.Snapshot,
     basisHash,
     lastMutationID,
     cookieJSON,
@@ -320,7 +320,7 @@ export function newIndexChange(
   indexes: IndexRecord[],
 ): Promise<Commit> {
   const indexChangeMeta: IndexChangeMeta = {
-    type: MetaTyped.IndexChangeMeta,
+    type: MetaTyped.IndexChange,
     basisHash,
     lastMutationID,
   };
@@ -478,7 +478,7 @@ function indexChangeMetaFromFlatbuffer(
     new IndexChangeMetaFB(),
   ) as IndexChangeMetaFB;
   return {
-    type: MetaTyped.IndexChangeMeta,
+    type: MetaTyped.IndexChange,
     basisHash,
     lastMutationID: indexChangeMetaFB.lastMutationId().toFloat64(),
   };
@@ -496,7 +496,7 @@ function localMetaFromFlatbuffer(
   const mutatorArgsJSONArray = localMetaFB.mutatorArgsJsonArray();
   assertNotNull(mutatorArgsJSONArray);
   return {
-    type: MetaTyped.LocalMeta,
+    type: MetaTyped.Local,
     basisHash,
     mutationID: localMetaFB.mutationId().toFloat64(),
     mutatorName,
@@ -513,7 +513,7 @@ function snapshotMetaFromFlatbuffer(
   const cookieJSONArray = snapshotMetaFB.cookieJsonArray();
   assertNotNull(cookieJSONArray);
   return {
-    type: MetaTyped.SnapshotMeta,
+    type: MetaTyped.Snapshot,
     basisHash,
     lastMutationID: snapshotMetaFB.lastMutationId().toFloat64(),
     cookieJSON: JSON.parse(utf8.decode(cookieJSONArray)),
@@ -533,7 +533,7 @@ export function commitDataToFlatbuffer(data: CommitData): Uint8Array {
 
   const [unionType, unionValue] = (() => {
     switch (data.meta.type) {
-      case MetaTyped.LocalMeta: {
+      case MetaTyped.Local: {
         const {mutationID, mutatorName, mutatorArgsJSON, originalHash} =
           data.meta;
         const localMeta = LocalMetaFB.createLocalMeta(
@@ -549,7 +549,7 @@ export function commitDataToFlatbuffer(data: CommitData): Uint8Array {
         return [MetaTypedFB.LocalMeta, localMeta];
       }
 
-      case MetaTyped.SnapshotMeta: {
+      case MetaTyped.Snapshot: {
         const {lastMutationID, cookieJSON} = data.meta;
         const cookieBytes = utf8.encode(JSON.stringify(cookieJSON));
         const snapshotMeta = SnapshotMetaFB.createSnapshotMeta(
@@ -560,7 +560,7 @@ export function commitDataToFlatbuffer(data: CommitData): Uint8Array {
         return [MetaTypedFB.SnapshotMeta, snapshotMeta];
       }
 
-      case MetaTyped.IndexChangeMeta: {
+      case MetaTyped.IndexChange: {
         const {lastMutationID} = data.meta;
         const indexChangeMeta = IndexChangeMetaFB.createIndexChangeMeta(
           builder,

@@ -50,6 +50,5 @@ async function writeSampleData(
       // @ts-expect-error Allow writing Uint8Array
       await w.put(key, value);
     }
-    await w.commit();
   });
 }

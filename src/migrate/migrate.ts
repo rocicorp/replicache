@@ -6,7 +6,6 @@ export async function migrate(store: kv.Store): Promise<void> {
   if (v === 0) {
     await store.withWrite(async w => {
       await migrate0to1(w);
-      await w.commit();
     });
   }
 }

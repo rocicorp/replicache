@@ -16,7 +16,6 @@ test('has chunk', async () => {
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
       await kvw.put(chunkDataKey(k), [0, 1]);
-      await kvw.commit();
     });
 
     await kv.withRead(async kvr => {
@@ -38,7 +37,6 @@ test('get chunk', async () => {
       if (chunk.meta.length > 0) {
         await kvw.put(chunkMetaKey(chunk.hash), chunk.meta);
       }
-      await kvw.commit();
     });
 
     await kv.withRead(async kvr => {

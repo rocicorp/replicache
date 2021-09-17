@@ -18,6 +18,5 @@ export async function init(store: kv.Store): Promise<string> {
 function writeClientID(s: kv.Store, uuid: string): Promise<void> {
   return s.withWrite(async wt => {
     await wt.put(CID_KEY, uuid);
-    await wt.commit();
   });
 }

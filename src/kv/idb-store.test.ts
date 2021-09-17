@@ -19,7 +19,6 @@ test('dropStore', async () => {
   // Write a value.
   await store.withWrite(async wt => {
     await wt.put('foo', 'bar');
-    await wt.commit();
   });
 
   // Verify it's there.

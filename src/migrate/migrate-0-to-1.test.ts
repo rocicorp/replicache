@@ -29,7 +29,6 @@ test('current version', async () => {
 
   await kv.withWrite(async w => {
     await setCurrentVersion(42, w);
-    await w.commit();
   });
 
   expect(await kv.withRead(currentVersion)).to.equal(42);
@@ -41,18 +40,15 @@ test('migrateClientID', async () => {
   // OK if not present?
   await kv.withWrite(async w => {
     await migrateClientID(w);
-    await w.commit();
   });
 
   const cid = 'test-client-id';
   await kv.withWrite(async w => {
     // @ts-expect-error - allow invalid value type
     await w.put(sync.CID_KEY, utf8.encode(cid));
-    await w.commit();
   });
   await kv.withWrite(async w => {
     await migrateClientID(w);
-    await w.commit();
   });
   await kv.withRead(async r => {
     expect(await r.get(sync.CID_KEY)).to.equal(cid);
@@ -68,18 +64,15 @@ test('migrateMetaKeyValue', async () => {
     // OK if not present?
     await kv.withWrite(async w => {
       await migrateMetaKeyValue(hash, w, new Set());
-      await w.commit();
     });
 
     const buf = dag.metaToFlatbuffer(expected);
     await kv.withWrite(async w => {
       // @ts-expect-error Allow writing Uint8Array
       await w.put(dag.chunkMetaKey(hash), buf);
-      await w.commit();
     });
     await kv.withWrite(async w => {
       await migrateMetaKeyValue(hash, w, new Set());
-      await w.commit();
     });
     await kv.withRead(async r => {
       expect(await r.get(dag.chunkMetaKey(hash))).to.deep.equal(expected);
@@ -99,7 +92,6 @@ test('migrateRefCountKeyValue', async () => {
   // OK if not present?
   await kv.withWrite(async w => {
     await migrateRefCountKeyValue(hash, w, new Set());
-    await w.commit();
   });
 
   const t = async (count: number) => {
@@ -107,11 +99,9 @@ test('migrateRefCountKeyValue', async () => {
     await kv.withWrite(async w => {
       // @ts-expect-error Allow writing Uint8Array
       await w.put(dag.chunkRefCountKey(hash), buf);
-      await w.commit();
     });
     await kv.withWrite(async w => {
       await migrateRefCountKeyValue(hash, w, new Set());
-      await w.commit();
     });
     await kv.withRead(async r => {
       expect(await r.get(dag.chunkRefCountKey(hash))).to.equal(count);
@@ -131,12 +121,10 @@ test('migrateHeadKeyValue', async () => {
   await kv.withWrite(async w => {
     // @ts-expect-error. Allow writing Uint8Array.
     await w.put(dag.headKey(name), utf8.encode(hash));
-    await w.commit();
   });
   await kv.withWrite(async w => {
     const h = await migrateHeadKeyValue(name, w, new Set());
     expect(h).to.equal(hash);
-    await w.commit();
   });
   await kv.withRead(async r => {
     expect(await r.get(dag.headKey(name))).to.equal(hash);
@@ -152,11 +140,9 @@ test('migrateProllyMap', async () => {
     await kv.withWrite(async w => {
       // @ts-expect-error. Allow writing Uint8Array.
       await w.put(dag.chunkDataKey(hash), buf);
-      await w.commit();
     });
     await kv.withWrite(async w => {
       await migrateProllyMap(hash, w, new Set());
-      await w.commit();
     });
     await kv.withRead(async r => {
       expect(await r.get(dag.chunkDataKey(hash))).to.deep.equal(entries);
@@ -212,12 +198,10 @@ test('migrateCommit', async () => {
       // @ts-expect-error. Allow writing Uint8Array.
       dag.metaToFlatbuffer(refs),
     );
-    await w.commit();
   });
 
   await kv.withWrite(async w => {
     await migrateCommit(commitHash, w, new Set());
-    await w.commit();
   });
 
   await kv.withRead(async r => {

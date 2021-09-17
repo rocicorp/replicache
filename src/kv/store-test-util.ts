@@ -34,7 +34,9 @@ export class TestStore implements Store {
     let write;
     try {
       write = await this.write();
-      return await fn(write);
+      const rv = await fn(write);
+      await write.commit();
+      return rv;
     } finally {
       write?.release();
     }
@@ -43,14 +45,12 @@ export class TestStore implements Store {
   async put(key: string, value: Value): Promise<void> {
     await this.withWrite(async write => {
       await write.put(key, value);
-      await write.commit();
     });
   }
 
   async del(key: string): Promise<void> {
     await this.withWrite(async write => {
       await write.del(key);
-      await write.commit();
     });
   }
 
@@ -95,7 +95,6 @@ async function simpleCommit(store: TestStore): Promise<void> {
     expect(await wt.get('bar')).to.deep.equal('baz');
     await wt.put('other', 'abc');
     expect(await wt.get('other')).to.deep.equal('abc');
-    await wt.commit();
   });
 
   // Verify that the write was effective.
@@ -113,7 +112,6 @@ async function del(store: TestStore): Promise<void> {
     expect(await wt.has('bar')).to.be.false;
     await wt.put('bar', 'baz');
     await wt.put('other', 'abc');
-    await wt.commit();
   });
 
   // Delete
@@ -123,7 +121,6 @@ async function del(store: TestStore): Promise<void> {
     expect(await wt.has('bar')).to.be.false;
     await wt.del('other');
     expect(await wt.has('other')).to.be.false;
-    await wt.commit();
   });
 
   // Verify that the delete was effective.
@@ -138,7 +135,6 @@ async function del(store: TestStore): Promise<void> {
 async function readOnlyCommit(store: TestStore): Promise<void> {
   await store.withWrite(async wt => {
     expect(await wt.has('bar')).to.be.false;
-    await wt.commit();
   });
 }
 
@@ -149,12 +145,19 @@ async function readOnlyRollback(store: TestStore): Promise<void> {
 }
 
 async function simpleRollback(store: TestStore): Promise<void> {
-  // Start a write transaction and put a value, then abort.
-  await store.withWrite(async wt => {
-    await wt.put('bar', 'baz');
-    await wt.put('other', 'abc');
-    // no commit, implicit rollback
-  });
+  const rollback = {};
+  try {
+    // Start a write transaction and put a value, then abort.
+    await store.withWrite(async wt => {
+      await wt.put('bar', 'baz');
+      await wt.put('other', 'abc');
+      throw rollback;
+    });
+  } catch (e) {
+    if (e !== rollback) {
+      throw e;
+    }
+  }
 
   await store.withRead(async rt => {
     expect(await rt.has('bar')).to.be.false;
@@ -195,44 +198,54 @@ async function writeTransaction(store: TestStore): Promise<void> {
   await store.put('k1', 'v1');
   await store.put('k2', 'v2');
 
-  // Test put then commit.
   await store.withWrite(async wt => {
     expect(await wt.has('k1')).to.be.true;
     expect(await wt.has('k2')).to.be.true;
     await wt.put('k1', 'overwrite');
-    await wt.commit();
   });
   expect(await store.get('k1')).to.deep.equal('overwrite');
   expect(await store.get('k2')).to.deep.equal('v2');
 
   // Test put then rollback.
-  await store.withWrite(async wt => {
-    await wt.put('k1', 'should be rolled back');
-  });
+  const rollback = {};
+  try {
+    await store.withWrite(async wt => {
+      await wt.put('k1', 'should be rolled back');
+      throw rollback;
+    });
+  } catch (e) {
+    if (e !== rollback) {
+      throw e;
+    }
+  }
   expect(await store.get('k1')).to.deep.equal('overwrite');
 
-  // Test del then commit.
   await store.withWrite(async wt => {
     await wt.del('k1');
     expect(await wt.has('k1')).to.be.false;
-    await wt.commit();
   });
   expect(await store.has('k1')).to.be.false;
 
   // Test del then rollback.
   expect(await store.has('k2')).to.be.true;
-  await store.withWrite(async wt => {
-    await wt.del('k2');
-    expect(await wt.has('k2')).to.be.false;
-  });
+  try {
+    await store.withWrite(async wt => {
+      await wt.del('k2');
+      expect(await wt.has('k2')).to.be.false;
+      throw rollback;
+    });
+  } catch (e) {
+    if (e !== rollback) {
+      throw e;
+    }
+  }
   expect(await store.has('k2')).to.be.true;
 
-  // Test overwrite multiple times then commit.
+  // Test overwrite multiple times.
   await store.withWrite(async wt => {
     await wt.put('k2', 'overwrite');
     await wt.del('k2');
     await wt.put('k2', 'final');
-    await wt.commit();
   });
   expect(await store.get('k2')).to.deep.equal('final');
 
@@ -241,7 +254,6 @@ async function writeTransaction(store: TestStore): Promise<void> {
     await wt.put('k2', 'new value');
     expect(await wt.has('k2')).to.be.true;
     expect(await wt.get('k2')).to.deep.equal('new value');
-    await wt.commit();
   });
 }
 

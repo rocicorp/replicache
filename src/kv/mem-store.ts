@@ -31,7 +31,9 @@ export class MemStore implements Store {
     let write;
     try {
       write = await this.write();
-      return await fn(write);
+      const rv = await fn(write);
+      await write.commit();
+      return rv;
     } finally {
       write?.release();
     }
@@ -62,6 +64,7 @@ class ReadImpl {
 
 class WriteImpl extends WriteImplBase {
   private readonly _map: Map<string, Value>;
+  private _committed = false;
 
   constructor(map: Map<string, Value>, release: () => void) {
     super(new ReadImpl(map, release));
@@ -69,6 +72,9 @@ class WriteImpl extends WriteImplBase {
   }
 
   async commit(): Promise<void> {
+    if (this._committed) {
+      return;
+    }
     // HOT. Do not allocate entry tuple and destructure.
     this._pending.forEach((value, key) => {
       if (value === deleteSentinel) {
@@ -79,5 +85,6 @@ class WriteImpl extends WriteImplBase {
     });
     this._pending.clear();
     this.release();
+    this._committed = true;
   }
 }

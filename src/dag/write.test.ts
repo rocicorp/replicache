@@ -170,25 +170,32 @@ test('commit rollback', async () => {
   const t = async (commit: boolean, setHead: boolean) => {
     let key: string;
     const kv = new MemStore();
-    await kv.withWrite(async kvw => {
-      const w = new Write(kvw);
-      const c = Chunk.new([0, 1], []);
-      await w.putChunk(c);
+    const rollback = {};
+    try {
+      await kv.withWrite(async kvw => {
+        const w = new Write(kvw);
+        const c = Chunk.new([0, 1], []);
+        await w.putChunk(c);
 
-      key = chunkDataKey(c.hash);
+        key = chunkDataKey(c.hash);
 
-      // The changes should be present inside the tx.
-      expect(await kvw.has(key)).to.be.true;
+        // The changes should be present inside the tx.
+        expect(await kvw.has(key)).to.be.true;
 
-      if (commit) {
-        if (setHead) {
-          await w.setHead('test', c.hash);
+        if (commit) {
+          if (setHead) {
+            await w.setHead('test', c.hash);
+          }
+          await w.commit();
+        } else {
+          throw rollback;
         }
-        await w.commit();
-      } else {
-        // implicit rollback
+      });
+    } catch (e) {
+      if (e !== rollback) {
+        throw e;
       }
-    });
+    }
 
     // The data should only persist if we set the head and commit.
     await kv.withRead(async kvr => {

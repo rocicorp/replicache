@@ -22,7 +22,12 @@ export class Store {
   }
 
   async withWrite<R>(fn: (Write: Write) => R | Promise<R>): Promise<R> {
-    return this._kv.withWrite(kvw => fn(new Write(kvw)));
+    return this._kv.withWrite(async kvw => {
+      const write = new Write(kvw);
+      const rv = await fn(write);
+      await write.commit();
+      return rv;
+    });
   }
 
   async close(): Promise<void> {

@@ -13,6 +13,7 @@ export class Write {
   private readonly _kvw: kv.Write;
   private readonly _newChunks = new Set<string>();
   private readonly _changedHeads = new Map<string, HeadChange>();
+  private _committed = false;
 
   constructor(kvw: kv.Write) {
     this._kvw = kvw;
@@ -69,8 +70,11 @@ export class Write {
   }
 
   async commit(): Promise<void> {
-    await this.collectGarbage();
-    await this._kvw.commit();
+    if (!this._committed) {
+      await this.collectGarbage();
+      await this._kvw.commit();
+      this._committed = true;
+    }
   }
 
   async collectGarbage(): Promise<void> {

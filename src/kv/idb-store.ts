@@ -42,7 +42,10 @@ export class IDBStore implements Store {
   async withWrite<R>(fn: (write: Write) => R | Promise<R>): Promise<R> {
     // See comment in `withRead`.
     const db = await this._db;
-    return fn(writeImpl(db));
+    const w = writeImpl(db);
+    const rv = fn(w);
+    await w.commit();
+    return rv;
   }
 
   async close(): Promise<void> {

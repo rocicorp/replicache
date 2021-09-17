@@ -178,7 +178,7 @@ test.skip('mut [type checking only]', async () => {
     s: string;
   }
 
-  type ToRecord<T> = Record<keyof T, T[keyof T]>;
+  type ToRecord<T> = {[P in keyof T]: T[P]};
 
   const rep = new Replicache({
     mutators: {

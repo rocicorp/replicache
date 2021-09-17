@@ -4,7 +4,7 @@ import * as sync from '../sync/mod';
 import {MemStore} from '../kv/mem-store';
 import {addGenesis, addLocal, Chain} from '../db/test-helpers';
 import {addSyncSnapshot} from '../sync/test-helpers';
-import {commitTransaction, openWriteTransactionImpl} from './connection';
+import {commitTransaction, openWriteTransaction} from './connection';
 import {LogContext} from '../logger';
 import {initHasher} from '../hash';
 
@@ -32,15 +32,15 @@ test('open transaction rebase opts', async () => {
   let result;
   try {
     // Error: rebase commit's basis must be sync head.
-    result = await openWriteTransactionImpl(
-      lc,
-      store,
+    result = await openWriteTransaction(
       originalName,
       originalArgs,
       {
         basis: originalHash, // <-- not the sync head
         original: originalHash,
       },
+      store,
+      lc,
     );
   } catch (e) {
     result = e;
@@ -52,15 +52,15 @@ test('open transaction rebase opts', async () => {
 
   // Error: rebase commit's name should not change.
   try {
-    result = await openWriteTransactionImpl(
-      lc,
-      store,
+    result = await openWriteTransaction(
       'different',
       originalArgs,
       {
         basis: syncChain[0].chunk.hash,
         original: originalHash,
       },
+      store,
+      lc,
     );
   } catch (e) {
     result = e;
@@ -85,15 +85,15 @@ test('open transaction rebase opts', async () => {
   const newLocalName = lm.mutatorName;
   const newLocalArgs = lm.mutatorArgsJSON;
   try {
-    result = await openWriteTransactionImpl(
-      lc,
-      store,
+    result = await openWriteTransaction(
       newLocalName,
       newLocalArgs,
       {
         basis: syncChain[0].chunk.hash,
         original: newLocalHash,
       },
+      store,
+      lc,
     );
   } catch (e) {
     result = e;
@@ -104,15 +104,15 @@ test('open transaction rebase opts', async () => {
   );
 
   // Correct rebase_opt (test this last because it affects the chain).
-  const txn = await openWriteTransactionImpl(
-    lc,
-    store,
+  const txn = await openWriteTransaction(
     originalName,
     originalArgs,
     {
       basis: syncChain[0].chunk.hash,
       original: originalHash,
     },
+    store,
+    lc,
   );
   const ctr = await commitTransaction(txn, lc, false);
 

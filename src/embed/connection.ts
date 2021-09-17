@@ -92,10 +92,14 @@ export async function openReadTransaction(
   lc: LogContext,
 ): Promise<db.Read> {
   isTesting && logCall('openReadTransaction');
-  return openReadTransactionImpl(
-    lc.addContext('rpc', 'openReadTransaction'),
-    store,
-  );
+  const start = Date.now();
+  lc.debug?.('->', store);
+
+  const dagRead = await store.read();
+  const txn = await db.fromWhence(db.whenceHead(db.DEFAULT_HEAD_NAME), dagRead);
+
+  lc.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', txn);
+  return txn;
 }
 
 export async function openWriteTransaction(
@@ -106,16 +110,7 @@ export async function openWriteTransaction(
   lc: LogContext,
 ): Promise<db.Write> {
   isTesting && logCall('openWriteTransaction', name, args, rebaseOpts);
-  return openWriteTransactionImpl(lc, store, name, args, rebaseOpts);
-}
 
-export async function openWriteTransactionImpl(
-  lc: LogContext,
-  store: dag.Store,
-  name: string,
-  args: ReadonlyJSONValue,
-  rebaseOpts: RebaseOpts | undefined,
-): Promise<db.Write> {
   const start = Date.now();
   lc.debug?.('->', store, name, args, rebaseOpts);
   let dbWrite: db.Write;
@@ -153,20 +148,6 @@ export async function openWriteTransactionImpl(
 
   lc.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', dbWrite);
   return dbWrite;
-}
-
-export async function openReadTransactionImpl(
-  lc: LogContext,
-  store: dag.Store,
-): Promise<db.Read> {
-  const start = Date.now();
-  lc.debug?.('->', store);
-
-  const dagRead = await store.read();
-  const txn = await db.fromWhence(db.whenceHead(db.DEFAULT_HEAD_NAME), dagRead);
-
-  lc.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', txn);
-  return txn;
 }
 
 export async function openIndexTransaction(

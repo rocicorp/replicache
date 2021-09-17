@@ -140,11 +140,7 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
 
   async open(): Promise<void> {
     const {store} = await this._openResponse;
-    const {id, txn} = await embed.openReadTransaction(
-      this._dbName,
-      store,
-      this._lc,
-    );
+    const {id, txn} = await embed.openReadTransaction(store, this._lc);
     this._transactionId = id;
     this._transaction = txn;
   }
@@ -295,7 +291,6 @@ export class WriteTransactionImpl
   async open(): Promise<void> {
     const {store} = await this._openResponse;
     const {id, txn} = await embed.openWriteTransaction(
-      this._dbName,
       this._name,
       this._args,
       this._rebaseOpts,
@@ -398,11 +393,7 @@ export class IndexTransactionImpl
 
   async open(): Promise<void> {
     const {store} = await this._openResponse;
-    const {id, txn} = await embed.openIndexTransaction(
-      this._dbName,
-      store,
-      this._lc,
-    );
+    const {id, txn} = await embed.openIndexTransaction(store, this._lc);
     this._transactionId = id;
     this._transaction = txn;
   }

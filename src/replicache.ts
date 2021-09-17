@@ -386,7 +386,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     const {promise, resolve} = resolver();
     closingInstances.set(this.name, promise);
     const {store} = await this._openResponse;
-    const p = embed.close(this.name, store, this._lc);
+    const p = embed.close(store, this._lc);
 
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
@@ -414,7 +414,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       return undefined;
     }
     const {store} = await this._openResponse;
-    return await embed.getRoot(this.name, store, this._lc);
+    return await embed.getRoot(store, this._lc);
   }
 
   private _onStorage = (e: StorageEvent) => {
@@ -578,7 +578,6 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     const {store} = await this._openResponse;
     const {replayMutations, changedKeys} = await embed.maybeEndPull(
-      this.name,
       requestID,
       syncHead,
       store,
@@ -691,10 +690,9 @@ export class Replicache<MD extends MutatorDefs = {}>
       let pushResponse;
       try {
         this._changeSyncCounters(1, 0);
-        const {store} = await this._openResponse;
+        const {clientID, store} = await this._openResponse;
         pushResponse = await embed.tryPush(
-          this.name,
-          await this._clientIDPromise,
+          clientID,
           {
             pushURL: this.pushURL,
             pushAuth: this.auth,
@@ -766,10 +764,9 @@ export class Replicache<MD extends MutatorDefs = {}>
   }
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
-    const {store} = await this._openResponse;
+    const {clientID, store} = await this._openResponse;
     const beginPullResponse = await embed.beginPull(
-      this.name,
-      await this._clientIDPromise,
+      clientID,
       {
         pullAuth: this.auth,
         pullURL: this.pullURL,

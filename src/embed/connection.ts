@@ -34,19 +34,7 @@ function logCall(name: string, ...args: unknown[]): void {
   testLog.push({name, args});
 }
 
-// type ConnectionMap = Map<string, {store: dag.Store}>;
-
-// const connections: ConnectionMap = new Map();
-
 let transactionCounter = 0;
-
-// function getConnection(dbName: string) {
-//   const connection = connections.get(dbName);
-//   if (!connection) {
-//     throw new Error(`Database "${dbName}" is not open`);
-//   }
-//   return connection;
-// }
 
 type Transaction = db.Write | db.Read;
 
@@ -82,13 +70,9 @@ export async function open(
   return {clientID, store: dagStore};
 }
 
-export async function close(
-  dbName: string,
-  store: dag.Store,
-  lc: LogContext,
-): Promise<void> {
+export async function close(store: dag.Store, lc: LogContext): Promise<void> {
   const start = Date.now();
-  isTesting && logCall('close', dbName);
+  isTesting && logCall('close');
 
   lc = lc.addContext('rpc', 'close');
   lc.debug?.('->');
@@ -106,11 +90,10 @@ async function init(dagStore: dag.Store): Promise<void> {
 }
 
 export async function openReadTransaction(
-  dbName: string,
   store: dag.Store,
   lc: LogContext,
 ): Promise<{id: number; txn: db.Read}> {
-  isTesting && logCall('openReadTransaction', dbName);
+  isTesting && logCall('openReadTransaction');
   return openReadTransactionImpl(
     lc.addContext('rpc', 'openReadTransaction'),
     store,
@@ -118,14 +101,13 @@ export async function openReadTransaction(
 }
 
 export async function openWriteTransaction(
-  dbName: string,
   name: string,
   args: ReadonlyJSONValue,
   rebaseOpts: RebaseOpts | undefined,
   store: dag.Store,
   lc: LogContext,
 ): Promise<{id: number; txn: db.Write; lc: LogContext}> {
-  isTesting && logCall('openWriteTransaction', dbName, name, args, rebaseOpts);
+  isTesting && logCall('openWriteTransaction', name, args, rebaseOpts);
   return openWriteTransactionImpl(lc, store, name, args, rebaseOpts);
 }
 
@@ -186,12 +168,11 @@ export async function openReadTransactionImpl(
 }
 
 export async function openIndexTransaction(
-  dbName: string,
   store: dag.Store,
   lc: LogContext,
 ): Promise<{id: number; txn: db.Write; lc: LogContext}> {
   const start = Date.now();
-  isTesting && logCall('openIndexTransaction', dbName);
+  isTesting && logCall('openIndexTransaction');
 
   const transactionID = transactionCounter++;
 
@@ -310,12 +291,11 @@ export async function closeTransaction(
 }
 
 export async function getRoot(
-  dbName: string,
   store: dag.Store,
   lc: LogContext,
 ): Promise<string> {
   const start = Date.now();
-  isTesting && logCall('getRoot', dbName);
+  isTesting && logCall('getRoot');
 
   const headName = db.DEFAULT_HEAD_NAME;
 
@@ -443,14 +423,13 @@ export async function dropIndex(
 }
 
 export async function maybeEndPull(
-  dbName: string,
   requestID: string,
   syncHead: string,
   store: dag.Store,
   lc: LogContext,
 ): Promise<MaybeEndPullResponse> {
   const start = Date.now();
-  isTesting && logCall('maybeEndPull', dbName, requestID, syncHead);
+  isTesting && logCall('maybeEndPull', requestID, syncHead);
 
   const lc2 = lc
     .addContext('rpc', 'maybeEndPull')
@@ -462,14 +441,13 @@ export async function maybeEndPull(
 }
 
 export async function tryPush(
-  dbName: string,
   clientID: string,
   req: TryPushRequest,
   store: dag.Store,
   lc: LogContext,
 ): Promise<HTTPRequestInfo | undefined> {
   const start = Date.now();
-  isTesting && logCall('tryPush', dbName, req);
+  isTesting && logCall('tryPush', req);
 
   const requestID = sync.newRequestID(clientID);
   const lc2 = lc
@@ -490,14 +468,13 @@ export async function tryPush(
 }
 
 export async function beginPull(
-  dbName: string,
   clientID: string,
   req: BeginPullRequest,
   store: dag.Store,
   lc: LogContext,
 ): Promise<BeginPullResponse> {
   const start = Date.now();
-  isTesting && logCall('beginPull', dbName, req);
+  isTesting && logCall('beginPull', req);
 
   const requestID = sync.newRequestID(clientID);
   const lc2 = lc

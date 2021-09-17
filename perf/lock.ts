@@ -68,7 +68,7 @@ function benchmarkHeldRead(mode: Mode) {
     group: 'lock',
     id: '',
     tab: null as Tab | null,
-    async skip() {
+    skip() {
       return mode === Mode.OtherProcess && isFirefox();
     },
     async setup() {

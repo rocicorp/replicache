@@ -26,7 +26,7 @@ function browser(arg) {
 
 function browserName(browser) {
   let name = browser[0].toUpperCase() + browser.substr(1);
-  if (name === 'webkit') {
+  if (name === 'Webkit') {
     name = 'WebKit';
   }
   return name;

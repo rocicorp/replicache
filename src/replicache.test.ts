@@ -54,7 +54,7 @@ const {fail} = assert;
 let overrideUseMemstore = false;
 
 // eslint-disable-next-line @typescript-eslint/ban-types
-export async function replicacheForTesting<MD extends MutatorDefs = {}>(
+async function replicacheForTesting<MD extends MutatorDefs = {}>(
   name: string,
   {
     pullURL = 'https://pull.com/?name=' + name,

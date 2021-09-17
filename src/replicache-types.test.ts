@@ -283,6 +283,6 @@ test.skip('scan with index [type checking only]', async () => {
     ][];
 
     (await tx.scan({}).keys().toArray()) as string[];
-    (await tx.scan().keys().toArray()) as XXXstring[];
+    (await tx.scan().keys().toArray()) as string[];
   });
 });

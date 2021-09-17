@@ -59,6 +59,10 @@ export function defineTestFunctions(self: Window & typeof globalThis): void {
   }
 }
 
+export function isFirefox(): boolean {
+  return /firefox/i.test(navigator.userAgent);
+}
+
 defineTestFunctions(self);
 
 type Response = {

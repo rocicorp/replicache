@@ -1,5 +1,6 @@
+import 'navigator.locks';
 import {assert} from './replicache';
-import {newTab, Tab} from '../src/test-util';
+import {newTab, Tab, isFirefox} from '../src/test-util';
 import {uuid} from '../src/sync/uuid';
 
 enum Mode {
@@ -67,6 +68,9 @@ function benchmarkHeldRead(mode: Mode) {
     group: 'lock',
     id: '',
     tab: null as Tab | null,
+    skip() {
+      return mode === Mode.OtherProcess && isFirefox();
+    },
     async setup() {
       this.id = uuid();
       if (mode) {

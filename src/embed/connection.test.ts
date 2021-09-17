@@ -4,7 +4,7 @@ import * as sync from '../sync/mod';
 import {MemStore} from '../kv/mem-store';
 import {addGenesis, addLocal, Chain} from '../db/test-helpers';
 import {addSyncSnapshot} from '../sync/test-helpers';
-import {commitImpl, openWriteTransactionImpl} from './connection';
+import {commitTransaction, openWriteTransaction} from './connection';
 import {LogContext} from '../logger';
 import {initHasher} from '../hash';
 
@@ -16,7 +16,6 @@ test('open transaction rebase opts', async () => {
   const store = new dag.Store(new MemStore());
   const lc = new LogContext();
 
-  const txns = new Map();
   const mainChain: Chain = [];
   await addGenesis(mainChain, store);
   await addLocal(mainChain, store);
@@ -33,16 +32,15 @@ test('open transaction rebase opts', async () => {
   let result;
   try {
     // Error: rebase commit's basis must be sync head.
-    result = await openWriteTransactionImpl(
-      lc,
-      store,
-      txns,
+    result = await openWriteTransaction(
       originalName,
       originalArgs,
       {
         basis: originalHash, // <-- not the sync head
         original: originalHash,
       },
+      store,
+      lc,
     );
   } catch (e) {
     result = e;
@@ -54,16 +52,15 @@ test('open transaction rebase opts', async () => {
 
   // Error: rebase commit's name should not change.
   try {
-    result = await openWriteTransactionImpl(
-      lc,
-      store,
-      txns,
+    result = await openWriteTransaction(
       'different',
       originalArgs,
       {
         basis: syncChain[0].chunk.hash,
         original: originalHash,
       },
+      store,
+      lc,
     );
   } catch (e) {
     result = e;
@@ -88,16 +85,15 @@ test('open transaction rebase opts', async () => {
   const newLocalName = lm.mutatorName;
   const newLocalArgs = lm.mutatorArgsJSON;
   try {
-    result = await openWriteTransactionImpl(
-      lc,
-      store,
-      txns,
+    result = await openWriteTransaction(
       newLocalName,
       newLocalArgs,
       {
         basis: syncChain[0].chunk.hash,
         original: newLocalHash,
       },
+      store,
+      lc,
     );
   } catch (e) {
     result = e;
@@ -108,21 +104,20 @@ test('open transaction rebase opts', async () => {
   );
 
   // Correct rebase_opt (test this last because it affects the chain).
-  const otr = await openWriteTransactionImpl(
-    lc,
-    store,
-    txns,
+  const txn = await openWriteTransaction(
     originalName,
     originalArgs,
     {
       basis: syncChain[0].chunk.hash,
       original: originalHash,
     },
+    store,
+    lc,
   );
-  const ctr = await commitImpl(txns, otr, false);
+  const ctr = await commitTransaction(txn, lc, false);
 
   await store.withWrite(async dagWrite => {
-    const sync_head_hash = await dagWrite.read().getHead(sync.SYNC_HEAD_NAME);
-    expect(ctr.ref).to.equal(sync_head_hash);
+    const syncHeadHash = await dagWrite.read().getHead(sync.SYNC_HEAD_NAME);
+    expect(ctr.ref).to.equal(syncHeadHash);
   });
 });

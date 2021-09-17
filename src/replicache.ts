@@ -140,7 +140,6 @@ export class Replicache<MD extends MutatorDefs = {}>
   private readonly _openResponse: Promise<OpenResponse>;
   private readonly _openResolve: (resp: OpenResponse) => void;
   private readonly _clientIDPromise: Promise<string>;
-
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
@@ -517,11 +516,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     return new ScanResult<Key>(
       options,
       async () => {
-        const tx = new ReadTransactionImpl(
-          this.name,
-          this._openResponse,
-          this._lc,
-        );
+        const tx = new ReadTransactionImpl(this._openResponse, this._lc);
         await tx.open();
         return tx;
       },
@@ -553,11 +548,8 @@ export class Replicache<MD extends MutatorDefs = {}>
   private async _indexOp(
     f: (tx: IndexTransactionImpl) => Promise<void>,
   ): Promise<void> {
-    const tx = new IndexTransactionImpl(
-      this.name,
-      this._openResponse,
-      this._lc,
-    );
+    // TODO(arv): Maybe pass in db.Write instead of _openResponse?
+    const tx = new IndexTransactionImpl(this._openResponse, this._lc);
     try {
       await tx.open();
       await f(tx);
@@ -947,7 +939,6 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
     const tx = new ReadTransactionImpl<ReadonlyJSONValue>(
-      this.name,
       this._openResponse,
       this._lc,
     );
@@ -1040,7 +1031,6 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     let result: R;
     const tx = new WriteTransactionImpl(
-      this.name,
       this._openResponse,
       name,
       deepClone(args ?? null),

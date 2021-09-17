@@ -71,7 +71,6 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
   implements ReadTransaction, ScanTransactionDelegate
 {
   protected _closed = false;
-  protected readonly _dbName: string;
   protected readonly _openResponse: Promise<OpenResponse>;
   protected readonly _shouldClone: boolean = false;
 
@@ -79,12 +78,10 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
   readonly lc: LogContext;
 
   constructor(
-    dbName: string,
     openResponse: Promise<OpenResponse>,
     lc: LogContext,
     rpcName = 'openReadTransaction',
   ) {
-    this._dbName = dbName;
     this._openResponse = openResponse;
     this.lc = lc
       .addContext('rpc', rpcName)
@@ -238,14 +235,13 @@ export class WriteTransactionImpl
   protected _transaction: db.Write | undefined = undefined;
 
   constructor(
-    dbName: string,
     openResponse: Promise<OpenResponse>,
     name: string,
     args: JSONValue,
     rebaseOpts: RebaseOpts | undefined,
     lc: LogContext,
   ) {
-    super(dbName, openResponse, lc, 'openWriteTransaction');
+    super(openResponse, lc, 'openWriteTransaction');
     this._name = name;
     this._args = args;
     this._rebaseOpts = rebaseOpts;
@@ -342,12 +338,8 @@ export class IndexTransactionImpl
 {
   protected _transaction: db.Write | undefined = undefined;
 
-  constructor(
-    dbName: string,
-    openResponse: Promise<OpenResponse>,
-    lc: LogContext,
-  ) {
-    super(dbName, openResponse, lc, 'openIndexTransaction');
+  constructor(openResponse: Promise<OpenResponse>, lc: LogContext) {
+    super(openResponse, lc, 'openIndexTransaction');
   }
 
   async createIndex(options: CreateIndexDefinition): Promise<void> {

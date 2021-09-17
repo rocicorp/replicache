@@ -168,6 +168,18 @@ test.skip('Key type for scans [type checking only]', async () => {
 
 // Only used for type checking
 test.skip('mut [type checking only]', async () => {
+  type CustomType = {
+    n: number;
+    s: string;
+  };
+
+  interface CustomInterface {
+    n: number;
+    s: string;
+  }
+
+  type ToRecord<T> = Record<keyof T, T[keyof T]>;
+
   const rep = new Replicache({
     mutators: {
       a: (tx: WriteTransaction) => {
@@ -210,6 +222,37 @@ test.skip('mut [type checking only]', async () => {
       // i: (tx: WriteTransaction, d: Date) =>
       // {console.log(tx, d);
       // },
+
+      j: async (tx: WriteTransaction, custom: CustomType) => {
+        console.log(tx, custom);
+        custom.n as number;
+        custom.s as string;
+        // @ts-expect-error xxx
+        custom.n as boolean;
+
+        await tx.put('c', custom);
+      },
+
+      k: async (tx: WriteTransaction, custom: CustomInterface) => {
+        console.log(tx, custom);
+        custom.n as number;
+        custom.s as string;
+        // @ts-expect-error xxx
+        custom.n as boolean;
+
+        // @ts-expect-error Index signature is missing in type 'CustomInterface'
+        await tx.put('c', custom);
+      },
+
+      l: async (tx: WriteTransaction, custom: ToRecord<CustomInterface>) => {
+        console.log(tx, custom);
+        custom.n as number;
+        custom.s as string;
+        // @ts-expect-error xxx
+        custom.n as boolean;
+
+        await tx.put('c', custom);
+      },
     },
   });
 

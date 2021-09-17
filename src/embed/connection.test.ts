@@ -104,7 +104,7 @@ test('open transaction rebase opts', async () => {
   );
 
   // Correct rebase_opt (test this last because it affects the chain).
-  const otr = await openWriteTransactionImpl(
+  const txn = await openWriteTransactionImpl(
     lc,
     store,
     originalName,
@@ -114,11 +114,10 @@ test('open transaction rebase opts', async () => {
       original: originalHash,
     },
   );
-  const {txn} = otr;
   const ctr = await commitTransaction(txn, lc, false);
 
   await store.withWrite(async dagWrite => {
-    const sync_head_hash = await dagWrite.read().getHead(sync.SYNC_HEAD_NAME);
-    expect(ctr.ref).to.equal(sync_head_hash);
+    const syncHeadHash = await dagWrite.read().getHead(sync.SYNC_HEAD_NAME);
+    expect(ctr.ref).to.equal(syncHeadHash);
   });
 });

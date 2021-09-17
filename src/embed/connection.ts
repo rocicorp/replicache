@@ -34,8 +34,6 @@ function logCall(name: string, ...args: unknown[]): void {
   testLog.push({name, args});
 }
 
-let transactionCounter = 0;
-
 type Transaction = db.Write | db.Read;
 
 export async function open(
@@ -92,7 +90,7 @@ async function init(dagStore: dag.Store): Promise<void> {
 export async function openReadTransaction(
   store: dag.Store,
   lc: LogContext,
-): Promise<{id: number; txn: db.Read}> {
+): Promise<db.Read> {
   isTesting && logCall('openReadTransaction');
   return openReadTransactionImpl(
     lc.addContext('rpc', 'openReadTransaction'),
@@ -106,7 +104,7 @@ export async function openWriteTransaction(
   rebaseOpts: RebaseOpts | undefined,
   store: dag.Store,
   lc: LogContext,
-): Promise<{id: number; txn: db.Write; lc: LogContext}> {
+): Promise<db.Write> {
   isTesting && logCall('openWriteTransaction', name, args, rebaseOpts);
   return openWriteTransactionImpl(lc, store, name, args, rebaseOpts);
 }
@@ -117,10 +115,10 @@ export async function openWriteTransactionImpl(
   name: string,
   args: ReadonlyJSONValue,
   rebaseOpts: RebaseOpts | undefined,
-): Promise<{id: number; txn: db.Write; lc: LogContext}> {
+): Promise<db.Write> {
   const start = Date.now();
   lc.debug?.('->', store, name, args, rebaseOpts);
-  let txn: db.Write;
+  let dbWrite: db.Write;
 
   const lockStart = Date.now();
   lc.debug?.('Waiting for write lock...');
@@ -139,7 +137,13 @@ export async function openWriteTransactionImpl(
       originalHash = rebaseOpts.original;
     }
 
-    txn = await db.Write.newLocal(whence, name, args, originalHash, dagWrite);
+    dbWrite = await db.Write.newLocal(
+      whence,
+      name,
+      args,
+      originalHash,
+      dagWrite,
+    );
     ok = true;
   } finally {
     if (!ok) {
@@ -147,36 +151,31 @@ export async function openWriteTransactionImpl(
     }
   }
 
-  const transactionID = transactionCounter++;
-  lc.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', transactionID);
-  return {id: transactionID, txn, lc};
+  lc.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', dbWrite);
+  return dbWrite;
 }
 
 export async function openReadTransactionImpl(
   lc: LogContext,
   store: dag.Store,
-): Promise<{id: number; txn: db.Read; lc: LogContext}> {
+): Promise<db.Read> {
   const start = Date.now();
   lc.debug?.('->', store);
 
   const dagRead = await store.read();
   const txn = await db.fromWhence(db.whenceHead(db.DEFAULT_HEAD_NAME), dagRead);
 
-  const transactionID = transactionCounter++;
-  lc.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', transactionID);
-  return {id: transactionID, txn, lc};
+  lc.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', txn);
+  return txn;
 }
 
 export async function openIndexTransaction(
   store: dag.Store,
   lc: LogContext,
-): Promise<{id: number; txn: db.Write; lc: LogContext}> {
+): Promise<db.Write> {
   const start = Date.now();
   isTesting && logCall('openIndexTransaction');
 
-  const transactionID = transactionCounter++;
-
-  lc = lc.addContext('txid', transactionID);
   lc.debug?.('->');
 
   let txn;
@@ -197,8 +196,8 @@ export async function openIndexTransaction(
       dagWrite.close();
     }
   }
-  lc.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', transactionID);
-  return {id: transactionID, txn, lc};
+  lc.debug?.('<- elapsed=', Date.now() - start, 'ms');
+  return txn;
 }
 
 async function validateRebase(
@@ -277,7 +276,7 @@ export async function commitTransaction(
 }
 
 export async function closeTransaction(
-  txn: db.Read,
+  txn: db.Read | db.Write,
   lc: LogContext,
 ): Promise<void> {
   const start = Date.now();
@@ -336,7 +335,7 @@ export function get(
 }
 
 export async function scan(
-  txn: Transaction,
+  txn: db.Read,
   lc: LogContext,
   scanOptions: db.ScanOptions,
   receiver: (
@@ -351,7 +350,7 @@ export async function scan(
 
   const lc2 = lc.addContext('rpc', 'scan');
   lc2.debug?.('->', scanOptions);
-  await txn.asRead().scan(scanOptions, sr => {
+  await txn.scan(scanOptions, sr => {
     if (sr.type === db.ScanResultType.Error) {
       // repc didn't throw here, It just did error logging.
       throw sr.error;

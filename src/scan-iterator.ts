@@ -6,15 +6,11 @@ import * as embed from './embed/mod';
 import type * as db from './db/mod';
 import type {LogContext} from './logger';
 
-interface IDCloser {
+export interface ScanTransactionDelegate {
   close(): void;
   closed: boolean;
-  id: number;
-}
-
-interface DBTransactionDelegate {
-  dbTxn(): Transaction;
-  lc(): LogContext;
+  dbRead: db.Read;
+  lc: LogContext;
 }
 
 const VALUE = 0;
@@ -25,8 +21,8 @@ type ScanIterableKind = typeof VALUE | typeof KEY | typeof ENTRY;
 type Args = [
   options: ScanOptions | undefined,
   getTransaction: () =>
-    | Promise<IDCloser & DBTransactionDelegate>
-    | (IDCloser & DBTransactionDelegate),
+    | Promise<ScanTransactionDelegate>
+    | ScanTransactionDelegate,
   shouldCloseTransaction: boolean,
   shouldClone: boolean,
 ];
@@ -131,14 +127,14 @@ async function* scanIterator<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
   getTransaction: () =>
-    | Promise<IDCloser & DBTransactionDelegate>
-    | (IDCloser & DBTransactionDelegate),
+    | Promise<ScanTransactionDelegate>
+    | ScanTransactionDelegate,
   shouldCloseTransaction: boolean,
   shouldClone: boolean,
 ): AsyncGenerator<V> {
   const transaction = await getTransaction();
-  const txn = transaction.dbTxn();
-  const lc = transaction.lc();
+  const txn = transaction.dbRead;
+  const lc = transaction.lc;
   throwIfClosed(transaction);
 
   try {
@@ -153,12 +149,10 @@ async function* scanIterator<V>(
   }
 }
 
-type Transaction = db.Read | db.Write;
-
 async function load<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
-  transaction: Transaction,
+  transaction: db.Read,
   lc: LogContext,
   shouldClone: boolean,
 ): Promise<V[]> {

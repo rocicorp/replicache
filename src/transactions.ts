@@ -1,5 +1,9 @@
 import type {JSONValue, ReadonlyJSONValue} from './json';
-import type {CommitTransactionResponse, RebaseOpts} from './repm-invoker';
+import type {
+  CommitTransactionResponse,
+  OpenResponse,
+  RebaseOpts,
+} from './repm-invoker';
 import {
   KeyTypeForScanOptions,
   ScanOptions,
@@ -67,7 +71,7 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
   protected _transactionId = -1;
   protected _closed = false;
   protected readonly _dbName: string;
-  protected readonly _openResponse: Promise<unknown>;
+  protected readonly _openResponse: Promise<OpenResponse>;
   protected readonly _shouldClone: boolean = false;
 
   protected _transaction: db.Read | db.Write | undefined = undefined;
@@ -75,7 +79,7 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
 
   constructor(
     dbName: string,
-    openResponse: Promise<unknown>,
+    openResponse: Promise<OpenResponse>,
     lc: LogContext,
     rpcName = 'openReadTransaction',
   ) {
@@ -135,8 +139,12 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
   }
 
   async open(): Promise<void> {
-    await this._openResponse;
-    const {id, txn} = await embed.openReadTransaction(this._dbName, this._lc);
+    const {store} = await this._openResponse;
+    const {id, txn} = await embed.openReadTransaction(
+      this._dbName,
+      store,
+      this._lc,
+    );
     this._transactionId = id;
     this._transaction = txn;
   }
@@ -245,7 +253,7 @@ export class WriteTransactionImpl
 
   constructor(
     dbName: string,
-    openResponse: Promise<unknown>,
+    openResponse: Promise<OpenResponse>,
     name: string,
     args: JSONValue,
     rebaseOpts: RebaseOpts | undefined,
@@ -285,12 +293,13 @@ export class WriteTransactionImpl
   }
 
   async open(): Promise<void> {
-    await this._openResponse;
+    const {store} = await this._openResponse;
     const {id, txn} = await embed.openWriteTransaction(
       this._dbName,
       this._name,
       this._args,
       this._rebaseOpts,
+      store,
       this._lc,
     );
     this._transactionId = id;
@@ -352,7 +361,11 @@ export class IndexTransactionImpl
 {
   protected _transaction: db.Write | undefined = undefined;
 
-  constructor(dbName: string, openResponse: Promise<unknown>, lc: LogContext) {
+  constructor(
+    dbName: string,
+    openResponse: Promise<OpenResponse>,
+    lc: LogContext,
+  ) {
     super(dbName, openResponse, lc, 'openIndexTransaction');
   }
 
@@ -384,8 +397,12 @@ export class IndexTransactionImpl
   }
 
   async open(): Promise<void> {
-    await this._openResponse;
-    const {id, txn} = await embed.openIndexTransaction(this._dbName, this._lc);
+    const {store} = await this._openResponse;
+    const {id, txn} = await embed.openIndexTransaction(
+      this._dbName,
+      store,
+      this._lc,
+    );
     this._transactionId = id;
     this._transaction = txn;
   }

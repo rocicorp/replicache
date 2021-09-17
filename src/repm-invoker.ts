@@ -1,9 +1,10 @@
 import type {Puller} from './puller';
 import type {Pusher} from './pusher';
+import type * as dag from './dag/mod';
 import type * as db from './db/mod';
 import type {JSONValue} from './json';
 
-export type OpenResponse = string;
+export type OpenResponse = {clientID: string; store: dag.Store};
 
 type TransactionRequest = {
   transactionId: number;

@@ -140,6 +140,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   private readonly _openResponse: Promise<OpenResponse>;
   private readonly _openResolve: (resp: OpenResponse) => void;
   private readonly _clientIDPromise: Promise<string>;
+
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
@@ -310,7 +311,7 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     this._lc = new LogContext(logLevel).addContext('db', name);
 
-    this._clientIDPromise = this._open();
+    this._clientIDPromise = this._open().then(resp => resp.clientID);
   }
 
   private async _open(): Promise<OpenResponse> {
@@ -384,8 +385,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     this._closed = true;
     const {promise, resolve} = resolver();
     closingInstances.set(this.name, promise);
-    await this._openResponse;
-    const p = embed.close(this.name, this._lc);
+    const {store} = await this._openResponse;
+    const p = embed.close(this.name, store, this._lc);
 
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
@@ -412,8 +413,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     if (this._closed) {
       return undefined;
     }
-    await this._openResponse;
-    return await embed.getRoot(this.name, this._lc);
+    const {store} = await this._openResponse;
+    return await embed.getRoot(this.name, store, this._lc);
   }
 
   private _onStorage = (e: StorageEvent) => {
@@ -575,10 +576,12 @@ export class Replicache<MD extends MutatorDefs = {}>
     let {syncHead} = beginPullResult;
     const {requestID} = beginPullResult;
 
+    const {store} = await this._openResponse;
     const {replayMutations, changedKeys} = await embed.maybeEndPull(
       this.name,
       requestID,
       syncHead,
+      store,
       this._lc,
     );
     if (!replayMutations || replayMutations.length === 0) {
@@ -688,7 +691,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       let pushResponse;
       try {
         this._changeSyncCounters(1, 0);
-        await this._openResponse;
+        const {store} = await this._openResponse;
         pushResponse = await embed.tryPush(
           this.name,
           await this._clientIDPromise,
@@ -698,6 +701,7 @@ export class Replicache<MD extends MutatorDefs = {}>
             schemaVersion: this.schemaVersion,
             pusher: this.pusher,
           },
+          store,
           this._lc,
         );
       } finally {
@@ -762,7 +766,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   }
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
-    await this._openResponse;
+    const {store} = await this._openResponse;
     const beginPullResponse = await embed.beginPull(
       this.name,
       await this._clientIDPromise,
@@ -772,6 +776,7 @@ export class Replicache<MD extends MutatorDefs = {}>
         schemaVersion: this.schemaVersion,
         puller: this.puller,
       },
+      store,
       this._lc,
     );
 

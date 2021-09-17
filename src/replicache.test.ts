@@ -22,6 +22,7 @@ import {sleep} from './sleep';
 import {MemStore} from './kv/mem-store';
 import type * as kv from './kv/mod';
 import * as embed from './embed/mod';
+import {TestMemStore} from './kv/test-mem-store';
 
 let clock: SinonFakeTimers;
 setup(() => {
@@ -3006,4 +3007,53 @@ test('subscription coalescing', async () => {
   expect(store.closeCount).to.equal(0);
 
   expect(log).to.deep.equal(['d', 'e']);
+});
+
+function findPropertyValue(
+  obj: unknown,
+  propertyName: string,
+  propertyValue: unknown,
+): unknown | undefined {
+  if (typeof obj === 'object' && obj !== null) {
+    const rec = obj as Record<string, unknown>;
+    if (rec[propertyName] === propertyValue) {
+      return rec;
+    }
+
+    let values: Iterable<unknown>;
+    if (obj instanceof Set || obj instanceof Map || obj instanceof Array) {
+      values = obj.values();
+    } else {
+      values = Object.values(rec);
+    }
+    for (const v of values) {
+      const r = findPropertyValue(v, propertyName, propertyValue);
+      if (r) {
+        return r;
+      }
+    }
+  }
+  return undefined;
+}
+
+test('mutate args in mutation', async () => {
+  // This tests that mutating the args in a mutation does not mutate the args we
+  // store in the kv.Store.
+  const store = new TestMemStore();
+  const rep = await replicacheForTesting('mutate-args-in-mutation', {
+    experimentalKVStore: store,
+    mutators: {
+      async mutArgs(tx, args: {v: number}) {
+        args.v = 42;
+        await tx.put('v', args.v);
+      },
+    },
+  });
+
+  await rep.mutate.mutArgs({v: 1});
+
+  const o = findPropertyValue(store.map(), 'mutatorName', 'mutArgs');
+  expect((o as {mutatorArgsJSON?: unknown}).mutatorArgsJSON).to.deep.equal({
+    v: 1,
+  });
 });

@@ -120,13 +120,13 @@ If there are any API changes, ensure they have been discussed before release.
 
 ## Update docs
 
-The docs are built from the `stable` branch so we need to rebase that to get it
+The docs are built from the `docs` branch so we need to rebase that to get it
 to deploy a new version.
 
 ```
-git checkout stable
+git checkout docs
 git reset --hard main
-git push origin stable
+git push origin docs
 ```
 
 # Performance Monitoring
@@ -137,13 +137,13 @@ https://rocicorp.github.io/replicache/perf/
 
 # Sprucing the docs
 
-The live docs at doc.replicache.dev are served from the `stable` channel so that they reflect the stable API.
+The live docs at doc.replicache.dev are served from the `docs` channel so that they reflect the stable API.
 
-However, this means that if you do cleanup docs changes that you want to show up immediately, you need to cherry-pick the changes onto stable:
+However, this means that if you do cleanup docs changes that you want to show up immediately, you need to cherry-pick the changes onto the `docs` branch:
 
 ```
-git checkout stable
+git checkout docs
 git cherry-pick <hash-of-spruce-commit>
 ```
 
-During release, below, we reset the stable branch to master, dropping these cherry-picked changes. So it's important to never do work directly on stable.
+During release, below, we reset the `docs` branch to main, dropping these cherry-picked changes. So it's important to never do work directly on `docs`.

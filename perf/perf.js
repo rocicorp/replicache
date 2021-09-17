@@ -7,8 +7,9 @@ import {
   benchmarkWriteReadRoundTrip,
   benchmarkSubscribe,
   benchmarkSubscribeSetup,
-} from './replicache.js';
-import {benchmarkIDBRead, benchmarkIDBWrite} from './idb.js';
+} from './replicache';
+import {benchmarkIDBRead, benchmarkIDBWrite} from './idb';
+import {benchmarks as lockBenchmarks} from './lock';
 
 /**
  * @typedef {{
@@ -59,7 +60,7 @@ async function runBenchmark(benchmark, format) {
       },
       i,
     );
-    if (t1 == 0) {
+    if (t1 === 0) {
       t1 = performance.now();
     }
     const dur = t1 - t0;
@@ -138,6 +139,7 @@ const benchmarks = [
   benchmarkSubscribeSetup({count: 10}),
   benchmarkSubscribeSetup({count: 100}),
   benchmarkSubscribeSetup({count: 1000}),
+  ...lockBenchmarks(),
 ];
 
 for (let b of [benchmarkIDBRead, benchmarkIDBWrite]) {
@@ -156,7 +158,7 @@ for (let b of [benchmarkIDBRead, benchmarkIDBWrite]) {
         10 * mb,
         100 * mb,
       ];
-      const group = dataType == 'arraybuffer' ? 'idb' : 'idb-extras';
+      const group = dataType === 'arraybuffer' ? 'idb' : 'idb-extras';
       for (let valSize of sizes) {
         if (valSize > 10 * mb) {
           if (numKeys > 1) {
@@ -210,14 +212,10 @@ function findBenchmarks(groups) {
   return benchmarks.filter(b => groups.includes(b.group));
 }
 
-// @ts-ignore
 window.benchmarks = benchmarks;
-// @ts-ignore
 window.findBenchmarks = findBenchmarks;
-// @ts-ignore
 window.runBenchmarkByNameAndGroup = runBenchmarkByNameAndGroup;
 
-// @ts-ignore
 window.runAll = async function (groups) {
   const out = /** @type {HTMLPreElement} */ (
     /** @type {unknown} */ document.getElementById('out')

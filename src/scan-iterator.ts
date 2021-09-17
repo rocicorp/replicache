@@ -3,11 +3,14 @@ import {throwIfClosed} from './transaction-closed-error';
 import {ScanOptions, toDbScanOptions} from './scan-options';
 import {asyncIterableToArray} from './async-iterable-to-array';
 import * as embed from './embed/mod';
+import type * as db from './db/mod';
+import type {LogContext} from './logger';
 
-interface IdCloser {
+export interface ScanTransactionDelegate {
   close(): void;
   closed: boolean;
-  id: number;
+  dbRead: db.Read;
+  lc: LogContext;
 }
 
 const VALUE = 0;
@@ -17,7 +20,9 @@ type ScanIterableKind = typeof VALUE | typeof KEY | typeof ENTRY;
 
 type Args = [
   options: ScanOptions | undefined,
-  getTransaction: () => Promise<IdCloser> | IdCloser,
+  getTransaction: () =>
+    | Promise<ScanTransactionDelegate>
+    | ScanTransactionDelegate,
   shouldCloseTransaction: boolean,
   shouldClone: boolean,
 ];
@@ -121,15 +126,19 @@ export class AsyncIterableIteratorToArrayWrapper<V>
 async function* scanIterator<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
-  getTransaction: () => Promise<IdCloser> | IdCloser,
+  getTransaction: () =>
+    | Promise<ScanTransactionDelegate>
+    | ScanTransactionDelegate,
   shouldCloseTransaction: boolean,
   shouldClone: boolean,
 ): AsyncGenerator<V> {
   const transaction = await getTransaction();
+  const txn = transaction.dbRead;
+  const lc = transaction.lc;
   throwIfClosed(transaction);
 
   try {
-    const items: V[] = await load(kind, options, transaction.id, shouldClone);
+    const items: V[] = await load(kind, options, txn, lc, shouldClone);
     for (const item of items) {
       yield item;
     }
@@ -143,7 +152,8 @@ async function* scanIterator<V>(
 async function load<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
-  transactionID: number,
+  transaction: db.Read,
+  lc: LogContext,
   shouldClone: boolean,
 ): Promise<V[]> {
   const items: V[] = [];
@@ -171,7 +181,8 @@ async function load<V>(
   };
 
   await embed.scan(
-    transactionID,
+    transaction,
+    lc,
     toDbScanOptions(options),
     receiver,
     shouldClone,

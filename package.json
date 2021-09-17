@@ -1,14 +1,14 @@
 {
   "name": "replicache",
   "description": "Realtime sync for any backend stack",
-  "version": "7.0.0-beta.3",
+  "version": "7.0.0",
   "repository": "github:rocicorp/replicache",
   "license": "BSL-1.1",
   "scripts": {
     "test": "web-test-runner",
     "test:watch": "web-test-runner --watch",
-    "format": "prettier --write '{doc,src,sample,perf}/**/*.{js,jsx,json,ts,tsx,html,css,md}' '*.{js,jsx,json,ts,tsx,html,css,md}'",
-    "check-format": "prettier --check '{doc,src,sample,perf}/**/*.{js,jsx,json,ts,tsx,html,css,md}' '*.{js,jsx,json,ts,tsx,html,css,md}'",
+    "format": "prettier --write '{doc,src,sample,perf}/**/*.{js,jsx,json,ts,tsx,html,css,md}' '*.{cjs,js,jsx,json,ts,tsx,html,css,md}'",
+    "check-format": "prettier --check '{doc,src,sample,perf}/**/*.{js,jsx,json,ts,tsx,html,css,md}' '*.{cjs,js,jsx,json,ts,tsx,html,css,md}'",
     "lint": "eslint --ext .ts,.tsx,.js,.jsx src/ perf/",
     "build-dts": "rm -rf out/.dts/ && tsc --emitDeclarationOnly --outDir out/.dts/ && rollup --config rollup.config.js && rm -rf out/.dts",
     "build-mjs": "esbuild --bundle --target=es2018 --outfile=out/replicache.mjs --format=esm src/mod.ts",

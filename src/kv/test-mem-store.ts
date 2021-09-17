@@ -8,4 +8,8 @@ export class TestMemStore extends MemStore {
   entries(): Iterable<[string, Value]> {
     return this._map.entries();
   }
+
+  map(): Map<string, Value> {
+    return this._map;
+  }
 }

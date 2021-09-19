@@ -56,6 +56,10 @@ class ProllyMap {
     return this._readonlyEntries[index][1];
   }
 
+  isEmpty(): boolean {
+    return this._readonlyEntries.length === 0;
+  }
+
   put(key: string, val: ReadonlyJSONValue): void {
     const entries = this._mutableEntries;
     const index = binarySearch(key, entries);

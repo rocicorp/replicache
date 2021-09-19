@@ -210,8 +210,8 @@ test('roundtrip', async () => {
       await w.setHead(name, c.hash);
 
       // Read the changes inside the tx.
-      const c2 = await w.read().getChunk(c.hash);
-      const h = await w.read().getHead(name);
+      const c2 = await w.getChunk(c.hash);
+      const h = await w.getHead(name);
       expect(c2).to.deep.equal(c);
       expect(c.hash).to.equal(h);
       await w.commit();

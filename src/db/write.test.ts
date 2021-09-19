@@ -149,7 +149,7 @@ test('clear', async () => {
     expect([...w.map]).to.have.lengthOf(2);
     let index = w.indexes.get('idx');
     assertNotUndefined(index);
-    await index.withMap(dagWrite.read(), map => {
+    await index.withMap(dagWrite, map => {
       expect([...map]).to.have.lengthOf(2);
     });
 
@@ -157,7 +157,7 @@ test('clear', async () => {
     expect([...w.map]).to.have.lengthOf(0);
     index = w.indexes.get('idx');
     assertNotUndefined(index);
-    await index.withMap(dagWrite.read(), map => {
+    await index.withMap(dagWrite, map => {
       expect([...map]).to.have.lengthOf(0);
     });
 
@@ -249,10 +249,7 @@ test('create and drop index', async () => {
       );
       await w.dropIndex(indexName);
       await w.commit(DEFAULT_HEAD_NAME);
-      const [, c] = await readCommit(
-        whenceHead(DEFAULT_HEAD_NAME),
-        dagWrite.read(),
-      );
+      const [, c] = await readCommit(whenceHead(DEFAULT_HEAD_NAME), dagWrite);
       const indexes = c.indexes;
       expect(indexes).to.be.empty;
     });

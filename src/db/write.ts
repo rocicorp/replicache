@@ -53,7 +53,7 @@ export class Write extends Read {
     meta: Meta,
     indexes: Map<string, Index>,
   ) {
-    super(dagWrite.read(), map, indexes);
+    super(dagWrite, map, indexes);
     this._dagWrite = dagWrite;
     this._basis = basis;
     this._meta = meta;
@@ -66,7 +66,7 @@ export class Write extends Read {
     originalHash: string | null,
     dagWrite: dag.Write,
   ): Promise<Write> {
-    const [, basis, map] = await readCommit(whence, dagWrite.read());
+    const [, basis, map] = await readCommit(whence, dagWrite);
     const mutationID = basis.nextMutationID;
     const indexes = readIndexes(basis);
     return new Write(
@@ -91,7 +91,7 @@ export class Write extends Read {
     dagWrite: dag.Write,
     indexes: Map<string, Index>,
   ): Promise<Write> {
-    const [, basis, map] = await readCommit(whence, dagWrite.read());
+    const [, basis, map] = await readCommit(whence, dagWrite);
     return new Write(
       dagWrite,
       map,
@@ -105,7 +105,7 @@ export class Write extends Read {
     whence: Whence,
     dagWrite: dag.Write,
   ): Promise<Write> {
-    const [, basis, map] = await readCommit(whence, dagWrite.read());
+    const [, basis, map] = await readCommit(whence, dagWrite);
     const lastMutationID = basis.mutationID;
     const indexes = readIndexes(basis);
     return new Write(
@@ -283,9 +283,8 @@ export class Write extends Read {
     }
     for (const [name, index] of this.indexes) {
       {
-        const indexChangedKeys = await index.withMap(
-          this._dagWrite.read(),
-          map => map.pendingChangedKeys(),
+        const indexChangedKeys = await index.withMap(this._dagWrite, map =>
+          map.pendingChangedKeys(),
         );
         if (indexChangedKeys.length > 0) {
           keyChanges.set(name, indexChangedKeys);
@@ -372,7 +371,7 @@ async function updateIndexes(
 ): Promise<void> {
   for (const idx of indexes.values()) {
     if (key.startsWith(idx.meta.definition.keyPrefix)) {
-      await idx.withMap(dagWrite.read(), map => {
+      await idx.withMap(dagWrite, map => {
         // Right now all the errors that index_value() returns are customers dev
         // problems: either the value is not json, the pointer is into nowhere, etc.
         // So we ignore them.

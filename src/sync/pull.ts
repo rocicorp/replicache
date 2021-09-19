@@ -96,7 +96,7 @@ export async function beginPull(
   // It is possible that another sync completed while we were pulling. Ensure
   // that is not the case by re-checking the base snapshot.
   return await store.withWrite(async dagWrite => {
-    const dagRead = dagWrite.read();
+    const dagRead = dagWrite;
     const mainHeadPostPull = await dagRead.getHead(db.DEFAULT_HEAD_NAME);
 
     if (mainHeadPostPull === undefined) {
@@ -185,7 +185,7 @@ export async function maybeEndPull(
 ): Promise<MaybeEndPullResponse> {
   // Ensure sync head is what the caller thinks it is.
   return await store.withWrite(async dagWrite => {
-    const dagRead = dagWrite.read();
+    const dagRead = dagWrite;
     const syncHeadHash = await dagRead.getHead(SYNC_HEAD_NAME);
     if (syncHeadHash === undefined) {
       throw new Error('Missing sync head');

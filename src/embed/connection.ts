@@ -236,10 +236,6 @@ export async function commitTransaction(
   const lc2 = lc.addContext('rpc', 'commitTransaction');
   lc2.debug?.('->', generateChangedKeys);
 
-  if (txn instanceof db.Read) {
-    throw new Error('Transaction is read-only');
-  }
-
   const headName = txn.isRebase() ? sync.SYNC_HEAD_NAME : db.DEFAULT_HEAD_NAME;
   const [hash, changedKeys] = await txn.commitWithChangedKeys(
     headName,
@@ -292,7 +288,7 @@ export function has(txn: Transaction, lc: LogContext, key: string): boolean {
 
   const lc2 = lc.addContext('rpc', 'has');
   lc2.debug?.('->', key);
-  const result = txn.asRead().has(key);
+  const result = txn.has(key);
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
   return result;
 }
@@ -308,7 +304,7 @@ export function get(
 
   const lc2 = lc.addContext('rpc', 'get');
   lc2.debug?.('->', key);
-  const value = txn.asRead().get(key);
+  const value = txn.get(key);
 
   const result = value && (shouldClone ? deepClone(value) : value);
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
@@ -367,7 +363,7 @@ export async function del(
 
   const lc2 = lc.addContext('rpc', 'del');
   lc2.debug?.('->', key);
-  const had = await txn.asRead().has(key);
+  const had = await txn.has(key);
   await txn.del(lc, key);
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', had);
   return had;

@@ -29,9 +29,8 @@ test('basics', async () => {
       dagWrite,
     );
     await w.put(lc, 'foo', 'bar');
-    // Assert we can read the same value from within this transaction.
-    const r = w.asRead();
-    const val = r.get('foo');
+    // Assert we can read the same value from within this transaction.;
+    const val = w.get('foo');
     expect(val).to.deep.equal('bar');
     await w.commit(DEFAULT_HEAD_NAME);
   });
@@ -45,8 +44,7 @@ test('basics', async () => {
       null,
       dagWrite,
     );
-    const r = w.asRead();
-    const val = r.get('foo');
+    const val = w.get('foo');
     expect(val).to.deep.equal('bar');
   });
 
@@ -61,8 +59,7 @@ test('basics', async () => {
     );
     await w.del(lc, 'foo');
     // Assert it is gone while still within this transaction.
-    const r = w.asRead();
-    const val = r.get('foo');
+    const val = w.get('foo');
     expect(val).to.be.undefined;
     await w.commit(DEFAULT_HEAD_NAME);
   });
@@ -76,8 +73,7 @@ test('basics', async () => {
       null,
       dagWrite,
     );
-    const r = w.asRead();
-    const val = r.get(`foo`);
+    const val = w.get(`foo`);
     expect(val).to.be.undefined;
   });
 });

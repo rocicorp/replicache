@@ -41,12 +41,10 @@ const enum MetaType {
   Snapshot,
 }
 
-export class Write {
+export class Write extends Read {
   private readonly _dagWrite: dag.Write;
-  map: prolly.Map;
   private readonly _basis: Commit | undefined;
   private readonly _meta: Meta;
-  readonly indexes: Map<string, Index>;
 
   constructor(
     dagWrite: dag.Write,
@@ -55,11 +53,10 @@ export class Write {
     meta: Meta,
     indexes: Map<string, Index>,
   ) {
+    super(dagWrite.read(), map, indexes);
     this._dagWrite = dagWrite;
-    this.map = map;
     this._basis = basis;
     this._meta = meta;
-    this.indexes = indexes;
   }
 
   static async newLocal(
@@ -118,10 +115,6 @@ export class Write {
       {type: MetaType.IndexChange, lastMutationID},
       indexes,
     );
-  }
-
-  asRead(): Read {
-    return new Read(this._dagWrite.read(), this.map, this.indexes);
   }
 
   isRebase(): boolean {

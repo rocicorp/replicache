@@ -105,7 +105,7 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
   async isEmpty(): Promise<boolean> {
     throwIfClosed(this);
     assertNotUndefined(this._transaction);
-    return this._transaction.asRead().isEmpty();
+    return this._transaction.isEmpty();
   }
 
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
@@ -135,8 +135,9 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
   }
 
   get dbRead(): db.Read {
+    // TODO(arv): Remove?
     assertNotUndefined(this._transaction);
-    return this._transaction.asRead();
+    return this._transaction;
   }
 }
 

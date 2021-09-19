@@ -30,6 +30,10 @@ export class Read {
     return this._map.get(key);
   }
 
+  isEmpty(): boolean {
+    return this._map.isEmpty();
+  }
+
   async scan(
     opts: ScanOptions,
     callback: (s: ScanResult) => void,

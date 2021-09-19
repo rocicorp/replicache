@@ -105,15 +105,7 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
   async isEmpty(): Promise<boolean> {
     throwIfClosed(this);
     assertNotUndefined(this._transaction);
-    let empty = true;
-    await embed.scan(
-      this._transaction.asRead(),
-      this.lc,
-      {limit: 1},
-      () => (empty = false),
-      false, // shouldClone
-    );
-    return empty;
+    return this._transaction.asRead().isEmpty();
   }
 
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(

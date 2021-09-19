@@ -80,7 +80,7 @@ export async function close(store: dag.Store, lc: LogContext): Promise<void> {
 
 async function init(dagStore: dag.Store): Promise<void> {
   await dagStore.withWrite(async dagWrite => {
-    const head = await dagWrite.read().getHead(db.DEFAULT_HEAD_NAME);
+    const head = await dagWrite.getHead(db.DEFAULT_HEAD_NAME);
     if (!head) {
       await db.initDB(dagWrite, db.DEFAULT_HEAD_NAME);
     }
@@ -127,7 +127,7 @@ export async function openWriteTransaction(
     if (rebaseOpts === undefined) {
       whence = db.whenceHead(db.DEFAULT_HEAD_NAME);
     } else {
-      await validateRebase(rebaseOpts, dagWrite.read(), name, args);
+      await validateRebase(rebaseOpts, dagWrite, name, args);
       whence = db.whenceHash(rebaseOpts.basis);
       originalHash = rebaseOpts.original;
     }

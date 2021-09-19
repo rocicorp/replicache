@@ -9,17 +9,14 @@ type HeadChange = {
   old: string | undefined;
 };
 
-export class Write {
+export class Write extends Read {
   private readonly _kvw: kv.Write;
   private readonly _newChunks = new Set<string>();
   private readonly _changedHeads = new Map<string, HeadChange>();
 
   constructor(kvw: kv.Write) {
+    super(kvw);
     this._kvw = kvw;
-  }
-
-  read(): Read {
-    return new Read(this._kvw);
   }
 
   async putChunk(c: Chunk): Promise<void> {
@@ -47,7 +44,7 @@ export class Write {
     name: string,
     hash: string | undefined,
   ): Promise<void> {
-    const oldHash = await this.read().getHead(name);
+    const oldHash = await this.getHead(name);
     const hk = headKey(name);
 
     let p1: Promise<void>;

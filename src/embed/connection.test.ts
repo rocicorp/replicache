@@ -117,7 +117,7 @@ test('open transaction rebase opts', async () => {
   const ctr = await commitTransaction(txn, lc, false);
 
   await store.withWrite(async dagWrite => {
-    const syncHeadHash = await dagWrite.read().getHead(sync.SYNC_HEAD_NAME);
+    const syncHeadHash = await dagWrite.getHead(sync.SYNC_HEAD_NAME);
     expect(ctr.ref).to.equal(syncHeadHash);
   });
 });

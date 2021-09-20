@@ -22,6 +22,8 @@ import {sleep} from './sleep';
 import {MemStore} from './kv/mem-store';
 import type * as kv from './kv/mod';
 import * as embed from './embed/mod';
+import * as db from './db/mod';
+import * as dag from './dag/mod';
 import {TestMemStore} from './kv/test-mem-store';
 
 let clock: SinonFakeTimers;
@@ -1536,6 +1538,10 @@ testWithBothStores('pullInterval in constructor', async () => {
 });
 
 testWithBothStores('closeTransaction after rep.scan', async () => {
+  const readSpy = sinon.spy(dag.Store.prototype, 'read');
+  const scanSpy = sinon.spy(db.Read.prototype, 'scan');
+  const closeSpy = sinon.spy(db.Read.prototype, 'close');
+
   const rep = await replicacheForTesting('test5', {mutators: {addData}});
   const add = rep.mutate.addData;
   await add({
@@ -1543,28 +1549,29 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
     'a/1': 1,
   });
 
-  embed.clearTestLog();
+  const log: ReadonlyJSONValue[] = [];
 
   function expectCalls(l: JSONValue[]) {
     expect(l).to.deep.equal(log);
-    const names = embed.testLog.map(({name}) => name);
-    expect(names).to.deep.equal([
-      `openReadTransaction`,
-      'scan',
-      'closeTransaction',
-    ]);
+
+    expect(readSpy.callCount).to.equal(1);
+    expect(scanSpy.callCount).to.equal(1);
+    expect(closeSpy.callCount).to.equal(1);
+
+    readSpy.resetHistory();
+    scanSpy.resetHistory();
+    closeSpy.resetHistory();
+    log.length = 0;
   }
 
   const it = rep.scan();
-  const log: ReadonlyJSONValue[] = [];
+
   for await (const v of it) {
     log.push(v);
   }
   expectCalls([0, 1]);
 
   // One more time with return in loop...
-  log.length = 0;
-  embed.clearTestLog();
   await (async () => {
     if (!rep) {
       fail();
@@ -1578,8 +1585,6 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
   expectCalls([0]);
 
   // ... and with a break.
-  log.length = 0;
-  embed.clearTestLog();
   {
     const it = rep.scan();
     for await (const v of it) {
@@ -1590,8 +1595,6 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
   expectCalls([0]);
 
   // ... and with a throw.
-  log.length = 0;
-  embed.clearTestLog();
   (
     await expectPromiseToReject(
       (async () => {
@@ -1610,8 +1613,6 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
   expectCalls([0]);
 
   // ... and with a throw.
-  log.length = 0;
-  embed.clearTestLog();
   (
     await expectPromiseToReject(
       (async () => {

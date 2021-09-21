@@ -22,20 +22,18 @@ import {closeAllReps, deletaAllDatabases, reps, dbsToDrop} from './test-util';
 import {sleep} from './sleep';
 import {MemStore} from './kv/mem-store';
 import type * as kv from './kv/mod';
-import * as embed from './embed/mod';
 import * as db from './db/mod';
 import * as dag from './dag/mod';
 import {TestMemStore} from './kv/test-mem-store';
+import {WriteTransactionImpl} from './transactions';
 
 let clock: SinonFakeTimers;
 setup(() => {
   clock = useFakeTimers(0);
-  embed.setIsTesting(true);
 });
 
 teardown(() => {
   clock.restore();
-  embed.setIsTesting(false);
 });
 
 async function tickAFewTimes(n = 10, time = 10) {
@@ -2104,7 +2102,32 @@ testWithBothStores('push and pull concurrently', async () => {
     pushDelay: 10,
     mutators: {addData},
   });
-  embed.clearTestLog();
+
+  const beginPullSpy = sinon.spy(rep, 'beginPull');
+  const commitSpy = sinon.spy(db.Write.prototype, 'commitWithChangedKeys');
+  const invokePushSpy = sinon.spy(rep, 'invokePush');
+  const putSpy = sinon.spy(WriteTransactionImpl.prototype, 'put');
+  const writeSpy = sinon.spy(dag.Store.prototype, 'write');
+
+  function resetSpys() {
+    beginPullSpy.resetHistory();
+    commitSpy.resetHistory();
+    invokePushSpy.resetHistory();
+    putSpy.resetHistory();
+    writeSpy.resetHistory();
+  }
+
+  const callCounts = () => {
+    const rv = {
+      beginPull: beginPullSpy.callCount,
+      commit: commitSpy.callCount,
+      invokePush: invokePushSpy.callCount,
+      put: putSpy.callCount,
+      write: writeSpy.callCount,
+    };
+    resetSpys();
+    return rv;
+  };
 
   const add = rep.mutate.addData;
 
@@ -2120,40 +2143,37 @@ testWithBothStores('push and pull concurrently', async () => {
   });
 
   await add({a: 0});
-  embed.clearTestLog();
+  resetSpys();
 
   await add({b: 1});
-  const pullP1 = rep.pull();
+  rep.pull();
 
   await clock.tickAsync(10);
 
-  const rpcs = () => embed.testLog.map(({name}) => name);
-
   // Only one push at a time but we want push and pull to be concurrent.
-  expect(rpcs()).to.deep.equal([
-    'openWriteTransaction',
-    'put',
-    'commitTransaction',
-    'beginPull',
-    'tryPush',
-  ]);
+  expect(callCounts()).to.deep.equal({
+    beginPull: 1,
+    commit: 1,
+    invokePush: 1,
+    put: 1,
+    write: 1,
+  });
 
   await tickAFewTimes();
 
   expect(reqs).to.deep.equal([pullURL, pushURL]);
 
   await tickAFewTimes();
-  await pullP1;
 
   expect(reqs).to.deep.equal([pullURL, pushURL]);
 
-  expect(rpcs()).to.deep.equal([
-    'openWriteTransaction',
-    'put',
-    'commitTransaction',
-    'beginPull',
-    'tryPush',
-  ]);
+  expect(callCounts()).to.deep.equal({
+    beginPull: 0,
+    commit: 0,
+    invokePush: 0,
+    put: 0,
+    write: 0,
+  });
 });
 
 test('schemaVersion pull', async () => {

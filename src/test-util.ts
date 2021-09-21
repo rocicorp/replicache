@@ -13,8 +13,8 @@ export class ReplicacheTest<
   // eslint-disable-next-line @typescript-eslint/ban-types
   MD extends MutatorDefs = {},
 > extends Replicache<MD> {
-  beginPull(): Promise<BeginPullResult> {
-    return super._beginPull(MAX_REAUTH_TRIES);
+  beginPull(maxAuthTries = MAX_REAUTH_TRIES): Promise<BeginPullResult> {
+    return super._beginPull(maxAuthTries);
   }
 
   maybeEndPull(beginPullResult: BeginPullResult): Promise<void> {
@@ -26,8 +26,14 @@ export class ReplicacheTest<
     return super._invokePush(maxAuthTries);
   }
 
-  protected override async _invokePush(maxAuthTries: number): Promise<boolean> {
+  protected override _invokePush(maxAuthTries: number): Promise<boolean> {
     return this.invokePush(maxAuthTries);
+  }
+
+  protected override _beginPull(
+    maxAuthTries: number,
+  ): Promise<BeginPullResult> {
+    return this.beginPull(maxAuthTries);
   }
 }
 

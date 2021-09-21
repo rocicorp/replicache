@@ -16,24 +16,6 @@ import {ReadonlyJSONValue, JSONValue, deepClone} from '../json';
 import type {LogContext} from '../logger';
 import {migrate} from '../migrate/migrate';
 
-// TODO(arv): Use esbuild --define:TESTING=false
-
-let isTesting = false;
-
-export function setIsTesting(b: boolean): void {
-  isTesting = b;
-}
-
-export const testLog: {name: string; args: unknown[]}[] = [];
-
-export function clearTestLog(): void {
-  testLog.length = 0;
-}
-
-function logCall(name: string, ...args: unknown[]): void {
-  testLog.push({name, args});
-}
-
 type Transaction = db.Write | db.Read;
 
 export async function open(
@@ -42,7 +24,6 @@ export async function open(
   lc: LogContext,
 ): Promise<OpenResponse> {
   const start = Date.now();
-  isTesting && logCall('open', dbName);
 
   const lc2 = lc.addContext('rpc', 'open');
   lc2.debug?.('->', kvStore);
@@ -70,7 +51,6 @@ export async function open(
 
 export async function close(store: dag.Store, lc: LogContext): Promise<void> {
   const start = Date.now();
-  isTesting && logCall('close');
 
   lc = lc.addContext('rpc', 'close');
   lc.debug?.('->');
@@ -91,7 +71,6 @@ export async function openReadTransaction(
   store: dag.Store,
   lc: LogContext,
 ): Promise<db.Read> {
-  isTesting && logCall('openReadTransaction');
   const start = Date.now();
   lc.debug?.('->', store);
 
@@ -109,8 +88,6 @@ export async function openWriteTransaction(
   store: dag.Store,
   lc: LogContext,
 ): Promise<db.Write> {
-  isTesting && logCall('openWriteTransaction', name, args, rebaseOpts);
-
   const start = Date.now();
   lc.debug?.('->', store, name, args, rebaseOpts);
   let dbWrite: db.Write;
@@ -155,7 +132,6 @@ export async function openIndexTransaction(
   lc: LogContext,
 ): Promise<db.Write> {
   const start = Date.now();
-  isTesting && logCall('openIndexTransaction');
 
   lc.debug?.('->');
 
@@ -229,8 +205,6 @@ export async function commitTransaction(
   lc: LogContext,
   generateChangedKeys: boolean,
 ): Promise<CommitTransactionResponse> {
-  isTesting && logCall('commitTransaction', generateChangedKeys);
-
   const start = Date.now();
   // const {txn, lc} = getWriteTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'commitTransaction');
@@ -257,7 +231,6 @@ export async function closeTransaction(
   lc: LogContext,
 ): Promise<void> {
   const start = Date.now();
-  isTesting && logCall('closeTransaction');
 
   // const {txn, lc} = getTransaction(transactionID, transactionsMap);
   const lc2 = lc.addContext('rpc', 'closeTransaction');
@@ -271,7 +244,6 @@ export async function getRoot(
   lc: LogContext,
 ): Promise<string> {
   const start = Date.now();
-  isTesting && logCall('getRoot');
 
   const headName = db.DEFAULT_HEAD_NAME;
 
@@ -284,7 +256,6 @@ export async function getRoot(
 
 export function has(txn: Transaction, lc: LogContext, key: string): boolean {
   const start = Date.now();
-  isTesting && logCall('has', txn, lc, key);
 
   const lc2 = lc.addContext('rpc', 'has');
   lc2.debug?.('->', key);
@@ -300,7 +271,6 @@ export function get(
   shouldClone: boolean,
 ): ReadonlyJSONValue | JSONValue | undefined {
   const start = Date.now();
-  isTesting && logCall('get', txn, lc, key, shouldClone);
 
   const lc2 = lc.addContext('rpc', 'get');
   lc2.debug?.('->', key);
@@ -323,7 +293,6 @@ export async function scan(
   shouldClone: boolean,
 ): Promise<void> {
   const start = Date.now();
-  isTesting && logCall('scan', txn, lc, scanOptions, receiver, shouldClone);
 
   const lc2 = lc.addContext('rpc', 'scan');
   lc2.debug?.('->', scanOptions);
@@ -345,7 +314,6 @@ export async function put(
   value: JSONValue,
 ): Promise<void> {
   const start = Date.now();
-  isTesting && logCall('put', txn, lc, key, value);
 
   const lc2 = lc.addContext('rpc', 'put');
   lc2.debug?.('->', key, value);
@@ -359,7 +327,6 @@ export async function del(
   key: string,
 ): Promise<boolean> {
   const start = Date.now();
-  isTesting && logCall('del', txn, lc, key);
 
   const lc2 = lc.addContext('rpc', 'del');
   lc2.debug?.('->', key);
@@ -377,7 +344,6 @@ export async function createIndex(
   jsonPointer: string,
 ): Promise<void> {
   const start = Date.now();
-  isTesting && logCall('createIndex', txn, lc, name, keyPrefix, jsonPointer);
   const lc2 = lc.addContext('rpc', 'createIndex');
   lc2.debug?.('->', name, keyPrefix, jsonPointer);
   await txn.createIndex(lc, name, keyPrefix, jsonPointer);
@@ -390,7 +356,6 @@ export async function dropIndex(
   name: string,
 ): Promise<void> {
   const start = Date.now();
-  isTesting && logCall('dropIndex', txn, lc, name);
 
   const lc2 = lc.addContext('rpc', 'dropIndex');
   lc2.debug?.('->', name);
@@ -405,7 +370,6 @@ export async function maybeEndPull(
   lc: LogContext,
 ): Promise<MaybeEndPullResponse> {
   const start = Date.now();
-  isTesting && logCall('maybeEndPull', requestID, syncHead);
 
   const lc2 = lc
     .addContext('rpc', 'maybeEndPull')
@@ -423,7 +387,6 @@ export async function tryPush(
   lc: LogContext,
 ): Promise<HTTPRequestInfo | undefined> {
   const start = Date.now();
-  isTesting && logCall('tryPush', req);
 
   const requestID = sync.newRequestID(clientID);
   const lc2 = lc
@@ -450,7 +413,6 @@ export async function beginPull(
   lc: LogContext,
 ): Promise<BeginPullResponse> {
   const start = Date.now();
-  isTesting && logCall('beginPull', req);
 
   const requestID = sync.newRequestID(clientID);
   const lc2 = lc

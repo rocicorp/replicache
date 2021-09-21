@@ -1,6 +1,6 @@
 // This test file is loaded by worker.test.ts
 
-import {ReplicacheTest} from './replicache';
+import {ReplicacheTest} from './test-util';
 import type {ReadTransaction, WriteTransaction} from './transactions';
 import {asyncIterableToArray} from './async-iterable-to-array';
 import {expect} from '@esm-bundle/chai';

@@ -1,4 +1,5 @@
-import {ReplicacheTest, httpStatusUnauthorized} from './replicache';
+import {httpStatusUnauthorized} from './replicache';
+import {ReplicacheTest} from './test-util';
 import type {MutatorDefs} from './replicache';
 import type {ReplicacheOptions} from './replicache-options';
 import {Replicache, TransactionClosedError} from './mod';

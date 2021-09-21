@@ -1,9 +1,35 @@
-// Test utils
-import type {ReplicacheTest} from './replicache';
 import type {JSONObject, JSONValue} from './json';
 import * as utf8 from './utf8';
 import {resolver} from './resolver';
 import {uuid} from './sync/uuid';
+import {
+  MutatorDefs,
+  Replicache,
+  BeginPullResult,
+  MAX_REAUTH_TRIES,
+} from './replicache';
+
+export class ReplicacheTest<
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  MD extends MutatorDefs = {},
+> extends Replicache<MD> {
+  beginPull(): Promise<BeginPullResult> {
+    return super._beginPull(MAX_REAUTH_TRIES);
+  }
+
+  maybeEndPull(beginPullResult: BeginPullResult): Promise<void> {
+    return super._maybeEndPull(beginPullResult);
+  }
+
+  invokePush(maxAuthTries: number): Promise<boolean> {
+    // indirection to allow test to spy on it.
+    return super._invokePush(maxAuthTries);
+  }
+
+  protected override async _invokePush(maxAuthTries: number): Promise<boolean> {
+    return this.invokePush(maxAuthTries);
+  }
+}
 
 export const reps: Set<ReplicacheTest> = new Set();
 

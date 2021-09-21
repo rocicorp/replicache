@@ -8,6 +8,10 @@ export class TestStore implements Store {
     this._store = store;
   }
 
+  get closed(): boolean {
+    return this._store.closed;
+  }
+
   read(): Promise<Read> {
     return this._store.read();
   }

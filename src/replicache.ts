@@ -5,13 +5,17 @@ import {Pusher, PushError} from './pusher';
 import {Puller, PullError} from './puller';
 import type {ChangedKeysMap, OpenResponse, RebaseOpts} from './repm-invoker';
 import {
-  CreateIndexDefinition,
   SubscriptionTransactionWrapper,
+  IndexTransactionImpl,
+  ReadTransactionImpl,
+  WriteTransactionImpl,
 } from './transactions';
-import {IndexTransactionImpl} from './transactions';
-import {ReadTransactionImpl, WriteTransactionImpl} from './transactions';
+import type {
+  CreateIndexDefinition,
+  ReadTransaction,
+  WriteTransaction,
+} from './transactions';
 import {ScanResult} from './scan-iterator';
-import type {ReadTransaction, WriteTransaction} from './transactions';
 import {ConnectionLoop, MAX_DELAY_MS, MIN_DELAY_MS} from './connection-loop';
 import {getLogger, LogContext} from './logger';
 import type {Logger} from './logger';
@@ -28,7 +32,9 @@ import {
 import {IDBStore, MemStore} from './kv/mod';
 import type * as kv from './kv/mod';
 import * as embed from './embed/mod';
+import * as db from './db/mod';
 import {initHasher} from './hash';
+import {validateRebase} from './sync/validate-rebase';
 
 export type BeginPullResult = {
   requestID: string;
@@ -513,15 +519,22 @@ export class Replicache<MD extends MutatorDefs = {}>
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
   ): ScanResult<Key, ReadonlyJSONValue> {
+    let dbRead: db.Read;
     return new ScanResult<Key>(
       options,
       async () => {
-        const tx = new ReadTransactionImpl(this._openResponse, this._lc);
-        await tx.open();
-        return tx;
+        const {store} = await this._openResponse;
+        const dagRead = await store.read();
+        // TODO(arv): Add db.readFromDefaultHead()
+        dbRead = await db.fromWhence(
+          db.whenceHead(db.DEFAULT_HEAD_NAME),
+          dagRead,
+        );
+        return dbRead;
       },
       true, // shouldCloseTransaction
       false, // shouldClone
+      this._lc,
     );
   }
 
@@ -549,13 +562,17 @@ export class Replicache<MD extends MutatorDefs = {}>
     f: (tx: IndexTransactionImpl) => Promise<void>,
   ): Promise<void> {
     // TODO(arv): Maybe pass in db.Write instead of _openResponse?
-    const tx = new IndexTransactionImpl(this._openResponse, this._lc);
-    try {
-      await tx.open();
+    const {store} = await this._openResponse;
+    await store.withWrite(async dagWrite => {
+      const dbWrite = await db.Write.newIndexChange(
+        db.whenceHead(db.DEFAULT_HEAD_NAME),
+        dagWrite,
+      );
+
+      const tx = new IndexTransactionImpl(dbWrite, this._lc);
       await f(tx);
-    } finally {
       await tx.commit();
-    }
+    });
   }
 
   protected async _maybeEndPull(
@@ -938,18 +955,15 @@ export class Replicache<MD extends MutatorDefs = {}>
    * and `scan`.
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
-    const tx = new ReadTransactionImpl<ReadonlyJSONValue>(
-      this._openResponse,
-      this._lc,
-    );
-    await tx.open();
-    try {
+    const {store} = await this._openResponse;
+    return await store.withRead(async dagRead => {
+      const dbRead = await db.fromWhence(
+        db.whenceHead(db.DEFAULT_HEAD_NAME),
+        dagRead,
+      );
+      const tx = new ReadTransactionImpl(dbRead, this._lc);
       return await body(tx);
-    } finally {
-      // No need to await the response.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      closeIgnoreError(tx);
-    }
+    });
   }
 
   /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
@@ -1029,30 +1043,45 @@ export class Replicache<MD extends MutatorDefs = {}>
       await Promise.resolve();
     }
 
-    let result: R;
-    const tx = new WriteTransactionImpl(
-      this._openResponse,
-      name,
-      deepClone(args ?? null),
-      rebaseOpts,
-      this._lc,
-    );
-    await tx.open();
-    try {
-      result = await mutatorImpl(tx, args);
-    } catch (ex) {
-      // No need to await the response.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      closeIgnoreError(tx);
-      throw ex;
-    }
-    const {ref, changedKeys} = await tx.commit(!isReplay);
-    if (!isReplay) {
-      this._pushConnectionLoop.send();
-      await this._checkChange(ref, changedKeys);
-    }
+    const {store} = await this._openResponse;
+    return await store.withWrite(async dagWrite => {
+      let whence: db.Whence | undefined;
+      let originalHash: string | null = null;
+      if (rebaseOpts === undefined) {
+        whence = db.whenceHead(db.DEFAULT_HEAD_NAME);
+      } else {
+        await validateRebase(rebaseOpts, dagWrite, name, args);
+        whence = db.whenceHash(rebaseOpts.basis);
+        originalHash = rebaseOpts.original;
+      }
 
-    return {result, ref};
+      if (rebaseOpts === undefined) {
+        whence = db.whenceHead(db.DEFAULT_HEAD_NAME);
+      } else {
+        await validateRebase(rebaseOpts, dagWrite, name, args);
+        whence = db.whenceHash(rebaseOpts.basis);
+        originalHash = rebaseOpts.original;
+      }
+
+      const dbWrite = await db.Write.newLocal(
+        whence,
+        name,
+        deepClone(args ?? null),
+        originalHash,
+        dagWrite,
+      );
+
+      const tx = new WriteTransactionImpl(dbWrite, this._lc);
+      const result: R = await mutatorImpl(tx, args);
+
+      const {ref, changedKeys} = await tx.commit(!isReplay);
+      if (!isReplay) {
+        this._pushConnectionLoop.send();
+        await this._checkChange(ref, changedKeys);
+      }
+
+      return {result, ref};
+    });
   }
 }
 
@@ -1073,18 +1102,6 @@ function checkStatus(
 }
 
 const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';
-
-interface Closer {
-  close(): Promise<void>;
-}
-
-async function closeIgnoreError(tx: Closer) {
-  try {
-    await tx.close();
-  } catch (ex) {
-    console.error('Failed to close transaction', ex);
-  }
-}
 
 // This map is used to keep track of closing instances of Replicache. When an
 // instance is opening we wait for any currently closing instances.

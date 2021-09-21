@@ -71,12 +71,18 @@ class ProllyMap {
     this._pendingChangedKeys.add(key);
   }
 
-  del(key: string): void {
+  /**
+   * Removes a `key` and its value from the map. Returns `true` if there was a
+   * `key` to remove.
+   */
+  del(key: string): boolean {
     const index = binarySearch(key, this._readonlyEntries);
     if (index >= 0) {
       this._mutableEntries.splice(index, 1);
       this._pendingChangedKeys.add(key);
+      return true;
     }
+    return false;
   }
 
   entries(): IterableIterator<Entry> {

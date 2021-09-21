@@ -58,6 +58,10 @@ export class Read {
     }
   }
 
+  get closed(): boolean {
+    return this._dagRead.closed;
+  }
+
   close(): void {
     this._dagRead.close();
   }

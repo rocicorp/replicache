@@ -677,7 +677,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
   }
 
-  private async _invokePush(maxAuthTries: number): Promise<boolean> {
+  protected async _invokePush(maxAuthTries: number): Promise<boolean> {
     return await this._wrapInOnlineCheck(async () => {
       let pushResponse;
       try {
@@ -1082,6 +1082,15 @@ export class ReplicacheTest<
 
   maybeEndPull(beginPullResult: BeginPullResult): Promise<void> {
     return super._maybeEndPull(beginPullResult);
+  }
+
+  invokePush(maxAuthTries: number): Promise<boolean> {
+    // indirection to allow test to spy on it.
+    return super._invokePush(maxAuthTries);
+  }
+
+  protected override async _invokePush(maxAuthTries: number): Promise<boolean> {
+    return this.invokePush(maxAuthTries);
   }
 }
 

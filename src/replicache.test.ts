@@ -2046,7 +2046,8 @@ testWithBothStores('push timing', async () => {
     useMemstore: true,
     mutators: {addData},
   });
-  embed.clearTestLog();
+
+  const invokePushSpy = sinon.spy(rep, 'invokePush');
 
   const add = rep.mutate.addData;
 
@@ -2054,12 +2055,13 @@ testWithBothStores('push timing', async () => {
   await add({a: 0});
   await tickAFewTimes();
 
-  const tryPushCalls = () =>
-    embed.testLog.filter(({name}) => name === 'tryPush').length;
+  const pushCallCount = () => {
+    const rv = invokePushSpy.callCount;
+    invokePushSpy.resetHistory();
+    return rv;
+  };
 
-  expect(tryPushCalls()).to.equal(1);
-
-  embed.clearTestLog();
+  expect(pushCallCount()).to.equal(1);
 
   // This will schedule push in pushDelay ms
   await add({a: 1});
@@ -2067,28 +2069,27 @@ testWithBothStores('push timing', async () => {
   await add({c: 3});
   await add({d: 4});
 
-  expect(tryPushCalls()).to.equal(0);
+  expect(pushCallCount()).to.equal(0);
 
   await clock.tickAsync(pushDelay + 10);
 
-  expect(tryPushCalls()).to.equal(1);
-  embed.clearTestLog();
+  expect(pushCallCount()).to.equal(1);
 
   const p1 = add({e: 5});
   const p2 = add({f: 6});
   const p3 = add({g: 7});
 
-  expect(tryPushCalls()).to.equal(0);
+  expect(pushCallCount()).to.equal(0);
 
   await tickAFewTimes();
   await p1;
-  expect(tryPushCalls()).to.equal(1);
+  expect(pushCallCount()).to.equal(1);
   await tickAFewTimes();
   await p2;
-  expect(tryPushCalls()).to.equal(1);
+  expect(pushCallCount()).to.equal(0);
   await tickAFewTimes();
   await p3;
-  expect(tryPushCalls()).to.equal(1);
+  expect(pushCallCount()).to.equal(0);
 });
 
 testWithBothStores('push and pull concurrently', async () => {

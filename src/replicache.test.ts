@@ -1886,9 +1886,7 @@ testWithBothStores('logLevel', async () => {
   expect(
     debug
       .getCalls()
-      .some(call =>
-        call.firstArg.includes('db=log-level rpc=openReadTransaction'),
-      ),
+      .some(call => call.firstArg.includes('db=log-level rpc=open')),
   ).to.equal(true);
   expect(
     debug.getCalls().some(call => call.firstArg.includes('PULL')),
@@ -2107,6 +2105,7 @@ testWithBothStores('push and pull concurrently', async () => {
   const commitSpy = sinon.spy(db.Write.prototype, 'commitWithChangedKeys');
   const invokePushSpy = sinon.spy(rep, 'invokePush');
   const putSpy = sinon.spy(WriteTransactionImpl.prototype, 'put');
+  const withWriteSpy = sinon.spy(dag.Store.prototype, 'withWrite');
   const writeSpy = sinon.spy(dag.Store.prototype, 'write');
 
   function resetSpys() {
@@ -2114,6 +2113,7 @@ testWithBothStores('push and pull concurrently', async () => {
     commitSpy.resetHistory();
     invokePushSpy.resetHistory();
     putSpy.resetHistory();
+    withWriteSpy.resetHistory();
     writeSpy.resetHistory();
   }
 
@@ -2123,6 +2123,7 @@ testWithBothStores('push and pull concurrently', async () => {
       commit: commitSpy.callCount,
       invokePush: invokePushSpy.callCount,
       put: putSpy.callCount,
+      withWrite: withWriteSpy.callCount,
       write: writeSpy.callCount,
     };
     resetSpys();
@@ -2156,7 +2157,8 @@ testWithBothStores('push and pull concurrently', async () => {
     commit: 1,
     invokePush: 1,
     put: 1,
-    write: 1,
+    withWrite: 2,
+    write: 0,
   });
 
   await tickAFewTimes();
@@ -2172,6 +2174,7 @@ testWithBothStores('push and pull concurrently', async () => {
     commit: 0,
     invokePush: 0,
     put: 0,
+    withWrite: 0,
     write: 0,
   });
 });
@@ -2649,6 +2652,11 @@ class MemStoreWithCounters implements kv.Store {
 
   async close() {
     this.closeCount++;
+    await this.store.close();
+  }
+
+  get closed(): boolean {
+    return this.store.closed;
   }
 }
 

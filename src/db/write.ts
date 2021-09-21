@@ -154,11 +154,12 @@ export class Write extends Read {
     this.map.put(key, val);
   }
 
-  async del(lc: LogContext, key: string): Promise<void> {
+  async del(lc: LogContext, key: string): Promise<boolean> {
     if (this._meta.type === MetaType.IndexChange) {
       throw new Error('Not allowed');
     }
 
+    // TODO(arv): This does the binary search twice. We can do better.
     const oldVal = this.map.get(key);
     if (oldVal !== undefined) {
       await updateIndexes(
@@ -170,7 +171,7 @@ export class Write extends Read {
         oldVal,
       );
     }
-    this.map.del(key);
+    return this.map.del(key);
   }
 
   async clear(): Promise<void> {

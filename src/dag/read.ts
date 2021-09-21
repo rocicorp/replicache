@@ -45,6 +45,10 @@ export class Read {
   close(): void {
     this._kvr.release();
   }
+
+  get closed(): boolean {
+    return this._kvr.closed;
+  }
 }
 
 export function metaFromFlatbuffer(data: Uint8Array): string[] {

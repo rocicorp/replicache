@@ -36,7 +36,6 @@ export default {
         'src/kv/*.test.ts',
         'src/prolly/*.test.ts',
         'src/sync/*.test.ts',
-        'src/embed/*.test.ts',
         'src/migrate/*.test.ts',
       ],
       browsers: [firefox, chromium, webkit],

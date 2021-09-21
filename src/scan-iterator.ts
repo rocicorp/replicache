@@ -5,13 +5,7 @@ import {asyncIterableToArray} from './async-iterable-to-array';
 import * as embed from './embed/mod';
 import type * as db from './db/mod';
 import type {LogContext} from './logger';
-
-export interface ScanTransactionDelegate {
-  close(): void;
-  closed: boolean;
-  dbRead: db.Read;
-  lc: LogContext;
-}
+import type {MaybePromise} from './replicache';
 
 const VALUE = 0;
 const KEY = 1;
@@ -20,11 +14,10 @@ type ScanIterableKind = typeof VALUE | typeof KEY | typeof ENTRY;
 
 type Args = [
   options: ScanOptions | undefined,
-  getTransaction: () =>
-    | Promise<ScanTransactionDelegate>
-    | ScanTransactionDelegate,
+  getTransaction: () => Promise<db.Read> | db.Read,
   shouldCloseTransaction: boolean,
   shouldClone: boolean,
+  lc: LogContext,
 ];
 
 /**
@@ -126,25 +119,22 @@ export class AsyncIterableIteratorToArrayWrapper<V>
 async function* scanIterator<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
-  getTransaction: () =>
-    | Promise<ScanTransactionDelegate>
-    | ScanTransactionDelegate,
+  getTransaction: () => MaybePromise<db.Read>,
   shouldCloseTransaction: boolean,
   shouldClone: boolean,
+  lc: LogContext,
 ): AsyncGenerator<V> {
-  const transaction = await getTransaction();
-  const txn = transaction.dbRead;
-  const lc = transaction.lc;
-  throwIfClosed(transaction);
+  const dbRead = await getTransaction();
+  throwIfClosed(dbRead);
 
   try {
-    const items: V[] = await load(kind, options, txn, lc, shouldClone);
+    const items: V[] = await load(kind, options, dbRead, lc, shouldClone);
     for (const item of items) {
       yield item;
     }
   } finally {
-    if (shouldCloseTransaction && !transaction.closed) {
-      transaction.close();
+    if (shouldCloseTransaction && !dbRead.closed) {
+      dbRead.close();
     }
   }
 }
@@ -152,7 +142,7 @@ async function* scanIterator<V>(
 async function load<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
-  transaction: db.Read,
+  dbRead: db.Read,
   lc: LogContext,
   shouldClone: boolean,
 ): Promise<V[]> {
@@ -180,13 +170,7 @@ async function load<V>(
     }
   };
 
-  await embed.scan(
-    transaction,
-    lc,
-    toDbScanOptions(options),
-    receiver,
-    shouldClone,
-  );
+  await embed.scan(dbRead, lc, toDbScanOptions(options), receiver, shouldClone);
 
   return items;
 }

@@ -3,7 +3,6 @@ import {throwIfClosed} from './transaction-closed-error';
 import {ScanOptions, toDbScanOptions} from './scan-options';
 import {asyncIterableToArray} from './async-iterable-to-array';
 import * as db from './db/mod';
-import type {LogContext} from './logger';
 import type {MaybePromise} from './replicache';
 import type {ScanItem} from './db/scan';
 
@@ -17,7 +16,6 @@ type Args = [
   getTransaction: () => Promise<db.Read> | db.Read,
   shouldCloseTransaction: boolean,
   shouldClone: boolean,
-  lc: LogContext,
 ];
 
 /**
@@ -122,13 +120,12 @@ async function* scanIterator<V>(
   getTransaction: () => MaybePromise<db.Read>,
   shouldCloseTransaction: boolean,
   shouldClone: boolean,
-  lc: LogContext,
 ): AsyncGenerator<V> {
   const dbRead = await getTransaction();
   throwIfClosed(dbRead);
 
   try {
-    const items: V[] = await load(kind, options, dbRead, lc, shouldClone);
+    const items: V[] = await load(kind, options, dbRead, shouldClone);
     for (const item of items) {
       yield item;
     }
@@ -143,7 +140,6 @@ async function load<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
   dbRead: db.Read,
-  lc: LogContext,
   shouldClone: boolean,
 ): Promise<V[]> {
   const items: V[] = [];

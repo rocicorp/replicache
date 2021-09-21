@@ -534,7 +534,6 @@ export class Replicache<MD extends MutatorDefs = {}>
       },
       true, // shouldCloseTransaction
       false, // shouldClone
-      this._lc,
     );
   }
 

@@ -108,7 +108,6 @@ export class ReadTransactionImpl<
       () => dbRead,
       false, // shouldCloseTransaction
       dbRead instanceof db.Write, // shouldClone,
-      this._lc,
     );
   }
 }

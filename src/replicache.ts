@@ -30,7 +30,7 @@ import type * as kv from './kv/mod';
 import * as embed from './embed/mod';
 import {initHasher} from './hash';
 
-type BeginPullResult = {
+export type BeginPullResult = {
   requestID: string;
   syncHead: string;
   ok: boolean;
@@ -46,7 +46,7 @@ type ToPromise<P> = P extends Promise<unknown> ? P : Promise<P>;
 const storageKeyName = (name: string) => `/replicache/root/${name}`;
 
 /** The maximum number of time to call out to getDataLayerAuth before giving up and throwing an error. */
-const MAX_REAUTH_TRIES = 8;
+export const MAX_REAUTH_TRIES = 8;
 
 /**
  * This type describes the data we send on the BroadcastChannel when things change.
@@ -1070,28 +1070,6 @@ function checkStatus(
     );
   }
   return httpStatusCode === httpStatusUnauthorized;
-}
-
-export class ReplicacheTest<
-  // eslint-disable-next-line @typescript-eslint/ban-types
-  MD extends MutatorDefs = {},
-> extends Replicache<MD> {
-  beginPull(): Promise<BeginPullResult> {
-    return super._beginPull(MAX_REAUTH_TRIES);
-  }
-
-  maybeEndPull(beginPullResult: BeginPullResult): Promise<void> {
-    return super._maybeEndPull(beginPullResult);
-  }
-
-  invokePush(maxAuthTries: number): Promise<boolean> {
-    // indirection to allow test to spy on it.
-    return super._invokePush(maxAuthTries);
-  }
-
-  protected override async _invokePush(maxAuthTries: number): Promise<boolean> {
-    return this.invokePush(maxAuthTries);
-  }
 }
 
 const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';

@@ -10,7 +10,6 @@ import type {
   OpenResponse,
   TryPushRequest,
 } from '../repm-invoker';
-import {ReadonlyJSONValue, JSONValue, deepClone} from '../json';
 import type {LogContext} from '../logger';
 import {migrate} from '../migrate/migrate';
 
@@ -76,32 +75,6 @@ export async function getRoot(
   const result = await db.getRoot(store, headName);
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
   return result;
-}
-
-export async function scan(
-  txn: db.Read,
-  lc: LogContext,
-  scanOptions: db.ScanOptions,
-  receiver: (
-    primaryKey: string,
-    secondaryKey: string | null,
-    value: JSONValue | ReadonlyJSONValue,
-  ) => void,
-  shouldClone: boolean,
-): Promise<void> {
-  const start = Date.now();
-
-  const lc2 = lc.addContext('rpc', 'scan');
-  lc2.debug?.('->', scanOptions);
-  await txn.scan(scanOptions, sr => {
-    if (sr.type === db.ScanResultType.Error) {
-      // repc didn't throw here, It just did error logging.
-      throw sr.error;
-    }
-    const {val, key, secondaryKey} = sr.item;
-    receiver(key, secondaryKey, shouldClone ? deepClone(val) : val);
-  });
-  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms');
 }
 
 export async function maybeEndPull(

@@ -1,11 +1,10 @@
-import type {JSONValue, ReadonlyJSONValue} from './json';
+import {deepClone, JSONValue, ReadonlyJSONValue} from './json';
 import {throwIfClosed} from './transaction-closed-error';
 import {ScanOptions, toDbScanOptions} from './scan-options';
 import {asyncIterableToArray} from './async-iterable-to-array';
-import * as embed from './embed/mod';
-import type * as db from './db/mod';
-import type {LogContext} from './logger';
+import * as db from './db/mod';
 import type {MaybePromise} from './replicache';
+import type {ScanItem} from './db/scan';
 
 const VALUE = 0;
 const KEY = 1;
@@ -17,7 +16,6 @@ type Args = [
   getTransaction: () => Promise<db.Read> | db.Read,
   shouldCloseTransaction: boolean,
   shouldClone: boolean,
-  lc: LogContext,
 ];
 
 /**
@@ -122,13 +120,12 @@ async function* scanIterator<V>(
   getTransaction: () => MaybePromise<db.Read>,
   shouldCloseTransaction: boolean,
   shouldClone: boolean,
-  lc: LogContext,
 ): AsyncGenerator<V> {
   const dbRead = await getTransaction();
   throwIfClosed(dbRead);
 
   try {
-    const items: V[] = await load(kind, options, dbRead, lc, shouldClone);
+    const items: V[] = await load(kind, options, dbRead, shouldClone);
     for (const item of items) {
       yield item;
     }
@@ -143,34 +140,42 @@ async function load<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
   dbRead: db.Read,
-  lc: LogContext,
   shouldClone: boolean,
 ): Promise<V[]> {
   const items: V[] = [];
   type MaybeIndexName = {indexName?: string};
-  const key = (primaryKey: string, secondaryKey: string | null) =>
+
+  const toKey =
     (options as MaybeIndexName)?.indexName !== undefined
-      ? [secondaryKey, primaryKey]
-      : primaryKey;
+      ? (primaryKey: string, secondaryKey: string | null) => [
+          secondaryKey,
+          primaryKey,
+        ]
+      : // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        (primaryKey: string, _secondaryKey: string | null) => primaryKey;
 
-  const receiver = (
-    primaryKey: string,
-    secondaryKey: string | null,
-    value: ReadonlyJSONValue,
-  ) => {
-    switch (kind) {
-      case VALUE:
-        items.push(value as unknown as V);
-        return;
-      case KEY:
-        items.push(key(primaryKey, secondaryKey) as unknown as V);
-        return;
-      case ENTRY:
-        items.push([key(primaryKey, secondaryKey), value] as unknown as V);
+  const toValue = shouldClone ? deepClone : <T>(x: T): T => x;
+
+  let toIterValue: (si: ScanItem) => V;
+  switch (kind) {
+    case VALUE:
+      toIterValue = si => toValue(si.val) as V;
+      break;
+    case KEY:
+      toIterValue = si => toKey(si.key, si.secondaryKey) as unknown as V;
+      break;
+    case ENTRY:
+      toIterValue = si =>
+        [toKey(si.key, si.secondaryKey), toValue(si.val)] as unknown as V;
+  }
+
+  await dbRead.scan(toDbScanOptions(options), sr => {
+    if (sr.type === db.ScanResultType.Error) {
+      // repc didn't throw here, It just did error logging.
+      throw sr.error;
     }
-  };
-
-  await embed.scan(dbRead, lc, toDbScanOptions(options), receiver, shouldClone);
+    items.push(toIterValue(sr.item));
+  });
 
   return items;
 }

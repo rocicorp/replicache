@@ -1,7 +1,7 @@
 import {assertArray, assertNumber, assertObject, assertString} from './asserts';
 import {httpRequest} from './http-request';
 import {assertJSONValue, JSONValue, ReadonlyJSONValue} from './json';
-import type {HTTPRequestInfo} from './repm-invoker';
+import type {HTTPRequestInfo} from './http-request-info';
 
 export type PullerResult = {
   response?: PullResponse;

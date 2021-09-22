@@ -2,7 +2,7 @@ import type * as dag from '../dag/mod';
 import * as db from '../db/mod';
 import {deepClone, JSONValue, ReadonlyJSONValue} from '../json';
 import {assertPullResponse, Puller, PullError, PullResponse} from '../puller';
-import {assertHTTPRequestInfo, HTTPRequestInfo} from '../repm-invoker';
+import {assertHTTPRequestInfo, HTTPRequestInfo} from '../http-request-info';
 import {callJSRequest} from './js-request';
 import {SYNC_HEAD_NAME} from './sync-head-name';
 import * as patch from './patch';

@@ -3,7 +3,6 @@ import type {JSONValue} from './json';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options';
 import {Pusher, PushError} from './pusher';
 import {Puller, PullError} from './puller';
-import type {OpenResponse} from './repm-invoker';
 import {
   SubscriptionTransactionWrapper,
   IndexTransactionImpl,
@@ -31,10 +30,11 @@ import {
 } from './subscriptions';
 import {IDBStore, MemStore} from './kv/mod';
 import type * as kv from './kv/mod';
-import * as embed from './embed/mod';
+import * as dag from './dag/mod';
 import * as db from './db/mod';
 import * as sync from './sync/mod';
 import {initHasher} from './hash';
+import {migrate} from './migrate/migrate';
 
 export type BeginPullResult = {
   requestID: string;
@@ -143,8 +143,8 @@ export class Replicache<MD extends MutatorDefs = {}>
   private _closed = false;
   private _online = true;
   private readonly _logger: Logger;
-  private readonly _openResponse: Promise<OpenResponse>;
-  private readonly _openResolve: (resp: OpenResponse) => void;
+  private readonly _ready: Promise<void>;
+  private readonly _resolveReady: () => void;
   private readonly _clientIDPromise: Promise<string>;
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
@@ -194,7 +194,8 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   pusher: Pusher;
 
-  private readonly _store: kv.Store;
+  private readonly _kvStore: kv.Store;
+  private readonly _dagStore: dag.Store;
   private _hasPendingSubscriptionRuns = false;
   private readonly _lc: LogContext;
 
@@ -273,6 +274,9 @@ export class Replicache<MD extends MutatorDefs = {}>
     this.auth = auth ?? pullAuth ?? pushAuth ?? '';
     this.pullURL = pullURL;
     this.pushURL = pushURL;
+    if (name === '') {
+      throw new Error('name must be non-empty');
+    }
     this.name = name;
     this.schemaVersion = schemaVersion;
     this.pullInterval = pullInterval;
@@ -280,15 +284,16 @@ export class Replicache<MD extends MutatorDefs = {}>
     this._useMemstore = useMemstore;
     this.puller = puller;
     this.pusher = pusher;
-    this._store =
+    this._kvStore =
       experimentalKVStore ||
       (this._useMemstore ? new MemStore() : new IDBStore(this.name));
+    this._dagStore = new dag.Store(this._kvStore);
 
     // Use a promise-resolve pair so that we have a promise to use even before
     // we call the Open RPC.
-    const {promise, resolve} = resolver<OpenResponse>();
-    this._openResponse = promise;
-    this._openResolve = resolve;
+    const {promise, resolve} = resolver<void>();
+    this._ready = promise;
+    this._resolveReady = resolve;
 
     const {minDelayMs = MIN_DELAY_MS, maxDelayMs = MAX_DELAY_MS} =
       requestOptions;
@@ -316,18 +321,23 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     this._lc = new LogContext(logLevel).addContext('db', name);
 
-    this._clientIDPromise = this._open().then(resp => resp.clientID);
+    this._clientIDPromise = this._open();
   }
 
-  private async _open(): Promise<OpenResponse> {
+  private async _open(): Promise<string> {
     // If we are currently closing a Replicache instance with the same name,
     // wait for it to finish closing.
     await closingInstances.get(this.name);
 
-    await initHasher();
+    await Promise.all([initHasher(), migrate(this._kvStore, this._lc)]);
 
-    const openResponse = await embed.open(this.name, this._store, this._lc);
-    this._openResolve(openResponse);
+    const [clientID] = await Promise.all([
+      sync.initClientID(this._kvStore),
+      db.maybeInitDefaultDB(this._dagStore),
+    ]);
+
+    // Now we have both a clientID and DB!
+    this._resolveReady();
 
     if (hasBroadcastChannel) {
       this._broadcastChannel = new BroadcastChannel(storageKeyName(this.name));
@@ -341,7 +351,7 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     this.pull();
     this._push();
-    return openResponse;
+    return clientID;
   }
 
   /**
@@ -390,8 +400,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     this._closed = true;
     const {promise, resolve} = resolver();
     closingInstances.set(this.name, promise);
-    const {store} = await this._openResponse;
-    const p = store.close();
+    await this._ready;
+    const p = this._dagStore.close();
 
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
@@ -418,8 +428,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     if (this._closed) {
       return undefined;
     }
-    const {store} = await this._openResponse;
-    return await db.getRoot(store, db.DEFAULT_HEAD_NAME);
+    await this._ready;
+    return await db.getRoot(this._dagStore, db.DEFAULT_HEAD_NAME);
   }
 
   private _onStorage = (e: StorageEvent) => {
@@ -522,8 +532,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     return new ScanResult<Key>(
       options,
       async () => {
-        const {store} = await this._openResponse;
-        const dagRead = await store.read();
+        await this._ready;
+        const dagRead = await this._dagStore.read();
         return db.readFromDefaultHead(dagRead);
       },
       true, // shouldCloseTransaction
@@ -554,8 +564,8 @@ export class Replicache<MD extends MutatorDefs = {}>
   private async _indexOp(
     f: (tx: IndexTransactionImpl) => Promise<void>,
   ): Promise<void> {
-    const {store} = await this._openResponse;
-    await store.withWrite(async dagWrite => {
+    await this._ready;
+    await this._dagStore.withWrite(async dagWrite => {
       const dbWrite = await db.Write.newIndexChange(
         db.whenceHead(db.DEFAULT_HEAD_NAME),
         dagWrite,
@@ -577,12 +587,12 @@ export class Replicache<MD extends MutatorDefs = {}>
     let {syncHead} = beginPullResult;
     const {requestID} = beginPullResult;
 
-    const {store} = await this._openResponse;
+    await this._ready;
     const lc = this._lc
       .addContext('rpc', 'maybeEndPull')
       .addContext('request_id', requestID);
     const {replayMutations, changedKeys} = await sync.maybeEndPull(
-      store,
+      this._dagStore,
       lc,
       syncHead,
     );
@@ -694,7 +704,8 @@ export class Replicache<MD extends MutatorDefs = {}>
       let pushResponse;
       try {
         this._changeSyncCounters(1, 0);
-        const {clientID, store} = await this._openResponse;
+        await this._ready;
+        const clientID = await this._clientIDPromise;
         const requestID = sync.newRequestID(clientID);
         const lc = this._lc
           .addContext('rpc', 'tryPush')
@@ -707,7 +718,7 @@ export class Replicache<MD extends MutatorDefs = {}>
         };
         pushResponse = await sync.push(
           requestID,
-          store,
+          this._dagStore,
           lc,
           clientID,
           this.pusher,
@@ -775,7 +786,8 @@ export class Replicache<MD extends MutatorDefs = {}>
   }
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
-    const {clientID, store} = await this._openResponse;
+    await this._ready;
+    const clientID = await this._clientIDPromise;
 
     const requestID = sync.newRequestID(clientID);
     const lc = this._lc
@@ -792,7 +804,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       req,
       req.puller,
       requestID,
-      store,
+      this._dagStore,
       lc,
     );
 
@@ -965,8 +977,8 @@ export class Replicache<MD extends MutatorDefs = {}>
    * and `scan`.
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
-    const {store} = await this._openResponse;
-    return await store.withRead(async dagRead => {
+    await this._ready;
+    return await this._dagStore.withRead(async dagRead => {
       const dbRead = await db.readFromDefaultHead(dagRead);
       const tx = new ReadTransactionImpl(dbRead, this._lc);
       return await body(tx);
@@ -1050,8 +1062,8 @@ export class Replicache<MD extends MutatorDefs = {}>
       await Promise.resolve();
     }
 
-    const {store} = await this._openResponse;
-    return await store.withWrite(async dagWrite => {
+    await this._ready;
+    return await this._dagStore.withWrite(async dagWrite => {
       let whence: db.Whence | undefined;
       let originalHash: string | null = null;
       if (rebaseOpts === undefined) {

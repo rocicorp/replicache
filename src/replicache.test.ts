@@ -1884,9 +1884,7 @@ testWithBothStores('logLevel', async () => {
   expect(debug.callCount).to.be.greaterThan(0);
 
   expect(
-    debug
-      .getCalls()
-      .some(call => call.firstArg.includes('db=log-level rpc=open')),
+    debug.getCalls().some(call => call.firstArg === 'db=log-level'),
   ).to.equal(true);
   expect(
     debug.getCalls().some(call => call.firstArg.includes('PULL')),

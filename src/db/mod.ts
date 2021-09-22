@@ -1,4 +1,4 @@
-export {Write, initDB} from './write';
+export {Write, initDB, maybeInitDefaultDB} from './write';
 export {
   Read,
   readIndexes,

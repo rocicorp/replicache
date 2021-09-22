@@ -8,7 +8,7 @@ import {
   ScanOptionsInternal,
   ScanResult,
 } from './scan';
-import {Commit} from './commit';
+import {Commit, DEFAULT_HEAD_NAME} from './commit';
 import type {ReadonlyJSONValue} from '../json';
 
 export class Read {
@@ -94,6 +94,10 @@ export function whenceHash(hash: string): Whence {
     type: WhenceType.Hash,
     hash,
   };
+}
+
+export function readFromDefaultHead(dagRead: dag.Read): Promise<Read> {
+  return fromWhence(whenceHead(DEFAULT_HEAD_NAME), dagRead);
 }
 
 export async function fromWhence(

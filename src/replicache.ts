@@ -3,7 +3,13 @@ import type {JSONValue} from './json';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options';
 import {Pusher, PushError} from './pusher';
 import {Puller, PullError} from './puller';
-import type {ChangedKeysMap, OpenResponse, RebaseOpts} from './repm-invoker';
+import type {
+  BeginPullRequest,
+  ChangedKeysMap,
+  OpenResponse,
+  RebaseOpts,
+  TryPushRequest,
+} from './repm-invoker';
 import {
   SubscriptionTransactionWrapper,
   IndexTransactionImpl,
@@ -33,6 +39,7 @@ import {IDBStore, MemStore} from './kv/mod';
 import type * as kv from './kv/mod';
 import * as embed from './embed/mod';
 import * as db from './db/mod';
+import * as sync from './sync/mod';
 import {initHasher} from './hash';
 import {validateRebase} from './sync/validate-rebase';
 
@@ -578,12 +585,14 @@ export class Replicache<MD extends MutatorDefs = {}>
     const {requestID} = beginPullResult;
 
     const {store} = await this._openResponse;
-    const {replayMutations, changedKeys} = await embed.maybeEndPull(
+    const lc = this._lc
+      .addContext('rpc', 'maybeEndPull')
+      .addContext('request_id', requestID);
+    const {replayMutations, changedKeys} = await sync.maybeEndPull(store, lc, {
       requestID,
       syncHead,
-      store,
-      this._lc,
-    );
+    });
+
     if (!replayMutations || replayMutations.length === 0) {
       // All done.
       await this._checkChange(syncHead, changedKeys);
@@ -692,16 +701,23 @@ export class Replicache<MD extends MutatorDefs = {}>
       try {
         this._changeSyncCounters(1, 0);
         const {clientID, store} = await this._openResponse;
-        pushResponse = await embed.tryPush(
-          clientID,
-          {
-            pushURL: this.pushURL,
-            pushAuth: this.auth,
-            schemaVersion: this.schemaVersion,
-            pusher: this.pusher,
-          },
+        const requestID = sync.newRequestID(clientID);
+        const lc = this._lc
+          .addContext('rpc', 'tryPush')
+          .addContext('request_id', requestID);
+        const req: TryPushRequest = {
+          pushURL: this.pushURL,
+          pushAuth: this.auth,
+          schemaVersion: this.schemaVersion,
+          pusher: this.pusher,
+        };
+        pushResponse = await sync.push(
+          requestID,
           store,
-          this._lc,
+          lc,
+          clientID,
+          this.pusher,
+          req,
         );
       } finally {
         this._changeSyncCounters(-1, 0);
@@ -766,19 +782,27 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
     const {clientID, store} = await this._openResponse;
-    const beginPullResponse = await embed.beginPull(
+
+    const requestID = sync.newRequestID(clientID);
+    const lc = this._lc
+      .addContext('rpc', 'beginPull')
+      .addContext('request_id', requestID);
+    const req: BeginPullRequest = {
+      pullAuth: this.auth,
+      pullURL: this.pullURL,
+      schemaVersion: this.schemaVersion,
+      puller: this.puller,
+    };
+    const beginPullResponse = await sync.beginPull(
       clientID,
-      {
-        pullAuth: this.auth,
-        pullURL: this.pullURL,
-        schemaVersion: this.schemaVersion,
-        puller: this.puller,
-      },
+      req,
+      req.puller,
+      requestID,
       store,
-      this._lc,
+      lc,
     );
 
-    const {httpRequestInfo, syncHead, requestID} = beginPullResponse;
+    const {httpRequestInfo, syncHead} = beginPullResponse;
 
     const reauth = checkStatus(
       httpRequestInfo,

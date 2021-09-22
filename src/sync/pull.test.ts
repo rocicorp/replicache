@@ -119,7 +119,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -138,7 +137,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -157,7 +155,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -173,7 +170,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -192,7 +188,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     // The patch, lastMutationID, and cookie determine whether we write a new
@@ -210,7 +205,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -230,7 +224,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -251,7 +244,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -272,7 +264,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -291,7 +282,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
 
@@ -311,7 +301,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -330,7 +319,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -348,7 +336,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -373,7 +360,6 @@ test('begin try pull', async () => {
           httpStatusCode: 500,
         },
         syncHead: '',
-        requestID,
       },
     },
   ];
@@ -536,8 +522,6 @@ test('begin try pull', async () => {
         expect(result.httpRequestInfo).to.deep.equal(
           c.expBeginPullResult.httpRequestInfo,
         );
-        // syncHead is checked above based on the expSyncHead
-        expect(result.requestID).to.equal(c.expBeginPullResult.requestID);
       } else {
         // use to_debug since some errors cannot be made PartialEq
         expect(result).to.equal(c.expBeginPullResult);

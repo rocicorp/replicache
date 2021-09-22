@@ -112,7 +112,7 @@ async function main() {
       rootDir: process.cwd(),
       port,
       watch: false,
-      plugins: [esbuildPlugin({ts: true})],
+      plugins: [esbuildPlugin({ts: true, target: 'esnext'})],
     },
     readCliArgs: false,
     readFileConfig: false,
@@ -150,7 +150,7 @@ async function runInBrowser(browser, page, options) {
   async function waitForBenchmarks() {
     await page.waitForFunction('typeof benchmarks !==  "undefined"', null, {
       // No need to wait 30s if failing to load
-      timeout: 1000,
+      timeout: 5000,
     });
   }
 

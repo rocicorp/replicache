@@ -391,7 +391,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     const {promise, resolve} = resolver();
     closingInstances.set(this.name, promise);
     const {store} = await this._openResponse;
-    await store.close();
+    const p = store.close();
 
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
@@ -409,6 +409,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
     this._subscriptions.clear();
 
+    await p;
     closingInstances.delete(this.name);
     resolve();
   }

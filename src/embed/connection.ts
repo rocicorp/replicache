@@ -44,15 +44,6 @@ export async function open(
   return {clientID, store: dagStore};
 }
 
-export async function close(store: dag.Store, lc: LogContext): Promise<void> {
-  const start = Date.now();
-
-  lc = lc.addContext('rpc', 'close');
-  lc.debug?.('->');
-  await store.close();
-  lc.debug?.('<- elapsed=', Date.now() - start, 'ms');
-}
-
 async function init(dagStore: dag.Store): Promise<void> {
   await dagStore.withWrite(async dagWrite => {
     const head = await dagWrite.getHead(db.DEFAULT_HEAD_NAME);
@@ -60,21 +51,6 @@ async function init(dagStore: dag.Store): Promise<void> {
       await db.initDB(dagWrite, db.DEFAULT_HEAD_NAME);
     }
   });
-}
-
-export async function getRoot(
-  store: dag.Store,
-  lc: LogContext,
-): Promise<string> {
-  const start = Date.now();
-
-  const headName = db.DEFAULT_HEAD_NAME;
-
-  const lc2 = lc.addContext('rpc', 'getRoot');
-  lc2.debug?.('->', headName);
-  const result = await db.getRoot(store, headName);
-  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
-  return result;
 }
 
 export async function maybeEndPull(

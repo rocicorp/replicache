@@ -81,7 +81,6 @@ export async function beginPull(
     return {
       httpRequestInfo,
       syncHead: '',
-      requestID,
     };
   }
 
@@ -123,7 +122,6 @@ export async function beginPull(
       return {
         httpRequestInfo,
         syncHead,
-        requestID,
       };
     }
 
@@ -165,7 +163,6 @@ export async function beginPull(
         errorMessage: '',
       },
       syncHead: commitHash,
-      requestID,
     };
   });
 }

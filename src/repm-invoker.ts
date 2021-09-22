@@ -52,7 +52,6 @@ export type BeginPullRequest = {
 export type BeginPullResponse = {
   httpRequestInfo: HTTPRequestInfo;
   syncHead: string;
-  requestID: string;
 };
 
 export type TryPushRequest = {

@@ -2,14 +2,7 @@ import type * as kv from '../kv/mod';
 import * as dag from '../dag/mod';
 import * as db from '../db/mod';
 import * as sync from '../sync/mod';
-import type {
-  BeginPullRequest,
-  BeginPullResponse,
-  HTTPRequestInfo,
-  MaybeEndPullResponse,
-  OpenResponse,
-  TryPushRequest,
-} from '../repm-invoker';
+import type {OpenResponse} from '../repm-invoker';
 import type {LogContext} from '../logger';
 import {migrate} from '../migrate/migrate';
 
@@ -51,71 +44,4 @@ async function init(dagStore: dag.Store): Promise<void> {
       await db.initDB(dagWrite, db.DEFAULT_HEAD_NAME);
     }
   });
-}
-
-export async function maybeEndPull(
-  requestID: string,
-  syncHead: string,
-  store: dag.Store,
-  lc: LogContext,
-): Promise<MaybeEndPullResponse> {
-  const start = Date.now();
-
-  const lc2 = lc
-    .addContext('rpc', 'maybeEndPull')
-    .addContext('request_id', requestID);
-  lc2.debug?.('->', syncHead);
-  const result = await sync.maybeEndPull(store, lc2, {requestID, syncHead});
-  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
-  return result;
-}
-
-export async function tryPush(
-  clientID: string,
-  req: TryPushRequest,
-  store: dag.Store,
-  lc: LogContext,
-): Promise<HTTPRequestInfo | undefined> {
-  const start = Date.now();
-
-  const requestID = sync.newRequestID(clientID);
-  const lc2 = lc
-    .addContext('rpc', 'tryPush')
-    .addContext('request_id', requestID);
-  lc2.debug?.('->', req);
-  const result = await sync.push(
-    requestID,
-    store,
-    lc2,
-    clientID,
-    req.pusher,
-    req,
-  );
-  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
-  return result;
-}
-
-export async function beginPull(
-  clientID: string,
-  req: BeginPullRequest,
-  store: dag.Store,
-  lc: LogContext,
-): Promise<BeginPullResponse> {
-  const start = Date.now();
-
-  const requestID = sync.newRequestID(clientID);
-  const lc2 = lc
-    .addContext('rpc', 'beginPull')
-    .addContext('request_id', requestID);
-  lc2.debug?.('->', req);
-  const result = await sync.beginPull(
-    clientID,
-    req,
-    req.puller,
-    requestID,
-    store,
-    lc2,
-  );
-  lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
-  return result;
 }

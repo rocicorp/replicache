@@ -83,13 +83,12 @@ export async function tryPush(
     .addContext('rpc', 'tryPush')
     .addContext('request_id', requestID);
   lc2.debug?.('->', req);
-  const jsPusher = new sync.JSPusher(req.pusher);
   const result = await sync.push(
     requestID,
     store,
     lc2,
     clientID,
-    jsPusher,
+    req.pusher,
     req,
   );
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', result);
@@ -109,11 +108,10 @@ export async function beginPull(
     .addContext('rpc', 'beginPull')
     .addContext('request_id', requestID);
   lc2.debug?.('->', req);
-  const jsPuller = new sync.JSPuller(req.puller);
   const result = await sync.beginPull(
     clientID,
     req,
-    jsPuller,
+    req.puller,
     requestID,
     store,
     lc2,

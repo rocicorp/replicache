@@ -3,8 +3,8 @@ import {assertNotUndefined} from '../asserts';
 import {assertObject, assertString} from '../asserts';
 import * as dag from '../dag/mod';
 import * as db from '../db/mod';
+import type * as sync from '../sync/mod';
 import {Commit, DEFAULT_HEAD_NAME} from '../db/mod';
-// import {fromWhence, whenceHead} from '../db/read';
 import {
   addGenesis,
   addIndexChange,
@@ -21,16 +21,17 @@ import type {
   PullerResult,
   PullResponse,
 } from '../puller';
-import type {
+import type {HTTPRequestInfo} from '../repm-invoker';
+import {SYNC_HEAD_NAME} from './sync-head-name';
+import {
+  beginPull,
   BeginPullRequest,
   BeginPullResponse,
-  ChangedKeysMap,
-  HTTPRequestInfo,
-  MaybeEndPullRequest,
-  MaybeEndPullResponse,
-} from '../repm-invoker';
-import {SYNC_HEAD_NAME} from './sync-head-name';
-import {beginPull, maybeEndPull, PullRequest, PULL_VERSION} from './pull';
+  maybeEndPull,
+  MaybeEndPullResult,
+  PullRequest,
+  PULL_VERSION,
+} from './pull';
 import {LogContext} from '../logger';
 import {initHasher} from '../hash';
 import {stringCompare} from '../prolly/string-compare';
@@ -539,7 +540,7 @@ test('maybe end try pull', async () => {
     expReplayIDs: number[];
     expErr?: string;
     // The expected changed keys as reported by the maybe end pull.
-    expChangedKeys: ChangedKeysMap;
+    expChangedKeys: sync.ChangedKeysMap;
   };
   const cases: Case[] = [
     {
@@ -637,13 +638,9 @@ test('maybe end try pull', async () => {
     }
     const syncHead = basisHash;
 
-    const req: MaybeEndPullRequest = {
-      requestID: 'request_id',
-      syncHead,
-    };
-    let result: MaybeEndPullResponse | string;
+    let result: MaybeEndPullResult | string;
     try {
-      result = await maybeEndPull(store, lc, req);
+      result = await maybeEndPull(store, lc, syncHead);
     } catch (e) {
       result = e.message;
     }
@@ -745,7 +742,7 @@ test('changed keys', async () => {
     baseMap: Map<string, string>,
     indexDef: IndexDef | undefined,
     patch: PatchOperation[],
-    expectedChangedKeysMap: ChangedKeysMap,
+    expectedChangedKeysMap: sync.ChangedKeysMap,
   ) => {
     const store = new dag.Store(new MemStore());
     const lc = new LogContext();
@@ -815,12 +812,7 @@ test('changed keys', async () => {
       new LogContext(),
     );
 
-    const req: MaybeEndPullRequest = {
-      requestID,
-      syncHead: pullResult.syncHead,
-    };
-    const result = await maybeEndPull(store, lc, req);
-
+    const result = await maybeEndPull(store, lc, pullResult.syncHead);
     expect(result.changedKeys).to.deep.equal(expectedChangedKeysMap);
   };
 

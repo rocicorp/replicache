@@ -3,13 +3,7 @@ import type {JSONValue} from './json';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options';
 import {Pusher, PushError} from './pusher';
 import {Puller, PullError} from './puller';
-import type {
-  BeginPullRequest,
-  ChangedKeysMap,
-  OpenResponse,
-  RebaseOpts,
-  TryPushRequest,
-} from './repm-invoker';
+import type {OpenResponse} from './repm-invoker';
 import {
   SubscriptionTransactionWrapper,
   IndexTransactionImpl,
@@ -41,7 +35,6 @@ import * as embed from './embed/mod';
 import * as db from './db/mod';
 import * as sync from './sync/mod';
 import {initHasher} from './hash';
-import {validateRebase} from './sync/validate-rebase';
 
 export type BeginPullResult = {
   requestID: string;
@@ -66,7 +59,7 @@ export const MAX_REAUTH_TRIES = 8;
  */
 type BroadcastData = {
   root?: string;
-  changedKeys: ChangedKeysMap;
+  changedKeys: sync.ChangedKeysMap;
   index?: string;
 };
 
@@ -474,7 +467,7 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   private _broadcastChange(
     root: string | undefined,
-    changedKeys: ChangedKeysMap,
+    changedKeys: sync.ChangedKeysMap,
     index: string | undefined,
   ) {
     if (this._broadcastChannel) {
@@ -489,7 +482,7 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   private async _checkChange(
     root: string | undefined,
-    changedKeys: ChangedKeysMap,
+    changedKeys: sync.ChangedKeysMap,
   ): Promise<void> {
     const currentRoot = await this._root; // instantaneous except maybe first time
     if (root !== undefined && root !== currentRoot) {
@@ -588,10 +581,11 @@ export class Replicache<MD extends MutatorDefs = {}>
     const lc = this._lc
       .addContext('rpc', 'maybeEndPull')
       .addContext('request_id', requestID);
-    const {replayMutations, changedKeys} = await sync.maybeEndPull(store, lc, {
-      requestID,
+    const {replayMutations, changedKeys} = await sync.maybeEndPull(
+      store,
+      lc,
       syncHead,
-    });
+    );
 
     if (!replayMutations || replayMutations.length === 0) {
       // All done.
@@ -705,7 +699,7 @@ export class Replicache<MD extends MutatorDefs = {}>
         const lc = this._lc
           .addContext('rpc', 'tryPush')
           .addContext('request_id', requestID);
-        const req: TryPushRequest = {
+        const req = {
           pushURL: this.pushURL,
           pushAuth: this.auth,
           schemaVersion: this.schemaVersion,
@@ -787,7 +781,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     const lc = this._lc
       .addContext('rpc', 'beginPull')
       .addContext('request_id', requestID);
-    const req: BeginPullRequest = {
+    const req = {
       pullAuth: this.auth,
       pullURL: this.pullURL,
       schemaVersion: this.schemaVersion,
@@ -850,7 +844,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
   }
 
-  private async _fireOnChange(changedKeys: ChangedKeysMap): Promise<void> {
+  private async _fireOnChange(changedKeys: sync.ChangedKeysMap): Promise<void> {
     const subscriptions = subscriptionsForChangedKeys(
       this._subscriptions,
       changedKeys,
@@ -1047,7 +1041,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     name: string,
     mutatorImpl: (tx: WriteTransaction, args?: A) => MaybePromise<R>,
     args: A | undefined,
-    rebaseOpts: RebaseOpts | undefined,
+    rebaseOpts: sync.RebaseOpts | undefined,
     isReplay: boolean,
   ): Promise<{result: R; ref: string}> {
     // Ensure that we run initial pending subscribe functions before starting a
@@ -1063,7 +1057,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       if (rebaseOpts === undefined) {
         whence = db.whenceHead(db.DEFAULT_HEAD_NAME);
       } else {
-        await validateRebase(rebaseOpts, dagWrite, name, args);
+        await sync.validateRebase(rebaseOpts, dagWrite, name, args);
         whence = db.whenceHash(rebaseOpts.basis);
         originalHash = rebaseOpts.original;
       }

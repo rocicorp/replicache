@@ -1,7 +1,7 @@
 import type {JSONValue} from './json';
-import type {ChangedKeysMap} from './repm-invoker';
 import type {ReadTransaction} from './transactions';
 import * as db from './db/mod';
+import type * as sync from './sync/mod';
 
 export type Subscription<R extends JSONValue | undefined, E> = {
   body: (tx: ReadTransaction) => Promise<R>;
@@ -109,7 +109,7 @@ export function scanOptionsMatchesKey(
 
 export function* subscriptionsForChangedKeys<V, E>(
   subscriptions: Set<Subscription<V, E>>,
-  changedKeysMap: ChangedKeysMap,
+  changedKeysMap: sync.ChangedKeysMap,
 ): Generator<Subscription<V, E>> {
   outer: for (const subscription of subscriptions) {
     for (const [indexName, changedKeys] of changedKeysMap) {

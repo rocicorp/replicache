@@ -1,11 +1,7 @@
 import type {ReadonlyJSONValue} from '../json';
 import * as db from '../db/mod';
 import type * as dag from '../dag/mod';
-import {
-  assertHTTPRequestInfo,
-  HTTPRequestInfo,
-  TryPushRequest,
-} from '../repm-invoker';
+import {assertHTTPRequestInfo, HTTPRequestInfo} from '../repm-invoker';
 import {Pusher, PushError} from '../pusher';
 import {callJSRequest} from './js-request';
 import type {LogContext} from '../logger';
@@ -35,6 +31,13 @@ export function convert(lm: db.LocalMeta): Mutation {
     args: lm.mutatorArgsJSON,
   };
 }
+
+export type TryPushRequest = {
+  pushURL: string;
+  pushAuth: string;
+  schemaVersion: string;
+  pusher: Pusher;
+};
 
 export async function push(
   requestID: string,

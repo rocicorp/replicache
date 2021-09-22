@@ -1,8 +1,12 @@
 import type * as dag from '../dag/mod';
 import * as db from '../db/mod';
 import * as sync from './mod';
-import type {RebaseOpts} from '../repm-invoker';
 import type {ReadonlyJSONValue} from '../json';
+
+export type RebaseOpts = {
+  basis: string;
+  original: string;
+};
 
 export async function validateRebase(
   opts: RebaseOpts,

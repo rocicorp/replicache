@@ -1,17 +1,8 @@
 import type * as dag from '../dag/mod';
 import * as db from '../db/mod';
-import {deepClone, ReadonlyJSONValue} from '../json';
+import {deepClone, JSONValue, ReadonlyJSONValue} from '../json';
 import {assertPullResponse, Puller, PullError, PullResponse} from '../puller';
-import {
-  assertHTTPRequestInfo,
-  BeginPullRequest,
-  BeginPullResponse,
-  ChangedKeysMap,
-  HTTPRequestInfo,
-  MaybeEndPullRequest,
-  MaybeEndPullResponse,
-  ReplayMutation,
-} from '../repm-invoker';
+import {assertHTTPRequestInfo, HTTPRequestInfo} from '../repm-invoker';
 import {callJSRequest} from './js-request';
 import {SYNC_HEAD_NAME} from './sync-head-name';
 import * as patch from './patch';
@@ -29,6 +20,18 @@ export type PullRequest = {
   // to indicate to the data layer what format of Client View the
   // app understands.
   schemaVersion: string;
+};
+
+export type BeginPullRequest = {
+  pullURL: string;
+  pullAuth: string;
+  schemaVersion: string;
+  puller: Puller;
+};
+
+export type BeginPullResponse = {
+  httpRequestInfo: HTTPRequestInfo;
+  syncHead: string;
 };
 
 export async function beginPull(
@@ -167,11 +170,32 @@ export async function beginPull(
   });
 }
 
+/**
+ * ReplayMutation is used int the RPC between EndPull so that we can replay
+ * mutations ontop of the current state. It is never exposed to the public.
+ */
+export type ReplayMutation = {
+  id: number;
+  name: string;
+  args: JSONValue;
+  original: string;
+};
+
+// The changed keys in different indexes. The key of the map is the index name.
+// "" is used for the primary index.
+export type ChangedKeysMap = Map<string, string[]>;
+
+export type MaybeEndPullResult = {
+  replayMutations?: ReplayMutation[];
+  syncHead: string;
+  changedKeys: ChangedKeysMap;
+};
+
 export async function maybeEndPull(
   store: dag.Store,
   lc: LogContext,
-  maybeEndPullReq: MaybeEndPullRequest,
-): Promise<MaybeEndPullResponse> {
+  expectedSyncHead: string,
+): Promise<MaybeEndPullResult> {
   // Ensure sync head is what the caller thinks it is.
   return await store.withWrite(async dagWrite => {
     const dagRead = dagWrite;
@@ -179,7 +203,7 @@ export async function maybeEndPull(
     if (syncHeadHash === undefined) {
       throw new Error('Missing sync head');
     }
-    if (syncHeadHash !== maybeEndPullReq.syncHead) {
+    if (syncHeadHash !== expectedSyncHead) {
       throw new Error('Wrong sync head JSLogInfo');
     }
 

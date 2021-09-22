@@ -400,9 +400,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     this._closed = true;
     const {promise, resolve} = resolver();
     closingInstances.set(this.name, promise);
-    const store = this._dagStore;
     await this._ready;
-    const p = store.close();
+    const p = this._dagStore.close();
 
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
@@ -533,9 +532,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     return new ScanResult<Key>(
       options,
       async () => {
-        const store = this._dagStore;
         await this._ready;
-        const dagRead = await store.read();
+        const dagRead = await this._dagStore.read();
         return db.readFromDefaultHead(dagRead);
       },
       true, // shouldCloseTransaction
@@ -566,9 +564,8 @@ export class Replicache<MD extends MutatorDefs = {}>
   private async _indexOp(
     f: (tx: IndexTransactionImpl) => Promise<void>,
   ): Promise<void> {
-    const store = this._dagStore;
     await this._ready;
-    await store.withWrite(async dagWrite => {
+    await this._dagStore.withWrite(async dagWrite => {
       const dbWrite = await db.Write.newIndexChange(
         db.whenceHead(db.DEFAULT_HEAD_NAME),
         dagWrite,
@@ -590,13 +587,12 @@ export class Replicache<MD extends MutatorDefs = {}>
     let {syncHead} = beginPullResult;
     const {requestID} = beginPullResult;
 
-    const store = this._dagStore;
     await this._ready;
     const lc = this._lc
       .addContext('rpc', 'maybeEndPull')
       .addContext('request_id', requestID);
     const {replayMutations, changedKeys} = await sync.maybeEndPull(
-      store,
+      this._dagStore,
       lc,
       syncHead,
     );
@@ -708,7 +704,6 @@ export class Replicache<MD extends MutatorDefs = {}>
       let pushResponse;
       try {
         this._changeSyncCounters(1, 0);
-        const store = this._dagStore;
         await this._ready;
         const clientID = await this._clientIDPromise;
         const requestID = sync.newRequestID(clientID);
@@ -723,7 +718,7 @@ export class Replicache<MD extends MutatorDefs = {}>
         };
         pushResponse = await sync.push(
           requestID,
-          store,
+          this._dagStore,
           lc,
           clientID,
           this.pusher,
@@ -791,7 +786,6 @@ export class Replicache<MD extends MutatorDefs = {}>
   }
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
-    const store = this._dagStore;
     await this._ready;
     const clientID = await this._clientIDPromise;
 
@@ -810,7 +804,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       req,
       req.puller,
       requestID,
-      store,
+      this._dagStore,
       lc,
     );
 
@@ -983,9 +977,8 @@ export class Replicache<MD extends MutatorDefs = {}>
    * and `scan`.
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
-    const store = this._dagStore;
     await this._ready;
-    return await store.withRead(async dagRead => {
+    return await this._dagStore.withRead(async dagRead => {
       const dbRead = await db.readFromDefaultHead(dagRead);
       const tx = new ReadTransactionImpl(dbRead, this._lc);
       return await body(tx);
@@ -1069,9 +1062,8 @@ export class Replicache<MD extends MutatorDefs = {}>
       await Promise.resolve();
     }
 
-    const store = this._dagStore;
     await this._ready;
-    return await store.withWrite(async dagWrite => {
+    return await this._dagStore.withWrite(async dagWrite => {
       let whence: db.Whence | undefined;
       let originalHash: string | null = null;
       if (rebaseOpts === undefined) {

@@ -5,6 +5,7 @@ import type * as kv from '../kv/mod';
 import * as db from '../db/mod';
 import * as sync from '../sync/mod';
 import * as utf8 from '../utf8';
+import type {LogContext} from '../logger';
 
 const VERSION_KEY = 'sys/storage-format-version';
 
@@ -207,7 +208,11 @@ export async function migrateProllyMap(
  * Our data model does not allow listing the heads so this only migrates the
  * known heads; `db.DEFAULT_HEAD_NAME` and `sync.SYNC_HEAD_NAME`.
  */
-export async function migrate0to1(write: kv.Write): Promise<void> {
+export async function migrate0to1(
+  write: kv.Write,
+  lc: LogContext,
+): Promise<void> {
+  lc.debug?.(`migrating from version 0 to version 1`);
   // We pass in a pending set to only handle each key once. Some keys are
   // referenced more than once so this prevents us from trying to migrate the
   // same key twice.

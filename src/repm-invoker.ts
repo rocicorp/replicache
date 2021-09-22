@@ -1,5 +1,3 @@
-export type OpenResponse = {clientID: string};
-
 export function assertHTTPRequestInfo(
   // eslint-disable-next-line
   v: any,

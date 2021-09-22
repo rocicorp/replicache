@@ -3,7 +3,6 @@ import type {JSONValue} from './json';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options';
 import {Pusher, PushError} from './pusher';
 import {Puller, PullError} from './puller';
-import type {OpenResponse} from './repm-invoker';
 import {
   SubscriptionTransactionWrapper,
   IndexTransactionImpl,
@@ -144,8 +143,8 @@ export class Replicache<MD extends MutatorDefs = {}>
   private _closed = false;
   private _online = true;
   private readonly _logger: Logger;
-  private readonly _openResponse: Promise<OpenResponse>;
-  private readonly _openResolve: (resp: OpenResponse) => void;
+  private readonly _openResponse: Promise<string>;
+  private readonly _openResolve: (resp: string) => void;
   private readonly _clientIDPromise: Promise<string>;
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
@@ -275,6 +274,9 @@ export class Replicache<MD extends MutatorDefs = {}>
     this.auth = auth ?? pullAuth ?? pushAuth ?? '';
     this.pullURL = pullURL;
     this.pushURL = pushURL;
+    if (name === '') {
+      throw new Error('name must be non-empty');
+    }
     this.name = name;
     this.schemaVersion = schemaVersion;
     this.pullInterval = pullInterval;
@@ -289,7 +291,7 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     // Use a promise-resolve pair so that we have a promise to use even before
     // we call the Open RPC.
-    const {promise, resolve} = resolver<OpenResponse>();
+    const {promise, resolve} = resolver<string>();
     this._openResponse = promise;
     this._openResolve = resolve;
 
@@ -319,10 +321,10 @@ export class Replicache<MD extends MutatorDefs = {}>
 
     this._lc = new LogContext(logLevel).addContext('db', name);
 
-    this._clientIDPromise = this._open().then(resp => resp.clientID);
+    this._clientIDPromise = this._open();
   }
 
-  private async _open(): Promise<OpenResponse> {
+  private async _open(): Promise<string> {
     // If we are currently closing a Replicache instance with the same name,
     // wait for it to finish closing.
     await closingInstances.get(this.name);
@@ -330,7 +332,6 @@ export class Replicache<MD extends MutatorDefs = {}>
     await initHasher();
 
     const openResponse = await embed.open(
-      this.name,
       this._kvStore,
       this._dagStore,
       this._lc,
@@ -708,7 +709,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       try {
         this._changeSyncCounters(1, 0);
         const store = this._dagStore;
-        const {clientID} = await this._openResponse;
+        const clientID = await this._openResponse;
         const requestID = sync.newRequestID(clientID);
         const lc = this._lc
           .addContext('rpc', 'tryPush')
@@ -790,7 +791,7 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
     const store = this._dagStore;
-    const {clientID} = await this._openResponse;
+    const clientID = await this._openResponse;
 
     const requestID = sync.newRequestID(clientID);
     const lc = this._lc

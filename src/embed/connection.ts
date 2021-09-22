@@ -2,24 +2,18 @@ import type * as kv from '../kv/mod';
 import type * as dag from '../dag/mod';
 import * as db from '../db/mod';
 import * as sync from '../sync/mod';
-import type {OpenResponse} from '../repm-invoker';
 import type {LogContext} from '../logger';
 import {migrate} from '../migrate/migrate';
 
 export async function open(
-  dbName: string,
   kvStore: kv.Store,
   dagStore: dag.Store,
   lc: LogContext,
-): Promise<OpenResponse> {
+): Promise<string> {
   const start = Date.now();
 
   const lc2 = lc.addContext('rpc', 'open');
   lc2.debug?.('->', kvStore);
-
-  if (dbName === '') {
-    throw new Error('dbName must be non-empty');
-  }
 
   await migrate(kvStore);
 
@@ -34,7 +28,7 @@ export async function open(
   // for it.
 
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', clientID);
-  return {clientID};
+  return clientID;
 }
 
 async function init(dagStore: dag.Store): Promise<void> {

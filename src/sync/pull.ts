@@ -31,19 +31,10 @@ export type PullRequest = {
   schemaVersion: string;
 };
 
-export interface InternalPuller {
-  pull(
-    pullReq: PullRequest,
-    url: string,
-    auth: string,
-    requestID: string,
-  ): Promise<[PullResponse | undefined, HTTPRequestInfo]>;
-}
-
 export async function beginPull(
   clientID: string,
   beginPullReq: BeginPullRequest,
-  puller: InternalPuller,
+  puller: Puller,
   requestID: string,
   store: dag.Store,
   lc: LogContext,
@@ -70,9 +61,10 @@ export async function beginPull(
   };
   lc.debug?.('Starting pull...');
   const pullStart = Date.now();
-  const [pullResp, httpRequestInfo] = await puller.pull(
-    pullReq,
+  const [pullResp, httpRequestInfo] = await callPuller(
+    puller,
     pullURL,
+    pullReq,
     pullAuth,
     requestID,
   );
@@ -300,30 +292,19 @@ export async function maybeEndPull(
   });
 }
 
-export class JSPuller implements InternalPuller {
-  private readonly _puller: Puller;
-
-  constructor(puller: Puller) {
-    this._puller = puller;
-  }
-
-  async pull(
-    pullReq: PullRequest,
-    url: string,
-    auth: string,
-    requestID: string,
-  ): Promise<[PullResponse | undefined, HTTPRequestInfo]> {
-    const {clientID, cookie, lastMutationID, pullVersion, schemaVersion} =
-      pullReq;
-
-    const body = {clientID, cookie, lastMutationID, pullVersion, schemaVersion};
-    try {
-      const res = await callJSRequest(this._puller, url, body, auth, requestID);
-      assertResult(res);
-      return [res.response, res.httpRequestInfo];
-    } catch (e) {
-      throw new PullError(e);
-    }
+async function callPuller(
+  puller: Puller,
+  url: string,
+  body: PullRequest,
+  auth: string,
+  requestID: string,
+): Promise<[PullResponse | undefined, HTTPRequestInfo]> {
+  try {
+    const res = await callJSRequest(puller, url, body, auth, requestID);
+    assertResult(res);
+    return [res.response, res.httpRequestInfo];
+  } catch (e) {
+    throw new PullError(e);
   }
 }
 

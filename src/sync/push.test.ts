@@ -12,7 +12,7 @@ import {
 import {MemStore} from '../kv/mod';
 import type {HTTPRequestInfo} from '../repm-invoker';
 import {SYNC_HEAD_NAME} from './sync-head-name';
-import {JSPusher, push, PushRequest, PUSH_VERSION} from './push';
+import {push, PushRequest, PUSH_VERSION} from './push';
 import {LogContext} from '../logger';
 import {initHasher} from '../hash';
 import type {Pusher} from '../pusher';
@@ -224,16 +224,14 @@ test('try push', async () => {
       }
     })();
 
-    const pusher = new JSPusher(
-      makeFakePusher({
-        expPush,
-        expPushReq: c.expPushReq,
-        expPushURL: pushURL,
-        expPushAuth: pushAuth,
-        expRequestID: requestID,
-        err: pushErr,
-      }),
-    );
+    const pusher = makeFakePusher({
+      expPush,
+      expPushReq: c.expPushReq,
+      expPushURL: pushURL,
+      expPushAuth: pushAuth,
+      expRequestID: requestID,
+      err: pushErr,
+    });
 
     const clientID = 'test_client_id';
     const batchPushInfo = await push(requestID, store, lc, clientID, pusher, {

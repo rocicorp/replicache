@@ -28,15 +28,6 @@ export type Mutation = {
   readonly args: ReadonlyJSONValue;
 };
 
-export interface InternalPusher {
-  push(
-    pushReq: PushRequest,
-    pushUrl: string,
-    pushAuth: string,
-    requestID: string,
-  ): Promise<HTTPRequestInfo>;
-}
-
 export function convert(lm: db.LocalMeta): Mutation {
   return {
     id: lm.mutationID,
@@ -50,7 +41,7 @@ export async function push(
   store: dag.Store,
   lc: LogContext,
   clientID: string,
-  pusher: InternalPusher,
+  pusher: Pusher,
   req: TryPushRequest,
 ): Promise<HTTPRequestInfo | undefined> {
   // Find pending commits between the base snapshot and the main head and push
@@ -85,9 +76,10 @@ export async function push(
     };
     lc.debug?.('Starting push...');
     const pushStart = Date.now();
-    const reqInfo = await pusher.push(
-      pushReq,
+    const reqInfo = await callPusher(
+      pusher,
       req.pushURL,
+      pushReq,
       req.pushAuth,
       requestID,
     );
@@ -100,29 +92,18 @@ export async function push(
   return httpRequestInfo;
 }
 
-// TODO(arv): This abstraction can be removed.
-export class JSPusher implements InternalPusher {
-  private readonly _pusher: Pusher;
-
-  constructor(pusher: Pusher) {
-    this._pusher = pusher;
-  }
-  async push(
-    pushReq: PushRequest,
-    url: string,
-    auth: string,
-    requestID: string,
-  ): Promise<HTTPRequestInfo> {
-    const {clientID, mutations, pushVersion, schemaVersion} = pushReq;
-
-    const body = {clientID, mutations, pushVersion, schemaVersion};
-
-    try {
-      const res = await callJSRequest(this._pusher, url, body, auth, requestID);
-      assertHTTPRequestInfo(res);
-      return res;
-    } catch (e) {
-      throw new PushError(e);
-    }
+async function callPusher(
+  pusher: Pusher,
+  url: string,
+  body: PushRequest,
+  auth: string,
+  requestID: string,
+): Promise<HTTPRequestInfo> {
+  try {
+    const res = await callJSRequest(pusher, url, body, auth, requestID);
+    assertHTTPRequestInfo(res);
+    return res;
+  } catch (e) {
+    throw new PushError(e);
   }
 }

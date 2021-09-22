@@ -30,14 +30,7 @@ import type {
   MaybeEndPullResponse,
 } from '../repm-invoker';
 import {SYNC_HEAD_NAME} from './sync-head-name';
-import {
-  beginPull,
-  InternalPuller,
-  JSPuller,
-  maybeEndPull,
-  PullRequest,
-  PULL_VERSION,
-} from './pull';
+import {beginPull, maybeEndPull, PullRequest, PULL_VERSION} from './pull';
 import {LogContext} from '../logger';
 import {initHasher} from '../hash';
 import {stringCompare} from '../prolly/string-compare';
@@ -433,16 +426,14 @@ test('begin try pull', async () => {
       pullResp = c.pullResult;
       pullErr = undefined;
     }
-    const fakePuller = new JSPuller(
-      makeFakePuller({
-        expPullReq,
-        expPullURL: pullURL,
-        expPullAuth: pullAuth,
-        expRequestID: requestID,
-        resp: pullResp,
-        err: pullErr,
-      }),
-    );
+    const fakePuller = makeFakePuller({
+      expPullReq,
+      expPullURL: pullURL,
+      expPullAuth: pullAuth,
+      expRequestID: requestID,
+      resp: pullResp,
+      err: pullErr,
+    });
 
     const beginPullReq: BeginPullRequest = {
       pullURL,
@@ -812,16 +803,14 @@ test('changed keys', async () => {
       patch,
     };
 
-    const fakePuller = new JSPuller(
-      makeFakePuller({
-        expPullReq,
-        expPullURL: pullURL,
-        expPullAuth: pullAuth,
-        expRequestID: requestID,
-        resp: pullResp,
-        err: undefined,
-      }),
-    );
+    const fakePuller = makeFakePuller({
+      expPullReq,
+      expPullURL: pullURL,
+      expPullAuth: pullAuth,
+      expRequestID: requestID,
+      resp: pullResp,
+      err: undefined,
+    });
 
     const beginPullReq: BeginPullRequest = {
       pullURL,

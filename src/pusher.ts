@@ -1,5 +1,5 @@
 import {httpRequest} from './http-request';
-import type {HTTPRequestInfo} from './repm-invoker';
+import type {HTTPRequestInfo} from './http-request-info';
 
 /**
  * Pusher is the function type used to do the fetch part of a push.

@@ -25,7 +25,7 @@ export type {
   ScanOptionIndexedStartKey,
   ScanOptions,
 } from './scan-options';
-export type {HTTPRequestInfo} from './repm-invoker';
+export type {HTTPRequestInfo} from './http-request-info';
 export type {LogLevel} from './logger';
 export type {
   PatchOperation,

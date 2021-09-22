@@ -21,7 +21,7 @@ import type {
   PullerResult,
   PullResponse,
 } from '../puller';
-import type {HTTPRequestInfo} from '../repm-invoker';
+import type {HTTPRequestInfo} from '../http-request-info';
 import {SYNC_HEAD_NAME} from './sync-head-name';
 import {
   beginPull,

@@ -10,7 +10,7 @@ import {
   Chain,
 } from '../db/test-helpers';
 import {MemStore} from '../kv/mod';
-import type {HTTPRequestInfo} from '../repm-invoker';
+import type {HTTPRequestInfo} from '../http-request-info';
 import {SYNC_HEAD_NAME} from './sync-head-name';
 import {push, PushRequest, PUSH_VERSION} from './push';
 import {LogContext} from '../logger';

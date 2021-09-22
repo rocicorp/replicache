@@ -1,7 +1,7 @@
 import type {ReadonlyJSONValue} from '../json';
 import * as db from '../db/mod';
 import type * as dag from '../dag/mod';
-import {assertHTTPRequestInfo, HTTPRequestInfo} from '../repm-invoker';
+import {assertHTTPRequestInfo, HTTPRequestInfo} from '../http-request-info';
 import {Pusher, PushError} from '../pusher';
 import {callJSRequest} from './js-request';
 import type {LogContext} from '../logger';

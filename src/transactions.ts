@@ -1,5 +1,5 @@
 import {deepClone, JSONValue, ReadonlyJSONValue} from './json';
-import type {CommitTransactionResponse} from './repm-invoker';
+import type {ChangedKeysMap} from './repm-invoker';
 import {
   KeyTypeForScanOptions,
   ScanOptions,
@@ -214,19 +214,14 @@ export class WriteTransactionImpl
 
   async commit(
     generateChangedKeys: boolean,
-  ): Promise<CommitTransactionResponse> {
+  ): Promise<[string, ChangedKeysMap]> {
     const txn = this._dbtx;
     throwIfClosed(txn);
 
     const headName = txn.isRebase()
       ? sync.SYNC_HEAD_NAME
       : db.DEFAULT_HEAD_NAME;
-    // TODO(arv): Change return type to do less unpacking.
-    const [hash, changedKeys] = await txn.commitWithChangedKeys(
-      headName,
-      generateChangedKeys,
-    );
-    return {ref: hash, changedKeys};
+    return await txn.commitWithChangedKeys(headName, generateChangedKeys);
   }
 }
 
@@ -301,7 +296,7 @@ export class IndexTransactionImpl
     await this._dbtx.dropIndex(name);
   }
 
-  async commit(): Promise<CommitTransactionResponse> {
+  async commit(): Promise<[string, ChangedKeysMap]> {
     return super.commit(false);
   }
 }

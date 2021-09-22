@@ -519,18 +519,12 @@ export class Replicache<MD extends MutatorDefs = {}>
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
   ): ScanResult<Key, ReadonlyJSONValue> {
-    let dbRead: db.Read;
     return new ScanResult<Key>(
       options,
       async () => {
         const {store} = await this._openResponse;
         const dagRead = await store.read();
-        // TODO(arv): Add db.readFromDefaultHead()
-        dbRead = await db.fromWhence(
-          db.whenceHead(db.DEFAULT_HEAD_NAME),
-          dagRead,
-        );
-        return dbRead;
+        return db.readFromDefaultHead(dagRead);
       },
       true, // shouldCloseTransaction
       false, // shouldClone
@@ -560,7 +554,6 @@ export class Replicache<MD extends MutatorDefs = {}>
   private async _indexOp(
     f: (tx: IndexTransactionImpl) => Promise<void>,
   ): Promise<void> {
-    // TODO(arv): Maybe pass in db.Write instead of _openResponse?
     const {store} = await this._openResponse;
     await store.withWrite(async dagWrite => {
       const dbWrite = await db.Write.newIndexChange(
@@ -956,10 +949,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
     const {store} = await this._openResponse;
     return await store.withRead(async dagRead => {
-      const dbRead = await db.fromWhence(
-        db.whenceHead(db.DEFAULT_HEAD_NAME),
-        dagRead,
-      );
+      const dbRead = await db.readFromDefaultHead(dagRead);
       const tx = new ReadTransactionImpl(dbRead, this._lc);
       return await body(tx);
     });
@@ -1054,14 +1044,6 @@ export class Replicache<MD extends MutatorDefs = {}>
         originalHash = rebaseOpts.original;
       }
 
-      if (rebaseOpts === undefined) {
-        whence = db.whenceHead(db.DEFAULT_HEAD_NAME);
-      } else {
-        await validateRebase(rebaseOpts, dagWrite, name, args);
-        whence = db.whenceHash(rebaseOpts.basis);
-        originalHash = rebaseOpts.original;
-      }
-
       const dbWrite = await db.Write.newLocal(
         whence,
         name,
@@ -1073,7 +1055,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       const tx = new WriteTransactionImpl(dbWrite, this._lc);
       const result: R = await mutatorImpl(tx, args);
 
-      const {ref, changedKeys} = await tx.commit(!isReplay);
+      const [ref, changedKeys] = await tx.commit(!isReplay);
       if (!isReplay) {
         this._pushConnectionLoop.send();
         await this._checkChange(ref, changedKeys);

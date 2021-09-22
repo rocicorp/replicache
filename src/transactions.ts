@@ -1,5 +1,4 @@
 import {deepClone, JSONValue, ReadonlyJSONValue} from './json';
-import type {ChangedKeysMap} from './repm-invoker';
 import {
   KeyTypeForScanOptions,
   ScanOptions,
@@ -214,7 +213,7 @@ export class WriteTransactionImpl
 
   async commit(
     generateChangedKeys: boolean,
-  ): Promise<[string, ChangedKeysMap]> {
+  ): Promise<[string, sync.ChangedKeysMap]> {
     const txn = this._dbtx;
     throwIfClosed(txn);
 
@@ -296,7 +295,7 @@ export class IndexTransactionImpl
     await this._dbtx.dropIndex(name);
   }
 
-  async commit(): Promise<[string, ChangedKeysMap]> {
+  async commit(): Promise<[string, sync.ChangedKeysMap]> {
     return super.commit(false);
   }
 }

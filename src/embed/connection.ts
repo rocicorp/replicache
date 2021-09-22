@@ -1,5 +1,5 @@
 import type * as kv from '../kv/mod';
-import * as dag from '../dag/mod';
+import type * as dag from '../dag/mod';
 import * as db from '../db/mod';
 import * as sync from '../sync/mod';
 import type {OpenResponse} from '../repm-invoker';
@@ -9,6 +9,7 @@ import {migrate} from '../migrate/migrate';
 export async function open(
   dbName: string,
   kvStore: kv.Store,
+  dagStore: dag.Store,
   lc: LogContext,
 ): Promise<OpenResponse> {
   const start = Date.now();
@@ -22,7 +23,6 @@ export async function open(
 
   await migrate(kvStore);
 
-  const dagStore = new dag.Store(kvStore);
   // TODO(arv): Maybe store the clientID as a promise instead to prevent race
   // conditions?
   const clientID = await sync.initClientID(kvStore);
@@ -34,7 +34,7 @@ export async function open(
   // for it.
 
   lc2.debug?.('<- elapsed=', Date.now() - start, 'ms, result=', clientID);
-  return {clientID, store: dagStore};
+  return {clientID};
 }
 
 async function init(dagStore: dag.Store): Promise<void> {

@@ -1,6 +1,4 @@
-import type * as dag from './dag/mod';
-
-export type OpenResponse = {clientID: string; store: dag.Store};
+export type OpenResponse = {clientID: string};
 
 export function assertHTTPRequestInfo(
   // eslint-disable-next-line

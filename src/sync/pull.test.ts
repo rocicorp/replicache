@@ -15,7 +15,12 @@ import {
 } from '../db/test-helpers';
 import type {ReadonlyJSONValue} from '../json';
 import {MemStore} from '../kv/mod';
-import type {PatchOperation, PullResponse} from '../puller';
+import type {
+  PatchOperation,
+  Puller,
+  PullerResult,
+  PullResponse,
+} from '../puller';
 import type {
   BeginPullRequest,
   BeginPullResponse,
@@ -28,6 +33,7 @@ import {SYNC_HEAD_NAME} from './sync-head-name';
 import {
   beginPull,
   InternalPuller,
+  JSPuller,
   maybeEndPull,
   PullRequest,
   PULL_VERSION,
@@ -427,14 +433,16 @@ test('begin try pull', async () => {
       pullResp = c.pullResult;
       pullErr = undefined;
     }
-    const fakePuller = new FakePuller({
-      expPullReq,
-      expPullURL: pullURL,
-      expPullAuth: pullAuth,
-      expRequestID: requestID,
-      resp: pullResp,
-      err: pullErr,
-    });
+    const fakePuller = new JSPuller(
+      makeFakePuller({
+        expPullReq,
+        expPullURL: pullURL,
+        expPullAuth: pullAuth,
+        expRequestID: requestID,
+        resp: pullResp,
+        err: pullErr,
+      }),
+    );
 
     const beginPullReq: BeginPullRequest = {
       pullURL,
@@ -719,37 +727,22 @@ type FakePullerArgs = {
   err?: string;
 };
 
-class FakePuller implements InternalPuller, FakePullerArgs {
-  readonly expPullReq: PullRequest;
-  readonly expPullURL: string;
-  readonly expPullAuth: string;
-  readonly expRequestID: string;
-  readonly resp?: PullResponse;
-  readonly err?: string;
+function makeFakePuller(options: FakePullerArgs): Puller {
+  return async (req: Request): Promise<PullerResult> => {
+    const pullReq: PullRequest = await req.json();
+    expect(options.expPullReq).to.deep.equal(pullReq);
 
-  constructor(options: FakePullerArgs) {
-    this.expPullReq = options.expPullReq;
-    this.expPullURL = options.expPullURL;
-    this.expPullAuth = options.expPullAuth;
-    this.expRequestID = options.expRequestID;
-    this.resp = options.resp;
-    this.err = options.err;
-  }
+    expect(new URL(options.expPullURL, location.href).toString()).to.equal(
+      req.url,
+    );
+    expect(options.expPullAuth).to.equal(req.headers.get('Authorization'));
+    expect(options.expRequestID).to.equal(
+      req.headers.get('X-Replicache-RequestID'),
+    );
 
-  async pull(
-    pullReq: PullRequest,
-    url: string,
-    auth: string,
-    requestID: string,
-  ): Promise<[PullResponse | undefined, HTTPRequestInfo]> {
-    expect(this.expPullReq).to.deep.equal(pullReq);
-    expect(this.expPullURL).to.equal(url);
-    expect(this.expPullAuth).to.equal(auth);
-    expect(this.expRequestID).to.equal(requestID);
-
-    let httpRequestInfo;
-    if (this.err !== undefined) {
-      if (this.err === 'FetchNotOk(500)') {
+    let httpRequestInfo: HTTPRequestInfo;
+    if (options.err !== undefined) {
+      if (options.err === 'FetchNotOk(500)') {
         httpRequestInfo = {
           httpStatusCode: 500,
           errorMessage: 'Fetch not OK',
@@ -763,9 +756,8 @@ class FakePuller implements InternalPuller, FakePullerArgs {
         errorMessage: '',
       };
     }
-
-    return [this.resp, httpRequestInfo];
-  }
+    return {response: options.resp, httpRequestInfo};
+  };
 }
 
 test('changed keys', async () => {
@@ -820,14 +812,16 @@ test('changed keys', async () => {
       patch,
     };
 
-    const fakePuller = new FakePuller({
-      expPullReq,
-      expPullURL: pullURL,
-      expPullAuth: pullAuth,
-      expRequestID: requestID,
-      resp: pullResp,
-      err: undefined,
-    });
+    const fakePuller = new JSPuller(
+      makeFakePuller({
+        expPullReq,
+        expPullURL: pullURL,
+        expPullAuth: pullAuth,
+        expRequestID: requestID,
+        resp: pullResp,
+        err: undefined,
+      }),
+    );
 
     const beginPullReq: BeginPullRequest = {
       pullURL,

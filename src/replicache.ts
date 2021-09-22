@@ -391,7 +391,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     const {promise, resolve} = resolver();
     closingInstances.set(this.name, promise);
     const {store} = await this._openResponse;
-    const p = embed.close(store, this._lc);
+    await store.close();
 
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
@@ -409,7 +409,6 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
     this._subscriptions.clear();
 
-    await p;
     closingInstances.delete(this.name);
     resolve();
   }
@@ -419,7 +418,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       return undefined;
     }
     const {store} = await this._openResponse;
-    return await embed.getRoot(store, this._lc);
+    return await db.getRoot(store, db.DEFAULT_HEAD_NAME);
   }
 
   private _onStorage = (e: StorageEvent) => {

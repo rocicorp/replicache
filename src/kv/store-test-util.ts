@@ -25,22 +25,20 @@ export class TestStore implements Store {
   }
 
   async withRead<T>(fn: (read: Read) => Promise<T> | T): Promise<T> {
-    let read;
+    const read = await this.read();
     try {
-      read = await this.read();
       return await fn(read);
     } finally {
-      read?.release();
+      read.release();
     }
   }
 
   async withWrite<T>(fn: (write: Write) => Promise<T> | T): Promise<T> {
-    let write;
+    const write = await this.write();
     try {
-      write = await this.write();
       return await fn(write);
     } finally {
-      write?.release();
+      write.release();
     }
   }
 

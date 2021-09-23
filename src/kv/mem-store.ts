@@ -14,12 +14,11 @@ export class MemStore implements Store {
   }
 
   async withRead<R>(fn: (read: Read) => R | Promise<R>): Promise<R> {
-    let read;
+    const read = await this.read();
     try {
-      read = await this.read();
       return await fn(read);
     } finally {
-      read?.release();
+      read.release();
     }
   }
 
@@ -29,12 +28,11 @@ export class MemStore implements Store {
   }
 
   async withWrite<R>(fn: (write: Write) => R | Promise<R>): Promise<R> {
-    let write;
+    const write = await this.write();
     try {
-      write = await this.write();
       return await fn(write);
     } finally {
-      write?.release();
+      write.release();
     }
   }
 

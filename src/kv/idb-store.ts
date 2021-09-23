@@ -32,12 +32,11 @@ export class IDBStore implements Store {
     // here we only await the db and no await is involved with the transaction.
     // See https://github.com/jakearchibald/idb-keyval/commit/1af0a00b1a70a678d2f9cf5e74c55a22e57324c5#r55989916
     const db = await this._db;
-    let read: ReadImpl | undefined;
+    const read = readImpl(db);
     try {
-      read = readImpl(db);
       return await fn(read);
     } finally {
-      read?.release();
+      read.release();
     }
   }
 
@@ -49,12 +48,11 @@ export class IDBStore implements Store {
   async withWrite<R>(fn: (write: Write) => R | Promise<R>): Promise<R> {
     // See comment in `withRead`.
     const db = await this._db;
-    let write: WriteImpl | undefined;
+    const write = writeImpl(db);
     try {
-      write = writeImpl(db);
       return await fn(write);
     } finally {
-      write?.release();
+      write.release();
     }
   }
 

@@ -443,7 +443,7 @@ test('begin try pull', async () => {
         new LogContext(),
       );
     } catch (e) {
-      result = e.message;
+      result = (e as Error).message;
       assertString(result);
     }
 
@@ -642,7 +642,7 @@ test('maybe end try pull', async () => {
     try {
       result = await maybeEndPull(store, lc, syncHead);
     } catch (e) {
-      result = e.message;
+      result = (e as Error).message;
     }
 
     if (c.expErr !== undefined) {

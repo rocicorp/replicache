@@ -189,7 +189,7 @@ test('load errors', async () => {
       Error,
       `expected error with message: ${expectedError}`,
     );
-    expect(err.message).to.equal(expectedError);
+    expect((err as Error).message).to.equal(expectedError);
   };
 
   await t(undefined, 'Invalid type: undefined, expected array');

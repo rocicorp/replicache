@@ -183,7 +183,7 @@ test('patch', async () => {
       }
       if (c.expErr) {
         expect(err).to.be.instanceOf(Error);
-        expect(err.message).to.equal(c.expErr);
+        expect((err as Error).message).to.equal(c.expErr);
       }
 
       if (c.expMap !== undefined) {

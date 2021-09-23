@@ -8,6 +8,7 @@ import {SYNC_HEAD_NAME} from './sync-head-name';
 import * as patch from './patch';
 import * as prolly from '../prolly/mod';
 import type {LogContext} from '../logger';
+import {toError} from '../to-error';
 
 export const PULL_VERSION = 0;
 
@@ -325,7 +326,7 @@ async function callPuller(
     assertResult(res);
     return [res.response, res.httpRequestInfo];
   } catch (e) {
-    throw new PullError(e);
+    throw new PullError(toError(e));
   }
 }
 

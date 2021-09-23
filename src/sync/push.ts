@@ -5,6 +5,7 @@ import {assertHTTPRequestInfo, HTTPRequestInfo} from '../http-request-info';
 import {Pusher, PushError} from '../pusher';
 import {callJSRequest} from './js-request';
 import type {LogContext} from '../logger';
+import {toError} from '../to-error';
 
 export const PUSH_VERSION = 0;
 
@@ -107,6 +108,6 @@ async function callPusher(
     assertHTTPRequestInfo(res);
     return res;
   } catch (e) {
-    throw new PushError(e);
+    throw new PushError(toError(e));
   }
 }

@@ -7,9 +7,9 @@ import {
   benchmarkWriteReadRoundTrip,
   benchmarkSubscribe,
   benchmarkSubscribeSetup,
-} from './replicache';
-import {benchmarkIDBRead, benchmarkIDBWrite} from './idb';
-import {benchmarks as lockBenchmarks} from './lock';
+} from './replicache.js';
+import {benchmarkIDBRead, benchmarkIDBWrite} from './idb.js';
+import {benchmarks as lockBenchmarks} from './lock.ts';
 
 /**
  * @typedef {{
@@ -125,7 +125,7 @@ function formatToMBPerSecond(size, timeMS) {
   return (bytes / 2 ** 20).toFixed(2) + ' MB/s';
 }
 
-const benchmarks = [
+export const benchmarks = [
   benchmarkPopulate({numKeys: 1000, clean: true}),
   benchmarkPopulate({numKeys: 1000, clean: false}),
   benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1}),
@@ -200,7 +200,11 @@ function findBenchmark(name, group) {
  * @param {string} group
  * @param {OutputFormat | undefined} format
  */
-async function runBenchmarkByNameAndGroup(name, group, format = 'benchmarkJS') {
+export async function runBenchmarkByNameAndGroup(
+  name,
+  group,
+  format = 'benchmarkJS',
+) {
   const b = findBenchmark(name, group);
   try {
     return await runBenchmark(b, format);
@@ -213,15 +217,11 @@ async function runBenchmarkByNameAndGroup(name, group, format = 'benchmarkJS') {
  * @param {string[]} groups
  * @return {Benchmark[]}
  */
-function findBenchmarks(groups) {
+export function findBenchmarks(groups) {
   return benchmarks.filter(b => groups.includes(b.group));
 }
 
-window.benchmarks = benchmarks;
-window.findBenchmarks = findBenchmarks;
-window.runBenchmarkByNameAndGroup = runBenchmarkByNameAndGroup;
-
-window.runAll = async function (groups) {
+export async function runAll(groups) {
   const out = /** @type {HTMLPreElement} */ (
     /** @type {unknown} */ document.getElementById('out')
   );
@@ -231,4 +231,4 @@ window.runAll = async function (groups) {
     out.textContent += r + '\n';
   }
   out.textContent += 'Done!\n';
-};
+}

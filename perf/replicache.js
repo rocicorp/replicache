@@ -1,14 +1,14 @@
 const valSize = 1024;
 
-import {Replicache} from '../out/replicache';
-import {makeRandomStrings} from './data';
+import {Replicache} from '../src/mod.ts';
+import {makeRandomStrings} from './data.js';
 
 /**
- * @typedef {import('./perf').Benchmark} Benchmark
- * @typedef {import('./perf').Bencher} Bencher
- * @typedef {import('../out/replicache').WriteTransaction} WriteTransaction
- * @typedef {import('../out/replicache').ReadTransaction} ReadTransaction
- * @typedef {import('../out/replicache').JSONValue} JSONValue
+ * @typedef {import('./perf.js').Benchmark} Benchmark
+ * @typedef {import('./perf.js').Bencher} Bencher
+ * @typedef {import('../src/mod.ts').WriteTransaction} WriteTransaction
+ * @typedef {import('../src/mod.ts').ReadTransaction} ReadTransaction
+ * @typedef {import('../src/mod.ts').JSONValue} JSONValue
  */
 
 /**

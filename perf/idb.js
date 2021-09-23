@@ -1,5 +1,5 @@
 import {openDB, deleteDB} from 'idb/with-async-ittr';
-import xbytes from 'xbytes/dist';
+import xbytes from 'xbytes';
 import {randomData} from './data.js';
 
 /**

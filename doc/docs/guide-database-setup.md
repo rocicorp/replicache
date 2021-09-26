@@ -9,10 +9,10 @@ Each mutation is identified with a `mutationID` which is a per-client incrementi
 
 For this demo, we're using [Supabase](https://supabase.io), a very nice hosted Postgres database with a snazzy name. But you can use any datastore as long as it can transactionally update the `lastMutationID`. See [Backend Requirements](#TODO) for precise details of what your backend needs to support Replicache.
 
-Head over to [Supabase](https://supabase.io) and create a free account and an empty database. Then add Supabase's Postgres connection string to your environment. You can get it from your Supabase project by clicking on ⚙️ (Gear/Cog) > Database > Connection String.
+Head over to [Supabase](https://supabase.io) and create a free account and an empty database. Then add Supabase's PSQL connection string to your environment. You can get it from your Supabase project by clicking on ⚙️ (Gear/Cog) > Database > Connection String.
 
 ```bash
-export REPLICHAT_DB_CONNECTION_STRING=<your connnection string>
+export REPLICHAT_DB_CONNECTION_STRING='<your connection string>'
 ```
 
 Then, create a new file `db.js` with this code:

@@ -1,4 +1,4 @@
-name: do-the-job
+name: run-perf-test
 on: pull_request
 jobs:
   start-runner:
@@ -25,8 +25,8 @@ jobs:
           subnet-id: subnet-6b09b026
           security-group-id: sg-052697b45d432344c
 
-  do-the-job:
-    name: Do the job on the runner
+  run-perf-test:
+    name: Run perf test on the runner
     needs: start-runner # required to start the main job when the runner is ready
     runs-on: ${{ needs.start-runner.outputs.label }} # run the job on the newly created runner
     steps:
@@ -34,7 +34,8 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: 16.x
-      - run: npx playwright install
+      # We only run perf tests on chromium
+      - run: npx playwright install-deps chromium
       - run: npm ci
       - run: npm run build
 
@@ -69,7 +70,7 @@ jobs:
     name: Stop self-hosted EC2 runner
     needs:
       - start-runner # required to get output from the start-runner job
-      - do-the-job # required to wait when the main job is done
+      - run-perf-test # required to wait when the main job is done
     runs-on: ubuntu-latest
     environment: EC2 Runner
     if: ${{ always() }} # required to stop the runner even if the error happened in the previous jobs

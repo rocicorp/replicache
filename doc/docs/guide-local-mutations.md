@@ -55,7 +55,7 @@ Previously we mentioned that Replicache has a mechanism that ensures that local,
 
 An important consequence of the fact that Replicache will re-run mutations during sync against new versions of the cache is that a mutator's behavior should not depend on anything other than its parameters and the cache itself (it should be a pure function of its parameters, including `tx`).
 
-For example here, we pass the generated unique ID _into_ the mutator as a param, rather than creating it inside the implementation. This may be counter-intuitive at first, but it make sense when you remember that Replicache is going to replay this transaction during sync, and we don't want the ID to change!
+For example here, we pass the generated unique ID _into_ the mutator as a param, rather than creating it inside the implementation. This may be counter-intuitive at first, but it makes sense when you remember that Replicache is going to replay this transaction during sync, and we don't want the ID to change!
 
 :::note info
 

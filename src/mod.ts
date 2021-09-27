@@ -41,3 +41,6 @@ export type {
   Read as ExperimentalKVRead,
   Write as ExperimentalKVWrite,
 } from './kv/store';
+
+export type {PullRequest} from './sync/pull';
+export type {PushRequest} from './sync/push';

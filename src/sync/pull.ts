@@ -12,6 +12,10 @@ import {toError} from '../to-error';
 
 export const PULL_VERSION = 0;
 
+/**
+ * The JSON value used as the body when doing a POST to the [pull
+ * endpoint](/server-pull).
+ */
 export type PullRequest = {
   clientID: string;
   cookie: ReadonlyJSONValue;

@@ -9,7 +9,8 @@ export type PullerResult = {
 };
 
 /**
- * Puller is the function type used to do the fetch part of a pull.
+ * Puller is the function type used to do the fetch part of a pull. The request
+ * is a POST request where the body is JSON with the type [[PullRequest]].
  */
 export type Puller = (request: Request) => Promise<PullerResult>;
 

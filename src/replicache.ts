@@ -708,21 +708,17 @@ export class Replicache<MD extends MutatorDefs = {}>
         const clientID = await this._clientIDPromise;
         const requestID = sync.newRequestID(clientID);
         const lc = this._lc
-          .addContext('rpc', 'tryPush')
+          .addContext('rpc', 'push')
           .addContext('request_id', requestID);
-        const req = {
-          pushURL: this.pushURL,
-          pushAuth: this.auth,
-          schemaVersion: this.schemaVersion,
-          pusher: this.pusher,
-        };
         pushResponse = await sync.push(
           requestID,
           this._dagStore,
           lc,
           clientID,
           this.pusher,
-          req,
+          this.pushURL,
+          this.auth,
+          this.schemaVersion,
         );
       } finally {
         this._changeSyncCounters(-1, 0);

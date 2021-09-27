@@ -40,20 +40,15 @@ export function convert(lm: db.LocalMeta): Mutation {
   };
 }
 
-export type TryPushRequest = {
-  pushURL: string;
-  pushAuth: string;
-  schemaVersion: string;
-  pusher: Pusher;
-};
-
 export async function push(
   requestID: string,
   store: dag.Store,
   lc: LogContext,
   clientID: string,
   pusher: Pusher,
-  req: TryPushRequest,
+  pushURL: string,
+  pushAuth: string,
+  schemaVersion: string,
 ): Promise<HTTPRequestInfo | undefined> {
   // Find pending commits between the base snapshot and the main head and push
   // them to the data layer.
@@ -83,15 +78,15 @@ export async function push(
       clientID,
       mutations: pushMutations,
       pushVersion: PUSH_VERSION,
-      schemaVersion: req.schemaVersion,
+      schemaVersion,
     };
     lc.debug?.('Starting push...');
     const pushStart = Date.now();
     const reqInfo = await callPusher(
       pusher,
-      req.pushURL,
+      pushURL,
       pushReq,
-      req.pushAuth,
+      pushAuth,
       requestID,
     );
 

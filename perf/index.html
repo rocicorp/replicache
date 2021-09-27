@@ -1,12 +1,20 @@
 <!DOCTYPE html>
-<script src="./perf.js" type="module"></script>
-<script>
+<script type="module">
+  import * as m from './perf.js';
+  import {benchmarks, runAll} from './perf.js';
+
+  // export all as globals
+  for (const [n, v] of Object.entries(m)) {
+    globalThis[n] = v;
+  }
+
   const selected = window.location.search
     .substr(1)
     .split('&')
     .map(kv => kv.split('='))
     .filter(([k]) => k == 'group')
     .map(([, v]) => v);
+
   window.onload = () => {
     const form = document.querySelector('#group-form');
     [...new Set(benchmarks.map(b => b.group))].forEach(group => {
@@ -20,10 +28,12 @@
       label.appendChild(input);
       label.appendChild(document.createTextNode(group));
       form.appendChild(label);
+
+      document.querySelector('button').onclick = () => runAll(selected);
     });
   };
 </script>
 
 <form id="group-form" method="GET"></form>
-<button onclick="runAll(selected);">Go</button>
+<button>Go</button>
 <pre id="out"></pre>

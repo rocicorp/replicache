@@ -8,18 +8,36 @@ const firefox = playwrightLauncher({product: 'firefox'});
 export default {
   concurrentBrowsers: 3,
   nodeResolve: true,
-  plugins: [esbuildPlugin({ts: true})],
+  plugins: [esbuildPlugin({ts: true, target: 'esnext'})],
   testFramework: {
     config: {
       ui: 'tdd',
       reporter: 'html',
       timeout: 30000,
+      retries: process.env.CI ? 3 : 0, // Firefox is flaky
     },
   },
   groups: [
     {
       name: 'Main',
-      files: 'src/{replicache,connection-loop,json}.test.ts',
+      files: [
+        // All but worker.test.ts
+        'src/connection-loop.test.ts',
+        'src/json.test.ts',
+        'src/rw-lock.test.ts',
+        'src/hash.test.ts',
+        'src/replicache.test.ts',
+        'src/hash.test.ts',
+        'src/subscriptions.test.ts',
+        'src/web-lock.test.ts',
+
+        'src/dag/*.test.ts',
+        'src/db/*.test.ts',
+        'src/kv/*.test.ts',
+        'src/prolly/*.test.ts',
+        'src/sync/*.test.ts',
+        'src/migrate/*.test.ts',
+      ],
       browsers: [firefox, chromium, webkit],
     },
     {

@@ -1,15 +1,11 @@
-import type {Logger} from './logger.js';
-import {resolver} from './resolver.js';
-import {sleep} from './sleep.js';
+import type {Logger} from './logger';
+import {resolver} from './resolver';
+import {sleep} from './sleep';
 
 export const DEBOUNCE_DELAY_MS = 10;
 
 export const MIN_DELAY_MS = 30;
 export const MAX_DELAY_MS = 60_000;
-
-// Max numbers of outstanding connections. This is pretty arbitrary but assuming
-// a request takes 100ms then we get a response every 33ms which is 30 FPS.
-export const MAX_CONNECTIONS = 3;
 
 type SendRecord = {duration: number; ok: boolean};
 
@@ -60,6 +56,7 @@ export class ConnectionLoop {
 
   constructor(delegate: ConnectionLoopDelegate) {
     this._delegate = delegate;
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.run();
   }
 
@@ -154,6 +151,7 @@ export class ConnectionLoop {
       }
 
       counter++;
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       (async () => {
         const start = Date.now();
         let ok: boolean;

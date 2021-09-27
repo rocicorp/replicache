@@ -1,4 +1,4 @@
-import type {JSONValue} from './json.js';
+import type {JSONValue} from './json';
 
 export type ScanItem = {
   primaryKey: string;

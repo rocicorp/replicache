@@ -1,6 +1,6 @@
 import {assert} from '@esm-bundle/chai';
-import {deepEqual} from './json.js';
-import type {JSONValue} from './json.js';
+import {deepEqual} from './json';
+import type {JSONValue} from './json';
 
 const {fail} = assert;
 

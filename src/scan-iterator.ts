@@ -1,14 +1,10 @@
-import {Invoke, RPC, ScanRequest} from './repm-invoker.js';
-import type {JSONValue} from './json.js';
-import {throwIfClosed} from './transaction-closed-error.js';
-import {ScanOptions, toRPC} from './scan-options.js';
-import {asyncIterableToArray} from './async-iterable-to-array.js';
-
-interface IdCloser {
-  close(): void;
-  closed: boolean;
-  id: number;
-}
+import {deepClone, JSONValue, ReadonlyJSONValue} from './json';
+import {throwIfClosed} from './transaction-closed-error';
+import {ScanOptions, toDbScanOptions} from './scan-options';
+import {asyncIterableToArray} from './async-iterable-to-array';
+import * as db from './db/mod';
+import type {MaybePromise} from './replicache';
+import type {ScanItem} from './db/scan';
 
 const VALUE = 0;
 const KEY = 1;
@@ -17,9 +13,9 @@ type ScanIterableKind = typeof VALUE | typeof KEY | typeof ENTRY;
 
 type Args = [
   options: ScanOptions | undefined,
-  invoke: Invoke,
-  getTransaction: () => Promise<IdCloser> | IdCloser,
+  getTransaction: () => Promise<db.Read> | db.Read,
   shouldCloseTransaction: boolean,
+  shouldClone: boolean,
 ];
 
 /**
@@ -28,7 +24,9 @@ type Args = [
  * await` loop. There are also methods to iterate over the [[keys]],
  * [[entries]] or [[values]].
  */
-export class ScanResult<K> implements AsyncIterable<JSONValue> {
+export class ScanResult<K, V extends ReadonlyJSONValue = JSONValue>
+  implements AsyncIterable<V>
+{
   private readonly _args: Args;
 
   /** @internal */
@@ -37,12 +35,12 @@ export class ScanResult<K> implements AsyncIterable<JSONValue> {
   }
 
   /** The default AsyncIterable. This is the same as [[values]]. */
-  [Symbol.asyncIterator](): AsyncIterableIteratorToArrayWrapper<JSONValue> {
+  [Symbol.asyncIterator](): AsyncIterableIteratorToArrayWrapper<V> {
     return this.values();
   }
 
   /** Async iterator over the valus of the [[ReadTransaction.scan|scan]] call. */
-  values(): AsyncIterableIteratorToArrayWrapper<JSONValue> {
+  values(): AsyncIterableIteratorToArrayWrapper<V> {
     return new AsyncIterableIteratorToArrayWrapper(this._newIterator(VALUE));
   }
 
@@ -61,16 +59,16 @@ export class ScanResult<K> implements AsyncIterable<JSONValue> {
    * [[ReadTransaction.scan|scan]] is over an index the key is a tuple of
    * `[secondaryKey: string, primaryKey]`
    */
-  entries(): AsyncIterableIteratorToArrayWrapper<[K, JSONValue]> {
+  entries(): AsyncIterableIteratorToArrayWrapper<[K, V]> {
     return new AsyncIterableIteratorToArrayWrapper(this._newIterator(ENTRY));
   }
 
   /** Returns all the values as an array. Same as `values().toArray()` */
-  toArray(): Promise<JSONValue[]> {
+  toArray(): Promise<V[]> {
     return this.values().toArray();
   }
 
-  private _newIterator<V>(kind: ScanIterableKind): AsyncIterableIterator<V> {
+  private _newIterator<T>(kind: ScanIterableKind): AsyncIterableIterator<T> {
     return scanIterator(kind, ...this._args);
   }
 }
@@ -119,22 +117,21 @@ export class AsyncIterableIteratorToArrayWrapper<V>
 async function* scanIterator<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
-  invoke: Invoke,
-  getTransaction: () => Promise<IdCloser> | IdCloser,
+  getTransaction: () => MaybePromise<db.Read>,
   shouldCloseTransaction: boolean,
+  shouldClone: boolean,
 ): AsyncGenerator<V> {
-  const transaction = await getTransaction();
-  throwIfClosed(transaction);
-
-  const items = await load<V>(kind, options, transaction.id, invoke);
+  const dbRead = await getTransaction();
+  throwIfClosed(dbRead);
 
   try {
+    const items: V[] = await load(kind, options, dbRead, shouldClone);
     for (const item of items) {
       yield item;
     }
   } finally {
-    if (shouldCloseTransaction && !transaction.closed) {
-      transaction.close();
+    if (shouldCloseTransaction && !dbRead.closed) {
+      dbRead.close();
     }
   }
 }
@@ -142,45 +139,43 @@ async function* scanIterator<V>(
 async function load<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
-  transactionID: number,
-  invoke: Invoke,
+  dbRead: db.Read,
+  shouldClone: boolean,
 ): Promise<V[]> {
   const items: V[] = [];
-  const decoder = new TextDecoder();
-  const parse = (v: Uint8Array) => JSON.parse(decoder.decode(v));
   type MaybeIndexName = {indexName?: string};
-  const key = (primaryKey: string, secondaryKey: string | null) =>
+
+  const toKey =
     (options as MaybeIndexName)?.indexName !== undefined
-      ? [secondaryKey, primaryKey]
-      : primaryKey;
+      ? (primaryKey: string, secondaryKey: string | null) => [
+          secondaryKey,
+          primaryKey,
+        ]
+      : // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        (primaryKey: string, _secondaryKey: string | null) => primaryKey;
 
-  const receiver = (
-    primaryKey: string,
-    secondaryKey: string | null,
-    value: Uint8Array,
-  ) => {
-    switch (kind) {
-      case VALUE:
-        items.push(parse(value));
-        return;
-      case KEY:
-        items.push(key(primaryKey, secondaryKey) as unknown as V);
-        return;
-      case ENTRY:
-        items.push([
-          key(primaryKey, secondaryKey),
-          parse(value),
-        ] as unknown as V);
+  const toValue = shouldClone ? deepClone : <T>(x: T): T => x;
+
+  let toIterValue: (si: ScanItem) => V;
+  switch (kind) {
+    case VALUE:
+      toIterValue = si => toValue(si.val) as V;
+      break;
+    case KEY:
+      toIterValue = si => toKey(si.key, si.secondaryKey) as unknown as V;
+      break;
+    case ENTRY:
+      toIterValue = si =>
+        [toKey(si.key, si.secondaryKey), toValue(si.val)] as unknown as V;
+  }
+
+  await dbRead.scan(toDbScanOptions(options), sr => {
+    if (sr.type === db.ScanResultType.Error) {
+      // repc didn't throw here, It just did error logging.
+      throw sr.error;
     }
-  };
-
-  const args: ScanRequest = {
-    transactionId: transactionID,
-    opts: toRPC(options),
-    receiver,
-  };
-
-  await invoke(RPC.Scan, args);
+    items.push(toIterValue(sr.item));
+  });
 
   return items;
 }

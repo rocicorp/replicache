@@ -6,14 +6,17 @@ import {
   benchmarkSingleByteWrite,
   benchmarkWriteReadRoundTrip,
   benchmarkSubscribe,
+  benchmarkSubscribeSetup,
 } from './replicache.js';
 import {benchmarkIDBRead, benchmarkIDBWrite} from './idb.js';
+import {benchmarks as lockBenchmarks} from './lock.ts';
 
 /**
  * @typedef {{
  *   name: string;
  *   group: string;
  *   byteSize?: number;
+ *   skip?: () => Promise<boolean> | boolean;
  *   setup?: () => Promise<void> | void;
  *   teardown?: () => Promise<void> | void;
  *   run: (b: Bencher, i: number) => Promise<void> | void;
@@ -40,6 +43,10 @@ async function runBenchmark(benchmark, format) {
   const times = [];
   let sum = 0;
 
+  if (benchmark.skip && (await benchmark.skip())) {
+    return;
+  }
+
   if (benchmark.setup) {
     await benchmark.setup();
   }
@@ -58,7 +65,7 @@ async function runBenchmark(benchmark, format) {
       },
       i,
     );
-    if (t1 == 0) {
+    if (t1 === 0) {
       t1 = performance.now();
     }
     const dur = t1 - t0;
@@ -118,7 +125,7 @@ function formatToMBPerSecond(size, timeMS) {
   return (bytes / 2 ** 20).toFixed(2) + ' MB/s';
 }
 
-const benchmarks = [
+export const benchmarks = [
   benchmarkPopulate({numKeys: 1000, clean: true}),
   benchmarkPopulate({numKeys: 1000, clean: false}),
   benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1}),
@@ -134,6 +141,10 @@ const benchmarks = [
   benchmarkSubscribe({count: 10}),
   benchmarkSubscribe({count: 100}),
   benchmarkSubscribe({count: 1000}),
+  benchmarkSubscribeSetup({count: 10}),
+  benchmarkSubscribeSetup({count: 100}),
+  benchmarkSubscribeSetup({count: 1000}),
+  ...lockBenchmarks(),
 ];
 
 for (let b of [benchmarkIDBRead, benchmarkIDBWrite]) {
@@ -152,7 +163,7 @@ for (let b of [benchmarkIDBRead, benchmarkIDBWrite]) {
         10 * mb,
         100 * mb,
       ];
-      const group = dataType == 'arraybuffer' ? 'idb' : 'idb-extras';
+      const group = dataType === 'arraybuffer' ? 'idb' : 'idb-extras';
       for (let valSize of sizes) {
         if (valSize > 10 * mb) {
           if (numKeys > 1) {
@@ -189,7 +200,11 @@ function findBenchmark(name, group) {
  * @param {string} group
  * @param {OutputFormat | undefined} format
  */
-async function runBenchmarkByNameAndGroup(name, group, format = 'benchmarkJS') {
+export async function runBenchmarkByNameAndGroup(
+  name,
+  group,
+  format = 'benchmarkJS',
+) {
   const b = findBenchmark(name, group);
   try {
     return await runBenchmark(b, format);
@@ -202,19 +217,11 @@ async function runBenchmarkByNameAndGroup(name, group, format = 'benchmarkJS') {
  * @param {string[]} groups
  * @return {Benchmark[]}
  */
-function findBenchmarks(groups) {
+export function findBenchmarks(groups) {
   return benchmarks.filter(b => groups.includes(b.group));
 }
 
-// @ts-ignore
-window.benchmarks = benchmarks;
-// @ts-ignore
-window.findBenchmarks = findBenchmarks;
-// @ts-ignore
-window.runBenchmarkByNameAndGroup = runBenchmarkByNameAndGroup;
-
-// @ts-ignore
-window.runAll = async function (groups) {
+export async function runAll(groups) {
   const out = /** @type {HTMLPreElement} */ (
     /** @type {unknown} */ document.getElementById('out')
   );
@@ -224,4 +231,4 @@ window.runAll = async function (groups) {
     out.textContent += r + '\n';
   }
   out.textContent += 'Done!\n';
-};
+}

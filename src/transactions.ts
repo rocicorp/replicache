@@ -1,20 +1,14 @@
-import type {JSONValue} from './json.js';
-import {
-  Invoke,
-  OpenTransactionRequest,
-  CommitTransactionResponse,
-  RPC,
-  CloseTransactionResponse,
-} from './repm-invoker.js';
+import {deepClone, JSONValue, ReadonlyJSONValue} from './json';
 import {
   KeyTypeForScanOptions,
   ScanOptions,
-  ScanOptionsRPC,
-  toRPC,
-} from './scan-options.js';
-import {ScanResult} from './scan-iterator.js';
-import {throwIfClosed} from './transaction-closed-error.js';
-import {asyncIterableToArray} from './async-iterable-to-array.js';
+  toDbScanOptions,
+} from './scan-options';
+import {ScanResult} from './scan-iterator';
+import {throwIfClosed} from './transaction-closed-error';
+import * as db from './db/mod';
+import * as sync from './sync/mod';
+import type {LogContext} from './logger';
 
 /**
  * ReadTransactions are used with [[Replicache.query]] and
@@ -26,7 +20,7 @@ export interface ReadTransaction {
    * Get a single value from the database. If the `key` is not present this
    * returns `undefined`.
    */
-  get(key: string): Promise<JSONValue | undefined>;
+  get(key: string): Promise<ReadonlyJSONValue | undefined>;
 
   /** Determines if a single `key` is present in the database. */
   has(key: string): Promise<boolean>;
@@ -46,7 +40,7 @@ export interface ReadTransaction {
    * If the [[ScanResult]] is used after the `ReadTransaction` has been closed it
    * will throw a [[TransactionClosedError]].
    */
-  scan(): ScanResult<string>;
+  scan(): ScanResult<string, ReadonlyJSONValue>;
 
   /**
    * Gets many values from the database. This returns a [[ScanResult]] which
@@ -60,102 +54,60 @@ export interface ReadTransaction {
    * If the [[ScanResult]] is used after the `ReadTransaction` has been closed it
    * will throw a [[TransactionClosedError]].
    */
-  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): ScanResult<K>;
-
-  /**
-   * Convenience form of [[scan]] which returns all the entries as an array.
-   * @deprecated Use `scan().entries().toArray()` instead
-   */
-  scanAll(): Promise<[string, JSONValue][]>;
-
-  /**
-   * Convenience form of [[scan]] which returns all the entries as an array.
-   * @deprecated Use `scan().entries().toArray()` instead
-   */
-  scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): Promise<[K, JSONValue][]>;
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, ReadonlyJSONValue>;
 }
 
-export class ReadTransactionImpl implements ReadTransaction {
-  private _transactionId = -1;
-  protected readonly _invoke: Invoke;
-  protected _closed = false;
-  protected readonly _openTransactionName:
-    | RPC.OpenTransaction
-    | RPC.OpenIndexTransaction = RPC.OpenTransaction;
+let transactionIDCounter = 0;
 
-  constructor(invoke: Invoke) {
-    this._invoke = invoke;
+export class ReadTransactionImpl<
+  Value extends ReadonlyJSONValue = ReadonlyJSONValue,
+> implements ReadTransaction
+{
+  protected readonly _dbtx: db.Read;
+  protected readonly _lc: LogContext;
+
+  constructor(
+    dbRead: db.Read,
+    lc: LogContext,
+    rpcName = 'openReadTransaction',
+  ) {
+    this._dbtx = dbRead;
+    this._lc = lc
+      .addContext('rpc', rpcName)
+      .addContext('txid', transactionIDCounter++);
   }
 
-  async get(key: string): Promise<JSONValue | undefined> {
-    throwIfClosed(this);
-    const result = await this._invoke(RPC.Get, {
-      transactionId: this._transactionId,
-      key,
-    });
-    if (!result.has) {
-      return undefined;
+  async get(key: string): Promise<Value | undefined> {
+    throwIfClosed(this._dbtx);
+    const rv = this._dbtx.get(key);
+    if (this._dbtx instanceof db.Write) {
+      return (rv && deepClone(rv)) as Value | undefined;
     }
-    return JSON.parse(result.value);
+    return rv as Value | undefined;
   }
 
   async has(key: string): Promise<boolean> {
-    throwIfClosed(this);
-    const result = await this._invoke(RPC.Has, {
-      transactionId: this._transactionId,
-      key,
-    });
-    return result['has'];
+    throwIfClosed(this._dbtx);
+    return this._dbtx.has(key);
   }
 
   async isEmpty(): Promise<boolean> {
-    throwIfClosed(this);
-
-    let empty = true;
-    await this._invoke(RPC.Scan, {
-      transactionId: this._transactionId,
-      opts: {limit: 1},
-      receiver: () => (empty = false),
-    });
-    return empty;
+    throwIfClosed(this._dbtx);
+    return this._dbtx.isEmpty();
   }
 
-  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): ScanResult<K> {
-    return new ScanResult(options, this._invoke, () => this, false);
-  }
-
-  async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): Promise<[K, JSONValue][]> {
-    return asyncIterableToArray(
-      this.scan(options).entries() as AsyncIterable<[K, JSONValue]>,
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, Value> {
+    const dbRead = this._dbtx;
+    return new ScanResult(
+      options,
+      () => dbRead,
+      false, // shouldCloseTransaction
+      dbRead instanceof db.Write, // shouldClone,
     );
-  }
-
-  get id(): number {
-    return this._transactionId;
-  }
-
-  get closed(): boolean {
-    return this._closed;
-  }
-
-  async open(args: OpenTransactionRequest): Promise<void> {
-    const {transactionId} = await this._invoke(this._openTransactionName, args);
-    this._transactionId = transactionId;
-  }
-
-  async close(): Promise<CloseTransactionResponse> {
-    this._closed = true;
-    return await this._invoke(RPC.CloseTransaction, {
-      transactionId: this._transactionId,
-    });
   }
 }
 
@@ -163,7 +115,7 @@ export class ReadTransactionImpl implements ReadTransaction {
 // for use with Subscriptions.
 export class SubscriptionTransactionWrapper implements ReadTransaction {
   private readonly _keys: Set<string> = new Set();
-  private readonly _scans: ScanOptionsRPC[] = [];
+  private readonly _scans: db.ScanOptions[] = [];
   private readonly _tx: ReadTransaction;
 
   constructor(tx: ReadTransaction) {
@@ -176,7 +128,7 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
     return this._tx.isEmpty();
   }
 
-  get(key: string): Promise<JSONValue | undefined> {
+  get(key: string): Promise<ReadonlyJSONValue | undefined> {
     this._keys.add(key);
     return this._tx.get(key);
   }
@@ -186,25 +138,18 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
     return this._tx.has(key);
   }
 
-  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): ScanResult<K> {
-    this._scans.push(toRPC(options));
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, ReadonlyJSONValue> {
+    this._scans.push(toDbScanOptions(options));
     return this._tx.scan(options);
-  }
-
-  async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): Promise<[K, JSONValue][]> {
-    this._scans.push(toRPC(options));
-    return this._tx.scanAll(options);
   }
 
   get keys(): ReadonlySet<string> {
     return this._keys;
   }
 
-  get scans(): ScanOptionsRPC[] {
+  get scans(): db.ScanOptions[] {
     return this._scans;
   }
 }
@@ -226,38 +171,56 @@ export interface WriteTransaction extends ReadTransaction {
    * `key` to remove.
    */
   del(key: string): Promise<boolean>;
+
+  /**
+   * Overrides [[ReadTransaction.get]] to return a mutable [[JSONValue]].
+   */
+  get(key: string): Promise<JSONValue | undefined>;
+
+  /**
+   * Overrides [[ReadTransaction.scan]] to return a mutable [[JSONValue]].
+   */
+  scan(): ScanResult<string, JSONValue>;
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, JSONValue>;
 }
 
 export class WriteTransactionImpl
-  extends ReadTransactionImpl
+  extends ReadTransactionImpl<JSONValue>
   implements WriteTransaction
 {
+  // use `declare` to specialize the type.
+  protected declare readonly _dbtx: db.Write;
+
+  constructor(
+    dbWrite: db.Write,
+    lc: LogContext,
+    rpcName = 'openWriteTransaction',
+  ) {
+    super(dbWrite, lc, rpcName);
+  }
+
   async put(key: string, value: JSONValue): Promise<void> {
-    throwIfClosed(this);
-    await this._invoke(RPC.Put, {
-      transactionId: this.id,
-      key,
-      value: JSON.stringify(value),
-    });
+    throwIfClosed(this._dbtx);
+    await this._dbtx.put(this._lc, key, deepClone(value));
   }
 
   async del(key: string): Promise<boolean> {
-    throwIfClosed(this);
-    const result = await this._invoke(RPC.Del, {
-      transactionId: this.id,
-      key,
-    });
-    return result.ok;
+    throwIfClosed(this._dbtx);
+    return await this._dbtx.del(this._lc, key);
   }
 
   async commit(
     generateChangedKeys: boolean,
-  ): Promise<CommitTransactionResponse> {
-    this._closed = true;
-    return await this._invoke(RPC.CommitTransaction, {
-      transactionId: this.id,
-      generateChangedKeys,
-    });
+  ): Promise<[string, sync.ChangedKeysMap]> {
+    const txn = this._dbtx;
+    throwIfClosed(txn);
+
+    const headName = txn.isRebase()
+      ? sync.SYNC_HEAD_NAME
+      : db.DEFAULT_HEAD_NAME;
+    return await txn.commitWithChangedKeys(headName, generateChangedKeys);
   }
 }
 
@@ -310,34 +273,29 @@ export interface CreateIndexDefinition {
 }
 
 export class IndexTransactionImpl
-  extends ReadTransactionImpl
+  extends WriteTransactionImpl
   implements IndexTransaction
 {
-  protected readonly _openTransactionName = RPC.OpenIndexTransaction;
+  constructor(dbWrite: db.Write, lc: LogContext) {
+    super(dbWrite, lc, 'openIndexTransaction');
+  }
 
   async createIndex(options: CreateIndexDefinition): Promise<void> {
-    throwIfClosed(this);
-    await this._invoke(RPC.CreateIndex, {
-      transactionId: this.id,
-      name: options.name,
-      keyPrefix: options.prefix ?? options.keyPrefix ?? '',
-      jsonPointer: options.jsonPointer,
-    });
+    throwIfClosed(this._dbtx);
+    await this._dbtx.createIndex(
+      this._lc,
+      options.name,
+      options.prefix ?? options.keyPrefix ?? '',
+      options.jsonPointer,
+    );
   }
 
   async dropIndex(name: string): Promise<void> {
-    throwIfClosed(this);
-    await this._invoke(RPC.DropIndex, {
-      transactionId: this.id,
-      name,
-    });
+    throwIfClosed(this._dbtx);
+    await this._dbtx.dropIndex(name);
   }
 
-  async commit(): Promise<CommitTransactionResponse> {
-    this._closed = true;
-    return await this._invoke(RPC.CommitTransaction, {
-      transactionId: this.id,
-      generateChangedKeys: false,
-    });
+  async commit(): Promise<[string, sync.ChangedKeysMap]> {
+    return super.commit(false);
   }
 }

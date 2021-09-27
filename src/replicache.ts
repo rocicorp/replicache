@@ -1,43 +1,42 @@
-import {deepEqual} from './json.js';
-import type {JSONValue} from './json.js';
-import type {
-  KeyTypeForScanOptions,
-  ScanOptions,
-  ScanOptionsRPC,
-} from './scan-options.js';
-import {REPMWasmInvoker, RPC} from './repm-invoker.js';
-import type {Pusher} from './pusher.js';
-import type {Puller} from './puller.js';
-import type {
-  ChangedKeysMap,
-  Invoke,
-  Invoker,
-  OpenResponse,
-  OpenTransactionRequest,
-} from './repm-invoker.js';
+import {deepClone, deepEqual, ReadonlyJSONValue} from './json';
+import type {JSONValue} from './json';
+import type {KeyTypeForScanOptions, ScanOptions} from './scan-options';
+import {Pusher, PushError} from './pusher';
+import {Puller, PullError} from './puller';
 import {
-  CreateIndexDefinition,
   SubscriptionTransactionWrapper,
-} from './transactions.js';
-import {IndexTransactionImpl} from './transactions.js';
-import {ReadTransactionImpl, WriteTransactionImpl} from './transactions.js';
-import {ScanResult} from './scan-iterator.js';
-import type {ReadTransaction, WriteTransaction} from './transactions.js';
-import {ConnectionLoop, MAX_DELAY_MS, MIN_DELAY_MS} from './connection-loop.js';
-import {getLogger} from './logger.js';
-import type {Logger, LogLevel} from './logger.js';
+  IndexTransactionImpl,
+  ReadTransactionImpl,
+  WriteTransactionImpl,
+} from './transactions';
+import type {
+  CreateIndexDefinition,
+  ReadTransaction,
+  WriteTransaction,
+} from './transactions';
+import {ScanResult} from './scan-iterator';
+import {ConnectionLoop, MAX_DELAY_MS, MIN_DELAY_MS} from './connection-loop';
+import {getLogger, LogContext} from './logger';
+import type {Logger} from './logger';
 import {defaultPuller} from './puller';
 import {defaultPusher} from './pusher';
-import {resolver} from './resolver.js';
-import type {ReplicacheOptions} from './replicache-options.js';
-import {PullDelegate, PushDelegate} from './connection-loop-delegates.js';
-import type {Subscription} from './subscriptions.js';
+import {resolver} from './resolver';
+import type {ReplicacheOptions} from './replicache-options';
+import {PullDelegate, PushDelegate} from './connection-loop-delegates';
+import type {Subscription} from './subscriptions';
 import {
   subscriptionsForChangedKeys,
   subscriptionsForIndexDefinitionChanged,
-} from './subscriptions.js';
+} from './subscriptions';
+import {IDBStore, MemStore} from './kv/mod';
+import type * as kv from './kv/mod';
+import * as dag from './dag/mod';
+import * as db from './db/mod';
+import * as sync from './sync/mod';
+import {initHasher} from './hash';
+import {migrate} from './migrate/migrate';
 
-type BeginPullResult = {
+export type BeginPullResult = {
   requestID: string;
   syncHead: string;
   ok: boolean;
@@ -53,14 +52,14 @@ type ToPromise<P> = P extends Promise<unknown> ? P : Promise<P>;
 const storageKeyName = (name: string) => `/replicache/root/${name}`;
 
 /** The maximum number of time to call out to getDataLayerAuth before giving up and throwing an error. */
-const MAX_REAUTH_TRIES = 8;
+export const MAX_REAUTH_TRIES = 8;
 
 /**
  * This type describes the data we send on the BroadcastChannel when things change.
  */
 type BroadcastData = {
   root?: string;
-  changedKeys: ChangedKeysMap;
+  changedKeys: sync.ChangedKeysMap;
   index?: string;
 };
 
@@ -117,25 +116,35 @@ export interface RequestOptions {
 
 const emptySet: ReadonlySet<string> = new Set();
 
+type UnknownSubscription = Subscription<JSONValue | undefined, unknown>;
+type SubscriptionSet = Set<UnknownSubscription>;
+
 // eslint-disable-next-line @typescript-eslint/ban-types
 export class Replicache<MD extends MutatorDefs = {}>
   implements ReadTransaction
 {
-  private _pullAuth: string;
-  private readonly _pullURL: string;
-  private _pushAuth: string;
-  private readonly _pushURL: string;
-  private readonly _name: string;
-  private readonly _repmInvoker: Invoker;
+  /** The URL to use when doing a pull request. */
+  pullURL: string;
+
+  /** The URL to use when doing a push request. */
+  pushURL: string;
+
+  /** The authorization token used when doing a push request. */
+  auth: string;
+
+  /** The name of the Replicache database. */
+  readonly name: string;
+
   private readonly _useMemstore: boolean;
-  private readonly _schemaVersion: string = '';
+
+  /** The schema version of the data understood by this application. */
+  schemaVersion: string;
 
   private _closed = false;
   private _online = true;
-  private readonly _logLevel: LogLevel;
   private readonly _logger: Logger;
-  private readonly _openResponse: Promise<OpenResponse>;
-  private readonly _openResolve: (resp: OpenResponse) => void;
+  private readonly _ready: Promise<void>;
+  private readonly _resolveReady: () => void;
   private readonly _clientIDPromise: Promise<string>;
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
@@ -157,9 +166,8 @@ export class Replicache<MD extends MutatorDefs = {}>
 
   private _broadcastChannel?: BroadcastChannel = undefined;
 
-  private readonly _subscriptions = new Set<
-    Subscription<JSONValue | undefined, unknown>
-  >();
+  private readonly _subscriptions: SubscriptionSet = new Set();
+  private readonly _pendingSubscriptions: SubscriptionSet = new Set();
 
   /**
    * The duration between each periodic [[pull]]. Setting this to `null`
@@ -175,8 +183,21 @@ export class Replicache<MD extends MutatorDefs = {}>
   pushDelay: number;
 
   private readonly _requestOptions: Required<RequestOptions>;
-  private readonly _puller: Puller;
-  private readonly _pusher: Pusher;
+
+  /**
+   * The function to use to pull data from the server.
+   */
+  puller: Puller;
+
+  /**
+   * The function to use to push data to the server.
+   */
+  pusher: Pusher;
+
+  private readonly _kvStore: kv.Store;
+  private readonly _dagStore: dag.Store;
+  private _hasPendingSubscriptionRuns = false;
+  private readonly _lc: LogContext;
 
   /**
    * The options used to control the [[pull]] and push request behavior. This
@@ -206,6 +227,7 @@ export class Replicache<MD extends MutatorDefs = {}>
    * This gets called when we get an HTTP unauthorized (401) response from the
    * pull endpoint. Set this to a function that will ask your user to
    * reauthenticate.
+   * @deprecated Use [[getAuth]] instead.
    */
   getPullAuth:
     | (() => MaybePromise<string | null | undefined>)
@@ -215,48 +237,63 @@ export class Replicache<MD extends MutatorDefs = {}>
   /**
    * This gets called when we get an HTTP unauthorized (401) response from the push
    * endpoint. Set this to a function that will ask your user to reauthenticate.
+   * @deprecated Use [[getAuth]] instead.
    */
   getPushAuth:
     | (() => MaybePromise<string | null | undefined>)
     | null
     | undefined = null;
 
+  /**
+   * This gets called when we get an HTTP unauthorized (401) response from the
+   * push or pull endpoint. Set this to a function that will ask your user to
+   * reauthenticate.
+   */
+  getAuth: (() => MaybePromise<string | null | undefined>) | null | undefined =
+    null;
+
   constructor(options: ReplicacheOptions<MD> = {}) {
     const {
       name = 'default',
       logLevel = 'info',
-      pullAuth = '',
+      pullAuth,
       pullURL = '',
-      pushAuth = '',
+      pushAuth,
+      auth,
       pushDelay = 10,
       pushURL = '',
       schemaVersion = '',
       pullInterval = 60_000,
       useMemstore = false,
-      wasmModule,
       mutators = {} as MD,
       requestOptions = {},
       puller = defaultPuller,
       pusher = defaultPusher,
+      experimentalKVStore,
     } = options;
-    this._pullAuth = pullAuth;
-    this._pullURL = pullURL;
-    this._pushAuth = pushAuth;
-    this._pushURL = pushURL;
-    this._name = name;
-    this._repmInvoker = new REPMWasmInvoker(wasmModule);
-    this._schemaVersion = schemaVersion;
+    this.auth = auth ?? pullAuth ?? pushAuth ?? '';
+    this.pullURL = pullURL;
+    this.pushURL = pushURL;
+    if (name === '') {
+      throw new Error('name must be non-empty');
+    }
+    this.name = name;
+    this.schemaVersion = schemaVersion;
     this.pullInterval = pullInterval;
     this.pushDelay = pushDelay;
     this._useMemstore = useMemstore;
-    this._puller = puller;
-    this._pusher = pusher;
+    this.puller = puller;
+    this.pusher = pusher;
+    this._kvStore =
+      experimentalKVStore ||
+      (this._useMemstore ? new MemStore() : new IDBStore(this.name));
+    this._dagStore = new dag.Store(this._kvStore);
 
     // Use a promise-resolve pair so that we have a promise to use even before
     // we call the Open RPC.
-    const {promise, resolve} = resolver<OpenResponse>();
-    this._openResponse = promise;
-    this._openResolve = resolve;
+    const {promise, resolve} = resolver<void>();
+    this._ready = promise;
+    this._resolveReady = resolve;
 
     const {minDelayMs = MIN_DELAY_MS, maxDelayMs = MAX_DELAY_MS} =
       requestOptions;
@@ -278,26 +315,32 @@ export class Replicache<MD extends MutatorDefs = {}>
       ),
     );
 
-    this._logLevel = logLevel;
     this._logger = getLogger([], logLevel);
 
     this.mutate = this._registerMutators(mutators);
 
+    this._lc = new LogContext(logLevel).addContext('db', name);
+
     this._clientIDPromise = this._open();
   }
 
-  private async _open(): Promise<OpenResponse> {
+  private async _open(): Promise<string> {
     // If we are currently closing a Replicache instance with the same name,
     // wait for it to finish closing.
-    await closingInstances.get(this._name);
+    await closingInstances.get(this.name);
 
-    const openResponse = await this._repmInvoker.invoke(this._name, RPC.Open, {
-      useMemstore: this._useMemstore,
-    });
-    this._openResolve(openResponse);
+    await Promise.all([initHasher(), migrate(this._kvStore, this._lc)]);
+
+    const [clientID] = await Promise.all([
+      sync.initClientID(this._kvStore),
+      db.maybeInitDefaultDB(this._dagStore),
+    ]);
+
+    // Now we have both a clientID and DB!
+    this._resolveReady();
 
     if (hasBroadcastChannel) {
-      this._broadcastChannel = new BroadcastChannel(storageKeyName(this._name));
+      this._broadcastChannel = new BroadcastChannel(storageKeyName(this.name));
       this._broadcastChannel.onmessage = (e: MessageEvent<BroadcastData>) =>
         this._onBroadcastMessage(e.data);
     } else {
@@ -306,12 +349,9 @@ export class Replicache<MD extends MutatorDefs = {}>
     this._root = this._getRoot();
     await this._root;
 
-    if (!this._closed) {
-      await this._invoke(RPC.SetLogLevel, {level: this._logLevel});
-    }
     this.pull();
     this._push();
-    return openResponse;
+    return clientID;
   }
 
   /**
@@ -358,8 +398,10 @@ export class Replicache<MD extends MutatorDefs = {}>
    */
   async close(): Promise<void> {
     this._closed = true;
-    const p = this._invoke(RPC.Close);
-    closingInstances.set(this._name, p);
+    const {promise, resolve} = resolver();
+    closingInstances.set(this.name, promise);
+    await this._ready;
+    const p = this._dagStore.close();
 
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
@@ -378,24 +420,26 @@ export class Replicache<MD extends MutatorDefs = {}>
     this._subscriptions.clear();
 
     await p;
-    closingInstances.delete(this._name);
+    closingInstances.delete(this.name);
+    resolve();
   }
 
   private async _getRoot(): Promise<string | undefined> {
     if (this._closed) {
       return undefined;
     }
-    const res = await this._invoke(RPC.GetRoot);
-    return res.root;
+    await this._ready;
+    return await db.getRoot(this._dagStore, db.DEFAULT_HEAD_NAME);
   }
 
   private _onStorage = (e: StorageEvent) => {
     const {key, newValue} = e;
-    if (newValue && key === storageKeyName(this._name)) {
+    if (newValue && key === storageKeyName(this.name)) {
       const {root, changedKeys, index} = JSON.parse(
         newValue,
       ) as StorageBroadcastData;
 
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this._onBroadcastMessage({
         root,
         changedKeys: new Map(changedKeys),
@@ -428,12 +472,12 @@ export class Replicache<MD extends MutatorDefs = {}>
     for (const s of indexSubs) {
       subscriptions.add(s);
     }
-    await this._fireSubscriptions(subscriptions);
+    await this._fireSubscriptions(subscriptions, false);
   }
 
   private _broadcastChange(
     root: string | undefined,
-    changedKeys: ChangedKeysMap,
+    changedKeys: sync.ChangedKeysMap,
     index: string | undefined,
   ) {
     if (this._broadcastChannel) {
@@ -442,13 +486,13 @@ export class Replicache<MD extends MutatorDefs = {}>
     } else {
       // local storage needs a string...
       const data = {root, changedKeys: [...changedKeys.entries()], index};
-      localStorage[storageKeyName(this._name)] = JSON.stringify(data);
+      localStorage[storageKeyName(this.name)] = JSON.stringify(data);
     }
   }
 
   private async _checkChange(
     root: string | undefined,
-    changedKeys: ChangedKeysMap,
+    changedKeys: sync.ChangedKeysMap,
   ): Promise<void> {
     const currentRoot = await this._root; // instantaneous except maybe first time
     if (root !== undefined && root !== currentRoot) {
@@ -458,16 +502,8 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
   }
 
-  private _invoke: Invoke = async (
-    rpc: RPC,
-    args?: JSONValue,
-  ): Promise<JSONValue> => {
-    await this._openResponse;
-    return await this._repmInvoker.invoke(this._name, rpc, args);
-  };
-
   /** Get a single value from the database. */
-  get(key: string): Promise<JSONValue | undefined> {
+  get(key: string): Promise<ReadonlyJSONValue | undefined> {
     return this.query(tx => tx.get(key));
   }
 
@@ -490,39 +526,19 @@ export class Replicache<MD extends MutatorDefs = {}>
    * that name. A scan over an index uses a tuple for the key consisting of
    * `[secondary: string, primary: string]`.
    */
-  scan<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): ScanResult<K> {
-    let tx: ReadTransactionImpl;
-    return new ScanResult<K>(
+  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+    options?: Options,
+  ): ScanResult<Key, ReadonlyJSONValue> {
+    return new ScanResult<Key>(
       options,
-      this._invoke,
       async () => {
-        if (tx) {
-          return tx;
-        }
-        tx = new ReadTransactionImpl(this._invoke);
-        await tx.open({});
-        return tx;
+        await this._ready;
+        const dagRead = await this._dagStore.read();
+        return db.readFromDefaultHead(dagRead);
       },
-      true,
+      true, // shouldCloseTransaction
+      false, // shouldClone
     );
-  }
-
-  /**
-   * Convenience form of `scan()` which returns all the entries as an array.
-   * @deprecated Use `scan().entries().toArray()` instead.
-   */
-  async scanAll<O extends ScanOptions, K extends KeyTypeForScanOptions<O>>(
-    options?: O,
-  ): Promise<[K, JSONValue][]> {
-    const tx = new ReadTransactionImpl(this._invoke);
-    try {
-      await tx.open({});
-      return await tx.scanAll(options);
-    } finally {
-      closeIgnoreError(tx);
-    }
   }
 
   /**
@@ -548,13 +564,17 @@ export class Replicache<MD extends MutatorDefs = {}>
   private async _indexOp(
     f: (tx: IndexTransactionImpl) => Promise<void>,
   ): Promise<void> {
-    const tx = new IndexTransactionImpl(this._invoke);
-    try {
-      await tx.open({});
+    await this._ready;
+    await this._dagStore.withWrite(async dagWrite => {
+      const dbWrite = await db.Write.newIndexChange(
+        db.whenceHead(db.DEFAULT_HEAD_NAME),
+        dagWrite,
+      );
+
+      const tx = new IndexTransactionImpl(dbWrite, this._lc);
       await f(tx);
-    } finally {
-      tx.commit();
-    }
+      await tx.commit();
+    });
   }
 
   protected async _maybeEndPull(
@@ -565,11 +585,18 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
 
     let {syncHead} = beginPullResult;
+    const {requestID} = beginPullResult;
 
-    const {replayMutations, changedKeys} = await this._invoke(
-      RPC.MaybeEndTryPull,
-      beginPullResult,
+    await this._ready;
+    const lc = this._lc
+      .addContext('rpc', 'maybeEndPull')
+      .addContext('request_id', requestID);
+    const {replayMutations, changedKeys} = await sync.maybeEndPull(
+      this._dagStore,
+      lc,
+      syncHead,
     );
+
     if (!replayMutations || replayMutations.length === 0) {
       // All done.
       await this._checkChange(syncHead, changedKeys);
@@ -582,7 +609,7 @@ export class Replicache<MD extends MutatorDefs = {}>
         syncHead,
         mutation.original,
         mutation.name,
-        JSON.parse(mutation.args),
+        mutation.args,
       );
     }
 
@@ -609,12 +636,14 @@ export class Replicache<MD extends MutatorDefs = {}>
         // no op
       };
     }
-    const res = await this._mutate(name, mutatorImpl, args, {
-      invokeArgs: {
-        rebaseOpts: {basis, original},
-      },
-      isReplay: true,
-    });
+    const res = await this._mutate(
+      name,
+      mutatorImpl,
+      args,
+      {basis, original},
+      true, // isReplay
+    );
+
     return res.ref;
   }
 
@@ -657,11 +686,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       // because repc doesn't provide sufficient information, so we treat all
       // errors that aren't (b) as (a).
 
-      // TODO(arv): Use Error.prototype.cause
-      // (https://github.com/tc39/proposal-error-cause) and check for a
-      // structured error in the cause chain. On the Rust side we should create
-      // a structured error that we can instanceof check instead
-      if (/Pu(sh|ll)Failed\(JsError\(JsValue\(/.test(e + '')) {
+      if (e instanceof PushError || e instanceof PullError) {
         online = false;
       }
       this._logger.info?.(`${name} returned: ${e}`);
@@ -674,42 +699,59 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
   }
 
-  private async _invokePush(maxAuthTries: number): Promise<boolean> {
+  protected async _invokePush(maxAuthTries: number): Promise<boolean> {
     return await this._wrapInOnlineCheck(async () => {
       let pushResponse;
       try {
         this._changeSyncCounters(1, 0);
-        pushResponse = await this._invoke(RPC.TryPush, {
-          pushURL: this._pushURL,
-          pushAuth: this._pushAuth,
-          schemaVersion: this._schemaVersion,
-          pusher: this._pusher,
-        });
+        await this._ready;
+        const clientID = await this._clientIDPromise;
+        const requestID = sync.newRequestID(clientID);
+        const lc = this._lc
+          .addContext('rpc', 'tryPush')
+          .addContext('request_id', requestID);
+        const req = {
+          pushURL: this.pushURL,
+          pushAuth: this.auth,
+          schemaVersion: this.schemaVersion,
+          pusher: this.pusher,
+        };
+        pushResponse = await sync.push(
+          requestID,
+          this._dagStore,
+          lc,
+          clientID,
+          this.pusher,
+          req,
+        );
       } finally {
         this._changeSyncCounters(-1, 0);
       }
 
-      const {httpRequestInfo} = pushResponse;
+      const httpRequestInfo = pushResponse;
 
       if (httpRequestInfo) {
         const reauth = checkStatus(
           httpRequestInfo,
           'push',
-          this._pushURL,
+          this.pushURL,
           this._logger,
         );
 
         // TODO: Add back support for mutationInfos? We used to log all the errors
         // here.
 
-        if (reauth && this.getPushAuth) {
+        if (reauth && (this.getAuth || this.getPushAuth)) {
           if (maxAuthTries === 0) {
             this._logger.info?.('Tried to reauthenticate too many times');
             return false;
           }
-          const pushAuth = await this.getPushAuth();
-          if (pushAuth != null) {
-            this._pushAuth = pushAuth;
+          const auth = await (this.getAuth
+            ? this.getAuth()
+            : // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              this.getPushAuth!());
+          if (auth !== null && auth !== undefined) {
+            this.auth = auth;
             // Try again now instead of waiting for next push.
             return await this._invokePush(maxAuthTries - 1);
           }
@@ -744,37 +786,53 @@ export class Replicache<MD extends MutatorDefs = {}>
   }
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
-    const beginPullResponse = await this._invoke(RPC.BeginTryPull, {
-      pullAuth: this._pullAuth,
-      pullURL: this._pullURL,
-      schemaVersion: this._schemaVersion,
-      puller: this._puller,
-    });
+    await this._ready;
+    const clientID = await this._clientIDPromise;
 
-    const {httpRequestInfo, syncHead, requestID} = beginPullResponse;
+    const requestID = sync.newRequestID(clientID);
+    const lc = this._lc
+      .addContext('rpc', 'beginPull')
+      .addContext('request_id', requestID);
+    const req = {
+      pullAuth: this.auth,
+      pullURL: this.pullURL,
+      schemaVersion: this.schemaVersion,
+      puller: this.puller,
+    };
+    const beginPullResponse = await sync.beginPull(
+      clientID,
+      req,
+      req.puller,
+      requestID,
+      this._dagStore,
+      lc,
+    );
+
+    const {httpRequestInfo, syncHead} = beginPullResponse;
 
     const reauth = checkStatus(
       httpRequestInfo,
       'pull',
-      this._pullURL,
+      this.pullURL,
       this._logger,
     );
-    if (reauth && this.getPullAuth) {
+    if (reauth && (this.getAuth || this.getPullAuth)) {
       if (maxAuthTries === 0) {
         this._logger.info?.('Tried to reauthenticate too many times');
         return {requestID, syncHead: '', ok: false};
       }
 
-      let pullAuth;
+      let auth;
       try {
         // Don't want to say we are syncing when we are waiting for auth
         this._changeSyncCounters(0, -1);
-        pullAuth = await this.getPullAuth();
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        auth = await (this.getAuth ? this.getAuth() : this.getPullAuth!());
       } finally {
         this._changeSyncCounters(0, 1);
       }
-      if (pullAuth != null) {
-        this._pullAuth = pullAuth;
+      if (auth !== null && auth !== undefined) {
+        this.auth = auth;
         // Try again now instead of waiting for next pull.
         return await this._beginPull(maxAuthTries - 1);
       }
@@ -792,16 +850,18 @@ export class Replicache<MD extends MutatorDefs = {}>
     const counter = this._pushCounter + this._pullCounter;
     if ((delta === 1 && counter === 1) || counter === 0) {
       const syncing = counter > 0;
+      // Run in a new microtask.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       Promise.resolve().then(() => this.onSync?.(syncing));
     }
   }
 
-  private async _fireOnChange(changedKeys: ChangedKeysMap): Promise<void> {
+  private async _fireOnChange(changedKeys: sync.ChangedKeysMap): Promise<void> {
     const subscriptions = subscriptionsForChangedKeys(
       this._subscriptions,
       changedKeys,
     );
-    await this._fireSubscriptions(subscriptions);
+    await this._fireSubscriptions(subscriptions, false);
   }
 
   private async _indexDefinitionChanged(name: string): Promise<void> {
@@ -811,12 +871,13 @@ export class Replicache<MD extends MutatorDefs = {}>
       this._subscriptions,
       name,
     );
-    await this._fireSubscriptions(subscriptions);
+    await this._fireSubscriptions(subscriptions, false);
     this._broadcastChange(await this._root, new Map(), name);
   }
 
   private async _fireSubscriptions(
     subscriptions: Iterable<Subscription<JSONValue | undefined, unknown>>,
+    skipEqualsCheck: boolean,
   ) {
     const subs = [...subscriptions];
     if (subs.length === 0) {
@@ -846,7 +907,7 @@ export class Replicache<MD extends MutatorDefs = {}>
       const result = results[i];
       if (result.ok) {
         const {value} = result;
-        if (!deepEqual(value, s.lastValue)) {
+        if (skipEqualsCheck || !deepEqual(value, s.lastValue)) {
           s.lastValue = value;
           s.onData(value);
         }
@@ -857,7 +918,7 @@ export class Replicache<MD extends MutatorDefs = {}>
   }
 
   /**
-   * Subcribe to changes to the underlying data. Every time the underlying data
+   * Subscribe to changes to the underlying data. Every time the underlying data
    * changes `body` is called and if the result of `body` changes compared to
    * last time `onData` is called. The function is also called once the first
    * time the subscription is added.
@@ -867,7 +928,7 @@ export class Replicache<MD extends MutatorDefs = {}>
    * If an error occurs in the `body` the `onError` function is called if
    * present. Otherwise, the error is thrown.
    */
-  subscribe<R extends JSONValue | undefined, E>(
+  subscribe<R extends ReadonlyJSONValue | undefined, E>(
     body: (tx: ReadTransaction) => Promise<R>,
     {
       onData,
@@ -887,30 +948,27 @@ export class Replicache<MD extends MutatorDefs = {}>
       lastValue: undefined,
       keys: emptySet,
       scans: [],
-    } as Subscription<R, E>;
-    this._subscriptions.add(
-      s as unknown as Subscription<JSONValue | undefined, unknown>,
-    );
-    (async () => {
-      try {
-        const {result, keys, scans} = await this._querySubscription(s.body);
-        s.keys = keys;
-        s.scans = scans;
-        s.lastValue = result;
-        s.onData(result);
-      } catch (ex) {
-        if (s.onError) {
-          s.onError(ex);
-        } else {
-          throw ex;
-        }
-      }
-    })();
+    } as unknown as UnknownSubscription;
+    this._subscriptions.add(s);
+
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this._scheduleInitialSubscriptionRun(s);
+
     return (): void => {
-      this._subscriptions.delete(
-        s as unknown as Subscription<JSONValue | undefined, unknown>,
-      );
+      this._subscriptions.delete(s);
     };
+  }
+  private async _scheduleInitialSubscriptionRun(s: UnknownSubscription) {
+    this._pendingSubscriptions.add(s);
+
+    if (!this._hasPendingSubscriptionRuns) {
+      this._hasPendingSubscriptionRuns = true;
+      await Promise.resolve();
+      this._hasPendingSubscriptionRuns = false;
+      const subscriptions = [...this._pendingSubscriptions];
+      this._pendingSubscriptions.clear();
+      await this._fireSubscriptions(subscriptions, true);
+    }
   }
 
   /**
@@ -919,25 +977,12 @@ export class Replicache<MD extends MutatorDefs = {}>
    * and `scan`.
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
-    const tx = new ReadTransactionImpl(this._invoke);
-    await tx.open({});
-    try {
+    await this._ready;
+    return await this._dagStore.withRead(async dagRead => {
+      const dbRead = await db.readFromDefaultHead(dagRead);
+      const tx = new ReadTransactionImpl(dbRead, this._lc);
       return await body(tx);
-    } finally {
-      // No need to await the response.
-      closeIgnoreError(tx);
-    }
-  }
-
-  private async _querySubscription<R>(
-    body: (tx: ReadTransaction) => Promise<R> | R,
-  ): Promise<{result: R; keys: ReadonlySet<string>; scans: ScanOptionsRPC[]}> {
-    const tx = new ReadTransactionImpl(this._invoke);
-    const stx = new SubscriptionTransactionWrapper(tx);
-    await tx.open({});
-    const result = await body(stx);
-    await tx.close();
-    return {result, keys: stx.keys, scans: stx.scans};
+    });
   }
 
   /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
@@ -951,6 +996,7 @@ export class Replicache<MD extends MutatorDefs = {}>
     mutatorImpl: (tx: WriteTransaction, args: Args) => MaybePromise<Return>,
   ): (args: Args) => Promise<Return>;
   /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
+  /* c8 ignore next 14 */
   register<Return extends JSONValue | void, Args extends JSONValue>(
     name: string,
     mutatorImpl: (tx: WriteTransaction, args?: Args) => MaybePromise<Return>,
@@ -979,7 +1025,15 @@ export class Replicache<MD extends MutatorDefs = {}>
     );
 
     return async (args?: Args): Promise<Return> =>
-      (await this._mutate(name, mutatorImpl, args, {isReplay: false})).result;
+      (
+        await this._mutate(
+          name,
+          mutatorImpl,
+          args,
+          undefined, // rebaseOpts
+          false, // isReplay
+        )
+      ).result;
   }
 
   private _registerMutators<
@@ -999,50 +1053,46 @@ export class Replicache<MD extends MutatorDefs = {}>
     name: string,
     mutatorImpl: (tx: WriteTransaction, args?: A) => MaybePromise<R>,
     args: A | undefined,
-    {
-      invokeArgs,
-      isReplay,
-    }: {invokeArgs?: OpenTransactionRequest; isReplay: boolean},
+    rebaseOpts: sync.RebaseOpts | undefined,
+    isReplay: boolean,
   ): Promise<{result: R; ref: string}> {
-    let actualInvokeArgs: OpenTransactionRequest = {
-      args: args !== undefined ? JSON.stringify(args) : 'null',
-      name,
-    };
-    if (invokeArgs !== undefined) {
-      actualInvokeArgs = {...actualInvokeArgs, ...invokeArgs};
+    // Ensure that we run initial pending subscribe functions before starting a
+    // write transaction.
+    if (this._hasPendingSubscriptionRuns) {
+      await Promise.resolve();
     }
 
-    let result: R;
-    const tx = new WriteTransactionImpl(this._invoke);
-    await tx.open(actualInvokeArgs);
-    try {
-      result = await mutatorImpl(tx, args);
-    } catch (ex) {
-      // No need to await the response.
-      closeIgnoreError(tx);
-      throw ex;
-    }
-    const {ref, changedKeys} = await tx.commit(!isReplay);
-    if (!isReplay) {
-      this._pushConnectionLoop.send();
-      await this._checkChange(ref, changedKeys);
-    }
+    await this._ready;
+    return await this._dagStore.withWrite(async dagWrite => {
+      let whence: db.Whence | undefined;
+      let originalHash: string | null = null;
+      if (rebaseOpts === undefined) {
+        whence = db.whenceHead(db.DEFAULT_HEAD_NAME);
+      } else {
+        await sync.validateRebase(rebaseOpts, dagWrite, name, args);
+        whence = db.whenceHash(rebaseOpts.basis);
+        originalHash = rebaseOpts.original;
+      }
 
-    return {result, ref};
-  }
+      const dbWrite = await db.Write.newLocal(
+        whence,
+        name,
+        deepClone(args ?? null),
+        originalHash,
+        dagWrite,
+      );
 
-  /**
-   * When this is set to `true` the internal Replicache wasm module will log
-   * more things to the console (using `console.debug`). Setting this to false
-   * reduces the amount of logging done by the wasm module.
-   *
-   * If you want to see the verbose logging from Replicache in Devtools/Web
-   * Inspector you also need to change the console log level to `Verbose`.
-   * @deprecated
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async setVerboseWasmLogging(): Promise<void> {
-    // deprecated
+      const tx = new WriteTransactionImpl(dbWrite, this._lc);
+      const result: R = await mutatorImpl(tx, args);
+
+      const [ref, changedKeys] = await tx.commit(!isReplay);
+      if (!isReplay) {
+        this._pushConnectionLoop.send();
+        await this._checkChange(ref, changedKeys);
+      }
+
+      return {result, ref};
+    });
   }
 }
 
@@ -1062,28 +1112,7 @@ function checkStatus(
   return httpStatusCode === httpStatusUnauthorized;
 }
 
-export class ReplicacheTest<
-  // eslint-disable-next-line @typescript-eslint/ban-types
-  MD extends MutatorDefs = {},
-> extends Replicache<MD> {
-  beginPull(): Promise<BeginPullResult> {
-    return super._beginPull(MAX_REAUTH_TRIES);
-  }
-
-  maybeEndPull(beginPullResult: BeginPullResult): Promise<void> {
-    return super._maybeEndPull(beginPullResult);
-  }
-}
-
 const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';
-
-async function closeIgnoreError(tx: ReadTransactionImpl) {
-  try {
-    await tx.close();
-  } catch (ex) {
-    console.error('Failed to close transaction', ex);
-  }
-}
 
 // This map is used to keep track of closing instances of Replicache. When an
 // instance is opening we wait for any currently closing instances.

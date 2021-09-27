@@ -4,18 +4,17 @@ import {
   ConnectionLoop,
   ConnectionLoopDelegate,
   DEBOUNCE_DELAY_MS,
-  MAX_CONNECTIONS,
   MAX_DELAY_MS,
   MIN_DELAY_MS,
-} from './connection-loop.js';
-import {sleep} from './sleep.js';
+} from './connection-loop';
+import {sleep} from './sleep';
 
 let clock: SinonFakeTimers;
-setup(function () {
+setup(() => {
   clock = useFakeTimers(0);
 });
 
-teardown(function () {
+teardown(() => {
   clock.restore();
   loop?.close();
   loop = undefined;
@@ -66,11 +65,14 @@ function createLoop(
 
     watchdogTimer: null,
     debounceDelay: DEBOUNCE_DELAY_MS,
-    maxConnections: MAX_CONNECTIONS,
+    maxConnections: 3,
     maxDelayMs: MAX_DELAY_MS,
     ...partialDelegate,
     get minDelayMs() {
       return partialDelegate.minDelayMs ?? MIN_DELAY_MS;
+    },
+    debug() {
+      // intentionally empty
     },
   };
 
@@ -586,7 +588,7 @@ test('mutate minDelayMs', async () => {
       return minDelayMs;
     },
     maxDelayMs: 60_000,
-    maxConnections: MAX_CONNECTIONS,
+    maxConnections: 3,
     watchdogTimer: null,
   });
 

@@ -1,8 +1,8 @@
-import type {Pusher} from './pusher.js';
-import type {Puller} from './puller.js';
-import type {InitInput} from './repm-invoker.js';
-import type {LogLevel} from './logger.js';
+import type {Pusher} from './pusher';
+import type {Puller} from './puller';
+import type {LogLevel} from './logger';
 import type {MutatorDefs, RequestOptions} from './replicache';
+import type * as kv from './kv/mod';
 
 /**
  * The options passed to [[Replicache]].
@@ -13,6 +13,7 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * This is the
    * [authorization](https://doc.replicache.dev/server-push#authorization) token
    * used when doing a [push](https://doc.replicache.dev/server-push).
+   * @deprecated Use [[auth]] instead.
    */
   pushAuth?: string;
 
@@ -27,8 +28,16 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * This is the
    * [authorization](https://doc.replicache.dev/server-pull#authorization) token
    * used when doing a [pull](https://doc.replicache.dev/server-pull).
+   * @deprecated Use [[auth]] instead.
    */
   pullAuth?: string;
+
+  /**
+   * This is the authorization token used when doing a
+   * [pull](https://doc.replicache.dev/server-pull#authorization) and
+   * [push](https://doc.replicache.dev/server-push#authorization).
+   */
+  auth?: string;
 
   /**
    * This is the URL to the server endpoint dealing with pull. See [Pull
@@ -65,28 +74,6 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * attempts to push that change.
    */
   pushDelay?: number;
-
-  /**
-   * By default we will load the Replicache wasm module relative to the
-   * Replicache js files but under some circumstances (like bundling with old
-   * versions of Webpack) it is useful to manually configure where the wasm
-   * module is located on the web server.
-   *
-   * If you provide your own path to the wasm module it probably makes sense to
-   * use a relative URL relative to your current file.
-   *
-   * ```js
-   * wasmModule: new URL('./relative/path/to/replicache.wasm', import.meta.url),
-   * ```
-   *
-   * You might also want to consider using an absolute URL so that we can find
-   * the wasm module no matter where your js file is loaded from:
-   *
-   * ```js
-   * wasmModule: '/static/replicache.wasm',
-   * ```
-   */
-  wasmModule?: InitInput | undefined;
 
   /**
    * Allows using an in memory store instead of IndexedDB. This is useful for
@@ -195,4 +182,12 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * your own function if you need to do things differently.
    */
   pusher?: Pusher;
+
+  /**
+   * Allows implementing the underlying storage layer completely in JavaScript.
+   *
+   * @experimental This option is experimental and might be removed or changed
+   * in the future without following semver versioning. Please be cautious.
+   */
+  experimentalKVStore?: kv.Store;
 }

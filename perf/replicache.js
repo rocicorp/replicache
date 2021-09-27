@@ -1,20 +1,20 @@
 const valSize = 1024;
 
-import {Replicache} from '../out/replicache.mjs';
+import {Replicache} from '../src/mod.ts';
 import {makeRandomStrings} from './data.js';
 
 /**
- * @typedef {import('./perf').Benchmark} Benchmark
- * @typedef {import('./perf').Bencher} Bencher
- * @typedef {import('../out/replicache').WriteTransaction} WriteTransaction
- * @typedef {import('../out/replicache').ReadTransaction} ReadTransaction
- * @typedef {import('../out/replicache').JSONValue} JSONValue
+ * @typedef {import('./perf.js').Benchmark} Benchmark
+ * @typedef {import('./perf.js').Bencher} Bencher
+ * @typedef {import('../src/mod.ts').WriteTransaction} WriteTransaction
+ * @typedef {import('../src/mod.ts').ReadTransaction} ReadTransaction
+ * @typedef {import('../src/mod.ts').JSONValue} JSONValue
  */
 
 /**
  * @param {unknown} b
  */
-function assert(b) {
+export function assert(b) {
   // console.assert is not working inside playwright?
   if (!b) {
     throw new Error('Assertion failed');
@@ -84,9 +84,7 @@ export function benchmarkReadTransaction(opts) {
       await this.rep.query(async (/** @type ReadTransaction */ tx) => {
         for (let i = 0; i < opts.numKeys; i++) {
           // use the values to be confident we're not optimizing away.
-          // @ts-ignore
           getCount += (await tx.get(`key${i}`)).length;
-          // @ts-ignore
           hasCount = (await tx.has(`key${i}`)) === true ? 1 : 0;
         }
       });
@@ -122,7 +120,6 @@ export function benchmarkScan(opts) {
         let count = 0;
         for await (const value of tx.scan()) {
           // use the value to be confident we're not optimizing away.
-          // @ts-ignore
           count += value.length;
         }
         console.log(count);
@@ -256,7 +253,6 @@ export function benchmarkWriteReadRoundTrip() {
  */
 export function sleep(ms) {
   return new Promise(resolve => {
-    // @ts-ignore
     setTimeout(() => resolve(), ms);
   });
 }
@@ -341,6 +337,69 @@ export function benchmarkSubscribe(opts) {
       assert(onDataCallCount === count + mut);
       for (let i = 0; i < count; i++) {
         assert(data[i] === (i < mut ? i ** 2 + rand : i));
+      }
+
+      await rep.close();
+    },
+  };
+}
+
+/**
+ * @param {{count: number;}} opts
+ * @returns Benchmark
+ */
+export function benchmarkSubscribeSetup(opts) {
+  const {count} = opts;
+  const maxCount = 1000;
+  const key = (/** @type {number} */ k) => `key${k}`;
+  if (count > maxCount) {
+    throw new Error('Please increase maxCount');
+  }
+  return {
+    name: `subscription setup ${count}`,
+    group: 'replicache',
+    /**
+     * @param {Bencher} bencher
+     */
+    async run(bencher) {
+      const rep = await makeRep({
+        mutators: {
+          /**
+           * @param {WriteTransaction} tx
+           * @param {number} count
+           */
+          async init(tx) {
+            await Promise.all(
+              Array.from({length: maxCount}, (_, i) => tx.put(key(i), i)),
+            );
+          },
+        },
+      });
+
+      await rep.mutate.init(count);
+      const data = Array.from({length: count}).fill(0);
+      let onDataCallCount = 0;
+      bencher.reset();
+      for (let i = 0; i < count; i++) {
+        rep.subscribe((/** @type {ReadTransaction} */ tx) => tx.get(key(i)), {
+          onData(/** @type {JSONValue} */ v) {
+            onDataCallCount++;
+            data[i] = v;
+
+            if (onDataCallCount === count) {
+              bencher.stop();
+            }
+          },
+        });
+      }
+
+      // We need to wait until all the initial async onData have been called.
+      while (onDataCallCount !== count) {
+        await sleep(1);
+      }
+
+      for (let i = 0; i < count; i++) {
+        assert(data[i] === i);
       }
 
       await rep.close();

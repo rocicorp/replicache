@@ -1,12 +1,13 @@
+import type * as db from './db/mod';
+
 /**
- * Options for [[ReadTransaction.scan|scan]] and
- * [[ReadTransaction.scanAll|scanAll]]
+ * Options for [[ReadTransaction.scan|scan]]
  */
 export type ScanOptions = ScanIndexOptions | ScanNoIndexOptions;
 
 /**
- * Options for [[ReadTransaction.scan|scan]] and
- * [[ReadTransaction.scanAll|scanAll]] when scanning over the entire key space.
+ * Options for [[ReadTransaction.scan|scan]] when scanning over the entire key
+ * space.
  */
 export type ScanNoIndexOptions = {
   /** Only include keys starting with `prefix`. */
@@ -25,8 +26,7 @@ export type ScanNoIndexOptions = {
 };
 
 /**
- * Options for [[ReadTransaction.scan|scan]] and
- * [[ReadTransaction.scanAll|scanAll]] when scanning over an index. When
+ * Options for [[ReadTransaction.scan|scan]] when scanning over an index. When
  * scanning over and index you need to provide the `indexName` and the `start`
  * `key` is now a tuple consisting of secondar and primary key
  */
@@ -76,18 +76,7 @@ export type ScanOptionIndexedStartKey =
   | [secondary: string, primary?: string]
   | string;
 
-export interface ScanOptionsRPC {
-  /* eslint-disable @typescript-eslint/naming-convention */
-  prefix?: string;
-  start_secondary_key?: string;
-  start_key?: string;
-  start_exclusive?: boolean;
-  limit?: number;
-  indexName?: string;
-  /* eslint-enable @typescript-eslint/naming-convention */
-}
-
-export function toRPC(options?: ScanOptions): ScanOptionsRPC {
+export function toDbScanOptions(options?: ScanOptions): db.ScanOptions {
   if (!options) {
     return {};
   }
@@ -111,13 +100,11 @@ export function toRPC(options?: ScanOptions): ScanOptionsRPC {
   }
 
   return {
-    /* eslint-disable @typescript-eslint/naming-convention */
     prefix: options.prefix,
-    start_secondary_key: secondary,
-    start_key: primary,
-    start_exclusive: exclusive,
+    startSecondaryKey: secondary,
+    startKey: primary,
+    startExclusive: exclusive,
     limit: options.limit,
     indexName: (options as MaybeIndexName).indexName,
-    /* eslint-enable @typescript-eslint/naming-convention */
   };
 }

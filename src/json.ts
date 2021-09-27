@@ -1,3 +1,6 @@
+import {cloneDeep} from 'lodash-es';
+import {throwInvalidType} from './asserts';
+
 /** The values that can be represented in JSON */
 export type JSONValue =
   | null
@@ -14,6 +17,20 @@ export type JSONValue =
  */
 export type JSONObject = Partial<{[key: string]: JSONValue}>;
 
+/** Like [[JSONValue]] but deeply readonly */
+export type ReadonlyJSONValue =
+  | null
+  | string
+  | boolean
+  | number
+  | ReadonlyArray<ReadonlyJSONValue>
+  | ReadonlyJSONObject;
+
+/** Like [[JSONObject]] but deeply readonly */
+export type ReadonlyJSONObject = Partial<{
+  readonly [key: string]: ReadonlyJSONValue;
+}>;
+
 /**
  * Checks deep equality of two JSON value with (almost) same semantics as
  * `JSON.stringify`. The only difference is that with `JSON.stringify` the
@@ -26,8 +43,8 @@ export type JSONObject = Partial<{[key: string]: JSONValue}>;
  * ```
  */
 export function deepEqual(
-  a: JSONValue | undefined,
-  b: JSONValue | undefined,
+  a: ReadonlyJSONValue | undefined,
+  b: ReadonlyJSONValue | undefined,
 ): boolean {
   if (a === b) {
     return true;
@@ -73,8 +90,9 @@ export function deepEqual(
     return false;
   }
 
-  // We know b is an object here but type inference is not smart enough.
-  b = b as JSONObject;
+  // We know a and b are objects here but type inference is not smart enough.
+  a = a as ReadonlyJSONObject;
+  b = b as ReadonlyJSONObject;
 
   const aKeys = Object.keys(a);
   const bKeys = Object.keys(b);
@@ -88,4 +106,45 @@ export function deepEqual(
     }
   }
   return true;
+}
+
+export function deepClone(value: ReadonlyJSONValue): JSONValue {
+  return cloneDeep(value) as JSONValue;
+}
+
+export function assertJSONValue(v: unknown): asserts v is JSONValue {
+  switch (typeof v) {
+    case 'boolean':
+    case 'number':
+    case 'string':
+      return;
+    case 'object':
+      if (v === null) {
+        return;
+      }
+      if (Array.isArray(v)) {
+        return assertJSONArray(v);
+      }
+      return assertJSONObject(v as Record<string, unknown>);
+  }
+  throwInvalidType(v, 'JSON value');
+}
+
+function assertJSONObject(v: Record<string, unknown>): asserts v is JSONObject {
+  for (const val of Object.values(v)) {
+    // we allow undefined values because in TypeScript there is no way to
+    // express optional missing properties vs properties with the value
+    // undefined.
+    if (val !== undefined) {
+      assertJSONValue(val);
+    }
+  }
+}
+function assertJSONArray(v: unknown[]): asserts v is JSONValue[] {
+  for (let i = 0; i < v.length; i++) {
+    const val = v[i];
+    if (val !== undefined) {
+      assertJSONValue(val);
+    }
+  }
 }

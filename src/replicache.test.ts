@@ -1,38 +1,38 @@
-import {ReplicacheTest, httpStatusUnauthorized} from './replicache.js';
-import type {MutatorDefs} from './replicache.js';
+import {httpStatusUnauthorized} from './replicache';
+import {ReplicacheTest} from './test-util';
+import type {MutatorDefs} from './replicache';
 import type {ReplicacheOptions} from './replicache-options';
-import {Replicache, TransactionClosedError} from './mod.js';
+import {Replicache, TransactionClosedError} from './mod';
 
-import type {ReadTransaction, WriteTransaction} from './mod.js';
-import type {JSONValue} from './json.js';
+import type {ReadTransaction, WriteTransaction} from './mod';
+import type {JSONValue, ReadonlyJSONValue} from './json';
 
 import {assert, expect} from '@esm-bundle/chai';
 import * as sinon from 'sinon';
-import type {SinonSpy} from 'sinon';
 
 // fetch-mock has invalid d.ts file so we removed that on npm install.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
-import fetchMock from 'fetch-mock/esm/client.js';
-import {Invoke, RPC} from './repm-invoker.js';
-import type {ScanOptions} from './scan-options.js';
+import fetchMock from 'fetch-mock/esm/client';
+import type {ScanOptions} from './scan-options';
 
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
-import {asyncIterableToArray} from './async-iterable-to-array.js';
-import {
-  closeAllReps,
-  deletaAllDatabases,
-  reps,
-  dbsToDrop,
-} from './test-util.js';
-import {sleep} from './sleep.js';
+import {asyncIterableToArray} from './async-iterable-to-array';
+import {closeAllReps, deletaAllDatabases, reps, dbsToDrop} from './test-util';
+import {sleep} from './sleep';
+import {MemStore} from './kv/mem-store';
+import type * as kv from './kv/mod';
+import * as db from './db/mod';
+import * as dag from './dag/mod';
+import {TestMemStore} from './kv/test-mem-store';
+import {WriteTransactionImpl} from './transactions';
 
 let clock: SinonFakeTimers;
-setup(function () {
+setup(() => {
   clock = useFakeTimers(0);
 });
 
-teardown(function () {
+teardown(() => {
   clock.restore();
 });
 
@@ -73,10 +73,6 @@ async function replicacheForTesting<MD extends MutatorDefs = {}>(
     pushURL,
     name,
     useMemstore,
-    wasmModule: new URL(
-      './wasm/debug/replicache_client_bg.wasm',
-      import.meta.url,
-    ).href,
     ...rest,
   });
   reps.add(rep);
@@ -95,14 +91,6 @@ async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
 }
 
 const emptyHash = '';
-
-function spyInvoke(
-  rep: Replicache,
-): SinonSpy<Parameters<Invoke>, ReturnType<Invoke>> {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  return sinon.spy(rep, '_invoke');
-}
 
 teardown(async () => {
   fetchMock.restore();
@@ -213,10 +201,6 @@ async function testScanResult<K, V>(
     expect(await asyncIterableToArray(tx.scan(options).keys())).to.deep.equal(
       entries.map(([k]) => k),
     );
-  });
-
-  await rep.query(async tx => {
-    expect(await tx.scanAll(options)).to.deep.equal(entries);
   });
 
   await rep.query(async tx => {
@@ -360,7 +344,7 @@ testWithBothStores('scan', async () => {
 });
 
 testWithBothStores('subscribe', async () => {
-  const log: [string, JSONValue][] = [];
+  const log: [string, ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe', {
     mutators: {
@@ -374,7 +358,7 @@ testWithBothStores('subscribe', async () => {
       return await tx.scan({prefix: 'a/'}).entries().toArray();
     },
     {
-      onData: (values: Iterable<[string, JSONValue]>) => {
+      onData: (values: Iterable<[string, ReadonlyJSONValue]>) => {
         for (const entry of values) {
           log.push(entry);
         }
@@ -390,11 +374,15 @@ testWithBothStores('subscribe', async () => {
   expect(log).to.deep.equal([['a/0', 0]]);
   expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
 
-  // Put with same value should not invoke the subscription.
+  // Changing a entry to the same value We used to do a deepEqual check here but
+  // we removed that. This means that we will invoke the query body even if
+  // nothing really changed. However, we consider writing the same value to be
+  // pretty unlikely and it is semantically correct to call the query body "too
+  // much".
   log.length = 0;
   await add({'a/0': 0});
   expect(log).to.deep.equal([]);
-  expect(queryCallCount).to.equal(2);
+  expect(queryCallCount).to.equal(3);
 
   log.length = 0;
   await add({'a/1': 1});
@@ -402,7 +390,7 @@ testWithBothStores('subscribe', async () => {
     ['a/0', 0],
     ['a/1', 1],
   ]);
-  expect(queryCallCount).to.equal(3);
+  expect(queryCallCount).to.equal(4);
 
   log.length = 0;
   log.length = 0;
@@ -411,21 +399,21 @@ testWithBothStores('subscribe', async () => {
     ['a/0', 0],
     ['a/1', 11],
   ]);
-  expect(queryCallCount).to.equal(4);
+  expect(queryCallCount).to.equal(5);
 
   log.length = 0;
   cancel();
   await add({'a/1': 12});
   await Promise.resolve();
   expect(log).to.have.length(0);
-  expect(queryCallCount).to.equal(4);
+  expect(queryCallCount).to.equal(5);
 });
 
 for (const prefixPropertyName of ['prefix', 'keyPrefix']) {
   testWithBothStores(
     `subscribe with index {prefixPropertyName: ${prefixPropertyName}}`,
     async () => {
-      const log: [[string, string], JSONValue][] = [];
+      const log: [[string, string], ReadonlyJSONValue][] = [];
 
       const rep = await replicacheForTesting('subscribe-with-index', {
         mutators: {
@@ -447,7 +435,7 @@ for (const prefixPropertyName of ['prefix', 'keyPrefix']) {
           return await tx.scan({indexName: 'i1'}).entries().toArray();
         },
         {
-          onData: (values: Iterable<[[string, string], JSONValue]>) => {
+          onData: (values: Iterable<[[string, string], ReadonlyJSONValue]>) => {
             onDataCallCount++;
             for (const entry of values) {
               log.push(entry);
@@ -562,7 +550,7 @@ for (const prefixPropertyName of ['prefix', 'keyPrefix']) {
 }
 
 testWithBothStores('subscribe with index and start', async () => {
-  const log: [[string, string], JSONValue][] = [];
+  const log: [[string, string], ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index-and-start', {
     mutators: {
@@ -586,7 +574,7 @@ testWithBothStores('subscribe with index and start', async () => {
         .toArray();
     },
     {
-      onData: (values: Iterable<[[string, string], JSONValue]>) => {
+      onData: (values: Iterable<[[string, string], ReadonlyJSONValue]>) => {
         onDataCallCount++;
         for (const entry of values) {
           log.push(entry);
@@ -659,18 +647,22 @@ testWithBothStores('subscribe with index and start', async () => {
   expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
   expect(onDataCallCount).to.equal(3);
 
-  // Changing a entry to the same value
+  // Changing a entry to the same value We used to do a deepEqual check here but
+  // we removed that. This means that we will invoke the query body even if
+  // nothing really changed. However, we consider writing the same value to be
+  // pretty unlikely and it is semantically correct to call the query body "too
+  // much".
   await rep.mutate.addData({
     a2: {id: 'a-2', x: 2},
   });
-  expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
+  expect(queryCallCount).to.equal(4); // One for initial subscribe and one for the add.
   expect(onDataCallCount).to.equal(3);
 
   cancel();
 });
 
 testWithBothStores('subscribe with index and prefix', async () => {
-  const log: [[string, string], JSONValue][] = [];
+  const log: [[string, string], ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index-and-prefix', {
     mutators: {
@@ -691,7 +683,7 @@ testWithBothStores('subscribe with index and prefix', async () => {
       return await tx.scan({indexName: 'i1', prefix: 'b'}).entries().toArray();
     },
     {
-      onData: (values: Iterable<[[string, string], JSONValue]>) => {
+      onData: (values: Iterable<[[string, string], ReadonlyJSONValue]>) => {
         onDataCallCount++;
         for (const entry of values) {
           log.push(entry);
@@ -750,11 +742,15 @@ testWithBothStores('subscribe with index and prefix', async () => {
   expect(queryCallCount).to.equal(4);
   expect(onDataCallCount).to.equal(4);
 
-  // Changing a entry to the same value
+  // Changing a entry to the same value We used to do a deepEqual check here but
+  // we removed that. This means that we will invoke the query body even if
+  // nothing really changed. However, we consider writing the same value to be
+  // pretty unlikely and it is semantically correct to call the query body "too
+  // much".
   await rep.mutate.addData({
     b: {id: 'bx3', x: 3},
   });
-  expect(queryCallCount).to.equal(4); // One for initial subscribe and one for the add.
+  expect(queryCallCount).to.equal(5); // One for initial subscribe and one for the add.
   expect(onDataCallCount).to.equal(4);
 
   cancel();
@@ -827,11 +823,12 @@ testWithBothStores('subscribe with isEmpty and prefix', async () => {
 });
 
 testWithBothStores('subscribe change keys', async () => {
-  const log: JSONValue[][] = [];
+  const log: ReadonlyJSONValue[][] = [];
 
   const rep = await replicacheForTesting('subscribe-change-keys', {
     mutators: {
       addData,
+      del: (tx, k: string) => tx.del(k),
     },
   });
 
@@ -845,10 +842,11 @@ testWithBothStores('subscribe change keys', async () => {
       if (a === 1) {
         rv.push((await tx.get('b')) ?? 'no b');
       }
+      await tx.has('c');
       return rv;
     },
     {
-      onData: (values: JSONValue[]) => {
+      onData: (values: ReadonlyJSONValue[]) => {
         onDataCallCount++;
         log.push(values);
       },
@@ -903,6 +901,16 @@ testWithBothStores('subscribe change keys', async () => {
   expect(queryCallCount).to.equal(5);
   expect(onDataCallCount).to.equal(5);
 
+  await rep.mutate.addData({
+    c: 6,
+  });
+  expect(queryCallCount).to.equal(6);
+  expect(onDataCallCount).to.equal(5);
+
+  await rep.mutate.del('c');
+  expect(queryCallCount).to.equal(7);
+  expect(onDataCallCount).to.equal(5);
+
   cancel();
 });
 
@@ -911,7 +919,7 @@ testWithBothStores('subscribe close', async () => {
     mutators: {addData},
   });
 
-  const log: (JSONValue | undefined)[] = [];
+  const log: (ReadonlyJSONValue | undefined)[] = [];
 
   const cancel = rep.subscribe((tx: ReadTransaction) => tx.get('k'), {
     onData: value => log.push(value),
@@ -1062,7 +1070,7 @@ testWithBothStores('push', async () => {
   const pushURL = 'https://push.com';
 
   const rep = await replicacheForTesting('push', {
-    pushAuth: '1',
+    auth: '1',
     pushURL,
     pushDelay: 10,
     mutators: {
@@ -1172,7 +1180,7 @@ testWithBothStores('push delay', async () => {
   const pushURL = 'https://push.com';
 
   const rep = await replicacheForTesting('push', {
-    pushAuth: '1',
+    auth: '1',
     pushURL,
     pushDelay: 1,
     mutators: {
@@ -1211,7 +1219,7 @@ testWithBothStores('pull', async () => {
   const pullURL = 'https://diff.com/pull';
 
   const rep = await replicacheForTesting('pull', {
-    pullAuth: '1',
+    auth: '1',
     pullURL,
     mutators: {
       createTodo: async <A extends {id: number}>(
@@ -1298,7 +1306,7 @@ testWithBothStores('pull', async () => {
   });
   beginPullResult = await rep.beginPull();
   ({syncHead} = beginPullResult);
-  expect(syncHead).equal('vadlsm00t0h5n05204h6srdjama32lft');
+  expect(syncHead).equal('2h078l7lj47ns0ncg788po9uk76is4e1');
 
   await createTodo({
     id: id2,
@@ -1337,36 +1345,81 @@ testWithBothStores('pull', async () => {
   expect(createCount).to.equal(3);
 });
 
-testWithBothStores('reauth', async () => {
+testWithBothStores('reauth pull', async () => {
   const pullURL = 'https://diff.com/pull';
 
   const rep = await replicacheForTesting('reauth', {
     pullURL,
-    pullAuth: 'wrong',
+    auth: 'wrong',
   });
 
   fetchMock.post(pullURL, {body: 'xxx', status: httpStatusUnauthorized});
 
   const consoleErrorStub = sinon.stub(console, 'error');
 
-  const getPullAuthFake = sinon.fake.returns(null);
-  rep.getPullAuth = getPullAuthFake;
+  const getAuthFake = sinon.fake.returns(null);
+  rep.getAuth = getAuthFake;
 
   await rep.beginPull();
 
-  expect(getPullAuthFake.callCount).to.equal(1);
+  expect(getAuthFake.callCount).to.equal(1);
   expect(consoleErrorStub.firstCall.args[0]).to.equal(
     'Got error response from server (https://diff.com/pull) doing pull: 401: xxx',
   );
 
   {
-    const consoleInfoStub = sinon.stub(console, 'log');
-    const getPullAuthFake = sinon.fake(() => 'boo');
-    rep.getPullAuth = getPullAuthFake;
+    const consoleInfoStub = sinon.stub(console, 'info');
+    const getAuthFake = sinon.fake(() => 'boo');
+    rep.getAuth = getAuthFake;
 
     expect((await rep.beginPull()).syncHead).to.equal('');
 
-    expect(getPullAuthFake.callCount).to.equal(8);
+    expect(getAuthFake.callCount).to.equal(8);
+    expect(consoleInfoStub.firstCall.args[0]).to.equal(
+      'Tried to reauthenticate too many times',
+    );
+  }
+});
+
+testWithBothStores('reauth push', async () => {
+  const pushURL = 'https://diff.com/push';
+
+  const rep = await replicacheForTesting('reauth', {
+    pushURL,
+    pushAuth: 'wrong',
+    pushDelay: 0,
+    mutators: {
+      noop() {
+        // no op
+      },
+    },
+  });
+
+  const consoleErrorStub = sinon.stub(console, 'error');
+  const getPushAuthFake = sinon.fake.returns(null);
+  rep.getPushAuth = getPushAuthFake;
+
+  await tickAFewTimes();
+
+  fetchMock.post(pushURL, {body: 'xxx', status: httpStatusUnauthorized});
+
+  await rep.mutate.noop();
+  await tickUntil(() => getPushAuthFake.callCount > 0, 1);
+
+  expect(consoleErrorStub.firstCall.args[0]).to.equal(
+    'Got error response from server (https://diff.com/push) doing push: 401: xxx',
+  );
+
+  {
+    await tickAFewTimes();
+
+    const consoleInfoStub = sinon.stub(console, 'info');
+    const getPushAuthFake = sinon.fake(() => 'boo');
+    rep.getPushAuth = getPushAuthFake;
+
+    await rep.mutate.noop();
+    await tickUntil(() => consoleInfoStub.callCount > 0, 1);
+
     expect(consoleInfoStub.firstCall.args[0]).to.equal(
       'Tried to reauthenticate too many times',
     );
@@ -1484,6 +1537,10 @@ testWithBothStores('pullInterval in constructor', async () => {
 });
 
 testWithBothStores('closeTransaction after rep.scan', async () => {
+  const readSpy = sinon.spy(dag.Store.prototype, 'read');
+  const scanSpy = sinon.spy(db.Read.prototype, 'scan');
+  const closeSpy = sinon.spy(db.Read.prototype, 'close');
+
   const rep = await replicacheForTesting('test5', {mutators: {addData}});
   const add = rep.mutate.addData;
   await add({
@@ -1491,29 +1548,29 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
     'a/1': 1,
   });
 
-  const spy = spyInvoke(rep);
-  spy.resetHistory();
+  const log: ReadonlyJSONValue[] = [];
 
   function expectCalls(l: JSONValue[]) {
     expect(l).to.deep.equal(log);
-    const rpcs = spy.args.map(([rpc]) => rpc);
-    expect(rpcs).to.deep.equal([
-      RPC.OpenTransaction,
-      RPC.Scan,
-      RPC.CloseTransaction,
-    ]);
+
+    expect(readSpy.callCount).to.equal(1);
+    expect(scanSpy.callCount).to.equal(1);
+    expect(closeSpy.callCount).to.equal(1);
+
+    readSpy.resetHistory();
+    scanSpy.resetHistory();
+    closeSpy.resetHistory();
+    log.length = 0;
   }
 
   const it = rep.scan();
-  const log: JSONValue[] = [];
+
   for await (const v of it) {
     log.push(v);
   }
   expectCalls([0, 1]);
 
   // One more time with return in loop...
-  log.length = 0;
-  spy.resetHistory();
   await (async () => {
     if (!rep) {
       fail();
@@ -1527,8 +1584,6 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
   expectCalls([0]);
 
   // ... and with a break.
-  log.length = 0;
-  spy.resetHistory();
   {
     const it = rep.scan();
     for await (const v of it) {
@@ -1539,8 +1594,6 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
   expectCalls([0]);
 
   // ... and with a throw.
-  log.length = 0;
-  spy.resetHistory();
   (
     await expectPromiseToReject(
       (async () => {
@@ -1559,8 +1612,6 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
   expectCalls([0]);
 
   // ... and with a throw.
-  log.length = 0;
-  spy.resetHistory();
   (
     await expectPromiseToReject(
       (async () => {
@@ -1604,7 +1655,10 @@ testWithBothStores('index', async () => {
     [['4', 'a/4'], {a: '4'}],
   ]);
   await rep.dropIndex('aIndex');
-  await expectPromiseToReject(rep.scanAll({indexName: 'aIndex'}));
+  const x = rep.scan({indexName: 'aIndex'});
+  (await expectPromiseToReject(x.values().next())).to.be
+    .instanceOf(Error)
+    .with.property('message', 'Unknown index name: aIndex');
 
   await rep.createIndex({name: 'aIndex', jsonPointer: '/a'});
   await testScanResult(rep, {indexName: 'aIndex'}, [
@@ -1615,7 +1669,9 @@ testWithBothStores('index', async () => {
     [['4', 'a/4'], {a: '4'}],
   ]);
   await rep.dropIndex('aIndex');
-  await expectPromiseToReject(rep.scanAll({indexName: 'aIndex'}));
+  (await expectPromiseToReject(rep.scan({indexName: 'aIndex'}).toArray())).to.be
+    .instanceOf(Error)
+    .with.property('message', 'Unknown index name: aIndex');
 
   await rep.createIndex({name: 'bc', keyPrefix: 'c/', jsonPointer: '/bc'});
   await testScanResult(rep, {indexName: 'bc'}, [[['8', 'c/0'], {bc: '8'}]]);
@@ -1798,62 +1854,8 @@ testWithBothStores('index scan start', async () => {
   await rep.dropIndex('bIndex');
 });
 
-// Only used for type checking
-test.skip('mutator optional args [type checking only]', async () => {
-  const rep = await replicacheForTesting('test-types', {
-    mutators: {
-      mut: async (tx: WriteTransaction, x: number) => {
-        console.log(tx);
-        return x;
-      },
-      mut2: (tx: WriteTransaction, x: string) => {
-        console.log(tx);
-        return x;
-      },
-      mut3: tx => {
-        console.log(tx);
-      },
-      mut4: async tx => {
-        console.log(tx);
-      },
-    },
-  });
-
-  const {mut, mut2, mut3, mut4} = rep.mutate;
-  const res: number = await mut(42);
-  console.log(res);
-
-  const res2: string = await mut2('s');
-  console.log(res2);
-
-  await mut3();
-  //  @ts-expect-error: Expected 0 arguments, but got 1.ts(2554)
-  await mut3(42);
-  //  @ts-expect-error: Type 'void' is not assignable to type 'number'.ts(2322)
-  const res3: number = await mut3();
-  console.log(res3);
-
-  await mut4();
-  //  @ts-expect-error: Expected 0 arguments, but got 1.ts(2554)
-  await mut4(42);
-  //  @ts-expect-error: Type 'void' is not assignable to type 'number'.ts(2322)
-  const res4: number = await mut4();
-  console.log(res4);
-
-  // This should be an error!
-  // await replicacheForTesting('test-types-2', {
-  //   mutators: {
-  //     // @ts-expect-error symbol is not a JSONValue
-  //     mut5: (tx: WriteTransaction, x: symbol) => {
-  //       console.log(tx, x);
-  //       return 42;
-  //     },
-  //   },
-  // });
-});
-
 testWithBothStores('logLevel', async () => {
-  const info = sinon.stub(console, 'log');
+  const info = sinon.stub(console, 'info');
   const debug = sinon.stub(console, 'debug');
 
   // Just testing that we get some output
@@ -1878,11 +1880,11 @@ testWithBothStores('logLevel', async () => {
 
   rep = await replicacheForTesting('log-level', {logLevel: 'debug'});
   await rep.query(() => 42);
-  expect(info.callCount).to.be.greaterThan(0);
+  expect(info.callCount).to.equal(0);
   expect(debug.callCount).to.be.greaterThan(0);
 
   expect(
-    info.getCalls().some(call => call.firstArg.includes('OpenTransaction')),
+    debug.getCalls().some(call => call.firstArg === 'db=log-level'),
   ).to.equal(true);
   expect(
     debug.getCalls().some(call => call.firstArg.includes('PULL')),
@@ -1892,122 +1894,6 @@ testWithBothStores('logLevel', async () => {
   ).to.equal(true);
 
   await rep.close();
-
-  // Restoring since we are not yet scoped to a Replicache db instance.
-  rep = await replicacheForTesting('log-level', {logLevel: 'info'});
-});
-
-// Only used for type checking
-test.skip('Test partial JSONObject [type checking only]', async () => {
-  const rep = await replicacheForTesting('test-types', {
-    mutators: {
-      mut: async (tx: WriteTransaction, todo: Partial<Todo>) => {
-        console.log(tx);
-        return todo;
-      },
-    },
-  });
-
-  type Todo = {id: number; text: string};
-
-  const {mut} = rep.mutate;
-  await mut({});
-  await mut({id: 42});
-  await mut({text: 'abc'});
-
-  // @ts-expect-error Type '42' has no properties in common with type 'Partial<Todo>'.ts(2559)
-  await mut(42);
-  // @ts-expect-error Type 'string' is not assignable to type 'number | undefined'.ts(2322)
-  await mut({id: 'abc'});
-});
-
-// Only used for type checking
-test.skip('Test register param [type checking only]', async () => {
-  const rep = await replicacheForTesting('test-types', {
-    mutators: {
-      mut: async (tx: WriteTransaction) => {
-        console.log(tx);
-      },
-      mut2: async (tx: WriteTransaction, x: string) => {
-        console.log(tx, x);
-      },
-      mut3: async (tx: WriteTransaction, x: string) => {
-        console.log(tx, x);
-      },
-      mut4: async (tx: WriteTransaction) => {
-        console.log(tx);
-      },
-    },
-  });
-
-  const mut: () => Promise<void> = rep.mutate.mut;
-  console.log(mut);
-
-  // @ts-expect-error Type 'number' is not assignable to type 'string'.ts(2322)
-  const mut2: (x: number) => Promise<void> = rep.mutate.mut2;
-  console.log(mut2);
-
-  // @ts-expect-error Type '(args: string) => Promise<void>' is not assignable to type '() => Promise<void>'.ts(2322)
-  const mut3: () => Promise<void> = rep.mutate.mut3;
-  console.log(mut3);
-
-  // This is fine according to the rules of JS/TS
-  const mut4: (x: number) => Promise<void> = rep.mutate.mut4;
-  console.log(mut4);
-
-  await replicacheForTesting('test-types', {
-    mutators: {
-      // @ts-expect-error Type '(tx: WriteTransaction, a: string, b: number) =>
-      //   Promise<void>' is not assignable to type '(tx: WriteTransaction,
-      //   args?: any) => MaybePromise<void | JSONValue>'.ts(2322)
-      mut5: async (tx: WriteTransaction, a: string, b: number) => {
-        console.log(tx, a, b);
-      },
-    },
-  });
-});
-
-// Only used for type checking
-test.skip('Key type for scans [type checking only]', async () => {
-  const rep = await replicacheForTesting('test-types');
-
-  for await (const k of rep.scan({indexName: 'n'}).keys()) {
-    // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
-    const k2: string = k;
-    console.log(k2);
-  }
-
-  for await (const k of rep.scan({indexName: 'n', start: {key: 's'}}).keys()) {
-    // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
-    const k2: string = k;
-    console.log(k2);
-  }
-
-  for await (const k of rep
-    .scan({indexName: 'n', start: {key: ['s']}})
-    .keys()) {
-    // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
-    const k2: string = k;
-    console.log(k2);
-  }
-
-  for await (const k of rep.scan({start: {key: 'p'}}).keys()) {
-    // @ts-expect-error Type 'string' is not assignable to type '[string]'.ts(2322)
-    const k2: [string] = k;
-    console.log(k2);
-  }
-
-  // @ts-expect-error Type 'number' is not assignable to type 'string | undefined'.ts(2322)
-  rep.scan({indexName: 'n', start: {key: ['s', 42]}});
-
-  // @ts-expect-error Type 'number' is not assignable to type 'string | undefined'.ts(2322)
-  rep.scanAll({indexName: 'n', start: {key: ['s', 42]}});
-
-  // @ts-expect-error Type '[string]' is not assignable to type 'string'.ts(2322)
-  rep.scan({start: {key: ['s']}});
-
-  // @ts-expect-error Type '[string]' is not assignable to type 'string'.ts(2322)
-  rep.scanAll({start: {key: ['s']}});
 });
 
 test('mem store', async () => {
@@ -2033,13 +1919,13 @@ testWithBothStores('isEmpty', async () => {
       mut: async tx => {
         expect(await tx.isEmpty()).to.equal(false);
 
-        tx.del('c');
+        await tx.del('c');
         expect(await tx.isEmpty()).to.equal(false);
 
-        tx.del('a');
+        await tx.del('a');
         expect(await tx.isEmpty()).to.equal(true);
 
-        tx.put('d', 4);
+        await tx.put('d', 4);
         expect(await tx.isEmpty()).to.equal(false);
       },
     },
@@ -2118,7 +2004,7 @@ testWithBothStores('onSync', async () => {
     const consoleErrorStub = sinon.stub(console, 'error');
     fetchMock.postOnce(pushURL, {body: 'xxx', status: httpStatusUnauthorized});
     onSync.resetHistory();
-    rep.getPushAuth = () => {
+    rep.getAuth = () => {
       // Next time it is going to be fine
       fetchMock.postOnce({url: pushURL, headers: {authorization: 'ok'}}, {});
       return 'ok';
@@ -2155,7 +2041,8 @@ testWithBothStores('push timing', async () => {
     useMemstore: true,
     mutators: {addData},
   });
-  const spy = spyInvoke(rep);
+
+  const invokePushSpy = sinon.spy(rep, 'invokePush');
 
   const add = rep.mutate.addData;
 
@@ -2163,12 +2050,13 @@ testWithBothStores('push timing', async () => {
   await add({a: 0});
   await tickAFewTimes();
 
-  const tryPushCalls = () =>
-    spy.args.filter(([rpc]) => rpc === RPC.TryPush).length;
+  const pushCallCount = () => {
+    const rv = invokePushSpy.callCount;
+    invokePushSpy.resetHistory();
+    return rv;
+  };
 
-  expect(tryPushCalls()).to.equal(1);
-
-  spy.resetHistory();
+  expect(pushCallCount()).to.equal(1);
 
   // This will schedule push in pushDelay ms
   await add({a: 1});
@@ -2176,31 +2064,30 @@ testWithBothStores('push timing', async () => {
   await add({c: 3});
   await add({d: 4});
 
-  expect(tryPushCalls()).to.equal(0);
+  expect(pushCallCount()).to.equal(0);
 
   await clock.tickAsync(pushDelay + 10);
 
-  expect(tryPushCalls()).to.equal(1);
-  spy.resetHistory();
+  expect(pushCallCount()).to.equal(1);
 
   const p1 = add({e: 5});
   const p2 = add({f: 6});
   const p3 = add({g: 7});
 
-  expect(tryPushCalls()).to.equal(0);
+  expect(pushCallCount()).to.equal(0);
 
   await tickAFewTimes();
   await p1;
-  expect(tryPushCalls()).to.equal(1);
+  expect(pushCallCount()).to.equal(1);
   await tickAFewTimes();
   await p2;
-  expect(tryPushCalls()).to.equal(1);
+  expect(pushCallCount()).to.equal(0);
   await tickAFewTimes();
   await p3;
-  expect(tryPushCalls()).to.equal(1);
+  expect(pushCallCount()).to.equal(0);
 });
 
-test('push and pull concurrently', async () => {
+testWithBothStores('push and pull concurrently', async () => {
   const pushURL = 'https://push.com/push';
   const pullURL = 'https://pull.com/pull';
 
@@ -2211,7 +2098,35 @@ test('push and pull concurrently', async () => {
     pushDelay: 10,
     mutators: {addData},
   });
-  const spy = spyInvoke(rep);
+
+  const beginPullSpy = sinon.spy(rep, 'beginPull');
+  const commitSpy = sinon.spy(db.Write.prototype, 'commitWithChangedKeys');
+  const invokePushSpy = sinon.spy(rep, 'invokePush');
+  const putSpy = sinon.spy(WriteTransactionImpl.prototype, 'put');
+  const withWriteSpy = sinon.spy(dag.Store.prototype, 'withWrite');
+  const writeSpy = sinon.spy(dag.Store.prototype, 'write');
+
+  function resetSpys() {
+    beginPullSpy.resetHistory();
+    commitSpy.resetHistory();
+    invokePushSpy.resetHistory();
+    putSpy.resetHistory();
+    withWriteSpy.resetHistory();
+    writeSpy.resetHistory();
+  }
+
+  const callCounts = () => {
+    const rv = {
+      beginPull: beginPullSpy.callCount,
+      commit: commitSpy.callCount,
+      invokePush: invokePushSpy.callCount,
+      put: putSpy.callCount,
+      withWrite: withWriteSpy.callCount,
+      write: writeSpy.callCount,
+    };
+    resetSpys();
+    return rv;
+  };
 
   const add = rep.mutate.addData;
 
@@ -2227,40 +2142,39 @@ test('push and pull concurrently', async () => {
   });
 
   await add({a: 0});
-  spy.resetHistory();
+  resetSpys();
 
   await add({b: 1});
-  const pullP1 = rep.pull();
+  rep.pull();
 
   await clock.tickAsync(10);
 
-  const rpcs = () => spy.args.map(a => a[0]);
-
   // Only one push at a time but we want push and pull to be concurrent.
-  expect(rpcs().map(x => RPC[x])).to.deep.equal([
-    'OpenTransaction',
-    'Put',
-    'CommitTransaction',
-    'BeginTryPull',
-    'TryPush',
-  ]);
+  expect(callCounts()).to.deep.equal({
+    beginPull: 1,
+    commit: 1,
+    invokePush: 1,
+    put: 1,
+    withWrite: 2,
+    write: 0,
+  });
 
   await tickAFewTimes();
 
   expect(reqs).to.deep.equal([pullURL, pushURL]);
 
   await tickAFewTimes();
-  await pullP1;
 
   expect(reqs).to.deep.equal([pullURL, pushURL]);
 
-  expect(rpcs().map(x => RPC[x])).to.deep.equal([
-    'OpenTransaction',
-    'Put',
-    'CommitTransaction',
-    'BeginTryPull',
-    'TryPush',
-  ]);
+  expect(callCounts()).to.deep.equal({
+    beginPull: 0,
+    commit: 0,
+    invokePush: 0,
+    put: 0,
+    withWrite: 0,
+    write: 0,
+  });
 });
 
 test('schemaVersion pull', async () => {
@@ -2321,135 +2235,6 @@ test('clientID', async () => {
   const clientID4 = await rep4.clientID;
   expect(clientID4).to.match(re);
   await rep4.close();
-});
-
-// Only used for type checking
-test.skip('mut [type checking only]', async () => {
-  const rep = new Replicache({
-    mutators: {
-      a: (tx: WriteTransaction) => {
-        console.log(tx);
-        return 42;
-      },
-      b: (tx: WriteTransaction, x: number) => {
-        console.log(tx, x);
-        return 'hi';
-      },
-
-      // Return void
-      c: (tx: WriteTransaction) => {
-        console.log(tx);
-      },
-      d: (tx: WriteTransaction, x: number) => {
-        console.log(tx, x);
-      },
-
-      e: async (tx: WriteTransaction) => {
-        console.log(tx);
-        return 42;
-      },
-      f: async (tx: WriteTransaction, x: number) => {
-        console.log(tx, x);
-        return 'hi';
-      },
-
-      // Return void
-      g: async (tx: WriteTransaction) => {
-        console.log(tx);
-      },
-      h: async (tx: WriteTransaction, x: number) => {
-        console.log(tx, x);
-      },
-
-      // // This should be flagged as an error but I need to use `any` for the
-      // // arg since I need covariance and TS uses contravariance here.
-      // // @ts-expect-error XXX
-      // i: (tx: WriteTransaction, d: Date) =>
-      // {console.log(tx, d);
-      // },
-    },
-  });
-
-  rep.mutate.a() as Promise<number>;
-  rep.mutate.b(4) as Promise<string>;
-
-  rep.mutate.c() as Promise<void>;
-  rep.mutate.d(2) as Promise<void>;
-
-  rep.mutate.e() as Promise<number>;
-  rep.mutate.f(4) as Promise<string>;
-
-  rep.mutate.g() as Promise<void>;
-  rep.mutate.h(2) as Promise<void>;
-
-  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
-  rep.mutate.b();
-  //@ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
-  rep.mutate.b(null);
-
-  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
-  rep.mutate.d();
-  //@ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
-  rep.mutate.d(null);
-
-  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
-  rep.mutate.f();
-  //@ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
-  rep.mutate.f(null);
-
-  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
-  rep.mutate.h();
-  // @ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
-  rep.mutate.h(null);
-
-  {
-    const rep = new Replicache({mutators: {}});
-    // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
-    rep.mutate.abc(43);
-  }
-
-  {
-    const rep = new Replicache({});
-    // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
-    rep.mutate.abc(1, 2, 3);
-  }
-
-  {
-    const rep = new Replicache();
-    // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
-    rep.mutate.abc(1, 2, 3);
-  }
-});
-
-// Only used for type checking
-test.skip('scan with index [type checking only]', async () => {
-  const rep = await replicacheForTesting('scan-with-index');
-
-  (await rep.scan({indexName: 'a'}).keys().toArray()) as [
-    secondary: string,
-    primary: string,
-  ][];
-
-  (await rep.scan({}).keys().toArray()) as string[];
-  (await rep.scan().keys().toArray()) as string[];
-
-  (await rep.scanAll({})) as [string, JSONValue][];
-  (await rep.scanAll()) as [string, JSONValue][];
-  (await rep.scanAll({indexName: 'i'})) as [[string, string], JSONValue][];
-
-  rep.query(async tx => {
-    (await tx.scan({indexName: 'a'}).keys().toArray()) as [
-      secondary: string,
-      primary: string,
-    ][];
-
-    (await tx.scan({}).keys().toArray()) as string[];
-    (await tx.scan().keys().toArray()) as string[];
-
-    (await tx.scanAll({})) as [string, JSONValue][];
-    (await tx.scanAll()) as [string, JSONValue][];
-    (await tx.scanAll({indexName: 'i'})) as [[string, string], JSONValue][];
-  });
 });
 
 testWithBothStores('pull and index update', async () => {
@@ -2547,7 +2332,7 @@ testWithBothStores('subscribe pull and index update', async () => {
   const indexName = 'idx1';
   await rep.createIndex({name: indexName, jsonPointer: '/id'});
 
-  const log: JSONValue[] = [];
+  const log: ReadonlyJSONValue[] = [];
   let queryCallCount = 0;
 
   const cancel = rep.subscribe(
@@ -2772,7 +2557,7 @@ test('online', async () => {
     log.push(b);
   };
 
-  const info = sinon.stub(console, 'log');
+  const info = sinon.stub(console, 'info');
 
   fetchMock.post(pushURL, async () => {
     await sleep(10);
@@ -2829,4 +2614,193 @@ test('overlapping open/close', async () => {
     await p;
     await p2;
   }
+});
+
+class MemStoreWithCounters implements kv.Store {
+  readonly store = new MemStore();
+  readCount = 0;
+  writeCount = 0;
+  closeCount = 0;
+
+  resetCounters() {
+    this.readCount = 0;
+    this.writeCount = 0;
+    this.closeCount = 0;
+  }
+
+  read() {
+    this.readCount++;
+    return this.store.read();
+  }
+
+  withRead<R>(fn: (read: kv.Read) => R | Promise<R>): Promise<R> {
+    this.readCount++;
+    return this.store.withRead(fn);
+  }
+
+  write() {
+    this.writeCount++;
+    return this.store.write();
+  }
+
+  withWrite<R>(fn: (write: kv.Write) => R | Promise<R>): Promise<R> {
+    this.writeCount++;
+    return this.store.withWrite(fn);
+  }
+
+  async close() {
+    this.closeCount++;
+    await this.store.close();
+  }
+
+  get closed(): boolean {
+    return this.store.closed;
+  }
+}
+
+test('experiment KV Store', async () => {
+  const store = new MemStoreWithCounters();
+  const rep = await replicacheForTesting('experiment-kv-store', {
+    experimentalKVStore: store,
+    mutators: {addData},
+  });
+
+  expect(store.readCount).to.equal(4);
+  expect(store.writeCount).to.equal(4);
+  expect(store.closeCount).to.equal(0);
+  store.resetCounters();
+
+  const b = await rep.query(tx => tx.has('foo'));
+  expect(b).to.be.false;
+
+  expect(store.readCount).to.equal(1);
+  expect(store.writeCount).to.equal(0);
+  expect(store.closeCount).to.equal(0);
+  store.resetCounters();
+
+  await rep.mutate.addData({foo: 'bar'});
+  expect(store.readCount).to.equal(0);
+  expect(store.writeCount).to.equal(1);
+  expect(store.closeCount).to.equal(0);
+  store.resetCounters();
+
+  await rep.close();
+  expect(store.readCount).to.equal(0);
+  expect(store.writeCount).to.equal(0);
+  expect(store.closeCount).to.equal(1);
+});
+
+test('subscription coalescing', async () => {
+  const store = new MemStoreWithCounters();
+  const rep = await replicacheForTesting('experiment-kv-store', {
+    experimentalKVStore: store,
+    mutators: {addData},
+  });
+
+  expect(store.readCount).to.equal(4);
+  expect(store.writeCount).to.equal(4);
+  expect(store.closeCount).to.equal(0);
+  store.resetCounters();
+
+  const log: string[] = [];
+  const ca = rep.subscribe(tx => tx.has('a'), {
+    onData() {
+      log.push('a');
+    },
+  });
+  const cb = rep.subscribe(tx => tx.has('b'), {
+    onData() {
+      log.push('b');
+    },
+  });
+  const cc = rep.subscribe(tx => tx.has('c'), {
+    onData() {
+      log.push('c');
+    },
+  });
+
+  await tickUntil(() => log.length === 3);
+  expect(log).to.deep.equal(['a', 'b', 'c']);
+
+  expect(store.readCount).to.equal(1);
+  expect(store.writeCount).to.equal(0);
+  expect(store.closeCount).to.equal(0);
+  store.resetCounters();
+
+  ca();
+  cb();
+  cc();
+  log.length = 0;
+  rep.subscribe(tx => tx.has('d'), {
+    onData() {
+      log.push('d');
+    },
+  });
+  rep.subscribe(tx => tx.has('e'), {
+    onData() {
+      log.push('e');
+    },
+  });
+
+  expect(store.readCount).to.equal(0);
+  expect(store.writeCount).to.equal(0);
+  expect(store.closeCount).to.equal(0);
+  store.resetCounters();
+
+  await rep.mutate.addData({a: 1});
+
+  expect(store.readCount).to.equal(1);
+  expect(store.writeCount).to.equal(1);
+  expect(store.closeCount).to.equal(0);
+
+  expect(log).to.deep.equal(['d', 'e']);
+});
+
+function findPropertyValue(
+  obj: unknown,
+  propertyName: string,
+  propertyValue: unknown,
+): unknown | undefined {
+  if (typeof obj === 'object' && obj !== null) {
+    const rec = obj as Record<string, unknown>;
+    if (rec[propertyName] === propertyValue) {
+      return rec;
+    }
+
+    let values: Iterable<unknown>;
+    if (obj instanceof Set || obj instanceof Map || obj instanceof Array) {
+      values = obj.values();
+    } else {
+      values = Object.values(rec);
+    }
+    for (const v of values) {
+      const r = findPropertyValue(v, propertyName, propertyValue);
+      if (r) {
+        return r;
+      }
+    }
+  }
+  return undefined;
+}
+
+test('mutate args in mutation', async () => {
+  // This tests that mutating the args in a mutation does not mutate the args we
+  // store in the kv.Store.
+  const store = new TestMemStore();
+  const rep = await replicacheForTesting('mutate-args-in-mutation', {
+    experimentalKVStore: store,
+    mutators: {
+      async mutArgs(tx, args: {v: number}) {
+        args.v = 42;
+        await tx.put('v', args.v);
+      },
+    },
+  });
+
+  await rep.mutate.mutArgs({v: 1});
+
+  const o = findPropertyValue(store.map(), 'mutatorName', 'mutArgs');
+  expect((o as {mutatorArgsJSON?: unknown}).mutatorArgsJSON).to.deep.equal({
+    v: 1,
+  });
 });

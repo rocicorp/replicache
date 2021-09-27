@@ -16,16 +16,17 @@ export function randomData(type, len, datumSize) {
  * @param {number} len
  */
 function randomDatum(type, len) {
-  if (type == 'string') {
-    return randomString(len);
-  } else if (type == 'object') {
-    return randomObject(len);
-  } else if (type == 'arraybuffer') {
-    return randomUint8Array(len).buffer;
-  } else if (type == 'blob') {
-    return randomBlob(len);
-  } else {
-    throw new Error('unsupported');
+  switch (type) {
+    case 'string':
+      return randomString(len);
+    case 'object':
+      return randomObject(len);
+    case 'arraybuffer':
+      return randomUint8Array(len).buffer;
+    case 'blob':
+      return randomBlob(len);
+    default:
+      throw new Error('unsupported');
   }
 }
 

@@ -1,0 +1,64 @@
+// Note: use tool/flatc.sh to generate the .rs file from this definition.
+
+// This file describes the Commit struct used to track changes to a Replicache
+// instance.
+namespace commit;
+
+// Commit metadata specific to index change commits.
+table IndexChangeMeta {
+    last_mutation_id: ulong;
+    // We could keep track of new and dropped index definitions here
+    // if we wanted to, but there is little value in it atm.
+}
+
+// Commit metadata specific to local commits.
+table LocalMeta {
+    mutation_id: ulong;
+    mutator_name: string;
+    mutator_args_json: [ubyte];
+    original_hash: string;
+}
+
+// Commit metadata specific to snapshot commits.
+table SnapshotMeta {
+    last_mutation_id: ulong;
+    cookie_json: [ubyte];
+}
+
+// Commit metadata specific to the type of commit.
+union MetaTyped {
+    IndexChangeMeta,
+    LocalMeta,
+    SnapshotMeta,
+}
+
+// Commit metadata.
+table Meta {
+    local_create_date: string (deprecated);
+    basis_hash: string;
+    typed: MetaTyped;
+}
+
+table IndexDefinition {
+    name: string;
+    key_prefix: [ubyte];
+    json_pointer: string;
+}
+
+table IndexRecord {
+    definition: IndexDefinition;
+    value_hash: string;  // root hash of prolly::Map for index
+}
+
+// A commit is an immutable record of a change to Replicache and the resulting
+// state after that change.
+table Commit {
+    meta: Meta;
+    value_hash: string;
+    // Vector of current indexes.
+    // Invariant: index names are unique
+    // Invariant: indexes are always up to date with data in value_hash
+    indexes: [IndexRecord];
+}
+
+root_type Commit;

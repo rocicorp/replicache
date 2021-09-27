@@ -1,5 +1,5 @@
-import {openDB, deleteDB} from './node_modules/idb/with-async-ittr.js';
-import xbytes from './node_modules/xbytes/dist/index.mjs';
+import {openDB, deleteDB} from 'idb/with-async-ittr';
+import xbytes from 'xbytes';
 import {randomData} from './data.js';
 
 /**

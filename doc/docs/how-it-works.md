@@ -104,7 +104,9 @@ values={[
 <TabItem value="react">
 
 ```js
-const todos = useSubscribe(replicache, tx => tx.scanAll({prefix: '/todo/'}));
+const todos = useSubscribe(replicache, tx =>
+  tx.scan({prefix: '/todo/'}).entries().toArray(),
+);
 
 return (
   <ul>
@@ -119,11 +121,14 @@ return (
 <TabItem value="vanilla">
 
 ```js
-replicache.subscribe(async tx => await tx.scanAll({prefix: '/todo/'}), {
-  onData: todos => {
-    this.setState({todos});
+replicache.subscribe(
+  async tx => await tx.scan({prefix: '/todo/'}).entries().toArray(),
+  {
+    onData: todos => {
+      this.setState({todos});
+    },
   },
-});
+);
 ```
 
   </TabItem>
@@ -241,7 +246,7 @@ await pusher.trigger(`todos-${userID}`, 'poke', {});
 
 After applying a mutation on your server, send a WebSocket "poke" (a message with no payload) hinting to any potentially affected users' devices to try to pull. You can use any WebSocket library or even a hosted service to send this poke. No user data is sent over the web socket — its only purpose is a hint to get the relevant clients to pull soon.
 
-Note that Replicache can also pull on an interval, in addition to or instead of in response to a poke. See [ReplicacheOptions](https://doc.replicache.dev/api/interfaces/replicacheoptions) [pullInterval](https://doc.replicache.dev/api/interfaces/replicacheoptions#pullinterval).
+Note that Replicache can also pull on an interval, in addition to or instead of in response to a poke. See [ReplicacheOptions](https://doc.replicache.dev/api/interfaces/ReplicacheOptions) [pullInterval](https://doc.replicache.dev/api/interfaces/ReplicacheOptions#pullInterval).
 
 ## ⑦ Rebase
 

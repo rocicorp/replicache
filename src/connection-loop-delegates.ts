@@ -1,5 +1,5 @@
-import type {ConnectionLoopDelegate} from './connection-loop.js';
-import type {Logger} from './logger.js';
+import type {ConnectionLoopDelegate} from './connection-loop';
+import type {Logger} from './logger';
 import type {Replicache} from './replicache';
 
 export class ConnectionLoopDelegateImpl implements Logger {
@@ -24,14 +24,6 @@ export class ConnectionLoopDelegateImpl implements Logger {
 
   get minDelayMs(): number {
     return this.rep.requestOptions.minDelayMs;
-  }
-
-  get error(): ((...args: unknown[]) => void) | undefined {
-    return this.logger.error;
-  }
-
-  get info(): ((...args: unknown[]) => void) | undefined {
-    return this.logger.info;
   }
 
   get debug(): ((...args: unknown[]) => void) | undefined {

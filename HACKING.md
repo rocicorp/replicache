@@ -1,47 +1,12 @@
-# Getting binary dependencies
-
-`npm install` automatically downloads the correct version of the wasm bundle.
-
-# Building against a dev version of repc
-
-```
-rm -rf bin/repc
-ln -s /path/to/repc/pkg/Release bin/repc
-npm run build
-```
-
-Note that if you run `npm install` subsequently, you'll nuke that link and have to create it again.
-
-The build script copies to a new directory, so you need to re-run `npm run build` each time you modify `repc`.
-
 # Building a release
 
-```
-go get github.com/rocicorp/repc/tool/bump
-bump --root=. replicache <semver>
-npm install
-git add package-lock.json
-git commit --amend --no-edit
-# push to github and merge
-# pull merged commit
-git tag v<semver>
-git push origin v<semver>
-# update release notes on github
-npm publish
-```
-
-## Update docs
-
-The docs are built from the `stable` branch so we need to rebase that to get it
-to deploy a new version.
+## Run Automated Tests
 
 ```
-git checkout stable
-git rebase main
-git push origin stable
+npm run test
 ```
 
-## Verify that release works
+## Manual Testing
 
 To test that a release works before creating the release we use a tarball dependency.
 
@@ -127,10 +92,59 @@ Open two windows and make sure that the changes are reflected in each window.
 
 ### Integration Guide
 
-Walk through the integration guide and make sure things still work.
+Walk through [the integration guide](https://doc.replicache.dev/guide/intro) and make sure things still work.
+
+## Build the Release
+
+```
+go get github.com/rocicorp/repc/tool/bump
+bump --root=. replicache <semver>
+npm install
+git add package-lock.json
+git commit --amend --no-edit
+# push to github and merge
+# pull merged commit
+git tag v<semver>
+git push origin v<semver>
+# update release notes on github
+
+# note: this will push the release to the "latest" tag, which means it's what
+# people will get when they `npm install`. If this is a beta release, you should
+# add the `--tag=beta` flag to this command.
+npm publish
+```
+
+## Check for API Changes
+
+If there are any API changes, ensure they have been discussed before release.
+
+## Update docs
+
+The docs are built from the `docs` branch so we need to rebase that to get it
+to deploy a new version.
+
+```
+git checkout docs
+git reset --hard main
+git push origin docs
+```
 
 # Performance Monitoring
 
 We continuously track performance across a variety of benchmarks. Results here:
 
 https://rocicorp.github.io/replicache/perf/
+
+# Sprucing the docs
+
+The live docs at doc.replicache.dev are served from the `docs` channel so that they reflect the stable API.
+
+However, this means that if you do cleanup docs changes that you want to show up immediately, you need to cherry-pick the changes onto the `docs` branch:
+
+```
+git checkout docs
+git cherry-pick <hash-of-spruce-commit>
+git push origin docs
+```
+
+During release, below, we reset the `docs` branch to main, dropping these cherry-picked changes. So it's important to never do work directly on `docs`.

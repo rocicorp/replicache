@@ -9,6 +9,7 @@ export default {
   concurrentBrowsers: 3,
   nodeResolve: true,
   plugins: [esbuildPlugin({ts: true, target: 'esnext'})],
+  staticLogging: !!process.env.CI,
   testFramework: {
     config: {
       ui: 'tdd',

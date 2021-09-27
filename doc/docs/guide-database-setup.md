@@ -7,7 +7,17 @@ Replicache automatically batches mutations and sends them to the `replicache-pus
 
 Each mutation is identified with a `mutationID` which is a per-client incrementing integer. The server must store this value transactionally when applying the mutation, and return it later in `replicache-pull`. This is what allows Replicache to know when speculative mutations have been confirmed by the server and thus no longer need to be replayed (and in fact can be discarded).
 
-For this demo, we're using [Supabase](https://supabase.io), a very nice hosted Postgres database with a snazzy name. But you can use any datastore as long as it can transactionally update the `lastMutationID`. See [Backend Requirements](#TODO) for precise details of what your backend needs to support Replicache.
+For this demo, we're using [Supabase](https://supabase.io), a very nice hosted Postgres database with a snazzy name, but Replicache can be used with most databases.
+
+:::note Backend Requirements
+
+Replicache is designed to work with your existing backend. You can use any datastore as long as it supports multikey atomic transactions, so that data changes and the corresponding update to `lastMutationID` happen at the same time.
+
+For example, if the `lastMutationID` is 42, then the effects of all mutations <= 42 must be visible in `pull` endpoint responses, and the effects of > 42 must not be present.
+
+Some examples of suitable datastores are:  MySQL, Postgres, CockroachDB, CosmosDB, DynamoDB, and Firebase Cloud Firestore (but **not** Realtime Database).
+
+:::
 
 Head over to [Supabase](https://supabase.io) and create a free account and an empty database. Then add Supabase's PSQL connection string to your environment. You can get it from your Supabase project by clicking on ⚙️ (Gear/Cog) > Database > Connection String.
 

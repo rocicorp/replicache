@@ -58,8 +58,10 @@ its current state.
 
 ## HTTP Request Body
 
+When pushing we `POST` an HTTP request with a [JSON encoded body](/api#pushrequest).
+
 ```ts
-type PushRequestBody = {
+type PushRequest = {
   clientID: string;
   mutations: Mutation[];
   pushVersion: number;
@@ -69,7 +71,7 @@ type PushRequestBody = {
 type Mutation = {
   id: number;
   name: string;
-  args: JSONValue;
+  args: ReadonlyJSONValue;
 };
 ```
 

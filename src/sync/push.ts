@@ -9,6 +9,10 @@ import {toError} from '../to-error';
 
 export const PUSH_VERSION = 0;
 
+/**
+ * The JSON value used as the body when doing a POST to the [push
+ * endpoint](/server-push).
+ */
 export type PushRequest = {
   clientID: string;
   mutations: Mutation[];
@@ -19,6 +23,9 @@ export type PushRequest = {
   schemaVersion: string;
 };
 
+/**
+ * Mutation describes a single mutation done on the client.
+ */
 export type Mutation = {
   readonly id: number;
   readonly name: string;

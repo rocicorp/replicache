@@ -37,7 +37,7 @@ Now that we know what our schema will look like, let's serve it. Initially, we'l
 Create an empty Next.js project:
 
 ```bash
-npx create-next-app chat --example "https://github.com/vercel/next-learn-starter/tree/master/learn-starter"
+npx create-next-app chat --example "https://github.com/vercel/next-learn/tree/master/basics/learn-starter"
 cd chat
 ```
 

@@ -144,6 +144,7 @@ However, this means that if you do cleanup docs changes that you want to show up
 ```
 git checkout docs
 git cherry-pick <hash-of-spruce-commit>
+git push origin docs
 ```
 
 During release, below, we reset the `docs` branch to main, dropping these cherry-picked changes. So it's important to never do work directly on `docs`.

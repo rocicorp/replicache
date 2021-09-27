@@ -15,7 +15,7 @@ Replicache is designed to work with your existing backend. You can use any datas
 
 For example, if the `lastMutationID` is 42, then the effects of all mutations <= 42 must be visible in `pull` endpoint responses, and the effects of > 42 must not be present.
 
-Some examples of suitable datastores are:  MySQL, Postgres, CockroachDB, CosmosDB, DynamoDB, and Firebase Cloud Firestore (but **not** Realtime Database).
+Some examples of suitable datastores are: MySQL, Postgres, CockroachDB, CosmosDB, DynamoDB, and Firebase Cloud Firestore (but **not** Realtime Database).
 
 :::
 

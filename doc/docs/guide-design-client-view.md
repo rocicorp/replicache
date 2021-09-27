@@ -83,7 +83,7 @@ Early in development, it's easiest to just return a patch that replaces the enti
 
 :::note info
 
-Replicache forks and versions the cache internally, much like Git. You don't have to worry about changes made by the app to the client's map between pulls being clobbered by remote changes via patch. Replicache has a mechanism ensuring that local pending (unpushed) changes are always applied on top of server-provided changes (see [Local Mutations](#step-4-local-mutations)).
+Replicache forks and versions the cache internally, much like Git. You don't have to worry about changes made by the app to the client's map between pulls being clobbered by remote changes via patch. Replicache has a mechanism ensuring that local pending (unpushed) changes are always applied on top of server-provided changes (see [Local Mutations](/guide/local-mutations)).
 
 Also, Replicache is a _transactional_ key/value store. So although the changes are applied one-by-one, they are revealed to your app (and thus to the user) all at once because they're applied within a single transaction.
 

@@ -129,40 +129,6 @@ export function benchmarkScan(opts) {
 }
 
 /**
- * @returns Benchmark
- */
-export function benchmarkSingleByteWrite() {
-  return {
-    name: 'write single byte',
-    group: 'replicache',
-    byteSize: 1,
-    rep: /** @type Replicache */ (/** @type unknown */ (null)),
-    write: /** @type {(a: number) => Promise<void>} */ (
-      /** @type unknown */ (null)
-    ),
-    async setup() {
-      this.rep = await makeRep({
-        mutators: {
-          write: (/** @type WriteTransaction */ tx, /** @type number */ i) =>
-            tx.put('k', i % 10),
-        },
-      });
-      this.write = this.rep.mutate.write;
-    },
-    async teardown() {
-      await this.rep.close();
-    },
-    /**
-     * @param {Bencher} _
-     * @param {number} i
-     */
-    async run(_, i) {
-      await this.write(i);
-    },
-  };
-}
-
-/**
  * @param {{numKeys: number;}} opts
  * @returns Benchmark
  */

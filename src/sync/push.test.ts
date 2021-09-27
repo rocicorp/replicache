@@ -234,15 +234,16 @@ test('try push', async () => {
     });
 
     const clientID = 'test_client_id';
-    const batchPushInfo = await push(requestID, store, lc, clientID, pusher, {
+    const batchPushInfo = await push(
+      requestID,
+      store,
+      lc,
+      clientID,
+      pusher,
       pushURL,
       pushAuth,
-      schemaVersion: pushSchemaVersion,
-      pusher: () => {
-        // not used with fake pusher
-        throw new Error('unreachable');
-      },
-    });
+      pushSchemaVersion,
+    );
 
     expect(batchPushInfo).to.deep.equal(c.expBatchPushInfo, `name: ${c.name}`);
   }

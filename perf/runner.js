@@ -137,6 +137,9 @@ async function main() {
 
     await runInBrowser(browser, page, options);
 
+    if (options.devtools) {
+      return;
+    }
     // context.close does not terminate! Give it a second.
     await Promise.race([context.close(), wait(1000)]);
   }

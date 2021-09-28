@@ -21,11 +21,10 @@ export function benchmarks(): Array<Benchmark> {
   return [
     textEncoderUtf8(),
     textEncoderUtf16(),
-    sha512Native(),
-    sha512Wasm(),
-    sha512NativeFromStringUtf8(),
-    sha512NativeFromStringUtf16(),
-    sha512NativeFromStringUtf16ReuseBuffer(),
+    sha512({wasm: true, utf8: true}),
+    sha512({wasm: true, utf8: false}),
+    sha512({wasm: false, utf8: true}),
+    sha512({wasm: false, utf8: false}),
   ];
 }
 
@@ -66,102 +65,32 @@ function textEncoderUtf16(): Benchmark {
   };
 }
 
-function sha512Native(): Benchmark {
-  let randomUint8Arrays: Uint8Array[];
+function sha512({wasm, utf8}: {wasm: boolean; utf8: boolean}): Benchmark {
+  let randomStrings: string[];
   const results = [];
-  return {
-    name: 'sha512 native',
-    group: 'hash',
-    setup() {
-      const randomStrings = makeRandomStrings(NUM_STRINGS, STRING_LENGTH);
-      randomUint8Arrays = randomStrings.map(stringToUint8Array);
-    },
-    async run() {
-      for (let i = 0; i < randomUint8Arrays.length; i++) {
-        const buf = await crypto.subtle.digest('SHA-512', randomUint8Arrays[i]);
-        results.push(buf);
-      }
-    },
-  };
-}
+  let calculateHash: (
+    sum: Uint8Array | Uint16Array,
+  ) => Uint8Array | Promise<ArrayBuffer>;
+  const toSum = utf8 ? stringToUint8Array : stringToUint16Array;
 
-function sha512Wasm(): Benchmark {
-  let hasher: IHasher;
-  let randomUint8Arrays: Uint8Array[];
-  const results = [];
   return {
-    name: 'sha512 wasm',
+    name: `sha512 ${wasm ? 'wasm' : 'native'} from string ${
+      utf8 ? 'utf8' : 'utf16'
+    }`,
     group: 'hash',
     async setup() {
-      const randomStrings = makeRandomStrings(NUM_STRINGS, STRING_LENGTH);
-      randomUint8Arrays = randomStrings.map(stringToUint8Array);
-      hasher = await createSHA512();
-    },
-    async run() {
-      for (let i = 0; i < randomUint8Arrays.length; i++) {
-        const buf = hasher.init().update(randomUint8Arrays[i]).digest();
-        results.push(buf);
-      }
-    },
-  };
-}
-
-function sha512NativeFromStringUtf8(): Benchmark {
-  let randomStrings: string[];
-  const results = [];
-  return {
-    name: 'sha512 native from string utf8',
-    group: 'hash',
-    setup() {
       randomStrings = makeRandomStrings(NUM_STRINGS, STRING_LENGTH);
+      if (wasm) {
+        const hasher = await createSHA512();
+        calculateHash = sum => hasher.init().update(sum).digest('binary');
+      } else {
+        calculateHash = sum => crypto.subtle.digest('SHA-512', sum);
+      }
     },
     async run() {
       for (let i = 0; i < randomStrings.length; i++) {
-        const sum = stringToUint8Array(randomStrings[i]);
-        const buf = await crypto.subtle.digest('SHA-512', sum);
-        results.push(buf);
-      }
-    },
-  };
-}
-
-function sha512NativeFromStringUtf16(): Benchmark {
-  let randomStrings: string[];
-  const results = [];
-  return {
-    name: 'sha512 native from string utf16',
-    group: 'hash',
-    setup() {
-      randomStrings = makeRandomStrings(NUM_STRINGS, STRING_LENGTH);
-    },
-    async run() {
-      for (let i = 0; i < randomStrings.length; i++) {
-        const sum = stringToUint16Array(randomStrings[i]);
-        const buf = await crypto.subtle.digest('SHA-512', sum);
-        results.push(buf);
-      }
-    },
-  };
-}
-
-function sha512NativeFromStringUtf16ReuseBuffer(): Benchmark {
-  let randomStrings: string[];
-  const results = [];
-  let buffer: ArrayBuffer;
-  return {
-    name: 'sha512 native from string utf16 reuse buffer',
-    group: 'hash',
-    setup() {
-      randomStrings = makeRandomStrings(NUM_STRINGS, STRING_LENGTH);
-      buffer = new ArrayBuffer(STRING_LENGTH * 2);
-    },
-    async run() {
-      for (let i = 0; i < randomStrings.length; i++) {
-        const sum = new Uint16Array(buffer, 0, randomStrings[i].length);
-        for (let j = 0; j < randomStrings[i].length; j++) {
-          sum[j] = randomStrings[i].charCodeAt(j);
-        }
-        const buf = await crypto.subtle.digest('SHA-512', sum);
+        const sum = toSum(randomStrings[i]);
+        const buf = await calculateHash(sum);
         results.push(buf);
       }
     },

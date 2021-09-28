@@ -22,15 +22,4 @@ module.exports = {
     'object-shorthand': 'error',
     'prefer-arrow-callback': 'error',
   },
-  overrides: [
-    {
-      files: ['perf/*.js'],
-      env: {
-        browser: true,
-      },
-      rules: {
-        '@typescript-eslint/explicit-module-boundary-types': 'off',
-      },
-    },
-  ],
 };

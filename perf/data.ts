@@ -1,21 +1,16 @@
-/**
- * @typedef {"string"|"object"|"arraybuffer"|"blob"} RandomDataType
- */
+export type RandomDataType = 'string' | 'object' | 'arraybuffer' | 'blob';
+export type RandomDatum = string | Record<string, string> | ArrayBuffer | Blob;
+export type RandomData = RandomDatum[];
 
-/**
- * @param {RandomDataType} type
- * @param {number} len
- * @param {number} datumSize
- */
-export function randomData(type, len, datumSize) {
+export function randomData(
+  type: RandomDataType,
+  len: number,
+  datumSize: number,
+): RandomData {
   return Array.from({length: len}).map(() => randomDatum(type, datumSize));
 }
 
-/**
- * @param {RandomDataType} type
- * @param {number} len
- */
-function randomDatum(type, len) {
+function randomDatum(type: RandomDataType, len: number): RandomDatum {
   switch (type) {
     case 'string':
       return randomString(len);
@@ -30,45 +25,31 @@ function randomDatum(type, len) {
   }
 }
 
-/**
- * @param {number} len
- * @returns {Record<string, string>}
- */
-function randomObject(len) {
-  const ret = /** @type Record<string, string> */ ({});
+function randomObject(len: number): Record<string, string> {
+  const ret: Record<string, string> = {};
   for (let i = 0; i < Math.min(100, len); i++) {
     ret[`k${i}`] = randomString(Math.ceil(len / 100));
   }
   return ret;
 }
 
-/**
- * @param {number} numStrings
- * @param {number} strLen
- */
-export function makeRandomStrings(numStrings, strLen) {
+export function makeRandomStrings(
+  numStrings: number,
+  strLen: number,
+): string[] {
   return Array.from({length: numStrings}, () => randomString(strLen));
 }
 
-/**
- * @param {number} len
- */
-function randomString(len) {
+function randomString(len: number): string {
   const arr = randomUint8Array(len);
   return new TextDecoder('ascii').decode(arr);
 }
 
-/**
- * @param {number} len
- */
-function randomBlob(len) {
+function randomBlob(len: number): Blob {
   return new Blob([randomUint8Array(len)]);
 }
 
-/**
- * @param {number} len
- */
-function randomUint8Array(len) {
+function randomUint8Array(len: number): Uint8Array {
   const arr = new Uint8Array(len);
   for (let i = 0; i < len; i++) {
     arr[i] = Math.floor(Math.random() * 254 + 1);

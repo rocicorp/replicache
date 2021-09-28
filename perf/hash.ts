@@ -1,5 +1,4 @@
 import {createSHA512} from 'hash-wasm';
-import type {IHasher} from 'hash-wasm/dist/lib/WASMInterface';
 import {makeRandomStrings} from './data';
 import type {Benchmark} from './perf';
 

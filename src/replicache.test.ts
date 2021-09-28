@@ -2,7 +2,7 @@ import {httpStatusUnauthorized} from './replicache';
 import {ReplicacheTest} from './test-util';
 import type {MutatorDefs} from './replicache';
 import type {ReplicacheOptions} from './replicache-options';
-import {Replicache, TransactionClosedError} from './mod';
+import {PatchOperation, Replicache, TransactionClosedError} from './mod';
 
 import type {ReadTransaction, WriteTransaction} from './mod';
 import type {JSONValue, ReadonlyJSONValue} from './json';
@@ -2241,19 +2241,27 @@ testWithBothStores('pull and index update', async () => {
   const pullURL = 'https://pull.com/rep';
   const rep = await replicacheForTesting('pull-and-index-update', {
     pullURL,
-    mutators: {addData},
   });
 
   const indexName = 'idx1';
   let lastMutationID = 0;
 
-  async function testPull(opt: {patch: Patch[]; expectedResult: JSONValue}) {
-    fetchMock.post(pullURL, {
-      lastMutationID: lastMutationID++,
-      patch: opt.patch,
+  async function testPull(opt: {
+    patch: PatchOperation[];
+    expectedResult: JSONValue;
+  }) {
+    let pullDone = false;
+    fetchMock.post(pullURL, () => {
+      pullDone = true;
+      return {
+        lastMutationID: lastMutationID++,
+        patch: opt.patch,
+      };
     });
 
     rep.pull();
+
+    await tickUntil(() => pullDone);
     await tickAFewTimes();
 
     const actualResult = await rep.scan({indexName}).entries().toArray();
@@ -2315,13 +2323,6 @@ testWithBothStores('pull and index update', async () => {
   });
 });
 
-type Patch =
-  | {
-      op: 'clear';
-    }
-  | {op: 'put'; key: string; value: JSONValue}
-  | {op: 'del'; key: string};
-
 testWithBothStores('subscribe pull and index update', async () => {
   const pullURL = 'https://pull.com/rep';
   const rep = await replicacheForTesting('subscribe-pull-and-index-update', {
@@ -2352,7 +2353,7 @@ testWithBothStores('subscribe pull and index update', async () => {
   let expectedQueryCallCount = 1;
 
   async function testPull(opt: {
-    patch: Patch[];
+    patch: PatchOperation[];
     expectedLog: JSONValue[];
     expectChange: boolean;
   }) {

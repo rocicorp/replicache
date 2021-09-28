@@ -1,12 +1,4 @@
-import {
-  benchmarkCreateIndex,
-  benchmarkPopulate,
-  benchmarkReadTransaction,
-  benchmarkScan,
-  benchmarkWriteReadRoundTrip,
-  benchmarkSubscribe,
-  benchmarkSubscribeSetup,
-} from './replicache';
+import {benchmarks as replicacheBenchmarks} from './replicache';
 import {benchmarkIDBRead, benchmarkIDBWrite} from './idb';
 import {benchmarks as lockBenchmarks} from './lock';
 import {benchmarks as hashBenchmarks} from './hash';
@@ -124,23 +116,7 @@ function formatToMBPerSecond(size: number, timeMS: number): string {
 }
 
 export const benchmarks = [
-  benchmarkPopulate({numKeys: 1000, clean: true}),
-  benchmarkPopulate({numKeys: 1000, clean: false}),
-  benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1}),
-  benchmarkPopulate({numKeys: 1000, clean: true, indexes: 2}),
-  benchmarkReadTransaction({numKeys: 1000}),
-  benchmarkReadTransaction({numKeys: 5000}),
-  benchmarkScan({numKeys: 1000}),
-  benchmarkScan({numKeys: 5000}),
-  benchmarkWriteReadRoundTrip(),
-  benchmarkCreateIndex({numKeys: 1000}),
-  benchmarkCreateIndex({numKeys: 5000}),
-  benchmarkSubscribe({count: 10}),
-  benchmarkSubscribe({count: 100}),
-  benchmarkSubscribe({count: 1000}),
-  benchmarkSubscribeSetup({count: 10}),
-  benchmarkSubscribeSetup({count: 100}),
-  benchmarkSubscribeSetup({count: 1000}),
+  ...replicacheBenchmarks(),
   ...lockBenchmarks(),
   ...hashBenchmarks(),
 ];

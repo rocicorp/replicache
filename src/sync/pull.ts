@@ -1,7 +1,13 @@
 import type * as dag from '../dag/mod';
 import * as db from '../db/mod';
 import {deepClone, JSONValue, ReadonlyJSONValue} from '../json';
-import {assertPullResponse, Puller, PullError, PullResponse} from '../puller';
+import {
+  assertPullResponse,
+  Puller,
+  PullerResult,
+  PullError,
+  PullResponse,
+} from '../puller';
 import {assertHTTPRequestInfo, HTTPRequestInfo} from '../http-request-info';
 import {callJSRequest} from './js-request';
 import {SYNC_HEAD_NAME} from './sync-head-name';
@@ -69,7 +75,7 @@ export async function beginPull(
   };
   lc.debug?.('Starting pull...');
   const pullStart = Date.now();
-  const [pullResp, httpRequestInfo] = await callPuller(
+  const {response, httpRequestInfo} = await callPuller(
     puller,
     pullURL,
     pullReq,
@@ -78,14 +84,14 @@ export async function beginPull(
   );
 
   lc.debug?.(
-    `...Pull ${pullResp ? 'complete' : 'failed'} in `,
+    `...Pull ${response ? 'complete' : 'failed'} in `,
     Date.now() - pullStart,
     'ms',
   );
 
   // If Puller did not get a pull response we still want to return the HTTP
   // request info to the JS SDK.
-  if (!pullResp) {
+  if (!response) {
     return {
       httpRequestInfo,
       syncHead: '',
@@ -112,9 +118,9 @@ export async function beginPull(
     // If other entities (eg, other clients) are modifying the client view
     // the client view can change but the lastMutationID stays the same.
     // So be careful here to reject only a lesser lastMutationID.
-    if (pullResp.lastMutationID < baseLastMutationID) {
+    if (response.lastMutationID < baseLastMutationID) {
       throw new Error(
-        `base lastMutationID ${baseLastMutationID} is > than client view lastMutationID ${pullResp.lastMutationID}; ignoring client view`,
+        `base lastMutationID ${baseLastMutationID} is > than client view lastMutationID ${response.lastMutationID}; ignoring client view`,
       );
     }
 
@@ -122,9 +128,9 @@ export async function beginPull(
     // Otherwise, we will write a new commit, including for the case of just
     // a cookie change.
     if (
-      pullResp.patch.length === 0 &&
-      pullResp.lastMutationID === baseLastMutationID &&
-      (pullResp.cookie ?? null) === baseCookie
+      response.patch.length === 0 &&
+      response.lastMutationID === baseLastMutationID &&
+      (response.cookie ?? null) === baseCookie
     ) {
       const syncHead = '';
       return {
@@ -138,7 +144,7 @@ export async function beginPull(
     // the new snapshot while we still have the dagRead borrowed.
     const chain = await db.Commit.chain(mainHeadPostPull, dagRead);
     const indexRecords = chain.find(
-      c => c.mutationID <= pullResp.lastMutationID,
+      c => c.mutationID <= response.lastMutationID,
     )?.indexes;
     if (!indexRecords) {
       throw new Error('Internal invalid chain');
@@ -147,8 +153,8 @@ export async function beginPull(
 
     const dbWrite = await db.Write.newSnapshot(
       db.whenceHash(baseSnapshot.chunk.hash),
-      pullResp.lastMutationID,
-      pullResp.cookie ?? null,
+      response.lastMutationID,
+      response.cookie ?? null,
       dagWrite,
       new Map(), // Note: created with no indexes
     );
@@ -161,7 +167,7 @@ export async function beginPull(
       await dbWrite.createIndex(lc, def.name, def.keyPrefix, def.jsonPointer);
     }
 
-    await patch.apply(lc, dbWrite, pullResp.patch);
+    await patch.apply(lc, dbWrite, response.patch);
 
     const commitHash = await dbWrite.commit(SYNC_HEAD_NAME);
 
@@ -324,11 +330,11 @@ async function callPuller(
   body: PullRequest,
   auth: string,
   requestID: string,
-): Promise<[PullResponse | undefined, HTTPRequestInfo]> {
+): Promise<PullerResult> {
   try {
     const res = await callJSRequest(puller, url, body, auth, requestID);
     assertResult(res);
-    return [res.response, res.httpRequestInfo];
+    return res;
   } catch (e) {
     throw new PullError(toError(e));
   }

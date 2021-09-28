@@ -82,16 +82,13 @@ export async function push(
     };
     lc.debug?.('Starting push...');
     const pushStart = Date.now();
-    const reqInfo = await callPusher(
+    httpRequestInfo = await callPusher(
       pusher,
       pushURL,
       pushReq,
       pushAuth,
       requestID,
     );
-
-    httpRequestInfo = reqInfo;
-
     lc.debug?.('...Push complete in ', Date.now() - pushStart, 'ms');
   }
 

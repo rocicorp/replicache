@@ -2,6 +2,7 @@ import 'navigator.locks';
 import {assert} from './replicache';
 import {newTab, Tab, isFirefox} from '../src/test-util';
 import {uuid} from '../src/sync/uuid';
+import type {Benchmark} from './perf';
 
 enum Mode {
   SameTab = '',
@@ -9,7 +10,7 @@ enum Mode {
   OtherProcess = 'other process',
 }
 
-export function benchmarks(): Array<unknown> {
+export function benchmarks(): Benchmark[] {
   return [
     benchmarkUncontendedRead(),
     benchmarkHeldRead(Mode.SameTab),

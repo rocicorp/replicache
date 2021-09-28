@@ -1,12 +1,14 @@
-import {openDB, deleteDB} from 'idb/with-async-ittr';
+import {openDB, deleteDB, IDBPDatabase} from 'idb/with-async-ittr';
 import xbytes from 'xbytes';
-import {randomData} from './data.js';
+import {randomData, RandomDataType} from './data';
+import type {Bencher, Benchmark} from './perf';
 
-/**
- * @param {{dataType: import("./data").RandomDataType; group: string; valSize: number; numKeys: number;}} opts
- * @returns Benchmark
- */
-export function benchmarkIDBRead(opts) {
+export function benchmarkIDBRead(opts: {
+  dataType: RandomDataType;
+  group: string;
+  valSize: number;
+  numKeys: number;
+}): Benchmark {
   return {
     name: `idb read tx (${opts.dataType}) ${opts.numKeys}x${xbytes(
       opts.valSize,
@@ -34,10 +36,7 @@ export function benchmarkIDBRead(opts) {
       }
     },
 
-    /**
-     * @param {import('./perf.js').Bencher} bench
-     */
-    async run(bench) {
+    async run(bench: Bencher) {
       const db = await openDB('db1');
       try {
         bench.reset();
@@ -56,23 +55,28 @@ export function benchmarkIDBRead(opts) {
   };
 }
 
-/**
- *
- * @param {import('idb').IDBPDatabase} db
- * @param {(string | ArrayBuffer | Record<string, string> | Blob)[]} data
- */
-async function idbPopulate(db, data) {
+async function idbPopulate(
+  db: IDBPDatabase<unknown>,
+  data: (string | Record<string, string> | ArrayBuffer | Blob)[],
+) {
   const tx = db.transaction('store1', 'readwrite', {durability: 'relaxed'});
-  const store = await tx.objectStore('store1');
+  const store = tx.objectStore('store1');
   await Promise.all(data.map((v, i) => store.put(v, i)));
   await tx.done;
 }
 
-/**
- * @param {{dataType: import('./data').RandomDataType; group: string; valSize: number; numKeys: number;}} opts
- * @returns Benchmark
- */
-export function benchmarkIDBWrite(opts) {
+export function benchmarkIDBWrite(opts: {
+  dataType: RandomDataType;
+  group: string;
+  valSize: number;
+  numKeys: number;
+}): {
+  name: string;
+  group: string;
+  byteSize: number;
+  setup(): Promise<void>;
+  run(bench: Bencher): Promise<void>;
+} {
   return {
     name: `idb write tx (${opts.dataType}) ${opts.numKeys}x${xbytes(
       opts.valSize,
@@ -94,10 +98,7 @@ export function benchmarkIDBWrite(opts) {
       db.close();
     },
 
-    /**
-     * @param {import('./perf.js').Bencher} bench
-     */
-    async run(bench) {
+    async run(bench: Bencher) {
       const db = await openDB('db1');
       try {
         const data = randomData(opts.dataType, opts.numKeys, opts.valSize);

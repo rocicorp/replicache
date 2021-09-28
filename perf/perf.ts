@@ -6,41 +6,36 @@ import {
   benchmarkWriteReadRoundTrip,
   benchmarkSubscribe,
   benchmarkSubscribeSetup,
-} from './replicache.js';
-import {benchmarkIDBRead, benchmarkIDBWrite} from './idb.js';
-import {benchmarks as lockBenchmarks} from './lock.ts';
-import {benchmarks as hashBenchmarks} from './hash.ts';
+} from './replicache';
+import {benchmarkIDBRead, benchmarkIDBWrite} from './idb';
+import {benchmarks as lockBenchmarks} from './lock';
+import {benchmarks as hashBenchmarks} from './hash';
+import type {RandomDataType} from './data';
 
-/**
- * @typedef {{
- *   name: string;
- *   group: string;
- *   byteSize?: number;
- *   skip?: () => Promise<boolean> | boolean;
- *   setup?: () => Promise<void> | void;
- *   teardown?: () => Promise<void> | void;
- *   run: (b: Bencher, i: number) => Promise<void> | void;
- * }} Benchmark
- *
- * @typedef {{
- *   reset: () => void;
- *   stop: () => void;
- * }} Bencher
- *
- * @typedef {"benchmarkJS"|"replicache"} OutputFormat
- */
+export type Benchmark = {
+  name: string;
+  group: string;
+  byteSize?: number;
+  skip?: () => Promise<boolean> | boolean;
+  setup?: () => Promise<void> | void;
+  teardown?: () => Promise<void> | void;
+  run: (b: Bencher, i: number) => Promise<void> | void;
+};
 
-/**
- * @param {Benchmark} benchmark
- * @param {OutputFormat} format
- */
-async function runBenchmark(benchmark, format) {
+export type Bencher = {
+  reset: () => void;
+  stop: () => void;
+};
+
+async function runBenchmark(
+  benchmark: Benchmark,
+  format: OutputFormat,
+): Promise<string | undefined> {
   // Execute fn at least this many runs.
   const minRuns = 5;
   // Execute fn at least for this long.
   const minTime = 500;
-  /** @type number[] */
-  const times = [];
+  const times: number[] = [];
   let sum = 0;
 
   if (benchmark.skip && (await benchmark.skip())) {
@@ -106,21 +101,24 @@ async function runBenchmark(benchmark, format) {
   }
 }
 
-/**
- * @param {{name: string; value: string; variance: string; runs: number}} opts
- */
-function formatAsBenchmarkJS({name, value, variance, runs}) {
+function formatAsBenchmarkJS({
+  name,
+  value,
+  variance,
+  runs,
+}: {
+  name: string;
+  value: string;
+  variance: string;
+  runs: number;
+}): string {
   // Example:
   //   fib(20) x 11,465 ops/sec ±1.12% (91 runs sampled)
   //   createObjectBuffer with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)
   return `${name} x ${value}±${variance} (${runs} runs sampled)`;
 }
 
-/**
- * @param {number} size
- * @param {number} timeMS
- */
-function formatToMBPerSecond(size, timeMS) {
+function formatToMBPerSecond(size: number, timeMS: number): string {
   const bytes = (size / timeMS) * 1000;
   return (bytes / 2 ** 20).toFixed(2) + ' MB/s';
 }
@@ -147,12 +145,10 @@ export const benchmarks = [
   ...hashBenchmarks(),
 ];
 
-for (let b of [benchmarkIDBRead, benchmarkIDBWrite]) {
-  for (let numKeys of [1, 10, 100, 1000]) {
-    const dataTypes = /** @type {import('./data').RandomDataType[]} */ (
-      /** @type unknown */ (['string', 'object', 'arraybuffer'])
-    );
-    for (let dataType of dataTypes) {
+for (const b of [benchmarkIDBRead, benchmarkIDBWrite]) {
+  for (const numKeys of [1, 10, 100, 1000]) {
+    const dataTypes: RandomDataType[] = ['string', 'object', 'arraybuffer'];
+    for (const dataType of dataTypes) {
       const kb = 1024;
       const mb = kb * kb;
       const sizes = [
@@ -164,7 +160,7 @@ for (let b of [benchmarkIDBRead, benchmarkIDBWrite]) {
         100 * mb,
       ];
       const group = dataType === 'arraybuffer' ? 'idb' : 'idb-extras';
-      for (let valSize of sizes) {
+      for (const valSize of sizes) {
         if (valSize > 10 * mb) {
           if (numKeys > 1) {
             continue;
@@ -181,12 +177,7 @@ for (let b of [benchmarkIDBRead, benchmarkIDBWrite]) {
   }
 }
 
-/**
- * @param {string} name
- * @param {string} group
- * @return {Benchmark}
- */
-function findBenchmark(name, group) {
+function findBenchmark(name: string, group: string): Benchmark {
   for (const b of benchmarks) {
     if (b.name === name && b.group === group) {
       return b;
@@ -195,16 +186,13 @@ function findBenchmark(name, group) {
   throw new Error(`No benchmark named "${name}" in group "${group}"`);
 }
 
-/**
- * @param {string} name
- * @param {string} group
- * @param {OutputFormat | undefined} format
- */
+type OutputFormat = 'replicache' | 'benchmarkjs';
+
 export async function runBenchmarkByNameAndGroup(
-  name,
-  group,
-  format = 'benchmarkJS',
-) {
+  name: string,
+  group: string,
+  format: OutputFormat | undefined = 'benchmarkjs',
+): Promise<string | undefined> {
   const b = findBenchmark(name, group);
   try {
     return await runBenchmark(b, format);
@@ -213,18 +201,15 @@ export async function runBenchmarkByNameAndGroup(
   }
 }
 
-/**
- * @param {string[]} groups
- * @return {Benchmark[]}
- */
-export function findBenchmarks(groups) {
+export function findBenchmarks(groups: string[]): Benchmark[] {
   return benchmarks.filter(b => groups.includes(b.group));
 }
 
-export async function runAll(groups) {
-  const out = /** @type {HTMLPreElement} */ (
-    /** @type {unknown} */ document.getElementById('out')
-  );
+export async function runAll(groups: string[]): Promise<void> {
+  const out: HTMLElement | null = document.getElementById('out');
+  if (!out) {
+    return;
+  }
   const benchmarks = findBenchmarks(groups);
   for (const b of benchmarks) {
     const r = await runBenchmark(b, 'replicache');

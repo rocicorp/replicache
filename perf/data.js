@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1632882074940,
+  "lastUpdate": 1632883952938,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -46431,6 +46431,268 @@ window.BENCHMARK_DATA = {
             "range": "±347.1%",
             "unit": "ops/sec",
             "extra": "288 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ad63e08a27f67568a0011f536d313f62ee8eb01f",
+          "message": "Create codeql-analysis.yml",
+          "timestamp": "2021-09-28T16:50:34-10:00",
+          "tree_id": "05772dae5c091896663d775665f019b123334493",
+          "url": "https://github.com/rocicorp/replicache/commit/ad63e08a27f67568a0011f536d313f62ee8eb01f"
+        },
+        "date": 1632883952671,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 7.99,
+            "range": "±9.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 6.71,
+            "range": "±7.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 4.69,
+            "range": "±5.1%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 3.31,
+            "range": "±3.5%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 6.73,
+            "range": "±75.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 6.22,
+            "range": "±3.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 6.65,
+            "range": "±76.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 6.08,
+            "range": "±77.5%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "roundtrip write/subscribe/get",
+            "value": 113.77,
+            "range": "±428.8%",
+            "unit": "ops/sec",
+            "extra": "58 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 5.14,
+            "range": "±6.4%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 1.11,
+            "range": "±2.7%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 10",
+            "value": 9.94,
+            "range": "±18.2%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 100",
+            "value": 9.97,
+            "range": "±23.2%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription 1000",
+            "value": 9.56,
+            "range": "±16.4%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "subscription setup 10",
+            "value": 361.57,
+            "range": "±173.1%",
+            "unit": "ops/sec",
+            "extra": "181 samples"
+          },
+          {
+            "name": "subscription setup 100",
+            "value": 309.57,
+            "range": "±165.5%",
+            "unit": "ops/sec",
+            "extra": "155 samples"
+          },
+          {
+            "name": "subscription setup 1000",
+            "value": 226.46,
+            "range": "±292.1%",
+            "unit": "ops/sec",
+            "extra": "114 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 13.36,
+            "range": "±21.8%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (dirty, indexes: 0)",
+            "value": 13.16,
+            "range": "±10.2%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 6.28,
+            "range": "±6.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 4.11,
+            "range": "±4.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "[MemStore] read tx 1024x1000",
+            "value": 813.8,
+            "range": "±350.0%",
+            "unit": "MB/s",
+            "extra": "415 samples"
+          },
+          {
+            "name": "[MemStore] read tx 1024x5000",
+            "value": 718.06,
+            "range": "±213.2%",
+            "unit": "MB/s",
+            "extra": "70 samples"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 1220.7,
+            "range": "±1100.0%",
+            "unit": "MB/s",
+            "extra": "614 samples"
+          },
+          {
+            "name": "[MemStore] scan 1024x5000",
+            "value": 1479.64,
+            "range": "±472.7%",
+            "unit": "MB/s",
+            "extra": "143 samples"
+          },
+          {
+            "name": "[MemStore] roundtrip write/subscribe/get",
+            "value": 1705.66,
+            "range": "±1416.7%",
+            "unit": "ops/sec",
+            "extra": "853 samples"
+          },
+          {
+            "name": "[MemStore] create index 1024x1000",
+            "value": 8.71,
+            "range": "±4.9%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 1.64,
+            "range": "±1.6%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "[MemStore] subscription 10",
+            "value": 115.61,
+            "range": "±104.8%",
+            "unit": "ops/sec",
+            "extra": "58 samples"
+          },
+          {
+            "name": "[MemStore] subscription 100",
+            "value": 116.19,
+            "range": "±60.0%",
+            "unit": "ops/sec",
+            "extra": "59 samples"
+          },
+          {
+            "name": "[MemStore] subscription 1000",
+            "value": 95.94,
+            "range": "±100.0%",
+            "unit": "ops/sec",
+            "extra": "48 samples"
+          },
+          {
+            "name": "[MemStore] subscription setup 10",
+            "value": 1346.65,
+            "range": "±328.6%",
+            "unit": "ops/sec",
+            "extra": "674 samples"
+          },
+          {
+            "name": "[MemStore] subscription setup 100",
+            "value": 1179.06,
+            "range": "±425.0%",
+            "unit": "ops/sec",
+            "extra": "590 samples"
+          },
+          {
+            "name": "[MemStore] subscription setup 1000",
+            "value": 577.19,
+            "range": "±362.5%",
+            "unit": "ops/sec",
+            "extra": "289 samples"
           }
         ]
       }

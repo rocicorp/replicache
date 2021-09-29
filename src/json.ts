@@ -1,4 +1,3 @@
-import {cloneDeep} from 'lodash-es';
 import {throwInvalidType} from './asserts';
 
 /** The values that can be represented in JSON */
@@ -109,7 +108,46 @@ export function deepEqual(
 }
 
 export function deepClone(value: ReadonlyJSONValue): JSONValue {
-  return cloneDeep(value) as JSONValue;
+  const seen: Set<ReadonlyJSONObject | ReadonlyArray<ReadonlyJSONValue>> =
+    new Set();
+  return internalDeepClone(value, seen);
+}
+
+export function internalDeepClone(
+  value: ReadonlyJSONValue,
+  seen: Set<ReadonlyJSONObject | ReadonlyArray<ReadonlyJSONValue>>,
+): JSONValue {
+  switch (typeof value) {
+    case 'boolean':
+    case 'number':
+    case 'string':
+    case 'undefined':
+      return value;
+    case 'object': {
+      if (value === null) {
+        return null;
+      }
+      if (seen.has(value)) {
+        throw new Error('Cyclic object');
+      }
+      seen.add(value);
+      if (Array.isArray(value)) {
+        return value.map(v => internalDeepClone(v, seen));
+      }
+
+      const obj: JSONObject = {};
+      for (const k of Object.keys(value)) {
+        const v = (value as ReadonlyJSONObject)[k];
+        if (v !== undefined) {
+          obj[k] = internalDeepClone(v, seen);
+        }
+      }
+      return obj;
+    }
+
+    default:
+      throw new Error(`Invalid type: ${typeof value}`);
+  }
 }
 
 export function assertJSONValue(v: unknown): asserts v is JSONValue {

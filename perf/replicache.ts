@@ -25,18 +25,16 @@ export function benchmarkPopulate(opts: {
   numKeys: number;
   clean: boolean;
   indexes?: number;
+  useMemstore: boolean;
 }): Benchmark {
   return {
-    name: `populate ${valSize}x${opts.numKeys} (${
-      opts.clean ? 'clean' : 'dirty'
-    }, ${`indexes: ${opts.indexes || 0}`})`,
+    name: `${opts.useMemstore ? '[MemStore] ' : ''}populate ${valSize}x${
+      opts.numKeys
+    } (${opts.clean ? 'clean' : 'dirty'}, ${`indexes: ${opts.indexes || 0}`})`,
     group: 'replicache',
     byteSize: opts.numKeys * valSize,
-    /**
-     * @param {Bencher} bencher
-     */
-    async run(bencher) {
-      const rep = await makeRepWithPopulate();
+    async run(bencher: Bencher) {
+      const rep = await makeRepWithPopulate(opts.useMemstore);
       if (!opts.clean) {
         await rep.mutate.populate({
           numKeys: opts.numKeys,
@@ -58,14 +56,19 @@ export function benchmarkPopulate(opts: {
   };
 }
 
-export function benchmarkReadTransaction(opts: {numKeys: number}): Benchmark {
+export function benchmarkReadTransaction(opts: {
+  numKeys: number;
+  useMemstore: boolean;
+}): Benchmark {
   let rep: ReplicacheWithPopulate;
   return {
-    name: `read tx ${valSize}x${opts.numKeys}`,
+    name: `${opts.useMemstore ? '[MemStore] ' : ''}read tx ${valSize}x${
+      opts.numKeys
+    }`,
     group: 'replicache',
     byteSize: opts.numKeys * valSize,
     async setup() {
-      rep = await makeRepWithPopulate();
+      rep = await makeRepWithPopulate(opts.useMemstore);
       await rep.mutate.populate({
         numKeys: opts.numKeys,
         randomStrings: makeRandomStrings(opts.numKeys, valSize),
@@ -90,15 +93,20 @@ export function benchmarkReadTransaction(opts: {numKeys: number}): Benchmark {
   };
 }
 
-export function benchmarkScan(opts: {numKeys: number}): Benchmark {
+export function benchmarkScan(opts: {
+  numKeys: number;
+  useMemstore: boolean;
+}): Benchmark {
   let rep: ReplicacheWithPopulate;
   return {
-    name: `scan ${valSize}x${opts.numKeys}`,
+    name: `${opts.useMemstore ? '[MemStore] ' : ''}scan ${valSize}x${
+      opts.numKeys
+    }`,
     group: 'replicache',
     byteSize: opts.numKeys * valSize,
 
     async setup() {
-      rep = await makeRepWithPopulate();
+      rep = await makeRepWithPopulate(opts.useMemstore);
       await rep.mutate.populate({
         numKeys: opts.numKeys,
         randomStrings: makeRandomStrings(opts.numKeys, valSize),
@@ -120,13 +128,18 @@ export function benchmarkScan(opts: {numKeys: number}): Benchmark {
   };
 }
 
-export function benchmarkCreateIndex(opts: {numKeys: number}): Benchmark {
+export function benchmarkCreateIndex(opts: {
+  numKeys: number;
+  useMemstore: boolean;
+}): Benchmark {
   return {
-    name: `create index ${valSize}x${opts.numKeys}`,
+    name: `${opts.useMemstore ? '[MemStore] ' : ''}create index ${valSize}x${
+      opts.numKeys
+    }`,
     group: 'replicache',
 
     async run(bencher: Bencher) {
-      const rep = await makeRepWithPopulate();
+      const rep = await makeRepWithPopulate(opts.useMemstore);
       await rep.mutate.populate({
         numKeys: opts.numKeys,
         randomStrings: makeRandomStrings(opts.numKeys, valSize),
@@ -142,7 +155,9 @@ export function benchmarkCreateIndex(opts: {numKeys: number}): Benchmark {
   };
 }
 
-export function benchmarkWriteReadRoundTrip(): Benchmark {
+export function benchmarkWriteReadRoundTrip(opts: {
+  useMemstore: boolean;
+}): Benchmark {
   let key: string;
   let value: number;
   const mutators = {
@@ -150,10 +165,13 @@ export function benchmarkWriteReadRoundTrip(): Benchmark {
   };
   let rep: Replicache<typeof mutators>;
   return {
-    name: 'roundtrip write/subscribe/get',
+    name: `${
+      opts.useMemstore ? '[MemStore] ' : ''
+    }roundtrip write/subscribe/get`,
     group: 'replicache',
     async setup() {
       rep = await makeRep({
+        useMemstore: opts.useMemstore,
         mutators,
       });
     },
@@ -196,7 +214,10 @@ export function sleep(ms: number): Promise<void> {
   });
 }
 
-export function benchmarkSubscribe(opts: {count: number}): Benchmark {
+export function benchmarkSubscribe(opts: {
+  count: number;
+  useMemstore: boolean;
+}): Benchmark {
   const {count} = opts;
   const maxCount = 1000;
   const minCount = 10;
@@ -205,13 +226,11 @@ export function benchmarkSubscribe(opts: {count: number}): Benchmark {
     throw new Error('Please increase maxCount');
   }
   return {
-    name: `subscription ${count}`,
+    name: `${opts.useMemstore ? '[MemStore] ' : ''}subscription ${count}`,
     group: 'replicache',
-    /**
-     * @param {Bencher} bencher
-     */
-    async run(bencher) {
+    async run(bencher: Bencher) {
       const rep = await makeRep({
+        useMemstore: opts.useMemstore,
         mutators: {
           async init(tx: WriteTransaction) {
             await Promise.all(
@@ -274,7 +293,10 @@ export function benchmarkSubscribe(opts: {count: number}): Benchmark {
   };
 }
 
-export function benchmarkSubscribeSetup(opts: {count: number}): Benchmark {
+export function benchmarkSubscribeSetup(opts: {
+  count: number;
+  useMemstore: boolean;
+}): Benchmark {
   const {count} = opts;
   const maxCount = 1000;
   const key = (k: number) => `key${k}`;
@@ -282,19 +304,13 @@ export function benchmarkSubscribeSetup(opts: {count: number}): Benchmark {
     throw new Error('Please increase maxCount');
   }
   return {
-    name: `subscription setup ${count}`,
+    name: `${opts.useMemstore ? '[MemStore] ' : ''}subscription setup ${count}`,
     group: 'replicache',
-    /**
-     * @param {Bencher} bencher
-     */
-    async run(bencher) {
+    async run(bencher: Bencher) {
       const rep = await makeRep({
+        useMemstore: opts.useMemstore,
         mutators: {
-          /**
-           * @param {WriteTransaction} tx
-           * @param {number} count
-           */
-          async init(tx) {
+          async init(tx: WriteTransaction) {
             await Promise.all(
               Array.from({length: maxCount}, (_, i) => tx.put(key(i), i)),
             );
@@ -359,7 +375,7 @@ type ReplicacheWithPopulate = UnwrapPromise<
   ReturnType<typeof makeRepWithPopulate>
 >;
 
-async function makeRepWithPopulate() {
+async function makeRepWithPopulate(useMemstore: boolean) {
   const mutators = {
     populate: async (
       tx: WriteTransaction,
@@ -371,6 +387,30 @@ async function makeRepWithPopulate() {
     },
   };
   return makeRep({
+    useMemstore,
     mutators,
   });
+}
+
+export function benchmarks(): Benchmark[] {
+  const bs = (useMemstore: boolean) => [
+    benchmarkPopulate({numKeys: 1000, clean: true, useMemstore}),
+    benchmarkPopulate({numKeys: 1000, clean: false, useMemstore}),
+    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1, useMemstore}),
+    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 2, useMemstore}),
+    benchmarkReadTransaction({numKeys: 1000, useMemstore}),
+    benchmarkReadTransaction({numKeys: 5000, useMemstore}),
+    benchmarkScan({numKeys: 1000, useMemstore}),
+    benchmarkScan({numKeys: 5000, useMemstore}),
+    benchmarkWriteReadRoundTrip({useMemstore}),
+    benchmarkCreateIndex({numKeys: 1000, useMemstore}),
+    benchmarkCreateIndex({numKeys: 5000, useMemstore}),
+    benchmarkSubscribe({count: 10, useMemstore}),
+    benchmarkSubscribe({count: 100, useMemstore}),
+    benchmarkSubscribe({count: 1000, useMemstore}),
+    benchmarkSubscribeSetup({count: 10, useMemstore}),
+    benchmarkSubscribeSetup({count: 100, useMemstore}),
+    benchmarkSubscribeSetup({count: 1000, useMemstore}),
+  ];
+  return [...bs(false), ...bs(true)];
 }

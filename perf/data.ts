@@ -40,7 +40,7 @@ export function makeRandomStrings(
   return Array.from({length: numStrings}, () => randomString(strLen));
 }
 
-function randomString(len: number): string {
+export function randomString(len: number): string {
   const arr = randomUint8Array(len);
   return new TextDecoder('ascii').decode(arr);
 }

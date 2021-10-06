@@ -10,7 +10,7 @@ import * as os from 'os';
 import * as path from 'path';
 import {promises as fs} from 'fs';
 
-const allBrowsers = ['chromium', 'webkit', 'firefox'];
+const allBrowsers = ['chromium', 'firefox', 'webkit'];
 
 function browser(arg) {
   arg = arg.toLowerCase();

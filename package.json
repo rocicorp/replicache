@@ -66,6 +66,7 @@
   ],
   "dependencies": {
     "flatbuffers": "^2.0.3",
-    "hash-wasm": "^4.9.0"
+    "hash-wasm": "^4.9.0",
+    "nanoid": "^3.1.29"
   }
 }

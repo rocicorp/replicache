@@ -118,22 +118,19 @@ npm publish
 
 If there are any API changes, ensure they have been discussed before release.
 
-## Update docs
+## Release docs
 
 The docs are built from the `docs` branch so we need to rebase that to get it
 to deploy a new version.
 
 ```
 git checkout docs
-git reset --hard main
+git pull
+git reset --hard <tag-of-release>
 git push origin docs
 ```
 
-# Performance Monitoring
-
-We continuously track performance across a variety of benchmarks. Results here:
-
-https://rocicorp.github.io/replicache/perf/
+**Important:** Only do this when releasing a new version, otherwise we will release early docs that don't match current released code. To cherry-pick doc improvements see: "sprucing the docs", below.
 
 # Sprucing the docs
 
@@ -143,8 +140,15 @@ However, this means that if you do cleanup docs changes that you want to show up
 
 ```
 git checkout docs
+git pull
 git cherry-pick <hash-of-spruce-commit>
 git push origin docs
 ```
 
 During release, below, we reset the `docs` branch to main, dropping these cherry-picked changes. So it's important to never do work directly on `docs`.
+
+# Performance Monitoring
+
+We continuously track performance across a variety of benchmarks. Results here:
+
+https://rocicorp.github.io/replicache/perf/

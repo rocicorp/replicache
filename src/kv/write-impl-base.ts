@@ -45,4 +45,8 @@ export class WriteImplBase {
   release(): void {
     this._read.release();
   }
+
+  get closed(): boolean {
+    return this._read.closed;
+  }
 }

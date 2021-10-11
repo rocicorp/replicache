@@ -10,11 +10,12 @@ import {
   Chain,
 } from '../db/test-helpers';
 import {MemStore} from '../kv/mod';
-import type {HTTPRequestInfo} from '../repm-invoker';
+import type {HTTPRequestInfo} from '../http-request-info';
 import {SYNC_HEAD_NAME} from './sync-head-name';
-import {InternalPusher, push, PushRequest, PUSH_VERSION} from './push';
+import {push, PushRequest, PUSH_VERSION} from './push';
 import {LogContext} from '../logger';
 import {initHasher} from '../hash';
+import type {Pusher} from '../pusher';
 
 setup(async () => {
   await initHasher();
@@ -29,40 +30,25 @@ type FakePusherArgs = {
   err?: string;
 };
 
-class FakePusher implements InternalPusher, FakePusherArgs {
-  readonly expPush;
-  readonly expPushReq?: PushRequest;
-  readonly expPushURL;
-  readonly expPushAuth;
-  readonly expRequestID;
-  readonly err?: string;
+function makeFakePusher(options: FakePusherArgs): Pusher {
+  return async (req: Request): Promise<HTTPRequestInfo> => {
+    expect(options.expPush).to.be.true;
 
-  constructor(options: FakePusherArgs) {
-    this.expPush = options.expPush;
-    this.expPushReq = options.expPushReq;
-    this.expPushURL = options.expPushURL;
-    this.expPushAuth = options.expPushAuth;
-    this.expRequestID = options.expRequestID;
-    this.err = options.err;
-  }
+    const pushReq = await req.json();
 
-  async push(
-    pushReq: PushRequest,
-    pushUrl: string,
-    pushAuth: string,
-    requestID: string,
-  ): Promise<HTTPRequestInfo> {
-    expect(this.expPush).to.be.true;
-
-    if (this.expPushReq) {
-      expect(this.expPushReq).to.deep.equal(pushReq);
-      expect(this.expPushURL).to.equal(pushUrl);
-      expect(this.expPushAuth).to.equal(pushAuth);
-      expect(this.expRequestID).to.equal(requestID);
+    if (options.expPushReq) {
+      expect(options.expPushReq).to.deep.equal(pushReq);
+      expect(new URL(options.expPushURL, location.href).toString()).to.equal(
+        req.url,
+      );
+      expect(options.expPushAuth).to.equal(req.headers.get('Authorization'));
+      expect(options.expRequestID).to.equal(
+        req.headers.get('X-Replicache-RequestID'),
+      );
     }
 
-    if (this.err) {
-      if (this.err === 'FetchNotOk(500)') {
+    if (options.err) {
+      if (options.err === 'FetchNotOk(500)') {
         return {
           httpStatusCode: 500,
           errorMessage: 'Fetch not OK',
@@ -76,7 +62,7 @@ class FakePusher implements InternalPusher, FakePusherArgs {
       httpStatusCode: 200,
       errorMessage: '',
     };
-  }
+  };
 }
 
 test('try push', async () => {
@@ -238,7 +224,7 @@ test('try push', async () => {
       }
     })();
 
-    const pusher = new FakePusher({
+    const pusher = makeFakePusher({
       expPush,
       expPushReq: c.expPushReq,
       expPushURL: pushURL,
@@ -248,15 +234,16 @@ test('try push', async () => {
     });
 
     const clientID = 'test_client_id';
-    const batchPushInfo = await push(requestID, store, lc, clientID, pusher, {
+    const batchPushInfo = await push(
+      requestID,
+      store,
+      lc,
+      clientID,
+      pusher,
       pushURL,
       pushAuth,
-      schemaVersion: pushSchemaVersion,
-      pusher: () => {
-        // not used with fake pusher
-        throw new Error('unreachable');
-      },
-    });
+      pushSchemaVersion,
+    );
 
     expect(batchPushInfo).to.deep.equal(c.expBatchPushInfo, `name: ${c.name}`);
   }

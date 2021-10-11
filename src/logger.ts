@@ -70,7 +70,8 @@ export class LogContext implements Logger {
   }
 
   addContext(key: string, value: unknown): LogContext {
-    return new LogContext(this._logLevel, `${this._s}${key}=${value} `);
+    const space = this._s ? ' ' : '';
+    return new LogContext(this._logLevel, `${space}${this._s}${key}=${value}`);
   }
 
   private get _logLevel(): LogLevel {

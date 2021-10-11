@@ -1,6 +1,13 @@
-export {Write, initDB} from './write';
-export {Read, readIndexes, readCommit} from './read';
-export {whenceHead, whenceHash, fromWhence} from './read';
+export {Write, initDB, maybeInitDefaultDB} from './write';
+export {
+  Read,
+  readIndexes,
+  readCommit,
+  whenceHead,
+  whenceHash,
+  fromWhence,
+  readFromDefaultHead,
+} from './read';
 export {
   DEFAULT_HEAD_NAME,
   Commit,

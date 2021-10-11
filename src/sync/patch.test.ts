@@ -183,15 +183,15 @@ test('patch', async () => {
       }
       if (c.expErr) {
         expect(err).to.be.instanceOf(Error);
-        expect(err.message).to.equal(c.expErr);
+        expect((err as Error).message).to.equal(c.expErr);
       }
 
       if (c.expMap !== undefined) {
         for (const [k, v] of c.expMap) {
-          expect(v).to.deep.equal(dbWrite.asRead().get(k));
+          expect(v).to.deep.equal(dbWrite.get(k));
         }
         if (c.expMap.size === 0) {
-          expect(dbWrite.asRead().has('key')).to.be.false;
+          expect(dbWrite.has('key')).to.be.false;
         }
       }
     });

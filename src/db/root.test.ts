@@ -21,8 +21,8 @@ test('getRoot', async () => {
       } catch (e) {
         err = e;
       }
-      expect(err).to.be.an.instanceof(expected.constructor);
-      expect(err.message).to.equal(expected.message);
+      expect(err).to.be.an.instanceof(Error);
+      expect((err as Error).message).to.equal(expected.message);
     } else {
       const actual = await getRoot(ds, DEFAULT_HEAD_NAME);
       expect(actual).to.equal(expected);

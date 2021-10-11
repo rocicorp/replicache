@@ -1,17 +1,18 @@
 import type {ReadonlyJSONValue} from '../json';
 import * as db from '../db/mod';
 import type * as dag from '../dag/mod';
-import {
-  assertHTTPRequestInfo,
-  HTTPRequestInfo,
-  TryPushRequest,
-} from '../repm-invoker';
+import {assertHTTPRequestInfo, HTTPRequestInfo} from '../http-request-info';
 import {Pusher, PushError} from '../pusher';
 import {callJSRequest} from './js-request';
 import type {LogContext} from '../logger';
+import {toError} from '../to-error';
 
 export const PUSH_VERSION = 0;
 
+/**
+ * The JSON value used as the body when doing a POST to the [push
+ * endpoint](/server-push).
+ */
 export type PushRequest = {
   clientID: string;
   mutations: Mutation[];
@@ -22,20 +23,14 @@ export type PushRequest = {
   schemaVersion: string;
 };
 
+/**
+ * Mutation describes a single mutation done on the client.
+ */
 export type Mutation = {
   readonly id: number;
   readonly name: string;
   readonly args: ReadonlyJSONValue;
 };
-
-export interface InternalPusher {
-  push(
-    pushReq: PushRequest,
-    pushUrl: string,
-    pushAuth: string,
-    requestID: string,
-  ): Promise<HTTPRequestInfo>;
-}
 
 export function convert(lm: db.LocalMeta): Mutation {
   return {
@@ -50,8 +45,10 @@ export async function push(
   store: dag.Store,
   lc: LogContext,
   clientID: string,
-  pusher: InternalPusher,
-  req: TryPushRequest,
+  pusher: Pusher,
+  pushURL: string,
+  pushAuth: string,
+  schemaVersion: string,
 ): Promise<HTTPRequestInfo | undefined> {
   // Find pending commits between the base snapshot and the main head and push
   // them to the data layer.
@@ -81,48 +78,35 @@ export async function push(
       clientID,
       mutations: pushMutations,
       pushVersion: PUSH_VERSION,
-      schemaVersion: req.schemaVersion,
+      schemaVersion,
     };
     lc.debug?.('Starting push...');
     const pushStart = Date.now();
-    const reqInfo = await pusher.push(
+    httpRequestInfo = await callPusher(
+      pusher,
+      pushURL,
       pushReq,
-      req.pushURL,
-      req.pushAuth,
+      pushAuth,
       requestID,
     );
-
-    httpRequestInfo = reqInfo;
-
     lc.debug?.('...Push complete in ', Date.now() - pushStart, 'ms');
   }
 
   return httpRequestInfo;
 }
 
-// TODO(arv): This abstraction can be removed.
-export class JSPusher implements InternalPusher {
-  private readonly _pusher: Pusher;
-
-  constructor(pusher: Pusher) {
-    this._pusher = pusher;
-  }
-  async push(
-    pushReq: PushRequest,
-    url: string,
-    auth: string,
-    requestID: string,
-  ): Promise<HTTPRequestInfo> {
-    const {clientID, mutations, pushVersion, schemaVersion} = pushReq;
-
-    const body = {clientID, mutations, pushVersion, schemaVersion};
-
-    try {
-      const res = await callJSRequest(this._pusher, url, body, auth, requestID);
-      assertHTTPRequestInfo(res);
-      return res;
-    } catch (e) {
-      throw new PushError(e);
-    }
+async function callPusher(
+  pusher: Pusher,
+  url: string,
+  body: PushRequest,
+  auth: string,
+  requestID: string,
+): Promise<HTTPRequestInfo> {
+  try {
+    const res = await callJSRequest(pusher, url, body, auth, requestID);
+    assertHTTPRequestInfo(res);
+    return res;
+  } catch (e) {
+    throw new PushError(toError(e));
   }
 }

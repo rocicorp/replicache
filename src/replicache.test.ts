@@ -1,7 +1,8 @@
-import {ReplicacheTest, httpStatusUnauthorized} from './replicache';
+import {httpStatusUnauthorized} from './replicache';
+import {ReplicacheTest} from './test-util';
 import type {MutatorDefs} from './replicache';
 import type {ReplicacheOptions} from './replicache-options';
-import {Replicache, TransactionClosedError} from './mod';
+import {PatchOperation, Replicache, TransactionClosedError} from './mod';
 
 import type {ReadTransaction, WriteTransaction} from './mod';
 import type {JSONValue, ReadonlyJSONValue} from './json';
@@ -21,18 +22,18 @@ import {closeAllReps, deletaAllDatabases, reps, dbsToDrop} from './test-util';
 import {sleep} from './sleep';
 import {MemStore} from './kv/mem-store';
 import type * as kv from './kv/mod';
-import * as embed from './embed/mod';
+import * as db from './db/mod';
+import * as dag from './dag/mod';
 import {TestMemStore} from './kv/test-mem-store';
+import {WriteTransactionImpl} from './transactions';
 
 let clock: SinonFakeTimers;
 setup(() => {
   clock = useFakeTimers(0);
-  embed.setIsTesting(true);
 });
 
 teardown(() => {
   clock.restore();
-  embed.setIsTesting(false);
 });
 
 async function tickAFewTimes(n = 10, time = 10) {
@@ -1536,6 +1537,10 @@ testWithBothStores('pullInterval in constructor', async () => {
 });
 
 testWithBothStores('closeTransaction after rep.scan', async () => {
+  const readSpy = sinon.spy(dag.Store.prototype, 'read');
+  const scanSpy = sinon.spy(db.Read.prototype, 'scan');
+  const closeSpy = sinon.spy(db.Read.prototype, 'close');
+
   const rep = await replicacheForTesting('test5', {mutators: {addData}});
   const add = rep.mutate.addData;
   await add({
@@ -1543,28 +1548,29 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
     'a/1': 1,
   });
 
-  embed.clearTestLog();
+  const log: ReadonlyJSONValue[] = [];
 
   function expectCalls(l: JSONValue[]) {
     expect(l).to.deep.equal(log);
-    const names = embed.testLog.map(({name}) => name);
-    expect(names).to.deep.equal([
-      `openReadTransaction`,
-      'scan',
-      'closeTransaction',
-    ]);
+
+    expect(readSpy.callCount).to.equal(1);
+    expect(scanSpy.callCount).to.equal(1);
+    expect(closeSpy.callCount).to.equal(1);
+
+    readSpy.resetHistory();
+    scanSpy.resetHistory();
+    closeSpy.resetHistory();
+    log.length = 0;
   }
 
   const it = rep.scan();
-  const log: ReadonlyJSONValue[] = [];
+
   for await (const v of it) {
     log.push(v);
   }
   expectCalls([0, 1]);
 
   // One more time with return in loop...
-  log.length = 0;
-  embed.clearTestLog();
   await (async () => {
     if (!rep) {
       fail();
@@ -1578,8 +1584,6 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
   expectCalls([0]);
 
   // ... and with a break.
-  log.length = 0;
-  embed.clearTestLog();
   {
     const it = rep.scan();
     for await (const v of it) {
@@ -1590,8 +1594,6 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
   expectCalls([0]);
 
   // ... and with a throw.
-  log.length = 0;
-  embed.clearTestLog();
   (
     await expectPromiseToReject(
       (async () => {
@@ -1610,8 +1612,6 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
   expectCalls([0]);
 
   // ... and with a throw.
-  log.length = 0;
-  embed.clearTestLog();
   (
     await expectPromiseToReject(
       (async () => {
@@ -1854,60 +1854,6 @@ testWithBothStores('index scan start', async () => {
   await rep.dropIndex('bIndex');
 });
 
-// Only used for type checking
-test.skip('mutator optional args [type checking only]', async () => {
-  const rep = await replicacheForTesting('test-types', {
-    mutators: {
-      mut: async (tx: WriteTransaction, x: number) => {
-        console.log(tx);
-        return x;
-      },
-      mut2: (tx: WriteTransaction, x: string) => {
-        console.log(tx);
-        return x;
-      },
-      mut3: tx => {
-        console.log(tx);
-      },
-      mut4: async tx => {
-        console.log(tx);
-      },
-    },
-  });
-
-  const {mut, mut2, mut3, mut4} = rep.mutate;
-  const res: number = await mut(42);
-  console.log(res);
-
-  const res2: string = await mut2('s');
-  console.log(res2);
-
-  await mut3();
-  //  @ts-expect-error: Expected 0 arguments, but got 1.ts(2554)
-  await mut3(42);
-  //  @ts-expect-error: Type 'void' is not assignable to type 'number'.ts(2322)
-  const res3: number = await mut3();
-  console.log(res3);
-
-  await mut4();
-  //  @ts-expect-error: Expected 0 arguments, but got 1.ts(2554)
-  await mut4(42);
-  //  @ts-expect-error: Type 'void' is not assignable to type 'number'.ts(2322)
-  const res4: number = await mut4();
-  console.log(res4);
-
-  // This should be an error!
-  // await replicacheForTesting('test-types-2', {
-  //   mutators: {
-  //     // @ts-expect-error symbol is not a JSONValue
-  //     mut5: (tx: WriteTransaction, x: symbol) => {
-  //       console.log(tx, x);
-  //       return 42;
-  //     },
-  //   },
-  // });
-});
-
 testWithBothStores('logLevel', async () => {
   const info = sinon.stub(console, 'info');
   const debug = sinon.stub(console, 'debug');
@@ -1938,11 +1884,7 @@ testWithBothStores('logLevel', async () => {
   expect(debug.callCount).to.be.greaterThan(0);
 
   expect(
-    debug
-      .getCalls()
-      .some(call =>
-        call.firstArg.includes('db=log-level rpc=openReadTransaction'),
-      ),
+    debug.getCalls().some(call => call.firstArg === 'db=log-level'),
   ).to.equal(true);
   expect(
     debug.getCalls().some(call => call.firstArg.includes('PULL')),
@@ -1952,113 +1894,6 @@ testWithBothStores('logLevel', async () => {
   ).to.equal(true);
 
   await rep.close();
-});
-
-// Only used for type checking
-test.skip('Test partial JSONObject [type checking only]', async () => {
-  const rep = await replicacheForTesting('test-types', {
-    mutators: {
-      mut: async (tx: WriteTransaction, todo: Partial<Todo>) => {
-        console.log(tx);
-        return todo;
-      },
-    },
-  });
-
-  type Todo = {id: number; text: string};
-
-  const {mut} = rep.mutate;
-  await mut({});
-  await mut({id: 42});
-  await mut({text: 'abc'});
-
-  // @ts-expect-error Type '42' has no properties in common with type 'Partial<Todo>'.ts(2559)
-  await mut(42);
-  // @ts-expect-error Type 'string' is not assignable to type 'number | undefined'.ts(2322)
-  await mut({id: 'abc'});
-});
-
-// Only used for type checking
-test.skip('Test register param [type checking only]', async () => {
-  const rep = await replicacheForTesting('test-types', {
-    mutators: {
-      mut: async (tx: WriteTransaction) => {
-        console.log(tx);
-      },
-      mut2: async (tx: WriteTransaction, x: string) => {
-        console.log(tx, x);
-      },
-      mut3: async (tx: WriteTransaction, x: string) => {
-        console.log(tx, x);
-      },
-      mut4: async (tx: WriteTransaction) => {
-        console.log(tx);
-      },
-    },
-  });
-
-  const mut: () => Promise<void> = rep.mutate.mut;
-  console.log(mut);
-
-  // @ts-expect-error Type 'number' is not assignable to type 'string'.ts(2322)
-  const mut2: (x: number) => Promise<void> = rep.mutate.mut2;
-  console.log(mut2);
-
-  // @ts-expect-error Type '(args: string) => Promise<void>' is not assignable to type '() => Promise<void>'.ts(2322)
-  const mut3: () => Promise<void> = rep.mutate.mut3;
-  console.log(mut3);
-
-  // This is fine according to the rules of JS/TS
-  const mut4: (x: number) => Promise<void> = rep.mutate.mut4;
-  console.log(mut4);
-
-  await replicacheForTesting('test-types', {
-    mutators: {
-      // @ts-expect-error Type '(tx: WriteTransaction, a: string, b: number) =>
-      //   Promise<void>' is not assignable to type '(tx: WriteTransaction,
-      //   args?: any) => MaybePromise<void | JSONValue>'.ts(2322)
-      mut5: async (tx: WriteTransaction, a: string, b: number) => {
-        console.log(tx, a, b);
-      },
-    },
-  });
-});
-
-// Only used for type checking
-test.skip('Key type for scans [type checking only]', async () => {
-  const rep = await replicacheForTesting('test-types');
-
-  for await (const k of rep.scan({indexName: 'n'}).keys()) {
-    // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
-    const k2: string = k;
-    console.log(k2);
-  }
-
-  for await (const k of rep.scan({indexName: 'n', start: {key: 's'}}).keys()) {
-    // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
-    const k2: string = k;
-    console.log(k2);
-  }
-
-  for await (const k of rep
-    .scan({indexName: 'n', start: {key: ['s']}})
-    .keys()) {
-    // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
-    const k2: string = k;
-    console.log(k2);
-  }
-
-  for await (const k of rep.scan({start: {key: 'p'}}).keys()) {
-    // @ts-expect-error Type 'string' is not assignable to type '[string]'.ts(2322)
-    const k2: [string] = k;
-    console.log(k2);
-  }
-
-  // @ts-expect-error Type 'number' is not assignable to type 'string | undefined'.ts(2322)
-  rep.scan({indexName: 'n', start: {key: ['s', 42]}});
-
-  // @ts-expect-error Type '[string]' is not assignable to type 'string'.ts(2322)
-  rep.scan({start: {key: ['s']}});
 });
 
 test('mem store', async () => {
@@ -2206,7 +2041,8 @@ testWithBothStores('push timing', async () => {
     useMemstore: true,
     mutators: {addData},
   });
-  embed.clearTestLog();
+
+  const invokePushSpy = sinon.spy(rep, 'invokePush');
 
   const add = rep.mutate.addData;
 
@@ -2214,12 +2050,13 @@ testWithBothStores('push timing', async () => {
   await add({a: 0});
   await tickAFewTimes();
 
-  const tryPushCalls = () =>
-    embed.testLog.filter(({name}) => name === 'tryPush').length;
+  const pushCallCount = () => {
+    const rv = invokePushSpy.callCount;
+    invokePushSpy.resetHistory();
+    return rv;
+  };
 
-  expect(tryPushCalls()).to.equal(1);
-
-  embed.clearTestLog();
+  expect(pushCallCount()).to.equal(1);
 
   // This will schedule push in pushDelay ms
   await add({a: 1});
@@ -2227,28 +2064,27 @@ testWithBothStores('push timing', async () => {
   await add({c: 3});
   await add({d: 4});
 
-  expect(tryPushCalls()).to.equal(0);
+  expect(pushCallCount()).to.equal(0);
 
   await clock.tickAsync(pushDelay + 10);
 
-  expect(tryPushCalls()).to.equal(1);
-  embed.clearTestLog();
+  expect(pushCallCount()).to.equal(1);
 
   const p1 = add({e: 5});
   const p2 = add({f: 6});
   const p3 = add({g: 7});
 
-  expect(tryPushCalls()).to.equal(0);
+  expect(pushCallCount()).to.equal(0);
 
   await tickAFewTimes();
   await p1;
-  expect(tryPushCalls()).to.equal(1);
+  expect(pushCallCount()).to.equal(1);
   await tickAFewTimes();
   await p2;
-  expect(tryPushCalls()).to.equal(1);
+  expect(pushCallCount()).to.equal(0);
   await tickAFewTimes();
   await p3;
-  expect(tryPushCalls()).to.equal(1);
+  expect(pushCallCount()).to.equal(0);
 });
 
 testWithBothStores('push and pull concurrently', async () => {
@@ -2262,7 +2098,35 @@ testWithBothStores('push and pull concurrently', async () => {
     pushDelay: 10,
     mutators: {addData},
   });
-  embed.clearTestLog();
+
+  const beginPullSpy = sinon.spy(rep, 'beginPull');
+  const commitSpy = sinon.spy(db.Write.prototype, 'commitWithChangedKeys');
+  const invokePushSpy = sinon.spy(rep, 'invokePush');
+  const putSpy = sinon.spy(WriteTransactionImpl.prototype, 'put');
+  const withWriteSpy = sinon.spy(dag.Store.prototype, 'withWrite');
+  const writeSpy = sinon.spy(dag.Store.prototype, 'write');
+
+  function resetSpys() {
+    beginPullSpy.resetHistory();
+    commitSpy.resetHistory();
+    invokePushSpy.resetHistory();
+    putSpy.resetHistory();
+    withWriteSpy.resetHistory();
+    writeSpy.resetHistory();
+  }
+
+  const callCounts = () => {
+    const rv = {
+      beginPull: beginPullSpy.callCount,
+      commit: commitSpy.callCount,
+      invokePush: invokePushSpy.callCount,
+      put: putSpy.callCount,
+      withWrite: withWriteSpy.callCount,
+      write: writeSpy.callCount,
+    };
+    resetSpys();
+    return rv;
+  };
 
   const add = rep.mutate.addData;
 
@@ -2278,40 +2142,39 @@ testWithBothStores('push and pull concurrently', async () => {
   });
 
   await add({a: 0});
-  embed.clearTestLog();
+  resetSpys();
 
   await add({b: 1});
-  const pullP1 = rep.pull();
+  rep.pull();
 
   await clock.tickAsync(10);
 
-  const rpcs = () => embed.testLog.map(({name}) => name);
-
   // Only one push at a time but we want push and pull to be concurrent.
-  expect(rpcs()).to.deep.equal([
-    'openWriteTransaction',
-    'put',
-    'commitTransaction',
-    'beginPull',
-    'tryPush',
-  ]);
+  expect(callCounts()).to.deep.equal({
+    beginPull: 1,
+    commit: 1,
+    invokePush: 1,
+    put: 1,
+    withWrite: 2,
+    write: 0,
+  });
 
   await tickAFewTimes();
 
   expect(reqs).to.deep.equal([pullURL, pushURL]);
 
   await tickAFewTimes();
-  await pullP1;
 
   expect(reqs).to.deep.equal([pullURL, pushURL]);
 
-  expect(rpcs()).to.deep.equal([
-    'openWriteTransaction',
-    'put',
-    'commitTransaction',
-    'beginPull',
-    'tryPush',
-  ]);
+  expect(callCounts()).to.deep.equal({
+    beginPull: 0,
+    commit: 0,
+    invokePush: 0,
+    put: 0,
+    withWrite: 0,
+    write: 0,
+  });
 });
 
 test('schemaVersion pull', async () => {
@@ -2374,144 +2237,31 @@ test('clientID', async () => {
   await rep4.close();
 });
 
-// Only used for type checking
-test.skip('mut [type checking only]', async () => {
-  const rep = new Replicache({
-    mutators: {
-      a: (tx: WriteTransaction) => {
-        console.log(tx);
-        return 42;
-      },
-      b: (tx: WriteTransaction, x: number) => {
-        console.log(tx, x);
-        return 'hi';
-      },
-
-      // Return void
-      c: (tx: WriteTransaction) => {
-        console.log(tx);
-      },
-      d: (tx: WriteTransaction, x: number) => {
-        console.log(tx, x);
-      },
-
-      e: async (tx: WriteTransaction) => {
-        console.log(tx);
-        return 42;
-      },
-      f: async (tx: WriteTransaction, x: number) => {
-        console.log(tx, x);
-        return 'hi';
-      },
-
-      // Return void
-      g: async (tx: WriteTransaction) => {
-        console.log(tx);
-      },
-      h: async (tx: WriteTransaction, x: number) => {
-        console.log(tx, x);
-      },
-
-      // // This should be flagged as an error but I need to use `any` for the
-      // // arg since I need covariance and TS uses contravariance here.
-      // // @ts-expect-error XXX
-      // i: (tx: WriteTransaction, d: Date) =>
-      // {console.log(tx, d);
-      // },
-    },
-  });
-
-  rep.mutate.a() as Promise<number>;
-  rep.mutate.b(4) as Promise<string>;
-
-  rep.mutate.c() as Promise<void>;
-  rep.mutate.d(2) as Promise<void>;
-
-  rep.mutate.e() as Promise<number>;
-  rep.mutate.f(4) as Promise<string>;
-
-  rep.mutate.g() as Promise<void>;
-  rep.mutate.h(2) as Promise<void>;
-
-  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
-  await rep.mutate.b();
-  //@ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
-  await rep.mutate.b(null);
-
-  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
-  await rep.mutate.d();
-  //@ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
-  await rep.mutate.d(null);
-
-  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
-  await rep.mutate.f();
-  //@ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
-  await rep.mutate.f(null);
-
-  // @ts-expect-error Expected 1 arguments, but got 0.ts(2554)
-  await rep.mutate.h();
-  // @ts-expect-error Argument of type 'null' is not assignable to parameter of type 'number'.ts(2345)
-  await rep.mutate.h(null);
-
-  {
-    const rep = new Replicache({mutators: {}});
-    // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
-    rep.mutate.abc(43);
-  }
-
-  {
-    const rep = new Replicache({});
-    // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
-    rep.mutate.abc(1, 2, 3);
-  }
-
-  {
-    const rep = new Replicache();
-    // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
-    rep.mutate.abc(1, 2, 3);
-  }
-});
-
-// Only used for type checking
-test.skip('scan with index [type checking only]', async () => {
-  const rep = await replicacheForTesting('scan-with-index');
-
-  (await rep.scan({indexName: 'a'}).keys().toArray()) as [
-    secondary: string,
-    primary: string,
-  ][];
-
-  (await rep.scan({}).keys().toArray()) as string[];
-  (await rep.scan().keys().toArray()) as string[];
-
-  await rep.query(async tx => {
-    (await tx.scan({indexName: 'a'}).keys().toArray()) as [
-      secondary: string,
-      primary: string,
-    ][];
-
-    (await tx.scan({}).keys().toArray()) as string[];
-    (await tx.scan().keys().toArray()) as string[];
-  });
-});
-
 testWithBothStores('pull and index update', async () => {
   const pullURL = 'https://pull.com/rep';
   const rep = await replicacheForTesting('pull-and-index-update', {
     pullURL,
-    mutators: {addData},
   });
 
   const indexName = 'idx1';
   let lastMutationID = 0;
 
-  async function testPull(opt: {patch: Patch[]; expectedResult: JSONValue}) {
-    fetchMock.post(pullURL, {
-      lastMutationID: lastMutationID++,
-      patch: opt.patch,
+  async function testPull(opt: {
+    patch: PatchOperation[];
+    expectedResult: JSONValue;
+  }) {
+    let pullDone = false;
+    fetchMock.post(pullURL, () => {
+      pullDone = true;
+      return {
+        lastMutationID: lastMutationID++,
+        patch: opt.patch,
+      };
     });
 
     rep.pull();
+
+    await tickUntil(() => pullDone);
     await tickAFewTimes();
 
     const actualResult = await rep.scan({indexName}).entries().toArray();
@@ -2573,13 +2323,6 @@ testWithBothStores('pull and index update', async () => {
   });
 });
 
-type Patch =
-  | {
-      op: 'clear';
-    }
-  | {op: 'put'; key: string; value: JSONValue}
-  | {op: 'del'; key: string};
-
 testWithBothStores('subscribe pull and index update', async () => {
   const pullURL = 'https://pull.com/rep';
   const rep = await replicacheForTesting('subscribe-pull-and-index-update', {
@@ -2610,7 +2353,7 @@ testWithBothStores('subscribe pull and index update', async () => {
   let expectedQueryCallCount = 1;
 
   async function testPull(opt: {
-    patch: Patch[];
+    patch: PatchOperation[];
     expectedLog: JSONValue[];
     expectChange: boolean;
   }) {
@@ -2908,6 +2651,11 @@ class MemStoreWithCounters implements kv.Store {
 
   async close() {
     this.closeCount++;
+    await this.store.close();
+  }
+
+  get closed(): boolean {
+    return this.store.closed;
   }
 }
 

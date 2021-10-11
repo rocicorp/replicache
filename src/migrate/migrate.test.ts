@@ -11,6 +11,7 @@ import {
 import {migrate} from './migrate';
 import type {Store, Value} from '../kv/store';
 import {TestMemStore} from '../kv/test-mem-store';
+import {LogContext} from '../logger';
 
 setup(async () => {
   await initHasher();
@@ -23,7 +24,7 @@ async function testMigrate(
   const kv = new TestMemStore();
   await writeSampleData(kv, inputdata);
 
-  await migrate(kv);
+  await migrate(kv, new LogContext());
 
   const actual = Object.fromEntries(kv.entries());
   expect(actual).to.deep.equal(expected);

@@ -3,8 +3,8 @@ import {assertNotUndefined} from '../asserts';
 import {assertObject, assertString} from '../asserts';
 import * as dag from '../dag/mod';
 import * as db from '../db/mod';
+import type * as sync from '../sync/mod';
 import {Commit, DEFAULT_HEAD_NAME} from '../db/mod';
-// import {fromWhence, whenceHead} from '../db/read';
 import {
   addGenesis,
   addIndexChange,
@@ -15,20 +15,20 @@ import {
 } from '../db/test-helpers';
 import type {ReadonlyJSONValue} from '../json';
 import {MemStore} from '../kv/mod';
-import type {PatchOperation, PullResponse} from '../puller';
 import type {
-  BeginPullRequest,
-  BeginPullResponse,
-  ChangedKeysMap,
-  HTTPRequestInfo,
-  MaybeEndPullRequest,
-  MaybeEndPullResponse,
-} from '../repm-invoker';
+  PatchOperation,
+  Puller,
+  PullerResult,
+  PullResponse,
+} from '../puller';
+import type {HTTPRequestInfo} from '../http-request-info';
 import {SYNC_HEAD_NAME} from './sync-head-name';
 import {
   beginPull,
-  InternalPuller,
+  BeginPullRequest,
+  BeginPullResponse,
   maybeEndPull,
+  MaybeEndPullResult,
   PullRequest,
   PULL_VERSION,
 } from './pull';
@@ -120,7 +120,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -139,7 +138,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -158,7 +156,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -174,7 +171,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -193,7 +189,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     // The patch, lastMutationID, and cookie determine whether we write a new
@@ -211,7 +206,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -231,7 +225,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -252,7 +245,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -273,7 +265,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -292,7 +283,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
 
@@ -312,7 +302,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -331,7 +320,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -349,7 +337,6 @@ test('begin try pull', async () => {
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: '',
-        requestID,
       },
     },
     {
@@ -374,7 +361,6 @@ test('begin try pull', async () => {
           httpStatusCode: 500,
         },
         syncHead: '',
-        requestID,
       },
     },
   ];
@@ -427,7 +413,7 @@ test('begin try pull', async () => {
       pullResp = c.pullResult;
       pullErr = undefined;
     }
-    const fakePuller = new FakePuller({
+    const fakePuller = makeFakePuller({
       expPullReq,
       expPullURL: pullURL,
       expPullAuth: pullAuth,
@@ -457,7 +443,7 @@ test('begin try pull', async () => {
         new LogContext(),
       );
     } catch (e) {
-      result = e.message;
+      result = (e as Error).message;
       assertString(result);
     }
 
@@ -537,8 +523,6 @@ test('begin try pull', async () => {
         expect(result.httpRequestInfo).to.deep.equal(
           c.expBeginPullResult.httpRequestInfo,
         );
-        // syncHead is checked above based on the expSyncHead
-        expect(result.requestID).to.equal(c.expBeginPullResult.requestID);
       } else {
         // use to_debug since some errors cannot be made PartialEq
         expect(result).to.equal(c.expBeginPullResult);
@@ -556,7 +540,7 @@ test('maybe end try pull', async () => {
     expReplayIDs: number[];
     expErr?: string;
     // The expected changed keys as reported by the maybe end pull.
-    expChangedKeys: ChangedKeysMap;
+    expChangedKeys: sync.ChangedKeysMap;
   };
   const cases: Case[] = [
     {
@@ -654,15 +638,11 @@ test('maybe end try pull', async () => {
     }
     const syncHead = basisHash;
 
-    const req: MaybeEndPullRequest = {
-      requestID: 'request_id',
-      syncHead,
-    };
-    let result: MaybeEndPullResponse | string;
+    let result: MaybeEndPullResult | string;
     try {
-      result = await maybeEndPull(store, lc, req);
+      result = await maybeEndPull(store, lc, syncHead);
     } catch (e) {
-      result = e.message;
+      result = (e as Error).message;
     }
 
     if (c.expErr !== undefined) {
@@ -719,37 +699,22 @@ type FakePullerArgs = {
   err?: string;
 };
 
-class FakePuller implements InternalPuller, FakePullerArgs {
-  readonly expPullReq: PullRequest;
-  readonly expPullURL: string;
-  readonly expPullAuth: string;
-  readonly expRequestID: string;
-  readonly resp?: PullResponse;
-  readonly err?: string;
+function makeFakePuller(options: FakePullerArgs): Puller {
+  return async (req: Request): Promise<PullerResult> => {
+    const pullReq: PullRequest = await req.json();
+    expect(options.expPullReq).to.deep.equal(pullReq);
 
-  constructor(options: FakePullerArgs) {
-    this.expPullReq = options.expPullReq;
-    this.expPullURL = options.expPullURL;
-    this.expPullAuth = options.expPullAuth;
-    this.expRequestID = options.expRequestID;
-    this.resp = options.resp;
-    this.err = options.err;
-  }
+    expect(new URL(options.expPullURL, location.href).toString()).to.equal(
+      req.url,
+    );
+    expect(options.expPullAuth).to.equal(req.headers.get('Authorization'));
+    expect(options.expRequestID).to.equal(
+      req.headers.get('X-Replicache-RequestID'),
+    );
 
-  async pull(
-    pullReq: PullRequest,
-    url: string,
-    auth: string,
-    requestID: string,
-  ): Promise<[PullResponse | undefined, HTTPRequestInfo]> {
-    expect(this.expPullReq).to.deep.equal(pullReq);
-    expect(this.expPullURL).to.equal(url);
-    expect(this.expPullAuth).to.equal(auth);
-    expect(this.expRequestID).to.equal(requestID);
-
-    let httpRequestInfo;
-    if (this.err !== undefined) {
-      if (this.err === 'FetchNotOk(500)') {
+    let httpRequestInfo: HTTPRequestInfo;
+    if (options.err !== undefined) {
+      if (options.err === 'FetchNotOk(500)') {
         httpRequestInfo = {
           httpStatusCode: 500,
           errorMessage: 'Fetch not OK',
@@ -763,9 +728,8 @@ class FakePuller implements InternalPuller, FakePullerArgs {
         errorMessage: '',
       };
     }
-
-    return [this.resp, httpRequestInfo];
-  }
+    return {response: options.resp, httpRequestInfo};
+  };
 }
 
 test('changed keys', async () => {
@@ -778,7 +742,7 @@ test('changed keys', async () => {
     baseMap: Map<string, string>,
     indexDef: IndexDef | undefined,
     patch: PatchOperation[],
-    expectedChangedKeysMap: ChangedKeysMap,
+    expectedChangedKeysMap: sync.ChangedKeysMap,
   ) => {
     const store = new dag.Store(new MemStore());
     const lc = new LogContext();
@@ -820,7 +784,7 @@ test('changed keys', async () => {
       patch,
     };
 
-    const fakePuller = new FakePuller({
+    const fakePuller = makeFakePuller({
       expPullReq,
       expPullURL: pullURL,
       expPullAuth: pullAuth,
@@ -848,12 +812,7 @@ test('changed keys', async () => {
       new LogContext(),
     );
 
-    const req: MaybeEndPullRequest = {
-      requestID,
-      syncHead: pullResult.syncHead,
-    };
-    const result = await maybeEndPull(store, lc, req);
-
+    const result = await maybeEndPull(store, lc, pullResult.syncHead);
     expect(result.changedKeys).to.deep.equal(expectedChangedKeysMap);
   };
 

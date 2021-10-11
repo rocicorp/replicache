@@ -24,6 +24,7 @@ export interface Store {
   write(): Promise<Write>;
   withWrite<R>(f: (write: Write) => R | Promise<R>): Promise<R>;
   close(): Promise<void>;
+  closed: boolean;
 }
 
 /**
@@ -44,6 +45,7 @@ export interface Release {
 export interface Read extends Release {
   has(key: string): Promise<boolean>;
   get(key: string): Promise<Value | undefined>;
+  closed: boolean;
 }
 
 /**

@@ -1,4 +1,4 @@
-import type {HTTPRequestInfo} from './repm-invoker';
+import type {HTTPRequestInfo} from './http-request-info';
 
 /**
  * This is used by the defaultPuller and defaultPusher to reduce code

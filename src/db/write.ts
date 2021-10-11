@@ -3,6 +3,7 @@ import type {ReadonlyJSONValue} from '../json';
 import * as prolly from '../prolly/mod';
 import {
   Commit,
+  DEFAULT_HEAD_NAME,
   IndexDefinition,
   IndexRecord,
   newIndexChange as commitNewIndexChange,
@@ -41,12 +42,10 @@ const enum MetaType {
   Snapshot,
 }
 
-export class Write {
+export class Write extends Read {
   private readonly _dagWrite: dag.Write;
-  map: prolly.Map;
   private readonly _basis: Commit | undefined;
   private readonly _meta: Meta;
-  readonly indexes: Map<string, Index>;
 
   constructor(
     dagWrite: dag.Write,
@@ -55,11 +54,10 @@ export class Write {
     meta: Meta,
     indexes: Map<string, Index>,
   ) {
+    super(dagWrite, map, indexes);
     this._dagWrite = dagWrite;
-    this.map = map;
     this._basis = basis;
     this._meta = meta;
-    this.indexes = indexes;
   }
 
   static async newLocal(
@@ -69,7 +67,7 @@ export class Write {
     originalHash: string | null,
     dagWrite: dag.Write,
   ): Promise<Write> {
-    const [, basis, map] = await readCommit(whence, dagWrite.read());
+    const [, basis, map] = await readCommit(whence, dagWrite);
     const mutationID = basis.nextMutationID;
     const indexes = readIndexes(basis);
     return new Write(
@@ -94,7 +92,7 @@ export class Write {
     dagWrite: dag.Write,
     indexes: Map<string, Index>,
   ): Promise<Write> {
-    const [, basis, map] = await readCommit(whence, dagWrite.read());
+    const [, basis, map] = await readCommit(whence, dagWrite);
     return new Write(
       dagWrite,
       map,
@@ -108,7 +106,7 @@ export class Write {
     whence: Whence,
     dagWrite: dag.Write,
   ): Promise<Write> {
-    const [, basis, map] = await readCommit(whence, dagWrite.read());
+    const [, basis, map] = await readCommit(whence, dagWrite);
     const lastMutationID = basis.mutationID;
     const indexes = readIndexes(basis);
     return new Write(
@@ -118,10 +116,6 @@ export class Write {
       {type: MetaType.IndexChange, lastMutationID},
       indexes,
     );
-  }
-
-  asRead(): Read {
-    return new Read(this._dagWrite.read(), this.map, this.indexes);
   }
 
   isRebase(): boolean {
@@ -161,11 +155,12 @@ export class Write {
     this.map.put(key, val);
   }
 
-  async del(lc: LogContext, key: string): Promise<void> {
+  async del(lc: LogContext, key: string): Promise<boolean> {
     if (this._meta.type === MetaType.IndexChange) {
       throw new Error('Not allowed');
     }
 
+    // TODO(arv): This does the binary search twice. We can do better.
     const oldVal = this.map.get(key);
     if (oldVal !== undefined) {
       await updateIndexes(
@@ -177,7 +172,7 @@ export class Write {
         oldVal,
       );
     }
-    this.map.del(key);
+    return this.map.del(key);
   }
 
   async clear(): Promise<void> {
@@ -290,9 +285,8 @@ export class Write {
     }
     for (const [name, index] of this.indexes) {
       {
-        const indexChangedKeys = await index.withMap(
-          this._dagWrite.read(),
-          map => map.pendingChangedKeys(),
+        const indexChangedKeys = await index.withMap(this._dagWrite, map =>
+          map.pendingChangedKeys(),
         );
         if (indexChangedKeys.length > 0) {
           keyChanges.set(name, indexChangedKeys);
@@ -379,7 +373,7 @@ async function updateIndexes(
 ): Promise<void> {
   for (const idx of indexes.values()) {
     if (key.startsWith(idx.meta.definition.keyPrefix)) {
-      await idx.withMap(dagWrite.read(), map => {
+      await idx.withMap(dagWrite, map => {
         // Right now all the errors that index_value() returns are customers dev
         // problems: either the value is not json, the pointer is into nowhere, etc.
         // So we ignore them.
@@ -408,4 +402,13 @@ export async function initDB(
     new Map(),
   );
   return await w.commit(headName);
+}
+
+export async function maybeInitDefaultDB(dagStore: dag.Store): Promise<void> {
+  await dagStore.withWrite(async dagWrite => {
+    const head = await dagWrite.getHead(DEFAULT_HEAD_NAME);
+    if (!head) {
+      await initDB(dagWrite, DEFAULT_HEAD_NAME);
+    }
+  });
 }

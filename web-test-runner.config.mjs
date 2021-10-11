@@ -8,7 +8,8 @@ const firefox = playwrightLauncher({product: 'firefox'});
 export default {
   concurrentBrowsers: 3,
   nodeResolve: true,
-  plugins: [esbuildPlugin({ts: true})],
+  plugins: [esbuildPlugin({ts: true, target: 'esnext'})],
+  staticLogging: !!process.env.CI,
   testFramework: {
     config: {
       ui: 'tdd',
@@ -36,7 +37,6 @@ export default {
         'src/kv/*.test.ts',
         'src/prolly/*.test.ts',
         'src/sync/*.test.ts',
-        'src/embed/*.test.ts',
         'src/migrate/*.test.ts',
       ],
       browsers: [firefox, chromium, webkit],

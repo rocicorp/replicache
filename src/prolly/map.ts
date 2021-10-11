@@ -56,6 +56,10 @@ class ProllyMap {
     return this._readonlyEntries[index][1];
   }
 
+  isEmpty(): boolean {
+    return this._readonlyEntries.length === 0;
+  }
+
   put(key: string, val: ReadonlyJSONValue): void {
     const entries = this._mutableEntries;
     const index = binarySearch(key, entries);
@@ -67,12 +71,18 @@ class ProllyMap {
     this._pendingChangedKeys.add(key);
   }
 
-  del(key: string): void {
+  /**
+   * Removes a `key` and its value from the map. Returns `true` if there was a
+   * `key` to remove.
+   */
+  del(key: string): boolean {
     const index = binarySearch(key, this._readonlyEntries);
     if (index >= 0) {
       this._mutableEntries.splice(index, 1);
       this._pendingChangedKeys.add(key);
+      return true;
     }
+    return false;
   }
 
   entries(): IterableIterator<Entry> {

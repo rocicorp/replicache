@@ -12,6 +12,7 @@ const enum WriteState {
 
 export class IDBStore implements Store {
   private readonly _db: Promise<IDBDatabase>;
+  private _closed = false;
 
   constructor(name: string) {
     this._db = openDatabase(name);
@@ -31,7 +32,12 @@ export class IDBStore implements Store {
     // here we only await the db and no await is involved with the transaction.
     // See https://github.com/jakearchibald/idb-keyval/commit/1af0a00b1a70a678d2f9cf5e74c55a22e57324c5#r55989916
     const db = await this._db;
-    return fn(readImpl(db));
+    const read = readImpl(db);
+    try {
+      return await fn(read);
+    } finally {
+      read.release();
+    }
   }
 
   async write(): Promise<Write> {
@@ -42,16 +48,27 @@ export class IDBStore implements Store {
   async withWrite<R>(fn: (write: Write) => R | Promise<R>): Promise<R> {
     // See comment in `withRead`.
     const db = await this._db;
-    return fn(writeImpl(db));
+    const write = writeImpl(db);
+    try {
+      return await fn(write);
+    } finally {
+      write.release();
+    }
   }
 
   async close(): Promise<void> {
     (await this._db).close();
+    this._closed = true;
+  }
+
+  get closed(): boolean {
+    return this._closed;
   }
 }
 
-class ReadImpl {
+class ReadImpl implements Read {
   private readonly _tx: IDBTransaction;
+  private _closed = false;
 
   constructor(tx: IDBTransaction) {
     this._tx = tx;
@@ -66,7 +83,12 @@ class ReadImpl {
   }
 
   release(): void {
+    this._closed = true;
     // Do nothing. We rely on IDB locking.
+  }
+
+  get closed(): boolean {
+    return this._closed;
   }
 }
 
@@ -74,6 +96,7 @@ class WriteImpl extends WriteImplBase {
   private readonly _tx: IDBTransaction;
   private readonly _onTxEnd: Promise<void>;
   private _txState = WriteState.OPEN;
+  private _closed = false;
 
   constructor(tx: IDBTransaction) {
     super(new ReadImpl(tx));
@@ -115,6 +138,11 @@ class WriteImpl extends WriteImplBase {
 
   release(): void {
     // We rely on IDB locking so no need to do anything here.
+    this._closed = true;
+  }
+
+  get closed(): boolean {
+    return this._closed;
   }
 }
 

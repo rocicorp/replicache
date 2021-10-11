@@ -57,10 +57,10 @@ its current state.
 
 ## HTTP Request Body
 
-When pulling we `POST` an HTTP request with a JSON encoded body.
+When pulling we `POST` an HTTP request with a [JSON encoded body](/api#pullrequest).
 
 ```ts
-type PullRequestBody = {
+type PullRequest = {
   clientID: string;
   cookie: JSONValue;
   lastMutationID: number;

@@ -1,25 +1,27 @@
 import type * as dag from '../dag/mod';
 import * as db from '../db/mod';
-import {deepClone, ReadonlyJSONValue} from '../json';
-import {assertPullResponse, Puller, PullError, PullResponse} from '../puller';
+import {deepClone, JSONValue, ReadonlyJSONValue} from '../json';
 import {
-  assertHTTPRequestInfo,
-  BeginPullRequest,
-  BeginPullResponse,
-  ChangedKeysMap,
-  HTTPRequestInfo,
-  MaybeEndPullRequest,
-  MaybeEndPullResponse,
-  ReplayMutation,
-} from '../repm-invoker';
+  assertPullResponse,
+  Puller,
+  PullerResult,
+  PullError,
+  PullResponse,
+} from '../puller';
+import {assertHTTPRequestInfo, HTTPRequestInfo} from '../http-request-info';
 import {callJSRequest} from './js-request';
 import {SYNC_HEAD_NAME} from './sync-head-name';
 import * as patch from './patch';
 import * as prolly from '../prolly/mod';
 import type {LogContext} from '../logger';
+import {toError} from '../to-error';
 
 export const PULL_VERSION = 0;
 
+/**
+ * The JSON value used as the body when doing a POST to the [pull
+ * endpoint](/server-pull).
+ */
 export type PullRequest = {
   clientID: string;
   cookie: ReadonlyJSONValue;
@@ -31,19 +33,22 @@ export type PullRequest = {
   schemaVersion: string;
 };
 
-export interface InternalPuller {
-  pull(
-    pullReq: PullRequest,
-    url: string,
-    auth: string,
-    requestID: string,
-  ): Promise<[PullResponse | undefined, HTTPRequestInfo]>;
-}
+export type BeginPullRequest = {
+  pullURL: string;
+  pullAuth: string;
+  schemaVersion: string;
+  puller: Puller;
+};
+
+export type BeginPullResponse = {
+  httpRequestInfo: HTTPRequestInfo;
+  syncHead: string;
+};
 
 export async function beginPull(
   clientID: string,
   beginPullReq: BeginPullRequest,
-  puller: InternalPuller,
+  puller: Puller,
   requestID: string,
   store: dag.Store,
   lc: LogContext,
@@ -70,33 +75,33 @@ export async function beginPull(
   };
   lc.debug?.('Starting pull...');
   const pullStart = Date.now();
-  const [pullResp, httpRequestInfo] = await puller.pull(
-    pullReq,
+  const {response, httpRequestInfo} = await callPuller(
+    puller,
     pullURL,
+    pullReq,
     pullAuth,
     requestID,
   );
 
   lc.debug?.(
-    `...Pull ${pullResp ? 'complete' : 'failed'} in `,
+    `...Pull ${response ? 'complete' : 'failed'} in `,
     Date.now() - pullStart,
     'ms',
   );
 
   // If Puller did not get a pull response we still want to return the HTTP
   // request info to the JS SDK.
-  if (!pullResp) {
+  if (!response) {
     return {
       httpRequestInfo,
       syncHead: '',
-      requestID,
     };
   }
 
   // It is possible that another sync completed while we were pulling. Ensure
   // that is not the case by re-checking the base snapshot.
   return await store.withWrite(async dagWrite => {
-    const dagRead = dagWrite.read();
+    const dagRead = dagWrite;
     const mainHeadPostPull = await dagRead.getHead(db.DEFAULT_HEAD_NAME);
 
     if (mainHeadPostPull === undefined) {
@@ -113,9 +118,9 @@ export async function beginPull(
     // If other entities (eg, other clients) are modifying the client view
     // the client view can change but the lastMutationID stays the same.
     // So be careful here to reject only a lesser lastMutationID.
-    if (pullResp.lastMutationID < baseLastMutationID) {
+    if (response.lastMutationID < baseLastMutationID) {
       throw new Error(
-        `base lastMutationID ${baseLastMutationID} is > than client view lastMutationID ${pullResp.lastMutationID}; ignoring client view`,
+        `base lastMutationID ${baseLastMutationID} is > than client view lastMutationID ${response.lastMutationID}; ignoring client view`,
       );
     }
 
@@ -123,15 +128,14 @@ export async function beginPull(
     // Otherwise, we will write a new commit, including for the case of just
     // a cookie change.
     if (
-      pullResp.patch.length === 0 &&
-      pullResp.lastMutationID === baseLastMutationID &&
-      (pullResp.cookie ?? null) === baseCookie
+      response.patch.length === 0 &&
+      response.lastMutationID === baseLastMutationID &&
+      (response.cookie ?? null) === baseCookie
     ) {
       const syncHead = '';
       return {
         httpRequestInfo,
         syncHead,
-        requestID,
       };
     }
 
@@ -140,7 +144,7 @@ export async function beginPull(
     // the new snapshot while we still have the dagRead borrowed.
     const chain = await db.Commit.chain(mainHeadPostPull, dagRead);
     const indexRecords = chain.find(
-      c => c.mutationID <= pullResp.lastMutationID,
+      c => c.mutationID <= response.lastMutationID,
     )?.indexes;
     if (!indexRecords) {
       throw new Error('Internal invalid chain');
@@ -149,8 +153,8 @@ export async function beginPull(
 
     const dbWrite = await db.Write.newSnapshot(
       db.whenceHash(baseSnapshot.chunk.hash),
-      pullResp.lastMutationID,
-      pullResp.cookie ?? null,
+      response.lastMutationID,
+      response.cookie ?? null,
       dagWrite,
       new Map(), // Note: created with no indexes
     );
@@ -163,7 +167,7 @@ export async function beginPull(
       await dbWrite.createIndex(lc, def.name, def.keyPrefix, def.jsonPointer);
     }
 
-    await patch.apply(lc, dbWrite, pullResp.patch);
+    await patch.apply(lc, dbWrite, response.patch);
 
     const commitHash = await dbWrite.commit(SYNC_HEAD_NAME);
 
@@ -173,24 +177,44 @@ export async function beginPull(
         errorMessage: '',
       },
       syncHead: commitHash,
-      requestID,
     };
   });
 }
 
+/**
+ * ReplayMutation is used int the RPC between EndPull so that we can replay
+ * mutations ontop of the current state. It is never exposed to the public.
+ */
+export type ReplayMutation = {
+  id: number;
+  name: string;
+  args: JSONValue;
+  original: string;
+};
+
+// The changed keys in different indexes. The key of the map is the index name.
+// "" is used for the primary index.
+export type ChangedKeysMap = Map<string, string[]>;
+
+export type MaybeEndPullResult = {
+  replayMutations?: ReplayMutation[];
+  syncHead: string;
+  changedKeys: ChangedKeysMap;
+};
+
 export async function maybeEndPull(
   store: dag.Store,
   lc: LogContext,
-  maybeEndPullReq: MaybeEndPullRequest,
-): Promise<MaybeEndPullResponse> {
+  expectedSyncHead: string,
+): Promise<MaybeEndPullResult> {
   // Ensure sync head is what the caller thinks it is.
   return await store.withWrite(async dagWrite => {
-    const dagRead = dagWrite.read();
+    const dagRead = dagWrite;
     const syncHeadHash = await dagRead.getHead(SYNC_HEAD_NAME);
     if (syncHeadHash === undefined) {
       throw new Error('Missing sync head');
     }
-    if (syncHeadHash !== maybeEndPullReq.syncHead) {
+    if (syncHeadHash !== expectedSyncHead) {
       throw new Error('Wrong sync head JSLogInfo');
     }
 
@@ -300,30 +324,19 @@ export async function maybeEndPull(
   });
 }
 
-export class JSPuller implements InternalPuller {
-  private readonly _puller: Puller;
-
-  constructor(puller: Puller) {
-    this._puller = puller;
-  }
-
-  async pull(
-    pullReq: PullRequest,
-    url: string,
-    auth: string,
-    requestID: string,
-  ): Promise<[PullResponse | undefined, HTTPRequestInfo]> {
-    const {clientID, cookie, lastMutationID, pullVersion, schemaVersion} =
-      pullReq;
-
-    const body = {clientID, cookie, lastMutationID, pullVersion, schemaVersion};
-    try {
-      const res = await callJSRequest(this._puller, url, body, auth, requestID);
-      assertResult(res);
-      return [res.response, res.httpRequestInfo];
-    } catch (e) {
-      throw new PullError(e);
-    }
+async function callPuller(
+  puller: Puller,
+  url: string,
+  body: PullRequest,
+  auth: string,
+  requestID: string,
+): Promise<PullerResult> {
+  try {
+    const res = await callJSRequest(puller, url, body, auth, requestID);
+    assertResult(res);
+    return res;
+  } catch (e) {
+    throw new PullError(toError(e));
   }
 }
 

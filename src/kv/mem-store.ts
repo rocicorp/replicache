@@ -6,6 +6,7 @@ export class MemStore implements Store {
   // protected to allow test sub class to use it.
   protected readonly _map: Map<string, Value> = new Map();
   private readonly _rwLock = new RWLock();
+  private _closed = false;
 
   async read(): Promise<Read> {
     const release = await this._rwLock.read();
@@ -13,12 +14,11 @@ export class MemStore implements Store {
   }
 
   async withRead<R>(fn: (read: Read) => R | Promise<R>): Promise<R> {
-    let read;
+    const read = await this.read();
     try {
-      read = await this.read();
       return await fn(read);
     } finally {
-      read?.release();
+      read.release();
     }
   }
 
@@ -28,27 +28,40 @@ export class MemStore implements Store {
   }
 
   async withWrite<R>(fn: (write: Write) => R | Promise<R>): Promise<R> {
-    let write;
+    const write = await this.write();
     try {
-      write = await this.write();
       return await fn(write);
     } finally {
-      write?.release();
+      write.release();
     }
   }
 
   async close(): Promise<void> {
-    // No-op.
+    this._closed = true;
+  }
+
+  get closed(): boolean {
+    return this._closed;
   }
 }
 
-class ReadImpl {
+class ReadImpl implements Read {
   private readonly _map: Map<string, Value>;
-  readonly release: () => void;
+  private readonly _release: () => void;
+  private _closed = false;
 
   constructor(map: Map<string, Value>, relase: () => void) {
     this._map = map;
-    this.release = relase;
+    this._release = relase;
+  }
+
+  release() {
+    this._release();
+    this._closed = true;
+  }
+
+  get closed(): boolean {
+    return this._closed;
   }
 
   async has(key: string): Promise<boolean> {
@@ -60,7 +73,7 @@ class ReadImpl {
   }
 }
 
-class WriteImpl extends WriteImplBase {
+class WriteImpl extends WriteImplBase implements Write {
   private readonly _map: Map<string, Value>;
 
   constructor(map: Map<string, Value>, release: () => void) {

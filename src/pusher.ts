@@ -1,8 +1,9 @@
 import {httpRequest} from './http-request';
-import type {HTTPRequestInfo} from './repm-invoker';
+import type {HTTPRequestInfo} from './http-request-info';
 
 /**
- * Pusher is the function type used to do the fetch part of a push.
+ * Pusher is the function type used to do the fetch part of a push. The request
+ * is a POST request where the body is JSON with the type [[PushRequest]].
  */
 export type Pusher = (request: Request) => Promise<HTTPRequestInfo>;
 

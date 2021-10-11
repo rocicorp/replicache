@@ -8,26 +8,30 @@ import {
   ScanOptionsInternal,
   ScanResult,
 } from './scan';
-import {Commit} from './commit';
+import {Commit, DEFAULT_HEAD_NAME} from './commit';
 import type {ReadonlyJSONValue} from '../json';
 
 export class Read {
   private readonly _dagRead: dag.Read;
-  private readonly _map: prolly.Map;
-  private readonly _indexes: Map<string, Index>;
+  map: prolly.Map;
+  readonly indexes: Map<string, Index>;
 
   constructor(dagRead: dag.Read, map: prolly.Map, indexes: Map<string, Index>) {
     this._dagRead = dagRead;
-    this._map = map;
-    this._indexes = indexes;
+    this.map = map;
+    this.indexes = indexes;
   }
 
   has(key: string): boolean {
-    return this._map.has(key);
+    return this.map.has(key);
   }
 
   get(key: string): ReadonlyJSONValue | undefined {
-    return this._map.get(key);
+    return this.map.get(key);
+  }
+
+  isEmpty(): boolean {
+    return this.map.isEmpty();
   }
 
   async scan(
@@ -37,7 +41,7 @@ export class Read {
     const optsInternal: ScanOptionsInternal = convert(opts);
     if (optsInternal.indexName !== undefined) {
       const name = optsInternal.indexName;
-      const idx = this._indexes.get(name);
+      const idx = this.indexes.get(name);
       if (idx === undefined) {
         throw new Error(`Unknown index name: ${name}`);
       }
@@ -48,18 +52,18 @@ export class Read {
         }
       });
     } else {
-      for (const item of scan(this._map, optsInternal)) {
+      for (const item of scan(this.map, optsInternal)) {
         callback(item);
       }
     }
   }
 
-  close(): void {
-    this._dagRead.close();
+  get closed(): boolean {
+    return this._dagRead.closed;
   }
 
-  asRead(): this {
-    return this;
+  close(): void {
+    this._dagRead.close();
   }
 }
 
@@ -90,6 +94,10 @@ export function whenceHash(hash: string): Whence {
     type: WhenceType.Hash,
     hash,
   };
+}
+
+export function readFromDefaultHead(dagRead: dag.Read): Promise<Read> {
+  return fromWhence(whenceHead(DEFAULT_HEAD_NAME), dagRead);
 }
 
 export async function fromWhence(

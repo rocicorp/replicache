@@ -1,9 +1,41 @@
-// Test utils
-import type {ReplicacheTest} from './replicache';
 import type {JSONObject, JSONValue} from './json';
 import * as utf8 from './utf8';
 import {resolver} from './resolver';
 import {uuid} from './sync/uuid';
+import {
+  MutatorDefs,
+  Replicache,
+  BeginPullResult,
+  MAX_REAUTH_TRIES,
+} from './replicache';
+
+export class ReplicacheTest<
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  MD extends MutatorDefs = {},
+> extends Replicache<MD> {
+  beginPull(maxAuthTries = MAX_REAUTH_TRIES): Promise<BeginPullResult> {
+    return super._beginPull(maxAuthTries);
+  }
+
+  maybeEndPull(beginPullResult: BeginPullResult): Promise<void> {
+    return super._maybeEndPull(beginPullResult);
+  }
+
+  invokePush(maxAuthTries: number): Promise<boolean> {
+    // indirection to allow test to spy on it.
+    return super._invokePush(maxAuthTries);
+  }
+
+  protected override _invokePush(maxAuthTries: number): Promise<boolean> {
+    return this.invokePush(maxAuthTries);
+  }
+
+  protected override _beginPull(
+    maxAuthTries: number,
+  ): Promise<BeginPullResult> {
+    return this.beginPull(maxAuthTries);
+  }
+}
 
 export const reps: Set<ReplicacheTest> = new Set();
 
@@ -57,6 +89,10 @@ export function defineTestFunctions(self: Window & typeof globalThis): void {
     test.retries = noop;
     self.test = test as unknown as Mocha.TestFunction;
   }
+}
+
+export function isFirefox(): boolean {
+  return /firefox/i.test(navigator.userAgent);
 }
 
 defineTestFunctions(self);

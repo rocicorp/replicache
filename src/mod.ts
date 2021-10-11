@@ -25,7 +25,7 @@ export type {
   ScanOptionIndexedStartKey,
   ScanOptions,
 } from './scan-options';
-export type {HTTPRequestInfo} from './repm-invoker';
+export type {HTTPRequestInfo} from './http-request-info';
 export type {LogLevel} from './logger';
 export type {
   PatchOperation,
@@ -41,3 +41,6 @@ export type {
   Read as ExperimentalKVRead,
   Write as ExperimentalKVWrite,
 } from './kv/store';
+
+export type {PullRequest} from './sync/pull';
+export type {PushRequest} from './sync/push';

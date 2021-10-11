@@ -69,11 +69,18 @@ export class Read {
   private readonly _dagRead: dag.Read;
 
   size = 0;
+  readonly minSize: number;
   readonly maxSize: number;
 
-  constructor(root: string, dagRead: dag.Read, maxSize = 64) {
+  constructor(
+    root: string,
+    dagRead: dag.Read,
+    minSize = 32,
+    maxSize = minSize * 2,
+  ) {
     this.rootHash = root;
     this._dagRead = dagRead;
+    this.minSize = minSize;
     this.maxSize = maxSize;
   }
 
@@ -200,8 +207,13 @@ export class Write extends Read {
 
   private readonly _dagWrite: dag.Write;
 
-  constructor(root: Hash, dagWrite: dag.Write, maxSize?: number) {
-    super(root, dagWrite, maxSize);
+  constructor(
+    root: Hash,
+    dagWrite: dag.Write,
+    minSize?: number,
+    maxSize?: number,
+  ) {
+    super(root, dagWrite, minSize, maxSize);
     this._dagWrite = dagWrite;
   }
 
@@ -230,11 +242,7 @@ export class Write extends Read {
 
   async put(key: string, value: ReadonlyJSONValue): Promise<void> {
     const rootNode = await this.getNode(this.rootHash);
-    // this._modified.set(this.rootHash, rootNode);
-
     const res = await rootNode.set(key, value, this);
-
-    // this._modified.delete(this.rootHash);
 
     if (typeof res === 'boolean') {
       this.rootHash = rootNode.hash;
@@ -251,6 +259,29 @@ export class Write extends Read {
 
     this.addToModified(newRootNode);
     this.rootHash = newRootNode.hash;
+  }
+
+  async del(key: string): Promise<boolean> {
+    const rootNode = await this.getNode(this.rootHash);
+
+    const res = await rootNode.del(key, this);
+
+    if (typeof res === 'boolean') {
+      this.rootHash = rootNode.hash;
+      return res;
+    }
+
+    const newRootNode = new InternalNodeImpl(
+      [
+        [rootNode.maxKey(), rootNode.hash],
+        [res.maxKey(), res.hash],
+      ],
+      newTempHash(),
+    );
+
+    this.addToModified(newRootNode);
+    this.rootHash = newRootNode.hash;
+    return true;
   }
 
   async flush(): Promise<string> {
@@ -344,6 +375,25 @@ class NodeImpl<
     return false;
   }
 
+  async del(
+    key: string,
+    tree: Write,
+  ): Promise<boolean | NodeImpl<Value, Type>> {
+    const i = binarySearch(key, this.entries);
+    if (i < 0) {
+      return false;
+    }
+
+    // Found
+    tree.resetHashForModifiedNode(this as DataNodeImpl);
+    tree.size--;
+
+    // Rebalancing is done in InternalNodeImpl
+
+    this.entries.splice(i, 1);
+    return true;
+  }
+
   insertInLeaf(i: number, key: string, value: Value) {
     // TODO(arv): Inline!
     this.entries.splice(i, 0, [key, value]);
@@ -390,9 +440,10 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
     let i = binarySearch(key, entries);
     if (i < 0) {
       i = ~i;
-    }
-    if (i >= entries.length) {
-      i = entries.length - 1;
+
+      if (i >= entries.length) {
+        i = entries.length - 1;
+      }
     }
     const childHash = entries[i][1];
     const childNode = await tree.getNode(childHash);
@@ -455,6 +506,54 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
     }
     target.insert(i + 1, res);
     return newRightSibling;
+  }
+
+  async del(key: string, tree: Write): Promise<boolean | InternalNodeImpl> {
+    const {entries} = this;
+    let i = binarySearch(key, this.entries);
+    if (i < 0) {
+      i = ~i;
+
+      if (i >= entries.length) {
+        i = entries.length - 1;
+      }
+    }
+
+    const childHash = entries[i][1];
+    const childNode = await tree.getNode(childHash);
+
+    const res = await childNode.del(key, tree);
+    if (res === false) {
+      return false;
+    }
+
+    // Found and removed from leaf entries
+    tree.resetHashForModifiedNode(this);
+
+    if (childNode.entries.length === 0) {
+      // USE_SIZE
+      this.entries.splice(i, 1);
+      return true;
+    }
+
+    this.entries[i] = [childNode.maxKey(), childNode.hash];
+
+    // TODO: Rebalance
+
+    // if (childNode.entries.length < tree.minSize) {
+    //   // USE_SIZE
+    //   if (i > 0) {
+    //     // check if we can merge with left
+    //     const otherHash = entries[i - 1][1];
+    //     const other = await tree.getNode(otherHash);
+    //   } else if (i < entries.length - 1) {
+    //     // check if we can merge with right
+    //     const otherHash = entries[i + 1][1];
+    //     const other = await tree.getNode(otherHash);
+    //   }
+    // }
+
+    return true;
   }
 
   insert(i: number, node: DataNodeImpl | InternalNodeImpl) {

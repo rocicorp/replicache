@@ -1,3 +1,11 @@
+type Truthy<T> = T extends null | undefined | false | '' | 0 ? never : T;
+
+export function assert<T>(b: T): asserts b is Truthy<T> {
+  if (!b) {
+    throw new Error('Assertion failed');
+  }
+}
+
 export function assertString(v: unknown): asserts v is string {
   assertType(v, 'string');
 }

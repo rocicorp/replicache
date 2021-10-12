@@ -1,7 +1,7 @@
 import {expect, assert} from '@esm-bundle/chai';
 import {Chunk} from '../dag/chunk';
 import * as dag from '../dag/mod';
-import {initHasher} from '../hash';
+import {Hash, initHasher} from '../hash';
 import type {ReadonlyJSONValue} from '../json';
 import * as kv from '../kv/mod';
 import {
@@ -18,9 +18,14 @@ setup(async () => {
   await initHasher();
 });
 
-test('findLeaf2', async () => {
+test('findLeaf', async () => {
   const kvStore = new kv.MemStore();
   const dagStore = new dag.Store(kvStore);
+
+  function addHash(n: DataNode): DataNode & {hash: string} {
+    const hash = Hash.of(JSON.stringify(n)).toString();
+    return {...n, hash};
+  }
 
   const leaf0: DataNode = {
     type: 'data',
@@ -30,6 +35,7 @@ test('findLeaf2', async () => {
       ['c', 2],
     ],
   };
+
   const leaf1: DataNode = {
     type: 'data',
     entries: [
@@ -84,23 +90,32 @@ test('findLeaf2', async () => {
   await dagStore.withRead(async dagRead => {
     const source = new Read(rootHash, dagRead);
 
-    expect(await findLeaf('a', h0, source)).to.equal(leaf0);
-    expect(await findLeaf('b', h0, source)).to.equal(leaf0);
-    expect(await findLeaf('c', h0, source)).to.equal(leaf0);
+    const t = async (
+      key: string,
+      hash: string,
+      source: Read,
+      expected: DataNode,
+    ) => {
+      const actual = await findLeaf(key, hash, source);
+      expect(actual.type).to.deep.equal(expected.type);
+      expect(actual.entries).to.deep.equal(expected.entries);
+    };
 
-    expect(await findLeaf('a', rootHash, source)).to.equal(leaf0);
-    expect(await findLeaf('b', rootHash, source)).to.equal(leaf0);
-    expect(await findLeaf('c', rootHash, source)).to.equal(leaf0);
-    expect(await findLeaf('d', rootHash, source)).to.equal(leaf1);
-    expect(await findLeaf('e', rootHash, source)).to.equal(leaf1);
-    expect(await findLeaf('f', rootHash, source)).to.equal(leaf1);
-    expect(await findLeaf('g', rootHash, source)).to.equal(leaf2);
-    expect(await findLeaf('h', rootHash, source)).to.equal(leaf2);
-    expect(await findLeaf('i', rootHash, source)).to.equal(leaf2);
+    await t('b', h0, source, leaf0);
+    await t('a', h0, source, leaf0);
+    await t('c', h0, source, leaf0);
+
+    await t('a', rootHash, source, leaf0);
+    await t('b', rootHash, source, leaf0);
+    await t('c', rootHash, source, leaf0);
+    await t('d', rootHash, source, leaf1);
+    await t('e', rootHash, source, leaf1);
+    await t('f', rootHash, source, leaf1);
+    await t('g', rootHash, source, leaf2);
+    await t('h', rootHash, source, leaf2);
+    await t('i', rootHash, source, leaf2);
   });
 });
-
-// const type = Symbol('type');
 
 type TreeData = {
   $type: 'internal' | 'data';
@@ -683,7 +698,7 @@ test('set', async () => {
   });
 });
 
-test.only('del - single data node', async () => {
+test('del - single data node', async () => {
   const kvStore = new kv.MemStore();
   const dagStore = new dag.Store(kvStore);
 
@@ -751,7 +766,7 @@ test.only('del - single data node', async () => {
   });
 });
 
-test.only('del - with internal nodes', async () => {
+test('del - with internal nodes', async () => {
   const kvStore = new kv.MemStore();
   const dagStore = new dag.Store(kvStore);
 
@@ -858,7 +873,7 @@ test.only('del - with internal nodes', async () => {
   await dagStore.withRead(async dagRead => {
     expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
       $type: 'internal',
-      h: {
+      q: {
         $type: 'internal',
         d: {
           $type: 'data',
@@ -874,9 +889,6 @@ test.only('del - with internal nodes', async () => {
           g: 'g',
           h: 'h',
         },
-      },
-      q: {
-        $type: 'internal',
         l: {
           $type: 'data',
           i: 'i',
@@ -904,7 +916,7 @@ test.only('del - with internal nodes', async () => {
   await dagStore.withRead(async dagRead => {
     expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
       $type: 'internal',
-      d: {
+      q: {
         $type: 'internal',
         d: {
           $type: 'data',
@@ -913,9 +925,6 @@ test.only('del - with internal nodes', async () => {
           c: 'c',
           d: 1,
         },
-      },
-      q: {
-        $type: 'internal',
         l: {
           $type: 'data',
           i: 'i',

@@ -502,7 +502,7 @@ test('set', async () => {
   await dagStore.withRead(async dagRead => {
     expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
       $type: 'internal',
-      h: {
+      n: {
         $type: 'internal',
         d: {
           $type: 'data',
@@ -518,9 +518,6 @@ test('set', async () => {
           g: 'ggg',
           h: 'hhh',
         },
-      },
-      q: {
-        $type: 'internal',
         l: {
           $type: 'data',
           i: 'iii',
@@ -533,6 +530,9 @@ test('set', async () => {
           m: 'mmm',
           n: 'nnn',
         },
+      },
+      q: {
+        $type: 'internal',
         q: {
           $type: 'data',
           o: 'ooo',
@@ -549,7 +549,7 @@ test('set', async () => {
   await dagStore.withRead(async dagRead => {
     expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
       $type: 'internal',
-      h: {
+      n: {
         $type: 'internal',
         d: {
           $type: 'data',
@@ -565,9 +565,6 @@ test('set', async () => {
           g: 'ggg',
           h: 'hhh',
         },
-      },
-      q: {
-        $type: 'internal',
         l: {
           $type: 'data',
           i: 'iii',
@@ -580,6 +577,9 @@ test('set', async () => {
           m: 'mmm',
           n: 'nnn',
         },
+      },
+      q: {
+        $type: 'internal',
         q: {
           $type: 'data',
           o: 'ooo',
@@ -617,7 +617,7 @@ test('set', async () => {
           h: 'hhh',
         },
       },
-      q: {
+      n: {
         $type: 'internal',
         l: {
           $type: 'data',
@@ -631,6 +631,9 @@ test('set', async () => {
           m: 'mmm',
           n: 'nnn',
         },
+      },
+      q: {
+        $type: 'internal',
         q: {
           $type: 'data',
           o: 'ooo',
@@ -671,7 +674,7 @@ test('set', async () => {
           h: 'hhh',
         },
       },
-      q: {
+      n: {
         $type: 'internal',
         l: {
           $type: 'data',
@@ -685,6 +688,9 @@ test('set', async () => {
           m: 'mmm',
           n: 'nnn',
         },
+      },
+      q: {
+        $type: 'internal',
         q: {
           $type: 'data',
           o: 'ooo',

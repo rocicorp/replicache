@@ -8,6 +8,7 @@ import {
 import * as dag from '../dag/mod';
 import {stringCompare} from '../prolly/string-compare';
 import {
+  assert,
   assertArray,
   assertNotUndefined,
   assertObject,
@@ -229,13 +230,66 @@ export class Write extends Read {
       return;
     }
 
-    const newRootNode = new InternalNodeImpl(
-      [
-        [rootNode.maxKey(), rootNode.hash],
-        [res.maxKey(), res.hash],
-      ],
-      newTempHash(),
+    let newRootNode;
+    assert(rootNode.type === res.type);
+    const {type} = rootNode;
+
+    const partitions = partition(
+      [...rootNode.entries, ...res.entries],
+      () => 1,
+      this.minSize,
+      this.maxSize,
     );
+
+    if (partitions.length === 1) {
+      newRootNode = newImpl(
+        {type, entries: partitions[0]} as BTreeNode,
+        newTempHash(),
+      );
+      // newRootNode = new InternalNodeImpl({type, entries: partitions[0]}, newTempHash());
+    } else if (partitions.length === 2) {
+      if (partitions[0].entries.length === rootNode.entries.length) {
+        // partioning did not change the chunks
+        newRootNode = new InternalNodeImpl(
+          [
+            [rootNode.maxKey(), rootNode.hash],
+            [res.maxKey(), res.hash],
+          ],
+          newTempHash(),
+        );
+      } else {
+        // things got shuffled
+        // const left = new InternalNodeImpl(partitions[0].entries, newTempHash());
+        const left = newImpl(
+          {type, entries: partitions[0]} as BTreeNode,
+          newTempHash(),
+        );
+        this.addToModified(left);
+        // const right = new InternalNodeImpl(partitions[1], newTempHash());
+        const right = newImpl(
+          {type, entries: partitions[1]} as BTreeNode,
+          newTempHash(),
+        );
+        this.addToModified(right);
+        newRootNode = new InternalNodeImpl(
+          [
+            [left.maxKey(), left.hash],
+            [right.maxKey(), right.hash],
+          ],
+          newTempHash(),
+        );
+      }
+    } else {
+      throw new Error('too many partitions');
+    }
+
+    // newRootNode = new InternalNodeImpl(
+    //   [
+    //     [rootNode.maxKey(), rootNode.hash],
+    //     [res.maxKey(), res.hash],
+    //   ],
+    //   newTempHash(),
+    // );
 
     this.addToModified(newRootNode);
     this.rootHash = newRootNode.hash;

@@ -49,7 +49,6 @@ export class Read {
   rootHash: string;
   private readonly _dagRead: dag.Read;
 
-  size = 0;
   readonly minSize: number;
   readonly maxSize: number;
 
@@ -321,8 +320,8 @@ class NodeImpl<
     tree.resetHashForModifiedNode(this as DataNodeImpl);
     let i = binarySearch(key, this.entries);
     if (i < 0) {
+      // Not found, insert.
       i = ~i;
-      tree.size++;
 
       const oldSize = this.entries.length; // USE_SIZE
       if (oldSize < tree.maxSize) {
@@ -354,7 +353,6 @@ class NodeImpl<
 
     // Found
     tree.resetHashForModifiedNode(this as DataNodeImpl);
-    tree.size--;
 
     // Rebalancing is done in InternalNodeImpl
 
@@ -719,15 +717,25 @@ export function partition<T>(
 
 let tempHashCounter = 0;
 
-function newTempHash(): string {
-  // TODO: This needs to have the same length as non temp hashes to get same
-  // size of chunks
+const tempPrefix = '/t/';
+const hashLength = 32;
+
+export function newTempHash(): string {
   // Must not overlap with Hash.prototype.toString results
-  return `/t/${tempHashCounter++}`;
+  return (
+    tempPrefix +
+    (tempHashCounter++).toString().padStart(hashLength - tempPrefix.length, '0')
+  );
 }
 
-function assertNotTempHash(hash: Hash) {
-  if (hash.startsWith('/t/')) {
+export function isTempHash(hash: string): hash is `/t/${string}` {
+  return hash.startsWith('/t/');
+}
+
+export function assertNotTempHash<H extends string>(
+  hash: H,
+): asserts hash is H extends `/t/${string}` ? never : H {
+  if (isTempHash(hash)) {
     throw new Error('must not be a temp hash');
   }
 }

@@ -1,7 +1,7 @@
 import {expect, assert} from '@esm-bundle/chai';
 import {Chunk} from '../dag/chunk';
 import * as dag from '../dag/mod';
-import {Hash, initHasher} from '../hash';
+import {initHasher} from '../hash';
 import type {ReadonlyJSONValue} from '../json';
 import * as kv from '../kv/mod';
 import {
@@ -12,6 +12,9 @@ import {
   partition,
   Write,
   assertBTreeNode,
+  newTempHash,
+  assertNotTempHash,
+  isTempHash,
 } from './node';
 
 setup(async () => {
@@ -21,11 +24,6 @@ setup(async () => {
 test('findLeaf', async () => {
   const kvStore = new kv.MemStore();
   const dagStore = new dag.Store(kvStore);
-
-  function addHash(n: DataNode): DataNode & {hash: string} {
-    const hash = Hash.of(JSON.stringify(n)).toString();
-    return {...n, hash};
-  }
 
   const leaf0: DataNode = {
     type: 'data',
@@ -981,4 +979,14 @@ test('del - with internal nodes', async () => {
   //     $type: 'internal',
   //   });
   // });
+});
+
+test('temp hash', () => {
+  const t = newTempHash();
+  const c = Chunk.new('dummy', []);
+  expect(t.length, 'temp hash length').to.equal(c.hash.length);
+  expect(isTempHash(t)).to.equal(true);
+  expect(isTempHash(c.hash)).to.equal(false);
+
+  expect(() => assertNotTempHash(t)).to.throw();
 });

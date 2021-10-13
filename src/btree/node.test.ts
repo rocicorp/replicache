@@ -317,29 +317,51 @@ test('has', async () => {
 
 test('partition', () => {
   const getSize = (v: string) => v.length;
-  expect(
-    partition(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'], getSize, 2, 4),
-  ).to.deep.equal([['a', 'b', 'c', 'd'], ['e', 'f', 'g', 'h'], ['i']]);
 
-  expect(
-    partition(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'], getSize, 2, 4),
-  ).to.deep.equal([
+  const t = (input: string[], expected: string[][]) => {
+    expect(partition(input, getSize, 2, 4)).to.deep.equal(expected);
+  };
+
+  t([], []);
+  t(['a'], [['a']]);
+  t(['a', 'b'], [['a', 'b']]);
+  t(['a', 'b', 'c'], [['a', 'b', 'c']]);
+  t(
     ['a', 'b', 'c', 'd'],
-    ['e', 'f', 'g', 'h'],
-  ]);
-
-  expect(partition(['ab', 'cd', 'ef', 'gh', 'i'], getSize, 2, 4)).to.deep.equal(
-    [['ab', 'cd'], ['ef', 'gh'], ['i']],
+    [
+      ['a', 'b'],
+      ['c', 'd'],
+    ],
   );
-
-  expect(partition(['a', 'bc', 'de', 'fg', 'hi'], getSize, 2, 4)).to.deep.equal(
-    [['a', 'bc'], ['de', 'fg'], ['hi']],
+  t(
+    ['a', 'b', 'c', 'd', 'e'],
+    [
+      ['a', 'b'],
+      ['c', 'd', 'e'],
+    ],
   );
-
-  expect(partition(['abcde', 'fg', 'hi'], getSize, 2, 4)).to.deep.equal([
-    ['abcde'],
-    ['fg', 'hi'],
-  ]);
+  t(
+    ['a', 'b', 'c', 'd', 'e', 'f'],
+    [
+      ['a', 'b'],
+      ['c', 'd'],
+      ['e', 'f'],
+    ],
+  );
+  t(['ab'], [['ab']]);
+  t(['ab', 'cd'], [['ab'], ['cd']]);
+  t(['ab', 'cd', 'ef'], [['ab'], ['cd'], ['ef']]);
+  t(['ab', 'cd', 'e'], [['ab'], ['cd', 'e']]);
+  t(['ab', 'c', 'de'], [['ab'], ['c', 'de']]);
+  t(['a', 'bc', 'de'], [['a', 'bc'], ['de']]);
+  t(['abc', 'de'], [['abc'], ['de']]);
+  t(['abc', 'def'], [['abc'], ['def']]);
+  t(['a', 'bcd', 'e'], [['a', 'bcd'], ['e']]);
+  t(['ab', 'cde', 'f'], [['ab'], ['cde', 'f']]);
+  t(['abc', 'd', 'efg'], [['abc'], ['d', 'efg']]);
+  t(['abcd', 'e', 'f'], [['abcd'], ['e', 'f']]);
+  t(['a', 'bcde', 'f'], [['a'], ['bcde'], ['f']]);
+  t(['a', 'bcdef', 'g'], [['a'], ['bcdef'], ['g']]);
 });
 
 test('set', async () => {
@@ -402,6 +424,23 @@ test('set', async () => {
     return h;
   });
 
+  await dagStore.withRead(async dagRead => {
+    expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
+      $type: 'internal',
+      b: {
+        $type: 'data',
+        a: 'aaa',
+        b: 'bbb',
+      },
+      f: {
+        $type: 'data',
+        c: 'ccc',
+        d: 1,
+        f: 2,
+      },
+    });
+  });
+
   async function write(data: Record<string, ReadonlyJSONValue>) {
     rootHash = await dagStore.withWrite(async dagWrite => {
       const w = new Write(rootHash, dagWrite, 2, 4);
@@ -428,14 +467,25 @@ test('set', async () => {
     });
   }
 
-  await write({e: 'eee', f: 'fff', g: 'ggg', h: 'hhh', i: 'iii'});
+  // await write({e: 'eee', f: 'fff', g: 'ggg', h: 'hhh', i: 'iii'});
+  await write({
+    e: 'eee',
+    f: 'fff',
+    g: 'ggg',
+    h: 'hhh',
+    i: 'iii',
+    j: 'jjj',
+  });
   await dagStore.withRead(async dagRead => {
     expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
       $type: 'internal',
-      d: {
+      b: {
         $type: 'data',
         a: 'aaa',
         b: 'bbb',
+      },
+      d: {
+        $type: 'data',
         c: 'ccc',
         d: 1,
       },
@@ -444,131 +494,103 @@ test('set', async () => {
         e: 'eee',
         f: 'fff',
       },
-      i: {
+      j: {
         $type: 'data',
         g: 'ggg',
         h: 'hhh',
         i: 'iii',
+        j: 'jjj',
       },
     });
   });
 
   await write({
-    j: 'jjj',
     k: 'kkk',
-    l: 'lll',
-    m: 'mmm',
-    n: 'nnn',
-    o: 'ooo',
-    p: 'ppp',
   });
   await dagStore.withRead(async dagRead => {
     expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
       $type: 'internal',
       d: {
-        $type: 'data',
-        a: 'aaa',
-        b: 'bbb',
-        c: 'ccc',
-        d: 1,
+        $type: 'internal',
+        b: {
+          $type: 'data',
+          a: 'aaa',
+          b: 'bbb',
+        },
+        d: {
+          $type: 'data',
+          c: 'ccc',
+          d: 1,
+        },
       },
-      h: {
-        $type: 'data',
-        e: 'eee',
-        f: 'fff',
-        g: 'ggg',
-        h: 'hhh',
-      },
-      l: {
-        $type: 'data',
-        i: 'iii',
-        j: 'jjj',
-        k: 'kkk',
-        l: 'lll',
-      },
-      p: {
-        $type: 'data',
-        m: 'mmm',
-        n: 'nnn',
-        o: 'ooo',
-        p: 'ppp',
+      k: {
+        $type: 'internal',
+        f: {
+          $type: 'data',
+          e: 'eee',
+          f: 'fff',
+        },
+        h: {
+          $type: 'data',
+          g: 'ggg',
+          h: 'hhh',
+        },
+        k: {
+          $type: 'data',
+          i: 'iii',
+          j: 'jjj',
+          k: 'kkk',
+        },
       },
     });
   });
 
   await write({
     q: 'qqq',
+    m: 'mmm',
+    l: 'lll',
+    p: 'ppp',
+    o: 'ooo',
+    n: 'nnn',
   });
   await dagStore.withRead(async dagRead => {
     expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
       $type: 'internal',
-      n: {
+      d: {
         $type: 'internal',
-        d: {
+        b: {
           $type: 'data',
           a: 'aaa',
           b: 'bbb',
-          c: 'ccc',
-          d: 1,
         },
-        h: {
-          $type: 'data',
-          e: 'eee',
-          f: 'fff',
-          g: 'ggg',
-          h: 'hhh',
-        },
-        l: {
-          $type: 'data',
-          i: 'iii',
-          j: 'jjj',
-          k: 'kkk',
-          l: 'lll',
-        },
-        n: {
-          $type: 'data',
-          m: 'mmm',
-          n: 'nnn',
-        },
-      },
-      q: {
-        $type: 'internal',
-        q: {
-          $type: 'data',
-          o: 'ooo',
-          p: 'ppp',
-          q: 'qqq',
-        },
-      },
-    });
-  });
-
-  await write({
-    a: [1, 2],
-  });
-  await dagStore.withRead(async dagRead => {
-    expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
-      $type: 'internal',
-      n: {
-        $type: 'internal',
         d: {
           $type: 'data',
-          a: [1, 2],
-          b: 'bbb',
           c: 'ccc',
           d: 1,
         },
-        h: {
+      },
+      h: {
+        $type: 'internal',
+        f: {
           $type: 'data',
           e: 'eee',
           f: 'fff',
+        },
+        h: {
+          $type: 'data',
           g: 'ggg',
           h: 'hhh',
         },
-        l: {
+      },
+      q: {
+        $type: 'internal',
+        j: {
           $type: 'data',
           i: 'iii',
           j: 'jjj',
+        },
+        l: {
+          $type: 'data',
           k: 'kkk',
           l: 'lll',
         },
@@ -577,9 +599,6 @@ test('set', async () => {
           m: 'mmm',
           n: 'nnn',
         },
-      },
-      q: {
-        $type: 'internal',
         q: {
           $type: 'data',
           o: 'ooo',
@@ -596,33 +615,42 @@ test('set', async () => {
   await dagStore.withRead(async dagRead => {
     expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
       $type: 'internal',
-      h: {
+      d: {
         $type: 'internal',
-        boo: {
+        b: {
           $type: 'data',
-          a: [1, 2],
+          a: 'aaa',
           b: 'bbb',
-          boo: '👻',
         },
         d: {
           $type: 'data',
+          boo: '👻',
           c: 'ccc',
           d: 1,
         },
-        h: {
+      },
+      h: {
+        $type: 'internal',
+        f: {
           $type: 'data',
           e: 'eee',
           f: 'fff',
+        },
+        h: {
+          $type: 'data',
           g: 'ggg',
           h: 'hhh',
         },
       },
-      n: {
+      q: {
         $type: 'internal',
-        l: {
+        j: {
           $type: 'data',
           i: 'iii',
           j: 'jjj',
+        },
+        l: {
+          $type: 'data',
           k: 'kkk',
           l: 'lll',
         },
@@ -631,9 +659,6 @@ test('set', async () => {
           m: 'mmm',
           n: 'nnn',
         },
-      },
-      q: {
-        $type: 'internal',
         q: {
           $type: 'data',
           o: 'ooo',
@@ -651,12 +676,15 @@ test('set', async () => {
   await dagStore.withRead(async dagRead => {
     expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
       $type: 'internal',
-      h: {
+      d: {
         $type: 'internal',
+        b: {
+          $type: 'data',
+          a: 'aaa',
+          b: 'bbb',
+        },
         bx: {
           $type: 'data',
-          a: [1, 2],
-          b: 'bbb',
           boo: '👻',
           bx: true,
         },
@@ -666,20 +694,29 @@ test('set', async () => {
           c: 'ccc',
           d: 1,
         },
-        h: {
+      },
+      h: {
+        $type: 'internal',
+        f: {
           $type: 'data',
           e: 'eee',
           f: 'fff',
+        },
+        h: {
+          $type: 'data',
           g: 'ggg',
           h: 'hhh',
         },
       },
-      n: {
+      q: {
         $type: 'internal',
-        l: {
+        j: {
           $type: 'data',
           i: 'iii',
           j: 'jjj',
+        },
+        l: {
+          $type: 'data',
           k: 'kkk',
           l: 'lll',
         },
@@ -688,9 +725,6 @@ test('set', async () => {
           m: 'mmm',
           n: 'nnn',
         },
-      },
-      q: {
-        $type: 'internal',
         q: {
           $type: 'data',
           o: 'ooo',
@@ -776,42 +810,36 @@ test('del - with internal nodes', async () => {
 
   const tree: TreeData = {
     $type: 'internal',
-    h: {
+    d: {
       $type: 'internal',
+      b: {
+        $type: 'data',
+        a: 'aaa',
+        b: 'bbb',
+      },
       d: {
         $type: 'data',
-        a: 'a',
-        b: 'b',
-        c: 'c',
-        d: 1,
+        c: 'ccc',
+        d: 'ddd',
+      },
+    },
+    k: {
+      $type: 'internal',
+      f: {
+        $type: 'data',
+        e: 'eee',
+        f: 'fff',
       },
       h: {
         $type: 'data',
-        e: 'e',
-        f: 'f',
-        g: 'g',
-        h: 'h',
+        g: 'ggg',
+        h: 'hhh',
       },
-    },
-    q: {
-      $type: 'internal',
-      l: {
+      k: {
         $type: 'data',
-        i: 'i',
-        j: 'j',
-        k: 'k',
-        l: 'l',
-      },
-      n: {
-        $type: 'data',
-        m: 'm',
-        n: 'n',
-      },
-      q: {
-        $type: 'data',
-        o: 'o',
-        p: 'p',
-        q: 'q',
+        i: 'iii',
+        j: 'jjj',
+        k: 'kkk',
       },
     },
   };
@@ -824,87 +852,78 @@ test('del - with internal nodes', async () => {
   });
 
   rootHash = await doWrite(rootHash, dagStore, async w => {
-    expect(await w.del('n')).to.equal(true);
+    expect(await w.del('k')).to.equal(true);
   });
 
   await dagStore.withRead(async dagRead => {
     expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
       $type: 'internal',
-      h: {
+      d: {
         $type: 'internal',
+        b: {
+          $type: 'data',
+          a: 'aaa',
+          b: 'bbb',
+        },
         d: {
           $type: 'data',
-          a: 'a',
-          b: 'b',
-          c: 'c',
-          d: 1,
+          c: 'ccc',
+          d: 'ddd',
+        },
+      },
+      j: {
+        $type: 'internal',
+        f: {
+          $type: 'data',
+          e: 'eee',
+          f: 'fff',
         },
         h: {
           $type: 'data',
-          e: 'e',
-          f: 'f',
-          g: 'g',
-          h: 'h',
+          g: 'ggg',
+          h: 'hhh',
         },
-      },
-      q: {
-        $type: 'internal',
-        l: {
+        j: {
           $type: 'data',
-          i: 'i',
-          j: 'j',
-          k: 'k',
-          l: 'l',
-        },
-        m: {
-          $type: 'data',
-          m: 'm',
-        },
-        q: {
-          $type: 'data',
-          o: 'o',
-          p: 'p',
-          q: 'q',
+          i: 'iii',
+          j: 'jjj',
         },
       },
     });
   });
 
   rootHash = await doWrite(rootHash, dagStore, async w => {
-    expect(await w.del('m')).to.equal(true);
+    expect(await w.del('c')).to.equal(true);
   });
 
   await dagStore.withRead(async dagRead => {
     expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
       $type: 'internal',
-      q: {
+      f: {
         $type: 'internal',
         d: {
           $type: 'data',
-          a: 'a',
-          b: 'b',
-          c: 'c',
-          d: 1,
+          a: 'aaa',
+          b: 'bbb',
+          d: 'ddd',
         },
+        f: {
+          $type: 'data',
+          e: 'eee',
+          f: 'fff',
+        },
+      },
+      j: {
+        $type: 'internal',
         h: {
           $type: 'data',
-          e: 'e',
-          f: 'f',
-          g: 'g',
-          h: 'h',
+          g: 'ggg',
+          h: 'hhh',
         },
-        l: {
+        j: {
           $type: 'data',
-          i: 'i',
-          j: 'j',
-          k: 'k',
-          l: 'l',
-        },
-        q: {
-          $type: 'data',
-          o: 'o',
-          p: 'p',
-          q: 'q',
+          i: 'iii',
+          j: 'jjj',
         },
       },
     });
@@ -920,28 +939,16 @@ test('del - with internal nodes', async () => {
   await dagStore.withRead(async dagRead => {
     expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
       $type: 'internal',
-      q: {
-        $type: 'internal',
-        d: {
-          $type: 'data',
-          a: 'a',
-          b: 'b',
-          c: 'c',
-          d: 1,
-        },
-        l: {
-          $type: 'data',
-          i: 'i',
-          j: 'j',
-          k: 'k',
-          l: 'l',
-        },
-        q: {
-          $type: 'data',
-          o: 'o',
-          p: 'p',
-          q: 'q',
-        },
+      d: {
+        $type: 'data',
+        a: 'aaa',
+        b: 'bbb',
+        d: 'ddd',
+      },
+      j: {
+        $type: 'data',
+        i: 'iii',
+        j: 'jjj',
       },
     });
   });
@@ -949,42 +956,44 @@ test('del - with internal nodes', async () => {
   rootHash = await doWrite(rootHash, dagStore, async w => {
     expect(await w.del('a')).to.equal(true);
     expect(await w.del('b')).to.equal(true);
-    expect(await w.del('c')).to.equal(true);
+  });
+
+  await dagStore.withRead(async dagRead => {
+    expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
+      $type: 'internal',
+      j: {
+        $type: 'data',
+        d: 'ddd',
+        i: 'iii',
+        j: 'jjj',
+      },
+    });
+  });
+
+  rootHash = await doWrite(rootHash, dagStore, async w => {
+    expect(await w.del('i')).to.equal(true);
+    expect(await w.del('j')).to.equal(true);
+  });
+
+  await dagStore.withRead(async dagRead => {
+    expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
+      $type: 'internal',
+      d: {
+        $type: 'data',
+        d: 'ddd',
+      },
+    });
+  });
+
+  rootHash = await doWrite(rootHash, dagStore, async w => {
     expect(await w.del('d')).to.equal(true);
   });
 
   await dagStore.withRead(async dagRead => {
     expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
       $type: 'internal',
-      q: {
-        $type: 'internal',
-        l: {
-          $type: 'data',
-          i: 'i',
-          j: 'j',
-          k: 'k',
-          l: 'l',
-        },
-        q: {
-          $type: 'data',
-          o: 'o',
-          p: 'p',
-          q: 'q',
-        },
-      },
     });
   });
-
-  // rootHash = await doWrite(rootHash, dagStore, async w => {
-  //   expect(await w.del('b')).to.equal(true);
-  //   expect(await w.del('f')).to.equal(true);
-  // });
-
-  // await dagStore.withRead(async dagRead => {
-  //   expect(await readTreeData(rootHash, dagRead)).to.deep.equal({
-  //     $type: 'internal',
-  //   });
-  // });
 });
 
 test('temp hash', () => {

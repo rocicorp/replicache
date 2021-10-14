@@ -10,6 +10,8 @@ jobs:
   format:
     name: ESLint & Prettier
     runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: 0
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
@@ -23,6 +25,8 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: 0
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
@@ -35,6 +39,8 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: 0
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
@@ -42,5 +48,5 @@ jobs:
           node-version: 14.x
           cache: 'npm'
       - run: npm install
-      - run: npx playwright install-deps
+      - run: npx playwright install-deps chromium
       - run: npm test

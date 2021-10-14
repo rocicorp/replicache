@@ -12,7 +12,7 @@ export type Entry<V> = [key: string, value: V];
 export type ReadonlyEntry<V> = readonly [key: string, value: V];
 
 type BaseNode<V> = {
-  readonly entries: Readonly<Entry<V>>;
+  readonly entries: Entry<V>[];
 };
 
 type ReadonlyBaseNode<V> = {
@@ -188,6 +188,18 @@ export function assertBTreeNode(v: unknown): asserts v is BTreeNode {
 type Hash = string;
 
 export class Write extends Read {
+  newInternalNodeImpl(entries: Entry<string>[]): InternalNodeImpl {
+    const n = new InternalNodeImpl(entries, newTempHash());
+    this.addToModified(n);
+    return n;
+  }
+
+  newDataNodeImpl(entries: Entry<ReadonlyJSONValue>[]): DataNodeImpl {
+    const n = new DataNodeImpl(entries, newTempHash());
+    this.addToModified(n);
+    return n;
+  }
+
   getSize(): number {
     return 1;
   }
@@ -214,9 +226,8 @@ export class Write extends Read {
     return super.getNode(hash);
   }
 
-  addToModified<T extends DataNodeImpl | InternalNodeImpl>(node: T): T {
+  addToModified(node: DataNodeImpl | InternalNodeImpl): void {
     this._modified.set(node.hash, node);
-    return node;
   }
 
   updateModified(oldHash: Hash, node: DataNodeImpl | InternalNodeImpl): void {
@@ -231,8 +242,8 @@ export class Write extends Read {
   }
 
   async put(key: string, value: ReadonlyJSONValue): Promise<void> {
-    const oldRootNode = await this.getNode(this.rootHash);
-    const rootNode = await oldRootNode.set(key, value, this);
+    const rootNode = await this.getNode(this.rootHash);
+    await rootNode.set(key, value, this);
 
     if (rootNode.entries.length > this.maxSize) {
       const partitions = partition(
@@ -253,20 +264,19 @@ export class Write extends Read {
     }
 
     this.rootHash = rootNode.hash;
-    return;
   }
 
   async del(key: string): Promise<boolean> {
-    const rootNode = await this.getNode(this.rootHash);
+    const oldRootNode = await this.getNode(this.rootHash);
 
-    const res = await rootNode.del(key, this);
+    const newRootNode = await oldRootNode.del(key, this);
 
-    if (res) {
-      this.resetHashForModifiedNode(rootNode);
-      this.rootHash = rootNode.hash;
+    const found = newRootNode !== oldRootNode;
+    if (found) {
+      this.rootHash = newRootNode.hash;
     }
 
-    return res;
+    return found;
   }
 
   async flush(): Promise<string> {
@@ -313,25 +323,17 @@ abstract class NodeImpl<
   Value extends Hash | ReadonlyJSONValue,
   Type extends 'data' | 'internal',
 > {
-  entries: ReadonlyArray<ReadonlyEntry<Value>>;
+  entries: Entry<Value>[];
   readonly type: Type;
   hash: Hash;
 
-  constructor(
-    type: Type,
-    entries: ReadonlyArray<ReadonlyEntry<Value>>,
-    hash: Hash,
-  ) {
+  constructor(type: Type, entries: Entry<Value>[], hash: Hash) {
     this.type = type;
     this.entries = entries;
     this.hash = hash;
   }
 
-  abstract set(
-    key: string,
-    value: Value,
-    tree: Write,
-  ): Promise<NodeImpl<Value, Type>>;
+  abstract set(key: string, value: Value, tree: Write): Promise<void>;
 
   abstract del(key: string, tree: Write): Promise<NodeImpl<Value, Type>>;
 
@@ -339,10 +341,8 @@ abstract class NodeImpl<
     return this.entries[this.entries.length - 1][0];
   }
 
-  toChunkData(): ReadonlyDataNode | ReadonlyInternalNode {
-    return {type: this.type, entries: this.entries} as
-      | ReadonlyDataNode
-      | ReadonlyInternalNode;
+  toChunkData(): DataNode | InternalNode {
+    return {type: this.type, entries: this.entries} as DataNode | InternalNode;
   }
 
   getChunkSize(): number {
@@ -351,33 +351,21 @@ abstract class NodeImpl<
 }
 
 class DataNodeImpl extends NodeImpl<ReadonlyJSONValue, 'data'> {
-  constructor(
-    entries: ReadonlyArray<ReadonlyEntry<ReadonlyJSONValue>>,
-    hash: Hash,
-  ) {
+  constructor(entries: Entry<ReadonlyJSONValue>[], hash: Hash) {
     super('data', entries, hash);
   }
 
-  async set(
-    key: string,
-    value: ReadonlyJSONValue,
-    tree: Write,
-  ): Promise<DataNodeImpl> {
+  async set(key: string, value: ReadonlyJSONValue, tree: Write): Promise<void> {
     tree.resetHashForModifiedNode(this as DataNodeImpl);
-    const entries = [...this.entries];
-    let i = binarySearch(key, entries);
+    let i = binarySearch(key, this.entries);
     if (i < 0) {
       // Not found, insert.
       i = ~i;
-      // TODO: No need to do 2 O(n)
-      entries.splice(i, 0, [key, value]);
-    } else {
-      entries[i] = [key, value];
-    }
 
-    const n = new DataNodeImpl(entries, this.hash);
-    tree.addToModified(n);
-    return n;
+      this.entries.splice(i, 0, [key, value]);
+    } else {
+      this.entries[i] = [key, value];
+    }
   }
 
   async del(key: string, tree: Write): Promise<DataNodeImpl> {
@@ -389,12 +377,8 @@ class DataNodeImpl extends NodeImpl<ReadonlyJSONValue, 'data'> {
     // Found
     tree.resetHashForModifiedNode(this as DataNodeImpl);
 
-    // Rebalancing is done in InternalNodeImpl
-
     const entries = readonlySplice(this.entries, i, 1);
-    const n = new DataNodeImpl(entries, this.hash);
-    tree.addToModified(n);
-    return n;
+    return tree.newDataNodeImpl(entries);
   }
 }
 
@@ -416,32 +400,27 @@ function* joinIterables<T>(...iters: Iterable<T>[]) {
 }
 
 class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
-  constructor(entries: ReadonlyArray<ReadonlyEntry<Hash>>, hash: Hash) {
+  constructor(entries: Entry<Hash>[], hash: Hash) {
     super('internal', entries, hash);
   }
 
-  async set(
-    key: string,
-    value: ReadonlyJSONValue,
-    tree: Write,
-  ): Promise<InternalNodeImpl> {
-    let i = binarySearch(key, this.entries);
+  async set(key: string, value: ReadonlyJSONValue, tree: Write): Promise<void> {
+    const {entries} = this;
+    let i = binarySearch(key, entries);
     if (i < 0) {
       i = ~i;
 
-      if (i >= this.entries.length) {
-        i = this.entries.length - 1;
+      if (i >= entries.length) {
+        i = entries.length - 1;
       }
     }
-    const childHash = this.entries[i][1];
-    const oldChildNode = await tree.getNode(childHash);
+    const childHash = entries[i][1];
+    const childNode = await tree.getNode(childHash);
 
-    const childNode = await oldChildNode.set(key, value, tree);
-
-    let entries = [...this.entries];
+    await childNode.set(key, value, tree);
 
     // TODO: Should we set this in an else branch... things are messy
-    entries[i] = [childNode.maxKey(), childNode.hash];
+    this.entries[i] = [childNode.maxKey(), childNode.hash];
 
     if (childNode.entries.length > tree.maxSize) {
       // USE_SIZE
@@ -462,25 +441,31 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
             tree.addToModified(node as DataNodeImpl | InternalNodeImpl);
             return [node.maxKey(), node.hash];
           });
-          entries.splice(i - 1, 2, ...entries);
+          this.entries.splice(i - 1, 2, ...entries);
         } else if (partitions.length === 2) {
           previousSibling.entries = partitions[0];
           tree.addToModified(previousSibling);
-          entries[i - 1] = [previousSibling.maxKey(), previousSibling.hash];
+          this.entries[i - 1] = [
+            previousSibling.maxKey(),
+            previousSibling.hash,
+          ];
 
           childNode.entries = partitions[1];
-          entries[i] = [childNode.maxKey(), childNode.hash];
+          this.entries[i] = [childNode.maxKey(), childNode.hash];
         } else if (partitions.length === 1) {
           previousSibling.entries = partitions[0];
           tree.addToModified(previousSibling);
-          entries[i - 1] = [previousSibling.maxKey(), previousSibling.hash];
+          this.entries[i - 1] = [
+            previousSibling.maxKey(),
+            previousSibling.hash,
+          ];
 
           // Remove childNode
-          entries.splice(i, 1);
+          this.entries.splice(i, 1);
         } else {
           throw new Error(`invalid partition: length: ${partitions.length}`);
         }
-      } else if (i < entries.length - 1) {
+      } else if (i < this.entries.length - 1) {
         const hash = entries[i - 1][1];
         const nextSibling = await tree.getNode(hash);
 
@@ -497,25 +482,25 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
             tree.addToModified(node as DataNodeImpl | InternalNodeImpl);
             return [node.maxKey(), node.hash];
           });
-          entries.splice(i, 2, ...entries);
+          this.entries.splice(i, 2, ...entries);
         } else if (partitions.length === 2) {
           childNode.entries = partitions[0];
           tree.addToModified(childNode);
-          entries[i] = [childNode.maxKey(), childNode.hash];
+          this.entries[i] = [childNode.maxKey(), childNode.hash];
 
           nextSibling.entries = partitions[1];
-          entries[i + 1] = [nextSibling.maxKey(), nextSibling.hash];
+          this.entries[i + 1] = [nextSibling.maxKey(), nextSibling.hash];
         } else if (partitions.length === 1) {
           nextSibling.entries = partitions[0];
           tree.addToModified(nextSibling);
-          entries[i + 1] = [nextSibling.maxKey(), nextSibling.hash];
+          this.entries[i + 1] = [nextSibling.maxKey(), nextSibling.hash];
 
           // Remove childNode
-          entries.splice(i, 1);
+          this.entries.splice(i, 1);
         } else {
           throw new Error('invalid partition');
         }
-      } else if (i === 0 && entries.length === 1) {
+      } else if (i === 0 && this.entries.length === 1) {
         // This is the only node in the tree.
 
         const partitions = partition(
@@ -528,13 +513,13 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
         if (partitions.length === 1) {
           // Cannot partition.
         } else {
-          const newEntries: Entry<string>[] = partitions.map(entries => {
+          const entries: Entry<string>[] = partitions.map(entries => {
             const node = newImpl(childNode.type, entries, newTempHash());
             tree.addToModified(node as DataNodeImpl | InternalNodeImpl);
             return [node.maxKey(), node.hash];
           });
 
-          entries = newEntries;
+          this.entries = entries;
         }
       } else {
         throw new Error('invalid index');
@@ -545,11 +530,7 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
     }
 
     // Mutated so new hash
-    // tree.resetHashForModifiedNode(this);
-
-    const n = new InternalNodeImpl(entries, newTempHash());
-    tree.addToModified(n);
-    return n;
+    tree.resetHashForModifiedNode(this);
   }
 
   async del(key: string, tree: Write): Promise<InternalNodeImpl> {
@@ -567,32 +548,27 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
 
     const childNode = await oldChildNode.del(key, tree);
     if (childNode === oldChildNode) {
-      // No change
       return this;
     }
-
-    // Found and removed from leaf entries
-    tree.resetHashForModifiedNode(this);
 
     if (childNode.entries.length === 0) {
       // USE_SIZE
       const entries = readonlySplice(this.entries, i, 1);
-      const n = new InternalNodeImpl(entries, newTempHash());
-      return tree.addToModified(n);
-    }
-
-    if (childNode.entries.length > tree.minSize) {
-      // USE_SIZE
-      // No merging needed.
-      const entries = [...this.entries];
-      entries[i] = [childNode.maxKey(), childNode.hash];
-      const n = new InternalNodeImpl(entries, newTempHash());
-      return tree.addToModified(n);
+      return tree.newInternalNodeImpl(entries);
     }
 
     let entries = [...this.entries];
 
-    // Chunk is too small.
+    // The child node is still a good size.
+    if (childNode.entries.length > tree.minSize) {
+      // USE_SIZE
+
+      // No merging needed.
+      entries[i] = [childNode.maxKey(), childNode.hash];
+      return tree.newInternalNodeImpl(entries);
+    }
+
+    // Child node size is too small.
     if (i > 0) {
       // check if we can merge with left
       const otherHash = entries[i - 1][1];
@@ -606,18 +582,20 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
       );
 
       if (partitions.length === 1) {
-        // Move all to the previous sibling
+        // Remove previous sibling and move all of its entries to the child node.
         // TS cannot know other and childNode are the same type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        previousSibling.entries.push(...(childNode.entries as any));
-
-        tree.resetHashForModifiedNode(previousSibling);
-        entries.splice(i, 1);
-        entries[i - 1] = [previousSibling.maxKey(), previousSibling.hash];
+        childNode.entries.unshift(...(previousSibling.entries as any[]));
+        entries[i] = [childNode.maxKey(), childNode.hash];
+        entries.splice(i - 1, 1);
       } else if (partitions.length === 2) {
-        previousSibling.entries = partitions[0];
-        tree.resetHashForModifiedNode(previousSibling);
-        entries[i - 1] = [previousSibling.maxKey(), previousSibling.hash];
+        if (previousSibling.entries.length !== partitions[0].length) {
+          const p =
+            previousSibling.type === 'data'
+              ? tree.newDataNodeImpl(partitions[0])
+              : tree.newInternalNodeImpl(partitions[0] as Entry<string>[]);
+          entries[i - 1] = [p.maxKey(), p.hash];
+        }
 
         childNode.entries = partitions[1];
         entries[i] = [childNode.maxKey(), childNode.hash];
@@ -640,22 +618,25 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
         // Move all to the next sibling
         // TS cannot know other and childNode are the same type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        nextSibling.entries.unshift(...(childNode.entries as any));
-
-        tree.resetHashForModifiedNode(nextSibling);
-        entries.splice(i, 1);
-        entries[i] = [nextSibling.maxKey(), nextSibling.hash];
+        childNode.entries.push(...(nextSibling.entries as any[]));
+        entries[i] = [childNode.maxKey(), childNode.hash];
+        entries.splice(i + 1, 1);
       } else if (partitions.length === 2) {
         childNode.entries = partitions[0];
         entries[i] = [childNode.maxKey(), childNode.hash];
-        nextSibling.entries = partitions[1];
-        tree.resetHashForModifiedNode(nextSibling);
-        entries[i + 1] = [nextSibling.maxKey(), nextSibling.hash];
+        if (nextSibling.entries.length !== partitions[1].length) {
+          const n =
+            nextSibling.type === 'data'
+              ? tree.newDataNodeImpl(partitions[1])
+              : tree.newInternalNodeImpl(partitions[1] as Entry<string>[]);
+          entries[i + 1] = [n.maxKey(), n.hash];
+        }
       } else {
         throw new Error('unexpected partition length');
       }
     } else if (i === 0 && entries.length === 1) {
       if (childNode.type === 'internal') {
+        // Remove one layer of internal nodes.
         entries = childNode.entries;
       } else {
         entries[i] = [childNode.maxKey(), childNode.hash];
@@ -664,34 +645,33 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
       entries[i] = [childNode.maxKey(), childNode.hash];
     }
 
-    const n = new InternalNodeImpl(entries, newTempHash());
-    return tree.addToModified(n);
+    return tree.newInternalNodeImpl(entries);
   }
 }
 
 function newImpl(
   type: 'data',
-  entries: ReadonlyDataNode['entries'],
+  entries: DataNode['entries'],
   hash: Hash,
 ): DataNodeImpl;
 function newImpl(
   type: 'internal',
-  entries: ReadonlyInternalNode['entries'],
+  entries: InternalNode['entries'],
   hash: Hash,
 ): InternalNodeImpl;
 function newImpl(
   type: 'data' | 'internal',
-  entries: ReadonlyDataNode['entries'] | ReadonlyInternalNode['entries'],
+  entries: BTreeNode['entries'],
   hash: Hash,
 ): DataNodeImpl | InternalNodeImpl;
 function newImpl(
   type: 'data' | 'internal',
-  entries: ReadonlyDataNode['entries'] | ReadonlyInternalNode['entries'],
+  entries: BTreeNode['entries'],
   hash: Hash,
 ): DataNodeImpl | InternalNodeImpl {
   return type === 'data'
-    ? new DataNodeImpl(entries as ReadonlyDataNode['entries'], hash)
-    : new InternalNodeImpl(entries as ReadonlyInternalNode['entries'], hash);
+    ? new DataNodeImpl(entries as DataNode['entries'], hash)
+    : new InternalNodeImpl(entries as InternalNode['entries'], hash);
 }
 
 // const mutableNodes = new WeakMap();

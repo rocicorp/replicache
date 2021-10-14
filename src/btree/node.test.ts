@@ -15,6 +15,8 @@ import {
   newTempHash,
   assertNotTempHash,
   isTempHash,
+  getSizeOfValue,
+  Entry,
 } from './node';
 
 setup(async () => {
@@ -204,13 +206,23 @@ async function expectTree(
   });
 }
 
+let minSize: number;
+let maxSize: number;
+let getSize: <T>(e: Entry<T>) => number;
+
+setup(() => {
+  minSize = 2;
+  maxSize = 4;
+  getSize = () => 1;
+});
+
 function doWrite(
   rootHash: string,
   dagStore: dag.Store,
   fn: (w: BTreeWrite) => void | Promise<void>,
 ): Promise<string> {
   return dagStore.withWrite(async dagWrite => {
-    const w = new BTreeWrite(rootHash, dagWrite, 2, 4);
+    const w = new BTreeWrite(rootHash, dagWrite, minSize, maxSize, getSize);
     await fn(w);
     const h = await w.flush();
     await dagWrite.setHead('test', h);
@@ -376,18 +388,15 @@ test('partition', () => {
   t(['a', 'bcdef', 'g'], [['a'], ['bcdef'], ['g']]);
 });
 
-test('set', async () => {
+test('put', async () => {
   const kvStore = new kv.MemStore();
   const dagStore = new dag.Store(kvStore);
 
   const tree: TreeData = {
-    $type: 'internal',
-    f: {
-      $type: 'data',
-      b: 0,
-      d: 1,
-      f: 2,
-    },
+    $type: 'data',
+    b: 0,
+    d: 1,
+    f: 2,
   };
 
   let rootHash = await makeTree(tree, dagStore);
@@ -402,14 +411,11 @@ test('set', async () => {
   });
 
   await expectTree(rootHash, dagStore, {
-    $type: 'internal',
-    f: {
-      $type: 'data',
-      a: 'aaa',
-      b: 'bbb',
-      d: 1,
-      f: 2,
-    },
+    $type: 'data',
+    a: 'aaa',
+    b: 'bbb',
+    d: 1,
+    f: 2,
   });
 
   rootHash = await doWrite(rootHash, dagStore, async w => {
@@ -436,7 +442,7 @@ test('set', async () => {
 
   async function write(data: Record<string, ReadonlyJSONValue>) {
     rootHash = await dagStore.withWrite(async dagWrite => {
-      const w = new BTreeWrite(rootHash, dagWrite, 2, 4);
+      const w = new BTreeWrite(rootHash, dagWrite, minSize, maxSize, getSize);
       for (const [k, v] of Object.entries(data)) {
         await w.put(k, v);
         expect(await w.get(k)).to.equal(v);
@@ -723,13 +729,10 @@ test('del - single data node', async () => {
   const dagStore = new dag.Store(kvStore);
 
   const tree: TreeData = {
-    $type: 'internal',
-    f: {
-      $type: 'data',
-      b: 0,
-      d: 1,
-      f: 2,
-    },
+    $type: 'data',
+    b: 0,
+    d: 1,
+    f: 2,
   };
 
   let rootHash = await makeTree(tree, dagStore);
@@ -740,12 +743,9 @@ test('del - single data node', async () => {
   });
 
   await expectTree(rootHash, dagStore, {
-    $type: 'internal',
-    f: {
-      $type: 'data',
-      b: 0,
-      f: 2,
-    },
+    $type: 'data',
+    b: 0,
+    f: 2,
   });
 
   rootHash = await doWrite(rootHash, dagStore, async w => {
@@ -753,26 +753,80 @@ test('del - single data node', async () => {
   });
 
   await expectTree(rootHash, dagStore, {
-    $type: 'internal',
-    b: {
-      $type: 'data',
-      b: 0,
-    },
+    $type: 'data',
+    b: 0,
   });
 
-  rootHash = await dagStore.withWrite(async dagWrite => {
-    const w = new BTreeWrite(rootHash, dagWrite, 2, 4);
+  rootHash = await doWrite(rootHash, dagStore, async w => {
     expect(await w.del('b')).to.equal(true);
-
-    const h = await w.flush();
-    await dagWrite.setHead('test', h);
-    await dagWrite.commit();
-    return h;
   });
 
   await expectTree(rootHash, dagStore, {
-    $type: 'internal',
+    $type: 'data',
   });
+});
+
+test('del - flatten', async () => {
+  const kvStore = new kv.MemStore();
+  const dagStore = new dag.Store(kvStore);
+
+  // This tests that we can flatten "an invalid tree"
+
+  {
+    const tree: TreeData = {
+      $type: 'internal',
+      b: {
+        $type: 'internal',
+        b: {
+          $type: 'internal',
+          b: {
+            $type: 'data',
+            a: 'aaa',
+            b: 'bbb',
+          },
+        },
+      },
+    };
+
+    let rootHash = await makeTree(tree, dagStore);
+
+    rootHash = await doWrite(rootHash, dagStore, async w => {
+      expect(await w.del('a')).to.equal(true);
+    });
+
+    await expectTree(rootHash, dagStore, {
+      $type: 'data',
+      b: 'bbb',
+    });
+  }
+
+  {
+    const tree: TreeData = {
+      $type: 'internal',
+      b: {
+        $type: 'internal',
+        b: {
+          $type: 'internal',
+          b: {
+            $type: 'data',
+            a: 'aaa',
+            b: 'bbb',
+          },
+        },
+      },
+    };
+
+    let rootHash = await makeTree(tree, dagStore);
+
+    rootHash = await doWrite(rootHash, dagStore, async w => {
+      expect(await w.del('b')).to.equal(true);
+    });
+
+    await expectTree(rootHash, dagStore, {
+      $type: 'data',
+      a: 'aaa',
+    });
+  }
 });
 
 test('del - with internal nodes', async () => {
@@ -919,13 +973,10 @@ test('del - with internal nodes', async () => {
   });
 
   await expectTree(rootHash, dagStore, {
-    $type: 'internal',
-    j: {
-      $type: 'data',
-      d: 'ddd',
-      i: 'iii',
-      j: 'jjj',
-    },
+    $type: 'data',
+    d: 'ddd',
+    i: 'iii',
+    j: 'jjj',
   });
 
   rootHash = await doWrite(rootHash, dagStore, async w => {
@@ -934,11 +985,8 @@ test('del - with internal nodes', async () => {
   });
 
   await expectTree(rootHash, dagStore, {
-    $type: 'internal',
-    d: {
-      $type: 'data',
-      d: 'ddd',
-    },
+    $type: 'data',
+    d: 'ddd',
   });
 
   rootHash = await doWrite(rootHash, dagStore, async w => {
@@ -946,7 +994,7 @@ test('del - with internal nodes', async () => {
   });
 
   await expectTree(rootHash, dagStore, {
-    $type: 'internal',
+    $type: 'data',
   });
 });
 
@@ -958,4 +1006,105 @@ test('temp hash', () => {
   expect(isTempHash(c.hash)).to.equal(false);
 
   expect(() => assertNotTempHash(t)).to.throw();
+});
+
+test('put - invalid', async () => {
+  const kvStore = new kv.MemStore();
+  const dagStore = new dag.Store(kvStore);
+
+  // This tests that we can do puts on "an invalid tree"
+
+  const tree: TreeData = {
+    $type: 'internal',
+    b: {
+      $type: 'internal',
+      b: {
+        $type: 'data',
+        b: 'bbb',
+      },
+    },
+  };
+
+  let rootHash = await makeTree(tree, dagStore);
+
+  rootHash = await doWrite(rootHash, dagStore, async w => {
+    await w.put('c', 'ccc');
+  });
+
+  await expectTree(rootHash, dagStore, {
+    $type: 'internal',
+    c: {
+      $type: 'internal',
+      c: {
+        $type: 'data',
+        b: 'bbb',
+        c: 'ccc',
+      },
+    },
+  });
+});
+
+test('put/del - getSize', async () => {
+  minSize = 16;
+  maxSize = 32;
+  getSize = getSizeOfValue;
+
+  const kvStore = new kv.MemStore();
+  const dagStore = new dag.Store(kvStore);
+
+  // This tests that we can do puts on "an invalid tree"
+
+  const tree: TreeData = {
+    $type: 'data',
+  };
+
+  let rootHash = await makeTree(tree, dagStore);
+
+  rootHash = await doWrite(rootHash, dagStore, async w => {
+    await w.put('aaaa', 'a1');
+  });
+
+  expect(getSizeOfValue('aaaa')).to.equal(4);
+  expect(getSizeOfValue('a1')).to.equal(2);
+  expect(getSize(['aaaa', 'a1'])).to.equal(14);
+  await expectTree(rootHash, dagStore, {
+    $type: 'data',
+    aaaa: 'a1',
+  });
+
+  rootHash = await doWrite(rootHash, dagStore, async w => {
+    await w.put('c', '');
+  });
+  expect(getSize(['c', ''])).to.equal(9);
+  await expectTree(rootHash, dagStore, {
+    $type: 'data',
+    aaaa: 'a1',
+    c: '',
+  });
+
+  rootHash = await doWrite(rootHash, dagStore, async w => {
+    await w.put('b', 'b234');
+  });
+  expect(getSize(['b', 'b234'])).to.equal(13);
+  await expectTree(rootHash, dagStore, {
+    $type: 'internal',
+    b: {
+      $type: 'data',
+      aaaa: 'a1',
+      b: 'b234',
+    },
+    c: {
+      $type: 'data',
+      c: '',
+    },
+  });
+
+  rootHash = await doWrite(rootHash, dagStore, async w => {
+    await w.del('b');
+  });
+  await expectTree(rootHash, dagStore, {
+    $type: 'data',
+    aaaa: 'a1',
+    c: '',
+  });
 });

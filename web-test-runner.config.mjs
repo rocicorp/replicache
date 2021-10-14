@@ -40,7 +40,7 @@ export default {
         // 'src/migrate/*.test.ts',
         'src/btree/*.test.ts',
       ],
-      browsers: [firefox, chromium, webkit],
+      browsers: [firefox, chromium /*, webkit*/],
     },
     // {
     //   name: 'Worker',

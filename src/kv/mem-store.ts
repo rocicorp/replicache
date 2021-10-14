@@ -87,9 +87,12 @@ class WriteImpl extends WriteImplBase implements Write {
       if (value === deleteSentinel) {
         this._map.delete(key);
       } else {
-        if (JSON.stringify(this._map.get(key)) === JSON.stringify(value)) {
-          console.warn('writing same chunk', value);
-        }
+        // if (JSON.stringify(this._map.get(key)) === JSON.stringify(value)) {
+        //   if (key.endsWith('/r')) {
+        //     debugger;
+        //   }
+        //   console.warn('writing same chunk, key:', key, 'value:', value);
+        // }
         this._map.set(key, value);
       }
     });

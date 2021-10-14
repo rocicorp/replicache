@@ -48,5 +48,5 @@ jobs:
           node-version: 14.x
           cache: 'npm'
       - run: npm install
-      - run: npx playwright install-deps chromium
+      - run: npx playwright install-deps
       - run: npm test

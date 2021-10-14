@@ -8,9 +8,9 @@ import {
   DataNode,
   findLeaf,
   InternalNode,
-  Read,
+  BTreeRead,
   partition,
-  Write,
+  BTreeWrite,
   assertBTreeNode,
   newTempHash,
   assertNotTempHash,
@@ -86,12 +86,12 @@ test('findLeaf', async () => {
   });
 
   await dagStore.withRead(async dagRead => {
-    const source = new Read(rootHash, dagRead);
+    const source = new BTreeRead(rootHash, dagRead);
 
     const t = async (
       key: string,
       hash: string,
-      source: Read,
+      source: BTreeRead,
       expected: DataNode,
     ) => {
       const actual = await findLeaf(key, hash, source);
@@ -207,10 +207,10 @@ async function expectTree(
 function doWrite(
   rootHash: string,
   dagStore: dag.Store,
-  fn: (w: Write) => void | Promise<void>,
+  fn: (w: BTreeWrite) => void | Promise<void>,
 ): Promise<string> {
   return dagStore.withWrite(async dagWrite => {
-    const w = new Write(rootHash, dagWrite, 2, 4);
+    const w = new BTreeWrite(rootHash, dagWrite, 2, 4);
     await fn(w);
     const h = await w.flush();
     await dagWrite.setHead('test', h);
@@ -248,7 +248,7 @@ test('get', async () => {
   const rootHash = await makeTree(tree, dagStore);
 
   await dagStore.withRead(async dagRead => {
-    const source = new Read(rootHash, dagRead);
+    const source = new BTreeRead(rootHash, dagRead);
 
     expect(await source.get('b')).to.equal(0);
     expect(await source.get('d')).to.equal(1);
@@ -302,7 +302,7 @@ test('has', async () => {
   const rootHash = await makeTree(tree, dagStore);
 
   await dagStore.withRead(async dagRead => {
-    const source = new Read(rootHash, dagRead);
+    const source = new BTreeRead(rootHash, dagRead);
 
     expect(await source.has('b')).to.be.true;
     expect(await source.has('d')).to.be.true;
@@ -436,7 +436,7 @@ test('set', async () => {
 
   async function write(data: Record<string, ReadonlyJSONValue>) {
     rootHash = await dagStore.withWrite(async dagWrite => {
-      const w = new Write(rootHash, dagWrite, 2, 4);
+      const w = new BTreeWrite(rootHash, dagWrite, 2, 4);
       for (const [k, v] of Object.entries(data)) {
         await w.put(k, v);
         expect(await w.get(k)).to.equal(v);
@@ -460,7 +460,6 @@ test('set', async () => {
     });
   }
 
-  // await write({e: 'eee', f: 'fff', g: 'ggg', h: 'hhh', i: 'iii'});
   await write({
     e: 'eee',
     f: 'fff',
@@ -762,7 +761,7 @@ test('del - single data node', async () => {
   });
 
   rootHash = await dagStore.withWrite(async dagWrite => {
-    const w = new Write(rootHash, dagWrite, 2, 4);
+    const w = new BTreeWrite(rootHash, dagWrite, 2, 4);
     expect(await w.del('b')).to.equal(true);
 
     const h = await w.flush();

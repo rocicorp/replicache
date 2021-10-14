@@ -30,7 +30,7 @@ export type BTreeNode =
     }
   | {type: 'data'; entries: DataNode['entries']};
 
-export class Read {
+export class BTreeRead {
   rootHash: string;
   private readonly _dagRead: dag.Read;
 
@@ -57,10 +57,7 @@ export class Read {
     const {data} = chunk;
     assertBTreeNode(data);
     const {type, entries} = data;
-    if (data.type === 'data') {
-      data.entries;
-    }
-    return newImpl(type, entries, hash);
+    return newNodeImpl(type, entries, hash);
   }
 
   async get(key: string): Promise<ReadonlyJSONValue | undefined> {
@@ -171,20 +168,23 @@ export function assertBTreeNode(v: unknown): asserts v is BTreeNode {
 
 type Hash = string;
 
-export class Write extends Read {
+export class BTreeWrite extends BTreeRead {
   private readonly _modified: Map<string, DataNodeImpl | InternalNodeImpl> =
     new Map();
 
   private readonly _dagWrite: dag.Write;
+  readonly getSize: (v: ReadonlyJSONValue) => number;
 
   constructor(
     root: Hash,
     dagWrite: dag.Write,
     minSize?: number,
     maxSize?: number,
+    getSize?: (v: ReadonlyJSONValue) => number,
   ) {
     super(root, dagWrite, minSize, maxSize);
     this._dagWrite = dagWrite;
+    this.getSize = getSize || (() => 1);
   }
 
   async getNode(hash: string): Promise<DataNodeImpl | InternalNodeImpl> {
@@ -221,13 +221,9 @@ export class Write extends Read {
     type: 'internal' | 'data',
     entries: Entry<string>[] | Entry<ReadonlyJSONValue>[],
   ): InternalNodeImpl | DataNodeImpl {
-    return type === 'internal'
-      ? this.newInternalNodeImpl(entries as Entry<string>[])
-      : this.newDataNodeImpl(entries);
-  }
-
-  getSize(): number {
-    return 1;
+    const n = newNodeImpl(type, entries, newTempHash());
+    this._addToModified(n);
+    return n;
   }
 
   async put(key: string, value: ReadonlyJSONValue): Promise<void> {
@@ -326,10 +322,10 @@ abstract class NodeImpl<
   abstract set(
     key: string,
     value: Value,
-    tree: Write,
+    tree: BTreeWrite,
   ): Promise<NodeImpl<Value, Type>>;
 
-  abstract del(key: string, tree: Write): Promise<NodeImpl<Value, Type>>;
+  abstract del(key: string, tree: BTreeWrite): Promise<NodeImpl<Value, Type>>;
 
   maxKey(): string {
     return this.entries[this.entries.length - 1][0];
@@ -352,7 +348,7 @@ class DataNodeImpl extends NodeImpl<ReadonlyJSONValue, 'data'> {
   async set(
     key: string,
     value: ReadonlyJSONValue,
-    tree: Write,
+    tree: BTreeWrite,
   ): Promise<DataNodeImpl> {
     let deleteCount: number;
     let i = binarySearch(key, this.entries);
@@ -372,7 +368,7 @@ class DataNodeImpl extends NodeImpl<ReadonlyJSONValue, 'data'> {
     return tree.newDataNodeImpl(entries);
   }
 
-  async del(key: string, tree: Write): Promise<DataNodeImpl> {
+  async del(key: string, tree: BTreeWrite): Promise<DataNodeImpl> {
     const i = binarySearch(key, this.entries);
     if (i < 0) {
       // Not found. Return this without changes.
@@ -410,7 +406,7 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
   async set(
     key: string,
     value: ReadonlyJSONValue,
-    tree: Write,
+    tree: BTreeWrite,
   ): Promise<InternalNodeImpl> {
     let i = binarySearch(key, this.entries);
     if (i < 0) {
@@ -477,7 +473,7 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
     return tree.newInternalNodeImpl(entries);
   }
 
-  async del(key: string, tree: Write): Promise<InternalNodeImpl> {
+  async del(key: string, tree: BTreeWrite): Promise<InternalNodeImpl> {
     let i = binarySearch(key, this.entries);
     if (i < 0) {
       i = ~i;
@@ -593,46 +589,30 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
   }
 }
 
-function newImpl(
+function newNodeImpl(
   type: 'data',
-  entries: DataNode['entries'],
-  hash: Hash,
+  entries: Entry<ReadonlyJSONValue>[],
+  hash: string,
 ): DataNodeImpl;
-function newImpl(
+function newNodeImpl(
   type: 'internal',
-  entries: InternalNode['entries'],
-  hash: Hash,
+  entries: Entry<string>[],
+  hash: string,
 ): InternalNodeImpl;
-function newImpl(
+function newNodeImpl(
   type: 'data' | 'internal',
-  entries: BTreeNode['entries'],
-  hash: Hash,
+  entries: Entry<ReadonlyJSONValue>[] | Entry<string>[],
+  hash: string,
 ): DataNodeImpl | InternalNodeImpl;
-function newImpl(
+function newNodeImpl(
   type: 'data' | 'internal',
-  entries: BTreeNode['entries'],
-  hash: Hash,
+  entries: Entry<ReadonlyJSONValue>[] | Entry<string>[],
+  hash: string,
 ): DataNodeImpl | InternalNodeImpl {
   return type === 'data'
-    ? new DataNodeImpl(entries as DataNode['entries'], hash)
-    : new InternalNodeImpl(entries as InternalNode['entries'], hash);
+    ? new DataNodeImpl(entries, hash)
+    : new InternalNodeImpl(entries as Entry<string>[], hash);
 }
-
-// const mutableNodes = new WeakMap();
-
-// function asMutable(node: BTreeNode | ReadonlyBTreeNode): BTreeNode {
-//   const m = mutableNodes.get(node);
-//   if (m) {
-//     return m;
-//   }
-//   const m2 = deepClone(node) as BTreeNode;
-//   mutableNodes.set(node, m2);
-//   return m2;
-// }
-
-// function isPending(v: ReadonlyBTreeNode): v is BTreeNode {
-//   return v[pendingSymbol] === true;
-// }
 
 /**
  * Gives a size of a value. The size is pretty arbitrary, but it is used to

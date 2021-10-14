@@ -1,25 +1,18 @@
 import {
   assertJSONValue,
-  // deepClone,
   JSONValue,
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from '../json';
 import * as dag from '../dag/mod';
 import {stringCompare} from '../prolly/string-compare';
-import {
-  assert,
-  assertArray,
-  assertNotUndefined,
-  assertObject,
-  assertString,
-} from '../asserts';
+import {assertArray, assertObject, assertString} from '../asserts';
 
 export type Entry<V> = [key: string, value: V];
 export type ReadonlyEntry<V> = readonly [key: string, value: V];
 
 type BaseNode<V> = {
-  readonly entries: Entry<V>[];
+  readonly entries: Readonly<Entry<V>>;
 };
 
 type ReadonlyBaseNode<V> = {
@@ -42,7 +35,14 @@ export type ReadonlyDataNode = ReadonlyBaseNode<ReadonlyJSONValue> & {
   readonly type: 'data';
 };
 
-export type BTreeNode = InternalNode | DataNode;
+export type BTreeNode =
+  | {
+      type: 'internal';
+      entries: InternalNode['entries'];
+    }
+  | {type: 'data'; entries: DataNode['entries']};
+
+// InternalNode | DataNode;
 
 // type ReadonlyBTreeNode = ReadonlyInternalNode | ReadonlyDataNode;
 
@@ -70,8 +70,13 @@ export class Read {
     if (chunk === undefined) {
       throw new Error(`Missing chunk for ${hash}`);
     }
-    assertBTreeNode(chunk.data);
-    return newImpl(chunk.data, hash);
+    const {data} = chunk;
+    assertBTreeNode(data);
+    const {type, entries} = data;
+    if (data.type === 'data') {
+      data.entries;
+    }
+    return newImpl(type, entries, hash);
   }
 
   async get(key: string): Promise<ReadonlyJSONValue | undefined> {
@@ -183,6 +188,9 @@ export function assertBTreeNode(v: unknown): asserts v is BTreeNode {
 type Hash = string;
 
 export class Write extends Read {
+  getSize(): number {
+    return 1;
+  }
   private readonly _modified: Map<string, DataNodeImpl | InternalNodeImpl> =
     new Map();
 
@@ -206,8 +214,9 @@ export class Write extends Read {
     return super.getNode(hash);
   }
 
-  addToModified(node: DataNodeImpl | InternalNodeImpl): void {
+  addToModified<T extends DataNodeImpl | InternalNodeImpl>(node: T): T {
     this._modified.set(node.hash, node);
+    return node;
   }
 
   updateModified(oldHash: Hash, node: DataNodeImpl | InternalNodeImpl): void {
@@ -222,21 +231,18 @@ export class Write extends Read {
   }
 
   async put(key: string, value: ReadonlyJSONValue): Promise<void> {
-    const rootNode = await this.getNode(this.rootHash);
-    const res = await rootNode.set(key, value, this);
+    const oldRootNode = await this.getNode(this.rootHash);
+    const rootNode = await oldRootNode.set(key, value, this);
 
     if (rootNode.entries.length > this.maxSize) {
       const partitions = partition(
         rootNode.entries,
-        () => 1,
+        this.getSize,
         this.minSize,
         this.maxSize,
       );
       const entries: Entry<string>[] = partitions.map(entries => {
-        const node = newImpl(
-          {type: rootNode.type, entries} as BTreeNode,
-          newTempHash(),
-        );
+        const node = newImpl(rootNode.type, entries, newTempHash());
         this.addToModified(node as DataNodeImpl | InternalNodeImpl);
         return [node.maxKey(), node.hash];
       });
@@ -246,74 +252,8 @@ export class Write extends Read {
       return;
     }
 
-    if (typeof res === 'boolean') {
-      this.rootHash = rootNode.hash;
-      return;
-    }
-
-    // let newRootNode;
-    // assert(rootNode.type === res.type);
-    // const {type} = rootNode;
-
-    // const partitions = partition(
-    //   [...rootNode.entries, ...res.entries],
-    //   () => 1,
-    //   this.minSize,
-    //   this.maxSize,
-    // );
-
-    // if (partitions.length === 1) {
-    //   newRootNode = newImpl(
-    //     {type, entries: partitions[0]} as BTreeNode,
-    //     newTempHash(),
-    //   );
-    //   // newRootNode = new InternalNodeImpl({type, entries: partitions[0]}, newTempHash());
-    // } else if (partitions.length === 2) {
-    //   if (partitions[0].entries.length === rootNode.entries.length) {
-    //     // partitioning did not change the chunks
-    //     newRootNode = new InternalNodeImpl(
-    //       [
-    //         [rootNode.maxKey(), rootNode.hash],
-    //         [res.maxKey(), res.hash],
-    //       ],
-    //       newTempHash(),
-    //     );
-    //   } else {
-    //     // things got shuffled
-    //     // const left = new InternalNodeImpl(partitions[0].entries, newTempHash());
-    //     const left = newImpl(
-    //       {type, entries: partitions[0]} as BTreeNode,
-    //       newTempHash(),
-    //     );
-    //     this.addToModified(left);
-    //     // const right = new InternalNodeImpl(partitions[1], newTempHash());
-    //     const right = newImpl(
-    //       {type, entries: partitions[1]} as BTreeNode,
-    //       newTempHash(),
-    //     );
-    //     this.addToModified(right);
-    //     newRootNode = new InternalNodeImpl(
-    //       [
-    //         [left.maxKey(), left.hash],
-    //         [right.maxKey(), right.hash],
-    //       ],
-    //       newTempHash(),
-    //     );
-    //   }
-    // } else {
-    //   throw new Error('too many partitions');
-    // }
-
-    // // newRootNode = new InternalNodeImpl(
-    // //   [
-    // //     [rootNode.maxKey(), rootNode.hash],
-    // //     [res.maxKey(), res.hash],
-    // //   ],
-    // //   newTempHash(),
-    // // );
-
-    // this.addToModified(newRootNode);
-    // this.rootHash = newRootNode.hash;
+    this.rootHash = rootNode.hash;
+    return;
   }
 
   async del(key: string): Promise<boolean> {
@@ -338,12 +278,10 @@ export class Write extends Read {
         return hash;
       }
       if (node.type === 'data') {
+        // TODO: Add a way to keep track of if a chunk was modified.
         const chunk = dag.Chunk.new(node.toChunkData(), []);
         newChunks.push(chunk);
         return chunk.hash;
-        // // TODO(arv): I'm not sure this is correct. What if we added values to
-        // // the data node? Should we not compute the hash here?
-        // return hash;
       }
       const refs: string[] = [];
 
@@ -371,64 +309,81 @@ export class Write extends Read {
   }
 }
 
-type DataNodeImpl = NodeImpl<ReadonlyJSONValue, 'data'>;
-
-class NodeImpl<
+abstract class NodeImpl<
   Value extends Hash | ReadonlyJSONValue,
   Type extends 'data' | 'internal',
 > {
-  entries: Entry<Value>[];
+  entries: ReadonlyArray<ReadonlyEntry<Value>>;
   readonly type: Type;
   hash: Hash;
 
-  constructor(type: Type, entries: Entry<Value>[], hash: Hash) {
+  constructor(
+    type: Type,
+    entries: ReadonlyArray<ReadonlyEntry<Value>>,
+    hash: Hash,
+  ) {
     this.type = type;
     this.entries = entries;
     this.hash = hash;
   }
 
-  async set(
+  abstract set(
     key: string,
     value: Value,
     tree: Write,
-  ): Promise<boolean | NodeImpl<Value, Type>> {
+  ): Promise<NodeImpl<Value, Type>>;
+
+  abstract del(key: string, tree: Write): Promise<NodeImpl<Value, Type>>;
+
+  maxKey(): string {
+    return this.entries[this.entries.length - 1][0];
+  }
+
+  toChunkData(): ReadonlyDataNode | ReadonlyInternalNode {
+    return {type: this.type, entries: this.entries} as
+      | ReadonlyDataNode
+      | ReadonlyInternalNode;
+  }
+
+  getChunkSize(): number {
+    return getSizeOfValue(this.toChunkData());
+  }
+}
+
+class DataNodeImpl extends NodeImpl<ReadonlyJSONValue, 'data'> {
+  constructor(
+    entries: ReadonlyArray<ReadonlyEntry<ReadonlyJSONValue>>,
+    hash: Hash,
+  ) {
+    super('data', entries, hash);
+  }
+
+  async set(
+    key: string,
+    value: ReadonlyJSONValue,
+    tree: Write,
+  ): Promise<DataNodeImpl> {
     tree.resetHashForModifiedNode(this as DataNodeImpl);
-    let i = binarySearch(key, this.entries);
+    const entries = [...this.entries];
+    let i = binarySearch(key, entries);
     if (i < 0) {
       // Not found, insert.
       i = ~i;
-
-      // TODO: Maybe just splice here and do partition in InternalNodeImpl?
-
-      this.entries.splice(i, 0, [key, value]);
-
-      // const oldSize = this.entries.length; // USE_SIZE
-      // if (oldSize < tree.maxSize) {
-      //   this.insertInLeaf(i, key, value);
-      //   // TODO(arv): This was mutated. We need to keep track of it
-      //   return true;
-      // }
-      // const newRightSibling = this.splitOffRightSide();
-      // // TODO(arv): The type system is not a good fit here... Figure this out.
-      // tree.addToModified(newRightSibling as DataNodeImpl | InternalNodeImpl);
-      // // eslint-disable-next-line @typescript-eslint/no-this-alias
-      // let target: NodeImpl<Value, Type> = this;
-      // if (i > this.entries.length) {
-      //   i -= this.entries.length;
-      //   target = newRightSibling;
-      // }
-      // target.insertInLeaf(i, key, value);
-      // return newRightSibling;
+      // TODO: No need to do 2 O(n)
+      entries.splice(i, 0, [key, value]);
     } else {
-      this.entries[i] = [key, value];
+      entries[i] = [key, value];
     }
-    return false;
+
+    const n = new DataNodeImpl(entries, this.hash);
+    tree.addToModified(n);
+    return n;
   }
 
-  async del(key: string, tree: Write): Promise<boolean> {
+  async del(key: string, tree: Write): Promise<DataNodeImpl> {
     const i = binarySearch(key, this.entries);
     if (i < 0) {
-      return false;
+      return this;
     }
 
     // Found
@@ -436,54 +391,32 @@ class NodeImpl<
 
     // Rebalancing is done in InternalNodeImpl
 
-    this.entries.splice(i, 1);
-    return true;
+    const entries = readonlySplice(this.entries, i, 1);
+    const n = new DataNodeImpl(entries, this.hash);
+    tree.addToModified(n);
+    return n;
   }
+}
 
-  insertInLeaf(i: number, key: string, value: Value) {
-    // TODO(arv): Inline!
-    this.entries.splice(i, 0, [key, value]);
-  }
+function readonlySplice<T>(
+  array: ReadonlyArray<T>,
+  start: number,
+  deleteCount: number,
+  ...items: T[]
+) {
+  const arr = array.slice(0, start);
+  arr.push(...items, ...array.slice(start + deleteCount));
+  return arr;
+}
 
-  splitOffRightSide() {
-    const half = this.entries.length >> 1; // USE_SIZE
-    const entries = this.entries.splice(half);
-    return new NodeImpl(this.type, entries, newTempHash());
-  }
-
-  takeFromRight(node: NodeImpl<Value, Type>) {
-    const entry = node.entries.shift();
-    assertNotUndefined(entry);
-    this.entries.push(entry);
-  }
-
-  takeFromLeft(node: NodeImpl<Value, Type>) {
-    const entry = node.entries.pop();
-    assertNotUndefined(entry);
-    this.entries.unshift(entry);
-  }
-
-  takeAllFromRight(other: NodeImpl<Value, Type>) {
-    this.entries.push(...other.entries);
-    other.entries.length = 0;
-  }
-
-  takeAllFromLeft(other: NodeImpl<Value, Type>) {
-    this.entries.unshift(...other.entries);
-    other.entries.length = 0;
-  }
-
-  maxKey(): string {
-    return this.entries[this.entries.length - 1][0];
-  }
-
-  toChunkData(): DataNode | InternalNode {
-    return {type: this.type, entries: this.entries} as DataNode | InternalNode;
+function* joinIterables<T>(...iters: Iterable<T>[]) {
+  for (const iter of iters) {
+    yield* iter;
   }
 }
 
 class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
-  constructor(entries: Entry<Hash>[], hash: Hash) {
+  constructor(entries: ReadonlyArray<ReadonlyEntry<Hash>>, hash: Hash) {
     super('internal', entries, hash);
   }
 
@@ -491,23 +424,24 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
     key: string,
     value: ReadonlyJSONValue,
     tree: Write,
-  ): Promise<boolean | InternalNodeImpl> {
-    const {entries} = this;
-    let i = binarySearch(key, entries);
+  ): Promise<InternalNodeImpl> {
+    let i = binarySearch(key, this.entries);
     if (i < 0) {
       i = ~i;
 
-      if (i >= entries.length) {
-        i = entries.length - 1;
+      if (i >= this.entries.length) {
+        i = this.entries.length - 1;
       }
     }
-    const childHash = entries[i][1];
-    const childNode = await tree.getNode(childHash);
+    const childHash = this.entries[i][1];
+    const oldChildNode = await tree.getNode(childHash);
 
-    await childNode.set(key, value, tree);
+    const childNode = await oldChildNode.set(key, value, tree);
+
+    let entries = [...this.entries];
 
     // TODO: Should we set this in an else branch... things are messy
-    this.entries[i] = [childNode.maxKey(), childNode.hash];
+    entries[i] = [childNode.maxKey(), childNode.hash];
 
     if (childNode.entries.length > tree.maxSize) {
       // USE_SIZE
@@ -516,89 +450,77 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
         const previousSibling = await tree.getNode(hash);
 
         const partitions = partition(
-          [...previousSibling.entries, ...childNode.entries],
-          () => 1,
+          joinIterables(previousSibling.entries, childNode.entries),
+          tree.getSize,
           tree.minSize,
           tree.maxSize,
         );
 
         if (partitions.length === 3) {
           const entries: Entry<string>[] = partitions.map(entries => {
-            const node = newImpl(
-              {type: childNode.type, entries} as BTreeNode,
-              newTempHash(),
-            );
+            const node = newImpl(childNode.type, entries, newTempHash());
             tree.addToModified(node as DataNodeImpl | InternalNodeImpl);
             return [node.maxKey(), node.hash];
           });
-          this.entries.splice(i - 1, 2, ...entries);
+          entries.splice(i - 1, 2, ...entries);
         } else if (partitions.length === 2) {
           previousSibling.entries = partitions[0];
           tree.addToModified(previousSibling);
-          this.entries[i - 1] = [
-            previousSibling.maxKey(),
-            previousSibling.hash,
-          ];
+          entries[i - 1] = [previousSibling.maxKey(), previousSibling.hash];
 
           childNode.entries = partitions[1];
-          this.entries[i] = [childNode.maxKey(), childNode.hash];
+          entries[i] = [childNode.maxKey(), childNode.hash];
         } else if (partitions.length === 1) {
           previousSibling.entries = partitions[0];
           tree.addToModified(previousSibling);
-          this.entries[i - 1] = [
-            previousSibling.maxKey(),
-            previousSibling.hash,
-          ];
+          entries[i - 1] = [previousSibling.maxKey(), previousSibling.hash];
 
           // Remove childNode
-          this.entries.splice(i, 1);
+          entries.splice(i, 1);
         } else {
           throw new Error(`invalid partition: length: ${partitions.length}`);
         }
-      } else if (i < this.entries.length - 1) {
+      } else if (i < entries.length - 1) {
         const hash = entries[i - 1][1];
         const nextSibling = await tree.getNode(hash);
 
         const partitions = partition(
-          [...nextSibling.entries, ...childNode.entries],
-          () => 1,
+          joinIterables(nextSibling.entries, childNode.entries),
+          tree.getSize,
           tree.minSize,
           tree.maxSize,
         );
 
         if (partitions.length === 3) {
           const entries: Entry<string>[] = partitions.map(entries => {
-            const node = newImpl(
-              {type: childNode.type, entries} as BTreeNode,
-              newTempHash(),
-            );
+            const node = newImpl(childNode.type, entries, newTempHash());
             tree.addToModified(node as DataNodeImpl | InternalNodeImpl);
             return [node.maxKey(), node.hash];
           });
-          this.entries.splice(i, 2, ...entries);
+          entries.splice(i, 2, ...entries);
         } else if (partitions.length === 2) {
           childNode.entries = partitions[0];
           tree.addToModified(childNode);
-          this.entries[i] = [childNode.maxKey(), childNode.hash];
+          entries[i] = [childNode.maxKey(), childNode.hash];
 
           nextSibling.entries = partitions[1];
-          this.entries[i + 1] = [nextSibling.maxKey(), nextSibling.hash];
+          entries[i + 1] = [nextSibling.maxKey(), nextSibling.hash];
         } else if (partitions.length === 1) {
           nextSibling.entries = partitions[0];
           tree.addToModified(nextSibling);
-          this.entries[i + 1] = [nextSibling.maxKey(), nextSibling.hash];
+          entries[i + 1] = [nextSibling.maxKey(), nextSibling.hash];
 
           // Remove childNode
-          this.entries.splice(i, 1);
+          entries.splice(i, 1);
         } else {
           throw new Error('invalid partition');
         }
-      } else if (i === 0 && this.entries.length === 1) {
+      } else if (i === 0 && entries.length === 1) {
         // This is the only node in the tree.
 
         const partitions = partition(
           childNode.entries,
-          () => 1,
+          tree.getSize,
           tree.minSize,
           tree.maxSize,
         );
@@ -606,20 +528,13 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
         if (partitions.length === 1) {
           // Cannot partition.
         } else {
-          const entries: Entry<string>[] = partitions.map(entries => {
-            const node = newImpl(
-              {type: childNode.type, entries} as BTreeNode,
-              newTempHash(),
-            );
+          const newEntries: Entry<string>[] = partitions.map(entries => {
+            const node = newImpl(childNode.type, entries, newTempHash());
             tree.addToModified(node as DataNodeImpl | InternalNodeImpl);
             return [node.maxKey(), node.hash];
           });
 
-          this.entries = entries;
-
-          // const node = new NodeImpl('internal', entries, newTempHash());
-          // tree.addToModified(node as DataNodeImpl | InternalNodeImpl);
-          // this.entries = [[node.maxKey(), node.hash]];
+          entries = newEntries;
         }
       } else {
         throw new Error('invalid index');
@@ -629,85 +544,31 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
       // Once we use size of value the size can shrink and we can go below minSize
     }
 
-    // // TODO(arv): MUTABLE
-    // if (childNode.entries.length < tree.maxSize) {
-    //   // USE_SIZE
-    //   if (i > 0) {
-    //     // check if we can merge with left
-    //     const otherHash = entries[i - 1][1];
-    //     const other = await tree.getNode(otherHash);
-    //     if (other.entries.length < tree.maxSize) {
-    //       // USE_SIZE
-    //       if (childNode.entries[0][0] < key) {
-    //         // TS cannot know other and childNode are the same type
-    //         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    //         other.takeFromRight(childNode as any);
-    //         entries[i - 1][0] = other.maxKey();
-    //       }
-    //     }
-    //   } else if (i < entries.length - 1) {
-    //     // check if we can merge with right
-    //     const otherHash = entries[i + 1][1];
-    //     const other = await tree.getNode(otherHash);
-    //     if (other.entries.length < tree.maxSize) {
-    //       // USE_SIZE
-    //       if (childNode.maxKey() < key) {
-    //         // TS cannot know other and childNode are the same type
-    //         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    //         other.takeFromLeft(childNode as any);
-    //         entries[i][0] = childNode.maxKey();
-    //       }
-    //     }
-    //   }
-    // }
-
     // Mutated so new hash
-    tree.resetHashForModifiedNode(this);
+    // tree.resetHashForModifiedNode(this);
 
-    // const res = await childNode.set(key, value, tree);
-    // entries[i] = [childNode.maxKey(), childNode.hash];
-    // if (typeof res === 'boolean') {
-    //   return res;
-    // }
-
-    // // entries[i] = [res.maxKey(), res.hash];
-    // // The child changed
-    // if (entries.length < tree.maxSize) {
-    //   // USE_SIZE
-    //   this.insert(i + 1, res);
-    //   return true;
-    // }
-    // // split
-    // const newRightSibling = this.splitOffRightSide();
-    // tree.addToModified(newRightSibling);
-    // // eslint-disable-next-line @typescript-eslint/no-this-alias
-    // let target: InternalNodeImpl = this;
-    // if (res.maxKey() > this.maxKey()) {
-    //   target = newRightSibling;
-    //   i -= this.entries.length;
-    // }
-    // target.insert(i + 1, res);
-    // return newRightSibling;
-    return false;
+    const n = new InternalNodeImpl(entries, newTempHash());
+    tree.addToModified(n);
+    return n;
   }
 
-  async del(key: string, tree: Write): Promise<boolean> {
-    const {entries} = this;
+  async del(key: string, tree: Write): Promise<InternalNodeImpl> {
     let i = binarySearch(key, this.entries);
     if (i < 0) {
       i = ~i;
 
-      if (i >= entries.length) {
-        i = entries.length - 1;
+      if (i >= this.entries.length) {
+        i = this.entries.length - 1;
       }
     }
 
-    const childHash = entries[i][1];
-    const childNode = await tree.getNode(childHash);
+    const childHash = this.entries[i][1];
+    const oldChildNode = await tree.getNode(childHash);
 
-    const res = await childNode.del(key, tree);
-    if (res === false) {
-      return false;
+    const childNode = await oldChildNode.del(key, tree);
+    if (childNode === oldChildNode) {
+      // No change
+      return this;
     }
 
     // Found and removed from leaf entries
@@ -715,16 +576,21 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
 
     if (childNode.entries.length === 0) {
       // USE_SIZE
-      this.entries.splice(i, 1);
-      return true;
+      const entries = readonlySplice(this.entries, i, 1);
+      const n = new InternalNodeImpl(entries, newTempHash());
+      return tree.addToModified(n);
     }
 
     if (childNode.entries.length > tree.minSize) {
       // USE_SIZE
       // No merging needed.
-      this.entries[i] = [childNode.maxKey(), childNode.hash];
-      return true;
+      const entries = [...this.entries];
+      entries[i] = [childNode.maxKey(), childNode.hash];
+      const n = new InternalNodeImpl(entries, newTempHash());
+      return tree.addToModified(n);
     }
+
+    let entries = [...this.entries];
 
     // Chunk is too small.
     if (i > 0) {
@@ -733,8 +599,8 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
       const previousSibling = await tree.getNode(otherHash);
 
       const partitions = partition(
-        [...previousSibling.entries, ...childNode.entries],
-        () => 1,
+        joinIterables(previousSibling.entries, childNode.entries),
+        tree.getSize,
         tree.minSize,
         tree.maxSize,
       );
@@ -743,18 +609,18 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
         // Move all to the previous sibling
         // TS cannot know other and childNode are the same type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        previousSibling.takeAllFromRight(childNode as any);
+        previousSibling.entries.push(...(childNode.entries as any));
+
         tree.resetHashForModifiedNode(previousSibling);
-        this.entries.splice(i, 1);
-        this.entries[i - 1] = [previousSibling.maxKey(), previousSibling.hash];
+        entries.splice(i, 1);
+        entries[i - 1] = [previousSibling.maxKey(), previousSibling.hash];
       } else if (partitions.length === 2) {
         previousSibling.entries = partitions[0];
         tree.resetHashForModifiedNode(previousSibling);
-        this.entries[i - 1] = [previousSibling.maxKey(), previousSibling.hash];
+        entries[i - 1] = [previousSibling.maxKey(), previousSibling.hash];
 
         childNode.entries = partitions[1];
-        // ALREADY RESET tree.resetHashForModifiedNode(childNode);
-        this.entries[i] = [childNode.maxKey(), childNode.hash];
+        entries[i] = [childNode.maxKey(), childNode.hash];
       } else {
         throw new Error('unexpected partition length');
       }
@@ -764,8 +630,8 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
       const nextSibling = await tree.getNode(otherHash);
 
       const partitions = partition(
-        [...childNode.entries, ...nextSibling.entries],
-        () => 1,
+        joinIterables(childNode.entries, nextSibling.entries),
+        tree.getSize,
         tree.minSize,
         tree.maxSize,
       );
@@ -774,72 +640,58 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
         // Move all to the next sibling
         // TS cannot know other and childNode are the same type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        nextSibling.takeAllFromLeft(childNode as any);
+        nextSibling.entries.unshift(...(childNode.entries as any));
+
         tree.resetHashForModifiedNode(nextSibling);
-        this.entries.splice(i, 1);
-        this.entries[i] = [nextSibling.maxKey(), nextSibling.hash];
+        entries.splice(i, 1);
+        entries[i] = [nextSibling.maxKey(), nextSibling.hash];
       } else if (partitions.length === 2) {
         childNode.entries = partitions[0];
-        // ALREADY RESET tree.resetHashForModifiedNode(childNode);
-
-        this.entries[i] = [childNode.maxKey(), childNode.hash];
-
+        entries[i] = [childNode.maxKey(), childNode.hash];
         nextSibling.entries = partitions[1];
         tree.resetHashForModifiedNode(nextSibling);
-        this.entries[i + 1] = [nextSibling.maxKey(), nextSibling.hash];
+        entries[i + 1] = [nextSibling.maxKey(), nextSibling.hash];
       } else {
         throw new Error('unexpected partition length');
       }
-    } else if (i === 0 && this.entries.length === 1) {
+    } else if (i === 0 && entries.length === 1) {
       if (childNode.type === 'internal') {
-        this.entries = childNode.entries;
+        entries = childNode.entries;
       } else {
-        this.entries[i] = [childNode.maxKey(), childNode.hash];
+        entries[i] = [childNode.maxKey(), childNode.hash];
       }
     } else {
-      // ALREADY RESET tree.resetHashForModifiedNode(childNode);
-
-      this.entries[i] = [childNode.maxKey(), childNode.hash];
+      entries[i] = [childNode.maxKey(), childNode.hash];
     }
 
-    // TODO: Rebalance
-
-    return true;
+    const n = new InternalNodeImpl(entries, newTempHash());
+    return tree.addToModified(n);
   }
-
-  insert(i: number, node: DataNodeImpl | InternalNodeImpl) {
-    // TODO(arv): Inline!
-    this.entries.splice(i, 0, [node.maxKey(), node.hash]);
-  }
-
-  splitOffRightSide(): InternalNodeImpl {
-    const half = this.entries.length >> 1; // USE_SIZE
-    const entries = this.entries.splice(half);
-    return new InternalNodeImpl(entries, newTempHash());
-  }
-
-  // takeAllFromRight(other: InternalNodeImpl) {
-  //   this.entries.push(...other.entries);
-  //   other.entries.length = 0;
-  // }
-
-  // takeFromRight(node: InternalNodeImpl) {
-  //   const entry = node.entries.shift();
-  //   assertNotUndefined(entry);
-  //   this.entries.push(entry);
-  // }
-
-  // takeFromLeft(node: InternalNodeImpl) {
-  //   const entry = node.entries.pop();
-  //   assertNotUndefined(entry);
-  //   this.entries.unshift(entry);
-  // }
 }
 
-function newImpl(node: BTreeNode, hash: Hash): DataNodeImpl | InternalNodeImpl {
-  return node.type === 'data'
-    ? new NodeImpl(node.type, node.entries, hash)
-    : new InternalNodeImpl(node.entries, hash);
+function newImpl(
+  type: 'data',
+  entries: ReadonlyDataNode['entries'],
+  hash: Hash,
+): DataNodeImpl;
+function newImpl(
+  type: 'internal',
+  entries: ReadonlyInternalNode['entries'],
+  hash: Hash,
+): InternalNodeImpl;
+function newImpl(
+  type: 'data' | 'internal',
+  entries: ReadonlyDataNode['entries'] | ReadonlyInternalNode['entries'],
+  hash: Hash,
+): DataNodeImpl | InternalNodeImpl;
+function newImpl(
+  type: 'data' | 'internal',
+  entries: ReadonlyDataNode['entries'] | ReadonlyInternalNode['entries'],
+  hash: Hash,
+): DataNodeImpl | InternalNodeImpl {
+  return type === 'data'
+    ? new DataNodeImpl(entries as ReadonlyDataNode['entries'], hash)
+    : new InternalNodeImpl(entries as ReadonlyInternalNode['entries'], hash);
 }
 
 // const mutableNodes = new WeakMap();
@@ -859,7 +711,7 @@ function newImpl(node: BTreeNode, hash: Hash): DataNodeImpl | InternalNodeImpl {
 // }
 
 /**
- * Gives a size of a value. The size is pretty arbitrary, but it's used to
+ * Gives a size of a value. The size is pretty arbitrary, but it is used to
  * decide where to split the btree nodes.
  */
 export function getSizeOfValue(value: ReadonlyJSONValue): number {
@@ -899,41 +751,44 @@ export function getSizeOfValue(value: ReadonlyJSONValue): number {
 }
 
 export function partition<T>(
-  values: T[],
+  values: Iterable<T>,
   getSize: (v: T) => number,
   min: number,
   max: number,
 ): T[][] {
-  let start = 0;
   const partitions: T[][] = [];
   const sizes: number[] = [];
   let sum = 0;
-  for (let i = 0; i < values.length; i++) {
-    const size = getSize(values[i]);
+  let accum: T[] = [];
+  for (const value of values) {
+    // for (let i = 0; i < values.length; i++) {
+    const size = getSize(value);
     if (size >= max) {
-      if (i > 0) {
-        partitions.push(values.slice(start, i));
+      if (accum.length > 0) {
+        partitions.push(accum);
         sizes.push(sum);
       }
-      partitions.push([values[i]]);
+      partitions.push([value]);
       sizes.push(size);
-      start = i + 1;
       sum = 0;
+      accum = [];
     } else if (sum + size >= min) {
-      partitions.push(values.slice(start, i + 1));
+      accum.push(value);
+      partitions.push(accum);
       sizes.push(sum + size);
       sum = 0;
-      start = i + 1;
+      accum = [];
     } else {
       sum += size;
+      accum.push(value);
     }
   }
 
   if (sum > 0) {
     if (sizes.length > 0 && sum + sizes[sizes.length - 1] <= max) {
-      partitions[partitions.length - 1].push(...values.slice(start));
+      partitions[partitions.length - 1].push(...accum);
     } else {
-      partitions.push(values.slice(start));
+      partitions.push(accum);
     }
   }
 

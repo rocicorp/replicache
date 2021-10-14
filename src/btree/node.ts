@@ -419,114 +419,52 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
 
     await childNode.set(key, value, tree);
 
-    // TODO: Should we set this in an else branch... things are messy
-    this.entries[i] = [childNode.maxKey(), childNode.hash];
-
     if (childNode.entries.length > tree.maxSize) {
-      // USE_SIZE
+      let values: Iterable<Entry<string> | Entry<ReadonlyJSONValue>>;
+      let startIndex: number;
+      let removeCount: number;
       if (i > 0) {
-        const hash = entries[i - 1][1];
+        const hash = this.entries[i - 1][1];
         const previousSibling = await tree.getNode(hash);
-
-        const partitions = partition(
-          joinIterables(previousSibling.entries, childNode.entries),
-          tree.getSize,
-          tree.minSize,
-          tree.maxSize,
-        );
-
-        if (partitions.length === 3) {
-          const entries: Entry<string>[] = partitions.map(entries => {
-            const node = newImpl(childNode.type, entries, newTempHash());
-            tree.addToModified(node as DataNodeImpl | InternalNodeImpl);
-            return [node.maxKey(), node.hash];
-          });
-          this.entries.splice(i - 1, 2, ...entries);
-        } else if (partitions.length === 2) {
-          previousSibling.entries = partitions[0];
-          tree.addToModified(previousSibling);
-          this.entries[i - 1] = [
-            previousSibling.maxKey(),
-            previousSibling.hash,
-          ];
-
-          childNode.entries = partitions[1];
-          this.entries[i] = [childNode.maxKey(), childNode.hash];
-        } else if (partitions.length === 1) {
-          previousSibling.entries = partitions[0];
-          tree.addToModified(previousSibling);
-          this.entries[i - 1] = [
-            previousSibling.maxKey(),
-            previousSibling.hash,
-          ];
-
-          // Remove childNode
-          this.entries.splice(i, 1);
-        } else {
-          throw new Error(`invalid partition: length: ${partitions.length}`);
-        }
+        values = joinIterables(previousSibling.entries, childNode.entries);
+        startIndex = i - 1;
+        removeCount = 2;
       } else if (i < this.entries.length - 1) {
-        const hash = entries[i - 1][1];
+        const hash = this.entries[i + 1][1];
         const nextSibling = await tree.getNode(hash);
-
-        const partitions = partition(
-          joinIterables(nextSibling.entries, childNode.entries),
-          tree.getSize,
-          tree.minSize,
-          tree.maxSize,
-        );
-
-        if (partitions.length === 3) {
-          const entries: Entry<string>[] = partitions.map(entries => {
-            const node = newImpl(childNode.type, entries, newTempHash());
-            tree.addToModified(node as DataNodeImpl | InternalNodeImpl);
-            return [node.maxKey(), node.hash];
-          });
-          this.entries.splice(i, 2, ...entries);
-        } else if (partitions.length === 2) {
-          childNode.entries = partitions[0];
-          tree.addToModified(childNode);
-          this.entries[i] = [childNode.maxKey(), childNode.hash];
-
-          nextSibling.entries = partitions[1];
-          this.entries[i + 1] = [nextSibling.maxKey(), nextSibling.hash];
-        } else if (partitions.length === 1) {
-          nextSibling.entries = partitions[0];
-          tree.addToModified(nextSibling);
-          this.entries[i + 1] = [nextSibling.maxKey(), nextSibling.hash];
-
-          // Remove childNode
-          this.entries.splice(i, 1);
-        } else {
-          throw new Error('invalid partition');
-        }
-      } else if (i === 0 && this.entries.length === 1) {
-        // This is the only node in the tree.
-
-        const partitions = partition(
-          childNode.entries,
-          tree.getSize,
-          tree.minSize,
-          tree.maxSize,
-        );
-
-        if (partitions.length === 1) {
-          // Cannot partition.
-        } else {
-          const entries: Entry<string>[] = partitions.map(entries => {
-            const node = newImpl(childNode.type, entries, newTempHash());
-            tree.addToModified(node as DataNodeImpl | InternalNodeImpl);
-            return [node.maxKey(), node.hash];
-          });
-
-          this.entries = entries;
-        }
+        values = joinIterables(childNode.entries, nextSibling.entries);
+        startIndex = i;
+        removeCount = 2;
       } else {
-        throw new Error('invalid index');
+        values = childNode.entries;
+        startIndex = i;
+        removeCount = 1;
       }
+
+      const partitions = partition(
+        values,
+        tree.getSize,
+        tree.minSize,
+        tree.maxSize,
+      );
+      const newEntries: Entry<string>[] = partitions.map(entries => {
+        const node = newImpl(childNode.type, entries, newTempHash());
+        tree.addToModified(node as DataNodeImpl | InternalNodeImpl);
+        return [node.maxKey(), node.hash];
+      });
+      const entries = readonlySplice(
+        this.entries,
+        startIndex,
+        removeCount,
+        ...newEntries,
+      );
+      this.entries = entries;
     } else {
       // USE_SIZE
       // Once we use size of value the size can shrink and we can go below minSize
+
+      // TODO: Should we set this in an else branch... things are messy
+      this.entries[i] = [childNode.maxKey(), childNode.hash];
     }
 
     // Mutated so new hash

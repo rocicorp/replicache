@@ -46,6 +46,31 @@ function format(arg) {
 async function main() {
   const optionDefinitions = [
     {
+      name: 'list',
+      alias: 'l',
+      type: Boolean,
+      description: 'List available benchmarks',
+    },
+    {
+      name: 'groups',
+      multiple: true,
+      description: 'Benchmark groups to run',
+    },
+    {
+      name: 'run',
+      type: RegExp,
+      description: 'Run only those tests matching the regular expression.',
+    },
+    {
+      name: 'browsers',
+      type: browser,
+      multiple: true,
+      defaultValue: ['chromium'],
+      description: `Browsers to run against, any of ${allBrowsers.join(
+        ', ',
+      )}, or all`,
+    },
+    {
       name: 'verbose',
       alias: 'v',
       type: Boolean,
@@ -65,36 +90,13 @@ async function main() {
       description: 'Opens a browser to run benchmarks manually',
     },
     {
-      name: 'groups',
-      type: String,
-      multiple: true,
-      defaultValue: ['replicache'],
-      description: 'Benchmark groups to run',
-    },
-    {
-      name: 'browsers',
-      type: browser,
-      multiple: true,
-      defaultValue: ['chromium'],
-      description: `Browsers to run against, any of ${allBrowsers.join(
-        ', ',
-      )}, or all`,
-    },
-    {
       name: 'help',
+      alias: 'h',
       type: Boolean,
       description: 'Show this help message',
     },
   ];
   const options = commandLineArgs(optionDefinitions);
-  if (options.browsers.length === 1 && options.browsers[0] === 'all') {
-    options.browsers = allBrowsers;
-  }
-  if (options.devtools && options.browsers.length !== 1) {
-    console.error('Exactly one browser may be specified with --devtools');
-    process.exit(1);
-  }
-
   if (options.help) {
     console.log(
       commandLineUsage([
@@ -103,6 +105,22 @@ async function main() {
       ]),
     );
     process.exit();
+  }
+
+  if (options.browsers.length === 1 && options.browsers[0] === 'all') {
+    options.browsers = allBrowsers;
+  }
+  if (options.devtools && options.browsers.length !== 1) {
+    console.error('Exactly one browser may be specified with --devtools');
+    process.exit(1);
+  }
+  if (
+    options.groups === undefined &&
+    options.run === undefined &&
+    !options.list &&
+    !options.devtools
+  ) {
+    options.groups = ['replicache'];
   }
 
   const port = await getPort();
@@ -140,11 +158,20 @@ async function main() {
     if (options.devtools) {
       return;
     }
-    // context.close does not terminate! Give it a second.
-    await Promise.race([context.close(), wait(1000)]);
+
+    if (!options.devtools) {
+      // context.close does not terminate! Give it a second.
+      await Promise.race([context.close(), wait(1000)]);
+    } else {
+      await new Promise(resolve => {
+        setTimeout(() => resolve(), 2 ** 31 - 1);
+      }); // Don't let the dev server stop!
+    }
   }
 
-  logLine('Done!');
+  if (!options.list) {
+    logLine('Done!');
+  }
   await fs.rm(userDataDir, {recursive: true});
   await server.stop();
 }
@@ -158,26 +185,40 @@ async function runInBrowser(browser, page, options) {
   }
 
   await waitForBenchmarks();
-  logLine(`Running benchmarks on ${browserName(browser)}...`);
 
   /** @type {{name: string, group: string}[]} */
-  const benchmarks = await page.evaluate('benchmarks');
+  let benchmarks = await page.evaluate('benchmarks');
+  if (options.groups !== undefined) {
+    benchmarks = benchmarks.filter(({group}) => options.groups.includes(group));
+  }
+  if (options.run !== undefined) {
+    benchmarks = benchmarks.filter(({name}) => options.run.test(name));
+  }
 
-  if (options.devtools) {
+  if (options.devtools || options.list) {
+    benchmarks.sort((a, b) => {
+      if (a.group !== b.group) {
+        return a.group < b.group ? -1 : 1;
+      }
+      return a.name < b.name ? -1 : 1;
+    });
     console.log(
-      'Available benchmarks:',
-      benchmarks.map(({name, group}) => ({name, group})),
+      'Available benchmarks (group / name):\n' +
+        benchmarks.map(({name, group}) => `${group} / ${name}`).join('\n'),
     );
-    console.log(
-      'Run a single benchmark with `await runBenchmarkByNameAndGroup(name, group)`',
-    );
+    if (options.devtools) {
+      console.log(
+        'Run a single benchmark with',
+        '`await runBenchmarkByNameAndGroup(name, group)`',
+      );
+    }
     return;
   }
 
-  const selectedBenchmarks = benchmarks.filter(({group}) =>
-    options.groups.includes(group),
+  logLine(
+    `Running ${benchmarks.length} benchmarks on ${browserName(browser)}...`,
   );
-  for (const benchmark of selectedBenchmarks) {
+  for (const benchmark of benchmarks) {
     const testResult = await page.evaluate(
       ({name, group, format}) =>
         // eslint-disable-next-line no-undef

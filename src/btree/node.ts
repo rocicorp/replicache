@@ -15,23 +15,11 @@ type BaseNode<V> = {
   readonly entries: Entry<V>[];
 };
 
-type ReadonlyBaseNode<V> = {
-  readonly entries: readonly ReadonlyEntry<V>[];
-};
-
 export type InternalNode = BaseNode<string> & {
   readonly type: 'internal';
 };
 
-export type ReadonlyInternalNode = ReadonlyBaseNode<string> & {
-  readonly type: 'internal';
-};
-
 export type DataNode = BaseNode<ReadonlyJSONValue> & {
-  readonly type: 'data';
-};
-
-export type ReadonlyDataNode = ReadonlyBaseNode<ReadonlyJSONValue> & {
   readonly type: 'data';
 };
 
@@ -41,10 +29,6 @@ export type BTreeNode =
       entries: InternalNode['entries'];
     }
   | {type: 'data'; entries: DataNode['entries']};
-
-// InternalNode | DataNode;
-
-// type ReadonlyBTreeNode = ReadonlyInternalNode | ReadonlyDataNode;
 
 export class Read {
   rootHash: string;
@@ -188,21 +172,6 @@ export function assertBTreeNode(v: unknown): asserts v is BTreeNode {
 type Hash = string;
 
 export class Write extends Read {
-  newInternalNodeImpl(entries: Entry<string>[]): InternalNodeImpl {
-    const n = new InternalNodeImpl(entries, newTempHash());
-    this.addToModified(n);
-    return n;
-  }
-
-  newDataNodeImpl(entries: Entry<ReadonlyJSONValue>[]): DataNodeImpl {
-    const n = new DataNodeImpl(entries, newTempHash());
-    this.addToModified(n);
-    return n;
-  }
-
-  getSize(): number {
-    return 1;
-  }
   private readonly _modified: Map<string, DataNodeImpl | InternalNodeImpl> =
     new Map();
 
@@ -226,25 +195,46 @@ export class Write extends Read {
     return super.getNode(hash);
   }
 
-  addToModified(node: DataNodeImpl | InternalNodeImpl): void {
+  private _addToModified(node: DataNodeImpl | InternalNodeImpl): void {
     this._modified.set(node.hash, node);
   }
 
-  updateModified(oldHash: Hash, node: DataNodeImpl | InternalNodeImpl): void {
-    this._modified.delete(oldHash);
-    this._modified.set(node.hash, node);
+  newInternalNodeImpl(entries: Entry<string>[]): InternalNodeImpl {
+    const n = new InternalNodeImpl(entries, newTempHash());
+    this._addToModified(n);
+    return n;
   }
 
-  resetHashForModifiedNode(node: DataNodeImpl | InternalNodeImpl): void {
-    this._modified.delete(node.hash);
-    node.hash = newTempHash();
-    this._modified.set(node.hash, node);
+  newDataNodeImpl(entries: Entry<ReadonlyJSONValue>[]): DataNodeImpl {
+    const n = new DataNodeImpl(entries, newTempHash());
+    this._addToModified(n);
+    return n;
+  }
+
+  newNodeImpl(type: 'data', entries: Entry<ReadonlyJSONValue>[]): DataNodeImpl;
+  newNodeImpl(type: 'internal', entries: Entry<string>[]): InternalNodeImpl;
+  newNodeImpl(
+    type: 'internal' | 'data',
+    entries: Entry<string>[] | Entry<ReadonlyJSONValue>[],
+  ): InternalNodeImpl | DataNodeImpl;
+  newNodeImpl(
+    type: 'internal' | 'data',
+    entries: Entry<string>[] | Entry<ReadonlyJSONValue>[],
+  ): InternalNodeImpl | DataNodeImpl {
+    return type === 'internal'
+      ? this.newInternalNodeImpl(entries as Entry<string>[])
+      : this.newDataNodeImpl(entries);
+  }
+
+  getSize(): number {
+    return 1;
   }
 
   async put(key: string, value: ReadonlyJSONValue): Promise<void> {
     const oldRootNode = await this.getNode(this.rootHash);
     const rootNode = await oldRootNode.set(key, value, this);
 
+    // We do the rebalancing in the parent so we need to do it here as well.
     if (rootNode.entries.length > this.maxSize) {
       const partitions = partition(
         rootNode.entries,
@@ -253,8 +243,7 @@ export class Write extends Read {
         this.maxSize,
       );
       const entries: Entry<string>[] = partitions.map(entries => {
-        const node = newImpl(rootNode.type, entries, newTempHash());
-        this.addToModified(node as DataNodeImpl | InternalNodeImpl);
+        const node = this.newNodeImpl(rootNode.type, entries);
         return [node.maxKey(), node.hash];
       });
       const newRoot = this.newInternalNodeImpl(entries);
@@ -269,6 +258,9 @@ export class Write extends Read {
     const oldRootNode = await this.getNode(this.rootHash);
 
     const newRootNode = await oldRootNode.del(key, this);
+
+    // No need to rebalance here since if root gets too small there is nothing
+    // we can do about that.
 
     const found = newRootNode !== oldRootNode;
     if (found) {
@@ -287,7 +279,6 @@ export class Write extends Read {
         return hash;
       }
       if (node.type === 'data') {
-        // TODO: Add a way to keep track of if a chunk was modified.
         const chunk = dag.Chunk.new(node.toChunkData(), []);
         newChunks.push(chunk);
         return chunk.hash;
@@ -384,12 +375,11 @@ class DataNodeImpl extends NodeImpl<ReadonlyJSONValue, 'data'> {
   async del(key: string, tree: Write): Promise<DataNodeImpl> {
     const i = binarySearch(key, this.entries);
     if (i < 0) {
+      // Not found. Return this without changes.
       return this;
     }
 
-    // Found
-    tree.resetHashForModifiedNode(this as DataNodeImpl);
-
+    // Found. Create new node
     const entries = readonlySplice(this.entries, i, 1);
     return tree.newDataNodeImpl(entries);
   }
@@ -422,19 +412,20 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
     value: ReadonlyJSONValue,
     tree: Write,
   ): Promise<InternalNodeImpl> {
-    const {entries} = this;
-    let i = binarySearch(key, entries);
+    let i = binarySearch(key, this.entries);
     if (i < 0) {
       i = ~i;
-
-      if (i >= entries.length) {
-        i = entries.length - 1;
+      if (i >= this.entries.length) {
+        i = this.entries.length - 1;
       }
     }
-    const childHash = entries[i][1];
+
+    const childHash = this.entries[i][1];
     const oldChildNode = await tree.getNode(childHash);
 
     const childNode = await oldChildNode.set(key, value, tree);
+
+    let entries: Entry<string>[];
 
     if (childNode.entries.length > tree.maxSize) {
       let values: Iterable<Entry<string> | Entry<ReadonlyJSONValue>>;
@@ -465,26 +456,25 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
         tree.maxSize,
       );
       const newEntries: Entry<string>[] = partitions.map(entries => {
-        const node = newImpl(childNode.type, entries, newTempHash());
-        tree.addToModified(node as DataNodeImpl | InternalNodeImpl);
+        const node = tree.newNodeImpl(childNode.type, entries);
         return [node.maxKey(), node.hash];
       });
-      const entries = readonlySplice(
+      entries = readonlySplice(
         this.entries,
         startIndex,
         removeCount,
         ...newEntries,
       );
-      return tree.newInternalNodeImpl(entries);
-    }
-    // USE_SIZE
-    // Once we use size of value the size can shrink and we can go below minSize
+    } else {
+      // USE_SIZE
+      // Once we use size of value the size can shrink and we can go below minSize
 
-    const newEntries: Entry<string>[] = readonlySplice(this.entries, i, 1, [
-      childNode.maxKey(),
-      childNode.hash,
-    ]);
-    return tree.newInternalNodeImpl(newEntries);
+      entries = readonlySplice(this.entries, i, 1, [
+        childNode.maxKey(),
+        childNode.hash,
+      ]);
+    }
+    return tree.newInternalNodeImpl(entries);
   }
 
   async del(key: string, tree: Write): Promise<InternalNodeImpl> {

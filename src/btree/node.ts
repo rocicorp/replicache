@@ -242,8 +242,8 @@ export class Write extends Read {
   }
 
   async put(key: string, value: ReadonlyJSONValue): Promise<void> {
-    const rootNode = await this.getNode(this.rootHash);
-    await rootNode.set(key, value, this);
+    const oldRootNode = await this.getNode(this.rootHash);
+    const rootNode = await oldRootNode.set(key, value, this);
 
     if (rootNode.entries.length > this.maxSize) {
       const partitions = partition(
@@ -257,8 +257,7 @@ export class Write extends Read {
         this.addToModified(node as DataNodeImpl | InternalNodeImpl);
         return [node.maxKey(), node.hash];
       });
-      const newRoot = new InternalNodeImpl(entries, newTempHash());
-      this.addToModified(newRoot);
+      const newRoot = this.newInternalNodeImpl(entries);
       this.rootHash = newRoot.hash;
       return;
     }
@@ -333,7 +332,11 @@ abstract class NodeImpl<
     this.hash = hash;
   }
 
-  abstract set(key: string, value: Value, tree: Write): Promise<void>;
+  abstract set(
+    key: string,
+    value: Value,
+    tree: Write,
+  ): Promise<NodeImpl<Value, Type>>;
 
   abstract del(key: string, tree: Write): Promise<NodeImpl<Value, Type>>;
 
@@ -355,17 +358,27 @@ class DataNodeImpl extends NodeImpl<ReadonlyJSONValue, 'data'> {
     super('data', entries, hash);
   }
 
-  async set(key: string, value: ReadonlyJSONValue, tree: Write): Promise<void> {
-    tree.resetHashForModifiedNode(this as DataNodeImpl);
+  async set(
+    key: string,
+    value: ReadonlyJSONValue,
+    tree: Write,
+  ): Promise<DataNodeImpl> {
+    let deleteCount: number;
     let i = binarySearch(key, this.entries);
     if (i < 0) {
       // Not found, insert.
       i = ~i;
-
-      this.entries.splice(i, 0, [key, value]);
+      deleteCount = 0;
     } else {
-      this.entries[i] = [key, value];
+      deleteCount = 1;
     }
+    const entries: Entry<ReadonlyJSONValue>[] = readonlySplice(
+      this.entries,
+      i,
+      deleteCount,
+      [key, value],
+    );
+    return tree.newDataNodeImpl(entries);
   }
 
   async del(key: string, tree: Write): Promise<DataNodeImpl> {
@@ -404,7 +417,11 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
     super('internal', entries, hash);
   }
 
-  async set(key: string, value: ReadonlyJSONValue, tree: Write): Promise<void> {
+  async set(
+    key: string,
+    value: ReadonlyJSONValue,
+    tree: Write,
+  ): Promise<InternalNodeImpl> {
     const {entries} = this;
     let i = binarySearch(key, entries);
     if (i < 0) {
@@ -415,9 +432,9 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
       }
     }
     const childHash = entries[i][1];
-    const childNode = await tree.getNode(childHash);
+    const oldChildNode = await tree.getNode(childHash);
 
-    await childNode.set(key, value, tree);
+    const childNode = await oldChildNode.set(key, value, tree);
 
     if (childNode.entries.length > tree.maxSize) {
       let values: Iterable<Entry<string> | Entry<ReadonlyJSONValue>>;
@@ -458,17 +475,16 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
         removeCount,
         ...newEntries,
       );
-      this.entries = entries;
-    } else {
-      // USE_SIZE
-      // Once we use size of value the size can shrink and we can go below minSize
-
-      // TODO: Should we set this in an else branch... things are messy
-      this.entries[i] = [childNode.maxKey(), childNode.hash];
+      return tree.newInternalNodeImpl(entries);
     }
+    // USE_SIZE
+    // Once we use size of value the size can shrink and we can go below minSize
 
-    // Mutated so new hash
-    tree.resetHashForModifiedNode(this);
+    const newEntries: Entry<string>[] = readonlySplice(this.entries, i, 1, [
+      childNode.maxKey(),
+      childNode.hash,
+    ]);
+    return tree.newInternalNodeImpl(newEntries);
   }
 
   async del(key: string, tree: Write): Promise<InternalNodeImpl> {

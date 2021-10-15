@@ -561,6 +561,10 @@ function newNodeImpl(
  * decide where to split the btree nodes.
  */
 export function getSizeOfValue(value: ReadonlyJSONValue): number {
+  // The following outlines how Chromium serializes values for structuredClone.
+  // https://source.chromium.org/chromium/chromium/src/+/main:v8/src/objects/value-serializer.cc;l=102;drc=f0b6f7d12ea47ad7c08fb554f678c1e73801ca36;bpv=1;bpt=1
+  // We do not need to match that exactly but it would be good to be close.
+
   switch (typeof value) {
     case 'string':
       return value.length;

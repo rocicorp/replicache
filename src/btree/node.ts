@@ -1,36 +1,48 @@
 import {assertJSONValue, JSONValue, ReadonlyJSONValue} from '../json';
 import * as dag from '../dag/mod';
 import {stringCompare} from '../prolly/string-compare';
-import {assertArray, assertObject, assertString} from '../asserts';
+import {
+  assertArray,
+  assertNumber,
+  assertObject,
+  assertString,
+} from '../asserts';
 import type {ScanOptionsInternal} from '../db/scan';
 import {emptyHashString} from '../hash';
+
+type Hash = string;
 
 export type Entry<V> = [key: string, value: V];
 export type ReadonlyEntry<V> = readonly [key: string, value: V];
 
 type BaseNode<V> = {
-  readonly entries: ReadonlyArray<Entry<V>>;
+  readonly e: ReadonlyArray<Entry<V>>;
 };
 
-export type InternalNode = BaseNode<string> & {
-  readonly type: 'internal';
+export const enum NodeType {
+  Data,
+  Internal,
+}
+
+export type InternalNode = BaseNode<Hash> & {
+  readonly t: NodeType.Internal;
 };
 
 export type DataNode = BaseNode<ReadonlyJSONValue> & {
-  readonly type: 'data';
+  readonly t: NodeType.Data;
 };
 
 export type BTreeNode = InternalNode | DataNode;
 
 export class BTreeRead {
-  rootHash: string;
+  rootHash: Hash;
   private readonly _dagRead: dag.Read;
 
   readonly minSize: number;
   readonly maxSize: number;
 
   constructor(
-    root: string,
+    root: Hash,
     dagRead: dag.Read,
     minSize = 32,
     maxSize = minSize * 2,
@@ -59,7 +71,7 @@ export class BTreeRead {
     }
     const {data} = chunk;
     assertBTreeNode(data);
-    const {type, entries} = data;
+    const {t: type, e: entries} = data;
     return newNodeImpl(type, entries, hash);
   }
 
@@ -111,7 +123,7 @@ export async function findLeaf(
   source: ChunkSource,
 ): Promise<DataNodeImpl> {
   const node = await source.getNode(hash);
-  if (node.type === 'data') {
+  if (node.type === NodeType.Data) {
     return node as DataNodeImpl;
   }
   const internalNode = node as InternalNodeImpl;
@@ -161,33 +173,31 @@ function binarySearch<V>(
 
 export function assertBTreeNode(v: unknown): asserts v is BTreeNode {
   assertObject(v);
-  assertString(v.type);
+  assertNumber(v.t);
 
   function assertEntry(
     v: unknown,
     f:
-      | ((v: unknown) => asserts v is string)
+      | ((v: unknown) => asserts v is Hash)
       | ((v: unknown) => asserts v is JSONValue),
-  ): asserts v is Entry<string | JSONValue> {
+  ): asserts v is Entry<Hash | JSONValue> {
     assertArray(v);
     assertString(v[0]);
     f(v[1]);
   }
 
-  assertArray(v.entries);
-  if (v.type === 'internal') {
-    v.entries.forEach(e => assertEntry(e, assertString));
-  } else if (v.type === 'data') {
-    v.entries.forEach(e => assertEntry(e, assertJSONValue));
+  assertArray(v.e);
+  if (v.t === NodeType.Internal) {
+    v.e.forEach(e => assertEntry(e, assertString));
+  } else if (v.t === NodeType.Data) {
+    v.e.forEach(e => assertEntry(e, assertJSONValue));
   } else {
     throw new Error('invalid type');
   }
 }
 
-type Hash = string;
-
 export class BTreeWrite extends BTreeRead {
-  private readonly _modified: Map<string, DataNodeImpl | InternalNodeImpl> =
+  private readonly _modified: Map<Hash, DataNodeImpl | InternalNodeImpl> =
     new Map();
 
   private readonly _dagWrite: dag.Write;
@@ -213,7 +223,7 @@ export class BTreeWrite extends BTreeRead {
     return new this(emptyHashString, dagWrite, minSize, maxSize);
   }
 
-  async getNode(hash: string): Promise<DataNodeImpl | InternalNodeImpl> {
+  async getNode(hash: Hash): Promise<DataNodeImpl | InternalNodeImpl> {
     const node = this._modified.get(hash);
     if (node) {
       return node;
@@ -225,7 +235,7 @@ export class BTreeWrite extends BTreeRead {
     this._modified.set(node.hash, node);
   }
 
-  newInternalNodeImpl(entries: ReadonlyArray<Entry<string>>): InternalNodeImpl {
+  newInternalNodeImpl(entries: ReadonlyArray<Entry<Hash>>): InternalNodeImpl {
     const n = new InternalNodeImpl(entries, newTempHash());
     this._addToModified(n);
     return n;
@@ -237,15 +247,21 @@ export class BTreeWrite extends BTreeRead {
     return n;
   }
 
-  newNodeImpl(type: 'data', entries: Entry<ReadonlyJSONValue>[]): DataNodeImpl;
-  newNodeImpl(type: 'internal', entries: Entry<string>[]): InternalNodeImpl;
   newNodeImpl(
-    type: 'internal' | 'data',
-    entries: Entry<string>[] | Entry<ReadonlyJSONValue>[],
+    type: NodeType.Data,
+    entries: Entry<ReadonlyJSONValue>[],
+  ): DataNodeImpl;
+  newNodeImpl(
+    type: NodeType.Internal,
+    entries: Entry<Hash>[],
+  ): InternalNodeImpl;
+  newNodeImpl(
+    type: NodeType,
+    entries: Entry<Hash>[] | Entry<ReadonlyJSONValue>[],
   ): InternalNodeImpl | DataNodeImpl;
   newNodeImpl(
-    type: 'internal' | 'data',
-    entries: Entry<string>[] | Entry<ReadonlyJSONValue>[],
+    type: NodeType,
+    entries: Entry<Hash>[] | Entry<ReadonlyJSONValue>[],
   ): InternalNodeImpl | DataNodeImpl {
     const n = newNodeImpl(type, entries, newTempHash());
     this._addToModified(n);
@@ -253,7 +269,7 @@ export class BTreeWrite extends BTreeRead {
   }
 
   childNodeSize(node: InternalNodeImpl | DataNodeImpl): number {
-    type E = Entry<string | ReadonlyJSONValue>;
+    type E = Entry<Hash | ReadonlyJSONValue>;
     return (node.entries as E[]).reduce(
       (p: number, entry: E) => p + this.getSize(entry),
       0,
@@ -273,7 +289,7 @@ export class BTreeWrite extends BTreeRead {
         this.minSize,
         this.maxSize,
       );
-      const entries: Entry<string>[] = partitions.map(entries => {
+      const entries: Entry<Hash>[] = partitions.map(entries => {
         const node = this.newNodeImpl(rootNode.type, entries);
         return [node.maxKey(), node.hash];
       });
@@ -298,7 +314,10 @@ export class BTreeWrite extends BTreeRead {
       // TODO(arv): Should we restore back to emptyHash if empty?
 
       // Flatten one layer.
-      if (newRootNode.type === 'internal' && newRootNode.entries.length === 1) {
+      if (
+        newRootNode.type === NodeType.Internal &&
+        newRootNode.entries.length === 1
+      ) {
         this.rootHash = newRootNode.entries[0][1];
       } else {
         this.rootHash = newRootNode.hash;
@@ -308,20 +327,20 @@ export class BTreeWrite extends BTreeRead {
     return found;
   }
 
-  async flush(): Promise<string> {
-    const walk = (hash: Hash, newChunks: dag.Chunk[]): string => {
+  async flush(): Promise<Hash> {
+    const walk = (hash: Hash, newChunks: dag.Chunk[]): Hash => {
       const node = this._modified.get(hash);
       if (node === undefined) {
         assertNotTempHash(hash);
         // Not modified, use the original.
         return hash;
       }
-      if (node.type === 'data') {
+      if (node.type === NodeType.Data) {
         const chunk = dag.Chunk.new(node.toChunkData(), []);
         newChunks.push(chunk);
         return chunk.hash;
       }
-      const refs: string[] = [];
+      const refs: Hash[] = [];
 
       const internalNode = node as InternalNodeImpl;
 
@@ -353,7 +372,7 @@ export class BTreeWrite extends BTreeRead {
 
 abstract class NodeImpl<
   Value extends Hash | ReadonlyJSONValue,
-  Type extends 'data' | 'internal',
+  Type extends NodeType.Data | NodeType.Internal,
 > {
   readonly entries: ReadonlyArray<Entry<Value>>;
   readonly type: Type;
@@ -381,13 +400,13 @@ abstract class NodeImpl<
   }
 
   toChunkData(): DataNode | InternalNode {
-    return {type: this.type, entries: this.entries} as DataNode | InternalNode;
+    return {t: this.type, e: this.entries} as DataNode | InternalNode;
   }
 }
 
-class DataNodeImpl extends NodeImpl<ReadonlyJSONValue, 'data'> {
+class DataNodeImpl extends NodeImpl<ReadonlyJSONValue, NodeType.Data> {
   constructor(entries: ReadonlyArray<Entry<ReadonlyJSONValue>>, hash: Hash) {
-    super('data', entries, hash);
+    super(NodeType.Data, entries, hash);
   }
 
   async set(
@@ -424,7 +443,7 @@ class DataNodeImpl extends NodeImpl<ReadonlyJSONValue, 'data'> {
   }
 
   async *scan(
-    tree: BTreeRead,
+    _tree: BTreeRead,
     prefix: string,
     fromKey: string,
     limit: number,
@@ -464,9 +483,9 @@ function* joinIterables<T>(...iters: Iterable<T>[]) {
   }
 }
 
-class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
+class InternalNodeImpl extends NodeImpl<Hash, NodeType.Internal> {
   constructor(entries: ReadonlyArray<Entry<Hash>>, hash: Hash) {
-    super('internal', entries, hash);
+    super(NodeType.Internal, entries, hash);
   }
 
   async set(
@@ -496,7 +515,7 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
       entries = readonlySplice(this.entries, i, 1, [
         childNode.maxKey(),
         childNode.hash,
-      ] as Entry<string>);
+      ] as Entry<Hash>);
     }
     return tree.newInternalNodeImpl(entries);
   }
@@ -537,7 +556,7 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
       const entries = readonlySplice(this.entries, i, 1, [
         childNode.maxKey(),
         childNode.hash,
-      ] as Entry<string>);
+      ] as Entry<Hash>);
       return tree.newInternalNodeImpl(entries);
     }
 
@@ -570,12 +589,12 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
 }
 
 async function mergeAndPartition(
-  entries: ReadonlyArray<Entry<string>>,
+  entries: ReadonlyArray<Entry<Hash>>,
   i: number,
   tree: BTreeWrite,
   childNode: DataNodeImpl | InternalNodeImpl,
-): Promise<ReadonlyArray<Entry<string>>> {
-  let values: Iterable<Entry<string> | Entry<ReadonlyJSONValue>>;
+): Promise<ReadonlyArray<Entry<Hash>>> {
+  let values: Iterable<Entry<Hash> | Entry<ReadonlyJSONValue>>;
   let startIndex: number;
   let removeCount: number;
   if (i > 0) {
@@ -604,38 +623,34 @@ async function mergeAndPartition(
   );
   const newEntries = partitions.map(entries => {
     const node = tree.newNodeImpl(childNode.type, entries);
-    return [node.maxKey(), node.hash] as Entry<string>;
+    return [node.maxKey(), node.hash] as Entry<Hash>;
   });
   return readonlySplice(entries, startIndex, removeCount, ...newEntries);
 }
 
 function newNodeImpl(
-  type: 'data',
+  type: NodeType.Data,
   entries: ReadonlyArray<Entry<ReadonlyJSONValue>>,
-  hash: string,
+  hash: Hash,
 ): DataNodeImpl;
 function newNodeImpl(
-  type: 'internal',
-  entries: ReadonlyArray<Entry<string>>,
-  hash: string,
+  type: NodeType.Internal,
+  entries: ReadonlyArray<Entry<Hash>>,
+  hash: Hash,
 ): InternalNodeImpl;
 function newNodeImpl(
-  type: 'data' | 'internal',
-  entries:
-    | ReadonlyArray<Entry<ReadonlyJSONValue>>
-    | ReadonlyArray<Entry<string>>,
-  hash: string,
+  type: NodeType.Data | NodeType.Internal,
+  entries: ReadonlyArray<Entry<ReadonlyJSONValue>> | ReadonlyArray<Entry<Hash>>,
+  hash: Hash,
 ): DataNodeImpl | InternalNodeImpl;
 function newNodeImpl(
-  type: 'data' | 'internal',
-  entries:
-    | ReadonlyArray<Entry<ReadonlyJSONValue>>
-    | ReadonlyArray<Entry<string>>,
-  hash: string,
+  type: NodeType.Data | NodeType.Internal,
+  entries: ReadonlyArray<Entry<ReadonlyJSONValue>> | ReadonlyArray<Entry<Hash>>,
+  hash: Hash,
 ): DataNodeImpl | InternalNodeImpl {
-  return type === 'data'
+  return type === NodeType.Data
     ? new DataNodeImpl(entries, hash)
-    : new InternalNodeImpl(entries as Entry<string>[], hash);
+    : new InternalNodeImpl(entries as Entry<Hash>[], hash);
 }
 
 export function partition<T>(
@@ -688,7 +703,7 @@ let tempHashCounter = 0;
 const tempPrefix = '/t/';
 const hashLength = 32;
 
-export function newTempHash(): string {
+export function newTempHash(): Hash {
   // Must not overlap with Hash.prototype.toString results
   return (
     tempPrefix +
@@ -696,11 +711,11 @@ export function newTempHash(): string {
   );
 }
 
-export function isTempHash(hash: string): hash is `/t/${string}` {
+export function isTempHash(hash: Hash): hash is `/t/${string}` {
   return hash.startsWith('/t/');
 }
 
-export function assertNotTempHash<H extends string>(
+export function assertNotTempHash<H extends Hash>(
   hash: H,
 ): asserts hash is H extends `/t/${string}` ? never : H {
   if (isTempHash(hash)) {

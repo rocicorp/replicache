@@ -1126,9 +1126,9 @@ test('put/del - getSize', async () => {
     await w.put('aaaa', 'a1');
   });
 
-  expect(getSizeOfValue('aaaa')).to.equal(4);
-  expect(getSizeOfValue('a1')).to.equal(2);
-  expect(getSize(['aaaa', 'a1'])).to.equal(14);
+  expect(getSizeOfValue('aaaa')).to.equal(6);
+  expect(getSizeOfValue('a1')).to.equal(4);
+  expect(getSize(['aaaa', 'a1'])).to.equal(13);
   await expectTree(rootHash, dagStore, {
     $type: 'data',
     aaaa: 'a1',
@@ -1137,7 +1137,7 @@ test('put/del - getSize', async () => {
   rootHash = await doWrite(rootHash, dagStore, async w => {
     await w.put('c', '');
   });
-  expect(getSize(['c', ''])).to.equal(9);
+  expect(getSize(['c', ''])).to.equal(8);
   await expectTree(rootHash, dagStore, {
     $type: 'data',
     aaaa: 'a1',
@@ -1147,7 +1147,7 @@ test('put/del - getSize', async () => {
   rootHash = await doWrite(rootHash, dagStore, async w => {
     await w.put('b', 'b234');
   });
-  expect(getSize(['b', 'b234'])).to.equal(13);
+  expect(getSize(['b', 'b234'])).to.equal(12);
   await expectTree(rootHash, dagStore, {
     $type: 'internal',
     b: {

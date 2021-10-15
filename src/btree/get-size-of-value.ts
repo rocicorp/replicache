@@ -1,14 +1,7 @@
-import {size} from 'lodash';
 import type {ReadonlyJSONObject, ReadonlyJSONValue} from '../json';
 
 const SIZE_TAG = 1;
-const SIZE_UINT32 = 4;
 const SIZE_DOUBLE = 8;
-
-const SMI_ONE_BYTE = 128; // 2 ** 7
-const SMI_TWO_BYTES = 16384; // 2 ** 14
-const SMI_THREE_BYTES = 2097152; // 2 ** 21
-const SMI_FOUR_BYTES = 268435456; // 2 ** 28
 
 /**
  * Gives a size of a value. The size is modelled after the size used by

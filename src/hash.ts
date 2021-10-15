@@ -48,6 +48,8 @@ export class Hash {
   }
 }
 
+export const emptyHashString = Hash.empty().toString();
+
 function encode(plain: Uint8Array): string {
   let i = 0;
   let shiftIndex = 0;

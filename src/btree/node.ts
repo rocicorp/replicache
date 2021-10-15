@@ -1,12 +1,9 @@
-import {
-  assertJSONValue,
-  JSONValue,
-  ReadonlyJSONObject,
-  ReadonlyJSONValue,
-} from '../json';
+import {assertJSONValue, JSONValue, ReadonlyJSONValue} from '../json';
 import * as dag from '../dag/mod';
 import {stringCompare} from '../prolly/string-compare';
 import {assertArray, assertObject, assertString} from '../asserts';
+import type {ScanOptionsInternal} from '../db/scan';
+import {emptyHashString} from '../hash';
 
 export type Entry<V> = [key: string, value: V];
 export type ReadonlyEntry<V> = readonly [key: string, value: V];
@@ -44,7 +41,18 @@ export class BTreeRead {
     this.maxSize = maxSize;
   }
 
+  static newEmpty(
+    dagRead: dag.Read,
+    minSize = 32,
+    maxSize = minSize * 2,
+  ): BTreeRead {
+    return new this(emptyHashString, dagRead, minSize, maxSize);
+  }
+
   async getNode(hash: Hash): Promise<DataNodeImpl | InternalNodeImpl> {
+    if (hash === emptyHashString) {
+      return emptyDataNode;
+    }
     const chunk = await this._dagRead.getChunk(hash);
     if (chunk === undefined) {
       throw new Error(`Missing chunk for ${hash}`);
@@ -72,6 +80,21 @@ export class BTreeRead {
   async isEmpty(): Promise<boolean> {
     const node = await this.getNode(this.rootHash);
     return node.entries.length === 0;
+  }
+
+  async *scan(
+    options: ScanOptionsInternal,
+  ): AsyncIterable<Entry<ReadonlyJSONValue>> {
+    const node = await this.getNode(this.rootHash);
+    const {prefix = '', limit = Infinity, startKey} = options;
+    let fromKey = prefix;
+    if (startKey !== undefined) {
+      if (startKey > fromKey) {
+        fromKey = startKey;
+      }
+    }
+
+    yield* node.scan(this, prefix, fromKey, limit);
   }
 }
 
@@ -182,6 +205,14 @@ export class BTreeWrite extends BTreeRead {
     this.getSize = getSize || (() => 1);
   }
 
+  static newEmpty(
+    dagWrite: dag.Write,
+    minSize?: number,
+    maxSize?: number,
+  ): BTreeWrite {
+    return new this(emptyHashString, dagWrite, minSize, maxSize);
+  }
+
   async getNode(hash: string): Promise<DataNodeImpl | InternalNodeImpl> {
     const node = this._modified.get(hash);
     if (node) {
@@ -264,6 +295,8 @@ export class BTreeWrite extends BTreeRead {
 
     const found = newRootNode !== oldRootNode;
     if (found) {
+      // TODO(arv): Should we restore back to emptyHash if empty?
+
       // Flatten one layer.
       if (newRootNode.type === 'internal' && newRootNode.entries.length === 1) {
         this.rootHash = newRootNode.entries[0][1];
@@ -305,6 +338,10 @@ export class BTreeWrite extends BTreeRead {
       newChunks.push(chunk);
       return chunk.hash;
     };
+
+    if (this.rootHash === emptyHashString) {
+      return emptyHashString;
+    }
 
     const newChunks: dag.Chunk[] = [];
     const newRoot = walk(this.rootHash, newChunks);
@@ -385,7 +422,30 @@ class DataNodeImpl extends NodeImpl<ReadonlyJSONValue, 'data'> {
     const entries = readonlySplice(this.entries, i, 1);
     return tree.newDataNodeImpl(entries);
   }
+
+  async *scan(
+    tree: BTreeRead,
+    prefix: string,
+    fromKey: string,
+    limit: number,
+  ): AsyncGenerator<Entry<ReadonlyJSONValue>, number, unknown> {
+    const {entries} = this;
+    let i = binarySearch(fromKey, entries);
+    if (i < 0) {
+      i = ~i;
+    }
+    for (
+      ;
+      limit > 0 && i < entries.length && entries[i][0].startsWith(prefix);
+      limit--, i++
+    ) {
+      yield entries[i];
+    }
+    return limit;
+  }
 }
+
+const emptyDataNode = new DataNodeImpl([], emptyHashString);
 
 function readonlySplice<T>(
   array: ReadonlyArray<T>,
@@ -485,6 +545,28 @@ class InternalNodeImpl extends NodeImpl<Hash, 'internal'> {
     const entries = await mergeAndPartition(this.entries, i, tree, childNode);
     return tree.newInternalNodeImpl(entries);
   }
+
+  async *scan(
+    tree: BTreeRead,
+    prefix: string,
+    fromKey: string,
+    limit: number,
+  ): AsyncGenerator<Entry<ReadonlyJSONValue>, number> {
+    const {entries} = this;
+    let i = binarySearch(fromKey, entries);
+    if (i < 0) {
+      i = ~i;
+      if (i >= entries.length) {
+        return limit;
+      }
+    }
+    for (; i < entries.length && limit > 0; i++) {
+      const childHash = entries[i][1];
+      const childNode = await tree.getNode(childHash);
+      limit = yield* childNode.scan(tree, prefix, fromKey, limit);
+    }
+    return limit;
+  }
 }
 
 async function mergeAndPartition(
@@ -554,50 +636,6 @@ function newNodeImpl(
   return type === 'data'
     ? new DataNodeImpl(entries, hash)
     : new InternalNodeImpl(entries as Entry<string>[], hash);
-}
-
-/**
- * Gives a size of a value. The size is pretty arbitrary, but it is used to
- * decide where to split the btree nodes.
- */
-export function getSizeOfValue(value: ReadonlyJSONValue): number {
-  // The following outlines how Chromium serializes values for structuredClone.
-  // https://source.chromium.org/chromium/chromium/src/+/main:v8/src/objects/value-serializer.cc;l=102;drc=f0b6f7d12ea47ad7c08fb554f678c1e73801ca36;bpv=1;bpt=1
-  // We do not need to match that exactly but it would be good to be close.
-
-  switch (typeof value) {
-    case 'string':
-      return value.length;
-    case 'number':
-      return 8;
-    case 'boolean':
-      return 1;
-    case 'object':
-      if (value === null) {
-        return 1;
-      }
-      if (Array.isArray(value)) {
-        return (
-          value.reduce((a, v) => a + getSizeOfValue(v), 0) +
-          getSizeOfValue(value.length)
-        );
-      }
-      {
-        const val = value as ReadonlyJSONObject;
-        const keys = Object.keys(val);
-        let sum = getSizeOfValue(keys.length);
-        for (const k of Object.keys(val)) {
-          sum += getSizeOfValue(k);
-          const v = val[k];
-          if (v !== undefined) {
-            sum += getSizeOfValue(v);
-          }
-        }
-        return sum;
-      }
-  }
-
-  throw new Error('invalid value');
 }
 
 export function partition<T>(

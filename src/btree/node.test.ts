@@ -1,7 +1,8 @@
 import {expect, assert} from '@esm-bundle/chai';
 import {Chunk} from '../dag/chunk';
 import * as dag from '../dag/mod';
-import {initHasher} from '../hash';
+import type {ScanOptionsInternal} from '../db/scan';
+import {emptyHashString, initHasher} from '../hash';
 import type {ReadonlyJSONValue} from '../json';
 import * as kv from '../kv/mod';
 import {
@@ -15,9 +16,9 @@ import {
   newTempHash,
   assertNotTempHash,
   isTempHash,
-  getSizeOfValue,
   Entry,
 } from './node';
+import {getSizeOfValue} from './get-size-of-value';
 
 setup(async () => {
   await initHasher();
@@ -216,6 +217,17 @@ setup(() => {
   getSize = () => 1;
 });
 
+function doRead<R>(
+  rootHash: string,
+  dagStore: dag.Store,
+  fn: (r: BTreeRead) => R | Promise<R>,
+): Promise<R> {
+  return dagStore.withRead(async dagWrite => {
+    const r = new BTreeRead(rootHash, dagWrite, minSize, maxSize);
+    return await fn(r);
+  });
+}
+
 function doWrite(
   rootHash: string,
   dagStore: dag.Store,
@@ -230,6 +242,56 @@ function doWrite(
     return h;
   });
 }
+
+async function asyncIterToArray<T>(iter: AsyncIterable<T>): Promise<T[]> {
+  const rv: T[] = [];
+  for await (const e of iter) {
+    rv.push(e);
+  }
+  return rv;
+}
+
+test('empty read tree', async () => {
+  const kvStore = new kv.MemStore();
+  const dagStore = new dag.Store(kvStore);
+  await dagStore.withRead(async dagRead => {
+    const r = BTreeRead.newEmpty(dagRead);
+    expect(await r.get('a')).to.be.undefined;
+    expect(await r.has('b')).to.be.false;
+    expect(await asyncIterToArray(r.scan({}))).to.deep.equal([]);
+  });
+});
+
+test('empty write tree', async () => {
+  const kvStore = new kv.MemStore();
+  const dagStore = new dag.Store(kvStore);
+
+  await dagStore.withWrite(async dagWrite => {
+    const w = BTreeWrite.newEmpty(dagWrite);
+    expect(await w.get('a')).to.be.undefined;
+    expect(await w.has('b')).to.be.false;
+    expect(await asyncIterToArray(w.scan({}))).to.deep.equal([]);
+
+    const h = await w.flush();
+    expect(h).to.equal(emptyHashString);
+  });
+  let rootHash = await dagStore.withWrite(async dagWrite => {
+    const w = BTreeWrite.newEmpty(dagWrite);
+    await w.put('a', 1);
+    const h = await w.flush();
+    expect(h).to.not.equal(emptyHashString);
+    await dagWrite.setHead('test', h);
+    await dagWrite.commit();
+    return h;
+  });
+
+  rootHash = await doWrite(rootHash, dagStore, async w => {
+    expect(await w.del('a')).to.be.true;
+  });
+
+  // We do not restore back to empty hash when empty.
+  expect(rootHash).to.not.equal(emptyHashString);
+});
 
 test('get', async () => {
   const kvStore = new kv.MemStore();
@@ -1107,4 +1169,200 @@ test('put/del - getSize', async () => {
     aaaa: 'a1',
     c: '',
   });
+});
+
+test('scan', async () => {
+  const t = async (
+    entries: Entry<ReadonlyJSONValue>[],
+    options: ScanOptionsInternal = {},
+    expectedEntries = entries,
+  ) => {
+    const kvStore = new kv.MemStore();
+    const dagStore = new dag.Store(kvStore);
+
+    const tree: TreeData = {
+      $type: 'data',
+    };
+
+    let rootHash = await makeTree(tree, dagStore);
+
+    rootHash = await doWrite(rootHash, dagStore, async w => {
+      for (const [k, v] of entries) {
+        await w.put(k, v);
+      }
+    });
+
+    await doRead(rootHash, dagStore, async r => {
+      const res: Entry<ReadonlyJSONValue>[] = [];
+      for await (const e of r.scan(options)) {
+        res.push(e);
+      }
+
+      expect(res).to.deep.equal(expectedEntries);
+    });
+  };
+
+  await t([]);
+  await t([['a', 1]]);
+  await t([
+    ['a', 1],
+    ['b', 2],
+  ]);
+  await t([
+    ['a', 1],
+    ['b', 2],
+    ['c', 3],
+  ]);
+  await t([
+    ['a', 1],
+    ['b', 2],
+    ['c', 3],
+    ['d', 4],
+  ]);
+  await t([
+    ['a', 1],
+    ['b', 2],
+    ['c', 3],
+    ['d', 4],
+    ['e', 5],
+  ]);
+
+  await t(
+    [
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+      ['d', 4],
+      ['e', 5],
+    ],
+    {limit: 0},
+    [],
+  );
+  await t(
+    [
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+      ['d', 4],
+      ['e', 5],
+    ],
+    {limit: 1},
+    [['a', 1]],
+  );
+  await t(
+    [
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+      ['d', 4],
+      ['e', 5],
+    ],
+    {limit: 2},
+    [
+      ['a', 1],
+      ['b', 2],
+    ],
+  );
+
+  await t(
+    [
+      ['a', 0],
+      ['aa', 1],
+      ['aaa', 2],
+      ['aab', 3],
+      ['ab', 4],
+      ['b', 5],
+    ],
+    {prefix: 'aa'},
+    [
+      ['aa', 1],
+      ['aaa', 2],
+      ['aab', 3],
+    ],
+  );
+
+  for (let limit = 4; limit >= 0; limit--) {
+    await t(
+      [
+        ['a', 0],
+        ['aa', 1],
+        ['aaa', 2],
+        ['aab', 3],
+        ['ab', 4],
+        ['b', 5],
+      ],
+      {prefix: 'aa', limit},
+      [
+        ['aa', 1],
+        ['aaa', 2],
+        ['aab', 3],
+      ].slice(0, limit) as Entry<number>[],
+    );
+  }
+
+  for (let limit = 3; limit >= 0; limit--) {
+    await t(
+      [
+        ['a', 0],
+        ['aa', 1],
+        ['aaa', 2],
+        ['aab', 3],
+        ['ab', 4],
+        ['b', 5],
+      ],
+      {prefix: 'aa', startKey: 'aaa', limit},
+      [
+        ['aaa', 2],
+        ['aab', 3],
+      ].slice(0, limit) as Entry<number>[],
+    );
+  }
+
+  await t(
+    [
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+      ['d', 4],
+      ['e', 5],
+    ],
+    {limit: -1},
+    [],
+  );
+
+  await t(
+    [
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+      ['d', 4],
+      ['e', 5],
+    ],
+    {prefix: 'f'},
+    [],
+  );
+
+  await t(
+    [
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+      ['d', 4],
+      ['e', 5],
+    ],
+    {startKey: 'f'},
+    [],
+  );
+
+  await t(
+    [
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+      ['d', 4],
+      ['e', 5],
+    ],
+    {startKey: 'e'},
+    [['e', 5]],
+  );
 });

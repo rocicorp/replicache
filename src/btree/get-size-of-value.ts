@@ -1,4 +1,5 @@
 import type {ReadonlyJSONObject, ReadonlyJSONValue} from '../json';
+import type {Entry, NodeType} from './node';
 
 const SIZE_TAG = 1;
 const SIZE_DOUBLE = 8;
@@ -80,3 +81,15 @@ export function sizeOfVarInt(n: number): number {
 function isSmi(value: number): boolean {
   return value === (value | 0);
 }
+
+export function getSizeOfNode(
+  entries: Entry<string>[] | Entry<ReadonlyJSONValue>[],
+): number {
+  // See object above
+
+  // SIZE_TAG + getSizeOfValue('t') + getSizeOfValue(1) + getSizeOfValue('e')
+  // + getSizeOfValue(entries) + sizeOfVarInt(2) + SIZE_TAG
+  return NODE_HEADER_SIZE + getSizeOfValue(entries);
+}
+
+const NODE_HEADER_SIZE = 11;

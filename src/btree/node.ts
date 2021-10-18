@@ -9,6 +9,7 @@ import {
 } from '../asserts';
 import type {ScanOptionsInternal} from '../db/scan';
 import {emptyHashString} from '../hash';
+import {getSizeOfNode} from './get-size-of-value';
 
 type Hash = string;
 
@@ -270,6 +271,9 @@ export class BTreeWrite extends BTreeRead {
 
   childNodeSize(node: InternalNodeImpl | DataNodeImpl): number {
     type E = Entry<Hash | ReadonlyJSONValue>;
+
+    return node.getSize(this);
+
     return (node.entries as E[]).reduce(
       (p: number, entry: E) => p + this.getSize(entry),
       0,

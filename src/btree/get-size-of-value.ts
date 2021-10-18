@@ -13,6 +13,11 @@ const SIZE_DOUBLE = 8;
  * Mozilla does things similarly. Main difference is that there is no varint
  * encoding and every value uses multiples of 64bits
  * https://searchfox.org/mozilla-central/source/js/src/vm/StructuredClone.cpp#94
+ *
+ * And JS:
+ * https://github.com/WebKit/WebKit/blob/main/Source/WebCore/bindings/js/SerializedScriptValue.cpp#L356
+ * - Use 1 byte tag
+ * - Numbers are either stored as Int32 or Float6
  */
 export function getSizeOfValue(value: ReadonlyJSONValue): number {
   switch (typeof value) {

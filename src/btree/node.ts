@@ -9,7 +9,6 @@ import {
 } from '../asserts';
 import type {ScanOptionsInternal} from '../db/scan';
 import {emptyHashString} from '../hash';
-import {getSizeOfNode} from './get-size-of-value';
 
 type Hash = string;
 
@@ -508,6 +507,7 @@ class InternalNodeImpl extends NodeImpl<Hash, NodeType.Internal> {
     if (i < 0) {
       i = ~i;
       if (i >= this.entries.length) {
+        // We are going to insert into last (right most) leaf.
         i = this.entries.length - 1;
       }
     }
@@ -538,9 +538,9 @@ class InternalNodeImpl extends NodeImpl<Hash, NodeType.Internal> {
     let i = binarySearch(key, this.entries);
     if (i < 0) {
       i = ~i;
-
       if (i >= this.entries.length) {
-        i = this.entries.length - 1;
+        // Key is larger than maxKey of rightmost entry so it is not present.
+        return this;
       }
     }
 

@@ -37,29 +37,15 @@ export type BTreeNode = InternalNode | DataNode;
 
 export class BTreeRead {
   rootHash: Hash;
-  private readonly _dagRead: dag.Read;
+  protected readonly _dagRead: dag.Read;
 
-  readonly minSize: number;
-  readonly maxSize: number;
-
-  constructor(
-    root: Hash,
-    dagRead: dag.Read,
-    minSize = 32,
-    maxSize = minSize * 2,
-  ) {
+  constructor(root: Hash, dagRead: dag.Read) {
     this.rootHash = root;
     this._dagRead = dagRead;
-    this.minSize = minSize;
-    this.maxSize = maxSize;
   }
 
-  static newEmpty(
-    dagRead: dag.Read,
-    minSize = 32,
-    maxSize = minSize * 2,
-  ): BTreeRead {
-    return new this(emptyHashString, dagRead, minSize, maxSize);
+  static newEmpty(dagRead: dag.Read): BTreeRead {
+    return new this(emptyHashString, dagRead);
   }
 
   async getNode(hash: Hash): Promise<DataNodeImpl | InternalNodeImpl> {
@@ -118,6 +104,10 @@ interface ChunkSource {
   getNode(hash: Hash): Promise<DataNodeImpl | InternalNodeImpl>;
 }
 
+/**
+ * Finds the leaf where a key is (if present) or where it should go if not
+ * present.
+ */
 export async function findLeaf(
   key: string,
   hash: Hash,
@@ -125,7 +115,7 @@ export async function findLeaf(
 ): Promise<DataNodeImpl> {
   const node = await source.getNode(hash);
   if (node.type === NodeType.Data) {
-    return node as DataNodeImpl;
+    return node;
   }
   const internalNode = node as InternalNodeImpl;
   let index = binarySearch(key, internalNode.entries);
@@ -136,10 +126,19 @@ export async function findLeaf(
   if (index === internalNode.entries.length) {
     index--;
   }
-  const entry = internalNode.entries[index]; // + (found ? 0 : 1)];
+  const entry = internalNode.entries[index];
   return findLeaf(key, entry[1], source);
 }
 
+/**
+ * Does a binary search over entries
+ *
+ * If the key found then the return value is the index it was found at.
+ *
+ * If the key was *not* found then the retun value is the index where it should
+ * be inserted at bitwise or'ed (`~index`). This is the same as `-index -1`. For
+ * example if not found and needs to be inserted at `0` then we return `-1`.
+ */
 function binarySearch<V>(
   key: string,
   entries: ReadonlyArray<ReadonlyEntry<V>>,
@@ -201,19 +200,30 @@ export class BTreeWrite extends BTreeRead {
   private readonly _modified: Map<Hash, DataNodeImpl | InternalNodeImpl> =
     new Map();
 
-  private readonly _dagWrite: dag.Write;
-  readonly getSize: <T>(e: Entry<T>) => number;
+  protected declare _dagRead: dag.Write;
+
+  private get _dagWrite(): dag.Write {
+    return this._dagRead;
+  }
+
+  readonly minSize: number;
+  readonly maxSize: number;
+  readonly getEntrySize: <T>(e: Entry<T>) => number;
+  readonly chunkHeaderSize: number;
 
   constructor(
     root: Hash,
     dagWrite: dag.Write,
-    minSize?: number,
-    maxSize?: number,
-    getSize?: <T>(e: Entry<T>) => number,
+    minSize = 32,
+    maxSize = minSize * 2,
+    getEntrySize: <T>(e: Entry<T>) => number = () => 1,
+    chunkHeaderSize = 0,
   ) {
-    super(root, dagWrite, minSize, maxSize);
-    this._dagWrite = dagWrite;
-    this.getSize = getSize || (() => 1);
+    super(root, dagWrite);
+    this.minSize = minSize;
+    this.maxSize = maxSize;
+    this.getEntrySize = getEntrySize;
+    this.chunkHeaderSize = chunkHeaderSize;
   }
 
   static newEmpty(
@@ -270,14 +280,11 @@ export class BTreeWrite extends BTreeRead {
   }
 
   childNodeSize(node: InternalNodeImpl | DataNodeImpl): number {
-    type E = Entry<Hash | ReadonlyJSONValue>;
-
-    return node.getSize(this);
-
-    return (node.entries as E[]).reduce(
-      (p: number, entry: E) => p + this.getSize(entry),
-      0,
-    );
+    let sum = this.chunkHeaderSize;
+    for (const entry of node.entries) {
+      sum += this.getEntrySize(entry);
+    }
+    return sum;
   }
 
   async put(key: string, value: ReadonlyJSONValue): Promise<void> {
@@ -286,12 +293,12 @@ export class BTreeWrite extends BTreeRead {
 
     // We do the rebalancing in the parent so we need to do it here as well.
     if (this.childNodeSize(rootNode) > this.maxSize) {
-      // if (rootNode.entries.length > this.maxSize) {
+      const headerSize = this.chunkHeaderSize;
       const partitions = partition(
         rootNode.entries,
-        this.getSize,
-        this.minSize,
-        this.maxSize,
+        this.getEntrySize,
+        this.minSize - headerSize,
+        this.maxSize - headerSize,
       );
       const entries: Entry<Hash>[] = partitions.map(entries => {
         const node = this.newNodeImpl(rootNode.type, entries);
@@ -592,6 +599,10 @@ class InternalNodeImpl extends NodeImpl<Hash, NodeType.Internal> {
   }
 }
 
+/**
+ * This merges the child node entries with previous or next sibling and then
+ * partions the merged entries.
+ */
 async function mergeAndPartition(
   entries: ReadonlyArray<Entry<Hash>>,
   i: number,
@@ -621,10 +632,12 @@ async function mergeAndPartition(
 
   const partitions = partition(
     values,
-    tree.getSize,
-    tree.minSize,
-    tree.maxSize,
+    tree.getEntrySize,
+    tree.minSize - tree.chunkHeaderSize,
+    tree.maxSize - tree.chunkHeaderSize,
   );
+  // TODO: There are cases where we can reuse the old nodes. Creating new ones
+  // means more memory churn but also more writes to the underlying KV store.
   const newEntries = partitions.map(entries => {
     const node = tree.newNodeImpl(childNode.type, entries);
     return [node.maxKey(), node.hash] as Entry<Hash>;
@@ -659,7 +672,7 @@ function newNodeImpl(
 
 export function partition<T>(
   values: Iterable<T>,
-  getSize: (v: T) => number,
+  getValueSize: (v: T) => number,
   min: number,
   max: number,
 ): T[][] {
@@ -669,7 +682,7 @@ export function partition<T>(
   let accum: T[] = [];
   for (const value of values) {
     // for (let i = 0; i < values.length; i++) {
-    const size = getSize(value);
+    const size = getValueSize(value);
     if (size >= max) {
       if (accum.length > 0) {
         partitions.push(accum);

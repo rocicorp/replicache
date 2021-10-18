@@ -8,8 +8,11 @@ const SIZE_DOUBLE = 8;
  * Gives a size of a value. The size is modelled after the size used by
  * Chromium/V8's structuredClone algorithm. It does not match exactly so the
  * size is just an approximation.
+ * https://source.chromium.org/chromium/chromium/src/+/main:v8/src/objects/value-serializer.cc;l=102;drc=f0b6f7d12ea47ad7c08fb554f678c1e73801ca36;bpv=1;bpt=1
  *
- *  https://source.chromium.org/chromium/chromium/src/+/main:v8/src/objects/value-serializer.cc;l=102;drc=f0b6f7d12ea47ad7c08fb554f678c1e73801ca36;bpv=1;bpt=1
+ * Mozilla does things similarly. Main difference is that there is no varint
+ * encoding and every value uses multiples of 64bits
+ * https://searchfox.org/mozilla-central/source/js/src/vm/StructuredClone.cpp#94
  */
 export function getSizeOfValue(value: ReadonlyJSONValue): number {
   switch (typeof value) {
@@ -34,12 +37,11 @@ export function getSizeOfValue(value: ReadonlyJSONValue): number {
       }
 
       if (Array.isArray(value)) {
-        return (
-          SIZE_TAG +
-          sizeOfVarInt(value.length) +
-          value.reduce((a, v) => a + getSizeOfValue(v), 0) +
-          SIZE_TAG
-        );
+        let sum = 2 * SIZE_TAG + sizeOfVarInt(value.length);
+        for (const element of value) {
+          sum += getSizeOfValue(element);
+        }
+        return sum;
       }
 
       {
@@ -87,9 +89,13 @@ export function getSizeOfNode(
 ): number {
   // See object above
 
-  // SIZE_TAG + getSizeOfValue('t') + getSizeOfValue(1) + getSizeOfValue('e')
-  // + getSizeOfValue(entries) + sizeOfVarInt(2) + SIZE_TAG
   return NODE_HEADER_SIZE + getSizeOfValue(entries);
 }
 
-const NODE_HEADER_SIZE = 11;
+/**
+ * The size of the header of a node. This is computed as (if we had compile time
+ * constants) we would have used that).
+ *
+ * There is a test ensuring this is correct.
+ */
+export const NODE_HEADER_SIZE = 11;

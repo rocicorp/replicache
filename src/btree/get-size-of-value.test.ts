@@ -1,5 +1,11 @@
 import {expect} from '@esm-bundle/chai';
-import {getSizeOfValue, sizeOfVarInt, zigZagEncode} from './get-size-of-value';
+import {
+  getSizeOfValue,
+  NODE_HEADER_SIZE,
+  sizeOfVarInt,
+  zigZagEncode,
+} from './get-size-of-value';
+import {NodeType} from './node';
 
 test('getSizeOfValue', async () => {
   expect(getSizeOfValue(null)).to.equal(1);
@@ -69,4 +75,12 @@ test('varint size', () => {
   expect(sizeOfVarInt(2 ** 21)).to.equal(4);
   expect(sizeOfVarInt(2 ** 28 - 1)).to.equal(4);
   expect(sizeOfVarInt(2 ** 28)).to.equal(5);
+});
+
+test('chunk header size', () => {
+  // This just ensures that the constant is correct.
+  const chunkData = {t: NodeType.Data, e: []};
+  const entriesSize = getSizeOfValue(chunkData.e);
+  const chunkSize = getSizeOfValue(chunkData);
+  expect(chunkSize - entriesSize).to.equal(NODE_HEADER_SIZE);
 });

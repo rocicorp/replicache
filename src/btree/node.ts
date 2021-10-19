@@ -66,20 +66,34 @@ export type DiffResult =
 export class BTreeRead {
   rootHash: Hash;
   protected readonly _dagRead: dag.Read;
+  private readonly _cache: Map<Hash, DataNodeImpl | InternalNodeImpl> =
+    new Map();
 
-  constructor(root: Hash, dagRead: dag.Read) {
+  readonly getEntrySize: <T>(e: Entry<T>) => number;
+  readonly chunkHeaderSize: number;
+
+  constructor(
+    dagRead: dag.Read,
+    root: Hash = emptyHashString,
+    getEntrySize: <T>(e: Entry<T>) => number = () => 1,
+    chunkHeaderSize = 0,
+  ) {
     this.rootHash = root;
     this._dagRead = dagRead;
-  }
-
-  static newEmpty(dagRead: dag.Read): BTreeRead {
-    return new this(emptyHashString, dagRead);
+    this.getEntrySize = getEntrySize;
+    this.chunkHeaderSize = chunkHeaderSize;
   }
 
   async getNode(hash: Hash): Promise<DataNodeImpl | InternalNodeImpl> {
     if (hash === emptyHashString) {
       return emptyDataNode;
     }
+
+    const cached = this._cache.get(hash);
+    if (cached) {
+      return cached;
+    }
+
     const chunk = await this._dagRead.getChunk(hash);
     if (chunk === undefined) {
       throw new Error(`Missing chunk for ${hash}`);
@@ -87,7 +101,9 @@ export class BTreeRead {
     const {data} = chunk;
     assertBTreeNode(data);
     const {t: type, e: entries} = data;
-    return newNodeImpl(type, entries, hash);
+    const impl = newNodeImpl(type, entries, hash);
+    this._cache.set(hash, impl);
+    return impl;
   }
 
   async get(key: string): Promise<ReadonlyJSONValue | undefined> {
@@ -273,45 +289,20 @@ export class BTreeWrite extends BTreeRead {
 
   protected declare _dagRead: dag.Write;
 
-  private get _dagWrite(): dag.Write {
-    return this._dagRead;
-  }
-
   readonly minSize: number;
   readonly maxSize: number;
-  readonly getEntrySize: <T>(e: Entry<T>) => number;
-  readonly chunkHeaderSize: number;
 
   constructor(
-    root: Hash,
     dagWrite: dag.Write,
+    root: Hash = emptyHashString,
     minSize = 32,
     maxSize = minSize * 2,
-    getEntrySize: <T>(e: Entry<T>) => number = () => 1,
-    chunkHeaderSize = 0,
-  ) {
-    super(root, dagWrite);
-    this.minSize = minSize;
-    this.maxSize = maxSize;
-    this.getEntrySize = getEntrySize;
-    this.chunkHeaderSize = chunkHeaderSize;
-  }
-
-  static newEmpty(
-    dagWrite: dag.Write,
-    minSize?: number,
-    maxSize?: number,
     getEntrySize?: <T>(e: Entry<T>) => number,
     chunkHeaderSize?: number,
-  ): BTreeWrite {
-    return new this(
-      emptyHashString,
-      dagWrite,
-      minSize,
-      maxSize,
-      getEntrySize,
-      chunkHeaderSize,
-    );
+  ) {
+    super(dagWrite, root, getEntrySize, chunkHeaderSize);
+    this.minSize = minSize;
+    this.maxSize = maxSize;
   }
 
   async getNode(hash: Hash): Promise<DataNodeImpl | InternalNodeImpl> {
@@ -455,7 +446,8 @@ export class BTreeWrite extends BTreeRead {
 
     const newChunks: dag.Chunk[] = [];
     const newRoot = walk(this.rootHash, newChunks);
-    await Promise.all(newChunks.map(chunk => this._dagWrite.putChunk(chunk)));
+    const dagWrite = this._dagRead;
+    await Promise.all(newChunks.map(chunk => dagWrite.putChunk(chunk)));
 
     return newRoot;
   }

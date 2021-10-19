@@ -92,7 +92,12 @@ test('findLeaf', async () => {
   });
 
   await dagStore.withRead(async dagRead => {
-    const source = new BTreeRead(rootHash, dagRead);
+    const source = new BTreeRead(
+      dagRead,
+      rootHash,
+      getEntrySize,
+      chunkHeaderSize,
+    );
 
     const t = async (
       key: string,
@@ -212,12 +217,14 @@ async function expectTree(
 
 let minSize: number;
 let maxSize: number;
-let getSize: <T>(e: Entry<T>) => number;
+let getEntrySize: <T>(e: Entry<T>) => number;
+let chunkHeaderSize: number;
 
 setup(() => {
   minSize = 2;
   maxSize = 4;
-  getSize = () => 1;
+  getEntrySize = () => 1;
+  chunkHeaderSize = 0;
 });
 
 function doRead<R>(
@@ -226,7 +233,7 @@ function doRead<R>(
   fn: (r: BTreeRead) => R | Promise<R>,
 ): Promise<R> {
   return dagStore.withRead(async dagWrite => {
-    const r = new BTreeRead(rootHash, dagWrite, minSize, maxSize);
+    const r = new BTreeRead(dagWrite, rootHash, getEntrySize, chunkHeaderSize);
     return await fn(r);
   });
 }
@@ -237,7 +244,14 @@ function doWrite(
   fn: (w: BTreeWrite) => void | Promise<void>,
 ): Promise<string> {
   return dagStore.withWrite(async dagWrite => {
-    const w = new BTreeWrite(rootHash, dagWrite, minSize, maxSize, getSize);
+    const w = new BTreeWrite(
+      dagWrite,
+      rootHash,
+      minSize,
+      maxSize,
+      getEntrySize,
+      chunkHeaderSize,
+    );
     await fn(w);
     const h = await w.flush();
     await dagWrite.setHead('test', h);
@@ -258,7 +272,7 @@ test('empty read tree', async () => {
   const kvStore = new kv.MemStore();
   const dagStore = new dag.Store(kvStore);
   await dagStore.withRead(async dagRead => {
-    const r = BTreeRead.newEmpty(dagRead);
+    const r = new BTreeRead(dagRead);
     expect(await r.get('a')).to.be.undefined;
     expect(await r.has('b')).to.be.false;
     expect(await asyncIterToArray(r.scan({}))).to.deep.equal([]);
@@ -270,7 +284,14 @@ test('empty write tree', async () => {
   const dagStore = new dag.Store(kvStore);
 
   await dagStore.withWrite(async dagWrite => {
-    const w = BTreeWrite.newEmpty(dagWrite);
+    const w = new BTreeWrite(
+      dagWrite,
+      undefined,
+      minSize,
+      maxSize,
+      getEntrySize,
+      chunkHeaderSize,
+    );
     expect(await w.get('a')).to.be.undefined;
     expect(await w.has('b')).to.be.false;
     expect(await asyncIterToArray(w.scan({}))).to.deep.equal([]);
@@ -279,7 +300,14 @@ test('empty write tree', async () => {
     expect(h).to.equal(emptyHashString);
   });
   let rootHash = await dagStore.withWrite(async dagWrite => {
-    const w = BTreeWrite.newEmpty(dagWrite);
+    const w = new BTreeWrite(
+      dagWrite,
+      undefined,
+      minSize,
+      maxSize,
+      getEntrySize,
+      chunkHeaderSize,
+    );
     await w.put('a', 1);
     const h = await w.flush();
     expect(h).to.not.equal(emptyHashString);
@@ -325,7 +353,12 @@ test('get', async () => {
   const rootHash = await makeTree(tree, dagStore);
 
   await dagStore.withRead(async dagRead => {
-    const source = new BTreeRead(rootHash, dagRead);
+    const source = new BTreeRead(
+      dagRead,
+      rootHash,
+      getEntrySize,
+      chunkHeaderSize,
+    );
 
     expect(await source.get('b')).to.equal(0);
     expect(await source.get('d')).to.equal(1);
@@ -379,7 +412,12 @@ test('has', async () => {
   const rootHash = await makeTree(tree, dagStore);
 
   await dagStore.withRead(async dagRead => {
-    const source = new BTreeRead(rootHash, dagRead);
+    const source = new BTreeRead(
+      dagRead,
+      rootHash,
+      getEntrySize,
+      chunkHeaderSize,
+    );
 
     expect(await source.has('b')).to.be.true;
     expect(await source.has('d')).to.be.true;
@@ -507,7 +545,13 @@ test('put', async () => {
 
   async function write(data: Record<string, ReadonlyJSONValue>) {
     rootHash = await dagStore.withWrite(async dagWrite => {
-      const w = new BTreeWrite(rootHash, dagWrite, minSize, maxSize, getSize);
+      const w = new BTreeWrite(
+        dagWrite,
+        rootHash,
+        minSize,
+        maxSize,
+        getEntrySize,
+      );
       for (const [k, v] of Object.entries(data)) {
         await w.put(k, v);
         expect(await w.get(k)).to.equal(v);
@@ -1112,7 +1156,7 @@ test('put - invalid', async () => {
 test('put/del - getSize', async () => {
   minSize = 16;
   maxSize = 32;
-  getSize = getSizeOfValue;
+  getEntrySize = getSizeOfValue;
 
   const kvStore = new kv.MemStore();
   const dagStore = new dag.Store(kvStore);
@@ -1131,7 +1175,7 @@ test('put/del - getSize', async () => {
 
   expect(getSizeOfValue('aaaa')).to.equal(6);
   expect(getSizeOfValue('a1')).to.equal(4);
-  expect(getSize(['aaaa', 'a1'])).to.equal(13);
+  expect(getEntrySize(['aaaa', 'a1'])).to.equal(13);
   await expectTree(rootHash, dagStore, {
     $type: NodeType.Data,
     aaaa: 'a1',
@@ -1140,7 +1184,7 @@ test('put/del - getSize', async () => {
   rootHash = await doWrite(rootHash, dagStore, async w => {
     await w.put('c', '');
   });
-  expect(getSize(['c', ''])).to.equal(8);
+  expect(getEntrySize(['c', ''])).to.equal(8);
   await expectTree(rootHash, dagStore, {
     $type: NodeType.Data,
     aaaa: 'a1',
@@ -1150,7 +1194,7 @@ test('put/del - getSize', async () => {
   rootHash = await doWrite(rootHash, dagStore, async w => {
     await w.put('b', 'b234');
   });
-  expect(getSize(['b', 'b234'])).to.equal(12);
+  expect(getEntrySize(['b', 'b234'])).to.equal(12);
   await expectTree(rootHash, dagStore, {
     $type: NodeType.Internal,
     b: {
@@ -1380,12 +1424,26 @@ test('diff', async () => {
     const dagStore = new dag.Store(kvStore);
 
     const [oldHash, newHash] = await dagStore.withWrite(async dagWrite => {
-      const oldTree = BTreeWrite.newEmpty(dagWrite, minSize, maxSize);
+      const oldTree = new BTreeWrite(
+        dagWrite,
+        undefined,
+        minSize,
+        maxSize,
+        getEntrySize,
+        chunkHeaderSize,
+      );
       for (const entry of oldEntries) {
         await oldTree.put(entry[0], entry[1]);
       }
 
-      const newTree = BTreeWrite.newEmpty(dagWrite, minSize, maxSize);
+      const newTree = new BTreeWrite(
+        dagWrite,
+        undefined,
+        minSize,
+        maxSize,
+        getEntrySize,
+        chunkHeaderSize,
+      );
       for (const entry of newEntries) {
         await newTree.put(entry[0], entry[1]);
       }
@@ -1401,8 +1459,18 @@ test('diff', async () => {
     });
 
     await dagStore.withRead(async dagRead => {
-      const oldTree = new BTreeRead(oldHash, dagRead);
-      const newTree = new BTreeRead(newHash, dagRead);
+      const oldTree = new BTreeRead(
+        dagRead,
+        oldHash,
+        getEntrySize,
+        chunkHeaderSize,
+      );
+      const newTree = new BTreeRead(
+        dagRead,
+        newHash,
+        getEntrySize,
+        chunkHeaderSize,
+      );
 
       const actual = [];
       for await (const diffRes of newTree.diff(oldTree)) {

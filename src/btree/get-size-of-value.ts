@@ -1,5 +1,5 @@
 import type {ReadonlyJSONObject, ReadonlyJSONValue} from '../json';
-import type {Entry, NodeType} from './node';
+import type {Entry} from './node';
 
 const SIZE_TAG = 1;
 const SIZE_DOUBLE = 8;

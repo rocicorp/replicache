@@ -1,4 +1,9 @@
-import {assertJSONValue, JSONValue, ReadonlyJSONValue} from '../json';
+import {
+  assertJSONValue,
+  deepEqual,
+  JSONValue,
+  ReadonlyJSONValue,
+} from '../json';
 import * as dag from '../dag/mod';
 import {stringCompare} from '../prolly/string-compare';
 import {
@@ -33,6 +38,30 @@ export type DataNode = BaseNode<ReadonlyJSONValue> & {
 };
 
 export type BTreeNode = InternalNode | DataNode;
+
+export const enum DiffResultOp {
+  Add,
+  Delete,
+  Change,
+}
+
+export type DiffResult =
+  | {
+      op: DiffResultOp.Add;
+      key: string;
+      newValue: ReadonlyJSONValue;
+    }
+  | {
+      op: DiffResultOp.Delete;
+      key: string;
+      oldValue: ReadonlyJSONValue;
+    }
+  | {
+      op: DiffResultOp.Change;
+      key: string;
+      oldValue: ReadonlyJSONValue;
+      newValue: ReadonlyJSONValue;
+    };
 
 export class BTreeRead {
   rootHash: Hash;
@@ -94,13 +123,56 @@ export class BTreeRead {
 
     yield* node.scan(this, prefix, fromKey, limit);
   }
-}
 
-// Usually the implementation of Chunk[Source|Sink] will be dag.[Read|Write].
-// It can be backed by mem kv, or by idb, or by something fancier like
-// a lru cache in front of idb.
-interface ChunkSource {
-  getNode(hash: Hash): Promise<DataNodeImpl | InternalNodeImpl>;
+  async *diff(last: BTreeRead): AsyncGenerator<DiffResult, void> {
+    // This is an O(n+m) solution. We can do better because we can skip common
+    // subtrees but it requires more work.
+    const newIter = this.scan({})[Symbol.asyncIterator]();
+    const oldIter = last.scan({})[Symbol.asyncIterator]();
+
+    let [newIterResult, oldIterResult] = await Promise.all([
+      newIter.next(),
+      oldIter.next(),
+    ]);
+    while (!newIterResult.done && !oldIterResult.done) {
+      const newEntry = newIterResult.value;
+      const [newKey, newValue] = newEntry;
+      const oldEntry = oldIterResult.value;
+      const [oldKey, oldValue] = oldEntry;
+      if (newKey === oldKey) {
+        if (!deepEqual(newValue, oldValue)) {
+          yield {
+            op: DiffResultOp.Change,
+            key: newKey,
+            oldValue: oldEntry[1],
+            newValue: newEntry[1],
+          };
+        }
+        [newIterResult, oldIterResult] = await Promise.all([
+          newIter.next(),
+          oldIter.next(),
+        ]);
+      } else if (newKey < oldKey) {
+        yield {op: DiffResultOp.Add, key: newKey, newValue};
+        newIterResult = await newIter.next();
+      } else {
+        yield {op: DiffResultOp.Delete, key: oldKey, oldValue};
+        oldIterResult = await oldIter.next();
+      }
+    }
+
+    while (!newIterResult.done) {
+      const entry = newIterResult.value;
+      yield {op: DiffResultOp.Add, key: entry[0], newValue: entry[1]};
+      newIterResult = await newIter.next();
+    }
+
+    while (!oldIterResult.done) {
+      const entry = oldIterResult.value;
+      yield {op: DiffResultOp.Delete, key: entry[0], oldValue: entry[1]};
+      oldIterResult = await oldIter.next();
+    }
+  }
 }
 
 /**
@@ -110,7 +182,7 @@ interface ChunkSource {
 export async function findLeaf(
   key: string,
   hash: Hash,
-  source: ChunkSource,
+  source: BTreeRead,
 ): Promise<DataNodeImpl> {
   const node = await source.getNode(hash);
   if (node.type === NodeType.Data) {
@@ -229,8 +301,17 @@ export class BTreeWrite extends BTreeRead {
     dagWrite: dag.Write,
     minSize?: number,
     maxSize?: number,
+    getEntrySize?: <T>(e: Entry<T>) => number,
+    chunkHeaderSize?: number,
   ): BTreeWrite {
-    return new this(emptyHashString, dagWrite, minSize, maxSize);
+    return new this(
+      emptyHashString,
+      dagWrite,
+      minSize,
+      maxSize,
+      getEntrySize,
+      chunkHeaderSize,
+    );
   }
 
   async getNode(hash: Hash): Promise<DataNodeImpl | InternalNodeImpl> {

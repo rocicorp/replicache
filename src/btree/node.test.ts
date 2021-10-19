@@ -18,6 +18,8 @@ import {
   isTempHash,
   Entry,
   NodeType,
+  DiffResult,
+  DiffResultOp,
 } from './node';
 import {getSizeOfValue} from './get-size-of-value';
 
@@ -1365,5 +1367,121 @@ test('scan', async () => {
     ],
     {startKey: 'e'},
     [['e', 5]],
+  );
+});
+
+test('diff', async () => {
+  const t = async (
+    oldEntries: Entry<ReadonlyJSONValue>[],
+    newEntries: Entry<ReadonlyJSONValue>[],
+    expectedDiff: DiffResult[],
+  ) => {
+    const kvStore = new kv.MemStore();
+    const dagStore = new dag.Store(kvStore);
+
+    const [oldHash, newHash] = await dagStore.withWrite(async dagWrite => {
+      const oldTree = BTreeWrite.newEmpty(dagWrite, minSize, maxSize);
+      for (const entry of oldEntries) {
+        await oldTree.put(entry[0], entry[1]);
+      }
+
+      const newTree = BTreeWrite.newEmpty(dagWrite, minSize, maxSize);
+      for (const entry of newEntries) {
+        await newTree.put(entry[0], entry[1]);
+      }
+
+      const oldHash = await oldTree.flush();
+      const newHash = await newTree.flush();
+
+      await dagWrite.setHead('test/old', oldHash);
+      await dagWrite.setHead('test/new', newHash);
+      await dagWrite.commit();
+
+      return [oldHash, newHash];
+    });
+
+    await dagStore.withRead(async dagRead => {
+      const oldTree = new BTreeRead(oldHash, dagRead);
+      const newTree = new BTreeRead(newHash, dagRead);
+
+      const actual = [];
+      for await (const diffRes of newTree.diff(oldTree)) {
+        actual.push(diffRes);
+      }
+      expect(actual).to.deep.equal(expectedDiff);
+    });
+  };
+
+  await t([], [], []);
+
+  await t([['a', 0]], [], [{op: DiffResultOp.Delete, key: 'a', oldValue: 0}]);
+  await t([], [['a', 0]], [{op: DiffResultOp.Add, key: 'a', newValue: 0}]);
+  await t([['a', 0]], [['a', 0]], []);
+  await t(
+    [['a', 0]],
+    [['a', 1]],
+    [{op: DiffResultOp.Change, key: 'a', oldValue: 0, newValue: 1}],
+  );
+
+  await t(
+    [
+      ['b', 1],
+      ['d', 2],
+    ],
+    [
+      ['d', 2],
+      ['f', 3],
+    ],
+    [
+      {op: DiffResultOp.Delete, key: 'b', oldValue: 1},
+      {op: DiffResultOp.Add, key: 'f', newValue: 3},
+    ],
+  );
+
+  await t(
+    [
+      ['b', 1],
+      ['d', 2],
+      ['e', 4],
+    ],
+    [
+      ['d', 22],
+      ['f', 3],
+    ],
+    [
+      {op: DiffResultOp.Delete, key: 'b', oldValue: 1},
+      {op: DiffResultOp.Change, key: 'd', oldValue: 2, newValue: 22},
+      {op: DiffResultOp.Delete, key: 'e', oldValue: 4},
+      {op: DiffResultOp.Add, key: 'f', newValue: 3},
+    ],
+  );
+
+  await t(
+    [
+      ['b', 1],
+      ['d', 2],
+      ['e', 4],
+      ['h', 5],
+      ['i', 6],
+      ['j', 7],
+      ['k', 8],
+      ['l', 9],
+    ],
+    [
+      ['d', 22],
+      ['f', 3],
+    ],
+    [
+      {op: DiffResultOp.Delete, key: 'b', oldValue: 1},
+      {op: DiffResultOp.Change, key: 'd', oldValue: 2, newValue: 22},
+      {op: DiffResultOp.Delete, key: 'e', oldValue: 4},
+      {op: DiffResultOp.Add, key: 'f', newValue: 3},
+
+      {op: DiffResultOp.Delete, key: 'h', oldValue: 5},
+      {op: DiffResultOp.Delete, key: 'i', oldValue: 6},
+      {op: DiffResultOp.Delete, key: 'j', oldValue: 7},
+      {op: DiffResultOp.Delete, key: 'k', oldValue: 8},
+      {op: DiffResultOp.Delete, key: 'l', oldValue: 9},
+    ],
   );
 });

@@ -185,7 +185,7 @@ export class Write extends Read {
       throw new Error('Not allowed');
     }
 
-    this.map.clear();
+    await this.map.clear();
     const ps = [];
     for (const idx of this.indexes.values()) {
       ps.push(idx.clear());

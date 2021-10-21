@@ -574,12 +574,13 @@ export class Replicache<MD extends MutatorDefs = {}> {
   ): Promise<void> {
     await this._ready;
     await this._dagStore.withWrite(async dagWrite => {
+      const clientID = await this._clientIDPromise;
       const dbWrite = await db.Write.newIndexChange(
         db.whenceHead(db.DEFAULT_HEAD_NAME),
         dagWrite,
       );
 
-      const tx = new IndexTransactionImpl(dbWrite, this._lc);
+      const tx = new IndexTransactionImpl(clientID, dbWrite, this._lc);
       await f(tx);
       await tx.commit();
     });
@@ -984,7 +985,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
     await this._ready;
     return await this._dagStore.withRead(async dagRead => {
       const dbRead = await db.readFromDefaultHead(dagRead);
-      const tx = new ReadTransactionImpl(dbRead, this._lc);
+      const clientID = await this._clientIDPromise;
+      const tx = new ReadTransactionImpl(clientID, dbRead, this._lc);
       return await body(tx);
     });
   }
@@ -1078,6 +1080,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         originalHash = rebaseOpts.original;
       }
 
+      const clientID = await this._clientIDPromise;
       const dbWrite = await db.Write.newLocal(
         whence,
         name,
@@ -1086,7 +1089,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         dagWrite,
       );
 
-      const tx = new WriteTransactionImpl(dbWrite, this._lc);
+      const tx = new WriteTransactionImpl(clientID, dbWrite, this._lc);
       const result: R = await mutatorImpl(tx, args);
 
       const [ref, changedKeys] = await tx.commit(!isReplay);

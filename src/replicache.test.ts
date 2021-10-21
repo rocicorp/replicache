@@ -137,7 +137,7 @@ testWithBothStores('get, has, scan on empty db', async () => {
     expect(scanItems).to.have.length(0);
   }
 
-  await t(rep);
+  await rep.query(t);
 });
 
 testWithBothStores('put, get, has, del inside tx', async () => {
@@ -2804,4 +2804,27 @@ test('mutate args in mutation', async () => {
   expect((o as {mutatorArgsJSON?: unknown}).mutatorArgsJSON).to.deep.equal({
     v: 1,
   });
+});
+
+test('client ID is set correctly on transactions', async () => {
+  const store = new TestMemStore();
+  const rep = await replicacheForTesting(
+    'client-id-is-set-correctly-on-transactions',
+    {
+      experimentalKVStore: store,
+      mutators: {
+        async expectClientID(tx, args: {expectedClientID: string}) {
+          expect(tx.clientID).to.equal(args.expectedClientID);
+        },
+      },
+    },
+  );
+
+  const repClientID = await rep.clientID;
+
+  await rep.query(tx => {
+    expect(tx.clientID).to.equal(repClientID);
+  });
+
+  await rep.mutate.expectClientID({expectedClientID: repClientID});
 });

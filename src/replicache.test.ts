@@ -2805,3 +2805,26 @@ test('mutate args in mutation', async () => {
     v: 1,
   });
 });
+
+test('client ID is set correctly on transactions', async () => {
+  const store = new TestMemStore();
+  const rep = await replicacheForTesting(
+    'client-id-is-set-correctly-on-transactions',
+    {
+      experimentalKVStore: store,
+      mutators: {
+        async expectClientID(tx, args: {expectedClientID: string}) {
+          expect(tx.clientID).to.equal(args.expectedClientID);
+        },
+      },
+    },
+  );
+
+  const repClientID = await rep.clientID;
+
+  await rep.query(tx => {
+    expect(tx.clientID).to.equal(repClientID);
+  });
+
+  await rep.mutate.expectClientID({expectedClientID: repClientID});
+});

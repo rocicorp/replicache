@@ -53,8 +53,11 @@ export class BTreeWrite extends BTreeRead {
     this._modified.set(node.hash, node);
   }
 
-  newInternalNodeImpl(entries: ReadonlyArray<Entry<Hash>>): InternalNodeImpl {
-    const n = new InternalNodeImpl(entries, newTempHash());
+  newInternalNodeImpl(
+    entries: ReadonlyArray<Entry<Hash>>,
+    level: number,
+  ): InternalNodeImpl {
+    const n = new InternalNodeImpl(entries, newTempHash(), level);
     this._addToModified(n);
     return n;
   }
@@ -68,20 +71,24 @@ export class BTreeWrite extends BTreeRead {
   newNodeImpl(
     type: NodeType.Data,
     entries: Entry<ReadonlyJSONValue>[],
+    level: number,
   ): DataNodeImpl;
   newNodeImpl(
     type: NodeType.Internal,
     entries: Entry<Hash>[],
+    level: number,
   ): InternalNodeImpl;
   newNodeImpl(
     type: NodeType,
     entries: Entry<Hash>[] | Entry<ReadonlyJSONValue>[],
+    level: number,
   ): InternalNodeImpl | DataNodeImpl;
   newNodeImpl(
     type: NodeType,
     entries: Entry<Hash>[] | Entry<ReadonlyJSONValue>[],
+    lebvel: number,
   ): InternalNodeImpl | DataNodeImpl {
-    const n = newNodeImpl(type, entries, newTempHash());
+    const n = newNodeImpl(type, entries, newTempHash(), lebvel);
     this._addToModified(n);
     return n;
   }
@@ -121,7 +128,9 @@ export class BTreeWrite extends BTreeRead {
     yield* runRead(this._rwLock, super.entries());
   }
 
-  override async *diff(last: BTreeRead): AsyncGenerator<DiffResult, void> {
+  override async *diff(
+    last: BTreeRead,
+  ): AsyncGenerator<DiffResult<ReadonlyJSONValue>, void> {
     yield* runRead(this._rwLock, super.diff(last));
   }
 
@@ -143,11 +152,12 @@ export class BTreeWrite extends BTreeRead {
           this.minSize - headerSize,
           this.maxSize - headerSize,
         );
+        const {level} = rootNode;
         const entries: Entry<Hash>[] = partitions.map(entries => {
-          const node = this.newNodeImpl(rootNode.type, entries);
+          const node = this.newNodeImpl(rootNode.type, entries, level);
           return [node.maxKey(), node.hash];
         });
-        const newRoot = this.newInternalNodeImpl(entries);
+        const newRoot = this.newInternalNodeImpl(entries, level + 1);
         this.rootHash = newRoot.hash;
         return;
       }

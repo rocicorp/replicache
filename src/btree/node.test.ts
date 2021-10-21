@@ -78,6 +78,7 @@ test('findLeaf', async () => {
         ['f', h1],
         ['i', h2],
       ],
+      d: 1,
     };
 
     const rootChunk = Chunk.new(root, [h0, h1, h2]);
@@ -126,14 +127,20 @@ test('findLeaf', async () => {
   });
 });
 
-type TreeData = {
-  $type: NodeType.Internal | NodeType.Data;
-  [key: string]: TreeData | ReadonlyJSONValue;
-};
+type TreeData =
+  | {
+      $type: NodeType.Data;
+      [key: string]: TreeData | ReadonlyJSONValue;
+    }
+  | {
+      $type: NodeType.Internal;
+      $level: number;
+      [key: string]: TreeData | ReadonlyJSONValue;
+    };
 
 function makeTree(node: TreeData, dagStore: dag.Store): Promise<string> {
   return dagStore.withWrite(async dagWrite => {
-    const h = await makeTreeInner(node, dagWrite);
+    const [h] = await makeTreeInner(node, dagWrite);
     await dagWrite.setHead('test', h);
     await dagWrite.commit();
     return h;
@@ -142,10 +149,10 @@ function makeTree(node: TreeData, dagStore: dag.Store): Promise<string> {
   async function makeTreeInner(
     node: TreeData,
     dagWrite: dag.Write,
-  ): Promise<string> {
+  ): Promise<[string, number]> {
     const entries: [string, ReadonlyJSONValue | string][] = Object.entries(
       node,
-    ).filter(e => e[0] !== '$type');
+    ).filter(e => e[0] !== '$type' && e[0] !== '$level');
     if (node.$type === NodeType.Data) {
       const dataNode: DataNode = {
         t: NodeType.Data,
@@ -153,11 +160,13 @@ function makeTree(node: TreeData, dagStore: dag.Store): Promise<string> {
       };
       const chunk = Chunk.new(dataNode, []);
       await dagWrite.putChunk(chunk);
-      return chunk.hash;
+      return [chunk.hash, 0];
     }
 
+    let level = 0;
     const ps = entries.map(async ([key, child]) => {
-      const hash = await makeTreeInner(child as TreeData, dagWrite);
+      const [hash, lvl] = await makeTreeInner(child as TreeData, dagWrite);
+      level = Math.max(level, lvl);
       return [key, hash] as [string, string];
     });
     const entries2 = await Promise.all(ps);
@@ -165,11 +174,12 @@ function makeTree(node: TreeData, dagStore: dag.Store): Promise<string> {
     const internalNode: InternalNode = {
       t: NodeType.Internal,
       e: entries2,
+      d: level + 1,
     };
     const refs = entries2.map(pair => pair[1]);
     const chunk = Chunk.new(internalNode, refs);
     await dagWrite.putChunk(chunk);
-    return chunk.hash;
+    return [chunk.hash, level + 1];
   }
 }
 
@@ -184,6 +194,9 @@ async function readTreeData(
   const rv: Record<string, ReadonlyJSONValue> = {
     $type: node.t,
   };
+  if (node.t === NodeType.Internal) {
+    rv.$level = (node as InternalNode).d;
+  }
   if (node.t === NodeType.Data) {
     for (const [k, v] of (node as DataNode).e) {
       if (lastKey !== undefined) {
@@ -330,6 +343,7 @@ test('get', async () => {
 
   const tree: TreeData = {
     $type: NodeType.Internal,
+    $level: 1,
     f: {
       $type: NodeType.Data,
       b: 0,
@@ -389,6 +403,7 @@ test('has', async () => {
 
   const tree: TreeData = {
     $type: NodeType.Internal,
+    $level: 1,
     f: {
       $type: NodeType.Data,
       b: 0,
@@ -530,6 +545,7 @@ test('put', async () => {
 
   await expectTree(rootHash, dagStore, {
     $type: NodeType.Internal,
+    $level: 1,
     b: {
       $type: NodeType.Data,
       a: 'aaa',
@@ -551,6 +567,7 @@ test('put', async () => {
         minSize,
         maxSize,
         getEntrySize,
+        chunkHeaderSize,
       );
       for (const [k, v] of Object.entries(data)) {
         await w.put(k, v);
@@ -585,6 +602,7 @@ test('put', async () => {
   });
   await expectTree(rootHash, dagStore, {
     $type: NodeType.Internal,
+    $level: 1,
     b: {
       $type: NodeType.Data,
       a: 'aaa',
@@ -614,8 +632,10 @@ test('put', async () => {
   });
   await expectTree(rootHash, dagStore, {
     $type: NodeType.Internal,
+    $level: 2,
     d: {
       $type: NodeType.Internal,
+      $level: 1,
       b: {
         $type: NodeType.Data,
         a: 'aaa',
@@ -629,6 +649,7 @@ test('put', async () => {
     },
     k: {
       $type: NodeType.Internal,
+      $level: 1,
       f: {
         $type: NodeType.Data,
         e: 'eee',
@@ -658,8 +679,10 @@ test('put', async () => {
   });
   await expectTree(rootHash, dagStore, {
     $type: NodeType.Internal,
+    $level: 2,
     d: {
       $type: NodeType.Internal,
+      $level: 1,
       b: {
         $type: NodeType.Data,
         a: 'aaa',
@@ -673,6 +696,7 @@ test('put', async () => {
     },
     h: {
       $type: NodeType.Internal,
+      $level: 1,
       f: {
         $type: NodeType.Data,
         e: 'eee',
@@ -686,6 +710,7 @@ test('put', async () => {
     },
     q: {
       $type: NodeType.Internal,
+      $level: 1,
       j: {
         $type: NodeType.Data,
         i: 'iii',
@@ -715,8 +740,10 @@ test('put', async () => {
   });
   await expectTree(rootHash, dagStore, {
     $type: NodeType.Internal,
+    $level: 2,
     d: {
       $type: NodeType.Internal,
+      $level: 1,
       b: {
         $type: NodeType.Data,
         a: 'aaa',
@@ -731,6 +758,7 @@ test('put', async () => {
     },
     h: {
       $type: NodeType.Internal,
+      $level: 1,
       f: {
         $type: NodeType.Data,
         e: 'eee',
@@ -744,6 +772,7 @@ test('put', async () => {
     },
     q: {
       $type: NodeType.Internal,
+      $level: 1,
       j: {
         $type: NodeType.Data,
         i: 'iii',
@@ -774,8 +803,10 @@ test('put', async () => {
   });
   await expectTree(rootHash, dagStore, {
     $type: NodeType.Internal,
+    $level: 2,
     d: {
       $type: NodeType.Internal,
+      $level: 1,
       b: {
         $type: NodeType.Data,
         a: 'aaa',
@@ -795,6 +826,7 @@ test('put', async () => {
     },
     h: {
       $type: NodeType.Internal,
+      $level: 1,
       f: {
         $type: NodeType.Data,
         e: 'eee',
@@ -808,6 +840,7 @@ test('put', async () => {
     },
     q: {
       $type: NodeType.Internal,
+      $level: 1,
       j: {
         $type: NodeType.Data,
         i: 'iii',
@@ -884,10 +917,13 @@ test('del - flatten', async () => {
   {
     const tree: TreeData = {
       $type: NodeType.Internal,
+      $level: 3,
       b: {
         $type: NodeType.Internal,
+        $level: 2,
         b: {
           $type: NodeType.Internal,
+          $level: 1,
           b: {
             $type: NodeType.Data,
             a: 'aaa',
@@ -912,10 +948,13 @@ test('del - flatten', async () => {
   {
     const tree: TreeData = {
       $type: NodeType.Internal,
+      $level: 3,
       b: {
         $type: NodeType.Internal,
+        $level: 2,
         b: {
           $type: NodeType.Internal,
+          $level: 1,
           b: {
             $type: NodeType.Data,
             a: 'aaa',
@@ -944,8 +983,10 @@ test('del - with internal nodes', async () => {
 
   const tree: TreeData = {
     $type: NodeType.Internal,
+    $level: 2,
     d: {
       $type: NodeType.Internal,
+      $level: 1,
       b: {
         $type: NodeType.Data,
         a: 'aaa',
@@ -959,6 +1000,7 @@ test('del - with internal nodes', async () => {
     },
     k: {
       $type: NodeType.Internal,
+      $level: 1,
       f: {
         $type: NodeType.Data,
         e: 'eee',
@@ -986,8 +1028,10 @@ test('del - with internal nodes', async () => {
 
   await expectTree(rootHash, dagStore, {
     $type: NodeType.Internal,
+    $level: 2,
     d: {
       $type: NodeType.Internal,
+      $level: 1,
       b: {
         $type: NodeType.Data,
         a: 'aaa',
@@ -1001,6 +1045,7 @@ test('del - with internal nodes', async () => {
     },
     j: {
       $type: NodeType.Internal,
+      $level: 1,
       f: {
         $type: NodeType.Data,
         e: 'eee',
@@ -1025,8 +1070,10 @@ test('del - with internal nodes', async () => {
 
   await expectTree(rootHash, dagStore, {
     $type: NodeType.Internal,
+    $level: 2,
     f: {
       $type: NodeType.Internal,
+      $level: 1,
       d: {
         $type: NodeType.Data,
         a: 'aaa',
@@ -1041,6 +1088,7 @@ test('del - with internal nodes', async () => {
     },
     j: {
       $type: NodeType.Internal,
+      $level: 1,
       h: {
         $type: NodeType.Data,
         g: 'ggg',
@@ -1063,6 +1111,7 @@ test('del - with internal nodes', async () => {
 
   await expectTree(rootHash, dagStore, {
     $type: NodeType.Internal,
+    $level: 1,
     d: {
       $type: NodeType.Data,
       a: 'aaa',
@@ -1125,8 +1174,10 @@ test('put - invalid', async () => {
 
   const tree: TreeData = {
     $type: NodeType.Internal,
+    $level: 2,
     b: {
       $type: NodeType.Internal,
+      $level: 2,
       b: {
         $type: NodeType.Data,
         b: 'bbb',
@@ -1142,8 +1193,10 @@ test('put - invalid', async () => {
 
   await expectTree(rootHash, dagStore, {
     $type: NodeType.Internal,
+    $level: 2,
     c: {
       $type: NodeType.Internal,
+      $level: 1,
       c: {
         $type: NodeType.Data,
         b: 'bbb',
@@ -1197,6 +1250,7 @@ test('put/del - getSize', async () => {
   expect(getEntrySize(['b', 'b234'])).to.equal(12);
   await expectTree(rootHash, dagStore, {
     $type: NodeType.Internal,
+    $level: 1,
     b: {
       $type: NodeType.Data,
       aaaa: 'a1',
@@ -1418,7 +1472,7 @@ test('diff', async () => {
   const t = async (
     oldEntries: Entry<ReadonlyJSONValue>[],
     newEntries: Entry<ReadonlyJSONValue>[],
-    expectedDiff: DiffResult[],
+    expectedDiff: DiffResult<ReadonlyJSONValue>[],
   ) => {
     const kvStore = new kv.MemStore();
     const dagStore = new dag.Store(kvStore);
@@ -1550,6 +1604,88 @@ test('diff', async () => {
       {op: DiffResultOp.Delete, key: 'j', oldValue: 7},
       {op: DiffResultOp.Delete, key: 'k', oldValue: 8},
       {op: DiffResultOp.Delete, key: 'l', oldValue: 9},
+    ],
+  );
+
+  await t(
+    [
+      ['b', 1],
+      ['b1', 11],
+      ['d', 2],
+      ['d1', 12],
+      ['e', 4],
+      ['e1', 14],
+      ['h', 5],
+      ['h1', 15],
+      ['i', 6],
+      ['i1', 16],
+      ['j', 7],
+      ['j1', 17],
+      ['k', 8],
+      ['k1', 18],
+      ['l', 9],
+      ['l1', 19],
+    ],
+    [
+      ['l1', 19],
+      ['l', 9],
+      ['k1', 18],
+      // ['k', 8],
+      ['j1', 17],
+      ['j', 7],
+      ['i1', 16],
+      ['i', 6],
+      ['h1', 15],
+      ['h', 5],
+      ['e1', 141],
+      ['e', 0],
+      ['d1', 0],
+      ['d', 0],
+      ['b2', 0],
+      ['b1', 0],
+      ['b', 1],
+    ],
+    [
+      {
+        key: 'b1',
+        newValue: 0,
+        oldValue: 11,
+        op: DiffResultOp.Change,
+      },
+      {
+        key: 'b2',
+        newValue: 0,
+        op: DiffResultOp.Add,
+      },
+      {
+        key: 'd',
+        newValue: 0,
+        oldValue: 2,
+        op: DiffResultOp.Change,
+      },
+      {
+        key: 'd1',
+        newValue: 0,
+        oldValue: 12,
+        op: DiffResultOp.Change,
+      },
+      {
+        key: 'e',
+        newValue: 0,
+        oldValue: 4,
+        op: DiffResultOp.Change,
+      },
+      {
+        key: 'e1',
+        newValue: 141,
+        oldValue: 14,
+        op: DiffResultOp.Change,
+      },
+      {
+        key: 'k',
+        oldValue: 8,
+        op: DiffResultOp.Delete,
+      },
     ],
   );
 });

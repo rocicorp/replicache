@@ -15,8 +15,17 @@ import {
   DiffResult,
   DiffResultOp,
   ReadonlyEntry,
+  NodeType,
+  InternalNode,
 } from './node';
 import {getSizeOfValue, NODE_HEADER_SIZE} from './get-size-of-value';
+import {
+  computeSplice,
+  SPLICE_ADDED,
+  SPLICE_AT,
+  SPLICE_FROM,
+  SPLICE_REMOVED,
+} from './splice';
 
 export class BTreeRead {
   rootHash: Hash;
@@ -56,7 +65,8 @@ export class BTreeRead {
     const {data} = chunk;
     assertBTreeNode(data);
     const {t: type, e: entries} = data;
-    const impl = newNodeImpl(type, entries, hash);
+    const level = type === NodeType.Internal ? (data as InternalNode).d : 0;
+    const impl = newNodeImpl(type, entries, hash, level);
     this._cache.set(hash, impl);
     return impl;
   }
@@ -111,59 +121,130 @@ export class BTreeRead {
     return this.entries();
   }
 
-  async *diff(last: BTreeRead): AsyncGenerator<DiffResult, void> {
-    // This is an O(n+m) solution. We can do better because we can skip common
-    // subtrees but it requires more work.
-    const newIter = this.scan({})[Symbol.asyncIterator]();
-    const oldIter = last.scan({})[Symbol.asyncIterator]();
-
-    let [newIterResult, oldIterResult] = await Promise.all([
-      newIter.next(),
-      oldIter.next(),
+  async *diff(
+    last: BTreeRead,
+  ): AsyncGenerator<DiffResult<ReadonlyJSONValue>, void> {
+    const [currentNode, lastNode] = await Promise.all([
+      this.getNode(this.rootHash),
+      last.getNode(last.rootHash),
     ]);
-    while (!newIterResult.done && !oldIterResult.done) {
-      const newEntry = newIterResult.value;
-      const [newKey, newValue] = newEntry;
-      const oldEntry = oldIterResult.value;
-      const [oldKey, oldValue] = oldEntry;
-      if (newKey === oldKey) {
-        if (!deepEqual(newValue, oldValue)) {
-          yield {
-            op: DiffResultOp.Change,
-            key: newKey,
-            oldValue: oldEntry[1],
-            newValue: newEntry[1],
-          };
-        }
-        [newIterResult, oldIterResult] = await Promise.all([
-          newIter.next(),
-          oldIter.next(),
-        ]);
-      } else if (newKey < oldKey) {
-        yield {op: DiffResultOp.Add, key: newKey, newValue};
-        newIterResult = await newIter.next();
-      } else {
-        yield {op: DiffResultOp.Delete, key: oldKey, oldValue};
-        oldIterResult = await oldIter.next();
-      }
-    }
-
-    while (!newIterResult.done) {
-      const entry = newIterResult.value;
-      yield {op: DiffResultOp.Add, key: entry[0], newValue: entry[1]};
-      newIterResult = await newIter.next();
-    }
-
-    while (!oldIterResult.done) {
-      const entry = oldIterResult.value;
-      yield {op: DiffResultOp.Delete, key: entry[0], oldValue: entry[1]};
-      oldIterResult = await oldIter.next();
-    }
+    yield* diffNodes(lastNode, currentNode, last, this);
   }
 
   async *diffKeys(last: BTreeRead): AsyncGenerator<string, void> {
     for await (const {key} of this.diff(last)) {
       yield key;
     }
+  }
+}
+
+async function* diffNodes(
+  last: InternalNodeImpl | DataNodeImpl,
+  current: InternalNodeImpl | DataNodeImpl,
+  lastTree: BTreeRead,
+  currentTree: BTreeRead,
+): AsyncGenerator<DiffResult<ReadonlyJSONValue>, void> {
+  if (last.level > current.level) {
+    // merge all of last's children into a new node
+    // We know last is an internal node because level > 0.
+    const lastChild = (await (last as InternalNodeImpl).getCompositeChildren(
+      0,
+      last.entries.length,
+      lastTree,
+    )) as InternalNodeImpl;
+    yield* diffNodes(lastChild, current, lastTree, currentTree);
+    return;
+  }
+
+  if (current.level > last.level) {
+    // We know current is an internal node because level > 0.
+    const currentChild = (await (
+      current as InternalNodeImpl
+    ).getCompositeChildren(
+      0,
+      current.entries.length,
+      currentTree,
+    )) as InternalNodeImpl;
+    yield* diffNodes(last, currentChild, lastTree, currentTree);
+    return;
+  }
+
+  if (last.level === 0 && current.level === 0) {
+    yield* diffEntries(last.entries, current.entries);
+    return;
+  }
+
+  // Now we have two internal nodes with the same level. We compute the diff as
+  // splices for the internal node entries. We then flatten these and call diff
+  // recursively.
+  const initialSplices = computeSplice(last.entries, current.entries);
+  for (const splice of initialSplices) {
+    const [lastChild, currentChild] = await Promise.all([
+      (last as InternalNodeImpl).getCompositeChildren(
+        splice[SPLICE_AT],
+        splice[SPLICE_REMOVED],
+        lastTree,
+      ),
+      (current as InternalNodeImpl).getCompositeChildren(
+        splice[SPLICE_FROM],
+        splice[SPLICE_ADDED],
+        currentTree,
+      ),
+    ]);
+    yield* diffNodes(lastChild, currentChild, lastTree, currentTree);
+  }
+}
+
+function* diffEntries<T>(
+  lastEntries: ReadonlyArray<ReadonlyEntry<T>>,
+  currentEntries: ReadonlyArray<ReadonlyEntry<T>>,
+): Generator<DiffResult<ReadonlyJSONValue>, void> {
+  const lastLength = lastEntries.length;
+  const currentLength = currentEntries.length;
+  let i = 0;
+  let j = 0;
+  while (i < lastLength && j < currentLength) {
+    const lastKey = lastEntries[i][0];
+    const currentKey = currentEntries[j][0];
+    if (lastKey === currentKey) {
+      if (!deepEqual(lastEntries[i][1], currentEntries[j][1])) {
+        yield {
+          op: DiffResultOp.Change,
+          key: lastKey,
+          oldValue: lastEntries[i][1],
+          newValue: currentEntries[j][1],
+        };
+      }
+      i++;
+      j++;
+    } else if (lastKey < currentKey) {
+      yield {
+        op: DiffResultOp.Delete,
+        key: lastKey,
+        oldValue: lastEntries[i][1],
+      };
+      i++;
+    } else {
+      yield {
+        op: DiffResultOp.Add,
+        key: currentKey,
+        newValue: currentEntries[j][1],
+      };
+      j++;
+    }
+  }
+  for (; i < lastLength; i++) {
+    yield {
+      op: DiffResultOp.Delete,
+      key: lastEntries[i][0],
+      oldValue: lastEntries[i][1],
+    };
+  }
+  for (; j < currentLength; j++) {
+    yield {
+      op: DiffResultOp.Add,
+      key: currentEntries[j][0],
+      newValue: currentEntries[j][1],
+    };
   }
 }

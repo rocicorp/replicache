@@ -137,7 +137,7 @@ testWithBothStores('get, has, scan on empty db', async () => {
     expect(scanItems).to.have.length(0);
   }
 
-  await t(rep);
+  await rep.query(t);
 });
 
 testWithBothStores('put, get, has, del inside tx', async () => {

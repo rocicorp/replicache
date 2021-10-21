@@ -120,9 +120,7 @@ type UnknownSubscription = Subscription<JSONValue | undefined, unknown>;
 type SubscriptionSet = Set<UnknownSubscription>;
 
 // eslint-disable-next-line @typescript-eslint/ban-types
-export class Replicache<MD extends MutatorDefs = {}>
-  implements ReadTransaction
-{
+export class Replicache<MD extends MutatorDefs = {}> {
   /** The URL to use when doing a pull request. */
   pullURL: string;
 
@@ -502,17 +500,26 @@ export class Replicache<MD extends MutatorDefs = {}>
     }
   }
 
-  /** Get a single value from the database. */
+  /**
+   * Get a single value from the database.
+   * @deprecated Use [[query]] instead.
+   */
   get(key: string): Promise<ReadonlyJSONValue | undefined> {
     return this.query(tx => tx.get(key));
   }
 
-  /** Determines if a single `key` is present in the database. */
+  /**
+   * Determines if a single `key` is present in the database.
+   * @deprecated Use [[query]] instead.
+   */
   has(key: string): Promise<boolean> {
     return this.query(tx => tx.has(key));
   }
 
-  /** Whether the database is empty. */
+  /**
+   * Whether the database is empty.
+   * @deprecated Use [[query]] instead.
+   */
   isEmpty(): Promise<boolean> {
     return this.query(tx => tx.isEmpty());
   }
@@ -525,6 +532,7 @@ export class Replicache<MD extends MutatorDefs = {}>
    * If `options` has an `indexName`, then this does a scan over an index with
    * that name. A scan over an index uses a tuple for the key consisting of
    * `[secondary: string, primary: string]`.
+   * @deprecated Use [[query]] instead.
    */
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,

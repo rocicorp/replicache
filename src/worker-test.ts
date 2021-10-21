@@ -71,6 +71,5 @@ async function testGethasScanOnEmptyDB(name: string, useMemstore = false) {
     expect(scanItems).to.have.length(0);
   }
 
-  await t(rep);
   await rep.query(t);
 }

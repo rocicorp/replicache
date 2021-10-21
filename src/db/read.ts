@@ -1,6 +1,5 @@
-import {Index} from './index';
-import type * as dag from '../dag/mod';
-import * as prolly from '../prolly/mod';
+import {IndexRead} from './index';
+import * as dag from '../dag/mod';
 import {
   convert,
   scan,
@@ -10,30 +9,36 @@ import {
 } from './scan';
 import {Commit, DEFAULT_HEAD_NAME} from './commit';
 import type {ReadonlyJSONValue} from '../json';
+import {BTreeRead, BTreeWrite} from '../btree/mod';
 
 export class Read {
   private readonly _dagRead: dag.Read;
-  map: prolly.Map;
-  readonly indexes: Map<string, Index>;
+  map: BTreeRead;
+  readonly indexes: Map<string, IndexRead>;
 
-  constructor(dagRead: dag.Read, map: prolly.Map, indexes: Map<string, Index>) {
+  constructor(
+    dagRead: dag.Read,
+    map: BTreeRead,
+    indexes: Map<string, IndexRead>,
+  ) {
     this._dagRead = dagRead;
     this.map = map;
     this.indexes = indexes;
   }
 
-  has(key: string): boolean {
+  has(key: string): Promise<boolean> {
     return this.map.has(key);
   }
 
-  get(key: string): ReadonlyJSONValue | undefined {
+  get(key: string): Promise<ReadonlyJSONValue | undefined> {
     return this.map.get(key);
   }
 
-  isEmpty(): boolean {
+  isEmpty(): Promise<boolean> {
     return this.map.isEmpty();
   }
 
+  // TODO(arv): Should maybe just remove the callback and use async iterator here.
   async scan(
     opts: ScanOptions,
     callback: (s: ScanResult) => void,
@@ -46,13 +51,13 @@ export class Read {
         throw new Error(`Unknown index name: ${name}`);
       }
 
-      await idx.withMap(this._dagRead, map => {
-        for (const item of scan(map, optsInternal)) {
+      await idx.withMap(this._dagRead, async map => {
+        for await (const item of scan(map, optsInternal)) {
           callback(item);
         }
       });
     } else {
-      for (const item of scan(this.map, optsInternal)) {
+      for await (const item of scan(this.map, optsInternal)) {
         callback(item);
       }
     }
@@ -105,21 +110,29 @@ export async function fromWhence(
   dagRead: dag.Read,
 ): Promise<Read> {
   const [, basis, map] = await readCommit(whence, dagRead);
-  const indexex = readIndexes(basis);
+  const indexex = readIndexesForRead(basis);
   return new Read(dagRead, map, indexex);
 }
 
+export function readCommit(
+  whence: Whence,
+  dagRead: dag.Write,
+): Promise<[string, Commit, BTreeWrite]>;
+export function readCommit(
+  whence: Whence,
+  dagRead: dag.Read,
+): Promise<[string, Commit, BTreeRead]>;
 export async function readCommit(
   whence: Whence,
-  read: dag.Read,
-): Promise<[string, Commit, prolly.Map]> {
+  dagRead: dag.Read,
+): Promise<[string, Commit, BTreeRead]> {
   let hash: string;
   switch (whence.type) {
     case WhenceType.Hash:
       hash = whence.hash;
       break;
     case WhenceType.Head: {
-      const h = await read.getHead(whence.name);
+      const h = await dagRead.getHead(whence.name);
       if (h === undefined) {
         throw new Error(`Unknown head: ${whence.name}`);
       }
@@ -128,15 +141,18 @@ export async function readCommit(
     }
   }
 
-  const commit = await Commit.fromHash(hash, read);
-  const map = await prolly.Map.load(commit.valueHash, read);
+  const commit = await Commit.fromHash(hash, dagRead);
+  const map =
+    dagRead instanceof dag.Write
+      ? new BTreeWrite(dagRead, commit.valueHash)
+      : new BTreeRead(dagRead, commit.valueHash);
   return [hash, commit, map];
 }
 
-export function readIndexes(commit: Commit): Map<string, Index> {
+export function readIndexesForRead(commit: Commit): Map<string, IndexRead> {
   const m = new Map();
   for (const index of commit.indexes) {
-    m.set(index.definition.name, new Index(index, undefined));
+    m.set(index.definition.name, new IndexRead(index, undefined));
   }
   return m;
 }

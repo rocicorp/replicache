@@ -35,7 +35,7 @@ export async function addSyncSnapshot(
 
   // Add sync snapshot.
   const cookie = `sync_cookie_${chain.length}`;
-  const indexes = db.readIndexes(chain[takeIndexesFrom]);
+  const indexes = db.readIndexesForWrite(chain[takeIndexesFrom]);
   await store.withWrite(async dagWrite => {
     const w = await db.Write.newSnapshot(
       db.whenceHash(baseSnapshot.chunk.hash),

@@ -9,9 +9,7 @@ import {
   DataNode,
   findLeaf,
   InternalNode,
-  BTreeRead,
   partition,
-  BTreeWrite,
   assertBTreeNode,
   newTempHash,
   assertNotTempHash,
@@ -21,6 +19,8 @@ import {
   DiffResult,
   DiffResultOp,
 } from './node';
+import {BTreeWrite} from './write';
+import {BTreeRead} from './read';
 import {getSizeOfValue} from './get-size-of-value';
 
 setup(async () => {

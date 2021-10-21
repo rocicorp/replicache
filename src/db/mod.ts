@@ -1,7 +1,7 @@
-export {Write, initDB, maybeInitDefaultDB} from './write';
+export {Write, initDB, maybeInitDefaultDB, readIndexesForWrite} from './write';
 export {
   Read,
-  readIndexes,
+  readIndexesForRead,
   readCommit,
   whenceHead,
   whenceHash,

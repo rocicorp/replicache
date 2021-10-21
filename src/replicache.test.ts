@@ -373,15 +373,12 @@ testWithBothStores('subscribe', async () => {
   expect(log).to.deep.equal([['a/0', 0]]);
   expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
 
-  // Changing a entry to the same value We used to do a deepEqual check here but
-  // we removed that. This means that we will invoke the query body even if
-  // nothing really changed. However, we consider writing the same value to be
-  // pretty unlikely and it is semantically correct to call the query body "too
-  // much".
+  // Changing a entry to the same value no longer triggers the subscription to
+  // fire.
   log.length = 0;
   await add({'a/0': 0});
   expect(log).to.deep.equal([]);
-  expect(queryCallCount).to.equal(3);
+  expect(queryCallCount).to.equal(2);
 
   log.length = 0;
   await add({'a/1': 1});
@@ -389,7 +386,7 @@ testWithBothStores('subscribe', async () => {
     ['a/0', 0],
     ['a/1', 1],
   ]);
-  expect(queryCallCount).to.equal(4);
+  expect(queryCallCount).to.equal(3);
 
   log.length = 0;
   log.length = 0;
@@ -398,14 +395,14 @@ testWithBothStores('subscribe', async () => {
     ['a/0', 0],
     ['a/1', 11],
   ]);
-  expect(queryCallCount).to.equal(5);
+  expect(queryCallCount).to.equal(4);
 
   log.length = 0;
   cancel();
   await add({'a/1': 12});
   await Promise.resolve();
   expect(log).to.have.length(0);
-  expect(queryCallCount).to.equal(5);
+  expect(queryCallCount).to.equal(4);
 });
 
 for (const prefixPropertyName of ['prefix', 'keyPrefix']) {
@@ -646,15 +643,11 @@ testWithBothStores('subscribe with index and start', async () => {
   expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
   expect(onDataCallCount).to.equal(3);
 
-  // Changing a entry to the same value We used to do a deepEqual check here but
-  // we removed that. This means that we will invoke the query body even if
-  // nothing really changed. However, we consider writing the same value to be
-  // pretty unlikely and it is semantically correct to call the query body "too
-  // much".
+  // Changing a entry to the same value we do not fire the subscription any more.
   await rep.mutate.addData({
     a2: {id: 'a-2', x: 2},
   });
-  expect(queryCallCount).to.equal(4); // One for initial subscribe and one for the add.
+  expect(queryCallCount).to.equal(3); // One for initial subscribe and one for the add.
   expect(onDataCallCount).to.equal(3);
 
   cancel();
@@ -741,15 +734,11 @@ testWithBothStores('subscribe with index and prefix', async () => {
   expect(queryCallCount).to.equal(4);
   expect(onDataCallCount).to.equal(4);
 
-  // Changing a entry to the same value We used to do a deepEqual check here but
-  // we removed that. This means that we will invoke the query body even if
-  // nothing really changed. However, we consider writing the same value to be
-  // pretty unlikely and it is semantically correct to call the query body "too
-  // much".
+  // Changing a entry to the same value will not trigger the subscription.
   await rep.mutate.addData({
     b: {id: 'bx3', x: 3},
   });
-  expect(queryCallCount).to.equal(5); // One for initial subscribe and one for the add.
+  expect(queryCallCount).to.equal(4); // One for initial subscribe and one for the add.
   expect(onDataCallCount).to.equal(4);
 
   cancel();
@@ -1305,7 +1294,7 @@ testWithBothStores('pull', async () => {
   });
   beginPullResult = await rep.beginPull();
   ({syncHead} = beginPullResult);
-  expect(syncHead).equal('2h078l7lj47ns0ncg788po9uk76is4e1');
+  expect(syncHead).equal('sp7d93693v4d3jcv48k9nbn8fa0mv0lr');
 
   await createTodo({
     id: id2,
@@ -2803,4 +2792,65 @@ test('mutate args in mutation', async () => {
   expect((o as {mutatorArgsJSON?: unknown}).mutatorArgsJSON).to.deep.equal({
     v: 1,
   });
+});
+
+testWithBothStores('subscribe perf test regression', async () => {
+  clock.restore();
+  const count = 100;
+  const maxCount = 1000;
+  const minCount = 10;
+  const key = (k: number) => `key${k}`;
+  const rep = await replicacheForTesting('subscribe-perf-test-regression', {
+    mutators: {
+      async init(tx: WriteTransaction) {
+        await Promise.all(
+          Array.from({length: maxCount}, (_, i) => tx.put(key(i), i)),
+        );
+      },
+      async put(tx: WriteTransaction, options: {key: string; val: JSONValue}) {
+        // console.log('put', options.key, options.val);
+        await tx.put(options.key, options.val);
+      },
+    },
+  });
+
+  await rep.mutate.init();
+  const data = Array.from({length: count}).fill(0);
+  let onDataCallCount = 0;
+  const subs = Array.from({length: count}, (_, i) =>
+    rep.subscribe(tx => tx.get(key(i)), {
+      onData(v) {
+        onDataCallCount++;
+        data[i] = v;
+      },
+    }),
+  );
+
+  // We need to wait until all the initial async onData have been called.
+  while (onDataCallCount !== count) {
+    await sleep(10);
+  }
+
+  // The number of mutations to do. These should each trigger one
+  // subscription. The goal of this test is to ensure that we are only
+  // paying the runtime cost of subscriptions that are affected by the
+  // changes.
+  const mut = 10;
+  if (mut < minCount) {
+    throw new Error('Please decrease minCount');
+  }
+  const rand = Math.random();
+
+  for (let i = 0; i < mut; i++) {
+    await rep.mutate.put({key: key(i), val: i ** 2 + rand});
+  }
+
+  subs.forEach(c => c());
+
+  await sleep(100);
+
+  expect(onDataCallCount).to.equal(count + mut);
+  for (let i = 0; i < count; i++) {
+    expect(data[i]).to.equal(i < mut ? i ** 2 + rand : i);
+  }
 });

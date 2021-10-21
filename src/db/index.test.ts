@@ -1,7 +1,8 @@
 import {expect} from '@esm-bundle/chai';
 import type {JSONValue} from '../json';
 import {stringCompare} from '../prolly/string-compare';
-import * as prolly from '../prolly/mod';
+import * as kv from '../kv/mod';
+import * as dag from '../dag/mod';
 import {
   decodeIndexKey,
   encodeIndexKey,
@@ -14,6 +15,8 @@ import {
   KEY_SEPARATOR,
   KEY_VERSION_0,
 } from './index';
+import {BTreeWrite} from '../btree/mod';
+import {asyncIterableToArray} from '../async-iterable-to-array';
 
 test('test index key', () => {
   const testValid = (secondary: string, primary: string) => {
@@ -182,37 +185,44 @@ test('json pointer', () => {
   expect(evaluateJSONPointer(['a', 'b'], '/2')).to.equal(undefined);
 });
 
-test('index value', () => {
-  const t = (
+test('index value', async () => {
+  const t = async (
     key: string,
     value: JSONValue,
     jsonPointer: string,
     op: IndexOperation,
     expected: number[] | string,
   ) => {
-    const index = new prolly.Map([]);
-    index.put(encodeIndexKey(['s1', '1']), 'v1');
-    index.put(encodeIndexKey(['s2', '2']), 'v2');
+    const memStore = new kv.MemStore();
+    const dagStore = new dag.Store(memStore);
+    await dagStore.withWrite(async dagWrite => {
+      const index = new BTreeWrite(dagWrite);
+      await index.put(encodeIndexKey(['s1', '1']), 'v1');
+      await index.put(encodeIndexKey(['s2', '2']), 'v2');
 
-    if (Array.isArray(expected)) {
-      indexValue(index, op, key, value, jsonPointer);
+      if (Array.isArray(expected)) {
+        await indexValue(index, op, key, value, jsonPointer);
 
-      const actualVal = [...index];
-      expect(expected.length).to.equal(actualVal.length);
-      for (let i = 0; i < expected.length; i++) {
-        const expEntry = encodeIndexKey([`s${expected[i]}`, `${expected[i]}`]);
-        expect(expEntry).to.deep.equal(actualVal[i][0]);
-        expect(index.get(expEntry)).to.deep.equal(actualVal[i][1]);
+        const actualVal = await asyncIterableToArray(index.entries());
+        expect(expected.length).to.equal(actualVal.length);
+        for (let i = 0; i < expected.length; i++) {
+          const expEntry = encodeIndexKey([
+            `s${expected[i]}`,
+            `${expected[i]}`,
+          ]);
+          expect(expEntry).to.deep.equal(actualVal[i][0]);
+          expect(await index.get(expEntry)).to.deep.equal(actualVal[i][1]);
+        }
+      } else {
+        expect(() => indexValue(index, op, key, value, jsonPointer)).to.throw(
+          expected,
+        );
       }
-    } else {
-      expect(() => indexValue(index, op, key, value, jsonPointer)).to.throw(
-        expected,
-      );
-    }
+    });
   };
 
-  t('3', {s: 's3', v: 'v3'}, '/s', IndexOperation.Add, [1, 2, 3]);
-  t('1', {s: 's1', v: 'v1'}, '/s', IndexOperation.Remove, [2]);
+  await t('3', {s: 's3', v: 'v3'}, '/s', IndexOperation.Add, [1, 2, 3]);
+  await t('1', {s: 's1', v: 'v1'}, '/s', IndexOperation.Remove, [2]);
 });
 
 test(`decodeIndexKey`, () => {

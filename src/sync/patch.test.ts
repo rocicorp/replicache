@@ -168,7 +168,7 @@ test('patch', async () => {
         1,
         'cookie',
         dagWrite,
-        db.readIndexes(chain[0]),
+        db.readIndexesForWrite(chain[0]),
       );
       await dbWrite.put(lc, 'key', 'value');
 
@@ -188,10 +188,10 @@ test('patch', async () => {
 
       if (c.expMap !== undefined) {
         for (const [k, v] of c.expMap) {
-          expect(v).to.deep.equal(dbWrite.get(k));
+          expect(v).to.deep.equal(await dbWrite.get(k));
         }
         if (c.expMap.size === 0) {
-          expect(dbWrite.has('key')).to.be.false;
+          expect(await dbWrite.has('key')).to.be.false;
         }
       }
     });

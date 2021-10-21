@@ -12,9 +12,10 @@ import {assertHTTPRequestInfo, HTTPRequestInfo} from '../http-request-info';
 import {callJSRequest} from './js-request';
 import {SYNC_HEAD_NAME} from './sync-head-name';
 import * as patch from './patch';
-import * as prolly from '../prolly/mod';
 import type {LogContext} from '../logger';
 import {toError} from '../to-error';
+import * as btree from '../btree/mod';
+import {BTreeRead} from '../btree/mod';
 
 export const PULL_VERSION = 0;
 
@@ -283,11 +284,9 @@ export async function maybeEndPull(
 
     // Compute diffs (changed keys) for value map and index maps.
     const mainHead = await db.Commit.fromHash(mainHeadHash, dagRead);
-    const [mainHeadMap, syncHeadMap] = await Promise.all([
-      prolly.Map.load(mainHead.valueHash, dagRead),
-      prolly.Map.load(syncHead.valueHash, dagRead),
-    ]);
-    const valueChangedKeys = prolly.Map.changedKeys(mainHeadMap, syncHeadMap);
+    const mainHeadMap = new BTreeRead(dagRead, mainHead.valueHash);
+    const syncHeadMap = new BTreeRead(dagRead, syncHead.valueHash);
+    const valueChangedKeys = await btree.changedKeys(mainHeadMap, syncHeadMap);
     if (valueChangedKeys.length > 0) {
       changedKeys.set('', valueChangedKeys);
     }
@@ -363,19 +362,23 @@ async function addChangedKeysForIndexes(
   read: dag.Read,
   changedKeysMap: ChangedKeysMap,
 ) {
-  function allKeys(oldMap: prolly.Map): string[] {
-    return Array.from(oldMap.entries(), entry => entry[0]);
+  async function allKeys(oldMap: BTreeRead): Promise<string[]> {
+    const keys: string[] = [];
+    for await (const key of oldMap.keys()) {
+      keys.push(key);
+    }
+    return keys;
   }
 
-  const oldIndexes = db.readIndexes(mainCommit);
-  const newIndexes = db.readIndexes(syncCommit);
+  const oldIndexes = db.readIndexesForRead(mainCommit);
+  const newIndexes = db.readIndexesForRead(syncCommit);
 
   for (const [oldIndexName, oldIndex] of oldIndexes) {
     await oldIndex.withMap(read, async oldMap => {
       const newIndex = newIndexes.get(oldIndexName);
       if (newIndex !== undefined) {
         const changedKeys = await newIndex.withMap(read, async newMap => {
-          return prolly.Map.changedKeys(oldMap, newMap);
+          return btree.changedKeys(oldMap, newMap);
         });
 
         newIndexes.delete(oldIndexName);
@@ -384,7 +387,7 @@ async function addChangedKeysForIndexes(
         }
       } else {
         // old index name is not in the new indexes. All keys changed!
-        const changedKeys = allKeys(oldMap);
+        const changedKeys = await allKeys(oldMap);
         if (changedKeys.length > 0) {
           changedKeysMap.set(oldIndexName, changedKeys);
         }
@@ -395,9 +398,9 @@ async function addChangedKeysForIndexes(
   for (const [newIndexName, newIndex] of newIndexes) {
     // new index name is not in the old indexes. All keys changed!
     await newIndex.withMap(read, async newMap => {
-      const changedKeys = allKeys(newMap);
+      const changedKeys = await allKeys(newMap);
       if (changedKeys.length > 0) {
-        changedKeysMap.set(newIndexName, allKeys(newMap));
+        changedKeysMap.set(newIndexName, await allKeys(newMap));
       }
     });
   }

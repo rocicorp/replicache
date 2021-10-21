@@ -1,41 +1,60 @@
 import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue, ReadonlyJSONObject} from '../json';
-import * as prolly from '../prolly/mod';
 import {RWLock} from '../rw-lock';
 import type {IndexRecord} from './commit';
+import {BTreeRead, BTreeWrite} from '../btree/mod';
 
-export class Index {
+abstract class Index<DagReadWrite, BTree> {
   readonly meta: IndexRecord;
-  private _map: prolly.Map | undefined;
-  private _rwLock = new RWLock();
+  protected _map: BTree | undefined;
+  protected _rwLock = new RWLock();
 
-  constructor(meta: IndexRecord, map: prolly.Map | undefined) {
+  constructor(meta: IndexRecord, map: BTree | undefined) {
     this.meta = meta;
     this._map = map;
   }
 
   async withMap<T>(
-    dagRead: dag.Read,
-    cb: (map: prolly.Map) => T | Promise<T>,
+    dagReadWrite: DagReadWrite,
+    cb: (map: BTree) => T | Promise<T>,
   ): Promise<T> {
     if (!this._map) {
       await this._rwLock.withWrite(async () => {
-        return (this._map = await prolly.Map.load(
-          this.meta.valueHash,
-          dagRead,
-        ));
+        return (this._map = this.createBTree(dagReadWrite));
       });
     }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return this._rwLock.withRead(() => cb(this._map!));
   }
 
+  abstract createBTree(dagReadWrite: DagReadWrite): BTree;
+}
+
+export class IndexRead extends Index<dag.Read, BTreeRead> {
+  constructor(meta: IndexRecord, map: BTreeRead | undefined) {
+    super(meta, map);
+  }
+
+  override createBTree(dagRead: dag.Read): BTreeRead {
+    return new BTreeRead(dagRead, this.meta.valueHash);
+  }
+}
+
+export class IndexWrite extends Index<dag.Write, BTreeWrite> {
+  constructor(meta: IndexRecord, map: BTreeWrite | undefined) {
+    super(meta, map);
+  }
+
+  override createBTree(dagWrite: dag.Write): BTreeWrite {
+    return new BTreeWrite(dagWrite, this.meta.valueHash);
+  }
+
   // Note: does not update self.meta.value_hash (doesn't need to at this point as flush
   // is only called during commit.)
-  flush(write: dag.Write): Promise<string> {
+  flush(): Promise<string> {
     return this._rwLock.withWrite(() => {
       if (this._map) {
-        return this._map.flush(write);
+        return this._map.flush();
       }
       return this.meta.valueHash;
     });
@@ -43,26 +62,26 @@ export class Index {
 
   clear(): Promise<void> {
     return this._rwLock.withWrite(() => {
-      this._map = new prolly.Map([]);
+      this._map?.clear();
     });
   }
 }
 
 // Index or de-index a single primary entry.
-export function indexValue(
-  index: prolly.Map,
+export async function indexValue(
+  index: BTreeWrite,
   op: IndexOperation,
   key: string,
   val: ReadonlyJSONValue,
   jsonPointer: string,
-): void {
+): Promise<void> {
   for (const entry of getIndexKeys(key, val, jsonPointer)) {
     switch (op) {
       case IndexOperation.Add:
-        index.put(entry, val);
+        await index.put(entry, val);
         break;
       case IndexOperation.Remove:
-        index.del(entry);
+        await index.del(entry);
         break;
     }
   }

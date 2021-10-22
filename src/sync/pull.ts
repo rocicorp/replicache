@@ -226,7 +226,7 @@ export async function maybeEndPull(
     }
     const mainSnapshot = await db.Commit.baseSnapshot(mainHeadHash, dagRead);
 
-    const meta = syncSnapshot.meta;
+    const {meta} = syncSnapshot;
     const syncSnapshotBasis = meta.basisHash;
     if (syncSnapshot === null) {
       throw new Error('Sync snapshot with no basis');

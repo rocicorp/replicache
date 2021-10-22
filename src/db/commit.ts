@@ -60,7 +60,7 @@ export class Commit<M extends Meta = Meta> {
   }
 
   get mutationID(): number {
-    const meta = this.meta;
+    const {meta} = this;
     switch (meta.type) {
       case MetaTyped.IndexChange:
       case MetaTyped.Snapshot:
@@ -101,8 +101,8 @@ export class Commit<M extends Meta = Meta> {
   static async baseSnapshot(hash: string, dagRead: dag.Read): Promise<Commit> {
     let commit = await Commit.fromHash(hash, dagRead);
     while (!commit.isSnapshot()) {
-      const meta = commit.meta;
-      const basisHash = meta.basisHash;
+      const {meta} = commit;
+      const {basisHash} = meta;
       if (basisHash === null) {
         throw new Error(`Commit ${commit.chunk.hash} has no basis`);
       }
@@ -133,8 +133,8 @@ export class Commit<M extends Meta = Meta> {
     let commit = await Commit.fromHash(fromCommitHash, dagRead);
     const commits = [];
     while (!commit.isSnapshot()) {
-      const meta = commit.meta;
-      const basisHash = meta.basisHash;
+      const {meta} = commit;
+      const {basisHash} = meta;
       if (basisHash === null) {
         throw new Error(`Commit ${commit.chunk.hash} has no basis`);
       }

@@ -147,8 +147,7 @@ testWithBothStores('put, get, has, del inside tx', async () => {
         tx: WriteTransaction,
         args: {key: string; value: JSONValue},
       ) => {
-        const key = args['key'];
-        const value = args['value'];
+        const {key, value} = args;
         await tx.put(key, value);
         expect(await tx.has(key)).to.equal(true);
         const v = await tx.get(key);

@@ -21,5 +21,16 @@ module.exports = {
     'no-var': 'error',
     'object-shorthand': 'error',
     'prefer-arrow-callback': 'error',
+    'prefer-destructuring': [
+      'error',
+      {
+        VariableDeclarator: {
+          object: true,
+        },
+      },
+      {
+        enforceForRenamedProperties: false,
+      },
+    ],
   },
 };

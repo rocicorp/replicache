@@ -101,6 +101,7 @@ test.skip('Test register param [type checking only]', async () => {
     },
   });
 
+  /* eslint-disable prefer-destructuring */
   const mut: () => Promise<void> = rep.mutate.mut;
   console.log(mut);
 
@@ -115,6 +116,7 @@ test.skip('Test register param [type checking only]', async () => {
   // This is fine according to the rules of JS/TS
   const mut4: (x: number) => Promise<void> = rep.mutate.mut4;
   console.log(mut4);
+  /* eslint-enable prefer-destructuring */
 
   new Replicache({
     name: 'test-types',

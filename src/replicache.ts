@@ -333,11 +333,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     await Promise.all([initHasher(), migrate(this._kvStore, this._lc)]);
 
-    const [clientID] = await Promise.all([
-      sync.initClientID(this._kvStore),
-      db.maybeInitDefaultDB(this._dagStore),
-    ]);
-    resolveClientID(clientID);
+    resolveClientID(await sync.initClientID(this._kvStore));
+    await db.maybeInitDefaultDB(this._dagStore);
 
     // Now we have both a clientID and DB!
     resolveReady();

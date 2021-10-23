@@ -142,6 +142,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private _online = true;
   private readonly _logger: Logger;
   private readonly _ready: Promise<void>;
+  private readonly _resolveReady: () => void;
   private readonly _clientIDPromise: Promise<string>;
   private _root: Promise<string | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
@@ -288,8 +289,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     // Use a promise-resolve pair so that we have a promise to use even before
     // we call the Open RPC.
-    const readyResolver = resolver<void>();
-    this._ready = readyResolver.promise;
+    const {promise, resolve} = resolver<void>();
+    this._ready = promise;
+    this._resolveReady = resolve;
 
     const {minDelayMs = MIN_DELAY_MS, maxDelayMs = MAX_DELAY_MS} =
       requestOptions;
@@ -317,31 +319,23 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     this._lc = new LogContext(logLevel).addContext('db', name);
 
-    const clientIDResolver = resolver<string>();
-    this._clientIDPromise = clientIDResolver.promise;
-
-    void this._open(clientIDResolver.resolve, readyResolver.resolve);
+    this._clientIDPromise = this._open();
   }
 
-  private async _open(
-    resolveClientID: (clientID: string) => void,
-    resolveReady: () => void,
-  ): Promise<void> {
+  private async _open(): Promise<string> {
     // If we are currently closing a Replicache instance with the same name,
     // wait for it to finish closing.
     await closingInstances.get(this.name);
 
     await Promise.all([initHasher(), migrate(this._kvStore, this._lc)]);
 
-    await Promise.all([
-      sync.initClientID(this._kvStore).then(clientID => {
-        resolveClientID(clientID);
-      }),
+    const [clientID] = await Promise.all([
+      sync.initClientID(this._kvStore),
       db.maybeInitDefaultDB(this._dagStore),
     ]);
 
     // Now we have both a clientID and DB!
-    resolveReady();
+    this._resolveReady();
 
     if (hasBroadcastChannel) {
       this._broadcastChannel = new BroadcastChannel(storageKeyName(this.name));
@@ -355,6 +349,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     this.pull();
     this._push();
+    return clientID;
   }
 
   /**
@@ -578,14 +573,13 @@ export class Replicache<MD extends MutatorDefs = {}> {
     f: (tx: IndexTransactionImpl) => Promise<void>,
   ): Promise<void> {
     await this._ready;
-    // clientID must be awaited ouside dag transaction to avoid a premature
-    // auto-commit of the idb transaction.
-    const clientID = await this._clientIDPromise;
     await this._dagStore.withWrite(async dagWrite => {
+      const clientID = await this._clientIDPromise;
       const dbWrite = await db.Write.newIndexChange(
         db.whenceHead(db.DEFAULT_HEAD_NAME),
         dagWrite,
       );
+
       const tx = new IndexTransactionImpl(clientID, dbWrite, this._lc);
       await f(tx);
       await tx.commit();
@@ -989,11 +983,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
     await this._ready;
-    // clientID must be awaited ouside dag transaction to avoid a premature
-    // auto-commit of the idb transaction.
-    const clientID = await this._clientIDPromise;
     return await this._dagStore.withRead(async dagRead => {
       const dbRead = await db.readFromDefaultHead(dagRead);
+      const clientID = await this._clientIDPromise;
       const tx = new ReadTransactionImpl(clientID, dbRead, this._lc);
       return await body(tx);
     });
@@ -1077,9 +1069,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
 
     await this._ready;
-    // clientID must be awaited ouside dag transaction to avoid a premature
-    // auto-commit of the idb transaction.
-    const clientID = await this._clientIDPromise;
     return await this._dagStore.withWrite(async dagWrite => {
       let whence: db.Whence | undefined;
       let originalHash: string | null = null;
@@ -1091,6 +1080,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         originalHash = rebaseOpts.original;
       }
 
+      const clientID = await this._clientIDPromise;
       const dbWrite = await db.Write.newLocal(
         whence,
         name,

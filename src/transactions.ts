@@ -16,8 +16,6 @@ import type {LogContext} from './logger';
  * database.
  */
 export interface ReadTransaction {
-  readonly clientID: string;
-
   /**
    * Get a single value from the database. If the `key` is not present this
    * returns `undefined`.
@@ -67,17 +65,14 @@ export class ReadTransactionImpl<
   Value extends ReadonlyJSONValue = ReadonlyJSONValue,
 > implements ReadTransaction
 {
-  readonly clientID: string;
   protected readonly _dbtx: db.Read;
   protected readonly _lc: LogContext;
 
   constructor(
-    clientID: string,
     dbRead: db.Read,
     lc: LogContext,
     rpcName = 'openReadTransaction',
   ) {
-    this.clientID = clientID;
     this._dbtx = dbRead;
     this._lc = lc
       .addContext('rpc', rpcName)
@@ -125,10 +120,6 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
 
   constructor(tx: ReadTransaction) {
     this._tx = tx;
-  }
-
-  get clientID(): string {
-    return this._tx.clientID;
   }
 
   isEmpty(): Promise<boolean> {
@@ -203,12 +194,11 @@ export class WriteTransactionImpl
   protected declare readonly _dbtx: db.Write;
 
   constructor(
-    clientID: string,
     dbWrite: db.Write,
     lc: LogContext,
     rpcName = 'openWriteTransaction',
   ) {
-    super(clientID, dbWrite, lc, rpcName);
+    super(dbWrite, lc, rpcName);
   }
 
   async put(key: string, value: JSONValue): Promise<void> {
@@ -286,8 +276,8 @@ export class IndexTransactionImpl
   extends WriteTransactionImpl
   implements IndexTransaction
 {
-  constructor(clientID: string, dbWrite: db.Write, lc: LogContext) {
-    super(clientID, dbWrite, lc, 'openIndexTransaction');
+  constructor(dbWrite: db.Write, lc: LogContext) {
+    super(dbWrite, lc, 'openIndexTransaction');
   }
 
   async createIndex(options: CreateIndexDefinition): Promise<void> {

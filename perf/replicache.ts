@@ -174,8 +174,6 @@ export function benchmarkWriteSubRead(opts: {
   const numKeys = keysPerSub * numSubsTotal;
   const cacheSizeMB = (numKeys * valueSize) / 1024 / 1024;
   const kbReadPerSub = (keysWatchedPerSub * valueSize) / 1024;
-
-  const data = Array.from({length: numKeys}).map(() => randomObject(valueSize));
   const key = (k: number) => `key${k}`;
 
   return {
@@ -184,6 +182,9 @@ export function benchmarkWriteSubRead(opts: {
     }writeSubRead ${cacheSizeMB}MB total, ${numSubsTotal} subs total, ${numSubsDirty} subs dirty, ${kbReadPerSub}kb read per sub`,
     group: 'replicache',
     async run(bencher: Bencher) {
+      const data = Array.from({length: numKeys}).map(() =>
+        randomObject(valueSize),
+      );
       const rep = await makeRep({
         useMemstore: opts.useMemstore,
         mutators: {

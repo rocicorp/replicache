@@ -25,10 +25,10 @@ function randomDatum(type: RandomDataType, len: number): RandomDatum {
   }
 }
 
-function randomObject(len: number): Record<string, string> {
+export function randomObject(len: number): Record<string, string> {
   const ret: Record<string, string> = {};
-  for (let i = 0; i < Math.min(100, len); i++) {
-    ret[`k${i}`] = randomString(Math.ceil(len / 100));
+  for (let i = 0; i < Math.min(16, len); i++) {
+    ret[`k${i}`] = randomString(Math.ceil(len / 16));
   }
   return ret;
 }

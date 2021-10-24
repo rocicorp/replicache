@@ -1,16 +1,13 @@
 const valSize = 1024;
 
 import {
-  JSONValue,
   MutatorDefs,
-  ReadonlyJSONValue,
   ReadTransaction,
   Replicache,
   ReplicacheOptions,
   WriteTransaction,
 } from '../src/mod';
-import {resolver} from '../src/resolver';
-import {makeRandomStrings} from './data';
+import {makeRandomStrings, randomString} from './data';
 import type {Bencher, Benchmark} from './perf';
 
 type Truthy<T> = T extends null | undefined | false | '' | 0 ? never : T;
@@ -155,143 +152,107 @@ export function benchmarkCreateIndex(opts: {
   };
 }
 
-export function benchmarkWriteReadRoundTrip(opts: {
-  useMemstore: boolean;
-}): Benchmark {
-  let key: string;
-  let value: number;
-  const mutators = {
-    write: (tx: WriteTransaction) => tx.put(key, value),
-  };
-  let rep: Replicache<typeof mutators>;
-  return {
-    name: `${
-      opts.useMemstore ? '[MemStore] ' : ''
-    }roundtrip write/subscribe/get`,
-    group: 'replicache',
-    async setup() {
-      rep = await makeRep({
-        useMemstore: opts.useMemstore,
-        mutators,
-      });
-    },
-    async teardown() {
-      await rep.close();
-    },
-
-    async run(bench: Bencher, i: number) {
-      key = `k${i}`;
-      value = i;
-      let {promise, resolve} = resolver<ReadonlyJSONValue | undefined>();
-      const unsubscribe = rep.subscribe((tx: ReadTransaction) => tx.get(key), {
-        onData(res: ReadonlyJSONValue | undefined) {
-          // `resolve` binding needs to be looked up on every iteration
-          resolve(res);
-        },
-      });
-      // onData is called once when calling subscribe
-      await promise;
-
-      // reset these.
-      ({promise, resolve} = resolver());
-
-      await rep.mutate.write();
-
-      const res = await promise;
-      if (res !== value) {
-        throw new Error();
-      }
-
-      bench.stop();
-      unsubscribe();
-    },
-  };
-}
-
 export function sleep(ms: number): Promise<void> {
   return new Promise<void>(resolve => {
     setTimeout(() => resolve(), ms);
   });
 }
 
-export function benchmarkSubscribe(opts: {
-  count: number;
+// goal: 95% of writes/sub/read cycle complete in <1ms with 100 active subscriptions, 5 of which are dirty, which each read 10KB > each, while there is 100MB of data in Replicache.
+export function benchmarkWriteSubRead(opts: {
+  valueSize: number;
+  numSubsTotal: number;
+  keysPerSub: number;
+  keysWatchedPerSub: number;
+  numSubsDirty: number;
   useMemstore: boolean;
 }): Benchmark {
-  // Number of subscriptions to create
-  const {count} = opts;
+  const {valueSize, numSubsTotal, keysPerSub, keysWatchedPerSub, numSubsDirty} =
+    opts;
 
-  const maxCount = 1000;
-  const minCount = 10;
+  const numKeys = keysPerSub * numSubsTotal;
+  const cacheSizeMB = (numKeys * valueSize) / 1024 / 1024;
+  const kbReadPerSub = (keysWatchedPerSub * valueSize) / 1024;
 
+  const data = Array.from({length: numKeys}).map(() => randomString(valueSize));
   const key = (k: number) => `key${k}`;
-  if (count > maxCount) {
-    throw new Error('Please increase maxCount');
-  }
+
   return {
-    name: `${opts.useMemstore ? '[MemStore] ' : ''}subscription ${count}`,
+    name: `${
+      opts.useMemstore ? '[MemStore] ' : ''
+    }writeSubRead ${cacheSizeMB}MB total, ${numSubsTotal} subs total, ${numSubsDirty} subs dirty, ${kbReadPerSub}kb read per sub`,
     group: 'replicache',
     async run(bencher: Bencher) {
       const rep = await makeRep({
         useMemstore: opts.useMemstore,
         mutators: {
+          // Create `numKeys` key/value pairs, each holding `valueSize` data
           async init(tx: WriteTransaction) {
-            await Promise.all(
-              Array.from({length: maxCount}, (_, i) => tx.put(key(i), i)),
-            );
+            for (let i = 0; i < numKeys; i++) {
+              await tx.put(key(i), data[i]);
+            }
           },
-          async put(
-            tx: WriteTransaction,
-            options: {key: string; val: JSONValue},
-          ) {
-            await tx.put(options.key, options.val);
+          // For each random data item provided, invalidate a different subscription by writing to the first key it is scanning.
+          async invalidate(tx: WriteTransaction, randomData: string[]) {
+            for (const [i, val] of randomData.entries()) {
+              const keyToChange = key(i * keysPerSub);
+              await tx.put(keyToChange, val);
+            }
           },
         },
       });
 
-      // We create `count` key/value pairs
       await rep.mutate.init();
-      const data = Array.from({length: count}).fill(0);
       let onDataCallCount = 0;
-      // Create a subscription for each
-      const subs = Array.from({length: count}, (_, i) =>
-        rep.subscribe((/** @type {ReadTransaction} */ tx) => tx.get(key(i)), {
-          onData(/** @type {JSONValue} */ v) {
-            onDataCallCount++;
-            data[i] = v;
+
+      const subs = Array.from({length: numSubsTotal}, (_, i) =>
+        rep.subscribe(
+          async tx => {
+            const start = i * keysPerSub;
+            return await tx
+              .scan({
+                start: {key: key(start)},
+                limit: keysWatchedPerSub,
+              })
+              .toArray();
           },
-        }),
+          {
+            onData(v) {
+              onDataCallCount++;
+              const vals = v as string[];
+              for (const [j, val] of vals.entries()) {
+                data[i * keysPerSub + j] = val as unknown as string;
+              }
+            },
+          },
+        ),
       );
 
       // We need to wait until all the initial async onData have been called.
-      while (onDataCallCount !== count) {
+      while (onDataCallCount !== numSubsTotal) {
         await sleep(10);
       }
 
-      // The number of mutations to do. These should each trigger one
-      // subscription. The goal of this test is to ensure that we are only
-      // paying the runtime cost of subscriptions that are affected by the
-      // changes.
-      const mut = 10;
-      if (mut < minCount) {
-        throw new Error('Please decrease minCount');
+      // Build our random data ahead of time, outside the timed window.
+      const changes = [];
+      for (let i = 0; i < numSubsDirty; i++) {
+        changes.push(randomString(valueSize));
       }
-      const rand = Math.random();
 
+      // OK time the below!
       bencher.reset();
 
-      // Mutate only 10 keys
-      for (let i = 0; i < mut; i++) {
-        await rep.mutate.put({key: key(i), val: i ** 2 + rand});
-      }
+      // In a single transaction, invalidate numSubsDirty subscriptions.
+      await rep.mutate.invalidate(changes);
 
       bencher.stop();
 
       subs.forEach(c => c());
 
-      assert(onDataCallCount === count + mut);
-      for (let i = 0; i < count; i++) {
-        assert(data[i] === (i < mut ? i ** 2 + rand : i));
+      assert(onDataCallCount === numSubsTotal + numSubsDirty);
+      for (const [i, val] of changes.entries()) {
+        const keyChanged = i * keysPerSub;
+        assert(data[keyChanged] === val);
       }
 
       await rep.close();
@@ -352,15 +313,36 @@ export function benchmarks(): Benchmark[] {
     benchmarkReadTransaction({numKeys: 5000, useMemstore}),
     benchmarkScan({numKeys: 1000, useMemstore}),
     benchmarkScan({numKeys: 5000, useMemstore}),
-    benchmarkWriteReadRoundTrip({useMemstore}),
     benchmarkCreateIndex({numKeys: 1000, useMemstore}),
     benchmarkCreateIndex({numKeys: 5000, useMemstore}),
-    benchmarkSubscribe({count: 10, useMemstore}),
-    benchmarkSubscribe({count: 100, useMemstore}),
-    benchmarkSubscribe({count: 1000, useMemstore}),
-    benchmarkSubscribeSetup({count: 10, useMemstore}),
-    benchmarkSubscribeSetup({count: 100, useMemstore}),
-    benchmarkSubscribeSetup({count: 1000, useMemstore}),
+    // write/sub/read 1mb
+    benchmarkWriteSubRead({
+      valueSize: 1024,
+      numSubsTotal: 64,
+      keysPerSub: 16,
+      keysWatchedPerSub: 16,
+      numSubsDirty: 5,
+      useMemstore,
+    }),
+    // write/sub/read 4mb
+    benchmarkWriteSubRead({
+      valueSize: 1024,
+      numSubsTotal: 128,
+      keysPerSub: 32,
+      keysWatchedPerSub: 16,
+      numSubsDirty: 5,
+      useMemstore,
+    }),
+    // write/sub/read 16mb
+    benchmarkWriteSubRead({
+      valueSize: 1024,
+      numSubsTotal: 128,
+      keysPerSub: 128,
+      keysWatchedPerSub: 16,
+      numSubsDirty: 5,
+      useMemstore,
+    }),
+    // 128 mb is unusable
   ];
   return [...bs(false), ...bs(true)];
 }

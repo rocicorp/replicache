@@ -1,5 +1,6 @@
 const valSize = 1024;
 
+import {deepEqual} from '../src/json';
 import {
   MutatorDefs,
   ReadTransaction,
@@ -7,7 +8,7 @@ import {
   ReplicacheOptions,
   WriteTransaction,
 } from '../src/mod';
-import {makeRandomStrings, randomString} from './data';
+import {makeRandomStrings, randomObject} from './data';
 import type {Bencher, Benchmark} from './perf';
 
 type Truthy<T> = T extends null | undefined | false | '' | 0 ? never : T;
@@ -174,7 +175,7 @@ export function benchmarkWriteSubRead(opts: {
   const cacheSizeMB = (numKeys * valueSize) / 1024 / 1024;
   const kbReadPerSub = (keysWatchedPerSub * valueSize) / 1024;
 
-  const data = Array.from({length: numKeys}).map(() => randomString(valueSize));
+  const data = Array.from({length: numKeys}).map(() => randomObject(valueSize));
   const key = (k: number) => `key${k}`;
 
   return {
@@ -193,7 +194,10 @@ export function benchmarkWriteSubRead(opts: {
             }
           },
           // For each random data item provided, invalidate a different subscription by writing to the first key it is scanning.
-          async invalidate(tx: WriteTransaction, randomData: string[]) {
+          async invalidate(
+            tx: WriteTransaction,
+            randomData: Record<string, string>[],
+          ) {
             for (const [i, val] of randomData.entries()) {
               const keyToChange = key(i * keysPerSub);
               await tx.put(keyToChange, val);
@@ -221,7 +225,10 @@ export function benchmarkWriteSubRead(opts: {
               onDataCallCount++;
               const vals = v as string[];
               for (const [j, val] of vals.entries()) {
-                data[i * keysPerSub + j] = val as unknown as string;
+                data[i * keysPerSub + j] = val as unknown as Record<
+                  string,
+                  string
+                >;
               }
             },
           },
@@ -236,7 +243,7 @@ export function benchmarkWriteSubRead(opts: {
       // Build our random data ahead of time, outside the timed window.
       const changes = [];
       for (let i = 0; i < numSubsDirty; i++) {
-        changes.push(randomString(valueSize));
+        changes.push(randomObject(valueSize));
       }
 
       // OK time the below!
@@ -252,7 +259,7 @@ export function benchmarkWriteSubRead(opts: {
       assert(onDataCallCount === numSubsTotal + numSubsDirty);
       for (const [i, val] of changes.entries()) {
         const keyChanged = i * keysPerSub;
-        assert(data[keyChanged] === val);
+        assert(deepEqual(data[keyChanged], val));
       }
 
       await rep.close();

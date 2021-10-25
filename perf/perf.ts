@@ -40,21 +40,27 @@ async function runBenchmark(
   }
 
   for (let i = 0; i < minRuns || sum < minTime; i++) {
-    let t0 = performance.now();
+    let t0 = 0;
     let t1 = 0;
+    const reset = () => {
+      performance.mark('mark-' + i);
+      t0 = performance.now();
+    };
+    const stop = () => {
+      t1 = performance.now();
+      performance.measure(benchmark.name, 'mark-' + i);
+    };
+    reset();
+
     await benchmark.run(
       {
-        reset() {
-          t0 = performance.now();
-        },
-        stop() {
-          t1 = performance.now();
-        },
+        reset,
+        stop,
       },
       i,
     );
     if (t1 === 0) {
-      t1 = performance.now();
+      stop();
     }
     const dur = t1 - t0;
     times.push(dur);

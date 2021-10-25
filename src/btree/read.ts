@@ -15,8 +15,6 @@ import {
   DiffResult,
   DiffResultOp,
   ReadonlyEntry,
-  NodeType,
-  InternalNode,
 } from './node';
 import {getSizeOfValue, NODE_HEADER_SIZE} from './get-size-of-value';
 import {
@@ -64,9 +62,8 @@ export class BTreeRead {
     }
     const {data} = chunk;
     assertBTreeNode(data);
-    const {t: type, e: entries} = data;
-    const level = type === NodeType.Internal ? (data as InternalNode).d : 0;
-    const impl = newNodeImpl(type, entries, hash, level);
+    const {l: level, e: entries} = data;
+    const impl = newNodeImpl(entries, hash, level);
     this._cache.set(hash, impl);
     return impl;
   }

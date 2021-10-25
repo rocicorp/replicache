@@ -17,23 +17,13 @@ export type Entry<V> = [key: string, value: V];
 export type ReadonlyEntry<V> = readonly [key: string, value: V];
 
 type BaseNode<V> = {
+  readonly l: number;
   readonly e: ReadonlyArray<Entry<V>>;
 };
 
-export const enum NodeType {
-  Data,
-  Internal,
-}
+export type InternalNode = BaseNode<Hash>;
 
-// TODO(arv): No need for type. The depth/level alone is enough
-export type InternalNode = BaseNode<Hash> & {
-  readonly t: NodeType.Internal;
-  readonly d: number;
-};
-
-export type DataNode = BaseNode<ReadonlyJSONValue> & {
-  readonly t: NodeType.Data;
-};
+export type DataNode = BaseNode<ReadonlyJSONValue>;
 
 export type BTreeNode = InternalNode | DataNode;
 
@@ -71,8 +61,8 @@ export async function findLeaf(
   source: BTreeRead,
 ): Promise<DataNodeImpl> {
   const node = await source.getNode(hash);
-  if (node.type === NodeType.Data) {
-    return node;
+  if (node.level === 0) {
+    return node as DataNodeImpl;
   }
   const internalNode = node as InternalNodeImpl;
   let index = binarySearch(key, internalNode.entries);
@@ -130,7 +120,7 @@ export function binarySearch<V>(
 
 export function assertBTreeNode(v: unknown): asserts v is BTreeNode {
   assertObject(v);
-  assertNumber(v.t);
+  assertNumber(v.l);
 
   function assertEntry(
     v: unknown,
@@ -144,27 +134,19 @@ export function assertBTreeNode(v: unknown): asserts v is BTreeNode {
   }
 
   assertArray(v.e);
-  if (v.t === NodeType.Internal) {
-    assertNumber(v.d);
-    assert(v.d > 0);
+  if (v.l > 0) {
     v.e.forEach(e => assertEntry(e, assertString));
-  } else if (v.t === NodeType.Data) {
-    v.e.forEach(e => assertEntry(e, assertJSONValue));
   } else {
-    throw new Error('invalid type');
+    v.e.forEach(e => assertEntry(e, assertJSONValue));
   }
 }
 
-abstract class NodeImpl<
-  Value extends Hash | ReadonlyJSONValue,
-  Type extends NodeType.Data | NodeType.Internal,
-> {
+abstract class NodeImpl<Value extends Hash | ReadonlyJSONValue> {
   readonly entries: ReadonlyArray<Entry<Value>>;
-  readonly type: Type;
   readonly hash: Hash;
+  abstract readonly level: number;
 
-  constructor(type: Type, entries: ReadonlyArray<Entry<Value>>, hash: Hash) {
-    this.type = type;
+  constructor(entries: ReadonlyArray<Entry<Value>>, hash: Hash) {
     this.entries = entries;
     this.hash = hash;
   }
@@ -173,29 +155,27 @@ abstract class NodeImpl<
     key: string,
     value: Value,
     tree: BTreeWrite,
-  ): Promise<NodeImpl<Value, Type>>;
+  ): Promise<NodeImpl<Value>>;
 
   abstract del(
     key: string,
     tree: BTreeWrite,
-  ): Promise<NodeImpl<Value, Type> | DataNodeImpl>;
+  ): Promise<NodeImpl<Value> | DataNodeImpl>;
 
   maxKey(): string {
     return this.entries[this.entries.length - 1][0];
   }
 
-  abstract toChunkData(): DataNode | InternalNode;
+  toChunkData(): DataNode | InternalNode {
+    return {l: this.level, e: this.entries};
+  }
 }
 
-export class DataNodeImpl extends NodeImpl<ReadonlyJSONValue, NodeType.Data> {
+export class DataNodeImpl extends NodeImpl<ReadonlyJSONValue> {
   readonly level = 0;
 
   constructor(entries: ReadonlyArray<Entry<ReadonlyJSONValue>>, hash: Hash) {
-    super(NodeType.Data, entries, hash);
-  }
-
-  toChunkData(): DataNode {
-    return {t: NodeType.Data, e: this.entries};
+    super(entries, hash);
   }
 
   async set(
@@ -286,16 +266,12 @@ function* joinIterables<T>(...iters: Iterable<T>[]) {
   }
 }
 
-export class InternalNodeImpl extends NodeImpl<Hash, NodeType.Internal> {
+export class InternalNodeImpl extends NodeImpl<Hash> {
   readonly level: number;
 
   constructor(entries: ReadonlyArray<Entry<Hash>>, hash: Hash, level: number) {
-    super(NodeType.Internal, entries, hash);
+    super(entries, hash);
     this.level = level;
-  }
-
-  toChunkData(): InternalNode {
-    return {t: NodeType.Internal, e: this.entries, d: this.level};
   }
 
   async set(
@@ -511,38 +487,33 @@ async function mergeAndPartition(
   // TODO: There are cases where we can reuse the old nodes. Creating new ones
   // means more memory churn but also more writes to the underlying KV store.
   const newEntries = partitions.map(entries => {
-    const node = tree.newNodeImpl(childNode.type, entries, level);
+    const node = tree.newNodeImpl(entries, level);
     return [node.maxKey(), node.hash] as Entry<Hash>;
   });
   return readonlySplice(entries, startIndex, removeCount, ...newEntries);
 }
 
 export function newNodeImpl(
-  type: NodeType.Data,
   entries: ReadonlyArray<Entry<ReadonlyJSONValue>>,
   hash: Hash,
   level: number,
 ): DataNodeImpl;
 export function newNodeImpl(
-  type: NodeType.Internal,
   entries: ReadonlyArray<Entry<Hash>>,
   hash: Hash,
   level: number,
 ): InternalNodeImpl;
 export function newNodeImpl(
-  type: NodeType.Data | NodeType.Internal,
   entries: ReadonlyArray<Entry<ReadonlyJSONValue>> | ReadonlyArray<Entry<Hash>>,
   hash: Hash,
   level: number,
 ): DataNodeImpl | InternalNodeImpl;
 export function newNodeImpl(
-  type: NodeType.Data | NodeType.Internal,
   entries: ReadonlyArray<Entry<ReadonlyJSONValue>> | ReadonlyArray<Entry<Hash>>,
   hash: Hash,
   level: number,
 ): DataNodeImpl | InternalNodeImpl {
-  if (type === NodeType.Data) {
-    assert(level === 0);
+  if (level === 0) {
     return new DataNodeImpl(entries, hash);
   }
   return new InternalNodeImpl(entries as Entry<Hash>[], hash, level);

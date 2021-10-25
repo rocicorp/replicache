@@ -1,3 +1,4 @@
+import {SIZEOF_INT} from 'flatbuffers';
 import type {ReadonlyJSONObject, ReadonlyJSONValue} from '../json';
 import type {Entry} from './node';
 
@@ -9,12 +10,13 @@ const SIZE_DOUBLE = 8;
  * Chromium/V8's structuredClone algorithm. It does not match exactly so the
  * size is just an approximation.
  * https://source.chromium.org/chromium/chromium/src/+/main:v8/src/objects/value-serializer.cc;l=102;drc=f0b6f7d12ea47ad7c08fb554f678c1e73801ca36;bpv=1;bpt=1
+ * For example we follow JSC/Mozilla for ints and skip the varint encoding.
  *
  * Mozilla does things similarly. Main difference is that there is no varint
  * encoding and every value uses multiples of 64bits
  * https://searchfox.org/mozilla-central/source/js/src/vm/StructuredClone.cpp#94
  *
- * And JS:
+ * And JSC:
  * https://github.com/WebKit/WebKit/blob/main/Source/WebCore/bindings/js/SerializedScriptValue.cpp#L356
  * - Use 1 byte tag
  * - Numbers are either stored as Int32 or Float6
@@ -25,13 +27,13 @@ export function getSizeOfValue(value: ReadonlyJSONValue): number {
       // Assumes all strings are one byte strings. V8 writes OneByteString and
       // TwoByteString. We could check the string but it would require iterating
       // over all the characters.
-      return SIZE_TAG + sizeOfVarInt(value.length) + value.length;
+      return SIZE_TAG + SIZEOF_INT + value.length;
     case 'number':
       if (isSmi(value)) {
         if (value <= -(2 ** 30) || value >= 2 ** 30 - 1) {
           return SIZE_TAG + 5;
         }
-        return SIZE_TAG + sizeOfVarInt(zigZagEncode(value));
+        return SIZE_TAG + SIZEOF_INT;
       }
       return SIZE_TAG + SIZE_DOUBLE;
     case 'boolean':
@@ -42,7 +44,7 @@ export function getSizeOfValue(value: ReadonlyJSONValue): number {
       }
 
       if (Array.isArray(value)) {
-        let sum = 2 * SIZE_TAG + sizeOfVarInt(value.length);
+        let sum = 2 * SIZE_TAG + SIZEOF_INT;
         for (const element of value) {
           sum += getSizeOfValue(element);
         }
@@ -59,30 +61,11 @@ export function getSizeOfValue(value: ReadonlyJSONValue): number {
             sum += getSizeOfValue(k) + getSizeOfValue(v);
           }
         }
-        return sum + sizeOfVarInt(keys.length) + SIZE_TAG;
+        return sum + SIZEOF_INT + SIZE_TAG;
       }
   }
 
   throw new Error('invalid value');
-}
-
-export function zigZagEncode(n: number): number {
-  // Assumes this is not called with non smis
-  return (n << 1) ^ (n >> 31);
-}
-
-export function sizeOfVarInt(n: number): number {
-  if (n >= 1 << 28) {
-    return 5;
-  }
-
-  for (let i = 1; i < 5; i++) {
-    if (n < 1 << (7 * i)) {
-      return i;
-    }
-  }
-
-  throw new Error('unreachable');
 }
 
 function isSmi(value: number): boolean {
@@ -98,9 +81,9 @@ export function getSizeOfNode(
 }
 
 /**
- * The size of the header of a node. This is computed as (if we had compile time
- * constants) we would have used that).
+ * The size of the header of a node. (If we had compile time
+ * constants we would have used that).
  *
  * There is a test ensuring this is correct.
  */
-export const NODE_HEADER_SIZE = 11;
+export const NODE_HEADER_SIZE = 23;

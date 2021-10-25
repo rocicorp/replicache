@@ -8,7 +8,6 @@ import {
   InternalNodeImpl,
   Entry,
   newTempHash,
-  NodeType,
   newNodeImpl,
   partition,
   assertNotTempHash,
@@ -68,27 +67,17 @@ export class BTreeWrite extends BTreeRead {
     return n;
   }
 
+  newNodeImpl(entries: Entry<ReadonlyJSONValue>[], level: number): DataNodeImpl;
+  newNodeImpl(entries: Entry<Hash>[], level: number): InternalNodeImpl;
   newNodeImpl(
-    type: NodeType.Data,
-    entries: Entry<ReadonlyJSONValue>[],
-    level: number,
-  ): DataNodeImpl;
-  newNodeImpl(
-    type: NodeType.Internal,
-    entries: Entry<Hash>[],
-    level: number,
-  ): InternalNodeImpl;
-  newNodeImpl(
-    type: NodeType,
     entries: Entry<Hash>[] | Entry<ReadonlyJSONValue>[],
     level: number,
   ): InternalNodeImpl | DataNodeImpl;
   newNodeImpl(
-    type: NodeType,
     entries: Entry<Hash>[] | Entry<ReadonlyJSONValue>[],
-    lebvel: number,
+    level: number,
   ): InternalNodeImpl | DataNodeImpl {
-    const n = newNodeImpl(type, entries, newTempHash(), lebvel);
+    const n = newNodeImpl(entries, newTempHash(), level);
     this._addToModified(n);
     return n;
   }
@@ -154,7 +143,7 @@ export class BTreeWrite extends BTreeRead {
         );
         const {level} = rootNode;
         const entries: Entry<Hash>[] = partitions.map(entries => {
-          const node = this.newNodeImpl(rootNode.type, entries, level);
+          const node = this.newNodeImpl(entries, level);
           return [node.maxKey(), node.hash];
         });
         const newRoot = this.newInternalNodeImpl(entries, level + 1);
@@ -177,11 +166,8 @@ export class BTreeWrite extends BTreeRead {
       if (found) {
         // TODO(arv): Should we restore back to emptyHash if empty?
         // Flatten one layer.
-        if (
-          newRootNode.type === NodeType.Internal &&
-          newRootNode.entries.length === 1
-        ) {
-          this.rootHash = newRootNode.entries[0][1];
+        if (newRootNode.level > 0 && newRootNode.entries.length === 1) {
+          this.rootHash = (newRootNode as InternalNodeImpl).entries[0][1];
         } else {
           this.rootHash = newRootNode.hash;
         }
@@ -206,7 +192,7 @@ export class BTreeWrite extends BTreeRead {
         // Not modified, use the original.
         return hash;
       }
-      if (node.type === NodeType.Data) {
+      if (node.level === 0) {
         const chunk = dag.Chunk.new(node.toChunkData(), []);
         newChunks.push(chunk);
         return chunk.hash;

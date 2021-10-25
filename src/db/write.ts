@@ -275,11 +275,6 @@ export class Write extends Read {
     generateChangedKeys: boolean,
   ): Promise<[string, ChangedKeysMap]> {
     const valueHash = await this.map.flush();
-
-    // const valueChangedKeys = generateChangedKeys
-    //   ? this.map.pendingChangedKeys()
-    //   : [];
-
     const valueChangedKeys: string[] = [];
     if (generateChangedKeys && this._basis) {
       const basisMap = new BTreeRead(this._dagWrite, this._basis.valueHash);
@@ -315,9 +310,6 @@ export class Write extends Read {
         },
       );
 
-      // const indexChangedKeys = await index.withMap(this._dagWrite, map =>
-      //   map.pendingChangedKeys(),
-      // );
       if (indexChangedKeys.length > 0) {
         keyChanges.set(name, indexChangedKeys);
       }

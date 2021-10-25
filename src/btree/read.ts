@@ -18,7 +18,7 @@ import {
 } from './node';
 import {getSizeOfValue, NODE_HEADER_SIZE} from './get-size-of-value';
 import {
-  computeSplice,
+  computeSplices,
   SPLICE_ADDED,
   SPLICE_AT,
   SPLICE_FROM,
@@ -174,7 +174,7 @@ async function* diffNodes(
   // Now we have two internal nodes with the same level. We compute the diff as
   // splices for the internal node entries. We then flatten these and call diff
   // recursively.
-  const initialSplices = computeSplice(last.entries, current.entries);
+  const initialSplices = computeSplices(last.entries, current.entries);
   for (const splice of initialSplices) {
     const [lastChild, currentChild] = await Promise.all([
       (last as InternalNodeImpl).getCompositeChildren(

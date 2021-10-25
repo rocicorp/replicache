@@ -1,5 +1,5 @@
 import {expect} from '@esm-bundle/chai';
-import {computeSplice, Splice} from './splice';
+import {computeSplices, Splice} from './splice';
 import type {ReadonlyEntry} from './node';
 
 test('splice', () => {
@@ -8,7 +8,7 @@ test('splice', () => {
     current: ReadonlyEntry<T>[],
     expected: Splice[],
   ) => {
-    expect([...computeSplice(previous, current)]).to.deep.equal(expected);
+    expect([...computeSplices(previous, current)]).to.deep.equal(expected);
   };
 
   t([['a', 0]], [['a', 0]], []);
@@ -234,7 +234,7 @@ test('splice roundtrip', () => {
   ) => {
     const current = arr.slice();
     current.splice(start, deleteCount, ...items);
-    const res = [...computeSplice(arr, current)];
+    const res = [...computeSplices(arr, current)];
     const expected: Splice[] = [
       [start, deleteCount, items.length, items.length === 0 ? 0 : start],
     ];

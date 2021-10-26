@@ -2,7 +2,7 @@
 
 import * as flatbuffers from 'flatbuffers';
 
-import {LeafEntry} from '../leaf/leaf-entry';
+import {LeafEntry} from './leaf-entry';
 
 export class Leaf {
   bb: flatbuffers.ByteBuffer | null = null;

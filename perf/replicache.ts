@@ -1,6 +1,7 @@
 const valSize = 1024;
 
 import {deepEqual} from '../src/json';
+import {assert} from '../src/asserts';
 import {
   MutatorDefs,
   ReadTransaction,
@@ -10,14 +11,6 @@ import {
 } from '../src/mod';
 import {makeRandomStrings, randomObject} from './data';
 import type {Bencher, Benchmark} from './perf';
-
-type Truthy<T> = T extends null | undefined | false | '' | 0 ? never : T;
-
-export function assert<T>(b: T): asserts b is Truthy<T> {
-  if (!b) {
-    throw new Error('Assertion failed');
-  }
-}
 
 export function benchmarkPopulate(opts: {
   numKeys: number;

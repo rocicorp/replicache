@@ -3,12 +3,13 @@ import {assertNotUndefined} from '../asserts';
 import * as dag from '../dag/mod';
 import {MemStore} from '../kv/mod';
 import {DEFAULT_HEAD_NAME} from './commit';
-import {readCommit, readIndexes, whenceHead} from './read';
+import {readCommit, readIndexesForRead, whenceHead} from './read';
 import {initDB, Write} from './write';
-import * as prolly from '../prolly/mod';
 import {encodeIndexKey} from './index';
 import {LogContext} from '../logger';
 import {initHasher} from '../hash';
+import {asyncIterableToArray} from '../async-iterable-to-array';
+import {BTreeRead} from '../btree/mod';
 
 setup(async () => {
   await initHasher();
@@ -30,7 +31,7 @@ test('basics', async () => {
     );
     await w.put(lc, 'foo', 'bar');
     // Assert we can read the same value from within this transaction.;
-    const val = w.get('foo');
+    const val = await w.get('foo');
     expect(val).to.deep.equal('bar');
     await w.commit(DEFAULT_HEAD_NAME);
   });
@@ -44,7 +45,7 @@ test('basics', async () => {
       null,
       dagWrite,
     );
-    const val = w.get('foo');
+    const val = await w.get('foo');
     expect(val).to.deep.equal('bar');
   });
 
@@ -59,7 +60,7 @@ test('basics', async () => {
     );
     await w.del(lc, 'foo');
     // Assert it is gone while still within this transaction.
-    const val = w.get('foo');
+    const val = await w.get('foo');
     expect(val).to.be.undefined;
     await w.commit(DEFAULT_HEAD_NAME);
   });
@@ -73,7 +74,7 @@ test('basics', async () => {
       null,
       dagWrite,
     );
-    const val = w.get(`foo`);
+    const val = await w.get(`foo`);
     expect(val).to.be.undefined;
   });
 });
@@ -146,19 +147,23 @@ test('clear', async () => {
     );
     await w.put(lc, 'hot', 'dog');
 
-    expect([...w.map]).to.have.lengthOf(2);
+    const keys = await asyncIterableToArray(w.map.keys());
+    expect(keys).to.have.lengthOf(2);
     let index = w.indexes.get('idx');
     assertNotUndefined(index);
-    await index.withMap(dagWrite, map => {
-      expect([...map]).to.have.lengthOf(2);
+    await index.withMap(dagWrite, async map => {
+      const keys = await asyncIterableToArray(map.keys());
+      expect(keys).to.have.lengthOf(2);
     });
 
     await w.clear();
-    expect([...w.map]).to.have.lengthOf(0);
+    const keys2 = await asyncIterableToArray(w.map.keys());
+    expect(keys2).to.have.lengthOf(0);
     index = w.indexes.get('idx');
     assertNotUndefined(index);
-    await index.withMap(dagWrite, map => {
-      expect([...map]).to.have.lengthOf(0);
+    await index.withMap(dagWrite, async map => {
+      const keys = await asyncIterableToArray(map.keys());
+      expect(keys).to.have.lengthOf(0);
     });
 
     await w.commit(DEFAULT_HEAD_NAME);
@@ -166,12 +171,14 @@ test('clear', async () => {
 
   await ds.withRead(async dagRead => {
     const [, c, m] = await readCommit(whenceHead(DEFAULT_HEAD_NAME), dagRead);
-    const indexes = readIndexes(c);
-    expect([...m]).to.have.lengthOf(0);
+    const indexes = readIndexesForRead(c);
+    const keys = await asyncIterableToArray(m.keys());
+    expect(keys).to.have.lengthOf(0);
     const index = indexes.get('idx');
     assertNotUndefined(index);
-    await index.withMap(dagRead, map => {
-      expect([...map]).to.have.lengthOf(0);
+    await index.withMap(dagRead, async map => {
+      const keys = await asyncIterableToArray(map.keys());
+      expect(keys).to.have.lengthOf(0);
     });
   });
 });
@@ -232,9 +239,9 @@ test('create and drop index', async () => {
       expect(idx.definition.name).to.equal(indexName);
       expect(idx.definition.keyPrefix).to.be.empty;
       expect(idx.definition.jsonPointer).to.equal('/s');
-      const indexMap = await prolly.Map.load(idx.valueHash, dagRead);
+      const indexMap = new BTreeRead(dagRead, idx.valueHash);
 
-      const entries = [...indexMap];
+      const entries = await asyncIterableToArray(indexMap);
       expect(entries).to.have.lengthOf(3);
       for (let i = 0; i < 3; i++) {
         expect(entries[i][0]).to.deep.equal(encodeIndexKey([`s${i}`, `k${i}`]));

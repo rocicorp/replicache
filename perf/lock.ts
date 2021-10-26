@@ -1,8 +1,8 @@
 import 'navigator.locks';
-import {assert} from './replicache';
 import {newTab, Tab, isFirefox} from '../src/test-util';
 import {uuid} from '../src/sync/uuid';
 import type {Benchmark} from './perf';
+import {assert} from '../src/asserts';
 
 enum Mode {
   SameTab = '',

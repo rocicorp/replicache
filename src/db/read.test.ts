@@ -27,6 +27,6 @@ test('basics', async () => {
 
   const dr = await ds.read();
   const r = await fromWhence(whenceHead(DEFAULT_HEAD_NAME), dr);
-  const val = r.get('foo');
+  const val = await r.get('foo');
   expect(val).to.deep.equal('bar');
 });

@@ -1,8 +1,8 @@
 import {expect} from '@esm-bundle/chai';
 import type * as dag from '../dag/mod';
 import {Commit, DEFAULT_HEAD_NAME} from './commit';
-import {readCommit, readIndexes, whenceHead} from './read';
-import {initDB, Write} from './write';
+import {readCommit, whenceHead} from './read';
+import {initDB, Write, readIndexesForWrite} from './write';
 import {LogContext} from '../logger';
 import type {JSONValue} from '../json';
 
@@ -114,7 +114,7 @@ export async function addSnapshot(
       chain[chain.length - 1].nextMutationID,
       cookie,
       dagWrite,
-      readIndexes(chain[chain.length - 1]),
+      readIndexesForWrite(chain[chain.length - 1]),
     );
 
     if (map) {

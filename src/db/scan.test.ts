@@ -1,34 +1,41 @@
 import {expect} from '@esm-bundle/chai';
 import {convert, scan, ScanItem, ScanOptions, ScanResultType} from './scan';
-import * as prolly from '../prolly/mod';
+import * as kv from '../kv/mod';
+import * as dag from '../dag/mod';
 import {encodeIndexKey} from './index';
+import {BTreeWrite} from '../btree/mod';
 
-test('scan', () => {
-  const t = (opts: ScanOptions, expected: string[]) => {
+test('scan', async () => {
+  const t = async (opts: ScanOptions, expected: string[]) => {
     const testDesc = `opts: ${JSON.stringify(
       opts,
       null,
       2,
     )}, expected: ${expected}`;
 
-    const map = new prolly.Map([]);
-    map.put('foo', 'foo');
-    map.put('bar', 'bar');
-    map.put('baz', 'baz');
-    const optsInternal = convert(opts);
-    const actual = [];
-    for (const sr of scan(map, optsInternal)) {
-      if (sr.type === ScanResultType.Error) {
-        throw sr.error;
+    const memStore = new kv.MemStore();
+    const dagStore = new dag.Store(memStore);
+
+    await dagStore.withWrite(async dagWrite => {
+      const map = new BTreeWrite(dagWrite);
+      await map.put('foo', 'foo');
+      await map.put('bar', 'bar');
+      await map.put('baz', 'baz');
+      const optsInternal = convert(opts);
+      const actual = [];
+      for await (const sr of scan(map, optsInternal)) {
+        if (sr.type === ScanResultType.Error) {
+          throw sr.error;
+        }
+        actual.push(sr.item.key);
       }
-      actual.push(sr.item.key);
-    }
-    const expected2 = expected;
-    expect(actual).to.deep.equal(expected2, testDesc);
+      const expected2 = expected;
+      expect(actual).to.deep.equal(expected2, testDesc);
+    });
   };
 
   // Empty
-  t(
+  await t(
     {
       prefix: undefined,
       startSecondaryKey: undefined,
@@ -41,7 +48,7 @@ test('scan', () => {
   );
 
   // Prefix alone
-  t(
+  await t(
     {
       prefix: '',
       startSecondaryKey: undefined,
@@ -52,7 +59,7 @@ test('scan', () => {
     },
     ['bar', 'baz', 'foo'],
   );
-  t(
+  await t(
     {
       prefix: 'ba',
       startSecondaryKey: undefined,
@@ -63,7 +70,7 @@ test('scan', () => {
     },
     ['bar', 'baz'],
   );
-  t(
+  await t(
     {
       prefix: 'bar',
       startSecondaryKey: undefined,
@@ -74,7 +81,7 @@ test('scan', () => {
     },
     ['bar'],
   );
-  t(
+  await t(
     {
       prefix: 'bas',
       startSecondaryKey: undefined,
@@ -86,7 +93,7 @@ test('scan', () => {
     [],
   );
   // start key alone
-  t(
+  await t(
     {
       prefix: undefined,
       startSecondaryKey: undefined,
@@ -97,7 +104,7 @@ test('scan', () => {
     },
     ['bar', 'baz', 'foo'],
   );
-  t(
+  await t(
     {
       prefix: undefined,
       startSecondaryKey: undefined,
@@ -108,7 +115,7 @@ test('scan', () => {
     },
     ['bar', 'baz', 'foo'],
   );
-  t(
+  await t(
     {
       prefix: undefined,
       startSecondaryKey: undefined,
@@ -119,7 +126,7 @@ test('scan', () => {
     },
     ['bar', 'baz', 'foo'],
   );
-  t(
+  await t(
     {
       prefix: undefined,
       startSecondaryKey: undefined,
@@ -130,7 +137,7 @@ test('scan', () => {
     },
     ['baz', 'foo'],
   );
-  t(
+  await t(
     {
       prefix: undefined,
       startSecondaryKey: undefined,
@@ -141,7 +148,7 @@ test('scan', () => {
     },
     ['baz', 'foo'],
   );
-  t(
+  await t(
     {
       prefix: undefined,
       startSecondaryKey: undefined,
@@ -152,7 +159,7 @@ test('scan', () => {
     },
     ['foo'],
   );
-  t(
+  await t(
     {
       prefix: undefined,
       startSecondaryKey: undefined,
@@ -165,7 +172,7 @@ test('scan', () => {
   );
 
   // exclusive
-  t(
+  await t(
     {
       prefix: undefined,
       startSecondaryKey: undefined,
@@ -176,7 +183,7 @@ test('scan', () => {
     },
     ['bar', 'baz', 'foo'],
   );
-  t(
+  await t(
     {
       prefix: undefined,
       startSecondaryKey: undefined,
@@ -189,7 +196,7 @@ test('scan', () => {
   );
 
   // limit alone
-  t(
+  await t(
     {
       prefix: undefined,
       startSecondaryKey: undefined,
@@ -200,7 +207,7 @@ test('scan', () => {
     },
     [],
   );
-  t(
+  await t(
     {
       prefix: undefined,
       startSecondaryKey: undefined,
@@ -211,7 +218,7 @@ test('scan', () => {
     },
     ['bar'],
   );
-  t(
+  await t(
     {
       prefix: undefined,
       startSecondaryKey: undefined,
@@ -222,7 +229,7 @@ test('scan', () => {
     },
     ['bar', 'baz'],
   );
-  t(
+  await t(
     {
       prefix: undefined,
       startSecondaryKey: undefined,
@@ -233,7 +240,7 @@ test('scan', () => {
     },
     ['bar', 'baz', 'foo'],
   );
-  t(
+  await t(
     {
       prefix: undefined,
       startSecondaryKey: undefined,
@@ -246,7 +253,7 @@ test('scan', () => {
   );
 
   // combos
-  t(
+  await t(
     {
       prefix: 'f',
       startSecondaryKey: undefined,
@@ -257,7 +264,7 @@ test('scan', () => {
     },
     [],
   );
-  t(
+  await t(
     {
       prefix: 'f',
       startSecondaryKey: undefined,
@@ -268,7 +275,7 @@ test('scan', () => {
     },
     ['foo'],
   );
-  t(
+  await t(
     {
       prefix: 'ba',
       startSecondaryKey: undefined,
@@ -279,7 +286,7 @@ test('scan', () => {
     },
     ['bar', 'baz'],
   );
-  t(
+  await t(
     {
       prefix: 'ba',
       startSecondaryKey: undefined,
@@ -290,7 +297,7 @@ test('scan', () => {
     },
     ['bar'],
   );
-  t(
+  await t(
     {
       prefix: 'ba',
       startSecondaryKey: undefined,
@@ -301,7 +308,7 @@ test('scan', () => {
     },
     ['bar'],
   );
-  t(
+  await t(
     {
       prefix: 'ba',
       startSecondaryKey: undefined,
@@ -314,75 +321,86 @@ test('scan', () => {
   );
 });
 
-test('exclusive regular map', () => {
-  const t = (keys: string[], startKey: string, expected: string[]) => {
+test('exclusive regular map', async () => {
+  const t = async (keys: string[], startKey: string, expected: string[]) => {
     const testDesc = `keys: ${keys}, startKey: ${startKey}, expected: ${expected}`;
-    const map = new prolly.Map([]);
-    for (const key of keys) {
-      map.put(key, 'value');
-    }
-    const opts = {
-      prefix: undefined,
-      startSecondaryKey: undefined,
-      startKey,
-      startExclusive: true,
-      limit: undefined,
-      indexName: undefined,
-    };
-    const convertedOpts = convert(opts);
-    const got = [];
 
-    for (const sr of scan(map, convertedOpts)) {
-      if (sr.type === ScanResultType.Error) {
-        throw sr.error;
+    const memStore = new kv.MemStore();
+    const dagStore = new dag.Store(memStore);
+
+    await dagStore.withWrite(async dagWrite => {
+      const map = new BTreeWrite(dagWrite);
+      for (const key of keys) {
+        await map.put(key, 'value');
       }
-      got.push(sr.item.key);
-    }
-    expect(got).to.deep.equal(expected, testDesc);
+      const opts = {
+        prefix: undefined,
+        startSecondaryKey: undefined,
+        startKey,
+        startExclusive: true,
+        limit: undefined,
+        indexName: undefined,
+      };
+      const convertedOpts = convert(opts);
+      const got = [];
+
+      for await (const sr of scan(map, convertedOpts)) {
+        if (sr.type === ScanResultType.Error) {
+          throw sr.error;
+        }
+        got.push(sr.item.key);
+      }
+      expect(got).to.deep.equal(expected, testDesc);
+    });
   };
 
-  t(['', 'a', 'aa', 'ab', 'b'], '', ['a', 'aa', 'ab', 'b']);
-  t(['', 'a', 'aa', 'ab', 'b'], 'a', ['aa', 'ab', 'b']);
-  t(['', 'a', 'aa', 'ab', 'b'], 'aa', ['ab', 'b']);
-  t(['', 'a', 'aa', 'ab', 'b'], 'ab', ['b']);
+  await t(['', 'a', 'aa', 'ab', 'b'], '', ['a', 'aa', 'ab', 'b']);
+  await t(['', 'a', 'aa', 'ab', 'b'], 'a', ['aa', 'ab', 'b']);
+  await t(['', 'a', 'aa', 'ab', 'b'], 'aa', ['ab', 'b']);
+  await t(['', 'a', 'aa', 'ab', 'b'], 'ab', ['b']);
 });
 
-test('exclusive index map', () => {
-  const t = (
+test('exclusive index map', async () => {
+  const t = async (
     entries: [string, string][],
     startSecondaryKey: string,
     startKey: string | undefined,
     expected: [string, string][],
   ) => {
-    const test_desc = `entries: ${entries}, startSecondaryKey ${startSecondaryKey}, startKey: ${startKey}, expected: ${expected}`;
+    const testDesc = `entries: ${entries}, startSecondaryKey ${startSecondaryKey}, startKey: ${startKey}, expected: ${expected}`;
 
-    const map = new prolly.Map([]);
-    for (const entry of entries) {
-      const encoded = encodeIndexKey(entry);
-      map.put(encoded, 'value');
-    }
-    const opts = {
-      prefix: undefined,
-      startSecondaryKey,
-      startKey,
-      startExclusive: true,
-      limit: undefined,
-      indexName: 'index',
-    };
-    const got = [];
-    for (const sr of scan(map, convert(opts))) {
-      if (sr.type === ScanResultType.Error) {
-        throw sr.error;
+    const memStore = new kv.MemStore();
+    const dagStore = new dag.Store(memStore);
+
+    await dagStore.withWrite(async dagWrite => {
+      const map = new BTreeWrite(dagWrite);
+      for (const entry of entries) {
+        const encoded = encodeIndexKey(entry);
+        await map.put(encoded, 'value');
       }
-      got.push([sr.item.secondaryKey, sr.item.key]);
-    }
-    expect(got).to.deep.equal(expected, test_desc);
+      const opts = {
+        prefix: undefined,
+        startSecondaryKey,
+        startKey,
+        startExclusive: true,
+        limit: undefined,
+        indexName: 'index',
+      };
+      const got = [];
+      for await (const sr of scan(map, convert(opts))) {
+        if (sr.type === ScanResultType.Error) {
+          throw sr.error;
+        }
+        got.push([sr.item.secondaryKey, sr.item.key]);
+      }
+      expect(got).to.deep.equal(expected, testDesc);
+    });
   };
 
   // Test exclusive scanning with startSecondaryKey.
   const v: string[] = ['', '\u0000', '\u0001', '\u0001\u0002'];
   for (const pk of v) {
-    t(
+    await t(
       [
         ['', pk],
         ['a', pk],
@@ -399,7 +417,7 @@ test('exclusive index map', () => {
         ['b', pk],
       ],
     );
-    t(
+    await t(
       [
         ['', pk],
         ['a', pk],
@@ -415,7 +433,7 @@ test('exclusive index map', () => {
         ['b', pk],
       ],
     );
-    t(
+    await t(
       [
         ['', pk],
         ['a', pk],
@@ -430,7 +448,7 @@ test('exclusive index map', () => {
         ['b', pk],
       ],
     );
-    t(
+    await t(
       [
         ['', pk],
         ['a', pk],
@@ -446,7 +464,7 @@ test('exclusive index map', () => {
 
   // t exclusive scanning with startSecondaryKey and startKey,
   // with the same secondary value.
-  t(
+  await t(
     [
       ['a', ''],
       ['a', '\u0000'],
@@ -463,7 +481,7 @@ test('exclusive index map', () => {
       ['a', '\u0001'],
     ],
   );
-  t(
+  await t(
     [
       ['a', ''],
       ['a', '\u0000'],
@@ -479,7 +497,7 @@ test('exclusive index map', () => {
       ['a', '\u0001'],
     ],
   );
-  t(
+  await t(
     [
       ['a', ''],
       ['a', '\u0000'],
@@ -494,7 +512,7 @@ test('exclusive index map', () => {
       ['a', '\u0001'],
     ],
   );
-  t(
+  await t(
     [
       ['a', ''],
       ['a', '\u0000'],
@@ -509,7 +527,7 @@ test('exclusive index map', () => {
 
   // t exclusive scanning with startSecondaryKey and startKey,
   // with different secondary values.
-  t(
+  await t(
     [
       ['', ''],
       ['a', '\u0000'],
@@ -526,7 +544,7 @@ test('exclusive index map', () => {
       ['b', '\u0001'],
     ],
   );
-  t(
+  await t(
     [
       ['', ''],
       ['a', '\u0000'],
@@ -542,7 +560,7 @@ test('exclusive index map', () => {
       ['b', '\u0001'],
     ],
   );
-  t(
+  await t(
     [
       ['', ''],
       ['a', '\u0000'],
@@ -557,7 +575,7 @@ test('exclusive index map', () => {
       ['b', '\u0001'],
     ],
   );
-  t(
+  await t(
     [
       ['', ''],
       ['a', '\u0000'],
@@ -571,35 +589,43 @@ test('exclusive index map', () => {
   );
 });
 
-function makeProllyMap(entries: Iterable<[string, string]>): prolly.Map {
-  const map = new prolly.Map([]);
+async function makeBTreeWrite(
+  dagWrite: dag.Write,
+  entries: Iterable<[string, string]>,
+): Promise<BTreeWrite> {
+  const map = new BTreeWrite(dagWrite);
   for (const [k, v] of entries) {
-    map.put(k, v);
+    await map.put(k, v);
   }
   return map;
 }
 
-test('scan index startKey', () => {
-  const t = (
+test('scan index startKey', async () => {
+  const t = async (
     entries: Iterable<[string, string]>,
     opts: ScanOptions,
     expected: ScanItem[],
   ) => {
-    const map = makeProllyMap(entries);
-    const testDesc = `opts: ${opts}, expected: ${expected}`;
+    const memStore = new kv.MemStore();
+    const dagStore = new dag.Store(memStore);
 
-    const actual: ScanItem[] = [];
-    for (const sr of scan(map, convert(opts))) {
-      if (sr.type === ScanResultType.Error) {
-        throw sr.error;
+    await dagStore.withWrite(async dagWrite => {
+      const map = await makeBTreeWrite(dagWrite, entries);
+      const testDesc = `opts: ${opts}, expected: ${expected}`;
+
+      const actual: ScanItem[] = [];
+      for await (const sr of scan(map, convert(opts))) {
+        if (sr.type === ScanResultType.Error) {
+          throw sr.error;
+        }
+        actual.push(sr.item);
       }
-      actual.push(sr.item);
-    }
 
-    expect(actual).to.deep.equal(expected, testDesc);
+      expect(actual).to.deep.equal(expected, testDesc);
+    });
   };
 
-  t(
+  await t(
     [
       ['a', '1'],
       ['b', '2'],
@@ -627,7 +653,7 @@ test('scan index startKey', () => {
     ],
   );
 
-  t(
+  await t(
     [
       ['a', '1'],
       ['b', '2'],
@@ -650,7 +676,7 @@ test('scan index startKey', () => {
     ],
   );
 
-  t(
+  await t(
     [
       ['\u{0000}as\u{0000}ap', '1'],
       ['\u{0000}bs\u{0000}bp', '2'],
@@ -678,7 +704,7 @@ test('scan index startKey', () => {
     ],
   );
 
-  t(
+  await t(
     [
       ['\u{0000}as\u{0000}ap', '1'],
       ['\u{0000}bs\u{0000}bp', '2'],
@@ -701,7 +727,7 @@ test('scan index startKey', () => {
     ],
   );
 
-  t(
+  await t(
     [
       ['\u{0000}as\u{0000}ap', '1'],
       ['\u{0000}bs\u{0000}bp1', '2'],
@@ -730,7 +756,7 @@ test('scan index startKey', () => {
     ],
   );
 
-  t(
+  await t(
     [
       ['\u{0000}as\u{0000}ap', '1'],
       ['\u{0000}bs\u{0000}bp1', '2'],

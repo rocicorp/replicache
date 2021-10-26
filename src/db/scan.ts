@@ -1,9 +1,6 @@
-import type * as prolly from '../prolly/mod';
-import type {Entry} from '../prolly/mod';
-import {PeekIterator} from '../prolly/peek-iterator';
-import {take, takeWhile} from './iter-util';
 import {decodeIndexKey, encodeIndexScanKey} from '.';
 import type {ReadonlyJSONValue} from '../json';
+import type {BTreeRead} from '../btree/mod';
 
 // TODO(arv): Unify with src/scan-options.ts
 
@@ -75,10 +72,10 @@ export type ScanResult =
   | {type: ScanResultType.Error; error: unknown}
   | {type: ScanResultType.Item; item: ScanItem};
 
-export function* scan(
-  map: prolly.Map,
+export async function* scan(
+  map: BTreeRead,
   opts: ScanOptionsInternal,
-): IterableIterator<ScanResult> {
+): AsyncIterableIterator<ScanResult> {
   // We don't do any encoding of the key in regular prolly maps, so we have no
   // way of determining from an entry.key alone whether it is a regular prolly
   // map key or an encoded IndexKey in an index map. Without encoding regular
@@ -86,7 +83,7 @@ export function* scan(
 
   const indexScan = opts.indexName !== undefined;
 
-  for (const entry of scanRaw(map, opts)) {
+  for await (const entry of map.scan(opts)) {
     if (indexScan) {
       try {
         const decoded = decodeIndexKey(entry[0]);
@@ -147,36 +144,4 @@ export function convert(source: ScanOptions): ScanOptionsInternal {
     limit: source.limit,
     indexName: source.indexName,
   };
-}
-
-export function scanRaw(
-  map: prolly.Map,
-  opts: ScanOptionsInternal,
-): IterableIterator<Entry> {
-  const it = new PeekIterator(map.entries());
-  const prefix = opts.prefix !== undefined ? opts.prefix : '';
-  let fromKey = prefix;
-
-  const {startKey} = opts;
-  if (startKey !== undefined) {
-    if (startKey > fromKey) {
-      fromKey = startKey;
-    }
-  }
-
-  while (!it.peek().done) {
-    // Note: exclusive implemented at a higher level by appending a 0x01 to the
-    // key before passing it to scan.
-    const key = it.peek().value[0];
-    if (key >= fromKey) {
-      break;
-    }
-
-    it.next();
-  }
-
-  return take(
-    opts.limit ?? Infinity,
-    takeWhile(item => item[0].startsWith(prefix), it),
-  );
 }

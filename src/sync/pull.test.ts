@@ -35,6 +35,7 @@ import {
 import {LogContext} from '../logger';
 import {initHasher} from '../hash';
 import {stringCompare} from '../prolly/string-compare';
+import {asyncIterableToArray} from '../async-iterable-to-array';
 
 setup(async () => {
   await initHasher();
@@ -464,7 +465,7 @@ test('begin try pull', async () => {
           db.whenceHash(syncHead.chunk.hash),
           read,
         );
-        const gotValueMap = Array.from(map.entries());
+        const gotValueMap = await asyncIterableToArray(map.entries());
         gotValueMap.sort((a, b) => stringCompare(a[0], b[0]));
         const expValueMap = Array.from(expSyncHead.valueMap);
         expValueMap.sort((a, b) => stringCompare(a[0], b[0]));
@@ -603,7 +604,7 @@ test('maybe end try pull', async () => {
         0,
         'sync_cookie',
         dagWrite,
-        db.readIndexes(chain[0]),
+        db.readIndexesForWrite(chain[0]),
       );
       await w.put(lc, `key/${i}`, `${i}`);
       return await w.commit(SYNC_HEAD_NAME);

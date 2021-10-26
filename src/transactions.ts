@@ -81,7 +81,7 @@ export class ReadTransactionImpl<
 
   async get(key: string): Promise<Value | undefined> {
     throwIfClosed(this._dbtx);
-    const rv = this._dbtx.get(key);
+    const rv = await this._dbtx.get(key);
     if (this._dbtx instanceof db.Write) {
       return (rv && deepClone(rv)) as Value | undefined;
     }

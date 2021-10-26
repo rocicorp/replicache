@@ -1,6 +1,5 @@
 import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
-import * as prolly from '../prolly/mod';
 import {
   Commit,
   DEFAULT_HEAD_NAME,
@@ -10,10 +9,11 @@ import {
   newLocal as commitNewLocal,
   newSnapshot as commitNewSnapshot,
 } from './commit';
-import {Read, readCommit, readIndexes, Whence} from './read';
-import {Index, IndexOperation, indexValue} from './index';
-import {scanRaw} from './scan';
+import {Read, readCommit, readIndexesForRead, Whence} from './read';
+import {IndexWrite, IndexOperation, indexValue, IndexRead} from './index';
 import type {LogContext} from '../logger';
+import {BTreeRead, BTreeWrite} from '../btree/mod';
+import {asyncIterableToArray} from '../async-iterable-to-array';
 
 type IndexChangeMeta = {
   type: MetaType.IndexChange;
@@ -47,13 +47,18 @@ export class Write extends Read {
   private readonly _basis: Commit | undefined;
   private readonly _meta: Meta;
 
+  declare map: BTreeWrite;
+
+  declare readonly indexes: Map<string, IndexWrite>;
+
   constructor(
     dagWrite: dag.Write,
-    map: prolly.Map,
+    map: BTreeWrite,
     basis: Commit | undefined,
     meta: Meta,
-    indexes: Map<string, Index>,
+    indexes: Map<string, IndexWrite>,
   ) {
+    // TypeScript has trouble
     super(dagWrite, map, indexes);
     this._dagWrite = dagWrite;
     this._basis = basis;
@@ -69,7 +74,7 @@ export class Write extends Read {
   ): Promise<Write> {
     const [, basis, map] = await readCommit(whence, dagWrite);
     const mutationID = basis.nextMutationID;
-    const indexes = readIndexes(basis);
+    const indexes = readIndexesForWrite(basis);
     return new Write(
       dagWrite,
       map,
@@ -90,7 +95,7 @@ export class Write extends Read {
     mutationID: number,
     cookie: ReadonlyJSONValue,
     dagWrite: dag.Write,
-    indexes: Map<string, Index>,
+    indexes: Map<string, IndexWrite>,
   ): Promise<Write> {
     const [, basis, map] = await readCommit(whence, dagWrite);
     return new Write(
@@ -108,7 +113,7 @@ export class Write extends Read {
   ): Promise<Write> {
     const [, basis, map] = await readCommit(whence, dagWrite);
     const lastMutationID = basis.mutationID;
-    const indexes = readIndexes(basis);
+    const indexes = readIndexesForWrite(basis);
     return new Write(
       dagWrite,
       map,
@@ -132,7 +137,7 @@ export class Write extends Read {
     if (this._meta.type === MetaType.IndexChange) {
       throw new Error('Not allowed');
     }
-    const oldVal = this.map.get(key);
+    const oldVal = await this.map.get(key);
     if (oldVal !== undefined) {
       await updateIndexes(
         lc,
@@ -152,7 +157,7 @@ export class Write extends Read {
       val,
     );
 
-    this.map.put(key, val);
+    await this.map.put(key, val);
   }
 
   async del(lc: LogContext, key: string): Promise<boolean> {
@@ -161,7 +166,7 @@ export class Write extends Read {
     }
 
     // TODO(arv): This does the binary search twice. We can do better.
-    const oldVal = this.map.get(key);
+    const oldVal = await this.map.get(key);
     if (oldVal !== undefined) {
       await updateIndexes(
         lc,
@@ -180,7 +185,7 @@ export class Write extends Read {
       throw new Error('Not allowed');
     }
 
-    this.map = new prolly.Map([]);
+    await this.map.clear();
     const ps = [];
     for (const idx of this.indexes.values()) {
       ps.push(idx.clear());
@@ -219,18 +224,13 @@ export class Write extends Read {
       }
     }
 
-    const indexMap = new prolly.Map([]);
-    for (const entry of scanRaw(this.map, {
-      prefix: keyPrefix,
-      limit: undefined,
-      startKey: undefined,
-      indexName: undefined,
-    })) {
-      // All the index_value errors because of customer-supplied data: malformed
+    const indexMap = new BTreeWrite(this._dagWrite);
+    for await (const entry of this.map.scan({prefix: keyPrefix})) {
+      // All the indexValue errors because of customer-supplied data: malformed
       // json, json path pointing to nowhere, etc. We ignore them.
 
       try {
-        indexValue(
+        await indexValue(
           indexMap,
           IndexOperation.Add,
           entry[0],
@@ -244,7 +244,7 @@ export class Write extends Read {
 
     this.indexes.set(
       name,
-      new Index(
+      new IndexWrite(
         {
           definition,
           valueHash: '',
@@ -274,25 +274,46 @@ export class Write extends Read {
     headName: string,
     generateChangedKeys: boolean,
   ): Promise<[string, ChangedKeysMap]> {
-    const valueChangedKeys = generateChangedKeys
-      ? this.map.pendingChangedKeys()
-      : [];
-    const valueHash = await this.map.flush(this._dagWrite);
+    const valueHash = await this.map.flush();
+    let valueChangedKeys: string[] = [];
+    if (generateChangedKeys && this._basis) {
+      const basisMap = new BTreeRead(this._dagWrite, this._basis.valueHash);
+      valueChangedKeys = await asyncIterableToArray(
+        this.map.diffKeys(basisMap),
+      );
+    }
     const indexRecords: IndexRecord[] = [];
     const keyChanges = new Map();
     if (valueChangedKeys.length > 0) {
       keyChanges.set('', valueChangedKeys);
     }
+
+    let basisIndexes: Map<string, IndexRead>;
+    if (generateChangedKeys && this._basis) {
+      basisIndexes = readIndexesForRead(this._basis);
+    } else {
+      basisIndexes = new Map();
+    }
+
     for (const [name, index] of this.indexes) {
-      {
-        const indexChangedKeys = await index.withMap(this._dagWrite, map =>
-          map.pendingChangedKeys(),
-        );
-        if (indexChangedKeys.length > 0) {
-          keyChanges.set(name, indexChangedKeys);
-        }
+      const valueHash = await index.flush();
+      const basisIndex = basisIndexes.get(name);
+      const indexChangedKeys = await index.withMap(
+        this._dagWrite,
+        async map => {
+          if (basisIndex) {
+            return basisIndex.withMap(this._dagWrite, basisMap =>
+              asyncIterableToArray(map.diffKeys(basisMap)),
+            );
+          }
+          return asyncIterableToArray(map.keys());
+        },
+      );
+
+      if (indexChangedKeys.length > 0) {
+        keyChanges.set(name, indexChangedKeys);
       }
-      const valueHash = await index.flush(this._dagWrite);
+
       const indexRecord: IndexRecord = {
         definition: index.meta.definition,
         valueHash,
@@ -365,7 +386,7 @@ export class Write extends Read {
 
 async function updateIndexes(
   lc: LogContext,
-  indexes: Map<string, Index>,
+  indexes: Map<string, IndexWrite>,
   dagWrite: dag.Write,
   op: IndexOperation,
   key: string,
@@ -373,13 +394,13 @@ async function updateIndexes(
 ): Promise<void> {
   for (const idx of indexes.values()) {
     if (key.startsWith(idx.meta.definition.keyPrefix)) {
-      await idx.withMap(dagWrite, map => {
+      await idx.withMap(dagWrite, async map => {
         // Right now all the errors that index_value() returns are customers dev
         // problems: either the value is not json, the pointer is into nowhere, etc.
         // So we ignore them.
 
         try {
-          indexValue(map, op, key, val, idx.meta.definition.jsonPointer);
+          await indexValue(map, op, key, val, idx.meta.definition.jsonPointer);
         } catch (e) {
           lc.info?.('Not indexing value', val, ':', e);
         }
@@ -396,7 +417,7 @@ export async function initDB(
 ): Promise<string> {
   const w = new Write(
     dagWrite,
-    new prolly.Map([]),
+    new BTreeWrite(dagWrite),
     undefined,
     {type: MetaType.Snapshot, lastMutationID: 0, cookie: null},
     new Map(),
@@ -411,4 +432,12 @@ export async function maybeInitDefaultDB(dagStore: dag.Store): Promise<void> {
       await initDB(dagWrite, DEFAULT_HEAD_NAME);
     }
   });
+}
+
+export function readIndexesForWrite(commit: Commit): Map<string, IndexWrite> {
+  const m = new Map();
+  for (const index of commit.indexes) {
+    m.set(index.definition.name, new IndexWrite(index, undefined));
+  }
+  return m;
 }

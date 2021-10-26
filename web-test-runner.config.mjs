@@ -38,6 +38,7 @@ export default {
         'src/prolly/*.test.ts',
         'src/sync/*.test.ts',
         'src/migrate/*.test.ts',
+        'src/btree/*.test.ts',
       ],
       browsers: [firefox, chromium, webkit],
     },

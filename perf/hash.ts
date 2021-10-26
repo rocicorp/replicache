@@ -2,13 +2,8 @@ import {createSHA512} from 'hash-wasm';
 import {hashJSON} from '../src/hash-json';
 import type {ReadonlyJSONValue} from '../src/json';
 import {randomString, makeRandomStrings} from './data';
+import * as utf8 from '../src/utf8';
 import type {Benchmark} from './perf';
-
-const encoder = new TextEncoder();
-
-function stringToUint8Array(s: string): Uint8Array {
-  return encoder.encode(s);
-}
 
 export function benchmarks(): Array<Benchmark> {
   return [
@@ -28,7 +23,6 @@ function sha512({wasm}: {wasm: boolean}): Benchmark {
   let calculateHash: (
     sum: Uint8Array | Uint16Array,
   ) => Uint8Array | Promise<ArrayBuffer>;
-  const toSum = stringToUint8Array;
 
   return {
     name: `sha512 ${wasm ? 'wasm' : 'native'}`,
@@ -44,7 +38,7 @@ function sha512({wasm}: {wasm: boolean}): Benchmark {
     },
     async run() {
       for (let i = 0; i < randomStrings.length; i++) {
-        const sum = toSum(randomStrings[i]);
+        const sum = utf8.encode(randomStrings[i]);
         const buf = await calculateHash(sum);
         results.push(buf);
       }
@@ -76,7 +70,6 @@ function hashJSONBenchmark({useHashJSON}: {useHashJSON: boolean}): Benchmark {
   let calculateHash: (
     value: ReadonlyJSONValue,
   ) => Uint8Array | Promise<ArrayBuffer>;
-  const toSum = stringToUint8Array;
 
   return {
     name: `sha512 ${useHashJSON ? 'hashJSON' : 'JSON.stringify'}`,
@@ -86,13 +79,13 @@ function hashJSONBenchmark({useHashJSON}: {useHashJSON: boolean}): Benchmark {
       if (useHashJSON) {
         calculateHash = value => {
           hasher.init();
-          hashJSON(value, hasher, toSum);
+          hashJSON(value, hasher);
           return hasher.digest('binary');
         };
       } else {
         calculateHash = value => {
           hasher.init();
-          hasher.update(toSum(JSON.stringify(value)));
+          hasher.update(utf8.encode(JSON.stringify(value)));
           return hasher.digest('binary');
         };
       }

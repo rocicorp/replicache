@@ -19,9 +19,9 @@ test('round trip', async () => {
     expect(c).to.deep.equal(c2);
   };
 
-  t('m9diij5krqr9t80a9guf649p0i01mo0l', [], []);
-  t('i4ua4lkdobnv4u5rdenb9jfumr4ru3k7', [0], ['r1']);
-  t('1rk961et3nqfi61oceeh6nc0sirin2lv', [0, 1], ['r1', 'r2']);
+  t('3084nmle4a3in52756d9opo5i01v060t', [], []);
+  t('bp4dunph91nhlodt1m8q26q4ucukhnl8', [0], ['r1']);
+  t('kdgqksb6uvd5mdu8mds1fkql2m1t6bte', [0, 1], ['r1', 'r2']);
 });
 
 test('equals', async () => {

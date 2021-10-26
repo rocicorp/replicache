@@ -20,8 +20,8 @@ export function* computeSplices<T>(
   let splice: Splice | undefined;
 
   function ensureAssigned(splice: Splice, index: number): void {
-    if (splice![SPLICE_FROM] === SPLICE_UNASSIGNED) {
-      splice![SPLICE_FROM] = index;
+    if (splice[SPLICE_FROM] === SPLICE_UNASSIGNED) {
+      splice[SPLICE_FROM] = index;
     }
   }
 

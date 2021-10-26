@@ -273,7 +273,7 @@ export function newLocal(
   originalHash: string | null,
   valueHash: string,
   indexes: IndexRecord[],
-): Promise<Commit> {
+): Commit {
   const localMeta: LocalMeta = {
     type: MetaTyped.Local,
     basisHash,
@@ -297,7 +297,7 @@ export function newSnapshot(
   cookieJSON: ReadonlyJSONValue,
   valueHash: string,
   indexes: IndexRecord[],
-): Promise<Commit> {
+): Commit {
   const snapshotMeta: SnapshotMeta = {
     type: MetaTyped.Snapshot,
     basisHash,
@@ -318,7 +318,7 @@ export function newIndexChange(
   lastMutationID: number,
   valueHash: string,
   indexes: IndexRecord[],
-): Promise<Commit> {
+): Commit {
   const indexChangeMeta: IndexChangeMeta = {
     type: MetaTyped.IndexChange,
     basisHash,
@@ -353,13 +353,13 @@ type Ref = {
   h: string;
 };
 
-async function newImpl(
+function newImpl(
   basisHash: Ref | null,
   meta: LocalMeta | SnapshotMeta | IndexChangeMeta,
   valueHash: Ref,
   originalHash: Ref | null,
   indexes: IndexRecord[],
-): Promise<Commit> {
+): Commit {
   const refs: (Ref | null)[] = [valueHash, basisHash, originalHash];
   const strongRefs = (
     refs.filter(r => r && r.t === RefType.Strong) as Ref[]

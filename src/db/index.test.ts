@@ -17,6 +17,7 @@ import {
 } from './index';
 import {BTreeWrite} from '../btree/mod';
 import {asyncIterableToArray} from '../async-iterable-to-array';
+import {LogContext} from '../logger';
 
 test('test index key', () => {
   const testValid = (secondary: string, primary: string) => {
@@ -201,7 +202,7 @@ test('index value', async () => {
       await index.put(encodeIndexKey(['s2', '2']), 'v2');
 
       if (Array.isArray(expected)) {
-        await indexValue(index, op, key, value, jsonPointer);
+        await indexValue(new LogContext(), index, op, key, value, jsonPointer);
 
         const actualVal = await asyncIterableToArray(index.entries());
         expect(expected.length).to.equal(actualVal.length);
@@ -214,9 +215,9 @@ test('index value', async () => {
           expect(await index.get(expEntry)).to.deep.equal(actualVal[i][1]);
         }
       } else {
-        expect(() => indexValue(index, op, key, value, jsonPointer)).to.throw(
-          expected,
-        );
+        expect(() =>
+          indexValue(new LogContext(), index, op, key, value, jsonPointer),
+        ).to.throw(expected);
       }
     });
   };

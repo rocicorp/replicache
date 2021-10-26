@@ -16,6 +16,7 @@ import type {LogContext} from '../logger';
 import {toError} from '../to-error';
 import * as btree from '../btree/mod';
 import {BTreeRead} from '../btree/mod';
+import {updateIndexes} from '../db/write';
 
 export const PULL_VERSION = 0;
 
@@ -140,35 +141,56 @@ export async function beginPull(
       };
     }
 
-    // We are going to need to rebuild the indexes. We want to take the definitions from
-    // the last commit on the chain that will not be rebased. We do this here before creating
-    // the new snapshot while we still have the dagRead borrowed.
+    // We are going to need to adjust the indexes. Imagine we have just pulled:
+    //
+    // S1 - M1 - main
+    //    \ S2 - sync
+    //
+    // Let's say S2 says that it contains up to M1. Are we safe at this moment
+    // to set main to S2?
+    //
+    // No, because the Replicache protocol does not require a snapshot
+    // containing M1 to have the same data as the client computed for M1!
+    //
+    // We must diff the main map in M1 against the main map in S2 and see if it
+    // contains any changes. Whatever changes it contains must be applied to
+    // all indexes.
+    //
+    // We start with the index definitions in the last commit that was
+    // integrated into the new snapshot.
     const chain = await db.Commit.chain(mainHeadPostPull, dagRead);
-    const indexRecords = chain.find(
+    const lastIntegrated = chain.find(
       c => c.mutationID <= response.lastMutationID,
-    )?.indexes;
-    if (!indexRecords) {
+    );
+    if (!lastIntegrated) {
       throw new Error('Internal invalid chain');
     }
-    // drop(dagRead);
 
     const dbWrite = await db.Write.newSnapshot(
       db.whenceHash(baseSnapshot.chunk.hash),
       response.lastMutationID,
       response.cookie ?? null,
       dagWrite,
-      new Map(), // Note: created with no indexes
+      db.readIndexesForWrite(lastIntegrated),
     );
 
-    // Rebuild the indexes
-    // TODO would be so nice to have a way to re-use old indexes, which are likely
-    //      only a small diff from what we want.
-    for (const m of indexRecords) {
-      const def = m.definition;
-      await dbWrite.createIndex(lc, def.name, def.keyPrefix, def.jsonPointer);
-    }
-
     await patch.apply(lc, dbWrite, response.patch);
+
+    const lastIntegratedMap = new BTreeRead(dagRead, lastIntegrated.valueHash);
+
+    for await (const change of dbWrite.map.diff(lastIntegratedMap)) {
+      await updateIndexes(
+        lc,
+        dbWrite.indexes,
+        dagWrite,
+        change.key,
+        () =>
+          Promise.resolve(
+            (change as {oldValue: ReadonlyJSONValue | undefined}).oldValue,
+          ),
+        (change as {newValue: ReadonlyJSONValue | undefined}).newValue,
+      );
+    }
 
     const commitHash = await dbWrite.commit(SYNC_HEAD_NAME);
 

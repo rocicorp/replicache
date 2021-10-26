@@ -18,6 +18,22 @@ import {RWLock} from '../rw-lock';
 import type {ScanOptionsInternal} from '../db/scan';
 
 export class BTreeWrite extends BTreeRead {
+  /**
+   * This rw lock is used to ensure we do not mutate the btree in parallel. It
+   * would be a problem if we didn't have the lock in cases like this:
+   *
+   * ```ts
+   * const p1 = tree.put('a', 0);
+   * const p2 = tree.put('b', 1);
+   * await p1;
+   * await p2;
+   * ```
+   *
+   * because both `p1` and `p2` would start from the old root hash but a put
+   * changes the root hash so the two concurrent puts would lead to only one of
+   * them actually working, and it is not deterministic which one would finish
+   * last.
+   */
   private readonly _rwLock = new RWLock();
   private readonly _modified: Map<Hash, DataNodeImpl | InternalNodeImpl> =
     new Map();

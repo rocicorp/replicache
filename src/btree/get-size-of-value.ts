@@ -86,4 +86,4 @@ export function getSizeOfNode(
  *
  * There is a test ensuring this is correct.
  */
-export const NODE_HEADER_SIZE = 23;
+export const NODE_HEADER_SIZE = 11;

@@ -275,12 +275,12 @@ export class Write extends Read {
     generateChangedKeys: boolean,
   ): Promise<[string, ChangedKeysMap]> {
     const valueHash = await this.map.flush();
-    const valueChangedKeys: string[] = [];
+    let valueChangedKeys: string[] = [];
     if (generateChangedKeys && this._basis) {
       const basisMap = new BTreeRead(this._dagWrite, this._basis.valueHash);
-      for await (const diffRes of this.map.diff(basisMap)) {
-        valueChangedKeys.push(diffRes.key);
-      }
+      valueChangedKeys = await asyncIterableToArray(
+        this.map.diffKeys(basisMap),
+      );
     }
     const indexRecords: IndexRecord[] = [];
     const keyChanges = new Map();

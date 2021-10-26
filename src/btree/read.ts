@@ -15,6 +15,8 @@ import {
   DiffResult,
   DiffResultOp,
   ReadonlyEntry,
+  NODE_LEVEL,
+  NODE_ENTRIES,
 } from './node';
 import {getSizeOfValue, NODE_HEADER_SIZE} from './get-size-of-value';
 import {
@@ -62,8 +64,7 @@ export class BTreeRead {
     }
     const {data} = chunk;
     assertBTreeNode(data);
-    const {l: level, e: entries} = data;
-    const impl = newNodeImpl(entries, hash, level);
+    const impl = newNodeImpl(data[NODE_ENTRIES], hash, data[NODE_LEVEL]);
     this._cache.set(hash, impl);
     return impl;
   }

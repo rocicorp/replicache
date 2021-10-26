@@ -1,12 +1,6 @@
 import {assertJSONValue, JSONValue, ReadonlyJSONValue} from '../json';
 import {stringCompare} from '../prolly/string-compare';
-import {
-  assert,
-  assertArray,
-  assertNumber,
-  assertObject,
-  assertString,
-} from '../asserts';
+import {assert, assertArray, assertNumber, assertString} from '../asserts';
 import {emptyHashString} from '../hash';
 import type {BTreeRead} from './read';
 import type {BTreeWrite} from './write';
@@ -16,16 +10,17 @@ export type Hash = string;
 export type Entry<V> = [key: string, value: V];
 export type ReadonlyEntry<V> = readonly [key: string, value: V];
 
-type BaseNode<V> = {
-  readonly l: number;
-  readonly e: ReadonlyArray<Entry<V>>;
-};
+export const NODE_LEVEL = 0;
+export const NODE_ENTRIES = 1;
+
+/**
+ * The type of B+Tree node chunk data
+ */
+type BaseNode<V> = readonly [level: number, entries: ReadonlyArray<Entry<V>>];
 
 export type InternalNode = BaseNode<Hash>;
 
 export type DataNode = BaseNode<ReadonlyJSONValue>;
-
-export type BTreeNode = InternalNode | DataNode;
 
 export const enum DiffResultOp {
   Add,
@@ -118,9 +113,10 @@ export function binarySearch<V>(
   return ~index;
 }
 
-export function assertBTreeNode(v: unknown): asserts v is BTreeNode {
-  assertObject(v);
-  assertNumber(v.l);
+export function assertBTreeNode(
+  v: unknown,
+): asserts v is InternalNode | DataNode {
+  assertArray(v);
 
   function assertEntry(
     v: unknown,
@@ -133,11 +129,15 @@ export function assertBTreeNode(v: unknown): asserts v is BTreeNode {
     f(v[1]);
   }
 
-  assertArray(v.e);
-  if (v.l > 0) {
-    v.e.forEach(e => assertEntry(e, assertString));
+  assert(v.length >= 2);
+  const [level, entries] = v;
+
+  assertNumber(level);
+  assertArray(entries);
+  if (level > 0) {
+    entries.forEach(e => assertEntry(e, assertString));
   } else {
-    v.e.forEach(e => assertEntry(e, assertJSONValue));
+    entries.forEach(e => assertEntry(e, assertJSONValue));
   }
 }
 
@@ -167,7 +167,7 @@ abstract class NodeImpl<Value extends Hash | ReadonlyJSONValue> {
   }
 
   toChunkData(): DataNode | InternalNode {
-    return {l: this.level, e: this.entries};
+    return [this.level, this.entries];
   }
 }
 

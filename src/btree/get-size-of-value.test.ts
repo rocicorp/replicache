@@ -1,5 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import {getSizeOfValue, NODE_HEADER_SIZE} from './get-size-of-value';
+import {DataNode, NODE_ENTRIES} from './node';
 
 test('getSizeOfValue', async () => {
   expect(getSizeOfValue(null)).to.equal(1);
@@ -52,8 +53,8 @@ test('getSizeOfValue', async () => {
 
 test('chunk header size', () => {
   // This just ensures that the constant is correct.
-  const chunkData = {l: 0, e: []};
-  const entriesSize = getSizeOfValue(chunkData.e);
+  const chunkData: DataNode = [0, []];
+  const entriesSize = getSizeOfValue(chunkData[NODE_ENTRIES]);
   const chunkSize = getSizeOfValue(chunkData);
   expect(chunkSize - entriesSize).to.equal(NODE_HEADER_SIZE);
 });

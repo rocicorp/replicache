@@ -17,6 +17,8 @@ import {
   Entry,
   DiffResult,
   DiffResultOp,
+  NODE_LEVEL,
+  NODE_ENTRIES,
 } from './node';
 import {BTreeWrite} from './write';
 import {BTreeRead} from './read';
@@ -30,31 +32,31 @@ test('findLeaf', async () => {
   const kvStore = new kv.MemStore();
   const dagStore = new dag.Store(kvStore);
 
-  const leaf0: DataNode = {
-    l: 0,
-    e: [
+  const leaf0: DataNode = [
+    0,
+    [
       ['a', 0],
       ['b', 1],
       ['c', 2],
     ],
-  };
+  ];
 
-  const leaf1: DataNode = {
-    l: 0,
-    e: [
+  const leaf1: DataNode = [
+    0,
+    [
       ['d', 3],
       ['e', 4],
       ['f', 5],
     ],
-  };
-  const leaf2: DataNode = {
-    l: 0,
-    e: [
+  ];
+  const leaf2: DataNode = [
+    0,
+    [
       ['g', 6],
       ['h', 7],
       ['i', 8],
     ],
-  };
+  ];
 
   let h0: string, h1: string, h2: string;
 
@@ -70,14 +72,14 @@ test('findLeaf', async () => {
     h1 = c1.hash;
     h2 = c2.hash;
 
-    root = {
-      l: 1,
-      e: [
+    root = [
+      1,
+      [
         ['c', h0],
         ['f', h1],
         ['i', h2],
       ],
-    };
+    ];
 
     const rootChunk = Chunk.new(root, [h0, h1, h2]);
     rootHash = rootChunk.hash;
@@ -105,8 +107,8 @@ test('findLeaf', async () => {
       expected: DataNode,
     ) => {
       const actual = await findLeaf(key, hash, source);
-      expect(actual.level).to.deep.equal(expected.l);
-      expect(actual.entries).to.deep.equal(expected.e);
+      expect(actual.level).to.deep.equal(expected[NODE_LEVEL]);
+      expect(actual.entries).to.deep.equal(expected[NODE_ENTRIES]);
     };
 
     await t('b', h0, source, leaf0);
@@ -146,10 +148,7 @@ function makeTree(node: TreeData, dagStore: dag.Store): Promise<string> {
       node,
     ).filter(e => e[0] !== '$level');
     if (node.$level === 0) {
-      const dataNode: DataNode = {
-        l: 0,
-        e: entries,
-      };
+      const dataNode: DataNode = [0, entries];
       const chunk = Chunk.new(dataNode, []);
       await dagWrite.putChunk(chunk);
       return [chunk.hash, 0];
@@ -163,10 +162,7 @@ function makeTree(node: TreeData, dagStore: dag.Store): Promise<string> {
     });
     const entries2 = await Promise.all(ps);
 
-    const internalNode: InternalNode = {
-      l: level + 1,
-      e: entries2,
-    };
+    const internalNode: InternalNode = [level + 1, entries2];
     const refs = entries2.map(pair => pair[1]);
     const chunk = Chunk.new(internalNode, refs);
     await dagWrite.putChunk(chunk);
@@ -183,11 +179,11 @@ async function readTreeData(
   assertBTreeNode(node);
   let lastKey: string | undefined;
   const rv: Record<string, ReadonlyJSONValue> = {
-    $level: node.l,
+    $level: node[NODE_LEVEL],
   };
 
-  if (node.l === 0) {
-    for (const [k, v] of (node as DataNode).e) {
+  if (node[NODE_LEVEL] === 0) {
+    for (const [k, v] of node[NODE_ENTRIES]) {
       if (lastKey !== undefined) {
         assert(lastKey < k);
         lastKey = k;
@@ -197,7 +193,7 @@ async function readTreeData(
     return rv;
   }
 
-  for (const [k, hash] of (node as InternalNode).e) {
+  for (const [k, hash] of (node as InternalNode)[NODE_ENTRIES]) {
     if (lastKey !== undefined) {
       expect(lastKey < k);
       lastKey = k;

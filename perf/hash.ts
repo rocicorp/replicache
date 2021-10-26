@@ -10,78 +10,28 @@ function stringToUint8Array(s: string): Uint8Array {
   return encoder.encode(s);
 }
 
-function stringToUint16Array(s: string): Uint16Array {
-  const u = new Uint16Array(s.length);
-  for (let i = 0; i < s.length; i++) {
-    u[i] = s.charCodeAt(i);
-  }
-  return u;
-}
-
 export function benchmarks(): Array<Benchmark> {
   return [
-    // textEncoderUtf8(),
-    // textEncoderUtf16(),
-    // sha512({wasm: true, utf8: true}),
-    // sha512({wasm: true, utf8: false}),
-    // sha512({wasm: false, utf8: true}),
-    // sha512({wasm: false, utf8: false}),
-    hashJSONBenchmark({useHashJSON: true, utf8: false}),
-    hashJSONBenchmark({useHashJSON: true, utf8: true}),
-    hashJSONBenchmark({useHashJSON: false, utf8: true}),
-    hashJSONBenchmark({useHashJSON: false, utf8: false}),
+    sha512({wasm: true}),
+    sha512({wasm: false}),
+    hashJSONBenchmark({useHashJSON: true}),
+    hashJSONBenchmark({useHashJSON: false}),
   ];
 }
 
 const NUM_STRINGS = 100;
 const STRING_LENGTH = 100_000;
 
-function textEncoderUtf8(): Benchmark {
-  let randomStrings: string[];
-  const results = [];
-  return {
-    name: 'text encoder utf8',
-    group: 'hash',
-    setup() {
-      randomStrings = makeRandomStrings(NUM_STRINGS, STRING_LENGTH);
-    },
-    async run() {
-      for (let i = 0; i < randomStrings.length; i++) {
-        results.push(stringToUint8Array(randomStrings[i]));
-      }
-    },
-  };
-}
-
-function textEncoderUtf16(): Benchmark {
-  let randomStrings: string[];
-  const results = [];
-  return {
-    name: 'text encoder utf16',
-    group: 'hash',
-    setup() {
-      randomStrings = makeRandomStrings(NUM_STRINGS, STRING_LENGTH);
-    },
-    async run() {
-      for (let i = 0; i < randomStrings.length; i++) {
-        results.push(stringToUint16Array(randomStrings[i]));
-      }
-    },
-  };
-}
-
-function sha512({wasm, utf8}: {wasm: boolean; utf8: boolean}): Benchmark {
+function sha512({wasm}: {wasm: boolean}): Benchmark {
   let randomStrings: string[];
   const results = [];
   let calculateHash: (
     sum: Uint8Array | Uint16Array,
   ) => Uint8Array | Promise<ArrayBuffer>;
-  const toSum = utf8 ? stringToUint8Array : stringToUint16Array;
+  const toSum = stringToUint8Array;
 
   return {
-    name: `sha512 ${wasm ? 'wasm' : 'native'} from string ${
-      utf8 ? 'utf8' : 'utf16'
-    }`,
+    name: `sha512 ${wasm ? 'wasm' : 'native'}`,
     group: 'hash',
     async setup() {
       randomStrings = makeRandomStrings(NUM_STRINGS, STRING_LENGTH);
@@ -121,23 +71,15 @@ const testObject1 = [
 
 const testObject = Array.from({length: 10}, () => testObject1);
 
-function hashJSONBenchmark({
-  useHashJSON,
-  utf8,
-}: {
-  useHashJSON: boolean;
-  utf8?: boolean;
-}): Benchmark {
+function hashJSONBenchmark({useHashJSON}: {useHashJSON: boolean}): Benchmark {
   const results = [];
   let calculateHash: (
     value: ReadonlyJSONValue,
   ) => Uint8Array | Promise<ArrayBuffer>;
-  const toSum = utf8 ? stringToUint8Array : stringToUint16Array;
+  const toSum = stringToUint8Array;
 
   return {
-    name: `sha512 ${useHashJSON ? 'hashJSON' : 'JSON.stringify'} from string ${
-      utf8 ? 'utf8' : 'utf16'
-    }`,
+    name: `sha512 ${useHashJSON ? 'hashJSON' : 'JSON.stringify'}`,
     group: 'hash',
     async setup() {
       const hasher = await createSHA512();

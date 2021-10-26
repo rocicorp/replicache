@@ -15,7 +15,13 @@ import type {
   WriteTransaction,
 } from './transactions';
 import {ScanResult} from './scan-iterator';
-import {ConnectionLoop, MAX_DELAY_MS, MIN_DELAY_MS} from './connection-loop';
+import {
+  createConnectionLoop,
+  createNullConnectionLoop,
+  MAX_DELAY_MS,
+  MIN_DELAY_MS,
+} from './connection-loop';
+import type {ConnectionLoop} from './connection-loop';
 import {getLogger, LogContext} from './logger';
 import type {Logger} from './logger';
 import {defaultPuller} from './puller';
@@ -297,21 +303,25 @@ export class Replicache<MD extends MutatorDefs = {}> {
       requestOptions;
     this._requestOptions = {maxDelayMs, minDelayMs};
 
-    this._pullConnectionLoop = new ConnectionLoop(
-      new PullDelegate(
-        this,
-        () => this._invokePull(),
-        getLogger(['PULL'], logLevel),
-      ),
-    );
+    this._pullConnectionLoop = this.pullURL
+      ? createConnectionLoop(
+          new PullDelegate(
+            this,
+            () => this._invokePull(),
+            getLogger(['PULL'], logLevel),
+          ),
+        )
+      : createNullConnectionLoop();
 
-    this._pushConnectionLoop = new ConnectionLoop(
-      new PushDelegate(
-        this,
-        () => this._invokePush(MAX_REAUTH_TRIES),
-        getLogger(['PUSH'], logLevel),
-      ),
-    );
+    this._pushConnectionLoop = this.pushURL
+      ? createConnectionLoop(
+          new PushDelegate(
+            this,
+            () => this._invokePush(MAX_REAUTH_TRIES),
+            getLogger(['PUSH'], logLevel),
+          ),
+        )
+      : createNullConnectionLoop();
 
     this._logger = getLogger([], logLevel);
 

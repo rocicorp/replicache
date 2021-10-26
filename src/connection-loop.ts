@@ -31,7 +31,7 @@ export function createConnectionLoop(
   return new ConnectionLoopImpl(delegate);
 }
 
-export function createNullConnectionLoop() {
+export function createNullConnectionLoop(): ConnectionLoop {
   return new NullConnectionLoop();
 }
 

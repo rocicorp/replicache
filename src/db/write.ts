@@ -326,7 +326,7 @@ export class Write extends Read {
     switch (meta.type) {
       case MetaType.Local: {
         const {mutationID, mutatorName, mutatorArgs, originalHash} = meta;
-        commit = await commitNewLocal(
+        commit = commitNewLocal(
           basisHash,
           mutationID,
           mutatorName,
@@ -339,7 +339,7 @@ export class Write extends Read {
       }
       case MetaType.Snapshot: {
         const {lastMutationID, cookie} = meta;
-        commit = await commitNewSnapshot(
+        commit = commitNewSnapshot(
           basisHash,
           lastMutationID,
           cookie,
@@ -359,7 +359,7 @@ export class Write extends Read {
           }
         }
 
-        commit = await commitNewIndexChange(
+        commit = commitNewIndexChange(
           basisHash,
           lastMutationID,
           valueHash,

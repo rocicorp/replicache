@@ -57,10 +57,23 @@ let overrideUseMemstore = false;
 // eslint-disable-next-line @typescript-eslint/ban-types
 async function replicacheForTesting<MD extends MutatorDefs = {}>(
   name: string,
+  options: ReplicacheOptions<MD> = {},
+): Promise<ReplicacheTest<MD>> {
+  const pullURL = 'https://pull.com/?name=' + name;
+  const pushURL = 'https://push.com/?name=' + name;
+  return replicacheForTestingNoDefaultURLs(name, {
+    pullURL,
+    pushURL,
+    ...options,
+  });
+}
+
+async function replicacheForTestingNoDefaultURLs<MD extends MutatorDefs = {}>(
+  name: string,
   {
-    pullURL = 'https://pull.com/?name=' + name,
+    pullURL,
     pushDelay = 60_000, // Large to prevent interfering
-    pushURL = 'https://push.com/?name=' + name,
+    pushURL,
     useMemstore = overrideUseMemstore,
 
     ...rest
@@ -80,6 +93,7 @@ async function replicacheForTesting<MD extends MutatorDefs = {}>(
   await rep.clientID;
   fetchMock.post(pullURL, {lastMutationID: 0, patch: []});
   fetchMock.post(pushURL, 'ok');
+  console.log(name + ' ' + pushURL);
   await tickAFewTimes();
   return rep;
 }
@@ -1203,6 +1217,77 @@ testWithBothStores('push delay', async () => {
   expect(fetchMock.calls()).to.have.length(1);
 });
 
+testWithBothStores(
+  'no push request when both pushURL and pusher are not provided',
+  async () => {
+    const rep = await replicacheForTestingNoDefaultURLs('no push requests', {
+      auth: '1',
+      pullURL: 'https://diff.com/pull',
+      pushDelay: 1,
+      mutators: {
+        createTodo: async <A extends {id: number}>(
+          tx: WriteTransaction,
+          args: A,
+        ) => {
+          await tx.put(`/todo/${args.id}`, args);
+        },
+      },
+    });
+
+    const {createTodo} = rep.mutate;
+
+    const id1 = 14323534;
+
+    await tickAFewTimes();
+    fetchMock.reset();
+    fetchMock.postAny({});
+
+    await createTodo({id: id1});
+    await tickAFewTimes();
+
+    expect(fetchMock.calls()).to.have.length(0);
+  },
+);
+
+testWithBothStores(
+  'push request is sent when pushURL is not provided but a pusher is provided',
+  async () => {
+    let pusherCallCount = 0;
+    const rep = await replicacheForTestingNoDefaultURLs('no push requests', {
+      auth: '1',
+      pullURL: 'https://diff.com/pull',
+      pushDelay: 1,
+      pusher: () => {
+        pusherCallCount++;
+        return Promise.resolve({
+          httpStatusCode: 200,
+          errorMessage: '',
+        });
+      },
+      mutators: {
+        createTodo: async <A extends {id: number}>(
+          tx: WriteTransaction,
+          args: A,
+        ) => {
+          await tx.put(`/todo/${args.id}`, args);
+        },
+      },
+    });
+
+    const {createTodo} = rep.mutate;
+
+    const id1 = 14323534;
+
+    await tickAFewTimes();
+    pusherCallCount = 0;
+
+    await createTodo({id: id1});
+    await tickAFewTimes();
+
+    expect(pusherCallCount).to.equal(1);
+  },
+);
+
 testWithBothStores('pull', async () => {
   const pullURL = 'https://diff.com/pull';
 
@@ -1368,6 +1453,53 @@ testWithBothStores('reauth pull', async () => {
     );
   }
 });
+
+testWithBothStores(
+  'no pull request when both pullURL and puller are not provided',
+  async () => {
+    const rep = await replicacheForTestingNoDefaultURLs('no pull requests', {
+      auth: '1',
+      pushURL: 'https://diff.com/push',
+    });
+
+    await tickAFewTimes();
+    fetchMock.reset();
+    fetchMock.postAny({});
+
+    rep.pull();
+    await tickAFewTimes();
+
+    expect(fetchMock.calls()).to.have.length(0);
+  },
+);
+
+testWithBothStores(
+  'pull request is sent when pullURL is not provided but a puller is provided',
+  async () => {
+    let pullerCallCount = 0;
+    const rep = await replicacheForTestingNoDefaultURLs('no push requests', {
+      auth: '1',
+      pushURL: 'https://diff.com/push',
+      puller: () => {
+        pullerCallCount++;
+        return Promise.resolve({
+          httpRequestInfo: {
+            httpStatusCode: 500,
+            errorMessage: 'Test failure',
+          },
+        });
+      },
+    });
+
+    await tickAFewTimes();
+    pullerCallCount = 0;
+
+    rep.pull();
+    await tickAFewTimes();
+
+    expect(pullerCallCount).to.equal(1);
+  },
+);
 
 testWithBothStores('reauth push', async () => {
   const pushURL = 'https://diff.com/push';

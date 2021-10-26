@@ -303,25 +303,27 @@ export class Replicache<MD extends MutatorDefs = {}> {
       requestOptions;
     this._requestOptions = {maxDelayMs, minDelayMs};
 
-    this._pullConnectionLoop = this.pullURL
-      ? createConnectionLoop(
-          new PullDelegate(
-            this,
-            () => this._invokePull(),
-            getLogger(['PULL'], logLevel),
-          ),
-        )
-      : createNullConnectionLoop();
+    this._pullConnectionLoop =
+      options.pullURL || options.puller
+        ? createConnectionLoop(
+            new PullDelegate(
+              this,
+              () => this._invokePull(),
+              getLogger(['PULL'], logLevel),
+            ),
+          )
+        : createNullConnectionLoop();
 
-    this._pushConnectionLoop = this.pushURL
-      ? createConnectionLoop(
-          new PushDelegate(
-            this,
-            () => this._invokePush(MAX_REAUTH_TRIES),
-            getLogger(['PUSH'], logLevel),
-          ),
-        )
-      : createNullConnectionLoop();
+    this._pushConnectionLoop =
+      options.pushURL || options.pusher
+        ? createConnectionLoop(
+            new PushDelegate(
+              this,
+              () => this._invokePush(MAX_REAUTH_TRIES),
+              getLogger(['PUSH'], logLevel),
+            ),
+          )
+        : createNullConnectionLoop();
 
     this._logger = getLogger([], logLevel);
 

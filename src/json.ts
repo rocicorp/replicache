@@ -178,7 +178,6 @@ function assertJSONObject(v: Record<string, unknown>): asserts v is JSONObject {
     }
   }
 }
-
 function assertJSONArray(v: unknown[]): asserts v is JSONValue[] {
   for (let i = 0; i < v.length; i++) {
     const val = v[i];

@@ -20,7 +20,7 @@ export class Chunk<V extends Value = Value> {
   }
 
   static new<V extends Value = Value>(data: V, refs: Refs): Chunk<V> {
-    const hash = Hash.of(data);
+    const hash = Hash.of(JSON.stringify(data));
     return new Chunk(hash.toString(), data, refs);
   }
 

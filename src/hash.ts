@@ -1,7 +1,5 @@
 import {createSHA512} from 'hash-wasm';
 import type {IHasher} from 'hash-wasm/dist/lib/WASMInterface';
-import {hashJSON} from './hash-json';
-import type {ReadonlyJSONValue} from './json';
 
 export const BYTE_LENGTH = 20;
 
@@ -19,13 +17,11 @@ export class Hash {
    *
    * You have to await the result of [[initHasher]] before calling this method.
    */
-  static of(data: ReadonlyJSONValue): Hash {
+  static of(sum: Uint8Array | string): Hash {
     if (!hasher) {
       throw new Error('Hash.of() requires await initHasher');
     }
-    hasher.init();
-    hashJSON(data, hasher);
-    const buf = hasher.digest('binary');
+    const buf = hasher.init().update(sum).digest('binary');
     return new Hash(buf.subarray(0, BYTE_LENGTH));
   }
 

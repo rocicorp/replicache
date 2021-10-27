@@ -94,7 +94,6 @@ async function replicacheForTestingNoDefaultURLs<MD extends MutatorDefs = {}>(
   await rep.clientID;
   fetchMock.post(pullURL, {lastMutationID: 0, patch: []});
   fetchMock.post(pushURL, 'ok');
-  console.log(name + ' ' + pushURL);
   await tickAFewTimes();
   return rep;
 }

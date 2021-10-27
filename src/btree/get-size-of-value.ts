@@ -1,8 +1,8 @@
-import {SIZEOF_INT} from 'flatbuffers';
 import type {ReadonlyJSONObject, ReadonlyJSONValue} from '../json';
 import type {Entry} from './node';
 
 const SIZE_TAG = 1;
+const SIZE_INT32 = 4;
 const SIZE_DOUBLE = 8;
 
 /**
@@ -27,13 +27,13 @@ export function getSizeOfValue(value: ReadonlyJSONValue): number {
       // Assumes all strings are one byte strings. V8 writes OneByteString and
       // TwoByteString. We could check the string but it would require iterating
       // over all the characters.
-      return SIZE_TAG + SIZEOF_INT + value.length;
+      return SIZE_TAG + SIZE_INT32 + value.length;
     case 'number':
       if (isSmi(value)) {
         if (value <= -(2 ** 30) || value >= 2 ** 30 - 1) {
           return SIZE_TAG + 5;
         }
-        return SIZE_TAG + SIZEOF_INT;
+        return SIZE_TAG + SIZE_INT32;
       }
       return SIZE_TAG + SIZE_DOUBLE;
     case 'boolean':
@@ -44,7 +44,7 @@ export function getSizeOfValue(value: ReadonlyJSONValue): number {
       }
 
       if (Array.isArray(value)) {
-        let sum = 2 * SIZE_TAG + SIZEOF_INT;
+        let sum = 2 * SIZE_TAG + SIZE_INT32;
         for (const element of value) {
           sum += getSizeOfValue(element);
         }
@@ -61,7 +61,7 @@ export function getSizeOfValue(value: ReadonlyJSONValue): number {
             sum += getSizeOfValue(k) + getSizeOfValue(v);
           }
         }
-        return sum + SIZEOF_INT + SIZE_TAG;
+        return sum + SIZE_INT32 + SIZE_TAG;
       }
   }
 

@@ -1,12 +1,13 @@
 import {expect} from '@esm-bundle/chai';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import {
-  ConnectionLoop,
   ConnectionLoopDelegate,
+  createConnectionLoop,
   DEBOUNCE_DELAY_MS,
   MAX_DELAY_MS,
   MIN_DELAY_MS,
 } from './connection-loop';
+import type {ConnectionLoop} from './connection-loop';
 import {sleep} from './sleep';
 
 let clock: SinonFakeTimers;
@@ -76,7 +77,7 @@ function createLoop(
     },
   };
 
-  return (loop = new ConnectionLoop(delegate));
+  return (loop = createConnectionLoop(delegate));
 }
 
 test('basic sequential by awaiting', async () => {
@@ -578,7 +579,7 @@ test('watchdog timer again', async () => {
 test('mutate minDelayMs', async () => {
   let minDelayMs = 50;
   const log: number[] = [];
-  loop = new ConnectionLoop({
+  loop = createConnectionLoop({
     async invokeSend() {
       log.push(Date.now());
       return true;

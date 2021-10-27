@@ -21,6 +21,9 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * This is the URL to the server endpoint dealing with the push updates. See
    * [Push Endpoint Reference](https://doc.replicache.dev/server-push) for more
    * details.
+   *
+   * If not provided, push requests will not be made unless a custom
+   * [[ReplicacheOptions.pusher]] is provided.
    */
   pushURL?: string;
 
@@ -43,6 +46,9 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * This is the URL to the server endpoint dealing with pull. See [Pull
    * Endpoint Reference](https://doc.replicache.dev/server-pull) for more
    * details.
+   *
+   * If not provided, pull requests will not be made unless a custom
+   * [[ReplicacheOptions.puller]] is provided.
    */
   pullURL?: string;
 

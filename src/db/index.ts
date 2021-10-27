@@ -3,6 +3,7 @@ import type {ReadonlyJSONValue, ReadonlyJSONObject} from '../json';
 import {RWLock} from '../rw-lock';
 import type {IndexRecord} from './commit';
 import {BTreeRead, BTreeWrite} from '../btree/mod';
+import type {LogContext} from '../logger';
 
 abstract class Index<DagReadWrite, BTree> {
   readonly meta: IndexRecord;
@@ -69,21 +70,29 @@ export class IndexWrite extends Index<dag.Write, BTreeWrite> {
 
 // Index or de-index a single primary entry.
 export async function indexValue(
+  lc: LogContext,
   index: BTreeWrite,
   op: IndexOperation,
   key: string,
   val: ReadonlyJSONValue,
   jsonPointer: string,
 ): Promise<void> {
-  for (const entry of getIndexKeys(key, val, jsonPointer)) {
-    switch (op) {
-      case IndexOperation.Add:
-        await index.put(entry, val);
-        break;
-      case IndexOperation.Remove:
-        await index.del(entry);
-        break;
+  try {
+    for (const entry of getIndexKeys(key, val, jsonPointer)) {
+      switch (op) {
+        case IndexOperation.Add:
+          await index.put(entry, val);
+          break;
+        case IndexOperation.Remove:
+          await index.del(entry);
+          break;
+      }
     }
+  } catch (e) {
+    // Right now all the errors that index_value() returns are customers dev
+    // problems: either the value is not json, the pointer is into nowhere, etc.
+    // So we ignore them.
+    lc.info?.('Not indexing value', val, ':', e);
   }
 }
 

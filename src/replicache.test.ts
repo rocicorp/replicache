@@ -68,6 +68,7 @@ async function replicacheForTesting<MD extends MutatorDefs = {}>(
   });
 }
 
+// eslint-disable-next-line @typescript-eslint/ban-types
 async function replicacheForTestingNoDefaultURLs<MD extends MutatorDefs = {}>(
   name: string,
   {

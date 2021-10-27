@@ -152,7 +152,7 @@ testWithBothStores('get, has, scan on empty db', async () => {
     expect(scanItems).to.have.length(0);
   }
 
-  await t(rep);
+  await rep.query(t);
 });
 
 testWithBothStores('put, get, has, del inside tx', async () => {
@@ -2986,4 +2986,25 @@ testWithBothStores('subscribe perf test regression', async () => {
   for (let i = 0; i < count; i++) {
     expect(data[i]).to.equal(i < mut ? i ** 2 + rand : i);
   }
+});
+
+testWithBothStores('client ID is set correctly on transactions', async () => {
+  const rep = await replicacheForTesting(
+    'client-id-is-set-correctly-on-transactions',
+    {
+      mutators: {
+        async expectClientID(tx, expectedClientID: string) {
+          expect(tx.clientID).to.equal(expectedClientID);
+        },
+      },
+    },
+  );
+
+  const repClientID = await rep.clientID;
+
+  await rep.query(tx => {
+    expect(tx.clientID).to.equal(repClientID);
+  });
+
+  await rep.mutate.expectClientID(repClientID);
 });

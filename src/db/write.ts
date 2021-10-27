@@ -14,6 +14,7 @@ import {IndexWrite, IndexOperation, indexValue, IndexRead} from './index';
 import type {LogContext} from '../logger';
 import {BTreeRead, BTreeWrite} from '../btree/mod';
 import {asyncIterableToArray} from '../async-iterable-to-array';
+import {lazy} from '../lazy';
 
 type IndexChangeMeta = {
   type: MetaType.IndexChange;
@@ -137,25 +138,8 @@ export class Write extends Read {
     if (this._meta.type === MetaType.IndexChange) {
       throw new Error('Not allowed');
     }
-    const oldVal = await this.map.get(key);
-    if (oldVal !== undefined) {
-      await updateIndexes(
-        lc,
-        this.indexes,
-        this._dagWrite,
-        IndexOperation.Remove,
-        key,
-        oldVal,
-      );
-    }
-    await updateIndexes(
-      lc,
-      this.indexes,
-      this._dagWrite,
-      IndexOperation.Add,
-      key,
-      val,
-    );
+    const oldVal = lazy(() => this.map.get(key));
+    await updateIndexes(lc, this.indexes, this._dagWrite, key, oldVal, val);
 
     await this.map.put(key, val);
   }
@@ -166,15 +150,15 @@ export class Write extends Read {
     }
 
     // TODO(arv): This does the binary search twice. We can do better.
-    const oldVal = await this.map.get(key);
+    const oldVal = lazy(() => this.map.get(key));
     if (oldVal !== undefined) {
       await updateIndexes(
         lc,
         this.indexes,
         this._dagWrite,
-        IndexOperation.Remove,
         key,
         oldVal,
+        undefined,
       );
     }
     return this.map.del(key);
@@ -226,20 +210,14 @@ export class Write extends Read {
 
     const indexMap = new BTreeWrite(this._dagWrite);
     for await (const entry of this.map.scan({prefix: keyPrefix})) {
-      // All the indexValue errors because of customer-supplied data: malformed
-      // json, json path pointing to nowhere, etc. We ignore them.
-
-      try {
-        await indexValue(
-          indexMap,
-          IndexOperation.Add,
-          entry[0],
-          entry[1],
-          jsonPointer,
-        );
-      } catch (e) {
-        lc.info?.('Not indexing value', entry[1], ':', e);
-      }
+      await indexValue(
+        lc,
+        indexMap,
+        IndexOperation.Add,
+        entry[0],
+        entry[1],
+        jsonPointer,
+      );
     }
 
     this.indexes.set(
@@ -384,29 +362,47 @@ export class Write extends Read {
   }
 }
 
-async function updateIndexes(
+export async function updateIndexes(
   lc: LogContext,
   indexes: Map<string, IndexWrite>,
   dagWrite: dag.Write,
-  op: IndexOperation,
   key: string,
-  val: ReadonlyJSONValue,
+  oldValGetter: () => Promise<ReadonlyJSONValue | undefined>,
+  newVal: ReadonlyJSONValue | undefined,
 ): Promise<void> {
+  const ps: Promise<void>[] = [];
   for (const idx of indexes.values()) {
     if (key.startsWith(idx.meta.definition.keyPrefix)) {
+      const oldVal = await oldValGetter();
       await idx.withMap(dagWrite, async map => {
-        // Right now all the errors that index_value() returns are customers dev
-        // problems: either the value is not json, the pointer is into nowhere, etc.
-        // So we ignore them.
-
-        try {
-          await indexValue(map, op, key, val, idx.meta.definition.jsonPointer);
-        } catch (e) {
-          lc.info?.('Not indexing value', val, ':', e);
+        if (oldVal !== undefined) {
+          ps.push(
+            indexValue(
+              lc,
+              map,
+              IndexOperation.Remove,
+              key,
+              oldVal,
+              idx.meta.definition.jsonPointer,
+            ),
+          );
+        }
+        if (newVal !== undefined) {
+          ps.push(
+            indexValue(
+              lc,
+              map,
+              IndexOperation.Add,
+              key,
+              newVal,
+              idx.meta.definition.jsonPointer,
+            ),
+          );
         }
       });
     }
   }
+  await Promise.all(ps);
 }
 
 type ChangedKeysMap = Map<string, string[]>;

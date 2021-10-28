@@ -5,6 +5,25 @@ export const BYTE_LENGTH = 20;
 
 const charTable = '0123456789abcdefghijklmnopqrstuv';
 
+let mem = new Uint8Array(1024);
+const encoder = new TextEncoder();
+
+function ensureCapacity(s: string) {
+  if (s.length * 2 > mem.length) {
+    mem = new Uint8Array(mem.length * 2);
+    ensureCapacity(s);
+  }
+}
+
+const stringToUint8Array: (s: string) => Uint8Array =
+  typeof encoder.encodeInto !== 'undefined'
+    ? s => {
+        ensureCapacity(s);
+        const {written} = encoder.encodeInto(s, mem);
+        return new Uint8Array(mem.buffer, 0, written);
+      }
+    : s => encoder.encode(s);
+
 export class Hash {
   private readonly _sum: Uint8Array;
 
@@ -17,11 +36,12 @@ export class Hash {
    *
    * You have to await the result of [[initHasher]] before calling this method.
    */
-  static of(sum: Uint8Array | string): Hash {
+  static of(value: string): Hash {
     if (!hasher) {
       throw new Error('Hash.of() requires await initHasher');
     }
-    const buf = hasher.init().update(sum).digest('binary');
+    const byteArray = stringToUint8Array(value);
+    const buf = hasher.init().update(byteArray).digest('binary');
     return new Hash(buf.subarray(0, BYTE_LENGTH));
   }
 

@@ -15,9 +15,8 @@ import (
 )
 
 var (
-	app     = kingpin.New("bump", "Bump changes the version of a Replicache library and updates all required files.")
+	app     = kingpin.New("bump", "Bump changes the version of Replicache and updates all required files.")
 	rootDir = app.Flag("root", "Path to the root of the library repository").Required().ExistingDir()
-	library = app.Arg("library", "The library to bump").Required().Enum("repc", "replicache")
 	version = app.Arg("version", "Version to update to.").Required().String()
 )
 
@@ -51,29 +50,18 @@ func impl() error {
 		fmt.Println("WARNING: new version is smaller than old version. Carefully check changed files to be sure this is what you want.")
 	}
 
-	err = updateLicense(*rootDir, *library, oldVersion, v)
+	err = updateLicense(*rootDir, oldVersion, v)
 	if err != nil {
 		return errors.Wrap(err, "Could not update license")
 	}
 
-	if *library == "repc" {
-		err = updateCargoToml(*rootDir, v.String())
-		if err != nil {
-			return err
-		}
-		err = updateCargoLock(*rootDir, v.String())
-		if err != nil {
-			return err
-		}
-	} else if *library == "replicache" {
-		err = updatePackageJSON(path.Join(*rootDir, "package.json"), v.String())
-		if err != nil {
-			return err
-		}
-		err = updatePackageJSON(path.Join(*rootDir, "package-lock.json"), v.String())
-		if err != nil {
-			return err
-		}
+	err = updatePackageJSON(path.Join(*rootDir, "package.json"), v.String())
+	if err != nil {
+		return err
+	}
+	err = updatePackageJSON(path.Join(*rootDir, "package-lock.json"), v.String())
+	if err != nil {
+		return err
 	}
 
 	err = commitGit(*rootDir, v)
@@ -104,10 +92,10 @@ func updateVersionFile(rootDir string, newVersion semver.Version) (semver.Versio
 	return oldVersion, nil
 }
 
-func updateLicense(rootDir, library string, oldVersion, newVersion semver.Version) error {
+func updateLicense(rootDir string, oldVersion, newVersion semver.Version) error {
 	p := path.Join(rootDir, "licenses", "BSL.txt")
 	err := updateFile(p,
-		fmt.Sprintf("Licensed Work:        %s (.*)\n", library),
+		"Licensed Work:        Replicache (.*)\n",
 		newVersion.String())
 	if err != nil {
 		return err
@@ -126,18 +114,7 @@ func updateLicense(rootDir, library string, oldVersion, newVersion semver.Versio
 	return nil
 }
 
-func updateCargoToml(rootDir, newVersion string) error {
-	return updateFile(path.Join(rootDir, "Cargo.toml"), `version = "(.+?)"`,
-		newVersion)
-}
-
-func updateCargoLock(rootDir, newVersion string) error {
-	return updateFile(path.Join(rootDir, "Cargo.lock"),
-		"\\[\\[package\\]\\]\nname = \"replicache-client\"\nversion = \"(.+?)\"",
-		newVersion)
-}
-
-func updatePackageJSON(p, newVersion string) error {
+ffunc updatePackageJSON(p, newVersion string) error {
 	return updateFile(p, `"version": "(.+?)"`, newVersion)
 }
 
@@ -161,7 +138,7 @@ func updateFile(path, pattern, newVersion string) error {
 		return fmt.Errorf("Could not find pattern %s in %s", pattern, path)
 	}
 
-	new := old[:match[2]]
+	new := append([]byte{}, old[:match[2]]...)
 	new = append(new, []byte(newVersion)...)
 	new = append(new, old[match[3]:]...)
 

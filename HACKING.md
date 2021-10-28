@@ -97,8 +97,10 @@ Walk through [the integration guide](https://doc.replicache.dev/guide/intro) and
 ## Build the Release
 
 ```
-go get github.com/rocicorp/repc/tool/bump
-bump --root=. replicache <semver>
+cd tool/bump
+go build
+./bump --root=../../ <semver>
+cd -
 npm install
 git add package-lock.json
 git commit --amend --no-edit

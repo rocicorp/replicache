@@ -122,13 +122,13 @@ class WriteImpl extends WriteImplBase {
     }
 
     const store = objectStore(this._tx);
-    const ps = Array.from(this._pending, ([key, val]) => {
+    this._pending.forEach((val, key) => {
       if (val === deleteSentinel) {
-        return wrap(store.delete(key));
+        store.delete(key);
+      } else {
+        store.put(val, key);
       }
-      return wrap(store.put(val, key));
     });
-    await Promise.all(ps);
     await this._onTxEnd;
 
     if (this._txState === WriteState.ABORTED) {

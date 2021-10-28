@@ -13,7 +13,7 @@ export class Chunk<V extends Value = Value> {
    */
   readonly meta: Refs;
 
-  private constructor(hash: string, data: V, meta: Refs = []) {
+  private constructor(hash: string, data: V, meta: Refs) {
     this.hash = hash;
     this.data = data;
     this.meta = meta;

@@ -161,7 +161,7 @@ func updateFile(path, pattern, newVersion string) error {
 		return fmt.Errorf("Could not find pattern %s in %s", pattern, path)
 	}
 
-	new := old[:match[2]]
+	new := append([]byte{}, old[:match[2]]...)
 	new = append(new, []byte(newVersion)...)
 	new = append(new, old[match[3]:]...)
 

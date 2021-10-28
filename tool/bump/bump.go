@@ -114,13 +114,8 @@ func updateLicense(rootDir string, oldVersion, newVersion semver.Version) error 
 	return nil
 }
 
-ffunc updatePackageJSON(p, newVersion string) error {
+func updatePackageJSON(p, newVersion string) error {
 	return updateFile(p, `"version": "(.+?)"`, newVersion)
-}
-
-func updateVersionGo(rootDir, newVersion string) error {
-	return updateFile(path.Join(rootDir, "util", "version", "version.go"),
-		`const v = "(.+?)"`, newVersion)
 }
 
 func updateFile(path, pattern, newVersion string) error {

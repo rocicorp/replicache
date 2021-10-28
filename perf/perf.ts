@@ -60,12 +60,7 @@ async function runBenchmark(
     await benchmark.setup();
   }
 
-  const totalTimeStart = performance.now();
-  for (let i = 0; (i < minRuns || sum < minTime) && i < maxRuns; i++) {
-    if (i >= minRuns && performance.now() - totalTimeStart > maxTotalTime) {
-      break;
-    }
-
+  for (let i = 0; i < minRuns /*|| sum < minTime*/; i++) {
     let t0 = 0;
     let t1 = 0;
     const reset = () => {

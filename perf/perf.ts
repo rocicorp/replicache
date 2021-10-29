@@ -93,7 +93,8 @@ async function runBenchmark(
       medianTime;
     return formatAsBenchmarkJS({
       name: benchmark.name,
-      value: bytesPerSecond || `${(1.0 / medianTime * 1000).toFixed(2)} ops/sec `,
+      value:
+        bytesPerSecond || `${((1.0 / medianTime) * 1000).toFixed(2)} ops/sec `,
       variance: `${(variance * 100).toFixed(1)}%`,
       runs,
     });

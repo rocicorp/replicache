@@ -195,8 +195,8 @@ export function benchmarkWriteSubRead(opts: {
   const numKeys = keysPerSub * numSubsTotal;
   const cacheSizeMB = (numKeys * valueSize) / 1024 / 1024;
   const kbReadPerSub = (keysWatchedPerSub * valueSize) / 1024;
-  const key = (k: number) => `key${k}`;
-  //const key = (k: number) => `key${k.toString().padStart(10, '0')}`;
+  //const key = (k: number) => `key${k}`;
+  const key = (k: number) => `key${k.toString().padStart(10, '0')}`;
   const indexFromKey = (k: string) => parseInt(k.substring('key'.length));
   const createRandomValueForKey = (key: string) => {
     return {

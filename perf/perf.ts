@@ -69,6 +69,7 @@ async function runBenchmark(
     };
     const stop = () => {
       t1 = performance.now();
+      performance.mark('end-mark-' + i);
       performance.measure(benchmark.name, 'mark-' + i);
     };
     reset();

@@ -186,14 +186,17 @@ export function benchmarkWriteSubRead(opts: {
   keysWatchedPerSub: number;
   numSubsDirty: number;
   useMemstore: boolean;
+  randomInvalidate: boolean;
 }): Benchmark {
-  const {valueSize, numSubsTotal, keysPerSub, keysWatchedPerSub, numSubsDirty} =
+  // keysPerSub needs to be >= keysWatchedPerSub, currently not true for keysPerSub = 8, 1 MB
+  const {valueSize, numSubsTotal, keysPerSub, keysWatchedPerSub, numSubsDirty, randomInvalidate} =
     opts;
 
   const numKeys = keysPerSub * numSubsTotal;
   const cacheSizeMB = (numKeys * valueSize) / 1024 / 1024;
   const kbReadPerSub = (keysWatchedPerSub * valueSize) / 1024;
-  const key = (k: number) => `key${k.toString().padStart(10, '0')}`;
+  const key = (k: number) => `key${k}`;
+  //const key = (k: number) => `key${k.toString().padStart(10, '0')}`;
   const indexFromKey = (k: string) => parseInt(k.substring('key'.length));
   const createRandomValueForKey = (key: string) => {
     return {
@@ -207,7 +210,7 @@ export function benchmarkWriteSubRead(opts: {
   return {
     name: `${
       opts.useMemstore ? '[MemStore] ' : ''
-    }writeSubRead ${cacheSizeMB}MB total, ${numSubsTotal} subs total, ${numSubsDirty} subs dirty, ${kbReadPerSub}kb read per sub`,
+    }writeSubRead ${cacheSizeMB}MB total, ${numSubsTotal} subs total, ${numSubsDirty} subs dirty, ${randomInvalidate ? 'random invalidate, ' : ''}${kbReadPerSub}kb read per sub`,
     group: 'replicache',
     async run(bencher: Bencher) {
       const data = Array.from({length: numKeys}).map((_v, i) =>
@@ -221,7 +224,8 @@ export function benchmarkWriteSubRead(opts: {
             const keys = shuffledRange(numKeys).map(key);
             for (let i = 0; i < numKeys; i++) {
               const k = keys[i];
-              await tx.put(k, data[indexFromKey(k)]);
+              const d = data[indexFromKey(k)];
+              await tx.put(k, d);
             }
           },
           // For each random data item provided, invalidate a different subscription by writing to the first key it is scanning.
@@ -241,26 +245,26 @@ export function benchmarkWriteSubRead(opts: {
       await rep.mutate.init();
       let onDataCallCount = 0;
 
+      const sortedKeys = Array.from({length: numKeys}).map((_v, i) => key(i)).sort();
       const subs = Array.from({length: numSubsTotal}, (_, i) =>
         rep.subscribe(
           async tx => {
-            const start = i * keysPerSub;
+            const startKey = sortedKeys[i * keysPerSub];
             return await tx
               .scan({
-                start: {key: key(start)},
+                start: {key: startKey},
                 limit: keysWatchedPerSub,
               })
               .toArray();
           },
           {
             onData(v) {
-              //clog(v);
               onDataCallCount++;
               const vals = v as string[];
               clog('onData');
               clog(vals);
               for (const [j, val] of vals.entries()) {
-                const index = i * keysPerSub + j;
+                const index = indexFromKey(sortedKeys[i * keysPerSub + j]);
                 data[index] = val as unknown as {key: string, value: Record<
                   string,
                   string
@@ -278,17 +282,21 @@ export function benchmarkWriteSubRead(opts: {
 
       // Build our random data ahead of time, outside the timed window.
       
-      //const keysToInvalidate = shuffledRange(numSubsTotal).map(key).slice(0, numSubsDirty);
-      const keysToInvalidate = Array.from({length: numSubsDirty}).map((_v, index) => index * keysPerSub).map(key);
+      const keysToInvalidate = randomInvalidate ?
+        shuffledRange(numSubsTotal).slice(0, numSubsDirty).map(i => sortedKeys[i * keysPerSub]) :
+        Array.from({length: numSubsDirty}).map((_v, index) => sortedKeys[index * keysPerSub]);
       const changes = [];
       for (let i = 0; i < numSubsDirty; i++) {
         const key = keysToInvalidate[i];
         changes.push({key, value: createRandomValueForKey(key)});
       }
 
+      clog(changes);
+
       // OK time the below!
       console.time(`writeSubRead ${cacheSizeMB}MB total`);
       bencher.reset();
+      //console.profile(`writeSubRead ${cacheSizeMB}MB`);
       clog({onDataCallCount, numSubsTotal, numSubsDirty});
 
       // In a single transaction, invalidate numSubsDirty subscriptions.
@@ -297,13 +305,17 @@ export function benchmarkWriteSubRead(opts: {
 
       clog({onDataCallCount, numSubsTotal, numSubsDirty});
 
+      //console.profileEnd(`writeSubRead ${cacheSizeMB}MB`);
       bencher.stop();
       console.timeEnd(`writeSubRead ${cacheSizeMB}MB total`);
 
       subs.forEach(c => c());
 
+      clog({onDataCallCount, numSubsTotal, numSubsDirty});
+
       assert(onDataCallCount === numSubsTotal + numSubsDirty);
       for (const change of changes.values()) {
+        clog({key: change.key, index: indexFromKey(change.key), data: data[indexFromKey(change.key)], changeValue: change.value})
         assert(deepEqual(data[indexFromKey(change.key)], change.value));
       }
 
@@ -360,7 +372,7 @@ async function makeRepWithPopulate(useMemstore: boolean) {
 
 function createWriteSubReadBenchmarks(useMemstore: boolean) : Benchmark[] {
   const benchmarks = [];
-  for (let i = 8; i <= 512; i+=8) {
+  for (let i = 16; i <= 256; i+=8) {
     benchmarks.push(benchmarkWriteSubRead({
       valueSize: 1024,
       numSubsTotal: 128,
@@ -368,6 +380,16 @@ function createWriteSubReadBenchmarks(useMemstore: boolean) : Benchmark[] {
       keysWatchedPerSub: 16,
       numSubsDirty: 5,
       useMemstore,
+      randomInvalidate: false
+    }));
+    benchmarks.push(benchmarkWriteSubRead({
+      valueSize: 1024,
+      numSubsTotal: 128,
+      keysPerSub: i,
+      keysWatchedPerSub: 16,
+      numSubsDirty: 5,
+      useMemstore,
+      randomInvalidate: true
     }));
   }
   return benchmarks;

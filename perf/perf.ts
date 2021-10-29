@@ -76,28 +76,49 @@ async function runBenchmark(
 
   const median = 0.5;
   const medianTime = times[Math.floor(runs * median)];
-  const bytesPerSecond = benchmark.byteSize
+  const medianBytesPerSecond = benchmark.byteSize
     ? `${formatToMBPerSecond(benchmark.byteSize, medianTime)} `
     : '';
 
   if (format === 'replicache') {
-    const ptiles = [median, 0.75, 0.9, 0.95];
-    return `${benchmark.name} ${ptiles
-      .map(p => String(p * 100))
-      .join('/')}%=${ptiles.map(p =>
-      times[Math.floor(runs * p)].toFixed(2),
-    )}ms/op ${bytesPerSecond}(${runs} runs sampled)`;
+    const benchMarkByteSize = benchmark.byteSize;
+    const msPerOpPercentiles =
+      formatReplicachePercentiles(times, (percentileTimeMs: number) =>
+        percentileTimeMs.toFixed(2),
+      ) + ' ms/op';
+    const msPerOpAvg = `avg=${(sum / runs).toFixed(2)} ms/op`;
+    const mbPerSecPercentiles = benchMarkByteSize
+      ? formatReplicachePercentiles(times, (percentileTimeMs: number) =>
+          toMBPerSecond(benchMarkByteSize, percentileTimeMs).toFixed(2),
+        ) + ' MB/s '
+      : '';
+    const mbPerSecAvg = benchMarkByteSize
+      ? `avg=${toMBPerSecond(runs * benchMarkByteSize, sum).toFixed(2)} MB/s `
+      : '';
+
+    return `${benchmark.name} ${msPerOpPercentiles} ${msPerOpAvg} ${mbPerSecPercentiles}${mbPerSecAvg}(${runs} runs sampled)`;
   } else {
     const variance =
       Math.max(medianTime - times[0], times[times.length - 1] - medianTime) /
       medianTime;
     return formatAsBenchmarkJS({
       name: benchmark.name,
-      value: bytesPerSecond || `${((runs / sum) * 1000).toFixed(2)} ops/sec `,
+      value:
+        medianBytesPerSecond || `${((runs / sum) * 1000).toFixed(2)} ops/sec `,
       variance: `${(variance * 100).toFixed(1)}%`,
       runs,
     });
   }
+}
+
+function formatReplicachePercentiles(
+  times: number[],
+  format: (percentileTimeMs: number) => string,
+): string {
+  const ptiles = [0.5, 0.75, 0.9, 0.95];
+  return `${ptiles.map(p => String(p * 100)).join('/')}%=${ptiles.map(p =>
+    format(times[Math.floor(times.length * p)]),
+  )}`;
 }
 
 function formatAsBenchmarkJS({
@@ -117,9 +138,13 @@ function formatAsBenchmarkJS({
   return `${name} x ${value}±${variance} (${runs} runs sampled)`;
 }
 
-function formatToMBPerSecond(size: number, timeMS: number): string {
+function toMBPerSecond(size: number, timeMS: number): number {
   const bytes = (size / timeMS) * 1000;
-  return (bytes / 2 ** 20).toFixed(2) + ' MB/s';
+  return bytes / 2 ** 20;
+}
+
+function formatToMBPerSecond(size: number, timeMS: number): string {
+  return toMBPerSecond(size, timeMS).toFixed(2) + ' MB/s';
 }
 
 export const benchmarks = [

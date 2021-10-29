@@ -86,14 +86,14 @@ async function runBenchmark(
       .map(p => String(p * 100))
       .join('/')}%=${ptiles.map(p =>
       times[Math.floor(runs * p)].toFixed(2),
-    )}ms/op ${bytesPerSecond}(${runs} runs sampled)`;
+    )}ms/op avg=${sum / runs}ms/op ${bytesPerSecond && `p50=bytesPerSecond `}(${runs} runs sampled)`;
   } else {
     const variance =
       Math.max(medianTime - times[0], times[times.length - 1] - medianTime) /
       medianTime;
     return formatAsBenchmarkJS({
       name: benchmark.name,
-      value: bytesPerSecond || `${((runs / sum) * 1000).toFixed(2)} ops/sec `,
+      value: bytesPerSecond || `${(1.0 / medianTime * 1000).toFixed(2)} ops/sec `,
       variance: `${(variance * 100).toFixed(1)}%`,
       runs,
     });

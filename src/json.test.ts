@@ -99,3 +99,13 @@ test('deepClone', () => {
     .to.throw(Error)
     .with.property('message', 'Invalid type: symbol');
 });
+
+test('deepClone - reuse references', () => {
+  const t = (v: ReadonlyJSONValue) => expect(deepClone(v)).to.deep.equal(v);
+  const arr: number[] = [0, 1];
+
+  t({a: arr, b: arr});
+  t(['a', [arr, arr]]);
+  t(['a', arr, {a: arr}]);
+  t(['a', arr, {a: [arr]}]);
+});

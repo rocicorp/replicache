@@ -1,4 +1,5 @@
 import {throwInvalidType} from './asserts';
+import {hasOwn} from './has-own';
 
 /** The values that can be represented in JSON */
 export type JSONValue =
@@ -108,14 +109,13 @@ export function deepEqual(
 }
 
 export function deepClone(value: ReadonlyJSONValue): JSONValue {
-  const seen: Set<ReadonlyJSONObject | ReadonlyArray<ReadonlyJSONValue>> =
-    new Set();
+  const seen: Array<ReadonlyJSONObject | ReadonlyArray<ReadonlyJSONValue>> = [];
   return internalDeepClone(value, seen);
 }
 
 export function internalDeepClone(
   value: ReadonlyJSONValue,
-  seen: Set<ReadonlyJSONObject | ReadonlyArray<ReadonlyJSONValue>>,
+  seen: Array<ReadonlyJSONObject | ReadonlyArray<ReadonlyJSONValue>>,
 ): JSONValue {
   switch (typeof value) {
     case 'boolean':
@@ -127,21 +127,27 @@ export function internalDeepClone(
       if (value === null) {
         return null;
       }
-      if (seen.has(value)) {
+      if (seen.includes(value)) {
         throw new Error('Cyclic object');
       }
-      seen.add(value);
+      seen.push(value);
       if (Array.isArray(value)) {
-        return value.map(v => internalDeepClone(v, seen));
+        const rv = value.map(v => internalDeepClone(v, seen));
+        seen.pop();
+        return rv;
       }
 
       const obj: JSONObject = {};
-      for (const k of Object.keys(value)) {
-        const v = (value as ReadonlyJSONObject)[k];
-        if (v !== undefined) {
-          obj[k] = internalDeepClone(v, seen);
+
+      for (const k in value) {
+        if (hasOwn(value, k)) {
+          const v = (value as ReadonlyJSONObject)[k];
+          if (v !== undefined) {
+            obj[k] = internalDeepClone(v, seen);
+          }
         }
       }
+      seen.pop();
       return obj;
     }
 
@@ -169,12 +175,15 @@ export function assertJSONValue(v: unknown): asserts v is JSONValue {
 }
 
 function assertJSONObject(v: Record<string, unknown>): asserts v is JSONObject {
-  for (const val of Object.values(v)) {
-    // we allow undefined values because in TypeScript there is no way to
-    // express optional missing properties vs properties with the value
-    // undefined.
-    if (val !== undefined) {
-      assertJSONValue(val);
+  for (const k in v) {
+    if (hasOwn(v, k)) {
+      const val = v[k];
+      // we allow undefined values because in TypeScript there is no way to
+      // express optional missing properties vs properties with the value
+      // undefined.
+      if (val !== undefined) {
+        assertJSONValue(v[k]);
+      }
     }
   }
 }

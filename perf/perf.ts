@@ -86,7 +86,7 @@ async function runBenchmark(
       .map(p => String(p * 100))
       .join('/')}%=${ptiles.map(p =>
       times[Math.floor(runs * p)].toFixed(2),
-    )}ms/op avg=${sum / runs}ms/op ${bytesPerSecond && `p50=bytesPerSecond `}(${runs} runs sampled)`;
+    )}ms/op ${bytesPerSecond}(${runs} runs sampled)`;
   } else {
     const variance =
       Math.max(medianTime - times[0], times[times.length - 1] - medianTime) /

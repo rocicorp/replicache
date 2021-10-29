@@ -5,10 +5,11 @@ export const BYTE_LENGTH = 20;
 
 const charTable = '0123456789abcdefghijklmnopqrstuv';
 
-let mem = new Uint8Array(1024);
+let mem = new Uint8Array(1024 * 1024);
 const encoder = new TextEncoder();
 
 function ensureCapacity(s: string) {
+  // JS strings are UTF16 but we encode to UTF8.
   if (s.length * 2 > mem.length) {
     mem = new Uint8Array(mem.length * 2);
     ensureCapacity(s);

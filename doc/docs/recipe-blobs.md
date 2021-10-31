@@ -168,7 +168,7 @@ async function getUserData(rep: Replicache, id: string): Promise<User> {
 It is also possible to store binary data outside of Replicache.
 
 This gets significantly more complicated and it is important to point out that
-since the data is no longer managed by Replicahce there is no guarantee that the
+since the data is no longer managed by Replicache there is no guarantee that the
 blobs stays consistend with the state of Replicache. User code needs to handle
 the case where a referenced blob isn't downloaded yet as well as manage the
 syncing of the blobs.

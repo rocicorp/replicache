@@ -5,7 +5,7 @@ import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
 import {Write} from './write';
 import type * as kv from '../kv/mod';
 import {Read} from './read';
-import {initHasher} from '../hash';
+import {Hash, hashOf, initHasher} from '../hash';
 import type {Value} from '../kv/store';
 
 setup(async () => {
@@ -13,7 +13,7 @@ setup(async () => {
 });
 
 test('put chunk', async () => {
-  const t = async (data: Value, refs: string[]) => {
+  const t = async (data: Value, refs: Hash[]) => {
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
@@ -47,7 +47,7 @@ test('put chunk', async () => {
   await t({a: 42}, []);
 });
 
-async function assertRefCount(kvr: kv.Read, hash: string, count: number) {
+async function assertRefCount(kvr: kv.Read, hash: Hash, count: number) {
   const value = await kvr.get(chunkRefCountKey(hash));
   if (count === 0) {
     expect(value).to.be.undefined;
@@ -60,7 +60,7 @@ async function assertRefCount(kvr: kv.Read, hash: string, count: number) {
 }
 
 test('set head', async () => {
-  const t = async (kv: kv.Store, name: string, hash: string | undefined) => {
+  const t = async (kv: kv.Store, name: string, hash: Hash | undefined) => {
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
       await (hash === undefined ? w.removeHead(name) : w.setHead(name, hash));
@@ -76,44 +76,46 @@ test('set head', async () => {
 
   const kv = new MemStore();
 
-  await t(kv, '', '');
+  const h0 = hashOf('');
+  await t(kv, '', h0);
   await kv.withRead(async kvr => {
-    await assertRefCount(kvr, '', 1);
+    await assertRefCount(kvr, h0, 1);
   });
 
-  await t(kv, '', 'h1');
+  const h1 = hashOf('h1');
+  await t(kv, '', h1);
   await kv.withRead(async kvr => {
-    await assertRefCount(kvr, 'h1', 1);
-    await assertRefCount(kvr, '', 0);
+    await assertRefCount(kvr, h1, 1);
+    await assertRefCount(kvr, h0, 0);
   });
 
-  await t(kv, 'n1', '');
+  await t(kv, 'n1', h0);
   await kv.withRead(async kvr => {
-    await assertRefCount(kvr, '', 1);
+    await assertRefCount(kvr, h0, 1);
   });
 
-  await t(kv, 'n1', 'h1');
+  await t(kv, 'n1', h1);
   await kv.withRead(async kvr => {
-    await assertRefCount(kvr, 'h1', 2);
-    await assertRefCount(kvr, '', 0);
+    await assertRefCount(kvr, h1, 2);
+    await assertRefCount(kvr, h0, 0);
   });
 
-  await t(kv, 'n1', 'h1');
+  await t(kv, 'n1', h1);
   await kv.withRead(async kvr => {
-    await assertRefCount(kvr, 'h1', 2);
-    await assertRefCount(kvr, '', 0);
+    await assertRefCount(kvr, h1, 2);
+    await assertRefCount(kvr, h0, 0);
   });
 
   await t(kv, 'n1', undefined);
   await kv.withRead(async kvr => {
-    await assertRefCount(kvr, 'h1', 1);
-    await assertRefCount(kvr, '', 0);
+    await assertRefCount(kvr, h1, 1);
+    await assertRefCount(kvr, h0, 0);
   });
 
   await t(kv, '', undefined);
   await kv.withRead(async kvr => {
-    await assertRefCount(kvr, 'h1', 0);
-    await assertRefCount(kvr, '', 0);
+    await assertRefCount(kvr, h1, 0);
+    await assertRefCount(kvr, h0, 0);
   });
 });
 
@@ -121,7 +123,7 @@ test('ref count invalid', async () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const t = async (v: any, expectError?: string) => {
     const kv = new MemStore();
-    const h = 'fakehash1';
+    const h = hashOf('fakehash1');
     await kv.withWrite(async kvw => {
       await kvw.put(chunkRefCountKey(h), v);
       await kvw.commit();
@@ -201,7 +203,7 @@ test('commit rollback', async () => {
 });
 
 test('roundtrip', async () => {
-  const t = async (name: string, data: Value, refs: string[]) => {
+  const t = async (name: string, data: Value, refs: Hash[]) => {
     const kv = new MemStore();
     const c = Chunk.new(data, refs);
     await kv.withWrite(async kvw => {
@@ -228,8 +230,8 @@ test('roundtrip', async () => {
   };
 
   await t('', 0, []);
-  await t('n1', 1, ['r1']);
-  await t('n2', 42, ['r1', 'r2']);
+  await t('n1', 1, [hashOf('r1')]);
+  await t('n2', 42, [hashOf('r1'), hashOf('r2')]);
 
   await t('', true, []);
   await t('', false, []);

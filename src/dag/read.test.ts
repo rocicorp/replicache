@@ -1,5 +1,5 @@
 import {expect} from '@esm-bundle/chai';
-import {initHasher} from '../hash';
+import {Hash, hashOf, initHasher} from '../hash';
 import {MemStore} from '../kv/mod';
 import {Chunk} from './chunk';
 import {chunkDataKey, chunkMetaKey} from './key';
@@ -11,11 +11,11 @@ setup(async () => {
 });
 
 test('has chunk', async () => {
-  const t = async (hash: string, expectHas: boolean) => {
-    const k = 'present';
+  const t = async (hash: Hash, expectHas: boolean) => {
+    const h = hashOf('present');
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
-      await kvw.put(chunkDataKey(k), [0, 1]);
+      await kvw.put(chunkDataKey(h), [0, 1]);
       await kvw.commit();
     });
 
@@ -25,12 +25,12 @@ test('has chunk', async () => {
     });
   };
 
-  await t('present', true);
-  await t('no such hash', false);
+  await t(hashOf('present'), true);
+  await t(hashOf('no such hash'), false);
 });
 
 test('get chunk', async () => {
-  const t = async (data: Value, refs: string[], getSameChunk: boolean) => {
+  const t = async (data: Value, refs: Hash[], getSameChunk: boolean) => {
     const kv = new MemStore();
     const chunk = Chunk.new(data, refs);
     await kv.withWrite(async kvw => {
@@ -44,12 +44,12 @@ test('get chunk', async () => {
     await kv.withRead(async kvr => {
       const r = new Read(kvr);
       let expected = undefined;
-      let chunkHash: string;
+      let chunkHash: Hash;
       if (getSameChunk) {
         expected = chunk;
         chunkHash = expected.hash;
       } else {
-        chunkHash = 'no such hash';
+        chunkHash = hashOf('no such hash');
       }
       expect(await r.getChunk(chunkHash)).to.deep.equal(expected);
       if (expected) {
@@ -60,7 +60,7 @@ test('get chunk', async () => {
     });
   };
 
-  await t('Hello', ['r1', 'r2'], true);
+  await t('Hello', [hashOf('r1'), hashOf('r2')], true);
   await t(42, [], true);
-  await t(null, ['r1', 'r2'], false);
+  await t(null, [hashOf('r1'), hashOf('r2')], false);
 });

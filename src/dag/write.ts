@@ -3,15 +3,16 @@ import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key';
 import {Read} from './read';
 import {assertMeta, Chunk} from './chunk';
 import {assertNumber} from '../asserts';
+import {assertNotTempHash, Hash} from '../hash';
 
 type HeadChange = {
-  new: string | undefined;
-  old: string | undefined;
+  new: Hash | undefined;
+  old: Hash | undefined;
 };
 
 export class Write extends Read {
   private readonly _kvw: kv.Write;
-  private readonly _newChunks = new Set<string>();
+  private readonly _newChunks = new Set<Hash>();
   private readonly _changedHeads = new Map<string, HeadChange>();
 
   constructor(kvw: kv.Write) {
@@ -21,10 +22,15 @@ export class Write extends Read {
 
   async putChunk(c: Chunk): Promise<void> {
     const {hash, data, meta} = c;
+    // We never want to write temp hashes to the underlying store.
+    assertNotTempHash(hash);
     const key = chunkDataKey(hash);
     const p1 = this._kvw.put(key, data);
     let p2;
     if (meta.length > 0) {
+      for (const h of meta) {
+        assertNotTempHash(h);
+      }
       p2 = this._kvw.put(chunkMetaKey(hash), meta);
     }
     this._newChunks.add(hash);
@@ -32,7 +38,7 @@ export class Write extends Read {
     await p2;
   }
 
-  setHead(name: string, hash: string): Promise<void> {
+  setHead(name: string, hash: Hash): Promise<void> {
     return this._setHead(name, hash);
   }
 
@@ -40,10 +46,7 @@ export class Write extends Read {
     return this._setHead(name, undefined);
   }
 
-  private async _setHead(
-    name: string,
-    hash: string | undefined,
-  ): Promise<void> {
+  private async _setHead(name: string, hash: Hash | undefined): Promise<void> {
     const oldHash = await this.getHead(name);
     const hk = headKey(name);
 
@@ -73,8 +76,8 @@ export class Write extends Read {
   async collectGarbage(): Promise<void> {
     // We increment all the ref counts before we do all the decrements. This
     // is so that we do not remove an item that goes from 1 -> 0 -> 1
-    const newHeads: (string | undefined)[] = [];
-    const oldHeads: (string | undefined)[] = [];
+    const newHeads: (Hash | undefined)[] = [];
+    const oldHeads: (Hash | undefined)[] = [];
     for (const changedHead of this._changedHeads.values()) {
       oldHeads.push(changedHead.old);
       newHeads.push(changedHead.new);
@@ -103,7 +106,7 @@ export class Write extends Read {
     await Promise.all(ps);
   }
 
-  async changeRefCount(hash: string, delta: number): Promise<void> {
+  async changeRefCount(hash: Hash, delta: number): Promise<void> {
     const oldCount = await this.getRefCount(hash);
     const newCount = oldCount + delta;
 
@@ -123,7 +126,7 @@ export class Write extends Read {
     }
   }
 
-  async setRefCount(hash: string, count: number): Promise<void> {
+  async setRefCount(hash: Hash, count: number): Promise<void> {
     const refCountKey = chunkRefCountKey(hash);
     if (count === 0) {
       await this._kvw.del(refCountKey);
@@ -132,7 +135,7 @@ export class Write extends Read {
     }
   }
 
-  async getRefCount(hash: string): Promise<number> {
+  async getRefCount(hash: Hash): Promise<number> {
     const value = await this._kvw.get(chunkRefCountKey(hash));
     if (value === undefined) {
       return 0;
@@ -147,7 +150,7 @@ export class Write extends Read {
   }
 
   async removeAllRelatedKeys(
-    hash: string,
+    hash: Hash,
     updateMutatedChunks: boolean,
   ): Promise<void> {
     await Promise.all([

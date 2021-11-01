@@ -1,9 +1,8 @@
 import {deepEqual, ReadonlyJSONValue} from '../json';
 import type * as dag from '../dag/mod';
 import type {ScanOptionsInternal} from '../db/scan';
-import {emptyHashString} from '../hash';
+import {Hash, emptyHash} from '../hash';
 import {
-  Hash,
   DataNodeImpl,
   InternalNodeImpl,
   Entry,
@@ -38,7 +37,7 @@ export class BTreeRead {
 
   constructor(
     dagRead: dag.Read,
-    root: Hash = emptyHashString,
+    root: Hash = emptyHash,
     getEntrySize: <T>(e: Entry<T>) => number = getSizeOfValue,
     chunkHeaderSize = NODE_HEADER_SIZE,
   ) {
@@ -49,7 +48,7 @@ export class BTreeRead {
   }
 
   async getNode(hash: Hash): Promise<DataNodeImpl | InternalNodeImpl> {
-    if (hash === emptyHashString) {
+    if (hash === emptyHash) {
       return emptyDataNode;
     }
 

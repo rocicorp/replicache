@@ -1,5 +1,5 @@
 import {expect} from '@esm-bundle/chai';
-import {initHasher} from '../hash';
+import {Hash, hashOf, initHasher, parse} from '../hash';
 import type {Value} from '../kv/store';
 import {Chunk} from './chunk';
 
@@ -8,7 +8,7 @@ setup(async () => {
 });
 
 test('round trip', async () => {
-  const t = (hash: string, data: Value, refs: string[]) => {
+  const t = (hash: Hash, data: Value, refs: Hash[]) => {
     const c = Chunk.new(data, refs);
     expect(c.hash).to.equal(hash);
     expect(c.data).to.deep.equal(data);
@@ -19,9 +19,13 @@ test('round trip', async () => {
     expect(c).to.deep.equal(c2);
   };
 
-  t('m9diij5krqr9t80a9guf649p0i01mo0l', [], []);
-  t('i4ua4lkdobnv4u5rdenb9jfumr4ru3k7', [0], ['r1']);
-  t('1rk961et3nqfi61oceeh6nc0sirin2lv', [0, 1], ['r1', 'r2']);
+  t(parse('m9diij5krqr9t80a9guf649p0i01mo0l'), [], []);
+  t(parse('i4ua4lkdobnv4u5rdenb9jfumr4ru3k7'), [0], [hashOf('r1')]);
+  t(
+    parse('1rk961et3nqfi61oceeh6nc0sirin2lv'),
+    [0, 1],
+    [hashOf('r1'), hashOf('r2')],
+  );
 });
 
 test('equals', async () => {
@@ -38,8 +42,8 @@ test('equals', async () => {
   neq(Chunk.new([0], []), Chunk.new([1], []));
 
   eq(Chunk.new([1], []), Chunk.new([1], []));
-  eq(Chunk.new([], ['a']), Chunk.new([], ['a']));
+  eq(Chunk.new([], [hashOf('a')]), Chunk.new([], [hashOf('a')]));
 
-  neq(Chunk.new([], ['a']), Chunk.new([], ['b']));
-  neq(Chunk.new([], ['a']), Chunk.new([], ['a', 'b']));
+  neq(Chunk.new([], [hashOf('a')]), Chunk.new([], [hashOf('b')]));
+  neq(Chunk.new([], [hashOf('a')]), Chunk.new([], [hashOf('a'), hashOf('b')]));
 });

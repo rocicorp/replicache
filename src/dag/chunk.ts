@@ -1,11 +1,11 @@
 import {assertString} from '../asserts';
-import {Hash} from '../hash';
+import {Hash, hashOf} from '../hash';
 import type {Value} from '../kv/store';
 
-type Refs = readonly string[];
+type Refs = readonly Hash[];
 
 export class Chunk<V extends Value = Value> {
-  readonly hash: string;
+  readonly hash: Hash;
   readonly data: V;
   /**
    * Meta is an array of refs. If there are no refs we do not write a meta
@@ -13,19 +13,19 @@ export class Chunk<V extends Value = Value> {
    */
   readonly meta: Refs;
 
-  private constructor(hash: string, data: V, meta: Refs) {
+  private constructor(hash: Hash, data: V, meta: Refs) {
     this.hash = hash;
     this.data = data;
     this.meta = meta;
   }
 
   static new<V extends Value = Value>(data: V, refs: Refs): Chunk<V> {
-    const hash = Hash.of(JSON.stringify(data));
-    return new Chunk(hash.toString(), data, refs);
+    const hash = hashOf(JSON.stringify(data));
+    return new Chunk(hash, data, refs);
   }
 
   static read<V extends Value = Value>(
-    hash: string,
+    hash: Hash,
     data: V,
     refs: Refs,
   ): Chunk<V> {

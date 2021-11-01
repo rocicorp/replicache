@@ -1,16 +1,21 @@
 import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
+import {Hash, hashOf, initHasher} from '../hash';
 import {MemStore} from '../kv/mod';
 import {DEFAULT_HEAD_NAME} from './commit';
 import {getRoot} from './root';
 
+setup(async () => {
+  await initHasher();
+});
+
 test('getRoot', async () => {
-  const t = async (headVal: string | undefined, expected: string | Error) => {
+  const t = async (headHash: Hash | undefined, expected: Hash | Error) => {
     const kvs = new MemStore();
     const ds = new dag.Store(kvs);
-    if (headVal !== undefined) {
+    if (headHash !== undefined) {
       await ds.withWrite(async dw => {
-        await dw.setHead(DEFAULT_HEAD_NAME, headVal);
+        await dw.setHead(DEFAULT_HEAD_NAME, headHash);
         await dw.commit();
       });
     }
@@ -30,5 +35,6 @@ test('getRoot', async () => {
   };
 
   await t(undefined, new Error('No head found for main'));
-  await t('foo', 'foo');
+  const foo = hashOf('foo');
+  await t(foo, foo);
 });

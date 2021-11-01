@@ -4,6 +4,7 @@ import {RWLock} from '../rw-lock';
 import type {IndexRecord} from './commit';
 import {BTreeRead, BTreeWrite} from '../btree/mod';
 import type {LogContext} from '../logger';
+import type {Hash} from '../hash';
 
 abstract class Index<DagReadWrite, BTree> {
   readonly meta: IndexRecord;
@@ -52,7 +53,7 @@ export class IndexWrite extends Index<dag.Write, BTreeWrite> {
 
   // Note: does not update self.meta.value_hash (doesn't need to at this point as flush
   // is only called during commit.)
-  flush(): Promise<string> {
+  flush(): Promise<Hash> {
     return this._rwLock.withWrite(() => {
       if (this._map) {
         return this._map.flush();

@@ -6,6 +6,7 @@ import * as flatbuffers from 'flatbuffers';
 import {Leaf as LeafFB} from './generated/leaf/leaf';
 import * as utf8 from '../utf8';
 import {LeafEntry as LeafEntryFB} from './generated/leaf/leaf-entry';
+import type {Hash} from '../hash';
 
 export type Entry = readonly [key: string, value: ReadonlyJSONValue];
 
@@ -35,7 +36,7 @@ class ProllyMap {
     return this._entries as Entry[];
   }
 
-  static async load(hash: string, read: dag.Read): Promise<ProllyMap> {
+  static async load(hash: Hash, read: dag.Read): Promise<ProllyMap> {
     const chunk = await read.getChunk(hash);
     if (chunk === undefined) {
       throw new Error(`Chunk not found: ${hash}`);
@@ -93,7 +94,7 @@ class ProllyMap {
     return this.entries();
   }
 
-  async flush(write: dag.Write): Promise<string> {
+  async flush(write: dag.Write): Promise<Hash> {
     const entries = this._entries;
     // Now it is no longer safe to mutate the entries.
     this._isReadonly = true;

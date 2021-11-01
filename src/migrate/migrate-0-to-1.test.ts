@@ -16,7 +16,7 @@ import * as sync from '../sync/mod';
 import * as utf8 from '../utf8';
 import * as prolly from '../prolly/mod';
 import {CommitData, MetaTyped} from '../db/commit';
-import {initHasher} from '../hash';
+import {hashOf, initHasher} from '../hash';
 
 setup(async () => {
   await initHasher();
@@ -63,7 +63,7 @@ test('migrateMetaKeyValue', async () => {
   const t = async (expected: string[]) => {
     const kv = new MemStore();
 
-    const hash = 'fakehash';
+    const hash = hashOf('fakehash');
 
     // OK if not present?
     await kv.withWrite(async w => {
@@ -94,7 +94,7 @@ test('migrateMetaKeyValue', async () => {
 test('migrateRefCountKeyValue', async () => {
   const kv = new MemStore();
 
-  const hash = 'fakehash';
+  const hash = hashOf('fakehash');
 
   // OK if not present?
   await kv.withWrite(async w => {
@@ -127,7 +127,7 @@ test('migrateHeadKeyValue', async () => {
   const kv = new MemStore();
 
   const name = 'head-name';
-  const hash = 'fakehash';
+  const hash = hashOf('fakehash');
   await kv.withWrite(async w => {
     // @ts-expect-error. Allow writing Uint8Array.
     await w.put(dag.headKey(name), utf8.encode(hash));
@@ -146,7 +146,7 @@ test('migrateHeadKeyValue', async () => {
 test('migrateProllyMap', async () => {
   const t = async (entries: prolly.Entry[]) => {
     const kv = new MemStore();
-    const hash = 'fakehash';
+    const hash = hashOf('fakehash');
 
     const buf = prolly.entriesToFlatbuffer(entries);
     await kv.withWrite(async w => {
@@ -181,7 +181,7 @@ test('migrateCommit', async () => {
   const kv = new MemStore();
 
   const entries: prolly.Entry[] = [['a', 42]];
-  const entriesHash = 'entries-hash';
+  const entriesHash = hashOf('entries-hash');
 
   const commit: CommitData = {
     meta: {
@@ -193,7 +193,7 @@ test('migrateCommit', async () => {
     valueHash: entriesHash,
     indexes: [],
   };
-  const commitHash = 'commit-hash';
+  const commitHash = hashOf('commit-hash');
   const refs = [entriesHash];
 
   await kv.withWrite(async w => {

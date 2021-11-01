@@ -15,6 +15,7 @@ import type {LogContext} from '../logger';
 import {BTreeRead, BTreeWrite} from '../btree/mod';
 import {asyncIterableToArray} from '../async-iterable-to-array';
 import {lazy} from '../lazy';
+import {emptyHash, Hash} from '../hash';
 
 type IndexChangeMeta = {
   type: MetaType.IndexChange;
@@ -26,7 +27,7 @@ type LocalMeta = {
   mutatorName: string;
   mutatorArgs: ReadonlyJSONValue;
   mutationID: number;
-  originalHash: string | null;
+  originalHash: Hash | null;
 };
 
 type SnapshotMeta = {
@@ -70,7 +71,7 @@ export class Write extends Read {
     whence: Whence,
     mutatorName: string,
     mutatorArgs: ReadonlyJSONValue,
-    originalHash: string | null,
+    originalHash: Hash | null,
     dagWrite: dag.Write,
   ): Promise<Write> {
     const [, basis, map] = await readCommit(whence, dagWrite);
@@ -225,7 +226,7 @@ export class Write extends Read {
       new IndexWrite(
         {
           definition,
-          valueHash: '',
+          valueHash: emptyHash,
         },
         indexMap,
       ),
@@ -243,7 +244,7 @@ export class Write extends Read {
   }
 
   // Return value is the hash of the new commit.
-  async commit(headName: string): Promise<string> {
+  async commit(headName: string): Promise<Hash> {
     const [hash] = await this.commitWithChangedKeys(headName, false);
     return hash;
   }
@@ -251,7 +252,7 @@ export class Write extends Read {
   async commitWithChangedKeys(
     headName: string,
     generateChangedKeys: boolean,
-  ): Promise<[string, ChangedKeysMap]> {
+  ): Promise<[Hash, ChangedKeysMap]> {
     const valueHash = await this.map.flush();
     let valueChangedKeys: string[] = [];
     if (generateChangedKeys && this._basis) {
@@ -410,7 +411,7 @@ type ChangedKeysMap = Map<string, string[]>;
 export async function initDB(
   dagWrite: dag.Write,
   headName: string,
-): Promise<string> {
+): Promise<Hash> {
   const w = new Write(
     dagWrite,
     new BTreeWrite(dagWrite),

@@ -1,16 +1,13 @@
 import type {ReadonlyJSONValue} from '../json';
 import * as dag from '../dag/mod';
-import {emptyHashString} from '../hash';
+import {Hash, emptyHash, newTempHash} from '../hash';
 import {BTreeRead} from './read';
 import {
-  Hash,
   DataNodeImpl,
   InternalNodeImpl,
   Entry,
-  newTempHash,
   newNodeImpl,
   partition,
-  assertNotTempHash,
   ReadonlyEntry,
   DiffResult,
 } from './node';
@@ -45,7 +42,7 @@ export class BTreeWrite extends BTreeRead {
 
   constructor(
     dagWrite: dag.Write,
-    root: Hash = emptyHashString,
+    root: Hash = emptyHash,
     minSize = 8 * 1024,
     maxSize = 16 * 1024,
     getEntrySize?: <T>(e: Entry<T>) => number,
@@ -196,7 +193,7 @@ export class BTreeWrite extends BTreeRead {
   clear(): Promise<void> {
     return this._rwLock.withWrite(async () => {
       this._modified.clear();
-      this.rootHash = emptyHashString;
+      this.rootHash = emptyHash;
     });
   }
 
@@ -204,7 +201,6 @@ export class BTreeWrite extends BTreeRead {
     const walk = (hash: Hash, newChunks: dag.Chunk[]): Hash => {
       const node = this._modified.get(hash);
       if (node === undefined) {
-        assertNotTempHash(hash);
         // Not modified, use the original.
         return hash;
       }
@@ -232,8 +228,8 @@ export class BTreeWrite extends BTreeRead {
     };
 
     return this._rwLock.withWrite(async () => {
-      if (this.rootHash === emptyHashString) {
-        return emptyHashString;
+      if (this.rootHash === emptyHash) {
+        return emptyHash;
       }
 
       const newChunks: dag.Chunk[] = [];

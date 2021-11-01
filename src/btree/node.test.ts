@@ -2,7 +2,7 @@ import {expect, assert} from '@esm-bundle/chai';
 import {Chunk} from '../dag/chunk';
 import * as dag from '../dag/mod';
 import type {ScanOptionsInternal} from '../db/scan';
-import {emptyHashString, initHasher} from '../hash';
+import {emptyHash, Hash, initHasher} from '../hash';
 import type {ReadonlyJSONValue} from '../json';
 import * as kv from '../kv/mod';
 import {
@@ -11,9 +11,6 @@ import {
   InternalNode,
   partition,
   assertBTreeNode,
-  newTempHash,
-  assertNotTempHash,
-  isTempHash,
   Entry,
   DiffResult,
   DiffResultOp,
@@ -58,10 +55,10 @@ test('findLeaf', async () => {
     ],
   ];
 
-  let h0: string, h1: string, h2: string;
+  let h0: Hash, h1: Hash, h2: Hash;
 
   let root: InternalNode;
-  let rootHash: string;
+  let rootHash: Hash;
 
   await dagStore.withWrite(async dagWrite => {
     const c0 = Chunk.new(leaf0, []);
@@ -102,7 +99,7 @@ test('findLeaf', async () => {
 
     const t = async (
       key: string,
-      hash: string,
+      hash: Hash,
       source: BTreeRead,
       expected: DataNode,
     ) => {
@@ -132,7 +129,7 @@ type TreeData = {
   [key: string]: TreeData | ReadonlyJSONValue;
 };
 
-function makeTree(node: TreeData, dagStore: dag.Store): Promise<string> {
+function makeTree(node: TreeData, dagStore: dag.Store): Promise<Hash> {
   return dagStore.withWrite(async dagWrite => {
     const [h] = await makeTreeInner(node, dagWrite);
     await dagWrite.setHead('test', h);
@@ -143,7 +140,7 @@ function makeTree(node: TreeData, dagStore: dag.Store): Promise<string> {
   async function makeTreeInner(
     node: TreeData,
     dagWrite: dag.Write,
-  ): Promise<[string, number]> {
+  ): Promise<[Hash, number]> {
     const entries: [string, ReadonlyJSONValue | string][] = Object.entries(
       node,
     ).filter(e => e[0] !== '$level');
@@ -158,7 +155,7 @@ function makeTree(node: TreeData, dagStore: dag.Store): Promise<string> {
     const ps = entries.map(async ([key, child]) => {
       const [hash, lvl] = await makeTreeInner(child as TreeData, dagWrite);
       level = Math.max(level, lvl);
-      return [key, hash] as [string, string];
+      return [key, hash] as [string, Hash];
     });
     const entries2 = await Promise.all(ps);
 
@@ -171,7 +168,7 @@ function makeTree(node: TreeData, dagStore: dag.Store): Promise<string> {
 }
 
 async function readTreeData(
-  rootHash: string,
+  rootHash: Hash,
   dagRead: dag.Read,
 ): Promise<Record<string, ReadonlyJSONValue>> {
   const chunk = await dagRead.getChunk(rootHash);
@@ -204,7 +201,7 @@ async function readTreeData(
 }
 
 async function expectTree(
-  rootHash: string,
+  rootHash: Hash,
   dagStore: dag.Store,
   expected: TreeData,
 ) {
@@ -226,7 +223,7 @@ setup(() => {
 });
 
 function doRead<R>(
-  rootHash: string,
+  rootHash: Hash,
   dagStore: dag.Store,
   fn: (r: BTreeRead) => R | Promise<R>,
 ): Promise<R> {
@@ -237,10 +234,10 @@ function doRead<R>(
 }
 
 function doWrite(
-  rootHash: string,
+  rootHash: Hash,
   dagStore: dag.Store,
   fn: (w: BTreeWrite) => void | Promise<void>,
-): Promise<string> {
+): Promise<Hash> {
   return dagStore.withWrite(async dagWrite => {
     const w = new BTreeWrite(
       dagWrite,
@@ -295,7 +292,7 @@ test('empty write tree', async () => {
     expect(await asyncIterToArray(w.scan({}))).to.deep.equal([]);
 
     const h = await w.flush();
-    expect(h).to.equal(emptyHashString);
+    expect(h).to.equal(emptyHash);
   });
   let rootHash = await dagStore.withWrite(async dagWrite => {
     const w = new BTreeWrite(
@@ -308,7 +305,7 @@ test('empty write tree', async () => {
     );
     await w.put('a', 1);
     const h = await w.flush();
-    expect(h).to.not.equal(emptyHashString);
+    expect(h).to.not.equal(emptyHash);
     await dagWrite.setHead('test', h);
     await dagWrite.commit();
     return h;
@@ -319,7 +316,7 @@ test('empty write tree', async () => {
   });
 
   // We do not restore back to empty hash when empty.
-  expect(rootHash).to.not.equal(emptyHashString);
+  expect(rootHash).to.not.equal(emptyHash);
 });
 
 test('get', async () => {
@@ -1104,16 +1101,6 @@ test('del - with internal nodes', async () => {
   await expectTree(rootHash, dagStore, {
     $level: 0,
   });
-});
-
-test('temp hash', () => {
-  const t = newTempHash();
-  const c = Chunk.new('dummy', []);
-  expect(t.length, 'temp hash length').to.equal(c.hash.length);
-  expect(isTempHash(t)).to.equal(true);
-  expect(isTempHash(c.hash)).to.equal(false);
-
-  expect(() => assertNotTempHash(t)).to.throw();
 });
 
 test('put - invalid', async () => {

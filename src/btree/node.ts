@@ -1,11 +1,9 @@
 import {assertJSONValue, JSONValue, ReadonlyJSONValue} from '../json';
 import {stringCompare} from '../prolly/string-compare';
 import {assert, assertArray, assertNumber, assertString} from '../asserts';
-import {emptyHashString} from '../hash';
+import {Hash, emptyHash, newTempHash} from '../hash';
 import type {BTreeRead} from './read';
 import type {BTreeWrite} from './write';
-
-export type Hash = string;
 
 export type Entry<V> = [key: string, value: V];
 export type ReadonlyEntry<V> = readonly [key: string, value: V];
@@ -564,29 +562,4 @@ export function partition<T>(
   return partitions;
 }
 
-let tempHashCounter = 0;
-
-const tempPrefix = '/t/';
-const hashLength = 32;
-
-export function newTempHash(): Hash {
-  // Must not overlap with Hash.prototype.toString results
-  return (
-    tempPrefix +
-    (tempHashCounter++).toString().padStart(hashLength - tempPrefix.length, '0')
-  );
-}
-
-export function isTempHash(hash: Hash): hash is `/t/${string}` {
-  return hash.startsWith('/t/');
-}
-
-export function assertNotTempHash<H extends Hash>(
-  hash: H,
-): asserts hash is H extends `/t/${string}` ? never : H {
-  if (isTempHash(hash)) {
-    throw new Error('must not be a temp hash');
-  }
-}
-
-export const emptyDataNode = new DataNodeImpl([], emptyHashString);
+export const emptyDataNode = new DataNodeImpl([], emptyHash);

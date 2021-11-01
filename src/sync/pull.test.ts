@@ -33,7 +33,7 @@ import {
   PULL_VERSION,
 } from './pull';
 import {LogContext} from '../logger';
-import {initHasher} from '../hash';
+import {emptyHash, initHasher} from '../hash';
 import {stringCompare} from '../prolly/string-compare';
 import {asyncIterableToArray} from '../async-iterable-to-array';
 
@@ -120,7 +120,7 @@ test('begin try pull', async () => {
       },
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
-        syncHead: '',
+        syncHead: emptyHash,
       },
     },
     {
@@ -138,7 +138,7 @@ test('begin try pull', async () => {
       },
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
-        syncHead: '',
+        syncHead: emptyHash,
       },
     },
     {
@@ -156,7 +156,7 @@ test('begin try pull', async () => {
       },
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
-        syncHead: '',
+        syncHead: emptyHash,
       },
     },
     {
@@ -171,7 +171,7 @@ test('begin try pull', async () => {
       },
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
-        syncHead: '',
+        syncHead: emptyHash,
       },
     },
     {
@@ -189,7 +189,7 @@ test('begin try pull', async () => {
       },
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
-        syncHead: '',
+        syncHead: emptyHash,
       },
     },
     // The patch, lastMutationID, and cookie determine whether we write a new
@@ -206,7 +206,7 @@ test('begin try pull', async () => {
       expNewSyncHead: undefined,
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
-        syncHead: '',
+        syncHead: emptyHash,
       },
     },
     {
@@ -225,7 +225,7 @@ test('begin try pull', async () => {
       },
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
-        syncHead: '',
+        syncHead: emptyHash,
       },
     },
     {
@@ -245,7 +245,7 @@ test('begin try pull', async () => {
       },
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
-        syncHead: '',
+        syncHead: emptyHash,
       },
     },
     {
@@ -265,7 +265,7 @@ test('begin try pull', async () => {
       },
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
-        syncHead: '',
+        syncHead: emptyHash,
       },
     },
     {
@@ -283,7 +283,7 @@ test('begin try pull', async () => {
       },
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
-        syncHead: '',
+        syncHead: emptyHash,
       },
     },
 
@@ -302,7 +302,7 @@ test('begin try pull', async () => {
       },
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
-        syncHead: '',
+        syncHead: emptyHash,
       },
     },
     {
@@ -320,7 +320,7 @@ test('begin try pull', async () => {
       },
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
-        syncHead: '',
+        syncHead: emptyHash,
       },
     },
     {
@@ -337,7 +337,7 @@ test('begin try pull', async () => {
       },
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
-        syncHead: '',
+        syncHead: emptyHash,
       },
     },
     {
@@ -361,7 +361,7 @@ test('begin try pull', async () => {
           errorMessage: 'Fetch not OK',
           httpStatusCode: 500,
         },
-        syncHead: '',
+        syncHead: emptyHash,
       },
     },
   ];
@@ -508,13 +508,13 @@ test('begin try pull', async () => {
           expect(syncHeadHash).to.equal(result.syncHead);
         }
       } else {
-        const got_head = await read.getHead(SYNC_HEAD_NAME);
-        expect(got_head).to.be.undefined;
+        const gotHead = await read.getHead(SYNC_HEAD_NAME);
+        expect(gotHead).to.be.undefined;
         // In a nop sync we except Beginpull to succeed but sync_head will
         // be empty.
         if (typeof c.expBeginPullResult !== 'string') {
           assertObject(result);
-          expect(result.syncHead).to.be.empty;
+          expect(result.syncHead).to.be.equal(emptyHash);
         }
       }
 

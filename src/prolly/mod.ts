@@ -3,5 +3,6 @@ export {
   fromChunk,
   entriesFromFlatbuffer,
   entriesToFlatbuffer,
+  assertEntries,
 } from './map';
 export type {Entry} from './map';

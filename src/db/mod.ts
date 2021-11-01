@@ -14,6 +14,9 @@ export {
   fromChunk,
   commitDataFromFlatbuffer,
   commitDataToFlatbuffer,
+  newIndexChange,
+  newLocal,
+  newSnapshot,
 } from './commit';
 export {getRoot} from './root';
 export {ScanResultType} from './scan';

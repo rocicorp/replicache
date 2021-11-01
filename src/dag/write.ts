@@ -20,6 +20,10 @@ export class Write extends Read {
     this._kvw = kvw;
   }
 
+  get kvWrite(): kv.Write {
+    return this._kvw;
+  }
+
   async putChunk(c: Chunk): Promise<void> {
     const {hash, data, meta} = c;
     // We never want to write temp hashes to the underlying store.

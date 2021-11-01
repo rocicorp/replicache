@@ -187,7 +187,7 @@ function assertEntry(v: ReadonlyJSONValue): asserts v is Entry {
   assertJSONValue(v[1]);
 }
 
-function assertEntries(
+export function assertEntries(
   v: ReadonlyJSONValue,
 ): asserts v is ReadonlyArray<Entry> {
   assertArray(v);

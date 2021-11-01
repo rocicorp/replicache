@@ -2785,8 +2785,8 @@ test('experiment KV Store', async () => {
     mutators: {addData},
   });
 
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(4);
+  expect(store.readCount).to.equal(5);
+  expect(store.writeCount).to.equal(5);
   expect(store.closeCount).to.equal(0);
   store.resetCounters();
 
@@ -2817,8 +2817,8 @@ test('subscription coalescing', async () => {
     mutators: {addData},
   });
 
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(4);
+  expect(store.readCount).to.equal(5);
+  expect(store.writeCount).to.equal(5);
   expect(store.closeCount).to.equal(0);
   store.resetCounters();
 

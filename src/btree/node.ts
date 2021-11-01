@@ -1,5 +1,4 @@
 import {assertJSONValue, JSONValue, ReadonlyJSONValue} from '../json';
-import {stringCompare} from '../prolly/string-compare';
 import {assert, assertArray, assertNumber, assertString} from '../asserts';
 import {Hash, emptyHash, newTempHash} from '../hash';
 import type {BTreeRead} from './read';
@@ -83,31 +82,31 @@ export function binarySearch<V>(
   key: string,
   entries: ReadonlyArray<ReadonlyEntry<V>>,
 ): number {
-  let size = entries.length;
-  if (size === 0) {
+  let {length} = entries;
+  if (length === 0) {
     return ~0;
   }
   let base = 0;
 
-  while (size > 1) {
-    const half = Math.floor(size / 2);
+  while (length > 1) {
+    const half = length >> 1;
     const mid = base + half;
     // mid is always in [0, size), that means mid is >= 0 and < size.
     // mid >= 0: by definition
     // mid < size: mid = size / 2 + size / 4 + size / 8 ...
-    const entry = entries[mid];
-    const cmp = stringCompare(entry[0], key);
-    base = cmp > 0 ? base : mid;
-    size -= half;
+    const midKey = entries[mid][0];
+    if (midKey <= key) {
+      base = mid;
+    }
+    length -= half;
   }
 
   // base is always in [0, size) because base <= mid.
-  const entry = entries[base];
-  const cmp = stringCompare(entry[0], key);
-  if (cmp === 0) {
+  const baseKey = entries[base][0];
+  if (baseKey === key) {
     return base;
   }
-  const index = base + (cmp === -1 ? 1 : 0);
+  const index = base + (baseKey < key ? 1 : 0);
   return ~index;
 }
 

@@ -1,20 +1,16 @@
 import {expect} from '@esm-bundle/chai';
-import {Hash, initHasher} from './hash';
+import {emptyHashString, hashOf, initHasher, isHash} from './hash';
 
 setup(async () => {
   await initHasher();
 });
 
 test('test of', async () => {
-  const h = Hash.empty();
-  expect(h.isEmpty()).to.be.true;
-  expect(h.toString()).to.equal('00000000000000000000000000000000');
+  const h = hashOf('abc');
+  expect(h).to.not.equal(emptyHashString);
 
-  const h2 = Hash.of('abc');
-  expect(h2.isEmpty()).to.be.false;
-  expect(h2.toString()).to.equal('rmnjb8cjc5tblj21ed4qs821649eduie');
-
-  const h3 = Hash.parse('rmnjb8cjc5tblj21ed4qs821649eduie');
-  expect(h3.toString()).to.equal(h2.toString());
-  expect(h3).to.deep.equal(h2);
+  expect(isHash(emptyHashString)).to.be.true;
+  expect(isHash(h)).to.be.true;
+  expect(isHash(h + 'a')).to.be.false;
+  expect(isHash(h.slice(0, -1))).to.be.false;
 });

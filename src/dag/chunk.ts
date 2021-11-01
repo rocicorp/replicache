@@ -1,5 +1,5 @@
 import {assertString} from '../asserts';
-import {Hash} from '../hash';
+import {hashOf} from '../hash';
 import type {Value} from '../kv/store';
 
 type Refs = readonly string[];
@@ -20,7 +20,7 @@ export class Chunk<V extends Value = Value> {
   }
 
   static new<V extends Value = Value>(data: V, refs: Refs): Chunk<V> {
-    const hash = Hash.of(JSON.stringify(data));
+    const hash = hashOf(JSON.stringify(data));
     return new Chunk(hash.toString(), data, refs);
   }
 

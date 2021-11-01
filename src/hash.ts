@@ -1,7 +1,7 @@
 import {createSHA512} from 'hash-wasm';
 import type {IHasher} from 'hash-wasm/dist/lib/WASMInterface';
 
-export const BYTE_LENGTH = 20;
+const BYTE_LENGTH = 20;
 
 const charTable = '0123456789abcdefghijklmnopqrstuv';
 
@@ -25,51 +25,28 @@ const stringToUint8Array: (s: string) => Uint8Array =
       }
     : s => encoder.encode(s);
 
-export class Hash {
-  private readonly _sum: Uint8Array;
+const hashRe = /^[0-9a-v]{32}$/;
 
-  constructor(sum: Uint8Array) {
-    this._sum = sum;
+/**
+ * Computes a SHA512 hash of the given data.
+ *
+ * You have to await the result of [[initHasher]] before calling this method.
+ */
+export function hashOf(value: string): string {
+  if (!hasher) {
+    throw new Error('Hash.of() requires await initHasher');
   }
-
-  /**
-   * Computes a SHA512 hash of the given data.
-   *
-   * You have to await the result of [[initHasher]] before calling this method.
-   */
-  static of(value: string): Hash {
-    if (!hasher) {
-      throw new Error('Hash.of() requires await initHasher');
-    }
-    const byteArray = stringToUint8Array(value);
-    const buf = hasher.init().update(byteArray).digest('binary');
-    return new Hash(buf.subarray(0, BYTE_LENGTH));
-  }
-
-  isEmpty(): boolean {
-    for (const i of this._sum) {
-      if (i !== 0) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  toString(): string {
-    return encode(this._sum);
-  }
-
-  static empty(): Hash {
-    return new Hash(new Uint8Array(BYTE_LENGTH));
-  }
-
-  static parse(s: string): Hash {
-    const sum = decode(s);
-    return new Hash(sum);
-  }
+  const typedArray = stringToUint8Array(value);
+  const buf = hasher.init().update(typedArray).digest('binary');
+  const buf2 = buf.subarray(0, BYTE_LENGTH);
+  return encode(buf2);
 }
 
-export const emptyHashString = Hash.empty().toString();
+export function isHash(s: string): boolean {
+  return hashRe.test(s);
+}
+
+export const emptyHashString = '00000000000000000000000000000000';
 
 function encode(plain: Uint8Array): string {
   let i = 0;
@@ -102,39 +79,6 @@ function encode(plain: Uint8Array): string {
 
   // No padding!
   return encoded;
-}
-
-function decode(encoded: string): Uint8Array {
-  let shiftIndex = 0;
-  let plainChar = 0;
-  let plainPos = 0;
-  const decoded = new Uint8Array(BYTE_LENGTH);
-
-  // byte by byte isn't as pretty as octet by octet but tests a bit faster. will have to revisit.
-  for (let i = 0; i < encoded.length; i++) {
-    const plainDigit = charCodeToNum(encoded.charCodeAt(i));
-
-    if (shiftIndex <= 3) {
-      shiftIndex = (shiftIndex + 5) % 8;
-
-      if (shiftIndex === 0) {
-        decoded[plainPos++] = plainChar | plainDigit;
-        plainChar = 0;
-      } else {
-        plainChar |= 0xff & (plainDigit << (8 - shiftIndex));
-      }
-    } else {
-      shiftIndex = (shiftIndex + 5) % 8;
-      decoded[plainPos++] = plainChar | (0xff & (plainDigit >>> shiftIndex));
-      plainChar = 0xff & (plainDigit << (8 - shiftIndex));
-    }
-  }
-  return decoded;
-}
-
-function charCodeToNum(cc: number): number {
-  // This only accepts the char code for '0' - '9', 'a' - 'v'
-  return cc - (cc <= 57 ? 48 : 87); // '9', '0', 'a' - 10
 }
 
 let hasherPromise: Promise<IHasher> | undefined;

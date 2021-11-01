@@ -39,12 +39,12 @@ import type * as kv from './kv/mod';
 import * as dag from './dag/mod';
 import * as db from './db/mod';
 import * as sync from './sync/mod';
-import {initHasher} from './hash';
+import {emptyHash, Hash, initHasher} from './hash';
 import {migrate} from './migrate/migrate';
 
 export type BeginPullResult = {
   requestID: string;
-  syncHead: string;
+  syncHead: Hash;
   ok: boolean;
 };
 
@@ -149,7 +149,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private readonly _logger: Logger;
   private readonly _ready: Promise<void>;
   private readonly _clientIDPromise: Promise<string>;
-  private _root: Promise<string | undefined> = Promise.resolve(undefined);
+  private _root: Promise<Hash | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
     (tx: WriteTransaction, args?: JSONValue) => MutatorReturn
@@ -439,7 +439,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     resolve();
   }
 
-  private async _getRoot(): Promise<string | undefined> {
+  private async _getRoot(): Promise<Hash | undefined> {
     if (this._closed) {
       return undefined;
     }
@@ -491,7 +491,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
 
   private _broadcastChange(
-    root: string | undefined,
+    root: Hash | undefined,
     changedKeys: sync.ChangedKeysMap,
     index: string | undefined,
   ) {
@@ -506,7 +506,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
 
   private async _checkChange(
-    root: string | undefined,
+    root: Hash | undefined,
     changedKeys: sync.ChangedKeysMap,
   ): Promise<void> {
     const currentRoot = await this._root; // instantaneous except maybe first time
@@ -644,11 +644,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
 
   private async _replay<A extends JSONValue>(
-    basis: string,
-    original: string,
+    basis: Hash,
+    original: Hash,
     name: string,
     args: A,
-  ): Promise<string> {
+  ): Promise<Hash> {
     let mutatorImpl = this._mutatorRegistry.get(name);
     if (!mutatorImpl) {
       // Developers must not remove mutator names from the set once registered,
@@ -682,7 +682,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         if (!beginPullResult.ok) {
           return false;
         }
-        if (beginPullResult.syncHead !== '') {
+        if (beginPullResult.syncHead !== emptyHash) {
           await this._maybeEndPull(beginPullResult);
         }
       } finally {
@@ -842,7 +842,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     if (reauth && (this.getAuth || this.getPullAuth)) {
       if (maxAuthTries === 0) {
         this._logger.info?.('Tried to reauthenticate too many times');
-        return {requestID, syncHead: '', ok: false};
+        return {requestID, syncHead: emptyHash, ok: false};
       }
 
       let auth;
@@ -1081,7 +1081,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     args: A | undefined,
     rebaseOpts: sync.RebaseOpts | undefined,
     isReplay: boolean,
-  ): Promise<{result: R; ref: string}> {
+  ): Promise<{result: R; ref: Hash}> {
     // Ensure that we run initial pending subscribe functions before starting a
     // write transaction.
     if (this._hasPendingSubscriptionRuns) {
@@ -1094,7 +1094,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const clientID = await this._clientIDPromise;
     return await this._dagStore.withWrite(async dagWrite => {
       let whence: db.Whence | undefined;
-      let originalHash: string | null = null;
+      let originalHash: Hash | null = null;
       if (rebaseOpts === undefined) {
         whence = db.whenceHead(db.DEFAULT_HEAD_NAME);
       } else {

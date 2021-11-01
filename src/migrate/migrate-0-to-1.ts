@@ -6,6 +6,7 @@ import * as db from '../db/mod';
 import * as sync from '../sync/mod';
 import * as utf8 from '../utf8';
 import type {LogContext} from '../logger';
+import {Hash, parse} from '../hash';
 
 const VERSION_KEY = 'sys/storage-format-version';
 
@@ -51,7 +52,7 @@ export async function migrateHeadKeyValue(
   name: string,
   write: kv.Write,
   pending: Set<string>,
-): Promise<string | undefined> {
+): Promise<Hash | undefined> {
   const key = dag.headKey(name);
   if (pending.has(key)) {
     return undefined;
@@ -64,13 +65,13 @@ export async function migrateHeadKeyValue(
   }
 
   assertUint8Array(v);
-  const ref = utf8.decode(v);
+  const ref = parse(utf8.decode(v));
   await write.put(key, ref);
   return ref;
 }
 
 export function migrateWeakCommit(
-  hash: string,
+  hash: Hash,
   write: kv.Write,
   pending: Set<string>,
 ): Promise<void> {
@@ -78,7 +79,7 @@ export function migrateWeakCommit(
 }
 
 export async function migrateCommit(
-  hash: string,
+  hash: Hash,
   write: kv.Write,
   pending: Set<string>,
 ): Promise<void> {
@@ -86,7 +87,7 @@ export async function migrateCommit(
 }
 
 export async function migrateMaybeWeakCommit(
-  hash: string,
+  hash: Hash,
   write: kv.Write,
   pending: Set<string>,
   allowHashToBeWeak: boolean,
@@ -136,11 +137,11 @@ export async function migrateMaybeWeakCommit(
 }
 
 export async function migrateMetaKeyValue(
-  ref: string,
+  hash: Hash,
   write: kv.Write,
   pending: Set<string>,
 ): Promise<void> {
-  const key = dag.chunkMetaKey(ref);
+  const key = dag.chunkMetaKey(hash);
   if (pending.has(key)) {
     return;
   }
@@ -153,11 +154,11 @@ export async function migrateMetaKeyValue(
 
   assertUint8Array(v);
   const refs = dag.metaFromFlatbuffer(v);
-  await write.put(dag.chunkMetaKey(ref), refs);
+  await write.put(dag.chunkMetaKey(hash), refs);
 }
 
 export async function migrateRefCountKeyValue(
-  hash: string,
+  hash: Hash,
   write: kv.Write,
   pending: Set<string>,
 ): Promise<void> {
@@ -179,7 +180,7 @@ export async function migrateRefCountKeyValue(
 }
 
 export async function migrateProllyMap(
-  hash: string,
+  hash: Hash,
   write: kv.Write,
   pending: Set<string>,
 ): Promise<void> {

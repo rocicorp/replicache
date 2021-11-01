@@ -21,7 +21,7 @@ import {
   addSnapshot,
   Chain,
 } from './test-helpers';
-import {initHasher} from '../hash';
+import {Hash, hashOf, initHasher} from '../hash';
 import type {JSONValue} from '../json';
 
 setup(async () => {
@@ -131,7 +131,11 @@ test('load roundtrip', async () => {
       }
     }
   };
-  for (const basisHash of [null, '', 'hash']) {
+  const original = hashOf('original');
+  const valueHash = hashOf('value');
+  const emptyStringHash = hashOf('');
+  const hashHash = hashOf('hash');
+  for (const basisHash of [null, emptyStringHash, hashHash]) {
     t(
       await makeCommit(
         {
@@ -140,20 +144,12 @@ test('load roundtrip', async () => {
           mutationID: 0,
           mutatorName: 'mutname',
           mutatorArgsJSON: 42,
-          originalHash: 'original',
+          originalHash: original,
         },
-        'value',
-        basisHash === null ? ['value'] : ['value', basisHash],
+        valueHash,
+        basisHash === null ? [valueHash] : [valueHash, basisHash],
       ),
-      await commitNewLocal(
-        basisHash,
-        0,
-        'mutname',
-        42,
-        'original',
-        'value',
-        [],
-      ),
+      commitNewLocal(basisHash, 0, 'mutname', 42, original, valueHash, []),
     );
   }
 
@@ -161,14 +157,14 @@ test('load roundtrip', async () => {
     await makeCommit(
       {
         type: MetaTyped.Local,
-        basisHash: 'basis',
+        basisHash: hashOf('basis'),
         mutationID: 0,
         mutatorName: '',
         mutatorArgsJSON: 43,
-        originalHash: '',
+        originalHash: emptyStringHash,
       },
-      'value-hash',
-      ['', ''],
+      hashOf('value-hash'),
+      [hashOf(''), hashOf('')],
     ),
     new Error('Missing mutator name'),
   );
@@ -176,20 +172,20 @@ test('load roundtrip', async () => {
     await makeCommit(
       {
         type: MetaTyped.Local,
-        basisHash: '',
+        basisHash: emptyStringHash,
         mutationID: 0,
         // @ts-expect-error We are testing invalid types
         mutatorName: undefined,
         mutatorArgsJSON: 43,
-        originalHash: '',
+        originalHash: emptyStringHash,
       },
-      'value-hash',
+      hashOf('value-hash'),
       ['', ''],
     ),
     new Error('Invalid type: undefined, expected string'),
   );
 
-  for (const basisHash of [null, '', 'hash']) {
+  for (const basisHash of [null, hashOf(''), hashOf('hash')]) {
     t(
       await makeCommit(
         {
@@ -200,10 +196,10 @@ test('load roundtrip', async () => {
           mutatorArgsJSON: 44,
           originalHash: null,
         },
-        'vh',
-        basisHash === null ? ['vh'] : ['vh', basisHash],
+        hashOf('vh'),
+        basisHash === null ? [hashOf('vh')] : [hashOf('vh'), basisHash],
       ),
-      await commitNewLocal(basisHash, 0, 'mutname', 44, null, 'vh', []),
+      await commitNewLocal(basisHash, 0, 'mutname', 44, null, hashOf('vh'), []),
     );
   }
 
@@ -211,11 +207,11 @@ test('load roundtrip', async () => {
     await makeCommit(
       {
         type: MetaTyped.Local,
-        basisHash: '',
+        basisHash: emptyStringHash,
         mutationID: 0,
         mutatorName: 'mutname',
         mutatorArgsJSON: 45,
-        originalHash: '',
+        originalHash: emptyStringHash,
       },
 
       //@ts-expect-error we are testing invalid types
@@ -226,55 +222,58 @@ test('load roundtrip', async () => {
   );
 
   const cookie = {foo: 'bar'};
-  for (const basisHash of [null, '', 'hash']) {
+  for (const basisHash of [null, hashOf(''), hashOf('hash')]) {
     t(
       await makeCommit(
         makeSnapshotMeta(basisHash ?? null, 0, {foo: 'bar'}),
-        'vh',
-        ['vh'],
+        hashOf('vh'),
+        [hashOf('vh')],
       ),
-      await commitNewSnapshot(basisHash, 0, cookie, 'vh', []),
+      commitNewSnapshot(basisHash, 0, cookie, hashOf('vh'), []),
     );
   }
   t(
     await makeCommit(
       makeSnapshotMeta(
-        '',
+        emptyStringHash,
         0,
         // @ts-expect-error we are testing invalid types
         undefined,
       ),
-      'vh',
-      ['vh', ''],
+      hashOf('vh'),
+      [hashOf('vh'), hashOf('')],
     ),
     new Error('Invalid type: undefined, expected JSON value'),
   );
 
-  for (const basisHash of [null, '', 'hash']) {
+  for (const basisHash of [null, hashOf(''), hashOf('hash')]) {
     t(
       await makeCommit(
         makeIndexChangeMeta(basisHash, 0),
-        'value',
-        basisHash === null ? ['value'] : ['value', basisHash],
+        hashOf('value'),
+        basisHash === null ? [hashOf('value')] : [hashOf('value'), basisHash],
       ),
-      await commitNewIndexChange(basisHash, 0, 'value', []),
+      await commitNewIndexChange(basisHash, 0, hashOf('value'), []),
     );
   }
 });
 
 test('accessors', async () => {
+  const originalHash = hashOf('originalHash');
+  const basisHash = hashOf('basisHash');
+  const valueHash = hashOf('valueHash');
   const local = fromChunk(
     await makeCommit(
       {
-        basisHash: 'basis_hash',
+        basisHash,
         type: MetaTyped.Local,
         mutationID: 1,
         mutatorName: 'foo_mutator',
         mutatorArgsJSON: 42,
-        originalHash: 'original_hash',
+        originalHash,
       },
-      'value_hash',
-      ['value_hash', 'basis_hash'],
+      valueHash,
+      [valueHash, basisHash],
     ),
   );
   const lm = local.meta;
@@ -282,19 +281,19 @@ test('accessors', async () => {
     expect(lm.mutationID).to.equal(1);
     expect(lm.mutatorName).to.equal('foo_mutator');
     expect(lm.mutatorArgsJSON).to.equal(42);
-    expect(lm.originalHash).to.equal('original_hash');
+    expect(lm.originalHash).to.equal(originalHash);
   } else {
     throw new Error('unexpected type');
   }
-  expect(local.meta.basisHash).to.equal('basis_hash');
-  expect(local.valueHash).to.equal('value_hash');
+  expect(local.meta.basisHash).to.equal(basisHash);
+  expect(local.valueHash).to.equal(valueHash);
   expect(local.nextMutationID).to.equal(2);
 
   const snapshot = fromChunk(
     await makeCommit(
-      makeSnapshotMeta('basis_hash_2', 2, 'cookie 2'),
-      'value_hash 2',
-      ['value_hash 2', 'basis_hash_2'],
+      makeSnapshotMeta(hashOf('basis_hash_2'), 2, 'cookie 2'),
+      hashOf('value_hash 2'),
+      [hashOf('value_hash 2'), hashOf('basis_hash_2')],
     ),
   );
   const sm = snapshot.meta;
@@ -305,15 +304,16 @@ test('accessors', async () => {
   } else {
     throw new Error('unexpected type');
   }
-  expect(snapshot.meta.basisHash).to.equal('basis_hash_2');
-  expect(snapshot.valueHash).to.equal('value_hash 2');
+  expect(snapshot.meta.basisHash).to.equal(hashOf('basis_hash_2'));
+  expect(snapshot.valueHash).to.equal(hashOf('value_hash 2'));
   expect(snapshot.nextMutationID).to.equal(3);
 
   const indexChange = fromChunk(
-    await makeCommit(makeIndexChangeMeta('basis_hash 3', 3), 'value_hash 3', [
-      'value_hash 3',
-      'basis_hash 3',
-    ]),
+    await makeCommit(
+      makeIndexChangeMeta(hashOf('basis_hash 3'), 3),
+      hashOf('value_hash 3'),
+      [hashOf('value_hash 3'), hashOf('basis_hash 3')],
+    ),
   );
   const ic = indexChange.meta;
   if (ic.type === MetaTyped.IndexChange) {
@@ -321,15 +321,15 @@ test('accessors', async () => {
   } else {
     throw new Error('unexpected type');
   }
-  expect(indexChange.meta.basisHash).to.equal('basis_hash 3');
-  expect(indexChange.valueHash).to.equal('value_hash 3');
+  expect(indexChange.meta.basisHash).to.equal(hashOf('basis_hash 3'));
+  expect(indexChange.valueHash).to.equal(hashOf('value_hash 3'));
   expect(indexChange.mutationID).to.equal(3);
 });
 
 async function makeCommit(
   meta: Meta,
-  valueHash: string,
-  refs: string[],
+  valueHash: Hash,
+  refs: Hash[],
 ): Promise<Chunk> {
   const data: CommitData = {
     meta,
@@ -341,7 +341,7 @@ async function makeCommit(
 }
 
 function makeSnapshotMeta(
-  basisHash: string | null,
+  basisHash: Hash | null,
   lastMutationID: number,
   cookieJSON: JSONValue,
 ): SnapshotMeta {
@@ -354,7 +354,7 @@ function makeSnapshotMeta(
 }
 
 function makeIndexChangeMeta(
-  basisHash: string | null,
+  basisHash: Hash | null,
   lastMutationID: number,
 ): IndexChangeMeta {
   return {

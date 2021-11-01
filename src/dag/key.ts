@@ -1,12 +1,14 @@
-export function chunkDataKey(hash: string): string {
+import type {Hash} from '../hash';
+
+export function chunkDataKey(hash: Hash): string {
   return `c/${hash}/d`;
 }
 
-export function chunkMetaKey(hash: string): string {
+export function chunkMetaKey(hash: Hash): string {
   return `c/${hash}/m`;
 }
 
-export function chunkRefCountKey(hash: string): string {
+export function chunkRefCountKey(hash: Hash): string {
   return `c/${hash}/r`;
 }
 

@@ -9,6 +9,7 @@ import {throwIfClosed} from './transaction-closed-error';
 import * as db from './db/mod';
 import * as sync from './sync/mod';
 import type {LogContext} from './logger';
+import type {Hash} from './hash';
 
 /**
  * ReadTransactions are used with [[Replicache.query]] and
@@ -223,7 +224,7 @@ export class WriteTransactionImpl
 
   async commit(
     generateChangedKeys: boolean,
-  ): Promise<[string, sync.ChangedKeysMap]> {
+  ): Promise<[Hash, sync.ChangedKeysMap]> {
     const txn = this._dbtx;
     throwIfClosed(txn);
 
@@ -305,7 +306,7 @@ export class IndexTransactionImpl
     await this._dbtx.dropIndex(name);
   }
 
-  async commit(): Promise<[string, sync.ChangedKeysMap]> {
+  async commit(): Promise<[Hash, sync.ChangedKeysMap]> {
     return super.commit(false);
   }
 }

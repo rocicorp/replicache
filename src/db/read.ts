@@ -10,6 +10,7 @@ import {
 import {Commit, DEFAULT_HEAD_NAME} from './commit';
 import type {ReadonlyJSONValue} from '../json';
 import {BTreeRead, BTreeWrite} from '../btree/mod';
+import type {Hash} from '../hash';
 
 export class Read {
   private readonly _dagRead: dag.Read;
@@ -80,7 +81,7 @@ const enum WhenceType {
 export type Whence =
   | {
       type: WhenceType.Hash;
-      hash: string;
+      hash: Hash;
     }
   | {
       type: WhenceType.Head;
@@ -94,7 +95,7 @@ export function whenceHead(name: string): Whence {
   };
 }
 
-export function whenceHash(hash: string): Whence {
+export function whenceHash(hash: Hash): Whence {
   return {
     type: WhenceType.Hash,
     hash,
@@ -117,16 +118,16 @@ export async function fromWhence(
 export function readCommit(
   whence: Whence,
   dagRead: dag.Write,
-): Promise<[string, Commit, BTreeWrite]>;
+): Promise<[Hash, Commit, BTreeWrite]>;
 export function readCommit(
   whence: Whence,
   dagRead: dag.Read,
-): Promise<[string, Commit, BTreeRead]>;
+): Promise<[Hash, Commit, BTreeRead]>;
 export async function readCommit(
   whence: Whence,
   dagRead: dag.Read,
-): Promise<[string, Commit, BTreeRead]> {
-  let hash: string;
+): Promise<[Hash, Commit, BTreeRead]> {
+  let hash: Hash;
   switch (whence.type) {
     case WhenceType.Hash:
       hash = whence.hash;

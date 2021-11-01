@@ -26,6 +26,7 @@ import * as db from './db/mod';
 import * as dag from './dag/mod';
 import {TestMemStore} from './kv/test-mem-store';
 import {WriteTransactionImpl} from './transactions';
+import {emptyHash, Hash} from './hash';
 
 let clock: SinonFakeTimers;
 setup(() => {
@@ -103,8 +104,6 @@ async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
     await tx.put(key, value);
   }
 }
-
-const emptyHash = '';
 
 teardown(async () => {
   fetchMock.restore();
@@ -1314,10 +1313,10 @@ testWithBothStores('pull', async () => {
 
   let createCount = 0;
   let deleteCount = 0;
-  let syncHead: string;
+  let syncHead: Hash;
   let beginPullResult: {
     requestID: string;
-    syncHead: string;
+    syncHead: Hash;
     ok: boolean;
   };
 
@@ -1445,7 +1444,7 @@ testWithBothStores('reauth pull', async () => {
     const getAuthFake = sinon.fake(() => 'boo');
     rep.getAuth = getAuthFake;
 
-    expect((await rep.beginPull()).syncHead).to.equal('');
+    expect((await rep.beginPull()).syncHead).to.equal(emptyHash);
 
     expect(getAuthFake.callCount).to.equal(8);
     expect(consoleInfoStub.firstCall.args[0]).to.equal(

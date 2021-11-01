@@ -17,6 +17,7 @@ import {toError} from '../to-error';
 import * as btree from '../btree/mod';
 import {BTreeRead} from '../btree/mod';
 import {updateIndexes} from '../db/write';
+import {emptyHash, Hash} from '../hash';
 
 export const PULL_VERSION = 0;
 
@@ -44,7 +45,7 @@ export type BeginPullRequest = {
 
 export type BeginPullResponse = {
   httpRequestInfo: HTTPRequestInfo;
-  syncHead: string;
+  syncHead: Hash;
 };
 
 export async function beginPull(
@@ -96,7 +97,7 @@ export async function beginPull(
   if (!response) {
     return {
       httpRequestInfo,
-      syncHead: '',
+      syncHead: emptyHash,
     };
   }
 
@@ -134,7 +135,7 @@ export async function beginPull(
       response.lastMutationID === baseLastMutationID &&
       (response.cookie ?? null) === baseCookie
     ) {
-      const syncHead = '';
+      const syncHead = emptyHash;
       return {
         httpRequestInfo,
         syncHead,
@@ -212,7 +213,7 @@ export type ReplayMutation = {
   id: number;
   name: string;
   args: JSONValue;
-  original: string;
+  original: Hash;
 };
 
 // The changed keys in different indexes. The key of the map is the index name.
@@ -221,14 +222,14 @@ export type ChangedKeysMap = Map<string, string[]>;
 
 export type MaybeEndPullResult = {
   replayMutations?: ReplayMutation[];
-  syncHead: string;
+  syncHead: Hash;
   changedKeys: ChangedKeysMap;
 };
 
 export async function maybeEndPull(
   store: dag.Store,
   lc: LogContext,
-  expectedSyncHead: string,
+  expectedSyncHead: Hash,
 ): Promise<MaybeEndPullResult> {
   // Ensure sync head is what the caller thinks it is.
   return await store.withWrite(async dagWrite => {

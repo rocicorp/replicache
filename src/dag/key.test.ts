@@ -1,17 +1,25 @@
 import {expect} from '@esm-bundle/chai';
+import {hashOf, initHasher} from '../hash';
 import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
 
+setup(async () => {
+  await initHasher();
+});
+
 test('toString', () => {
-  expect(chunkDataKey('')).to.equal('c//d');
-  expect(chunkDataKey('a')).to.equal('c/a/d');
-  expect(chunkDataKey('ab')).to.equal('c/ab/d');
-  expect(chunkMetaKey('')).to.equal('c//m');
-  expect(chunkMetaKey('a')).to.equal('c/a/m');
-  expect(chunkMetaKey('ab')).to.equal('c/ab/m');
-  expect(chunkRefCountKey('')).to.equal('c//r');
-  expect(chunkRefCountKey('a')).to.equal('c/a/r');
-  expect(chunkRefCountKey('ab')).to.equal('c/ab/r');
-  expect(headKey('')).to.equal('h/');
-  expect(headKey('a')).to.equal('h/a');
-  expect(headKey('ab')).to.equal('h/ab');
+  const hashEmptyString = hashOf('');
+  const hashA = hashOf('a');
+  const hashAB = hashOf('ab');
+  expect(chunkDataKey(hashEmptyString)).to.equal(`c/${hashEmptyString}/d`);
+  expect(chunkDataKey(hashA)).to.equal(`c/${hashA}/d`);
+  expect(chunkDataKey(hashAB)).to.equal(`c/${hashAB}/d`);
+  expect(chunkMetaKey(hashEmptyString)).to.equal(`c/${hashEmptyString}/m`);
+  expect(chunkMetaKey(hashA)).to.equal(`c/${hashA}/m`);
+  expect(chunkMetaKey(hashAB)).to.equal(`c/${hashAB}/m`);
+  expect(chunkRefCountKey(hashEmptyString)).to.equal(`c/${hashEmptyString}/r`);
+  expect(chunkRefCountKey(hashA)).to.equal(`c/${hashA}/r`);
+  expect(chunkRefCountKey(hashAB)).to.equal(`c/${hashAB}/r`);
+  expect(headKey('')).to.equal(`h/`);
+  expect(headKey('a')).to.equal(`h/a`);
+  expect(headKey('ab')).to.equal(`h/ab`);
 });

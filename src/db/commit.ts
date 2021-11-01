@@ -21,6 +21,7 @@ import {IndexChangeMeta as IndexChangeMetaFB} from './generated/commit/index-cha
 import {IndexDefinition as IndexDefinitionFB} from './generated/commit/index-definition';
 import {IndexRecord as IndexRecordFB} from './generated/commit/index-record';
 import * as utf8 from '../utf8';
+import {assertHash, Hash} from '../hash';
 
 export const DEFAULT_HEAD_NAME = 'main';
 
@@ -54,7 +55,7 @@ export class Commit<M extends Meta = Meta> {
     return this.meta.type === MetaTyped.IndexChange;
   }
 
-  get valueHash(): string {
+  get valueHash(): Hash {
     // Already validated!
     return this.chunk.data.valueHash;
   }
@@ -90,7 +91,7 @@ export class Commit<M extends Meta = Meta> {
    * with the commit with hash from_commit_hash and walking backwards.
    */
   static async localMutations(
-    fromCommitHash: string,
+    fromCommitHash: Hash,
     dagRead: dag.Read,
   ): Promise<Commit<LocalMeta>[]> {
     const commits = await Commit.chain(fromCommitHash, dagRead);
@@ -98,7 +99,7 @@ export class Commit<M extends Meta = Meta> {
     return commits.filter(c => c.isLocal()) as Commit<LocalMeta>[];
   }
 
-  static async baseSnapshot(hash: string, dagRead: dag.Read): Promise<Commit> {
+  static async baseSnapshot(hash: Hash, dagRead: dag.Read): Promise<Commit> {
     let commit = await Commit.fromHash(hash, dagRead);
     while (!commit.isSnapshot()) {
       const {meta} = commit;
@@ -127,7 +128,7 @@ export class Commit<M extends Meta = Meta> {
    * (so snapshot comes last).
    */
   static async chain(
-    fromCommitHash: string,
+    fromCommitHash: Hash,
     dagRead: dag.Read,
   ): Promise<Commit[]> {
     let commit = await Commit.fromHash(fromCommitHash, dagRead);
@@ -145,7 +146,7 @@ export class Commit<M extends Meta = Meta> {
     return commits;
   }
 
-  static async fromHash(hash: string, dagRead: dag.Read): Promise<Commit> {
+  static async fromHash(hash: Hash, dagRead: dag.Read): Promise<Commit> {
     const chunk = await dagRead.getChunk(hash);
     if (!chunk) {
       throw new Error(`Missing commit for ${hash}`);
@@ -155,7 +156,7 @@ export class Commit<M extends Meta = Meta> {
 }
 
 type BasisHash = {
-  readonly basisHash: string | null;
+  readonly basisHash: Hash | null;
 };
 
 export type IndexChangeMeta = BasisHash & {
@@ -182,7 +183,7 @@ export type LocalMeta = BasisHash & {
   readonly mutationID: number;
   readonly mutatorName: string;
   readonly mutatorArgsJSON: ReadonlyJSONValue;
-  readonly originalHash: string | null;
+  readonly originalHash: Hash | null;
 };
 
 function assertLocalMeta(v: Record<string, unknown>): asserts v is LocalMeta {
@@ -194,7 +195,7 @@ function assertLocalMeta(v: Record<string, unknown>): asserts v is LocalMeta {
   }
   assertJSONValue(v.mutatorArgsJSON);
   if (v.originalHash !== null) {
-    assertString(v.originalHash);
+    assertHash(v.originalHash);
   }
 }
 
@@ -251,7 +252,7 @@ function assertIndexDefinition(v: unknown): asserts v is IndexDefinition {
 
 export type IndexRecord = {
   readonly definition: IndexDefinition;
-  readonly valueHash: string;
+  readonly valueHash: Hash;
 };
 
 function assertIndexRecord(v: unknown): asserts v is IndexRecord {
@@ -266,12 +267,12 @@ const enum RefType {
 }
 
 export function newLocal(
-  basisHash: string | null,
+  basisHash: Hash | null,
   mutationID: number,
   mutatorName: string,
   mutatorArgsJSON: ReadonlyJSONValue,
-  originalHash: string | null,
-  valueHash: string,
+  originalHash: Hash | null,
+  valueHash: Hash,
   indexes: IndexRecord[],
 ): Commit {
   const localMeta: LocalMeta = {
@@ -292,10 +293,10 @@ export function newLocal(
 }
 
 export function newSnapshot(
-  basisHash: string | null,
+  basisHash: Hash | null,
   lastMutationID: number,
   cookieJSON: ReadonlyJSONValue,
-  valueHash: string,
+  valueHash: Hash,
   indexes: IndexRecord[],
 ): Commit {
   const snapshotMeta: SnapshotMeta = {
@@ -314,9 +315,9 @@ export function newSnapshot(
 }
 
 export function newIndexChange(
-  basisHash: string | null,
+  basisHash: Hash | null,
   lastMutationID: number,
-  valueHash: string,
+  valueHash: Hash,
   indexes: IndexRecord[],
 ): Commit {
   const indexChangeMeta: IndexChangeMeta = {
@@ -339,9 +340,9 @@ export function fromChunk(chunk: Chunk): Commit {
 }
 
 function asRef(h: null, t: RefType): null;
-function asRef(h: string, t: RefType): Ref;
-function asRef(h: string | null, t: RefType): Ref | null;
-function asRef(h: string | null, t: RefType): Ref | null {
+function asRef(h: Hash, t: RefType): Ref;
+function asRef(h: Hash | null, t: RefType): Ref | null;
+function asRef(h: Hash | null, t: RefType): Ref | null {
   if (h === null) {
     return null;
   }
@@ -350,7 +351,7 @@ function asRef(h: string | null, t: RefType): Ref | null {
 
 type Ref = {
   t: RefType;
-  h: string;
+  h: Hash;
 };
 
 function newImpl(
@@ -379,7 +380,7 @@ function newImpl(
 
 export type CommitData = {
   readonly meta: Meta;
-  readonly valueHash: string;
+  readonly valueHash: Hash;
   readonly indexes: IndexRecord[];
 };
 
@@ -418,7 +419,7 @@ export function commitDataFromFlatbuffer(data: Uint8Array): CommitData {
   const meta = metaFromFlatbuffer(metaFB);
 
   const valueHash = commitFB.valueHash();
-  assertString(valueHash);
+  assertHash(valueHash);
 
   const indexes: IndexRecord[] = [];
 
@@ -441,7 +442,7 @@ export function commitDataFromFlatbuffer(data: Uint8Array): CommitData {
       jsonPointer,
     };
     const valueHash = indexFB.valueHash();
-    assertNotNull(valueHash);
+    assertHash(valueHash);
     const index: IndexRecord = {
       definition,
       valueHash,
@@ -457,7 +458,7 @@ export function commitDataFromFlatbuffer(data: Uint8Array): CommitData {
 }
 
 function metaFromFlatbuffer(metaFB: MetaFB): Meta {
-  const basisHash = metaFB.basisHash();
+  const basisHash = metaFB.basisHash() as Hash | null;
   switch (metaFB.typedType()) {
     case MetaTypedFB.NONE:
       throw new Error('Invalid meta type');
@@ -472,7 +473,7 @@ function metaFromFlatbuffer(metaFB: MetaFB): Meta {
 
 function indexChangeMetaFromFlatbuffer(
   fb: MetaFB,
-  basisHash: string | null,
+  basisHash: Hash | null,
 ): IndexChangeMeta {
   const indexChangeMetaFB = fb.typed(
     new IndexChangeMetaFB(),
@@ -486,7 +487,7 @@ function indexChangeMetaFromFlatbuffer(
 
 function localMetaFromFlatbuffer(
   fb: MetaFB,
-  basisHash: string | null,
+  basisHash: Hash | null,
 ): LocalMeta {
   const localMetaFB = fb.typed(new LocalMetaFB()) as LocalMetaFB;
   const mutatorName = localMetaFB.mutatorName();
@@ -501,13 +502,13 @@ function localMetaFromFlatbuffer(
     mutationID: localMetaFB.mutationId().toFloat64(),
     mutatorName,
     mutatorArgsJSON: JSON.parse(utf8.decode(mutatorArgsJSONArray)),
-    originalHash: localMetaFB.originalHash(),
+    originalHash: localMetaFB.originalHash() as Hash | null,
   };
 }
 
 function snapshotMetaFromFlatbuffer(
   fb: MetaFB,
-  basisHash: string | null,
+  basisHash: Hash | null,
 ): SnapshotMeta {
   const snapshotMetaFB = fb.typed(new SnapshotMetaFB()) as SnapshotMetaFB;
   const cookieJSONArray = snapshotMetaFB.cookieJsonArray();
@@ -544,7 +545,7 @@ export function commitDataToFlatbuffer(data: CommitData): Uint8Array {
             builder,
             utf8.encode(JSON.stringify(mutatorArgsJSON)),
           ),
-          originalHash ? builder.createString(originalHash) : 0,
+          originalHash ? builder.createString(String(originalHash)) : 0,
         );
         return [MetaTypedFB.LocalMeta, localMeta];
       }
@@ -573,7 +574,7 @@ export function commitDataToFlatbuffer(data: CommitData): Uint8Array {
 
   const meta = MetaFB.createMeta(
     builder,
-    basisHash ? builder.createString(basisHash) : 0,
+    basisHash ? builder.createString(String(basisHash)) : 0,
     unionType,
     unionValue,
   );

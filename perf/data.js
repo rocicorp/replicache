@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1635761216008,
+  "lastUpdate": 1635788564980,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -53265,6 +53265,212 @@ window.BENCHMARK_DATA = {
             "range": "±1024.3%",
             "unit": "ops/sec",
             "extra": "5 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "633cbb3f84ca37987295099176d8202ba1bcd58b",
+          "message": "fix: update perf tests with ops/sec units to output median rather than mean (#645)\n\nThis makes them more consistent with tests with MBs/sec output (which already use median), and should also make them more stable as results can't be greatly skewed by a small number of outliers.",
+          "timestamp": "2021-11-01T10:39:37-07:00",
+          "tree_id": "5e1752d149d8c865f015439d33f9e57d509ebd71",
+          "url": "https://github.com/rocicorp/replicache/commit/633cbb3f84ca37987295099176d8202ba1bcd58b"
+        },
+        "date": 1635788564273,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 5.84,
+            "range": "±27.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (dirty, indexes: 0)",
+            "value": 3.78,
+            "range": "±10.3%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 2.64,
+            "range": "±15.5%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 1.96,
+            "range": "±34.2%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "read tx 1024x1000",
+            "value": 11.75,
+            "range": "±8.8%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "read tx 1024x5000",
+            "value": 12.31,
+            "range": "±8.9%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 12.1,
+            "range": "±10.5%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x5000",
+            "value": 12.72,
+            "range": "±5.6%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x1000",
+            "value": 3.06,
+            "range": "±9.8%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 0.64,
+            "range": "±4.7%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 10.56,
+            "range": "±22.5%",
+            "unit": "ops/sec",
+            "extra": "6 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 3.83,
+            "range": "±17.4%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 3.04,
+            "range": "±15.5%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 11.22,
+            "range": "±68.7%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (dirty, indexes: 0)",
+            "value": 11.85,
+            "range": "±7.9%",
+            "unit": "MB/s",
+            "extra": "6 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 5.12,
+            "range": "±35.8%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 3.51,
+            "range": "±24.0%",
+            "unit": "MB/s",
+            "extra": "5 samples"
+          },
+          {
+            "name": "[MemStore] read tx 1024x1000",
+            "value": 305.18,
+            "range": "±156.2%",
+            "unit": "MB/s",
+            "extra": "149 samples"
+          },
+          {
+            "name": "[MemStore] read tx 1024x5000",
+            "value": 208.67,
+            "range": "±67.9%",
+            "unit": "MB/s",
+            "extra": "21 samples"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 443.89,
+            "range": "±240.9%",
+            "unit": "MB/s",
+            "extra": "209 samples"
+          },
+          {
+            "name": "[MemStore] scan 1024x5000",
+            "value": 381.47,
+            "range": "±121.1%",
+            "unit": "MB/s",
+            "extra": "37 samples"
+          },
+          {
+            "name": "[MemStore] create index 1024x1000",
+            "value": 10.35,
+            "range": "±28.9%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 2.17,
+            "range": "±10.9%",
+            "unit": "ops/sec",
+            "extra": "5 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 188.68,
+            "range": "±258.5%",
+            "unit": "ops/sec",
+            "extra": "92 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 63.29,
+            "range": "±313.3%",
+            "unit": "ops/sec",
+            "extra": "23 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 46.51,
+            "range": "±984.7%",
+            "unit": "ops/sec",
+            "extra": "6 samples"
           }
         ]
       }

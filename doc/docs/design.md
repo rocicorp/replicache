@@ -4,7 +4,7 @@ slug: /design
 ---
 
 _Realtime Sync_ describes a client/server architecture in which
-an application reads and writes to a local on-device database that is synchronized in realtime in the background to a server. Updates from many users are synchronized with each other through the server with low latency and high througput, realizing a variety of benefits.
+an application reads and writes to a local on-device database that is synchronized in realtime in the background to a server. Updates from many users are synchronized with each other through the server with low latency and high throughput, realizing a variety of benefits.
 
 Adding realtime sync to your application enables:
 

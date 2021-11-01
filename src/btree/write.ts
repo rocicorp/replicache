@@ -1,6 +1,6 @@
 import type {ReadonlyJSONValue} from '../json';
 import * as dag from '../dag/mod';
-import {Hash, emptyHash, newTempHash, assertNotTempHash} from '../hash';
+import {Hash, emptyHash, newTempHash} from '../hash';
 import {BTreeRead} from './read';
 import {
   DataNodeImpl,
@@ -201,7 +201,6 @@ export class BTreeWrite extends BTreeRead {
     const walk = (hash: Hash, newChunks: dag.Chunk[]): Hash => {
       const node = this._modified.get(hash);
       if (node === undefined) {
-        assertNotTempHash(hash);
         // Not modified, use the original.
         return hash;
       }

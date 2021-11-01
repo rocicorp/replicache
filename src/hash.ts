@@ -6,22 +6,22 @@ const BYTE_LENGTH = 20;
 const HASH_LENGTH = 32;
 
 // We use an opaque type so that we can make sure that a hash is always a hash.
-// TypeScript does not have direct support but we can use a trick desccibed
+// TypeScript does not have direct support but we can use a trick described
 // here:
 //
 // https://evertpot.com/opaque-ts-types/
 //
-// The basic idea is to declare a type that cannot be created. We then functions
-// that cast a string to this type.
+// The basic idea is to declare a type that cannot be created. We then use
+// functions that cast a string to this type.
 //
 
 // By using declare we tell the type system that there is a unique symbol.
-// However, thre is no such symbol but the type system does not care.
+// However, there is no such symbol but the type system does not care.
 declare const hashTag: unique symbol;
 
 /**
  * Opaque type representing a hash. The only way to create one is using `parse`
- * (except for static unsafe cast of course).
+ * or `hashOf` (except for static unsafe cast of course).
  */
 export type Hash = {[hashTag]: true};
 
@@ -48,6 +48,7 @@ const stringToUint8Array: (s: string) => Uint8Array =
     : s => encoder.encode(s);
 
 const hashRe = /^[0-9a-v]{32}$/;
+const tempHashRe = /^\/t\/[0-9]{29}$/;
 
 /**
  * Computes a SHA512 hash of the given data.
@@ -121,7 +122,7 @@ let tempHashCounter = 0;
 const tempPrefix = '/t/';
 
 export function newTempHash(): Hash {
-  // Must not overlap with Hash.prototype.toString results
+  // Must not overlap with hashOf results
   return (tempPrefix +
     (tempHashCounter++)
       .toString()
@@ -129,19 +130,15 @@ export function newTempHash(): Hash {
 }
 
 export function isHash(v: unknown): v is Hash {
-  return typeof v === 'string' && hashRe.test(v);
+  return typeof v === 'string' && (hashRe.test(v) || tempHashRe.test(v));
 }
 
-export function isTempHash(
-  hash: Hash,
-): hash is `/t/${string}` & {[hashTag]: true} {
-  return (hash as unknown as string).startsWith('/t/');
+export function isTempHash(v: unknown): v is Hash {
+  return typeof v === 'string' && tempHashRe.test(v);
 }
 
-export function assertNotTempHash<H extends Hash>(
-  hash: H,
-): asserts hash is H extends `/t/${string}` ? never : H {
-  if (isTempHash(hash)) {
+export function assertNotTempHash(hash: Hash): void {
+  if (tempHashRe.test(hash as unknown as string)) {
     throw new Error('must not be a temp hash');
   }
 }

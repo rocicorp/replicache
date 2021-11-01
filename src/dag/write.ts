@@ -3,7 +3,7 @@ import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key';
 import {Read} from './read';
 import {assertMeta, Chunk} from './chunk';
 import {assertNumber} from '../asserts';
-import type {Hash} from '../hash';
+import {assertNotTempHash, Hash} from '../hash';
 
 type HeadChange = {
   new: Hash | undefined;
@@ -22,10 +22,15 @@ export class Write extends Read {
 
   async putChunk(c: Chunk): Promise<void> {
     const {hash, data, meta} = c;
+    // We never want to write temp hashes to the underlying store.
+    assertNotTempHash(hash);
     const key = chunkDataKey(hash);
     const p1 = this._kvw.put(key, data);
     let p2;
     if (meta.length > 0) {
+      for (const h of meta) {
+        assertNotTempHash(h);
+      }
       p2 = this._kvw.put(chunkMetaKey(hash), meta);
     }
     this._newChunks.add(hash);

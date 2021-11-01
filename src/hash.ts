@@ -5,8 +5,24 @@ const BYTE_LENGTH = 20;
 
 const HASH_LENGTH = 32;
 
+// We use an opaque type so that we can make sure that a hash is always a hash.
+// TypeScript does not have direct support but we can use a trick desccibed
+// here:
+//
+// https://evertpot.com/opaque-ts-types/
+//
+// The basic idea is to declare a type that cannot be created. We then functions
+// that cast a string to this type.
+//
+
+// By using declare we tell the type system that there is a unique symbol.
+// However, thre is no such symbol but the type system does not care.
 declare const hashTag: unique symbol;
 
+/**
+ * Opaque type representing a hash. The only way to create one is using `parse`
+ * (except for static unsafe cast of course).
+ */
 export type Hash = {[hashTag]: true};
 
 const charTable = '0123456789abcdefghijklmnopqrstuv';

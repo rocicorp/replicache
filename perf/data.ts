@@ -53,7 +53,8 @@ export function randomASCIIString(len: number): string {
 function randomStringInternal(len: number, max: number): string {
   let s = '';
   for (let i = 0; i < len; i++) {
-    s += String.fromCharCode((Math.random() * max) | 0);
+    // We use random strings for index map keys and those cannot contain \0.
+    s += String.fromCharCode(((Math.random() * (max - 1)) | 0) + 1);
   }
   return s;
 }

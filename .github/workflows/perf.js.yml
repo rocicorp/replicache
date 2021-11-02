@@ -3,8 +3,6 @@ name: Perf Test
 on:
   push:
     branches: [main]
-  pull_request:
-      branches: [main]
 
 jobs:
   benchmark:
@@ -38,7 +36,7 @@ jobs:
           fail-on-alert: true
           github-token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
           benchmark-data-dir-path: perf
-          auto-push: false
+          auto-push: true
           alert-threshold: '130%'
           comment-on-alert: true
 #       - name: Deploy perf data

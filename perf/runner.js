@@ -33,7 +33,7 @@ function browserName(browser) {
 }
 
 function format(arg) {
-  if (!['benchmarkJS', 'replicache'].includes(arg)) {
+  if (!['benchmarkJS', 'json', 'replicache'].includes(arg)) {
     const err = new Error(`Unknown format ${arg}`);
     err.name = 'UNKNOWN_VALUE';
     err.value = arg;
@@ -82,7 +82,7 @@ async function main() {
       alias: 'f',
       type: format,
       description:
-        'Format for output, either benchmarkJS (default) or replicache',
+        'Format for text output, either benchmarkJS (default), json or replicache',
     },
     {
       name: 'devtools',
@@ -112,6 +112,10 @@ async function main() {
   }
   if (options.devtools && options.browsers.length !== 1) {
     console.error('Exactly one browser may be specified with --devtools');
+    process.exit(1);
+  }
+  if (options.format === 'json' && options.browsers.length !== 1) {
+    console.error('Exactly one browser may be specified with --format=json');
     process.exit(1);
   }
   if (
@@ -169,7 +173,7 @@ async function main() {
     }
   }
 
-  if (!options.list) {
+  if (!options.list && options.format !== 'json') {
     logLine('Done!');
   }
   await fs.rm(userDataDir, {recursive: true});
@@ -215,22 +219,34 @@ async function runInBrowser(browser, page, options) {
     return;
   }
 
-  logLine(
-    `Running ${benchmarks.length} benchmarks on ${browserName(browser)}...`,
-  );
+  const jsonEntries = [];
+  if (options.format !== 'json') {
+    logLine(
+      `Running ${benchmarks.length} benchmarks on ${browserName(browser)}...`,
+    );
+  }
   for (const benchmark of benchmarks) {
-    const testResult = await page.evaluate(
+    const result = await page.evaluate(
       ({name, group, format}) =>
         // eslint-disable-next-line no-undef
         runBenchmarkByNameAndGroup(name, group, format),
       {format: options.format, ...benchmark},
     );
-    if (testResult === undefined) {
-      continue;
+    if (result) {
+      if (result.error) {
+        process.stderr.write(result.error + '\n');
+        return;
+      }
+      jsonEntries.push(result.jsonEntry);
+      if (options.format !== 'json') {
+        logLine(result.text);
+      }
     }
-    logLine(testResult);
     await page.reload();
     await waitForBenchmarks();
+  }
+  if (options.format === 'json') {
+    process.stdout.write(JSON.stringify(jsonEntries, undefined, 2) + '\n');
   }
 }
 

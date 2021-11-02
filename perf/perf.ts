@@ -3,6 +3,7 @@ import {benchmarkIDBRead, benchmarkIDBWrite} from './idb';
 import {benchmarks as lockBenchmarks} from './lock';
 import {benchmarks as hashBenchmarks} from './hash';
 import {benchmarks as storageBenchmarks} from './storage';
+import {formatAsBenchmarkJS, formatAsReplicache} from './format';
 import type {RandomDataType} from './data';
 
 export type Benchmark = {
@@ -20,10 +21,24 @@ export type Bencher = {
   stop: () => void;
 };
 
+export type BenchmarkResult = {
+  name: string;
+  group: string;
+  byteSize?: number;
+  sortedRunTimesMs: number[];
+  runTimesStatistics: {
+    meanMs: number;
+    medianMs: number;
+    p75Ms: number;
+    p90Ms: number;
+    p95Ms: number;
+    variance: number;
+  };
+};
+
 async function runBenchmark(
   benchmark: Benchmark,
-  format: OutputFormat,
-): Promise<string | undefined> {
+): Promise<BenchmarkResult | undefined> {
   // Execute fn at least this many runs.
   const minRuns = 5;
   // Execute fn at least for this long.
@@ -72,56 +87,28 @@ async function runBenchmark(
   }
 
   times.sort((a, b) => a - b);
-  const runs = times.length;
-
-  const median = 0.5;
-  const medianTime = times[Math.floor(runs * median)];
-  const medianBytesPerSecond = benchmark.byteSize
-    ? `${formatToMBPerSecond(benchmark.byteSize, medianTime)} `
-    : '';
-
-  if (format === 'replicache') {
-    const ptiles = [median, 0.75, 0.9, 0.95];
-    return `${benchmark.name} ${ptiles
-      .map(p => String(p * 100))
-      .join('/')}%=${ptiles.map(p =>
-      times[Math.floor(runs * p)].toFixed(2),
-    )}ms/op ${medianBytesPerSecond}(${runs} runs sampled)`;
-  } else {
-    const variance =
-      Math.max(medianTime - times[0], times[times.length - 1] - medianTime) /
-      medianTime;
-    return formatAsBenchmarkJS({
-      name: benchmark.name,
-      value:
-        medianBytesPerSecond ||
-        `${((1 / medianTime) * 1000).toFixed(2)} ops/sec `,
-      variance: `${(variance * 100).toFixed(1)}%`,
-      runs,
-    });
-  }
-}
-
-function formatAsBenchmarkJS({
-  name,
-  value,
-  variance,
-  runs,
-}: {
-  name: string;
-  value: string;
-  variance: string;
-  runs: number;
-}): string {
-  // Example:
-  //   fib(20) x 11,465 ops/sec ±1.12% (91 runs sampled)
-  //   createObjectBuffer with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)
-  return `${name} x ${value}±${variance} (${runs} runs sampled)`;
-}
-
-function formatToMBPerSecond(size: number, timeMS: number): string {
-  const bytes = (size / timeMS) * 1000;
-  return (bytes / 2 ** 20).toFixed(2) + ' MB/s';
+  const calcPercentile = (percentile: number): number => {
+    return times[Math.floor((runCount * percentile) / 100)];
+  };
+  const runCount = times.length;
+  const medianMs = calcPercentile(50);
+  return {
+    name: benchmark.name,
+    group: benchmark.group,
+    byteSize: benchmark.byteSize,
+    sortedRunTimesMs: times,
+    runTimesStatistics: {
+      meanMs: sum / runCount,
+      medianMs,
+      p75Ms: calcPercentile(75),
+      p90Ms: calcPercentile(90),
+      p95Ms: calcPercentile(95),
+      variance: Math.max(
+        medianMs - times[0],
+        times[times.length - 1] - medianMs,
+      ),
+    },
+  };
 }
 
 export const benchmarks = [
@@ -172,18 +159,26 @@ function findBenchmark(name: string, group: string): Benchmark {
   throw new Error(`No benchmark named "${name}" in group "${group}"`);
 }
 
-type OutputFormat = 'replicache' | 'benchmarkjs';
-
 export async function runBenchmarkByNameAndGroup(
   name: string,
   group: string,
-  format: OutputFormat | undefined = 'benchmarkjs',
-): Promise<string | undefined> {
+  format: 'replicache' | 'benchmarkJS',
+): Promise<{jsonEntry: Entry; text: string} | {error: string} | undefined> {
   const b = findBenchmark(name, group);
   try {
-    return await runBenchmark(b, format);
+    const result = await runBenchmark(b);
+    if (!result) {
+      return undefined;
+    }
+    return {
+      jsonEntry: createGithubActionBenchmarkJsonEntry(result),
+      text:
+        format === 'replicache'
+          ? formatAsReplicache(result)
+          : formatAsBenchmarkJS(result),
+    };
   } catch (e) {
-    return `${b.name}: Error: ${e}`;
+    return {error: `${b.name} had an error: ${e}`};
   }
 }
 
@@ -198,8 +193,35 @@ export async function runAll(groups: string[]): Promise<void> {
   }
   const benchmarks = findBenchmarks(groups);
   for (const b of benchmarks) {
-    const r = await runBenchmark(b, 'replicache');
-    out.textContent += r + '\n';
+    try {
+      const result = await runBenchmark(b);
+      if (result) {
+        out.textContent += formatAsReplicache(result) + '\n';
+      }
+    } catch (e) {
+      out.textContent += `${b.name} had an error: ${e}` + '\n';
+    }
   }
   out.textContent += 'Done!\n';
+}
+
+// See https://github.com/benchmark-action/github-action-benchmark#examples
+type Entry = {
+  name: string;
+  unit: string;
+  value: number;
+  // variance
+  range?: string;
+  // any extra info, will be displayed in tool tip on graphs
+  extra?: string;
+};
+
+function createGithubActionBenchmarkJsonEntry(result: BenchmarkResult): Entry {
+  return {
+    name: result.name,
+    unit: 'median ms',
+    value: result.runTimesStatistics.medianMs,
+    range: result.runTimesStatistics.variance.toFixed(2).toString(),
+    extra: formatAsReplicache(result),
+  };
 }

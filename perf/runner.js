@@ -33,7 +33,7 @@ function browserName(browser) {
 }
 
 function format(arg) {
-  if (!['benchmarkJS', 'replicache'].includes(arg)) {
+  if (!['benchmarkJS', 'json', 'replicache'].includes(arg)) {
     const err = new Error(`Unknown format ${arg}`);
     err.name = 'UNKNOWN_VALUE';
     err.value = arg;
@@ -82,7 +82,7 @@ async function main() {
       alias: 'f',
       type: format,
       description:
-        'Format for output, either benchmarkJS (default) or replicache',
+        'Format for text output, either benchmarkJS (default), json or replicache',
     },
     {
       name: 'devtools',
@@ -114,6 +114,10 @@ async function main() {
     console.error('Exactly one browser may be specified with --devtools');
     process.exit(1);
   }
+  if (options.format === 'json' && options.browsers.length !== 1) {
+    console.error('Exactly one browser may be specified with --format=json');
+    process.exit(1);
+  }
   if (
     options.groups === undefined &&
     options.run === undefined &&
@@ -143,7 +147,7 @@ async function main() {
   let first = true;
   for (const browser of options.browsers) {
     if (!first) {
-      logLine('');
+      logLine('', options);
     }
     first = false;
     const context = await playwright[browser].launchPersistentContext(
@@ -170,7 +174,7 @@ async function main() {
   }
 
   if (!options.list) {
-    logLine('Done!');
+    logLine('Done!', options);
   }
   await fs.rm(userDataDir, {recursive: true});
   await server.stop();
@@ -215,22 +219,31 @@ async function runInBrowser(browser, page, options) {
     return;
   }
 
+  const jsonEntries = [];
   logLine(
     `Running ${benchmarks.length} benchmarks on ${browserName(browser)}...`,
+    options,
   );
   for (const benchmark of benchmarks) {
-    const testResult = await page.evaluate(
+    const result = await page.evaluate(
       ({name, group, format}) =>
         // eslint-disable-next-line no-undef
         runBenchmarkByNameAndGroup(name, group, format),
       {format: options.format, ...benchmark},
     );
-    if (testResult === undefined) {
-      continue;
+    if (result) {
+      if (result.error) {
+        process.stderr.write(result.error + '\n');
+      } else {
+        jsonEntries.push(result.jsonEntry);
+        logLine(result.text, options);
+      }
     }
-    logLine(testResult);
     await page.reload();
     await waitForBenchmarks();
+  }
+  if (options.format === 'json') {
+    process.stdout.write(JSON.stringify(jsonEntries, undefined, 2) + '\n');
   }
 }
 
@@ -240,8 +253,10 @@ main().catch(err => {
 });
 
 /** @param {string} s */
-function logLine(s) {
-  process.stdout.write(s + '\n');
+function logLine(s, options) {
+  if (options.format !== 'json') {
+    process.stdout.write(s + '\n');
+  }
 }
 
 /** @param {number} n */

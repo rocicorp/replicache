@@ -175,7 +175,7 @@ export async function runBenchmarkByNameAndGroup(
       return undefined;
     }
     return {
-      jsonEntry: createGithubActionBenchmarkJsonEntry(result),
+      jsonEntry: createGithubActionBenchmarkJSONEntry(result),
       text:
         format === 'replicache'
           ? formatAsReplicache(result)
@@ -220,7 +220,7 @@ type Entry = {
   extra?: string;
 };
 
-function createGithubActionBenchmarkJsonEntry(result: BenchmarkResult): Entry {
+function createGithubActionBenchmarkJSONEntry(result: BenchmarkResult): Entry {
   return {
     name: result.name,
     unit: 'median ms',

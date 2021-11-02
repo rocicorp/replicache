@@ -147,7 +147,7 @@ async function main() {
   let first = true;
   for (const browser of options.browsers) {
     if (!first) {
-      logLine('');
+      logLine('', options);
     }
     first = false;
     const context = await playwright[browser].launchPersistentContext(
@@ -173,8 +173,8 @@ async function main() {
     }
   }
 
-  if (!options.list && options.format !== 'json') {
-    logLine('Done!');
+  if (!options.list) {
+    logLine('Done!', options);
   }
   await fs.rm(userDataDir, {recursive: true});
   await server.stop();
@@ -220,11 +220,10 @@ async function runInBrowser(browser, page, options) {
   }
 
   const jsonEntries = [];
-  if (options.format !== 'json') {
-    logLine(
-      `Running ${benchmarks.length} benchmarks on ${browserName(browser)}...`,
-    );
-  }
+  logLine(
+    `Running ${benchmarks.length} benchmarks on ${browserName(browser)}...`,
+    options,
+  );
   for (const benchmark of benchmarks) {
     const result = await page.evaluate(
       ({name, group, format}) =>
@@ -237,9 +236,7 @@ async function runInBrowser(browser, page, options) {
         process.stderr.write(result.error + '\n');
       } else {
         jsonEntries.push(result.jsonEntry);
-        if (options.format !== 'json') {
-          logLine(result.text);
-        }
+        logLine(result.text, options);
       }
     }
     await page.reload();
@@ -256,8 +253,10 @@ main().catch(err => {
 });
 
 /** @param {string} s */
-function logLine(s) {
-  process.stdout.write(s + '\n');
+function logLine(s, options) {
+  if (options.format !== 'json') {
+    process.stdout.write(s + '\n');
+  }
 }
 
 /** @param {number} n */

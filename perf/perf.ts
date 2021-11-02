@@ -25,9 +25,11 @@ async function runBenchmark(
   format: OutputFormat,
 ): Promise<string | undefined> {
   // Execute fn at least this many runs.
-  const minRuns = 5;
+  const minRuns = 9;
+  const maxRuns = 21;
   // Execute fn at least for this long.
   const minTime = 500;
+  const maxTotalTime = 5000;
   const times: number[] = [];
   let sum = 0;
 
@@ -39,7 +41,12 @@ async function runBenchmark(
     await benchmark.setup();
   }
 
-  for (let i = 0; i < minRuns || sum < minTime; i++) {
+  const totalTimeStart = performance.now();
+  for (let i = 0; (i < minRuns || sum < minTime) && i < maxRuns; i++) {
+    if (i >= minRuns && performance.now() - totalTimeStart > maxTotalTime) {
+      break;
+    }
+
     let t0 = 0;
     let t1 = 0;
     const reset = () => {
@@ -72,6 +79,8 @@ async function runBenchmark(
   }
 
   times.sort((a, b) => a - b);
+  // Remove two slowest. Treat them as JIT warmup.
+  times.splice(0, 2);
   const runs = times.length;
 
   const median = 0.5;

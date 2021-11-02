@@ -235,11 +235,11 @@ async function runInBrowser(browser, page, options) {
     if (result) {
       if (result.error) {
         process.stderr.write(result.error + '\n');
-        return;
-      }
-      jsonEntries.push(result.jsonEntry);
-      if (options.format !== 'json') {
-        logLine(result.text);
+      } else {
+        jsonEntries.push(result.jsonEntry);
+        if (options.format !== 'json') {
+          logLine(result.text);
+        }
       }
     }
     await page.reload();

@@ -35,7 +35,7 @@ export function benchmarkPopulate(opts: {
       for (let i = 0; i < (opts.indexes || 0); i++) {
         await rep.createIndex({
           name: `idx${i}`,
-          jsonPointer: '',
+          jsonPointer: '/ascii',
         });
       }
       const randomValues = jsonArrayTestData(opts.numKeys, valSize);
@@ -138,7 +138,7 @@ export function benchmarkCreateIndex(opts: {
       bencher.reset();
       await rep.createIndex({
         name: `idx`,
-        jsonPointer: '',
+        jsonPointer: '/ascii',
       });
       bencher.stop();
       await rep.close();

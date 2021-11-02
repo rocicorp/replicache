@@ -9,7 +9,7 @@ import {
   ReplicacheOptions,
   WriteTransaction,
 } from '../src/mod';
-import {makeRandomStrings, randomObject} from './data';
+import {jsonArrayTestData, TestDataObject, jsonObjectTestData} from './data';
 import type {Bencher, Benchmark} from './perf';
 
 export function benchmarkPopulate(opts: {
@@ -29,18 +29,18 @@ export function benchmarkPopulate(opts: {
       if (!opts.clean) {
         await rep.mutate.populate({
           numKeys: opts.numKeys,
-          randomStrings: makeRandomStrings(opts.numKeys, valSize),
+          randomValues: jsonArrayTestData(opts.numKeys, valSize),
         });
       }
       for (let i = 0; i < (opts.indexes || 0); i++) {
         await rep.createIndex({
           name: `idx${i}`,
-          jsonPointer: '',
+          jsonPointer: '/ascii',
         });
       }
-      const randomStrings = makeRandomStrings(opts.numKeys, valSize);
+      const randomValues = jsonArrayTestData(opts.numKeys, valSize);
       bencher.reset();
-      await rep.mutate.populate({numKeys: opts.numKeys, randomStrings});
+      await rep.mutate.populate({numKeys: opts.numKeys, randomValues});
       bencher.stop();
       await rep.close();
     },
@@ -62,7 +62,7 @@ export function benchmarkReadTransaction(opts: {
       rep = await makeRepWithPopulate(opts.useMemstore);
       await rep.mutate.populate({
         numKeys: opts.numKeys,
-        randomStrings: makeRandomStrings(opts.numKeys, valSize),
+        randomValues: jsonArrayTestData(opts.numKeys, valSize),
       });
     },
     async teardown() {
@@ -100,7 +100,7 @@ export function benchmarkScan(opts: {
       rep = await makeRepWithPopulate(opts.useMemstore);
       await rep.mutate.populate({
         numKeys: opts.numKeys,
-        randomStrings: makeRandomStrings(opts.numKeys, valSize),
+        randomValues: jsonArrayTestData(opts.numKeys, valSize),
       });
     },
     async teardown() {
@@ -133,12 +133,12 @@ export function benchmarkCreateIndex(opts: {
       const rep = await makeRepWithPopulate(opts.useMemstore);
       await rep.mutate.populate({
         numKeys: opts.numKeys,
-        randomStrings: makeRandomStrings(opts.numKeys, valSize),
+        randomValues: jsonArrayTestData(opts.numKeys, valSize),
       });
       bencher.reset();
       await rep.createIndex({
         name: `idx`,
-        jsonPointer: '',
+        jsonPointer: '/ascii',
       });
       bencher.stop();
       await rep.close();
@@ -169,15 +169,14 @@ export function benchmarkWriteSubRead(opts: {
   const kbReadPerSub = (keysWatchedPerSub * valueSize) / 1024;
   const key = (k: number) => `key${k}`;
 
+  const data = jsonArrayTestData(numKeys, valueSize);
+
   return {
     name: `${
       opts.useMemstore ? '[MemStore] ' : ''
     }writeSubRead ${cacheSizeMB}MB total, ${numSubsTotal} subs total, ${numSubsDirty} subs dirty, ${kbReadPerSub}kb read per sub`,
     group: 'replicache',
     async run(bencher: Bencher) {
-      const data = Array.from({length: numKeys}).map(() =>
-        randomObject(valueSize),
-      );
       const rep = await makeRep({
         useMemstore: opts.useMemstore,
         mutators: {
@@ -188,10 +187,7 @@ export function benchmarkWriteSubRead(opts: {
             }
           },
           // For each random data item provided, invalidate a different subscription by writing to the first key it is scanning.
-          async invalidate(
-            tx: WriteTransaction,
-            randomData: Record<string, string>[],
-          ) {
+          async invalidate(tx: WriteTransaction, randomData: TestDataObject[]) {
             for (const [i, val] of randomData.entries()) {
               const keyToChange = key(i * keysPerSub);
               await tx.put(keyToChange, val);
@@ -217,12 +213,9 @@ export function benchmarkWriteSubRead(opts: {
           {
             onData(v) {
               onDataCallCount++;
-              const vals = v as string[];
+              const vals = v as TestDataObject[];
               for (const [j, val] of vals.entries()) {
-                data[i * keysPerSub + j] = val as unknown as Record<
-                  string,
-                  string
-                >;
+                data[i * keysPerSub + j] = val;
               }
             },
           },
@@ -237,7 +230,7 @@ export function benchmarkWriteSubRead(opts: {
       // Build our random data ahead of time, outside the timed window.
       const changes = [];
       for (let i = 0; i < numSubsDirty; i++) {
-        changes.push(randomObject(valueSize));
+        changes.push(jsonObjectTestData(valueSize));
       }
 
       // OK time the below!
@@ -291,10 +284,13 @@ async function makeRepWithPopulate(useMemstore: boolean) {
   const mutators = {
     populate: async (
       tx: WriteTransaction,
-      {numKeys, randomStrings}: {numKeys: number; randomStrings: string[]},
+      {
+        numKeys,
+        randomValues: randomValues,
+      }: {numKeys: number; randomValues: TestDataObject[]},
     ) => {
       for (let i = 0; i < numKeys; i++) {
-        await tx.put(`key${i}`, randomStrings[i]);
+        await tx.put(`key${i}`, randomValues[i]);
       }
     },
   };

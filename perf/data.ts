@@ -1,3 +1,5 @@
+import {getSizeOfValue} from '../src/btree/get-size-of-value';
+
 export type RandomDataType = 'string' | 'object' | 'arraybuffer' | 'blob';
 export type RandomDatum = string | Record<string, string> | ArrayBuffer | Blob;
 export type RandomData = RandomDatum[];
@@ -41,8 +43,20 @@ export function makeRandomStrings(
 }
 
 export function randomString(len: number): string {
-  const arr = randomUint8Array(len);
-  return new TextDecoder('ascii').decode(arr);
+  return randomStringInternal(len, 256);
+}
+
+export function randomASCIIString(len: number): string {
+  return randomStringInternal(len, 128);
+}
+
+function randomStringInternal(len: number, max: number): string {
+  let s = '';
+  for (let i = 0; i < len; i++) {
+    // We use random strings for index map keys and those cannot contain \0.
+    s += String.fromCharCode(((Math.random() * (max - 1)) | 0) + 1);
+  }
+  return s;
 }
 
 function randomBlob(len: number): Blob {
@@ -52,7 +66,66 @@ function randomBlob(len: number): Blob {
 function randomUint8Array(len: number): Uint8Array {
   const arr = new Uint8Array(len);
   for (let i = 0; i < len; i++) {
-    arr[i] = Math.floor(Math.random() * 254 + 1);
+    arr[i] = (Math.random() * 256) | 0;
   }
   return arr;
+}
+
+export type TestDataObject = {
+  boolean: boolean;
+  float64: number;
+  int32: number;
+  null: null;
+  ascii: string;
+  nonAscii: string;
+};
+
+const emptyTestData: TestDataObject = {
+  boolean: false,
+  float64: Math.PI,
+  int32: 0,
+  null: null,
+  ascii: '',
+  nonAscii: '',
+};
+
+const baseSize = getSizeOfValue(emptyTestData);
+
+export function jsonArrayTestData(
+  numKeys: number,
+  targetSize: number,
+): TestDataObject[] {
+  const arr: TestDataObject[] = [];
+  for (let i = 0; i < numKeys; i++) {
+    arr.push(jsonObjectTestData(targetSize));
+  }
+  return arr;
+}
+
+export function jsonObjectTestData(targetSize: number): TestDataObject {
+  const stringSize = targetSize - baseSize;
+  return {
+    boolean: randomBoolean(),
+    float64: randomFloat64(),
+    int32: randomInt32(),
+    null: null,
+    ascii: randomASCIIString(stringSize / 2),
+    nonAscii: randomString(stringSize / 2),
+  };
+}
+
+function randomBoolean() {
+  return Math.random() < 0.5;
+}
+
+function randomFloat64() {
+  let x = Math.random();
+  while (x === (x | 0)) {
+    x = Math.random();
+  }
+  return x;
+}
+
+function randomInt32() {
+  return (Math.random() * 2 ** 31 - 1) | 0;
 }

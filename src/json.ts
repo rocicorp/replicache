@@ -94,18 +94,27 @@ export function deepEqual(
   a = a as ReadonlyJSONObject;
   b = b as ReadonlyJSONObject;
 
-  const aKeys = Object.keys(a);
-  const bKeys = Object.keys(b);
-  if (aKeys.length !== bKeys.length) {
-    return false;
-  }
+  // We use for-in loops instead of for of Object.keys() to make sure deepEquals
+  // does not allocate any objects.
 
-  for (const key of aKeys) {
-    if (!deepEqual(a[key], b[key])) {
-      return false;
+  let aSize = 0;
+  for (const key in a) {
+    if (hasOwn(a, key)) {
+      if (!deepEqual(a[key], b[key])) {
+        return false;
+      }
+      aSize++;
     }
   }
-  return true;
+
+  let bSize = 0;
+  for (const key in b) {
+    if (hasOwn(b, key)) {
+      bSize++;
+    }
+  }
+
+  return aSize === bSize;
 }
 
 export function deepClone(value: ReadonlyJSONValue): JSONValue {

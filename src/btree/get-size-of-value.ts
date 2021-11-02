@@ -1,3 +1,4 @@
+import {hasOwn} from '../has-own';
 import type {ReadonlyJSONObject, ReadonlyJSONValue} from '../json';
 import type {Entry} from './node';
 
@@ -54,11 +55,12 @@ export function getSizeOfValue(value: ReadonlyJSONValue): number {
       {
         const val = value as ReadonlyJSONObject;
         let sum: number = SIZE_TAG;
-        const keys = Object.keys(val);
-        for (const k of keys) {
-          const v = val[k];
-          if (v !== undefined) {
-            sum += getSizeOfValue(k) + getSizeOfValue(v);
+        for (const k in val) {
+          if (hasOwn(val, k)) {
+            const v = val[k];
+            if (v !== undefined) {
+              sum += getSizeOfValue(k) + getSizeOfValue(v);
+            }
           }
         }
         return sum + SIZE_INT32 + SIZE_TAG;

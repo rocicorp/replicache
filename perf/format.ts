@@ -19,11 +19,13 @@ export function formatAsBenchmarkJS(results: BenchmarkResult): string {
   const value = results.byteSize
     ? formatToMBPerSecond(results.byteSize, medianMs)
     : `${((1 / medianMs) * 1000).toFixed(2)} ops/sec`;
-  return `${name} x ${value}${formatVariance(stats.variance)} (${runs.length} runs sampled)`;
+  return `${name} x ${value}${formatVariance(stats.variance)} (${
+    runs.length
+  } runs sampled)`;
 }
 
 export function formatVariance(variance: number): string {
-  return `±${variance.toFixed(1)}%`
+  return `±${variance.toFixed(1)}%`;
 }
 
 function formatToMBPerSecond(size: number, timeMS: number): string {

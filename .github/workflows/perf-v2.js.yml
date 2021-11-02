@@ -3,6 +3,8 @@ name: Perf Test V2
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   benchmark:
@@ -24,13 +26,6 @@ jobs:
       - name: Run benchmark
         run: node perf/runner.js --format=json | tee perf-v2-output.json
 
-      # Download previous benchmark result from cache (if exists)
-      - name: Download previous benchmark data
-        uses: actions/cache@v1
-        with:
-          path: ./cache
-          key: ${{ runner.os }}-benchmark
-
       # Run `github-action-benchmark` action
       - name: Store benchmark result
         uses: rhysd/github-action-benchmark@v1
@@ -39,13 +34,11 @@ jobs:
           tool: 'customSmallerIsBetter'
           # Where the output from the benchmark tool is stored
           output-file-path: perf-v2-output.json
-          # Where the previous data file is stored
-          # external-data-json-path: ./cache/benchmark-data.json
           # Workflow will fail when an alert happens
           fail-on-alert: true
           github-token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
           benchmark-data-dir-path: perf-v2
-          auto-push: true
+          auto-push: false
           alert-threshold: '130%'
           comment-on-alert: true
 #       - name: Deploy perf data

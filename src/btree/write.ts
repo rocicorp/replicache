@@ -65,8 +65,14 @@ export class BTreeWrite extends BTreeRead {
     this._modified.set(node.hash, node);
   }
 
+  updateNode(node: DataNodeImpl | InternalNodeImpl): void {
+    this._modified.delete(node.hash);
+    node.hash = newTempHash();
+    this._addToModified(node);
+  }
+
   newInternalNodeImpl(
-    entries: ReadonlyArray<Entry<Hash>>,
+    entries: Array<Entry<Hash>>,
     level: number,
   ): InternalNodeImpl {
     const n = new InternalNodeImpl(entries, newTempHash(), level);
@@ -175,7 +181,7 @@ export class BTreeWrite extends BTreeRead {
 
       // No need to rebalance here since if root gets too small there is nothing
       // we can do about that.
-      const found = newRootNode !== oldRootNode;
+      const found = this.rootHash !== newRootNode.hash;
       if (found) {
         // TODO(arv): Should we restore back to emptyHash if empty?
         // Flatten one layer.

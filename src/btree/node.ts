@@ -1,6 +1,6 @@
 import {assertJSONValue, JSONValue, ReadonlyJSONValue} from '../json';
 import {assert, assertArray, assertNumber, assertString} from '../asserts';
-import {Hash, emptyHash, newTempHash} from '../hash';
+import {Hash, emptyHash, newTempHash, isTempHash} from '../hash';
 import type {BTreeRead} from './read';
 import type {BTreeWrite} from './write';
 
@@ -139,11 +139,11 @@ export function assertBTreeNode(
 }
 
 abstract class NodeImpl<Value extends Hash | ReadonlyJSONValue> {
-  readonly entries: ReadonlyArray<Entry<Value>>;
-  readonly hash: Hash;
+  entries: Array<Entry<Value>>;
+  hash: Hash;
   abstract readonly level: number;
 
-  constructor(entries: ReadonlyArray<Entry<Value>>, hash: Hash) {
+  constructor(entries: Array<Entry<Value>>, hash: Hash) {
     this.entries = entries;
     this.hash = hash;
   }
@@ -171,10 +171,6 @@ abstract class NodeImpl<Value extends Hash | ReadonlyJSONValue> {
 export class DataNodeImpl extends NodeImpl<ReadonlyJSONValue> {
   readonly level = 0;
 
-  constructor(entries: ReadonlyArray<Entry<ReadonlyJSONValue>>, hash: Hash) {
-    super(entries, hash);
-  }
-
   async set(
     key: string,
     value: ReadonlyJSONValue,
@@ -189,10 +185,23 @@ export class DataNodeImpl extends NodeImpl<ReadonlyJSONValue> {
     } else {
       deleteCount = 1;
     }
-    const entries = readonlySplice(this.entries, i, deleteCount, [
-      key,
-      value,
-    ] as Entry<ReadonlyJSONValue>);
+
+    return this._splice(tree, i, deleteCount, [key, value]);
+  }
+
+  private _splice(
+    tree: BTreeWrite,
+    start: number,
+    deleteCount: number,
+    ...items: Entry<ReadonlyJSONValue>[]
+  ): DataNodeImpl {
+    if (isTempHash(this.hash)) {
+      this.entries.splice(start, deleteCount, ...items);
+      tree.updateNode(this);
+      return this;
+    }
+
+    const entries = readonlySplice(this.entries, start, deleteCount, ...items);
     return tree.newDataNodeImpl(entries);
   }
 
@@ -203,9 +212,8 @@ export class DataNodeImpl extends NodeImpl<ReadonlyJSONValue> {
       return this;
     }
 
-    // Found. Create new node
-    const entries = readonlySplice(this.entries, i, 1);
-    return tree.newDataNodeImpl(entries);
+    // Found. Create new node or mutate existing one.
+    return this._splice(tree, i, 1);
   }
 
   async *scan(
@@ -253,7 +261,12 @@ function readonlySplice<T>(
   ...items: T[]
 ): T[] {
   const arr = array.slice(0, start);
-  arr.push(...items, ...array.slice(start + deleteCount));
+  for (let i = 0; i < items.length; i++) {
+    arr.push(items[i]);
+  }
+  for (let i = start + deleteCount; i < array.length; i++) {
+    arr.push(array[i]);
+  }
   return arr;
 }
 
@@ -266,7 +279,7 @@ function* joinIterables<T>(...iters: Iterable<T>[]) {
 export class InternalNodeImpl extends NodeImpl<Hash> {
   readonly level: number;
 
-  constructor(entries: ReadonlyArray<Entry<Hash>>, hash: Hash, level: number) {
+  constructor(entries: Array<Entry<Hash>>, hash: Hash, level: number) {
     super(entries, hash);
     this.level = level;
   }
@@ -290,23 +303,89 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
 
     const childNode = await oldChildNode.set(key, value, tree);
 
-    let entries;
-
     const childNodeSize = tree.childNodeSize(childNode);
     if (childNodeSize > tree.maxSize || childNodeSize < tree.minSize) {
-      entries = await mergeAndPartition(
-        this.entries,
-        i,
-        tree,
-        childNode,
-        this.level - 1,
-      );
-    } else {
-      entries = readonlySplice(this.entries, i, 1, [
-        childNode.maxKey(),
-        childNode.hash,
-      ] as Entry<Hash>);
+      return this._mergeAndPartition(tree, i, childNode);
     }
+
+    return this._replaceChild(tree, i, [childNode.maxKey(), childNode.hash]);
+  }
+
+  /**
+   * This merges the child node entries with previous or next sibling and then
+   * partions the merged entries.
+   */
+  private async _mergeAndPartition(
+    tree: BTreeWrite,
+    i: number,
+    childNode: DataNodeImpl | InternalNodeImpl,
+  ): Promise<InternalNodeImpl> {
+    const level = this.level - 1;
+    const thisEntries = this.entries;
+
+    let values: Iterable<Entry<Hash> | Entry<ReadonlyJSONValue>>;
+    let startIndex: number;
+    let removeCount: number;
+    if (i > 0) {
+      const hash = thisEntries[i - 1][1];
+      const previousSibling = await tree.getNode(hash);
+      values = joinIterables(previousSibling.entries, childNode.entries);
+      startIndex = i - 1;
+      removeCount = 2;
+    } else if (i < thisEntries.length - 1) {
+      const hash = thisEntries[i + 1][1];
+      const nextSibling = await tree.getNode(hash);
+      values = joinIterables(childNode.entries, nextSibling.entries);
+      startIndex = i;
+      removeCount = 2;
+    } else {
+      values = childNode.entries;
+      startIndex = i;
+      removeCount = 1;
+    }
+
+    const partitions = partition(
+      values,
+      tree.getEntrySize,
+      tree.minSize - tree.chunkHeaderSize,
+      tree.maxSize - tree.chunkHeaderSize,
+    );
+
+    // TODO: There are cases where we can reuse the old nodes. Creating new ones
+    // means more memory churn but also more writes to the underlying KV store.
+    const newEntries: Entry<Hash>[] = [];
+    for (const entries of partitions) {
+      const node = tree.newNodeImpl(entries, level);
+      newEntries.push([node.maxKey(), node.hash]);
+    }
+
+    if (isTempHash(this.hash)) {
+      this.entries.splice(startIndex, removeCount, ...newEntries);
+      tree.updateNode(this);
+      return this;
+    }
+
+    const entries = readonlySplice(
+      thisEntries,
+      startIndex,
+      removeCount,
+      ...newEntries,
+    );
+
+    return tree.newInternalNodeImpl(entries, this.level);
+  }
+
+  private _replaceChild(
+    tree: BTreeWrite,
+    index: number,
+    newEntry: Entry<Hash>,
+  ): InternalNodeImpl {
+    if (isTempHash(this.hash)) {
+      this.entries.splice(index, 1, newEntry);
+      tree.updateNode(this);
+      return this;
+    }
+    const entries = readonlySplice(this.entries, index, 1, newEntry);
     return tree.newInternalNodeImpl(entries, this.level);
   }
 
@@ -325,9 +404,10 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
 
     const childHash = this.entries[i][1];
     const oldChildNode = await tree.getNode(childHash);
+    const oldHash = oldChildNode.hash;
 
     const childNode = await oldChildNode.del(key, tree);
-    if (childNode === oldChildNode) {
+    if (childNode.hash === oldHash) {
       return this;
     }
 
@@ -343,22 +423,11 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
     // The child node is still a good size.
     if (tree.childNodeSize(childNode) > tree.minSize) {
       // No merging needed.
-      const entries = readonlySplice(this.entries, i, 1, [
-        childNode.maxKey(),
-        childNode.hash,
-      ] as Entry<Hash>);
-      return tree.newInternalNodeImpl(entries, this.level);
+      return this._replaceChild(tree, i, [childNode.maxKey(), childNode.hash]);
     }
 
     // Child node size is too small.
-    const entries = await mergeAndPartition(
-      this.entries,
-      i,
-      tree,
-      childNode,
-      this.level - 1,
-    );
-    return tree.newInternalNodeImpl(entries, this.level);
+    return this._mergeAndPartition(tree, i, childNode);
   }
 
   async *scan(
@@ -376,8 +445,7 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
       }
     }
     for (; i < entries.length && limit > 0; i++) {
-      const childHash = entries[i][1];
-      const childNode = await tree.getNode(childHash);
+      const childNode = await tree.getNode(entries[i][1]);
       limit = yield* childNode.scan(tree, prefix, fromKey, limit);
     }
     return limit;
@@ -385,8 +453,7 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
 
   async *keys(tree: BTreeRead): AsyncGenerator<string, void> {
     for (const entry of this.entries) {
-      const childHash = entry[1];
-      const childNode = await tree.getNode(childHash);
+      const childNode = await tree.getNode(entry[1]);
       yield* childNode.keys(tree);
     }
   }
@@ -395,8 +462,7 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
     tree: BTreeRead,
   ): AsyncGenerator<ReadonlyEntry<ReadonlyJSONValue>, void> {
     for (const entry of this.entries) {
-      const childHash = entry[1];
-      const childNode = await tree.getNode(childHash);
+      const childNode = await tree.getNode(entry[1]);
       yield* childNode.entriesIter(tree);
     }
   }
@@ -443,70 +509,23 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
   }
 }
 
-/**
- * This merges the child node entries with previous or next sibling and then
- * partions the merged entries.
- */
-async function mergeAndPartition(
-  entries: ReadonlyArray<Entry<Hash>>,
-  i: number,
-  tree: BTreeWrite,
-  childNode: DataNodeImpl | InternalNodeImpl,
-  level: number,
-): Promise<ReadonlyArray<Entry<Hash>>> {
-  let values: Iterable<Entry<Hash> | Entry<ReadonlyJSONValue>>;
-  let startIndex: number;
-  let removeCount: number;
-  if (i > 0) {
-    const hash = entries[i - 1][1];
-    const previousSibling = await tree.getNode(hash);
-    values = joinIterables(previousSibling.entries, childNode.entries);
-    startIndex = i - 1;
-    removeCount = 2;
-  } else if (i < entries.length - 1) {
-    const hash = entries[i + 1][1];
-    const nextSibling = await tree.getNode(hash);
-    values = joinIterables(childNode.entries, nextSibling.entries);
-    startIndex = i;
-    removeCount = 2;
-  } else {
-    values = childNode.entries;
-    startIndex = i;
-    removeCount = 1;
-  }
-
-  const partitions = partition(
-    values,
-    tree.getEntrySize,
-    tree.minSize - tree.chunkHeaderSize,
-    tree.maxSize - tree.chunkHeaderSize,
-  );
-  // TODO: There are cases where we can reuse the old nodes. Creating new ones
-  // means more memory churn but also more writes to the underlying KV store.
-  const newEntries = partitions.map(entries => {
-    const node = tree.newNodeImpl(entries, level);
-    return [node.maxKey(), node.hash] as Entry<Hash>;
-  });
-  return readonlySplice(entries, startIndex, removeCount, ...newEntries);
-}
-
 export function newNodeImpl(
-  entries: ReadonlyArray<Entry<ReadonlyJSONValue>>,
+  entries: Array<Entry<ReadonlyJSONValue>>,
   hash: Hash,
   level: number,
 ): DataNodeImpl;
 export function newNodeImpl(
-  entries: ReadonlyArray<Entry<Hash>>,
+  entries: Array<Entry<Hash>>,
   hash: Hash,
   level: number,
 ): InternalNodeImpl;
 export function newNodeImpl(
-  entries: ReadonlyArray<Entry<ReadonlyJSONValue>> | ReadonlyArray<Entry<Hash>>,
+  entries: Array<Entry<ReadonlyJSONValue>> | Array<Entry<Hash>>,
   hash: Hash,
   level: number,
 ): DataNodeImpl | InternalNodeImpl;
 export function newNodeImpl(
-  entries: ReadonlyArray<Entry<ReadonlyJSONValue>> | ReadonlyArray<Entry<Hash>>,
+  entries: Array<Entry<ReadonlyJSONValue>> | Array<Entry<Hash>>,
   hash: Hash,
   level: number,
 ): DataNodeImpl | InternalNodeImpl {

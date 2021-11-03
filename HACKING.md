@@ -153,5 +153,5 @@ During release, below, we reset the `docs` branch to main, dropping these cherry
 
 We continuously track performance across a variety of benchmarks. Results here:
 
-https://rocicorp.github.io/replicache/perf/
+https://rocicorp.github.io/replicache/perf/<br>
 https://rocicorp.github.io/replicache/perf-v2/

@@ -392,10 +392,13 @@ test('begin try pull', async () => {
         let got = false;
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for await (const _ of read.scan({
-          prefix: '',
-          indexName: '2',
-        })) {
+        for await (const _ of read.scan(
+          {
+            prefix: '',
+            indexName: '2',
+          },
+          e => e,
+        )) {
           got = true;
           break;
         }
@@ -493,10 +496,13 @@ test('begin try pull', async () => {
               dagRead,
             );
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            for await (const _ of read.scan({
-              prefix: '',
-              indexName: '2',
-            })) {
+            for await (const _ of read.scan(
+              {
+                prefix: '',
+                indexName: '2',
+              },
+              e => e,
+            )) {
               expect(false).to.be.true;
             }
           });

@@ -1,15 +1,9 @@
 import {IndexRead} from './index';
 import * as dag from '../dag/mod';
-import {
-  convert,
-  scan,
-  ScanItem,
-  ScanOptions,
-  ScanOptionsInternal,
-} from './scan';
+import {convert, scan, ScanOptions, ScanOptionsInternal} from './scan';
 import {Commit, DEFAULT_HEAD_NAME} from './commit';
 import type {ReadonlyJSONValue} from '../json';
-import {BTreeRead, BTreeWrite} from '../btree/mod';
+import {BTreeRead, BTreeWrite, Entry} from '../btree/mod';
 import type {Hash} from '../hash';
 
 export class Read {
@@ -39,7 +33,10 @@ export class Read {
     return this.map.isEmpty();
   }
 
-  async *scan(opts: ScanOptions): AsyncIterableIterator<ScanItem> {
+  async *scan<R>(
+    opts: ScanOptions,
+    convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
+  ): AsyncIterableIterator<R> {
     const optsInternal: ScanOptionsInternal = convert(opts);
     if (optsInternal.indexName !== undefined) {
       const name = optsInternal.indexName;
@@ -47,9 +44,11 @@ export class Read {
       if (idx === undefined) {
         throw new Error(`Unknown index name: ${name}`);
       }
-      yield* await idx.withMap(this._dagRead, map => scan(map, optsInternal));
+      yield* await idx.withMap(this._dagRead, map =>
+        scan(map, optsInternal, convertEntry),
+      );
     } else {
-      yield* scan(this.map, optsInternal);
+      yield* scan(this.map, optsInternal, convertEntry);
     }
   }
 

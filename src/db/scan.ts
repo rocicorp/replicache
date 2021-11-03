@@ -58,24 +58,15 @@ export type ScanOptionsInternal = {
 };
 
 export type ScanItem = {
-  key: string;
+  primaryKey: string;
   secondaryKey: string;
   val: ReadonlyJSONValue;
 };
 
-export const enum ScanResultType {
-  Error,
-  Item,
-}
-
-export type ScanResult =
-  | {type: ScanResultType.Error; error: unknown}
-  | {type: ScanResultType.Item; item: ScanItem};
-
 export async function* scan(
   map: BTreeRead,
   opts: ScanOptionsInternal,
-): AsyncIterableIterator<ScanResult> {
+): AsyncIterableIterator<ScanItem> {
   // We don't do any encoding of the key in regular prolly maps, so we have no
   // way of determining from an entry.key alone whether it is a regular prolly
   // map key or an encoded IndexKey in an index map. Without encoding regular
@@ -85,29 +76,19 @@ export async function* scan(
 
   for await (const entry of map.scan(opts)) {
     if (indexScan) {
-      try {
-        const decoded = decodeIndexKey(entry[0]);
-        const secondary = decoded[0];
-        const primary = decoded[1];
-        yield {
-          type: ScanResultType.Item,
-          item: {
-            key: primary,
-            secondaryKey: secondary,
-            val: entry[1],
-          },
-        };
-      } catch (e) {
-        yield {type: ScanResultType.Error, error: e};
-      }
+      const decoded = decodeIndexKey(entry[0]);
+      const secondary = decoded[0];
+      const primary = decoded[1];
+      yield {
+        primaryKey: primary,
+        secondaryKey: secondary,
+        val: entry[1],
+      };
     } else {
       yield {
-        type: ScanResultType.Item,
-        item: {
-          key: entry[0],
-          secondaryKey: '',
-          val: entry[1],
-        },
+        primaryKey: entry[0],
+        secondaryKey: '',
+        val: entry[1],
       };
     }
   }

@@ -2,7 +2,7 @@ import {deepClone, JSONValue, ReadonlyJSONValue} from './json';
 import {throwIfClosed} from './transaction-closed-error';
 import {ScanOptions, toDbScanOptions} from './scan-options';
 import {asyncIterableToArray} from './async-iterable-to-array';
-import * as db from './db/mod';
+import type * as db from './db/mod';
 import type {MaybePromise} from './replicache';
 import type {ScanItem} from './db/scan';
 
@@ -124,27 +124,7 @@ async function* scanIterator<V>(
   const dbRead = await getTransaction();
   throwIfClosed(dbRead);
 
-  try {
-    const items: V[] = await load(kind, options, dbRead, shouldClone);
-    for (const item of items) {
-      yield item;
-    }
-  } finally {
-    if (shouldCloseTransaction && !dbRead.closed) {
-      dbRead.close();
-    }
-  }
-}
-
-async function load<V>(
-  kind: ScanIterableKind,
-  options: ScanOptions | undefined,
-  dbRead: db.Read,
-  shouldClone: boolean,
-): Promise<V[]> {
-  const items: V[] = [];
   type MaybeIndexName = {indexName?: string};
-
   const toKey =
     (options as MaybeIndexName)?.indexName !== undefined
       ? (primaryKey: string, secondaryKey: string | null) => [
@@ -162,20 +142,23 @@ async function load<V>(
       toIterValue = si => toValue(si.val) as V;
       break;
     case KEY:
-      toIterValue = si => toKey(si.key, si.secondaryKey) as unknown as V;
+      toIterValue = si => toKey(si.primaryKey, si.secondaryKey) as unknown as V;
       break;
     case ENTRY:
       toIterValue = si =>
-        [toKey(si.key, si.secondaryKey), toValue(si.val)] as unknown as V;
+        [
+          toKey(si.primaryKey, si.secondaryKey),
+          toValue(si.val),
+        ] as unknown as V;
   }
 
-  await dbRead.scan(toDbScanOptions(options), sr => {
-    if (sr.type === db.ScanResultType.Error) {
-      // repc didn't throw here, It just did error logging.
-      throw sr.error;
+  try {
+    for await (const scanItem of dbRead.scan(toDbScanOptions(options))) {
+      yield toIterValue(scanItem);
     }
-    items.push(toIterValue(sr.item));
-  });
-
-  return items;
+  } finally {
+    if (shouldCloseTransaction && !dbRead.closed) {
+      dbRead.close();
+    }
+  }
 }

@@ -3,9 +3,9 @@ import * as dag from '../dag/mod';
 import {
   convert,
   scan,
+  ScanItem,
   ScanOptions,
   ScanOptionsInternal,
-  ScanResult,
 } from './scan';
 import {Commit, DEFAULT_HEAD_NAME} from './commit';
 import type {ReadonlyJSONValue} from '../json';
@@ -39,11 +39,7 @@ export class Read {
     return this.map.isEmpty();
   }
 
-  // TODO(arv): Should maybe just remove the callback and use async iterator here.
-  async scan(
-    opts: ScanOptions,
-    callback: (s: ScanResult) => void,
-  ): Promise<void> {
+  async *scan(opts: ScanOptions): AsyncIterableIterator<ScanItem> {
     const optsInternal: ScanOptionsInternal = convert(opts);
     if (optsInternal.indexName !== undefined) {
       const name = optsInternal.indexName;
@@ -51,16 +47,9 @@ export class Read {
       if (idx === undefined) {
         throw new Error(`Unknown index name: ${name}`);
       }
-
-      await idx.withMap(this._dagRead, async map => {
-        for await (const item of scan(map, optsInternal)) {
-          callback(item);
-        }
-      });
+      yield* await idx.withMap(this._dagRead, map => scan(map, optsInternal));
     } else {
-      for await (const item of scan(this.map, optsInternal)) {
-        callback(item);
-      }
+      yield* scan(this.map, optsInternal);
     }
   }
 

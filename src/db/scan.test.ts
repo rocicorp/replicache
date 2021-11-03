@@ -1,5 +1,5 @@
 import {expect} from '@esm-bundle/chai';
-import {convert, scan, ScanItem, ScanOptions, ScanResultType} from './scan';
+import {convert, scan, ScanItem, ScanOptions} from './scan';
 import * as kv from '../kv/mod';
 import * as dag from '../dag/mod';
 import {encodeIndexKey} from './index';
@@ -23,11 +23,8 @@ test('scan', async () => {
       await map.put('baz', 'baz');
       const optsInternal = convert(opts);
       const actual = [];
-      for await (const sr of scan(map, optsInternal)) {
-        if (sr.type === ScanResultType.Error) {
-          throw sr.error;
-        }
-        actual.push(sr.item.key);
+      for await (const item of scan(map, optsInternal)) {
+        actual.push(item.primaryKey);
       }
       const expected2 = expected;
       expect(actual).to.deep.equal(expected2, testDesc);
@@ -344,11 +341,8 @@ test('exclusive regular map', async () => {
       const convertedOpts = convert(opts);
       const got = [];
 
-      for await (const sr of scan(map, convertedOpts)) {
-        if (sr.type === ScanResultType.Error) {
-          throw sr.error;
-        }
-        got.push(sr.item.key);
+      for await (const item of scan(map, convertedOpts)) {
+        got.push(item.primaryKey);
       }
       expect(got).to.deep.equal(expected, testDesc);
     });
@@ -387,11 +381,8 @@ test('exclusive index map', async () => {
         indexName: 'index',
       };
       const got = [];
-      for await (const sr of scan(map, convert(opts))) {
-        if (sr.type === ScanResultType.Error) {
-          throw sr.error;
-        }
-        got.push([sr.item.secondaryKey, sr.item.key]);
+      for await (const item of scan(map, convert(opts))) {
+        got.push([item.secondaryKey, item.primaryKey]);
       }
       expect(got).to.deep.equal(expected, testDesc);
     });
@@ -614,11 +605,8 @@ test('scan index startKey', async () => {
       const testDesc = `opts: ${opts}, expected: ${expected}`;
 
       const actual: ScanItem[] = [];
-      for await (const sr of scan(map, convert(opts))) {
-        if (sr.type === ScanResultType.Error) {
-          throw sr.error;
-        }
-        actual.push(sr.item);
+      for await (const item of scan(map, convert(opts))) {
+        actual.push(item);
       }
 
       expect(actual).to.deep.equal(expected, testDesc);
@@ -641,12 +629,12 @@ test('scan index startKey', async () => {
     },
     [
       {
-        key: 'b',
+        primaryKey: 'b',
         secondaryKey: '',
         val: '2',
       },
       {
-        key: 'c',
+        primaryKey: 'c',
         secondaryKey: '',
         val: '3',
       },
@@ -669,7 +657,7 @@ test('scan index startKey', async () => {
     },
     [
       {
-        key: 'c',
+        primaryKey: 'c',
         secondaryKey: '',
         val: '3',
       },
@@ -692,12 +680,12 @@ test('scan index startKey', async () => {
     },
     [
       {
-        key: 'bp',
+        primaryKey: 'bp',
         secondaryKey: 'bs',
         val: '2',
       },
       {
-        key: 'cp',
+        primaryKey: 'cp',
         secondaryKey: 'cs',
         val: '3',
       },
@@ -720,7 +708,7 @@ test('scan index startKey', async () => {
     },
     [
       {
-        key: 'cp',
+        primaryKey: 'cp',
         secondaryKey: 'cs',
         val: '3',
       },
@@ -744,12 +732,12 @@ test('scan index startKey', async () => {
     },
     [
       {
-        key: 'bp2',
+        primaryKey: 'bp2',
         secondaryKey: 'bs',
         val: '3',
       },
       {
-        key: 'cp',
+        primaryKey: 'cp',
         secondaryKey: 'cs',
         val: '4',
       },
@@ -773,7 +761,7 @@ test('scan index startKey', async () => {
     },
     [
       {
-        key: 'cp',
+        primaryKey: 'cp',
         secondaryKey: 'cs',
         val: '4',
       },

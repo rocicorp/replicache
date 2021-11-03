@@ -63,7 +63,13 @@ export class BTreeRead {
     }
     const {data} = chunk;
     assertBTreeNode(data);
-    const impl = newNodeImpl(data[NODE_ENTRIES], hash, data[NODE_LEVEL]);
+    const impl = newNodeImpl(
+      // We enforce that we do not mutate this at runtime by first checking the
+      // hash.
+      data[NODE_ENTRIES] as Entry<ReadonlyJSONValue>[],
+      hash,
+      data[NODE_LEVEL],
+    );
     this._cache.set(hash, impl);
     return impl;
   }

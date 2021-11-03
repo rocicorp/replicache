@@ -498,7 +498,6 @@ test('begin try pull', async () => {
               indexName: '2',
             })) {
               expect(false).to.be.true;
-              // assert!(false, "{}: expected no values, got {:?}", c.name, sr);
             }
           });
 

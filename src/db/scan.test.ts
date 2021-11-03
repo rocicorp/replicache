@@ -2,8 +2,10 @@ import {expect} from '@esm-bundle/chai';
 import {convert, scan, ScanItem, ScanOptions} from './scan';
 import * as kv from '../kv/mod';
 import * as dag from '../dag/mod';
-import {encodeIndexKey} from './index';
+import {decodeIndexKey, encodeIndexKey} from './index';
 import {BTreeWrite} from '../btree/mod';
+import type {Entry} from '../btree/node';
+import type {ReadonlyJSONValue} from '../json';
 
 test('scan', async () => {
   const t = async (opts: ScanOptions, expected: string[]) => {
@@ -23,8 +25,8 @@ test('scan', async () => {
       await map.put('baz', 'baz');
       const optsInternal = convert(opts);
       const actual = [];
-      for await (const item of scan(map, optsInternal)) {
-        actual.push(item.primaryKey);
+      for await (const key of scan(map, optsInternal, entry => entry[0])) {
+        actual.push(key);
       }
       const expected2 = expected;
       expect(actual).to.deep.equal(expected2, testDesc);
@@ -341,8 +343,8 @@ test('exclusive regular map', async () => {
       const convertedOpts = convert(opts);
       const got = [];
 
-      for await (const item of scan(map, convertedOpts)) {
-        got.push(item.primaryKey);
+      for await (const key of scan(map, convertedOpts, entry => entry[0])) {
+        got.push(key);
       }
       expect(got).to.deep.equal(expected, testDesc);
     });
@@ -381,8 +383,9 @@ test('exclusive index map', async () => {
         indexName: 'index',
       };
       const got = [];
-      for await (const item of scan(map, convert(opts))) {
-        got.push([item.secondaryKey, item.primaryKey]);
+      for await (const key of scan(map, convert(opts), entry => entry[0])) {
+        const [secondary, primary] = decodeIndexKey(key);
+        got.push([secondary, primary]);
       }
       expect(got).to.deep.equal(expected, testDesc);
     });
@@ -591,6 +594,25 @@ async function makeBTreeWrite(
   return map;
 }
 
+function convertEntry(entry: Entry<ReadonlyJSONValue>): ScanItem {
+  return {
+    primaryKey: entry[0],
+    secondaryKey: '',
+    val: entry[1],
+  };
+}
+
+function convertEntryIndexScan(entry: Entry<ReadonlyJSONValue>): ScanItem {
+  const decoded = decodeIndexKey(entry[0]);
+  const secondary = decoded[0];
+  const primary = decoded[1];
+  return {
+    primaryKey: primary,
+    secondaryKey: secondary,
+    val: entry[1],
+  };
+}
+
 test('scan index startKey', async () => {
   const t = async (
     entries: Iterable<[string, string]>,
@@ -605,7 +627,11 @@ test('scan index startKey', async () => {
       const testDesc = `opts: ${opts}, expected: ${expected}`;
 
       const actual: ScanItem[] = [];
-      for await (const item of scan(map, convert(opts))) {
+      for await (const item of scan(
+        map,
+        convert(opts),
+        opts.indexName ? convertEntryIndexScan : convertEntry,
+      )) {
         actual.push(item);
       }
 

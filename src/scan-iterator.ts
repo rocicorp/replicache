@@ -4,7 +4,8 @@ import {ScanOptions, toDbScanOptions} from './scan-options';
 import {asyncIterableToArray} from './async-iterable-to-array';
 import type * as db from './db/mod';
 import type {MaybePromise} from './replicache';
-import type {ScanItem} from './db/scan';
+import type {Entry} from './btree/node';
+import {decodeIndexKey} from './db/mod';
 
 const VALUE = 0;
 const KEY = 1;
@@ -120,42 +121,34 @@ async function* scanIterator<V>(
   getTransaction: () => MaybePromise<db.Read>,
   shouldCloseTransaction: boolean,
   shouldClone: boolean,
-): AsyncGenerator<V> {
+): AsyncIterableIterator<V> {
   const dbRead = await getTransaction();
   throwIfClosed(dbRead);
 
   type MaybeIndexName = {indexName?: string};
-  const toKey =
-    (options as MaybeIndexName)?.indexName !== undefined
-      ? (primaryKey: string, secondaryKey: string | null) => [
-          secondaryKey,
-          primaryKey,
-        ]
-      : // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        (primaryKey: string, _secondaryKey: string | null) => primaryKey;
+  const isIndexScan = (options as MaybeIndexName)?.indexName !== undefined;
 
   const toValue = shouldClone ? deepClone : <T>(x: T): T => x;
 
-  let toIterValue: (si: ScanItem) => V;
+  let convertEntry: (entry: Entry<ReadonlyJSONValue>) => V;
   switch (kind) {
     case VALUE:
-      toIterValue = si => toValue(si.val) as V;
+      convertEntry = entry => toValue(entry[1]) as V;
       break;
     case KEY:
-      toIterValue = si => toKey(si.primaryKey, si.secondaryKey) as unknown as V;
+      convertEntry = isIndexScan
+        ? entry => decodeIndexKey(entry[0]) as unknown as V
+        : entry => entry[0] as unknown as V;
       break;
     case ENTRY:
-      toIterValue = si =>
-        [
-          toKey(si.primaryKey, si.secondaryKey),
-          toValue(si.val),
-        ] as unknown as V;
+      convertEntry = isIndexScan
+        ? entry => [decodeIndexKey(entry[0]), toValue(entry[1])] as unknown as V
+        : entry => entry as unknown as V;
+      break;
   }
 
   try {
-    for await (const scanItem of dbRead.scan(toDbScanOptions(options))) {
-      yield toIterValue(scanItem);
-    }
+    yield* dbRead.scan(toDbScanOptions(options), convertEntry);
   } finally {
     if (shouldCloseTransaction && !dbRead.closed) {
       dbRead.close();

@@ -204,9 +204,11 @@ test('try push', async () => {
         const read = await fromWhence(whenceHead(DEFAULT_HEAD_NAME), dagRead);
         let got = false;
 
-        await read.scan({prefix: '', indexName: '2'}, () => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for await (const _ of read.scan({prefix: '', indexName: '2'})) {
           got = true;
-        });
+          break;
+        }
         expect(got).to.be.true;
       });
     }

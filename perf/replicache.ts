@@ -161,7 +161,6 @@ export function benchmarkWriteSubRead(opts: {
   numSubsDirty: number;
   useMemstore: boolean;
 }): Benchmark {
-  // keysPerSub needs to be >= keysWatchedPerSub, currently not true for keysPerSub = 8, 1 MB
   const {valueSize, numSubsTotal, keysPerSub, keysWatchedPerSub, numSubsDirty} =
     opts;
 
@@ -308,36 +307,41 @@ async function makeRepWithPopulate(useMemstore: boolean) {
   });
 }
 
-function createWriteSubReadBenchmarks(useMemstore: boolean): Benchmark[] {
-  const benchmarks = [];
-  for (let i = 16; i <= 256; i += 8) {
-    benchmarks.push(
-      benchmarkWriteSubRead({
-        valueSize: 1024,
-        numSubsTotal: 128,
-        keysPerSub: i,
-        keysWatchedPerSub: 16,
-        numSubsDirty: 5,
-        useMemstore,
-      }),
-    );
-  }
-  return benchmarks;
-}
-
 export function benchmarks(): Benchmark[] {
   const bs = (useMemstore: boolean) => [
+    // write/sub/read 1mb
+    benchmarkWriteSubRead({
+      valueSize: 1024,
+      numSubsTotal: 64,
+      keysPerSub: 16,
+      keysWatchedPerSub: 16,
+      numSubsDirty: 5,
+      useMemstore,
+    }),
+    // write/sub/read 4mb
+    benchmarkWriteSubRead({
+      valueSize: 1024,
+      numSubsTotal: 128,
+      keysPerSub: 32,
+      keysWatchedPerSub: 16,
+      numSubsDirty: 5,
+      useMemstore,
+    }),
+    // write/sub/read 16mb
+    benchmarkWriteSubRead({
+      valueSize: 1024,
+      numSubsTotal: 128,
+      keysPerSub: 128,
+      keysWatchedPerSub: 16,
+      numSubsDirty: 5,
+      useMemstore,
+    }),
+    // 128 mb is unusable
     benchmarkPopulate({numKeys: 1000, clean: true, useMemstore}),
-    benchmarkPopulate({numKeys: 1000, clean: false, useMemstore}),
     benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1, useMemstore}),
     benchmarkPopulate({numKeys: 1000, clean: true, indexes: 2, useMemstore}),
-    benchmarkReadTransaction({numKeys: 1000, useMemstore}),
-    benchmarkReadTransaction({numKeys: 5000, useMemstore}),
     benchmarkScan({numKeys: 1000, useMemstore}),
-    benchmarkScan({numKeys: 5000, useMemstore}),
-    benchmarkCreateIndex({numKeys: 1000, useMemstore}),
     benchmarkCreateIndex({numKeys: 5000, useMemstore}),
-    ...createWriteSubReadBenchmarks(useMemstore),
   ];
-  return [...createWriteSubReadBenchmarks(true)];
+  return [...bs(true)];
 }

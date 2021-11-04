@@ -81,3 +81,7 @@ export function parse(key: string): Key {
   }
   throw invalidKey();
 }
+
+export function isChunkKey(key: string): boolean {
+  return key.startsWith('c/');
+}

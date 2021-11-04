@@ -32,12 +32,13 @@ jobs:
           tool: 'benchmarkjs'
           # Where the output from the benchmark tool is stored
           output-file-path: output.txt
-          # Workflow will fail when an alert happens
-          fail-on-alert: true
+          # This version of the dashboard is flakier, we don't need to alert when it fails
+          # Just maintaining it for a bit longer "in case"?
+          fail-on-alert: false
           github-token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
           benchmark-data-dir-path: perf
           auto-push: true
           alert-threshold: '130%'
-          comment-on-alert: true
+          comment-on-alert: false
 #       - name: Deploy perf data
 #         run: curl -X POST ${{ secrets.VERCEL_DEPLOY_PERF_DATA_URL }}

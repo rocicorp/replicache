@@ -45,7 +45,7 @@ async function runBenchmark(
 ): Promise<BenchmarkResult | undefined> {
   // Execute fn at least this many runs.
   const minRuns = 9;
-  const maxRuns = 3;
+  const maxRuns = 21;
   // Execute fn at least for this long.
   const minTime = 500;
   const maxTotalTime = 5000;

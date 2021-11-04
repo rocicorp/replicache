@@ -195,6 +195,8 @@ export function benchmarkWriteSubRead(opts: {
             changes: Map<string, TestDataObject>,
           ) {
             for (const [key, value] of changes) {
+              console.log('invalidate');
+              console.log([key, value]);
               await tx.put(key, value);
             }
           },
@@ -203,12 +205,22 @@ export function benchmarkWriteSubRead(opts: {
 
       await rep.mutate.init();
       let onDataCallCount = 0;
+      const scanCalls: Map<string, number> = new Map(
+        Array.from({length: numSubsTotal}, (_, i) => [
+          sortedKeys[i * keysPerSub],
+          0,
+        ]),
+      );
+      console.log(scanCalls);
 
       const subs = Array.from({length: numSubsTotal}, (_, i) => {
         const startKeyIndex = i * keysPerSub;
         return rep.subscribe(
           async tx => {
             const startKey = sortedKeys[startKeyIndex];
+            // console.log(`scan ${startKey}`);
+            scanCalls.set(startKey, (scanCalls.get(startKey) || 0) + 1);
+            // console.log(scanCalls);
             return await tx
               .scan({
                 start: {key: startKey},
@@ -219,6 +231,7 @@ export function benchmarkWriteSubRead(opts: {
           {
             onData(v) {
               onDataCallCount++;
+              //console.log(`onData ${sortedKeys[startKeyIndex]}`);
               const vals = v as TestDataObject[];
               for (const [j, val] of vals.entries()) {
                 data.set(sortedKeys[startKeyIndex + j], val);
@@ -237,7 +250,7 @@ export function benchmarkWriteSubRead(opts: {
       // invalidate numSubsDirty different subscriptions by writing to the first key each is scanning.
       const changes = new Map(
         Array.from({length: numSubsDirty}).map((_, i) => [
-          sortedKeys[i * keysPerSub],
+          sortedKeys[numKeys - (i + 1) * keysPerSub],
           jsonObjectTestData(valueSize),
         ]),
       );
@@ -256,6 +269,8 @@ export function benchmarkWriteSubRead(opts: {
       for (const [changeKey, changeValue] of changes) {
         assert(deepEqual(changeValue, data.get(changeKey)));
       }
+
+      console.log(scanCalls);
       await rep.close();
     },
   };
@@ -318,30 +333,30 @@ export function benchmarks(): Benchmark[] {
       numSubsDirty: 5,
       useMemstore,
     }),
-    // write/sub/read 4mb
-    benchmarkWriteSubRead({
-      valueSize: 1024,
-      numSubsTotal: 128,
-      keysPerSub: 32,
-      keysWatchedPerSub: 16,
-      numSubsDirty: 5,
-      useMemstore,
-    }),
-    // write/sub/read 16mb
-    benchmarkWriteSubRead({
-      valueSize: 1024,
-      numSubsTotal: 128,
-      keysPerSub: 128,
-      keysWatchedPerSub: 16,
-      numSubsDirty: 5,
-      useMemstore,
-    }),
-    // 128 mb is unusable
-    benchmarkPopulate({numKeys: 1000, clean: true, useMemstore}),
-    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1, useMemstore}),
-    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 2, useMemstore}),
-    benchmarkScan({numKeys: 1000, useMemstore}),
-    benchmarkCreateIndex({numKeys: 5000, useMemstore}),
+    // // write/sub/read 4mb
+    // benchmarkWriteSubRead({
+    //   valueSize: 1024,
+    //   numSubsTotal: 128,
+    //   keysPerSub: 32,
+    //   keysWatchedPerSub: 16,
+    //   numSubsDirty: 5,
+    //   useMemstore,
+    // }),
+    // // write/sub/read 16mb
+    // benchmarkWriteSubRead({
+    //   valueSize: 1024,
+    //   numSubsTotal: 128,
+    //   keysPerSub: 128,
+    //   keysWatchedPerSub: 16,
+    //   numSubsDirty: 5,
+    //   useMemstore,
+    // }),
+    // // 128 mb is unusable
+    // benchmarkPopulate({numKeys: 1000, clean: true, useMemstore}),
+    // benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1, useMemstore}),
+    // benchmarkPopulate({numKeys: 1000, clean: true, indexes: 2, useMemstore}),
+    // benchmarkScan({numKeys: 1000, useMemstore}),
+    // benchmarkCreateIndex({numKeys: 5000, useMemstore}),
   ];
   return [...bs(true)];
 }

@@ -3,6 +3,11 @@ import type {ReadTransaction} from './transactions';
 import * as db from './db/mod';
 import type * as sync from './sync/mod';
 
+type ScanSubrscriptionInfo = {
+  options: db.ScanOptions;
+  endInclusiveKey?: string;
+};
+
 export type Subscription<R extends JSONValue | undefined, E> = {
   body: (tx: ReadTransaction) => Promise<R>;
   onData: (r: R) => void;
@@ -10,7 +15,7 @@ export type Subscription<R extends JSONValue | undefined, E> = {
   onDone?: () => void;
   lastValue?: R;
   keys: ReadonlySet<string>;
-  scans: ReadonlyArray<Readonly<db.ScanOptions>>;
+  scans: ReadonlyArray<Readonly<ScanSubrscriptionInfo>>;
 };
 
 function keyMatchesSubscription<V, E>(
@@ -27,8 +32,8 @@ function keyMatchesSubscription<V, E>(
     return true;
   }
 
-  for (const scanOpts of subscription.scans) {
-    if (scanOptionsMatchesKey(scanOpts, indexName, changedKey)) {
+  for (const scanInfo of subscription.scans) {
+    if (scanInfoMatchesKey(scanInfo, indexName, changedKey)) {
       return true;
     }
   }
@@ -36,13 +41,14 @@ function keyMatchesSubscription<V, E>(
   return false;
 }
 
-export function scanOptionsMatchesKey(
-  scanOpts: db.ScanOptions,
+export function scanInfoMatchesKey(
+  scanInfo: ScanSubrscriptionInfo,
   changeIndexName: string,
   changedKey: string,
 ): boolean {
   const {indexName, prefix, startKey, startExclusive, startSecondaryKey} =
-    scanOpts;
+    scanInfo.options;
+  const {endInclusiveKey} = scanInfo;
 
   if (!indexName) {
     if (changeIndexName) {
@@ -61,7 +67,9 @@ export function scanOptionsMatchesKey(
 
     if (
       startKey &&
-      ((startExclusive && changedKey <= startKey) || changedKey < startKey)
+      ((startExclusive && changedKey <= startKey) ||
+        changedKey < startKey ||
+        (endInclusiveKey && changedKey > endInclusiveKey))
     ) {
       return false;
     }

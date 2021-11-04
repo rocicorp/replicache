@@ -263,13 +263,6 @@ export interface CreateIndexDefinition {
   /**
    * The prefix, if any, to limit the index over. If not provided the values of
    * all keys are indexed.
-   * @deprecated Use [[prefix]] instead.
-   */
-  keyPrefix?: string;
-
-  /**
-   * The prefix, if any, to limit the index over. If not provided the values of
-   * all keys are indexed.
    */
   prefix?: string;
 
@@ -296,7 +289,7 @@ export class IndexTransactionImpl
     await this._dbtx.createIndex(
       this._lc,
       options.name,
-      options.prefix ?? options.keyPrefix ?? '',
+      options.prefix ?? '',
       options.jsonPointer,
     );
   }

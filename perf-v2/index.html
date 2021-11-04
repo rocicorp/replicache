@@ -137,14 +137,15 @@
         function init() {
           function collectBenchesPerTestCase(entries) {
             const map = new Map();
+            for (const bench of entries[0].benches) {
+              map.set(bench.name, []);
+            }
             for (const entry of entries) {
               const { commit, date, tool, benches } = entry;
               for (const bench of benches) {
                 const result = { commit, date, tool, bench };
                 const arr = map.get(bench.name);
-                if (arr === undefined) {
-                  map.set(bench.name, [result]);
-                } else {
+                if (arr !== undefined) {
                   arr.push(result);
                 }
               }

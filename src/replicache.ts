@@ -1011,33 +1011,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
     });
   }
 
-  /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
-  register<Return extends JSONValue | void>(
-    name: string,
-    mutatorImpl: (tx: WriteTransaction) => MaybePromise<Return>,
-  ): () => Promise<Return>;
-  /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
-  register<Return extends JSONValue | void, Args extends JSONValue>(
-    name: string,
-    mutatorImpl: (tx: WriteTransaction, args: Args) => MaybePromise<Return>,
-  ): (args: Args) => Promise<Return>;
-  /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
-  /* c8 ignore next 14 */
-  register<Return extends JSONValue | void, Args extends JSONValue>(
-    name: string,
-    mutatorImpl: (tx: WriteTransaction, args?: Args) => MaybePromise<Return>,
-  ): (args?: Args) => Promise<Return> {
-    this._mutatorRegistry.set(
-      name,
-      mutatorImpl as (
-        tx: WriteTransaction,
-        args: JSONValue | undefined,
-      ) => Promise<void | JSONValue>,
-    );
-
-    return this._register(name, mutatorImpl);
-  }
-
   private _register<Return extends JSONValue | void, Args extends JSONValue>(
     name: string,
     mutatorImpl: (tx: WriteTransaction, args?: Args) => MaybePromise<Return>,

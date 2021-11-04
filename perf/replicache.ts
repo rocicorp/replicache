@@ -167,9 +167,7 @@ export function benchmarkWriteSubRead(opts: {
   const numKeys = keysPerSub * numSubsTotal;
   const cacheSizeMB = (numKeys * valueSize) / 1024 / 1024;
   const kbReadPerSub = (keysWatchedPerSub * valueSize) / 1024;
-  const key = (k: number) => `key${k}`;
-
-  const data = jsonArrayTestData(numKeys, valueSize);
+  const makeKey = (index: number) => `key${index}`;
 
   return {
     name: `${
@@ -177,20 +175,27 @@ export function benchmarkWriteSubRead(opts: {
     }writeSubRead ${cacheSizeMB}MB total, ${numSubsTotal} subs total, ${numSubsDirty} subs dirty, ${kbReadPerSub}kb read per sub`,
     group: 'replicache',
     async run(bencher: Bencher) {
+      const keys = Array.from({length: numKeys}, (_, index) => makeKey(index));
+      const sortedKeys = keys.sort();
+      const data: Map<string, TestDataObject> = new Map(
+        keys.map(key => [key, jsonObjectTestData(valueSize)]),
+      );
+
       const rep = await makeRep({
         useMemstore: opts.useMemstore,
         mutators: {
           // Create `numKeys` key/value pairs, each holding `valueSize` data
           async init(tx: WriteTransaction) {
-            for (let i = 0; i < numKeys; i++) {
-              await tx.put(key(i), data[i]);
+            for (const [key, value] of data) {
+              await tx.put(key, value);
             }
           },
-          // For each random data item provided, invalidate a different subscription by writing to the first key it is scanning.
-          async invalidate(tx: WriteTransaction, randomData: TestDataObject[]) {
-            for (const [i, val] of randomData.entries()) {
-              const keyToChange = key(i * keysPerSub);
-              await tx.put(keyToChange, val);
+          async invalidate(
+            tx: WriteTransaction,
+            changes: Map<string, TestDataObject>,
+          ) {
+            for (const [key, value] of changes) {
+              await tx.put(key, value);
             }
           },
         },
@@ -199,13 +204,14 @@ export function benchmarkWriteSubRead(opts: {
       await rep.mutate.init();
       let onDataCallCount = 0;
 
-      const subs = Array.from({length: numSubsTotal}, (_, i) =>
-        rep.subscribe(
+      const subs = Array.from({length: numSubsTotal}, (_, i) => {
+        const startKeyIndex = i * keysPerSub;
+        return rep.subscribe(
           async tx => {
-            const start = i * keysPerSub;
+            const startKey = sortedKeys[startKeyIndex];
             return await tx
               .scan({
-                start: {key: key(start)},
+                start: {key: startKey},
                 limit: keysWatchedPerSub,
               })
               .toArray();
@@ -215,23 +221,26 @@ export function benchmarkWriteSubRead(opts: {
               onDataCallCount++;
               const vals = v as TestDataObject[];
               for (const [j, val] of vals.entries()) {
-                data[i * keysPerSub + j] = val;
+                data.set(sortedKeys[startKeyIndex + j], val);
               }
             },
           },
-        ),
-      );
+        );
+      });
 
       // We need to wait until all the initial async onData have been called.
       while (onDataCallCount !== numSubsTotal) {
         await sleep(10);
       }
 
-      // Build our random data ahead of time, outside the timed window.
-      const changes = [];
-      for (let i = 0; i < numSubsDirty; i++) {
-        changes.push(jsonObjectTestData(valueSize));
-      }
+      // Build our random changes ahead of time, outside the timed window.
+      // invalidate numSubsDirty different subscriptions by writing to the first key each is scanning.
+      const changes = new Map(
+        Array.from({length: numSubsDirty}).map((_, i) => [
+          sortedKeys[i * keysPerSub],
+          jsonObjectTestData(valueSize),
+        ]),
+      );
 
       // OK time the below!
       bencher.reset();
@@ -244,11 +253,9 @@ export function benchmarkWriteSubRead(opts: {
       subs.forEach(c => c());
 
       assert(onDataCallCount === numSubsTotal + numSubsDirty);
-      for (const [i, val] of changes.entries()) {
-        const keyChanged = i * keysPerSub;
-        assert(deepEqual(data[keyChanged], val));
+      for (const [changeKey, changeValue] of changes) {
+        assert(deepEqual(changeValue, data.get(changeKey)));
       }
-
       await rep.close();
     },
   };

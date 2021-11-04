@@ -302,16 +302,6 @@ async function makeRepWithPopulate(useMemstore: boolean) {
 
 export function benchmarks(): Benchmark[] {
   const bs = (useMemstore: boolean) => [
-    benchmarkPopulate({numKeys: 1000, clean: true, useMemstore}),
-    benchmarkPopulate({numKeys: 1000, clean: false, useMemstore}),
-    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1, useMemstore}),
-    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 2, useMemstore}),
-    benchmarkReadTransaction({numKeys: 1000, useMemstore}),
-    benchmarkReadTransaction({numKeys: 5000, useMemstore}),
-    benchmarkScan({numKeys: 1000, useMemstore}),
-    benchmarkScan({numKeys: 5000, useMemstore}),
-    benchmarkCreateIndex({numKeys: 1000, useMemstore}),
-    benchmarkCreateIndex({numKeys: 5000, useMemstore}),
     // write/sub/read 1mb
     benchmarkWriteSubRead({
       valueSize: 1024,
@@ -340,6 +330,11 @@ export function benchmarks(): Benchmark[] {
       useMemstore,
     }),
     // 128 mb is unusable
+    benchmarkPopulate({numKeys: 1000, clean: true, useMemstore}),
+    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1, useMemstore}),
+    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 2, useMemstore}),
+    benchmarkScan({numKeys: 1000, useMemstore}),
+    benchmarkCreateIndex({numKeys: 5000, useMemstore}),
   ];
-  return [...bs(false), ...bs(true)];
+  return [...bs(true)];
 }

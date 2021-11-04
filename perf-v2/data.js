@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1635994855983,
+  "lastUpdate": 1636047693785,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -2220,6 +2220,86 @@ window.BENCHMARK_DATA = {
             "unit": "median ms",
             "range": "±79.1%",
             "extra": "[MemStore] create index 1024x5000 50/75/90/95%=338.90/344.10/418.00/418.00 ms avg=444.14 ms (7 runs sampled)"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2d2340227184c058bcb49ed1070bf129eb7a0385",
+          "message": "fix: Correct how benchmarkWriteSubRead sets up its subscriptions and picks keys to invalidate (#657)\n\nbenchmarkWriteSubRead uses keys like:\r\nkey0, key1, key2, key3, key4, key5, key6, key7, key8, key9, key10, key11, key12, etc\r\n\r\nthe logic it uses for setting up its subscription ranges assumed the keys were sorted as above, but they are actually sorted lexicographically like:\r\nkey0, key1, key10, key11, key12, key2, key3, key4, key5, key6, key7, key8, key9, \r\n\r\n**Existing**\r\nBased on the above assumption about key ordering it used the following logic for subscriptions and invalidations\r\n\r\n_Subscriptions_\r\nscan start `k${i * keysPerSub }` limit keysWatchedPerSub, for 0 <= i < numSubsTotal \r\n\r\n_Invalidations_\r\n`k${i * keysPerSub}` for 0 <= i < numDirtySubs\r\n\r\n**New**\r\nThis change updates the logic for setting up subscriptions and picking keys to invalidate to use a sorted array of keys.\r\n\r\nThe new logic is:\r\n\r\n_Subscriptions_\r\nscan start sortedKeys[i * keysPerSub ] limit keysWatchedPerSub, for 0 <= i < numSubsTotal \r\n\r\n_Invalidations_\r\nsortedKeys[i * keysPerSub] for 0 <= i < numDirtySubs\r\n\r\n\r\nThese changes make the test performance more consistent as the data size increase.  In debugging i discovered the tests runtime mainly varies based on the sort of the keys invalidated.  The higher the invalidated keys sort order, the higher the latency.   With the old logic, the invalidated keys sort order varied a good deal based on the size of the test.   With the new code they are consistently low in the sort order (though they do increase some as numKeysPerSub increases).  \r\n\r\nWe should update these tests to invalidate a random numDirtySubs subs (rather than the first numDirtySubs in sort order) and fix scans performance.  \r\n\r\n### Perf On my M1 Max\r\n\r\n**Existing**\r\n[MemStore] writeSubRead 2MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=5.00/5.80/6.00/6.00 ms avg=6.34 ms (7 runs sampled)\r\n[MemStore] writeSubRead 3MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=6.20/6.40/7.70/7.70 ms avg=7.94 ms (7 runs sampled)\r\n[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=6.20/6.30/8.00/8.00 ms avg=8.13 ms (7 runs sampled)\r\n[MemStore] writeSubRead 5MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=5.90/6.60/8.10/8.10 ms avg=7.90 ms (7 runs sampled)\r\n[MemStore] writeSubRead 6MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=6.50/6.60/9.10/9.10 ms avg=8.56 ms (7 runs sampled)\r\n[MemStore] writeSubRead 7MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=5.50/5.60/7.20/7.20 ms avg=6.94 ms (7 runs sampled)\r\n[MemStore] writeSubRead 8MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=5.60/5.70/7.20/7.20 ms avg=7.04 ms (7 runs sampled)\r\n[MemStore] writeSubRead 9MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=5.10/5.50/7.20/7.20 ms avg=6.77 ms (7 runs sampled)\r\n[MemStore] writeSubRead 10MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=5.60/5.80/7.10/7.10 ms avg=7.19 ms (7 runs sampled)\r\n[MemStore] writeSubRead 11MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=6.30/6.70/8.70/8.70 ms avg=8.29 ms (7 runs sampled)\r\n[MemStore] writeSubRead 12MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=7.10/7.40/9.50/9.50 ms avg=9.23 ms (7 runs sampled)\r\n[MemStore] writeSubRead 13MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=4.40/4.70/5.50/5.50 ms avg=5.49 ms (7 runs sampled)\r\n[MemStore] writeSubRead 14MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=5.10/5.50/6.50/6.50 ms avg=6.47 ms (7 runs sampled)\r\n[MemStore] writeSubRead 15MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=5.00/5.80/6.40/6.40 ms avg=6.54 ms (7 runs sampled)\r\n[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=4.90/5.90/6.50/6.50 ms avg=6.61 ms (7 runs sampled)\r\n[MemStore] writeSubRead 17MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=5.90/6.30/7.80/7.80 ms avg=7.50 ms (7 runs sampled)\r\n[MemStore] writeSubRead 18MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=5.90/6.40/7.20/7.20 ms avg=7.33 ms (7 runs sampled)\r\n[MemStore] writeSubRead 19MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=6.00/6.80/8.00/8.00 ms avg=7.97 ms (7 runs sampled)\r\n[MemStore] writeSubRead 20MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=6.10/8.40/8.40/8.40 ms avg=8.13 ms (7 runs sampled)\r\n\r\n\r\n**New**\r\n[MemStore] writeSubRead 2MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.60/1.80/2.10/2.10 ms avg=1.97 ms (7 runs sampled)\r\n[MemStore] writeSubRead 3MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.50/1.80/2.10/2.10 ms avg=1.89 ms (7 runs sampled)\r\n[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.30/1.50/2.10/2.10 ms avg=1.76 ms (7 runs sampled)\r\n[MemStore] writeSubRead 5MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.50/1.70/2.00/2.00 ms avg=1.90 ms (7 runs sampled)\r\n[MemStore] writeSubRead 6MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/1.60/3.70/3.70 ms avg=2.14 ms (7 runs sampled)\r\n[MemStore] writeSubRead 7MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/1.50/2.10/2.10 ms avg=1.81 ms (7 runs sampled)\r\n[MemStore] writeSubRead 8MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.50/1.60/2.10/2.10 ms avg=1.86 ms (7 runs sampled)\r\n[MemStore] writeSubRead 9MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.50/1.50/2.00/2.00 ms avg=1.87 ms (7 runs sampled)\r\n[MemStore] writeSubRead 10MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.70/1.80/2.00/2.00 ms avg=1.96 ms (7 runs sampled)\r\n[MemStore] writeSubRead 11MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/1.50/2.20/2.20 ms avg=1.90 ms (7 runs sampled)\r\n[MemStore] writeSubRead 12MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/1.50/2.10/2.10 ms avg=1.81 ms (7 runs sampled)\r\n[MemStore] writeSubRead 13MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.50/1.70/2.20/2.20 ms avg=1.94 ms (7 runs sampled)\r\n[MemStore] writeSubRead 14MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.50/1.60/2.00/2.00 ms avg=1.86 ms (7 runs sampled)\r\n[MemStore] writeSubRead 15MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/1.70/2.10/2.10 ms avg=1.86 ms (7 runs sampled)\r\n[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/1.60/2.00/2.00 ms avg=1.86 ms (7 runs sampled)\r\n[MemStore] writeSubRead 17MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.50/1.50/2.20/2.20 ms avg=1.90 ms (7 runs sampled)\r\n[MemStore] writeSubRead 18MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.50/1.70/2.20/2.20 ms avg=1.96 ms (7 runs sampled)\r\n[MemStore] writeSubRead 19MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.60/1.80/2.10/2.10 ms avg=2.04 ms (7 runs sampled)\r\n[MemStore] writeSubRead 20MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.50/2.70/4.00/4.00 ms avg=2.39 ms (7 runs sampled)",
+          "timestamp": "2021-11-04T10:39:51-07:00",
+          "tree_id": "ffd273b1442335eb75a7c4575a5864fa5e80b57a",
+          "url": "https://github.com/rocicorp/replicache/commit/2d2340227184c058bcb49ed1070bf129eb7a0385"
+        },
+        "date": 1636047693336,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 2.8000001907348633,
+            "unit": "median ms",
+            "range": "±4.9%",
+            "extra": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.80/3.20/4.30/7.70 ms avg=3.47 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 3.5,
+            "unit": "median ms",
+            "range": "±2.6%",
+            "extra": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=3.50/4.20/6.10/6.10 ms avg=4.70 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 3.5999999046325684,
+            "unit": "median ms",
+            "range": "±5.6%",
+            "extra": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=3.60/5.30/9.20/9.20 ms avg=5.26 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 121.59999990463257,
+            "unit": "median ms",
+            "range": "±41.4%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 0) 50/75/90/95%=121.60/133.30/163.00/163.00 ms avg=157.77 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 213.59999990463257,
+            "unit": "median ms",
+            "range": "±44.1%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 1) 50/75/90/95%=213.60/242.10/257.70/257.70 ms avg=274.83 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 275.40000009536743,
+            "unit": "median ms",
+            "range": "±88.7%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 2) 50/75/90/95%=275.40/285.90/364.10/364.10 ms avg=360.34 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 4.200000286102295,
+            "unit": "median ms",
+            "range": "±5.1%",
+            "extra": "[MemStore] scan 1024x1000 50/75/90/95%=4.20/5.30/9.20/9.30 ms avg=5.08 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 323.19999980926514,
+            "unit": "median ms",
+            "range": "±91.9%",
+            "extra": "[MemStore] create index 1024x5000 50/75/90/95%=323.20/336.50/415.10/415.10 ms avg=428.66 ms (7 runs sampled)"
           }
         ]
       }

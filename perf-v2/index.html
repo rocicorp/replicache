@@ -137,7 +137,8 @@
         function init() {
           function collectBenchesPerTestCase(entries) {
             const map = new Map();
-            for (const bench of entries[0].benches) {
+            // Only display the benches that are in the latest commit.
+            for (const bench of entries[entries.length - 1].benches) {
               map.set(bench.name, []);
             }
             for (const entry of entries) {

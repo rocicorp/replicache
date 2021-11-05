@@ -10,6 +10,7 @@ import * as db from './db/mod';
 import * as sync from './sync/mod';
 import type {LogContext} from './logger';
 import type {Hash} from './hash';
+import type {ScanSubrscriptionInfo} from './subscriptions';
 
 /**
  * ReadTransactions are used with [[Replicache.query]] and
@@ -106,6 +107,11 @@ export class ReadTransactionImpl<
 
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
+    onKey?: (
+      key: string,
+      isLastBeforeLimit: boolean,
+      isLastEntry: boolean,
+    ) => void,
   ): ScanResult<Key, Value> {
     const dbRead = this._dbtx;
     return new ScanResult(
@@ -113,6 +119,7 @@ export class ReadTransactionImpl<
       () => dbRead,
       false, // shouldCloseTransaction
       dbRead instanceof db.Write, // shouldClone,
+      onKey,
     );
   }
 }
@@ -121,10 +128,10 @@ export class ReadTransactionImpl<
 // for use with Subscriptions.
 export class SubscriptionTransactionWrapper implements ReadTransaction {
   private readonly _keys: Set<string> = new Set();
-  private readonly _scans: db.ScanOptions[] = [];
-  private readonly _tx: ReadTransaction;
+  private readonly _scans: ScanSubrscriptionInfo[] = [];
+  private readonly _tx: ReadTransactionImpl;
 
-  constructor(tx: ReadTransaction) {
+  constructor(tx: ReadTransactionImpl) {
     this._tx = tx;
   }
 
@@ -134,7 +141,7 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
 
   isEmpty(): Promise<boolean> {
     // Any change to the subscription requires rerunning it.
-    this._scans.push({});
+    this._scans.push({options: {}});
     return this._tx.isEmpty();
   }
 
@@ -151,15 +158,21 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
   ): ScanResult<Key, ReadonlyJSONValue> {
-    this._scans.push(toDbScanOptions(options));
-    return this._tx.scan(options);
+    const scanInfo: ScanSubrscriptionInfo = {
+      options: toDbScanOptions(options),
+    };
+    this._scans.push(scanInfo);
+    return this._tx.scan(options, (key, isLastBeforeLimit, isLastEntry) => {
+      scanInfo.endInclusiveKey =
+        isLastEntry && !isLastBeforeLimit ? undefined : key;
+    });
   }
 
   get keys(): ReadonlySet<string> {
     return this._keys;
   }
 
-  get scans(): db.ScanOptions[] {
+  get scans(): ScanSubrscriptionInfo[] {
     return this._scans;
   }
 }

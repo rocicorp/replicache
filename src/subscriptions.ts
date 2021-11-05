@@ -3,7 +3,7 @@ import type {ReadTransaction} from './transactions';
 import * as db from './db/mod';
 import type * as sync from './sync/mod';
 
-type ScanSubrscriptionInfo = {
+export type ScanSubrscriptionInfo = {
   options: db.ScanOptions;
   endInclusiveKey?: string;
 };
@@ -46,8 +46,14 @@ export function scanInfoMatchesKey(
   changeIndexName: string,
   changedKey: string,
 ): boolean {
-  const {indexName, prefix, startKey, startExclusive, startSecondaryKey} =
-    scanInfo.options;
+  const {
+    indexName,
+    prefix,
+    startKey,
+    startExclusive,
+    startSecondaryKey,
+    limit,
+  } = scanInfo.options;
   const {endInclusiveKey} = scanInfo;
 
   if (!indexName) {
@@ -61,7 +67,14 @@ export function scanInfoMatchesKey(
       return true;
     }
 
-    if (prefix && !changedKey.startsWith(prefix)) {
+    if (
+      prefix &&
+      !changedKey.startsWith(prefix)
+      // (!changedKey.startsWith(prefix) ||
+      //   (limit !== undefined &&
+      //     endInclusiveKey !== undefined &&
+      //     changedKey > endInclusiveKey))
+    ) {
       return false;
     }
 
@@ -69,7 +82,9 @@ export function scanInfoMatchesKey(
       startKey &&
       ((startExclusive && changedKey <= startKey) ||
         changedKey < startKey ||
-        (endInclusiveKey && changedKey > endInclusiveKey))
+        (limit !== undefined &&
+          endInclusiveKey !== undefined &&
+          changedKey > endInclusiveKey))
     ) {
       return false;
     }
@@ -136,7 +151,9 @@ export function* subscriptionsForIndexDefinitionChanged<V, E>(
   name: string,
 ): Generator<Subscription<V, E>> {
   for (const subscription of subscriptions) {
-    if (subscription.scans.some(opt => opt.indexName === name)) {
+    if (
+      subscription.scans.some(scanInfo => scanInfo.options.indexName === name)
+    ) {
       yield subscription;
     }
   }

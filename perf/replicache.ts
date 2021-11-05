@@ -160,9 +160,16 @@ export function benchmarkWriteSubRead(opts: {
   keysWatchedPerSub: number;
   numSubsDirty: number;
   useMemstore: boolean;
+  randomInvalidates?: boolean;
 }): Benchmark {
-  const {valueSize, numSubsTotal, keysPerSub, keysWatchedPerSub, numSubsDirty} =
-    opts;
+  const {
+    valueSize,
+    numSubsTotal,
+    keysPerSub,
+    keysWatchedPerSub,
+    numSubsDirty,
+    randomInvalidates,
+  } = opts;
 
   const numKeys = keysPerSub * numSubsTotal;
   const cacheSizeMB = (numKeys * valueSize) / 1024 / 1024;
@@ -172,7 +179,7 @@ export function benchmarkWriteSubRead(opts: {
   return {
     name: `${
       opts.useMemstore ? '[MemStore] ' : ''
-    }writeSubRead ${cacheSizeMB}MB total, ${numSubsTotal} subs total, ${numSubsDirty} subs dirty, ${kbReadPerSub}kb read per sub`,
+    }writeSubRead randomInvalidates ${randomInvalidates} ${cacheSizeMB}MB total, ${numSubsTotal} subs total, ${numSubsDirty} subs dirty, ${kbReadPerSub}kb read per sub`,
     group: 'replicache',
     async run(bencher: Bencher) {
       const keys = Array.from({length: numKeys}, (_, index) => makeKey(index));
@@ -235,11 +242,21 @@ export function benchmarkWriteSubRead(opts: {
 
       // Build our random changes ahead of time, outside the timed window.
       // invalidate numSubsDirty different subscriptions by writing to the first key each is scanning.
+      const invalidates: Set<number> = new Set();
       const changes = new Map(
-        Array.from({length: numSubsDirty}).map((_, i) => [
-          sortedKeys[i * keysPerSub],
-          jsonObjectTestData(valueSize),
-        ]),
+        Array.from({length: numSubsDirty}).map((_, i) => {
+          let index = i;
+          if (randomInvalidates) {
+            do {
+              index = Math.floor(Math.random() * numSubsTotal);
+            } while (invalidates.has(index));
+            invalidates.add(index);
+          }
+          return [
+            sortedKeys[index * keysPerSub],
+            jsonObjectTestData(valueSize),
+          ];
+        }),
       );
 
       // OK time the below!
@@ -310,23 +327,23 @@ async function makeRepWithPopulate(useMemstore: boolean) {
 export function benchmarks(): Benchmark[] {
   const bs = (useMemstore: boolean) => [
     // write/sub/read 1mb
-    benchmarkWriteSubRead({
-      valueSize: 1024,
-      numSubsTotal: 64,
-      keysPerSub: 16,
-      keysWatchedPerSub: 16,
-      numSubsDirty: 5,
-      useMemstore,
-    }),
-    // write/sub/read 4mb
-    benchmarkWriteSubRead({
-      valueSize: 1024,
-      numSubsTotal: 128,
-      keysPerSub: 32,
-      keysWatchedPerSub: 16,
-      numSubsDirty: 5,
-      useMemstore,
-    }),
+    // benchmarkWriteSubRead({
+    //   valueSize: 1024,
+    //   numSubsTotal: 64,
+    //   keysPerSub: 16,
+    //   keysWatchedPerSub: 16,
+    //   numSubsDirty: 5,
+    //   useMemstore,
+    // }),
+    // // write/sub/read 4mb
+    // benchmarkWriteSubRead({
+    //   valueSize: 1024,
+    //   numSubsTotal: 128,
+    //   keysPerSub: 32,
+    //   keysWatchedPerSub: 16,
+    //   numSubsDirty: 5,
+    //   useMemstore,
+    // }),
     // write/sub/read 16mb
     benchmarkWriteSubRead({
       valueSize: 1024,
@@ -335,13 +352,23 @@ export function benchmarks(): Benchmark[] {
       keysWatchedPerSub: 16,
       numSubsDirty: 5,
       useMemstore,
+      randomInvalidates: false,
+    }),
+    benchmarkWriteSubRead({
+      valueSize: 1024,
+      numSubsTotal: 128,
+      keysPerSub: 128,
+      keysWatchedPerSub: 16,
+      numSubsDirty: 5,
+      useMemstore,
+      randomInvalidates: true,
     }),
     // 128 mb is unusable
-    benchmarkPopulate({numKeys: 1000, clean: true, useMemstore}),
-    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1, useMemstore}),
-    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 2, useMemstore}),
-    benchmarkScan({numKeys: 1000, useMemstore}),
-    benchmarkCreateIndex({numKeys: 5000, useMemstore}),
+    // benchmarkPopulate({numKeys: 1000, clean: true, useMemstore}),
+    // benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1, useMemstore}),
+    // benchmarkPopulate({numKeys: 1000, clean: true, indexes: 2, useMemstore}),
+    // benchmarkScan({numKeys: 1000, useMemstore}),
+    // benchmarkCreateIndex({numKeys: 5000, useMemstore}),
   ];
   return [...bs(true)];
 }

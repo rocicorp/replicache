@@ -443,6 +443,11 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
     prefix: string,
     fromKey: string,
     limit: number,
+    onKey?: (
+      key: string,
+      isLastBeforeLimit: boolean,
+      isLastEntry: boolean,
+    ) => void,
   ): AsyncGenerator<Entry<ReadonlyJSONValue>, number> {
     const {entries} = this;
     let i = binarySearch(fromKey, entries);
@@ -454,7 +459,7 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
     }
     for (; i < entries.length && limit > 0; i++) {
       const childNode = await tree.getNode(entries[i][1]);
-      limit = yield* childNode.scan(tree, prefix, fromKey, limit);
+      limit = yield* childNode.scan(tree, prefix, fromKey, limit, onKey);
     }
     return limit;
   }

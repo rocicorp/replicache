@@ -234,7 +234,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
   // No limit
   testScanLimitOptimizations({
     options: {
-      startKey: 'pac2'
+      startKey: 'pac2',
     },
     lastKeyReadInfo: {
       key: 'pac8',
@@ -302,10 +302,10 @@ test('scanInfoMatchesKey limit optimizations', () => {
   // No limit
   testScanLimitOptimizations({
     options: {
-      prefix: 'pac'
+      prefix: 'pac',
     },
     lastKeyReadInfo: {
-      key: 'pac8'
+      key: 'pac8',
     },
     changedKey: 'pac9',
     expected: true,
@@ -405,7 +405,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
   testScanLimitOptimizations({
     options: {
       prefix: 'pac2',
-      startKey: 'pac22'
+      startKey: 'pac22',
     },
     lastKeyReadInfo: {
       key: 'pac28',
@@ -428,5 +428,4 @@ test('scanInfoMatchesKey limit optimizations', () => {
     changedKey: 'pab2',
     expected: false,
   });
-
 });

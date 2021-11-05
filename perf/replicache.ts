@@ -182,6 +182,7 @@ export function benchmarkWriteSubRead(opts: {
     }writeSubRead randomInvalidates ${randomInvalidates} ${cacheSizeMB}MB total, ${numSubsTotal} subs total, ${numSubsDirty} subs dirty, ${kbReadPerSub}kb read per sub`,
     group: 'replicache',
     async run(bencher: Bencher) {
+      console.log(`run randomInvalidates ${randomInvalidates}`);
       const keys = Array.from({length: numKeys}, (_, index) => makeKey(index));
       const sortedKeys = keys.sort();
       const data: Map<string, TestDataObject> = new Map(
@@ -202,6 +203,7 @@ export function benchmarkWriteSubRead(opts: {
             changes: Map<string, TestDataObject>,
           ) {
             for (const [key, value] of changes) {
+              console.log(`invalidate`);
               await tx.put(key, value);
             }
           },
@@ -216,6 +218,7 @@ export function benchmarkWriteSubRead(opts: {
         return rep.subscribe(
           async tx => {
             const startKey = sortedKeys[startKeyIndex];
+            console.log(`scan`);
             return await tx
               .scan({
                 start: {key: startKey},

@@ -221,11 +221,7 @@ export class DataNodeImpl extends NodeImpl<ReadonlyJSONValue> {
     prefix: string,
     fromKey: string,
     limit: number,
-    onKey?: (
-      key: string,
-      isLastBeforeLimit: boolean,
-      isLastEntry: boolean,
-    ) => void,
+    onKey?: (key: string, isInclusiveLimit: boolean) => void,
   ): AsyncGenerator<Entry<ReadonlyJSONValue>, number, unknown> {
     const {entries} = this;
     let i = binarySearch(fromKey, entries);
@@ -238,7 +234,7 @@ export class DataNodeImpl extends NodeImpl<ReadonlyJSONValue> {
       limit--, i++
     ) {
       if (onKey) {
-        onKey(entries[i][0], limit === 1, i === entries.length - 1);
+        onKey(entries[i][0], limit === 1);
       }
       yield entries[i];
     }
@@ -443,11 +439,7 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
     prefix: string,
     fromKey: string,
     limit: number,
-    onKey?: (
-      key: string,
-      isLastBeforeLimit: boolean,
-      isLastEntry: boolean,
-    ) => void,
+    onKey?: (key: string, isInclusiveLimit: boolean) => void,
   ): AsyncGenerator<Entry<ReadonlyJSONValue>, number> {
     const {entries} = this;
     let i = binarySearch(fromKey, entries);

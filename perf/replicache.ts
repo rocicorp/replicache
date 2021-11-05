@@ -351,7 +351,7 @@ export function benchmarks(): Benchmark[] {
     benchmarkWriteSubRead({
       valueSize: 1024,
       numSubsTotal: 128,
-      keysPerSub: 128,
+      keysPerSub: 800,
       keysWatchedPerSub: 16,
       numSubsDirty: 5,
       useMemstore,
@@ -360,7 +360,7 @@ export function benchmarks(): Benchmark[] {
     benchmarkWriteSubRead({
       valueSize: 1024,
       numSubsTotal: 128,
-      keysPerSub: 128,
+      keysPerSub: 800,
       keysWatchedPerSub: 16,
       numSubsDirty: 5,
       useMemstore,

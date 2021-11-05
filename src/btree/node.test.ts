@@ -1228,11 +1228,25 @@ test('scan', async () => {
 
     await doRead(rootHash, dagStore, async r => {
       const res: Entry<ReadonlyJSONValue>[] = [];
-      for await (const e of r.scan(options)) {
+      const onKeyCalls: {key: string, isInclusiveLimit: boolean}[] = [];
+      const scanResult = r.scan(options, (key, isInclusiveLimit) => {
+        onKeyCalls.push({key, isInclusiveLimit});
+      });
+      let entriesReadCount = 0;
+      for await (const e of scanResult) {
+        entriesReadCount++;
         res.push(e);
+        expect(onKeyCalls.length, 'onKey is called when entry is read').to.equal(entriesReadCount);
       }
-
       expect(res).to.deep.equal(expectedEntries);
+      const expectedOnKeyCalls: {key: string, isInclusiveLimit: boolean}[] = [];
+      for (let i = 0; i < expectedEntries.length; i++) {
+        expectedOnKeyCalls.push({
+          key: expectedEntries[i][0], 
+          isInclusiveLimit: options.limit === i + 1
+        });
+      }
+      expect(onKeyCalls).to.deep.equal(expectedOnKeyCalls);
     });
   };
 

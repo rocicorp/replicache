@@ -5,7 +5,10 @@ import type * as sync from './sync/mod';
 
 export type ScanSubrscriptionInfo = {
   options: db.ScanOptions;
-  endInclusiveKey?: string;
+  lastKeyReadInfo?: {
+    key: string;
+    isInclusiveLimit: boolean;
+  };
 };
 
 export type Subscription<R extends JSONValue | undefined, E> = {
@@ -46,18 +49,16 @@ export function scanInfoMatchesKey(
   changeIndexName: string,
   changedKey: string,
 ): boolean {
-  const {
-    indexName,
-    prefix,
-    startKey,
-    startExclusive,
-    startSecondaryKey,
-    limit,
-  } = scanInfo.options;
-  const {endInclusiveKey} = scanInfo;
+  const {indexName, prefix, startKey, startExclusive, startSecondaryKey} =
+    scanInfo.options;
 
   if (!indexName) {
     if (changeIndexName) {
+      return false;
+    }
+
+    // A scan with limit <= 0 can have no matches
+    if (scanInfo.options.limit !== undefined && scanInfo.options.limit <= 0) {
       return false;
     }
 
@@ -69,11 +70,8 @@ export function scanInfoMatchesKey(
 
     if (
       prefix &&
-      !changedKey.startsWith(prefix)
-      // (!changedKey.startsWith(prefix) ||
-      //   (limit !== undefined &&
-      //     endInclusiveKey !== undefined &&
-      //     changedKey > endInclusiveKey))
+      (!changedKey.startsWith(prefix) ||
+        isKeyPastInclusiveLimit(scanInfo, changedKey))
     ) {
       return false;
     }
@@ -82,9 +80,7 @@ export function scanInfoMatchesKey(
       startKey &&
       ((startExclusive && changedKey <= startKey) ||
         changedKey < startKey ||
-        (limit !== undefined &&
-          endInclusiveKey !== undefined &&
-          changedKey > endInclusiveKey))
+        isKeyPastInclusiveLimit(scanInfo, changedKey))
     ) {
       return false;
     }
@@ -128,6 +124,19 @@ export function scanInfoMatchesKey(
   }
 
   return true;
+}
+
+function isKeyPastInclusiveLimit(
+  scanInfo: ScanSubrscriptionInfo,
+  changedKey: string,
+): boolean {
+  const {lastKeyReadInfo} = scanInfo;
+  return (
+    scanInfo.options.limit !== undefined &&
+    lastKeyReadInfo !== undefined &&
+    lastKeyReadInfo.isInclusiveLimit &&
+    changedKey > lastKeyReadInfo.key
+  );
 }
 
 export function* subscriptionsForChangedKeys<V, E>(

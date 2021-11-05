@@ -36,11 +36,7 @@ export class Read {
   async *scan<R>(
     opts: ScanOptions,
     convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
-    onKey?: (
-      key: string,
-      isLastBeforeLimit: boolean,
-      isLastEntry: boolean,
-    ) => void,
+    onKey?: (key: string, isInclusiveLimit: boolean) => void,
   ): AsyncIterableIterator<R> {
     const optsInternal: ScanOptionsInternal = convert(opts);
     if (optsInternal.indexName !== undefined) {

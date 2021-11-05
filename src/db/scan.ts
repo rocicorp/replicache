@@ -67,11 +67,7 @@ export async function* scan<R>(
   map: BTreeRead,
   opts: ScanOptionsInternal,
   convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
-  onKey?: (
-    key: string,
-    isLastBeforeLimit: boolean,
-    isLastEntry: boolean,
-  ) => void,
+  onKey?: (key: string, isInclusiveLimit: boolean) => void,
 ): AsyncIterableIterator<R> {
   // We don't do any encoding of the key in regular prolly maps, so we have no
   // way of determining from an entry.key alone whether it is a regular prolly

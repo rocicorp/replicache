@@ -29,6 +29,7 @@ export default {
         'src/hash.test.ts',
         'src/replicache.test.ts',
         'src/hash.test.ts',
+        'src/range.test.ts',
         'src/subscriptions.test.ts',
         'src/web-lock.test.ts',
 
@@ -40,7 +41,7 @@ export default {
         'src/migrate/*.test.ts',
         'src/btree/*.test.ts',
       ],
-      browsers: [firefox, chromium, webkit],
+      browsers: [chromium],
     },
     {
       name: 'Worker',

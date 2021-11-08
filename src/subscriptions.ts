@@ -5,10 +5,7 @@ import type * as sync from './sync/mod';
 
 export type ScanSubrscriptionInfo = {
   options: db.ScanOptions;
-  lastKeyReadInfo?: {
-    key: string;
-    isInclusiveLimit: boolean;
-  };
+  inclusiveLimitKey?: string;
 };
 
 export type Subscription<R extends JSONValue | undefined, E> = {
@@ -130,12 +127,11 @@ function isKeyPastInclusiveLimit(
   scanInfo: ScanSubrscriptionInfo,
   changedKey: string,
 ): boolean {
-  const {lastKeyReadInfo} = scanInfo;
+  const {inclusiveLimitKey} = scanInfo;
   return (
     scanInfo.options.limit !== undefined &&
-    lastKeyReadInfo !== undefined &&
-    lastKeyReadInfo.isInclusiveLimit &&
-    changedKey > lastKeyReadInfo.key
+    inclusiveLimitKey !== undefined &&
+    changedKey > inclusiveLimitKey
   );
 }
 

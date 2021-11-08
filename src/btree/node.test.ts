@@ -1228,28 +1228,25 @@ test('scan', async () => {
 
     await doRead(rootHash, dagStore, async r => {
       const res: Entry<ReadonlyJSONValue>[] = [];
-      const onKeyCalls: {key: string; isInclusiveLimit: boolean}[] = [];
-      const scanResult = r.scan(options, (key, isInclusiveLimit) => {
-        onKeyCalls.push({key, isInclusiveLimit});
+      const onLimitKeyCalls: string[] = [];
+      const scanResult = r.scan(options, inclusiveLimitKey => {
+        onLimitKeyCalls.push(inclusiveLimitKey);
       });
-      let entriesReadCount = 0;
       for await (const e of scanResult) {
-        entriesReadCount++;
         res.push(e);
-        expect(
-          onKeyCalls.length,
-          'onKey is called when entry is read',
-        ).to.equal(entriesReadCount);
       }
       expect(res).to.deep.equal(expectedEntries);
-      const expectedOnKeyCalls: {key: string; isInclusiveLimit: boolean}[] = [];
-      for (let i = 0; i < expectedEntries.length; i++) {
-        expectedOnKeyCalls.push({
-          key: expectedEntries[i][0],
-          isInclusiveLimit: options.limit === i + 1,
-        });
+      if (options.limit !== undefined) {
+        expect(res.length).to.be.lessThanOrEqual(options.limit);
+        if (res.length === options.limit && options.limit !== 0) {
+          expect(onLimitKeyCalls.length).to.equal(1);
+          expect(onLimitKeyCalls[0]).to.equal(res[res.length - 1][0]);
+        } else {
+          expect(onLimitKeyCalls.length).to.equal(0);
+        }
+      } else {
+        expect(onLimitKeyCalls.length).to.equal(0);
       }
-      expect(onKeyCalls).to.deep.equal(expectedOnKeyCalls);
     });
   };
 
@@ -1313,6 +1310,17 @@ test('scan', async () => {
       ['a', 1],
       ['b', 2],
     ],
+  );
+
+  await t(
+    [
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+      ['d', 4],
+      ['e', 5],
+    ],
+    {limit: 8},
   );
 
   await t(

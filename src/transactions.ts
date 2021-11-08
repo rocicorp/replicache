@@ -107,7 +107,7 @@ export class ReadTransactionImpl<
 
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
-    onLimitKey?: (key: string) => void,
+    onLimitKey?: (inclusiveLimitKey: string) => void,
   ): ScanResult<Key, Value> {
     const dbRead = this._dbtx;
     return new ScanResult(
@@ -115,7 +115,7 @@ export class ReadTransactionImpl<
       () => dbRead,
       false, // shouldCloseTransaction
       dbRead instanceof db.Write, // shouldClone,
-      onKey,
+      onLimitKey,
     );
   }
 }
@@ -158,11 +158,8 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
       options: toDbScanOptions(options),
     };
     this._scans.push(scanInfo);
-    return this._tx.scan(options, (key, isInclusiveLimit) => {
-      scanInfo.lastKeyReadInfo = {
-        key,
-        isInclusiveLimit,
-      };
+    return this._tx.scan(options, inclusiveLimitKey => {
+      scanInfo.inclusiveLimitKey = inclusiveLimitKey;
     });
   }
 

@@ -17,7 +17,7 @@ type Args = [
   getTransaction: () => Promise<db.Read> | db.Read,
   shouldCloseTransaction: boolean,
   shouldClone: boolean,
-  onLimitKey?: (key: string) => void,
+  onLimitKey?: (inclusiveLimitKey: string) => void,
 ];
 
 /**
@@ -122,7 +122,7 @@ async function* scanIterator<V>(
   getTransaction: () => MaybePromise<db.Read>,
   shouldCloseTransaction: boolean,
   shouldClone: boolean,
-  onLimitKey?: (key: string) => void,
+  onLimitKey?: (inclusiveLimitKey: string) => void,
 ): AsyncIterableIterator<V> {
   const dbRead = await getTransaction();
   throwIfClosed(dbRead);
@@ -150,7 +150,7 @@ async function* scanIterator<V>(
   }
 
   try {
-    yield* dbRead.scan(toDbScanOptions(options), convertEntry, onKey);
+    yield* dbRead.scan(toDbScanOptions(options), convertEntry, onLimitKey);
   } finally {
     if (shouldCloseTransaction && !dbRead.closed) {
       dbRead.close();

@@ -67,14 +67,14 @@ export async function* scan<R>(
   map: BTreeRead,
   opts: ScanOptionsInternal,
   convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
-  onLimitKey?: (key: string) => void,
+  onLimitKey?: (inclusiveLimitKey: string) => void,
 ): AsyncIterableIterator<R> {
   // We don't do any encoding of the key in regular prolly maps, so we have no
   // way of determining from an entry.key alone whether it is a regular prolly
   // map key or an encoded IndexKey in an index map. Without encoding regular
   // prolly map keys we need to rely on the opts to tell us what we expect.
 
-  for await (const entry of map.scan(opts, onKey)) {
+  for await (const entry of map.scan(opts, onLimitKey)) {
     yield convertEntry(entry);
   }
 }

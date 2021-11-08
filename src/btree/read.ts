@@ -95,7 +95,7 @@ export class BTreeRead {
 
   async *scan(
     options: ScanOptionsInternal,
-    onLimitKey?: (key: string) => void,
+    onLimitKey?: (inclusiveLimitKey: string) => void,
   ): AsyncGenerator<Entry<ReadonlyJSONValue>> {
     const node = await this.getNode(this.rootHash);
     const {prefix = '', limit = Infinity, startKey} = options;
@@ -106,7 +106,7 @@ export class BTreeRead {
       }
     }
 
-    yield* node.scan(this, prefix, fromKey, limit, onKey);
+    yield* node.scan(this, prefix, fromKey, limit, onLimitKey);
   }
 
   async *keys(): AsyncGenerator<string, void> {

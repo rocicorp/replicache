@@ -36,7 +36,7 @@ export class Read {
   async *scan<R>(
     opts: ScanOptions,
     convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
-    onLimitKey?: (key: string) => void,
+    onLimitKey?: (inclusiveLimitKey: string) => void,
   ): AsyncIterableIterator<R> {
     const optsInternal: ScanOptionsInternal = convert(opts);
     if (optsInternal.indexName !== undefined) {
@@ -46,10 +46,10 @@ export class Read {
         throw new Error(`Unknown index name: ${name}`);
       }
       yield* await idx.withMap(this._dagRead, map =>
-        scan(map, optsInternal, convertEntry, onKey),
+        scan(map, optsInternal, convertEntry, onLimitKey),
       );
     } else {
-      yield* scan(this.map, optsInternal, convertEntry, onKey);
+      yield* scan(this.map, optsInternal, convertEntry, onLimitKey);
     }
   }
 

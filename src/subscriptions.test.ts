@@ -1,5 +1,4 @@
 import {expect} from '@esm-bundle/chai';
-import type {ScanOptions} from './db/mod';
 import {scanInfoMatchesKey} from './subscriptions';
 
 test('scanInfoMatchesKey', () => {
@@ -112,320 +111,424 @@ test('scanInfoMatchesKey', () => {
   ).to.be.false;
 });
 
-function testScanLimitOptimizations({
-  options,
-  lastKeyReadInfo,
-  changedKey,
-  expected,
-}: {
-  options: ScanOptions;
-  lastKeyReadInfo: {
-    key: string;
-    isInclusiveLimit?: boolean;
-  };
-  changedKey: string;
-  expected: boolean;
-}) {
-  const isInclusiveLimitValuesToTest = lastKeyReadInfo.isInclusiveLimit
-    ? [lastKeyReadInfo.isInclusiveLimit]
-    : [true, false];
-  for (const isInclusiveLimit of isInclusiveLimitValuesToTest) {
-    const info = {
-      options,
-      lastKeyReadInfo: {
-        key: lastKeyReadInfo.key,
-        isInclusiveLimit,
-      },
-    };
-    expect(
-      scanInfoMatchesKey(info, '', changedKey),
-      `scanInfoMatchesKey(${JSON.stringify(
-        info,
-      )}, "", "${changedKey}"") should be ${expected}`,
-    ).to.equal(expected);
-  }
-}
-
 test('scanInfoMatchesKey limit optimizations', () => {
   // Start key tests
+  // Changed key is equal to inclusive start key
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          startKey: 'pac2',
+          limit: 10,
+        },
+      },
+      '',
+      'pac2',
+    ),
+  ).to.be.true;
 
-  testScanLimitOptimizations({
-    options: {
-      startKey: 'pac2',
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac8',
-      // expected for both isInclusiveLimit true and false
-    },
-    changedKey: 'pac2',
-    expected: true,
-  });
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          startKey: 'pac2',
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac8',
+      },
+      '',
+      'pac2',
+    ),
+  ).to.be.true;
 
-  testScanLimitOptimizations({
-    options: {
-      startKey: 'pac2',
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac8',
-      // expected for both isInclusiveLimit true and false
-    },
-    changedKey: 'pac4',
-    expected: true,
-  });
+  // Changed key is after start key, no inclusive limit key
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          startKey: 'pac2',
+          limit: 10,
+        },
+      },
+      '',
+      'pac4',
+    ),
+  ).to.be.true;
 
-  testScanLimitOptimizations({
-    options: {
-      startKey: 'pac2',
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac8',
-      // expected for both isInclusiveLimit true and false
-    },
-    changedKey: 'pac8',
-    expected: true,
-  });
+  // Changed key is between inclusive start and inclusive limit keys
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          startKey: 'pac2',
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac8',
+      },
+      '',
+      'pac4',
+    ),
+  ).to.be.true;
+
+  // Changed key is equal to inclusive limit key
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          startKey: 'pac2',
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac8',
+      },
+      '',
+      'pac8',
+    ),
+  ).to.be.true;
 
   // Changed key is after inclusive limit
-  testScanLimitOptimizations({
-    options: {
-      startKey: 'pac2',
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac8',
-      isInclusiveLimit: true,
-    },
-    changedKey: 'pac9',
-    expected: false,
-  });
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          startKey: 'pac2',
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac8',
+      },
+      '',
+      'pac9',
+    ),
+  ).to.be.false;
 
   // Changed key is before start key
-  testScanLimitOptimizations({
-    options: {
-      startKey: 'pac2',
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac8',
-      // expected for both isInclusiveLimit true and false
-    },
-    changedKey: 'pac1',
-    expected: false,
-  });
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          startKey: 'pac2',
+          limit: 10,
+        },
+      },
+      '',
+      'pac1',
+    ),
+  ).to.be.false;
+
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          startKey: 'pac2',
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac8',
+      },
+      '',
+      'pac1',
+    ),
+  ).to.be.false;
 
   // Changed key is equal to exclusive start key
-  testScanLimitOptimizations({
-    options: {
-      startKey: 'pac2',
-      startExclusive: true,
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac8',
-      // expected for both isInclusiveLimit true and false
-    },
-    changedKey: 'pac2',
-    expected: false,
-  });
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          startKey: 'pac2',
+          startExclusive: true,
+          limit: 10,
+        },
+      },
+      '',
+      'pac2',
+    ),
+  ).to.be.false;
+
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          startKey: 'pac2',
+          startExclusive: true,
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac8',
+      },
+      '',
+      'pac2',
+    ),
+  ).to.be.false;
 
   // No limit
-  testScanLimitOptimizations({
-    options: {
-      startKey: 'pac2',
-    },
-    lastKeyReadInfo: {
-      key: 'pac8',
-    },
-    changedKey: 'pac9',
-    expected: true,
-  });
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          startKey: 'pac2',
+        },
+        inclusiveLimitKey: 'pac8',
+      },
+      '',
+      'pac9',
+    ),
+  ).to.be.true;
 
-  // Prefix test
+  // Prefix tests
+  // Changed key matches prefix and is less than inclusive limit key
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac',
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac8',
+      },
+      '',
+      'pac1',
+    ),
+  ).to.be.true;
 
-  testScanLimitOptimizations({
-    options: {
-      prefix: 'pac',
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac8',
-      // expected for both isInclusiveLimit true and false
-    },
-    changedKey: 'pac1',
-    expected: true,
-  });
+  // Changed key matches prefix and equals nclusive limit key
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac',
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac8',
+      },
+      '',
+      'pac8',
+    ),
+  ).to.be.true;
 
-  testScanLimitOptimizations({
-    options: {
-      prefix: 'pac',
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac8',
-      // expected for both isInclusiveLimit true and false
-    },
-    changedKey: 'pac8',
-    expected: true,
-  });
+  // Changed key matches prefix but is after inclusive limit
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac',
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac8',
+      },
+      '',
+      'pac9',
+    ),
+  ).to.be.false;
 
-  // Changed key is after inclusive limit
-  testScanLimitOptimizations({
-    options: {
-      prefix: 'pac',
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac8',
-      isInclusiveLimit: true,
-    },
-    changedKey: 'pac9',
-    expected: false,
-  });
-
-  // Changed key doesn't match prefix
-  testScanLimitOptimizations({
-    options: {
-      prefix: 'pac',
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac8',
-      // expected for both isInclusiveLimit true and false
-    },
-    changedKey: 'pab',
-    expected: false,
-  });
+  // Changed key doesn't match prefix but is less than inclusive limit
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac',
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac8',
+      },
+      '',
+      'pab',
+    ),
+  ).to.be.true;
 
   // No limit
-  testScanLimitOptimizations({
-    options: {
-      prefix: 'pac',
-    },
-    lastKeyReadInfo: {
-      key: 'pac8',
-    },
-    changedKey: 'pac9',
-    expected: true,
-  });
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac',
+        },
+        inclusiveLimitKey: 'pac8',
+      },
+      '',
+      'pac9',
+    ),
+  ).to.be.true;
 
-  // Start and prefix
+  // Start and prefix tests
+  // Changed key is equal to inclusive start key and matches prefix
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac2',
+          startKey: 'pac22',
+          limit: 10,
+        },
+      },
+      '',
+      'pac22',
+    ),
+  ).to.be.true;
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac2',
+          startKey: 'pac22',
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac28',
+      },
+      '',
+      'pac22',
+    ),
+  ).to.be.true;
 
-  testScanLimitOptimizations({
-    options: {
-      prefix: 'pac2',
-      startKey: 'pac22',
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac28',
-      // expected for both isInclusiveLimit true and false
-    },
-    changedKey: 'pac22',
-    expected: true,
-  });
+  // Changed key is after start key and matches prefix, no inclusive limit key
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac2',
+          startKey: 'pac22',
+          limit: 10,
+        },
+      },
+      '',
+      'pac24',
+    ),
+  ).to.be.true;
 
-  testScanLimitOptimizations({
-    options: {
-      prefix: 'pac2',
-      startKey: 'pac22',
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac28',
-      // expected for both isInclusiveLimit true and false
-    },
-    changedKey: 'pac24',
-    expected: true,
-  });
+  // Changed key is between inclusive start and inclusive limit keys and matches prefix
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac2',
+          startKey: 'pac22',
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac28',
+      },
+      '',
+      'pac24',
+    ),
+  ).to.be.true;
 
-  testScanLimitOptimizations({
-    options: {
-      prefix: 'pac2',
-      startKey: 'pac22',
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac28',
-      // expected for both isInclusiveLimit true and false
-    },
-    changedKey: 'pac28',
-    expected: true,
-  });
+  // Changed key is equal to inclusive limit key and matches prefix
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac2',
+          startKey: 'pac22',
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac28',
+      },
+      '',
+      'pac28',
+    ),
+  ).to.be.true;
 
-  // Changed key is after inclusive limit
-  testScanLimitOptimizations({
-    options: {
-      prefix: 'pac2',
-      startKey: 'pac22',
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac28',
-      isInclusiveLimit: true,
-    },
-    changedKey: 'pac29',
-    expected: false,
-  });
+  // Changed key match prefix but is after inclusive limit
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac2',
+          startKey: 'pac22',
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac28',
+      },
+      '',
+      'pac29',
+    ),
+  ).to.be.false;
 
-  // Changed key is before start key
-  testScanLimitOptimizations({
-    options: {
-      prefix: 'pac2',
-      startKey: 'pac22',
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac28',
-      // expected for both isInclusiveLimit true and false
-    },
-    changedKey: 'pac21',
-    expected: false,
-  });
+  // Changed key matches prefix but is before start key
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac2',
+          startKey: 'pac22',
+          limit: 10,
+        },
+      },
+      '',
+      'pac21',
+    ),
+  ).to.be.false;
+
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac2',
+          startKey: 'pac22',
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac28',
+      },
+      '',
+      'pac21',
+    ),
+  ).to.be.false;
 
   // Changed key is equal to exclusive start key
-  testScanLimitOptimizations({
-    options: {
-      prefix: 'pac2',
-      startKey: 'pac22',
-      startExclusive: true,
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac28',
-      // expected for both isInclusiveLimit true and false
-    },
-    changedKey: 'pac22',
-    expected: false,
-  });
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac2',
+          startKey: 'pac22',
+          startExclusive: true,
+          limit: 10,
+        },
+      },
+      '',
+      'pac22',
+    ),
+  ).to.be.false;
+
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac2',
+          startKey: 'pac22',
+          startExclusive: true,
+          limit: 10,
+        },
+        inclusiveLimitKey: 'pac28',
+      },
+      '',
+      'pac22',
+    ),
+  ).to.be.false;
 
   // No limit
-  testScanLimitOptimizations({
-    options: {
-      prefix: 'pac2',
-      startKey: 'pac22',
-    },
-    lastKeyReadInfo: {
-      key: 'pac28',
-    },
-    changedKey: 'pac29',
-    expected: true,
-  });
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac2',
+          startKey: 'pac22',
+        },
+        inclusiveLimitKey: 'pac28',
+      },
+      '',
+      'pac29',
+    ),
+  ).to.be.true;
 
   // Changed key is between startKey and lastKey inclusive, but doesnt match prefix
-  testScanLimitOptimizations({
-    options: {
-      prefix: 'pac2',
-      startKey: 'pab1',
-      limit: 10,
-    },
-    lastKeyReadInfo: {
-      key: 'pac28',
-      // expected for both isInclusiveLimit true and false
-    },
-    changedKey: 'pab2',
-    expected: false,
-  });
+  expect(
+    scanInfoMatchesKey(
+      {
+        options: {
+          prefix: 'pac2',
+          startKey: 'pab1',
+        },
+        inclusiveLimitKey: 'pac28',
+      },
+      '',
+      'pab2',
+    ),
+  ).to.be.false;
 });

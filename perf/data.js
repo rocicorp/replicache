@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1636396357285,
+  "lastUpdate": 1636407350082,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -57817,6 +57817,86 @@ window.BENCHMARK_DATA = {
             "name": "[MemStore] create index 1024x5000",
             "value": 3.19,
             "range": "±83.4%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e0ab261120a896d87ec26fce5a9fdfb80b9a814f",
+          "message": "perf: Optimize subscriptions for scans with a limit (#669)\n\n### Problem \r\n\r\nRight now we do not use `limit` when determining if a `scan` is affected by a key.(https://github.com/rocicorp/replicache/blob/2d2340227184c058bcb49ed1070bf129eb7a0385/src/subscriptions.ts#L39). \r\n\r\nWe only use the `startKey` and `prefix`. This means that if we have something like:\r\n\r\n```js\r\nrep.subscripe(tx => {\r\n  for await (const entry of tx.scan({startKey: 'a', limit: 5}) {\r\n     console.log(e);\r\n  }\r\n}, {onData() {});\r\n```\r\n\r\nwe cannot tell whether a change to key `'x'` should affect the subscription function.\r\n\r\n### Solution\r\n\r\nInside `SubscriptionTransactionWrapper`'s `scan` method.\r\n- We currently only store a `ScanOptions` for each scan, update to store a `ScanSubrscriptionInfo`, consisting of `ScanOptions` and the new field `inclusiveLimitKey`. `inclusiveLimitKey` will be populated based on a callback driven by the scan implementation in `btree/node.ts` (this callback has to be threaded through a few layers)\r\n- Then in `scanOptionsMatchesKey` we know that a key does not match if there is a limit and the changed key is greater than the inclusiveLimitKey.  This works for both `prefix`, `startKey`, and a combination of `prefix` and `startKey`.  \r\n\r\nNote this optimization is only applied when a subscription reads its scan to its limit (it choses to stop early, or it runs out of entries).   We can optimize some cases where a subscription does not read its scan to its limit, however these optimization are only correct if the subscription body is a pure function on the replicache store state.  Subscription bodies should be pure in this way, but so far replicache behavior is correct even if they are not pure. We chose to not implement these further optimizations, erroring on the side of correctness over performance.  We can of course revisit this if it turns out not reading a scan to its limit is a common use case.  \r\n\r\n\r\n### Perf measurements\r\n\r\nThis greatly improves writeSubRead benchmark performance when random invalidates are used, **reducing the median time by ~70%**.  This benchmark uses 128 scans each using startKey and limit.   \r\n\r\nMade on my M1 Max w 64 GB of memory\r\n\r\nBefore this optimization:\r\n```\r\n[MemStore] writeSubRead randomInvalidates false 100MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.50/4.00/11.40/11.40 ms avg=4.56 ms (7 runs sampled)\r\n[MemStore] writeSubRead randomInvalidates true 100MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=9.50/12.70/19.70/19.70 ms avg=12.69 ms (7 runs sampled)\r\n```\r\n\r\nWith this optimization:\r\n```\r\nRunning 2 benchmarks on Chromium...\r\n[MemStore] writeSubRead randomInvalidates false 100MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.50/4.20/10.70/10.70 ms avg=4.49 ms (7 runs sampled)\r\n[MemStore] writeSubRead randomInvalidates true 100MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=3.00/4.40/11.10/11.10 ms avg=4.99 ms (7 runs sampled)\r\nDone!\r\n```\r\n\r\nCloses #666",
+          "timestamp": "2021-11-08T13:32:45-08:00",
+          "tree_id": "d354085224da09aa9122a8c26565dd21042cc839",
+          "url": "https://github.com/rocicorp/replicache/commit/e0ab261120a896d87ec26fce5a9fdfb80b9a814f"
+        },
+        "date": 1636407349813,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 384.62,
+            "range": "±4.2%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 277.78,
+            "range": "±8.0%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 303.03,
+            "range": "±3.0%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 8.63,
+            "range": "±87.9%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 4.67,
+            "range": "±56.5%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 3.62,
+            "range": "±56.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 238.19,
+            "range": "±5.7%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 3.14,
+            "range": "±87.3%",
             "unit": "ops/sec",
             "extra": "7 samples"
           }

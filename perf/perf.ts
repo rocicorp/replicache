@@ -176,7 +176,7 @@ export async function runBenchmarkByNameAndGroup(
   name: string,
   group: string,
   format: 'replicache' | 'benchmarkJS',
-): Promise<{jsonEntry: Entry; text: string} | {error: string} | undefined> {
+): Promise<{jsonEntries: Entry[]; text: string} | {error: string} | undefined> {
   const b = findBenchmark(name, group);
   try {
     const result = await runBenchmark(b);
@@ -184,7 +184,7 @@ export async function runBenchmarkByNameAndGroup(
       return undefined;
     }
     return {
-      jsonEntry: createGithubActionBenchmarkJSONEntry(result),
+      jsonEntries: createGithubActionBenchmarkJSONEntries(result),
       text:
         format === 'replicache'
           ? formatAsReplicache(result)
@@ -229,12 +229,23 @@ type Entry = {
   extra?: string;
 };
 
-function createGithubActionBenchmarkJSONEntry(result: BenchmarkResult): Entry {
-  return {
-    name: result.name,
-    unit: 'median ms',
-    value: result.runTimesStatistics.medianMs,
-    range: formatVariance(result.runTimesStatistics.variance),
-    extra: formatAsReplicache(result),
-  };
+function createGithubActionBenchmarkJSONEntries(
+  result: BenchmarkResult,
+): Entry[] {
+  return [
+    {
+      name: result.name,
+      unit: 'median ms',
+      value: result.runTimesStatistics.medianMs,
+      range: formatVariance(result.runTimesStatistics.variance),
+      extra: formatAsReplicache(result),
+    },
+    {
+      name: `${result.name} p95`,
+      unit: 'p95 ms',
+      value: result.runTimesStatistics.p95Ms,
+      range: formatVariance(result.runTimesStatistics.variance),
+      extra: formatAsReplicache(result),
+    },
+  ];
 }

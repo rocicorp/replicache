@@ -3,7 +3,7 @@ import type {ReadTransaction} from './transactions';
 import * as db from './db/mod';
 import type * as sync from './sync/mod';
 
-export type ScanSubrscriptionInfo = {
+export type ScanSubscriptionInfo = {
   options: db.ScanOptions;
   inclusiveLimitKey?: string;
 };
@@ -15,7 +15,7 @@ export type Subscription<R extends JSONValue | undefined, E> = {
   onDone?: () => void;
   lastValue?: R;
   keys: ReadonlySet<string>;
-  scans: ReadonlyArray<Readonly<ScanSubrscriptionInfo>>;
+  scans: ReadonlyArray<Readonly<ScanSubscriptionInfo>>;
 };
 
 function keyMatchesSubscription<V, E>(
@@ -42,7 +42,7 @@ function keyMatchesSubscription<V, E>(
 }
 
 export function scanInfoMatchesKey(
-  scanInfo: ScanSubrscriptionInfo,
+  scanInfo: ScanSubscriptionInfo,
   changeIndexName: string,
   changedKey: string,
 ): boolean {
@@ -124,7 +124,7 @@ export function scanInfoMatchesKey(
 }
 
 function isKeyPastInclusiveLimit(
-  scanInfo: ScanSubrscriptionInfo,
+  scanInfo: ScanSubscriptionInfo,
   changedKey: string,
 ): boolean {
   const {inclusiveLimitKey} = scanInfo;

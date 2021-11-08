@@ -10,7 +10,7 @@ import * as db from './db/mod';
 import * as sync from './sync/mod';
 import type {LogContext} from './logger';
 import type {Hash} from './hash';
-import type {ScanSubrscriptionInfo} from './subscriptions';
+import type {ScanSubscriptionInfo} from './subscriptions';
 
 /**
  * ReadTransactions are used with [[Replicache.query]] and
@@ -124,7 +124,7 @@ export class ReadTransactionImpl<
 // for use with Subscriptions.
 export class SubscriptionTransactionWrapper implements ReadTransaction {
   private readonly _keys: Set<string> = new Set();
-  private readonly _scans: ScanSubrscriptionInfo[] = [];
+  private readonly _scans: ScanSubscriptionInfo[] = [];
   private readonly _tx: ReadTransactionImpl;
 
   constructor(tx: ReadTransactionImpl) {
@@ -154,7 +154,7 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
   ): ScanResult<Key, ReadonlyJSONValue> {
-    const scanInfo: ScanSubrscriptionInfo = {
+    const scanInfo: ScanSubscriptionInfo = {
       options: toDbScanOptions(options),
     };
     this._scans.push(scanInfo);
@@ -167,7 +167,7 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
     return this._keys;
   }
 
-  get scans(): ScanSubrscriptionInfo[] {
+  get scans(): ScanSubscriptionInfo[] {
     return this._scans;
   }
 }

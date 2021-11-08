@@ -288,7 +288,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
     ),
   ).to.be.true;
 
-  // Changed key matches prefix and equals nclusive limit key
+  // Changed key matches prefix and equals inclusive limit key
   expect(
     scanInfoMatchesKey(
       {

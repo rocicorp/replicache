@@ -11,7 +11,7 @@ import {
 } from '../src/mod';
 import {jsonArrayTestData, TestDataObject, jsonObjectTestData} from './data';
 import type {Bencher, Benchmark} from './perf';
-import { range, sampleSize } from 'lodash-es';
+import {range, sampleSize} from 'lodash-es';
 
 export function benchmarkPopulate(opts: {
   numKeys: number;

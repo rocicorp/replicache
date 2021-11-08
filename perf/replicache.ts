@@ -11,8 +11,8 @@ import {
 } from '../src/mod';
 import {jsonArrayTestData, TestDataObject, jsonObjectTestData} from './data';
 import type {Bencher, Benchmark} from './perf';
-import { sample } from './random';
-import { rangeRight } from '../src/range';
+import {sample} from './random';
+import {rangeRight} from '../src/range';
 
 export function benchmarkPopulate(opts: {
   numKeys: number;
@@ -238,7 +238,7 @@ export function benchmarkWriteSubRead(opts: {
       // Build our random changes ahead of time, outside the timed window.
       // invalidate numSubsDirty different subscriptions by writing to the first key each is scanning.
       const changes = new Map(
-        sample(rangeRight(numSubsTotal), numSubsDirty).map((v, _) => [
+        sample(rangeRight(numSubsTotal), numSubsDirty).map(v => [
           sortedKeys[v * keysPerSub],
           jsonObjectTestData(valueSize),
         ]),

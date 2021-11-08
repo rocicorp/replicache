@@ -331,7 +331,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
       '',
       'pab',
     ),
-  ).to.be.true;
+  ).to.be.false;
 
   // No limit
   expect(

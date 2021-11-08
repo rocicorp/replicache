@@ -1237,8 +1237,7 @@ test('scan', async () => {
       }
       expect(res).to.deep.equal(expectedEntries);
       if (options.limit !== undefined) {
-        expect(res.length).to.be.lessThanOrEqual(options.limit);
-        if (res.length === options.limit && options.limit !== 0) {
+        if (options.limit > 0 && res.length === options.limit) {
           expect(onLimitKeyCalls.length).to.equal(1);
           expect(onLimitKeyCalls[0]).to.equal(res[res.length - 1][0]);
         } else {

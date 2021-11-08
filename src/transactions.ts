@@ -107,7 +107,7 @@ export class ReadTransactionImpl<
 
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
-    onKey?: (key: string, isInclusiveLimit: boolean) => void,
+    onLimitKey?: (key: string) => void,
   ): ScanResult<Key, Value> {
     const dbRead = this._dbtx;
     return new ScanResult(

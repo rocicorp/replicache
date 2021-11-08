@@ -1228,11 +1228,24 @@ test('scan', async () => {
 
     await doRead(rootHash, dagStore, async r => {
       const res: Entry<ReadonlyJSONValue>[] = [];
-      for await (const e of r.scan(options)) {
+      const onLimitKeyCalls: string[] = [];
+      const scanResult = r.scan(options, inclusiveLimitKey => {
+        onLimitKeyCalls.push(inclusiveLimitKey);
+      });
+      for await (const e of scanResult) {
         res.push(e);
       }
-
       expect(res).to.deep.equal(expectedEntries);
+      if (options.limit !== undefined) {
+        if (options.limit > 0 && res.length === options.limit) {
+          expect(onLimitKeyCalls.length).to.equal(1);
+          expect(onLimitKeyCalls[0]).to.equal(res[res.length - 1][0]);
+        } else {
+          expect(onLimitKeyCalls.length).to.equal(0);
+        }
+      } else {
+        expect(onLimitKeyCalls.length).to.equal(0);
+      }
     });
   };
 
@@ -1296,6 +1309,17 @@ test('scan', async () => {
       ['a', 1],
       ['b', 2],
     ],
+  );
+
+  await t(
+    [
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+      ['d', 4],
+      ['e', 5],
+    ],
+    {limit: 8},
   );
 
   await t(

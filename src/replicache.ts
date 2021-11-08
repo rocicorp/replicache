@@ -910,7 +910,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     type R =
       | {ok: true; value: JSONValue | undefined}
       | {ok: false; error: unknown};
-    const results = await this.query(async tx => {
+    const results = await this._queryInternal(async tx => {
       const promises = subs.map(async s => {
         // Tag the result so we can deal with success vs error below.
         try {
@@ -1000,6 +1000,12 @@ export class Replicache<MD extends MutatorDefs = {}> {
    * and `scan`.
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
+    return this._queryInternal(body);
+  }
+
+  private async _queryInternal<R>(
+    body: (tx: ReadTransactionImpl) => Promise<R> | R,
+  ): Promise<R> {
     await this._ready;
     // clientID must be awaited ouside dag transaction to avoid a premature
     // auto-commit of the idb transaction.
@@ -1009,33 +1015,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
       const tx = new ReadTransactionImpl(clientID, dbRead, this._lc);
       return await body(tx);
     });
-  }
-
-  /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
-  register<Return extends JSONValue | void>(
-    name: string,
-    mutatorImpl: (tx: WriteTransaction) => MaybePromise<Return>,
-  ): () => Promise<Return>;
-  /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
-  register<Return extends JSONValue | void, Args extends JSONValue>(
-    name: string,
-    mutatorImpl: (tx: WriteTransaction, args: Args) => MaybePromise<Return>,
-  ): (args: Args) => Promise<Return>;
-  /** @deprecated Use [[ReplicacheOptions.mutators]] instead. */
-  /* c8 ignore next 14 */
-  register<Return extends JSONValue | void, Args extends JSONValue>(
-    name: string,
-    mutatorImpl: (tx: WriteTransaction, args?: Args) => MaybePromise<Return>,
-  ): (args?: Args) => Promise<Return> {
-    this._mutatorRegistry.set(
-      name,
-      mutatorImpl as (
-        tx: WriteTransaction,
-        args: JSONValue | undefined,
-      ) => Promise<void | JSONValue>,
-    );
-
-    return this._register(name, mutatorImpl);
   }
 
   private _register<Return extends JSONValue | void, Args extends JSONValue>(

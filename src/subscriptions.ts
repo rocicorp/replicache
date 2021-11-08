@@ -3,6 +3,11 @@ import type {ReadTransaction} from './transactions';
 import * as db from './db/mod';
 import type * as sync from './sync/mod';
 
+export type ScanSubscriptionInfo = {
+  options: db.ScanOptions;
+  inclusiveLimitKey?: string;
+};
+
 export type Subscription<R extends JSONValue | undefined, E> = {
   body: (tx: ReadTransaction) => Promise<R>;
   onData: (r: R) => void;
@@ -10,7 +15,7 @@ export type Subscription<R extends JSONValue | undefined, E> = {
   onDone?: () => void;
   lastValue?: R;
   keys: ReadonlySet<string>;
-  scans: ReadonlyArray<Readonly<db.ScanOptions>>;
+  scans: ReadonlyArray<Readonly<ScanSubscriptionInfo>>;
 };
 
 function keyMatchesSubscription<V, E>(
@@ -27,8 +32,8 @@ function keyMatchesSubscription<V, E>(
     return true;
   }
 
-  for (const scanOpts of subscription.scans) {
-    if (scanOptionsMatchesKey(scanOpts, indexName, changedKey)) {
+  for (const scanInfo of subscription.scans) {
+    if (scanInfoMatchesKey(scanInfo, indexName, changedKey)) {
       return true;
     }
   }
@@ -36,16 +41,21 @@ function keyMatchesSubscription<V, E>(
   return false;
 }
 
-export function scanOptionsMatchesKey(
-  scanOpts: db.ScanOptions,
+export function scanInfoMatchesKey(
+  scanInfo: ScanSubscriptionInfo,
   changeIndexName: string,
   changedKey: string,
 ): boolean {
   const {indexName, prefix, startKey, startExclusive, startSecondaryKey} =
-    scanOpts;
+    scanInfo.options;
 
   if (!indexName) {
     if (changeIndexName) {
+      return false;
+    }
+
+    // A scan with limit <= 0 can have no matches
+    if (scanInfo.options.limit !== undefined && scanInfo.options.limit <= 0) {
       return false;
     }
 
@@ -55,13 +65,19 @@ export function scanOptionsMatchesKey(
       return true;
     }
 
-    if (prefix && !changedKey.startsWith(prefix)) {
+    if (
+      prefix &&
+      (!changedKey.startsWith(prefix) ||
+        isKeyPastInclusiveLimit(scanInfo, changedKey))
+    ) {
       return false;
     }
 
     if (
       startKey &&
-      ((startExclusive && changedKey <= startKey) || changedKey < startKey)
+      ((startExclusive && changedKey <= startKey) ||
+        changedKey < startKey ||
+        isKeyPastInclusiveLimit(scanInfo, changedKey))
     ) {
       return false;
     }
@@ -107,6 +123,18 @@ export function scanOptionsMatchesKey(
   return true;
 }
 
+function isKeyPastInclusiveLimit(
+  scanInfo: ScanSubscriptionInfo,
+  changedKey: string,
+): boolean {
+  const {inclusiveLimitKey} = scanInfo;
+  return (
+    scanInfo.options.limit !== undefined &&
+    inclusiveLimitKey !== undefined &&
+    changedKey > inclusiveLimitKey
+  );
+}
+
 export function* subscriptionsForChangedKeys<V, E>(
   subscriptions: Set<Subscription<V, E>>,
   changedKeysMap: sync.ChangedKeysMap,
@@ -128,7 +156,9 @@ export function* subscriptionsForIndexDefinitionChanged<V, E>(
   name: string,
 ): Generator<Subscription<V, E>> {
   for (const subscription of subscriptions) {
-    if (subscription.scans.some(opt => opt.indexName === name)) {
+    if (
+      subscription.scans.some(scanInfo => scanInfo.options.indexName === name)
+    ) {
       yield subscription;
     }
   }

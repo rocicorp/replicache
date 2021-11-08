@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1636396442063,
+  "lastUpdate": 1636407263802,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -2924,6 +2924,142 @@ window.BENCHMARK_DATA = {
             "unit": "p95 ms",
             "range": "±84.9%",
             "extra": "[MemStore] create index 1024x5000 50/75/90/95%=318.50/332.80/403.40/403.40 ms avg=421.63 ms (7 runs sampled)"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e0ab261120a896d87ec26fce5a9fdfb80b9a814f",
+          "message": "perf: Optimize subscriptions for scans with a limit (#669)\n\n### Problem \r\n\r\nRight now we do not use `limit` when determining if a `scan` is affected by a key.(https://github.com/rocicorp/replicache/blob/2d2340227184c058bcb49ed1070bf129eb7a0385/src/subscriptions.ts#L39). \r\n\r\nWe only use the `startKey` and `prefix`. This means that if we have something like:\r\n\r\n```js\r\nrep.subscripe(tx => {\r\n  for await (const entry of tx.scan({startKey: 'a', limit: 5}) {\r\n     console.log(e);\r\n  }\r\n}, {onData() {});\r\n```\r\n\r\nwe cannot tell whether a change to key `'x'` should affect the subscription function.\r\n\r\n### Solution\r\n\r\nInside `SubscriptionTransactionWrapper`'s `scan` method.\r\n- We currently only store a `ScanOptions` for each scan, update to store a `ScanSubrscriptionInfo`, consisting of `ScanOptions` and the new field `inclusiveLimitKey`. `inclusiveLimitKey` will be populated based on a callback driven by the scan implementation in `btree/node.ts` (this callback has to be threaded through a few layers)\r\n- Then in `scanOptionsMatchesKey` we know that a key does not match if there is a limit and the changed key is greater than the inclusiveLimitKey.  This works for both `prefix`, `startKey`, and a combination of `prefix` and `startKey`.  \r\n\r\nNote this optimization is only applied when a subscription reads its scan to its limit (it choses to stop early, or it runs out of entries).   We can optimize some cases where a subscription does not read its scan to its limit, however these optimization are only correct if the subscription body is a pure function on the replicache store state.  Subscription bodies should be pure in this way, but so far replicache behavior is correct even if they are not pure. We chose to not implement these further optimizations, erroring on the side of correctness over performance.  We can of course revisit this if it turns out not reading a scan to its limit is a common use case.  \r\n\r\n\r\n### Perf measurements\r\n\r\nThis greatly improves writeSubRead benchmark performance when random invalidates are used, **reducing the median time by ~70%**.  This benchmark uses 128 scans each using startKey and limit.   \r\n\r\nMade on my M1 Max w 64 GB of memory\r\n\r\nBefore this optimization:\r\n```\r\n[MemStore] writeSubRead randomInvalidates false 100MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.50/4.00/11.40/11.40 ms avg=4.56 ms (7 runs sampled)\r\n[MemStore] writeSubRead randomInvalidates true 100MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=9.50/12.70/19.70/19.70 ms avg=12.69 ms (7 runs sampled)\r\n```\r\n\r\nWith this optimization:\r\n```\r\nRunning 2 benchmarks on Chromium...\r\n[MemStore] writeSubRead randomInvalidates false 100MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.50/4.20/10.70/10.70 ms avg=4.49 ms (7 runs sampled)\r\n[MemStore] writeSubRead randomInvalidates true 100MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=3.00/4.40/11.10/11.10 ms avg=4.99 ms (7 runs sampled)\r\nDone!\r\n```\r\n\r\nCloses #666",
+          "timestamp": "2021-11-08T13:32:45-08:00",
+          "tree_id": "d354085224da09aa9122a8c26565dd21042cc839",
+          "url": "https://github.com/rocicorp/replicache/commit/e0ab261120a896d87ec26fce5a9fdfb80b9a814f"
+        },
+        "date": 1636407263560,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 2.5999999046325684,
+            "unit": "median ms",
+            "range": "±4.2%",
+            "extra": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.60/3.00/4.10/6.80 ms avg=3.24 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 6.799999713897705,
+            "unit": "p95 ms",
+            "range": "±4.2%",
+            "extra": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.60/3.00/4.10/6.80 ms avg=3.24 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 3.700000286102295,
+            "unit": "median ms",
+            "range": "±2.5%",
+            "extra": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=3.70/5.90/6.20/6.20 ms avg=5.10 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 6.200000286102295,
+            "unit": "p95 ms",
+            "range": "±2.5%",
+            "extra": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=3.70/5.90/6.20/6.20 ms avg=5.10 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 3.3000001907348633,
+            "unit": "median ms",
+            "range": "±2.9%",
+            "extra": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=3.30/3.80/6.20/6.20 ms avg=4.50 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 6.199999809265137,
+            "unit": "p95 ms",
+            "range": "±2.9%",
+            "extra": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=3.30/3.80/6.20/6.20 ms avg=4.50 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 120.09999990463257,
+            "unit": "median ms",
+            "range": "±55.4%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 0) 50/75/90/95%=120.10/123.50/175.50/175.50 ms avg=154.36 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0) p95",
+            "value": 175.5,
+            "unit": "p95 ms",
+            "range": "±55.4%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 0) 50/75/90/95%=120.10/123.50/175.50/175.50 ms avg=154.36 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 204.5,
+            "unit": "median ms",
+            "range": "±43.9%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 1) 50/75/90/95%=204.50/236.90/248.40/248.40 ms avg=268.26 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1) p95",
+            "value": 248.40000009536743,
+            "unit": "p95 ms",
+            "range": "±43.9%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 1) 50/75/90/95%=204.50/236.90/248.40/248.40 ms avg=268.26 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 275.40000009536743,
+            "unit": "median ms",
+            "range": "±52.3%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 2) 50/75/90/95%=275.40/281.30/327.70/327.70 ms avg=350.34 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2) p95",
+            "value": 327.69999980926514,
+            "unit": "p95 ms",
+            "range": "±52.3%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 2) 50/75/90/95%=275.40/281.30/327.70/327.70 ms avg=350.34 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 4.199999809265137,
+            "unit": "median ms",
+            "range": "±5.0%",
+            "extra": "[MemStore] scan 1024x1000 50/75/90/95%=4.20/5.20/7.90/9.20 ms avg=4.99 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000 p95",
+            "value": 9.199999809265137,
+            "unit": "p95 ms",
+            "range": "±5.0%",
+            "extra": "[MemStore] scan 1024x1000 50/75/90/95%=4.20/5.20/7.90/9.20 ms avg=4.99 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 318.30000019073486,
+            "unit": "median ms",
+            "range": "±71.7%",
+            "extra": "[MemStore] create index 1024x5000 50/75/90/95%=318.30/354.30/390.00/390.00 ms avg=423.27 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000 p95",
+            "value": 390,
+            "unit": "p95 ms",
+            "range": "±71.7%",
+            "extra": "[MemStore] create index 1024x5000 50/75/90/95%=318.30/354.30/390.00/390.00 ms avg=423.27 ms (7 runs sampled)"
           }
         ]
       }

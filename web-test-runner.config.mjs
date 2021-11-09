@@ -22,7 +22,7 @@ export default {
     {
       name: 'Main',
       files: [
-        'src/*test.ts',
+        'src/*.test.ts',
         'src/dag/*.test.ts',
         'src/db/*.test.ts',
         'src/kv/*.test.ts',
@@ -30,6 +30,7 @@ export default {
         'src/sync/*.test.ts',
         'src/migrate/*.test.ts',
         'src/btree/*.test.ts',
+        // src/worker-tests/ intentioanly excluded, see separate Worker group below
       ],
       browsers: [firefox, chromium, webkit],
     },

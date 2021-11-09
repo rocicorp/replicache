@@ -3,8 +3,6 @@ name: Bundle Sizes
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
   benchmark:
@@ -20,7 +18,7 @@ jobs:
       - run: brotli ./out/*
       
       # Builds bundles then measures bundles sizes and stores them to a file
-      - name: Build and measure bundles
+      - name: Measure bundles
         run: node perf/bundle-sizes --bundles replicache.js replicache.js.br replicache.mjs replicache.mjs.br | tee bundle-sizes.json
 
       # install above may have modified package-lock, in which case

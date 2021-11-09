@@ -40,7 +40,7 @@ async function main() {
   for (const bundle of options.bundles) {
     const stats = await fs.stat(path.join(options.dir, bundle));
     jsonEntries.push({
-      name: `${bundle} size`,
+      name: `Size of ${bundle}`,
       unit: 'bytes',
       value: stats.size,
     });

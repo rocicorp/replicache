@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1636476111571,
+  "lastUpdate": 1636476231136,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -137,6 +137,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "replicache.mjs.br size",
             "value": 34659,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "eric@ericanderson.ca",
+            "name": "Eric Anderson",
+            "username": "aroc"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "29ab1cd78593f937371a03c78c57d6600a909e74",
+          "message": "Fix import from wrong lib",
+          "timestamp": "2021-11-09T06:43:22-10:00",
+          "tree_id": "5f2e49e296d540f573ef8ed9ae99c24c5d7b1747",
+          "url": "https://github.com/rocicorp/replicache/commit/29ab1cd78593f937371a03c78c57d6600a909e74"
+        },
+        "date": 1636476230611,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "replicache.js size",
+            "value": 184990,
+            "unit": "bytes"
+          },
+          {
+            "name": "replicache.mjs size",
+            "value": 184636,
             "unit": "bytes"
           }
         ]

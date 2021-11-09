@@ -151,6 +151,8 @@ During release, below, we reset the `docs` branch to main, dropping these cherry
 
 # Performance Monitoring
 
-We continuously track performance across a variety of benchmarks. Results here:
+We continuously track performance across a variety of benchmarks and the size of Replicache's bundle.
+Results here:
 
-https://rocicorp.github.io/replicache/perf-v2/
+- [Performance Benchmarks](https://rocicorp.github.io/replicache/perf-v2/)
+- [Bundle Sizes](https://rocicorp.github.io/replicache/bundle-sizes)

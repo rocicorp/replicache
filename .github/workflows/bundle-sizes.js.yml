@@ -21,6 +21,8 @@ jobs:
       - name: Build and measure bundles
         run: npm run build && node perf/bundle-sizes | tee bundle-sizes.json
 
+      - run: git restore package-lock.json
+
       # Run `github-action-benchmark` action
       - name: Store benchmark result
         uses: rhysd/github-action-benchmark@v1

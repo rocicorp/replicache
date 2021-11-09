@@ -40,7 +40,9 @@ async function main() {
   for (const bundle of options.bundles) {
     const stats = await fs.stat(path.join(options.dir, bundle));
     jsonEntries.push({
-      name: `Size of ${bundle}${bundle.endsWith('.br') ? ' (Brotli compressed)' :''}`,
+      name: `Size of ${bundle}${
+        bundle.endsWith('.br') ? ' (Brotli compressed)' : ''
+      }`,
       unit: 'bytes',
       value: stats.size,
     });

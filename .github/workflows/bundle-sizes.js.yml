@@ -16,8 +16,6 @@ jobs:
         with:
           node-version: 16.x
 
-      - run: npm ci
-
       # Run benchmark and stores the output to a file
       - name: Run benchmark
         run: npm run build && node perf/bundle-sizes | tee bundle-sizes.json

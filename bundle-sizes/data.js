@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1636474232472,
+  "lastUpdate": 1636475547808,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -57,6 +57,36 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/1fa2cfdc6334cbc8db8c506477397c4590b44e44"
         },
         "date": 1636474232159,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "replicache.js size",
+            "value": 184990,
+            "unit": "bytes"
+          },
+          {
+            "name": "replicache.mjs size",
+            "value": 184636,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "rocicorp",
+            "username": "rocicorp"
+          },
+          "committer": {
+            "name": "rocicorp",
+            "username": "rocicorp"
+          },
+          "id": "89b38b43b42f3b277f9a0cf83097f0d8d72118ee",
+          "message": "try to brotli compress bundles",
+          "timestamp": "2021-11-09T16:10:04Z",
+          "url": "https://github.com/rocicorp/replicache/pull/679/commits/89b38b43b42f3b277f9a0cf83097f0d8d72118ee"
+        },
+        "date": 1636475546108,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

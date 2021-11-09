@@ -1,0 +1,35 @@
+name: Bundle Sizes
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  benchmark:
+    name: Bundle sizes check
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 16.x
+
+      # Run benchmark and stores the output to a file
+      - name: Run benchmark
+        run: npm run build && node perf/bundle-sizes | tee bundle-sizes.json
+
+      # Run `github-action-benchmark` action
+      - name: Store benchmark result
+        uses: rhysd/github-action-benchmark@v1
+        with:
+          # What benchmark tool the output.json came from
+        tool: 'customSmallerIsBetter'
+          # Where the output from the benchmark tool is stored
+          output-file-path: bundle-sizes.json
+          # Workflow will fail when an alert happens
+          fail-on-alert: true
+          github-token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
+          benchmark-data-dir-path: bundle-sizes
+          auto-push: true
+          alert-threshold: '105%'
+          comment-on-alert: true

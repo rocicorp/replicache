@@ -325,7 +325,7 @@ function commitFromCommitData(data: CommitData): Commit {
   return new Commit(chunkFromCommitData(data));
 }
 
-export function getRefs(data: CommitData): Hash[] {
+function getRefs(data: CommitData): Hash[] {
   const refs: Hash[] = [data.valueHash];
   const {meta} = data;
   switch (meta.type) {
@@ -354,7 +354,7 @@ export type CommitData = {
   readonly indexes: IndexRecord[];
 };
 
-export function assertCommitData(v: unknown): asserts v is CommitData {
+function assertCommitData(v: unknown): asserts v is CommitData {
   assertObject(v);
   assertMeta(v.meta);
   assertString(v.valueHash);

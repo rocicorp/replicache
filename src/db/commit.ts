@@ -261,11 +261,6 @@ function assertIndexRecord(v: unknown): asserts v is IndexRecord {
   assertString(v.valueHash);
 }
 
-const enum RefType {
-  Strong,
-  Weak,
-}
-
 export function newLocal(
   basisHash: Hash | null,
   mutationID: number,
@@ -275,7 +270,7 @@ export function newLocal(
   valueHash: Hash,
   indexes: IndexRecord[],
 ): Commit {
-  const localMeta: LocalMeta = {
+  const meta: LocalMeta = {
     type: MetaTyped.Local,
     basisHash,
     mutationID,
@@ -283,13 +278,7 @@ export function newLocal(
     mutatorArgsJSON,
     originalHash,
   };
-  return newImpl(
-    asRef(basisHash, RefType.Strong),
-    localMeta,
-    asRef(valueHash, RefType.Strong),
-    asRef(originalHash, RefType.Weak),
-    indexes,
-  );
+  return commitFromCommitData({meta, valueHash, indexes});
 }
 
 export function newSnapshot(
@@ -299,19 +288,13 @@ export function newSnapshot(
   valueHash: Hash,
   indexes: IndexRecord[],
 ): Commit {
-  const snapshotMeta: SnapshotMeta = {
+  const meta: SnapshotMeta = {
     type: MetaTyped.Snapshot,
     basisHash,
     lastMutationID,
     cookieJSON,
   };
-  return newImpl(
-    asRef(basisHash, RefType.Weak),
-    snapshotMeta,
-    asRef(valueHash, RefType.Strong),
-    null,
-    indexes,
-  );
+  return commitFromCommitData({meta, valueHash, indexes});
 }
 
 export function newIndexChange(
@@ -320,18 +303,12 @@ export function newIndexChange(
   valueHash: Hash,
   indexes: IndexRecord[],
 ): Commit {
-  const indexChangeMeta: IndexChangeMeta = {
+  const meta: IndexChangeMeta = {
     type: MetaTyped.IndexChange,
     basisHash,
     lastMutationID,
   };
-  return newImpl(
-    asRef(basisHash, RefType.Strong),
-    indexChangeMeta,
-    asRef(valueHash, RefType.Strong),
-    null,
-    indexes,
-  );
+  return commitFromCommitData({meta, valueHash, indexes});
 }
 
 export function fromChunk(chunk: Chunk): Commit {
@@ -339,43 +316,36 @@ export function fromChunk(chunk: Chunk): Commit {
   return new Commit(chunk);
 }
 
-function asRef(h: null, t: RefType): null;
-function asRef(h: Hash, t: RefType): Ref;
-function asRef(h: Hash | null, t: RefType): Ref | null;
-function asRef(h: Hash | null, t: RefType): Ref | null {
-  if (h === null) {
-    return null;
-  }
-  return {t, h};
+function chunkFromCommitData(data: CommitData): Chunk<CommitData> {
+  const refs = getRefs(data);
+  return Chunk.new(data, refs);
 }
 
-type Ref = {
-  t: RefType;
-  h: Hash;
-};
+function commitFromCommitData(data: CommitData): Commit {
+  return new Commit(chunkFromCommitData(data));
+}
 
-function newImpl(
-  basisHash: Ref | null,
-  meta: LocalMeta | SnapshotMeta | IndexChangeMeta,
-  valueHash: Ref,
-  originalHash: Ref | null,
-  indexes: IndexRecord[],
-): Commit {
-  const refs: (Ref | null)[] = [valueHash, basisHash, originalHash];
-  const strongRefs = (
-    refs.filter(r => r && r.t === RefType.Strong) as Ref[]
-  ).map(r => r.h);
-  for (const index of indexes) {
-    strongRefs.push(index.valueHash);
+function getRefs(data: CommitData): Hash[] {
+  const refs: Hash[] = [data.valueHash];
+  const {meta} = data;
+  switch (meta.type) {
+    case MetaTyped.IndexChange:
+      meta.basisHash && refs.push(meta.basisHash);
+      break;
+    case MetaTyped.Local:
+      meta.basisHash && refs.push(meta.basisHash);
+      // Local has weak originalHash
+      break;
+    case MetaTyped.Snapshot:
+      // Snapshot has weak basisHash
+      break;
   }
 
-  const data: CommitData = {
-    meta,
-    valueHash: valueHash.h,
-    indexes,
-  };
-  const chunk = Chunk.new(data, strongRefs);
-  return new Commit(chunk);
+  for (const index of data.indexes) {
+    refs.push(index.valueHash);
+  }
+
+  return refs;
 }
 
 export type CommitData = {

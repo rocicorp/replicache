@@ -44,7 +44,7 @@ values={[
 
 ```ts
 import {Replicache} from 'replicache';
-import {useSubscribe} from 'replicache';
+import {useSubscribe} from 'replicache-react';
 import {nanoid} from 'nanoid';
 
 const rep = new Replicache({

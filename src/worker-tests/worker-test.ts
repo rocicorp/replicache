@@ -1,11 +1,11 @@
 // This test file is loaded by worker.test.ts
 
-import {ReplicacheTest} from './test-util';
-import type {ReadTransaction, WriteTransaction} from './transactions';
-import {asyncIterableToArray} from './async-iterable-to-array';
+import {ReplicacheTest} from '../test-util';
+import type {ReadTransaction, WriteTransaction} from '../transactions';
+import {asyncIterableToArray} from '../async-iterable-to-array';
 import {expect} from '@esm-bundle/chai';
-import type {JSONValue} from './json';
-import {closeAllReps, reps} from './test-util';
+import type {JSONValue} from '../json';
+import {closeAllReps, reps} from '../test-util';
 
 onmessage = async (e: MessageEvent) => {
   const {name, useMemstore} = e.data;

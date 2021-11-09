@@ -22,16 +22,7 @@ export default {
     {
       name: 'Main',
       files: [
-        // All but worker.test.ts
-        'src/connection-loop.test.ts',
-        'src/json.test.ts',
-        'src/rw-lock.test.ts',
-        'src/hash.test.ts',
-        'src/replicache.test.ts',
-        'src/hash.test.ts',
-        'src/subscriptions.test.ts',
-        'src/web-lock.test.ts',
-
+        'src/*.test.ts',
         'src/dag/*.test.ts',
         'src/db/*.test.ts',
         'src/kv/*.test.ts',
@@ -39,12 +30,13 @@ export default {
         'src/sync/*.test.ts',
         'src/migrate/*.test.ts',
         'src/btree/*.test.ts',
+        // src/worker-tests/ intentioanly excluded, see separate Worker group below
       ],
       browsers: [firefox, chromium, webkit],
     },
     {
       name: 'Worker',
-      files: 'src/worker.test.ts',
+      files: 'src/worker-tests/worker.test.ts',
       // Only Chrome supports modules in workers at the moment
       browsers: [chromium],
     },

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1636477353797,
+  "lastUpdate": 1636495340477,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -58537,6 +58537,86 @@ window.BENCHMARK_DATA = {
             "name": "[MemStore] create index 1024x5000",
             "value": 3.13,
             "range": "±73.2%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6996df2a55e0ad54d319dc1ee71c2dca19658eb3",
+          "message": " docs: Add Bundle Sizes dashboard to HACKING.md (#680)",
+          "timestamp": "2021-11-09T22:00:36Z",
+          "tree_id": "1430b464de31793607ce754674c6881cbe62252d",
+          "url": "https://github.com/rocicorp/replicache/commit/6996df2a55e0ad54d319dc1ee71c2dca19658eb3"
+        },
+        "date": 1636495340098,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 384.62,
+            "range": "±3.2%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 217.39,
+            "range": "±2.0%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 196.08,
+            "range": "±2.0%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 8.76,
+            "range": "±66.5%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 4.65,
+            "range": "±69.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 3.65,
+            "range": "±55.1%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 238.19,
+            "range": "±5.0%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 3.17,
+            "range": "±75.2%",
             "unit": "ops/sec",
             "extra": "7 samples"
           }

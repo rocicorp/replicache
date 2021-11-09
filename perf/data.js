@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1636427964358,
+  "lastUpdate": 1636474337307,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -58297,6 +58297,86 @@ window.BENCHMARK_DATA = {
             "name": "[MemStore] create index 1024x5000",
             "value": 3.15,
             "range": "±87.7%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1fa2cfdc6334cbc8db8c506477397c4590b44e44",
+          "message": "refactor: Rework test config to avoid missing new tests in src/ (#676)\n\n### Problem\r\nNew tests added to the `src/` dir are not run by `npm run test` unless the are explicitly added to `web-test-runner.config.mjs`.  This is unexpected as tests added to subdirs of src are automatically included, and so I was confused for sometime as to why a new test I added wasn't running.  \r\n\r\nThe reason for this is we don't want to run `src/worker.test.ts` with the other tests.\r\n\r\n### Solution\r\nMove `worker.test.ts` and `worker-test.ts` to a subdir `worker-tests`, and add `src/*.test.ts` to files config in `web-test-runner.config.mjs`.  Now new tests added to `src/` will automatically be included in `npm run test`.",
+          "timestamp": "2021-11-09T16:10:00Z",
+          "tree_id": "f9ca8796a9b450624c4b8841eccf4309cc1012ab",
+          "url": "https://github.com/rocicorp/replicache/commit/1fa2cfdc6334cbc8db8c506477397c4590b44e44"
+        },
+        "date": 1636474337030,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 384.62,
+            "range": "±4.0%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 208.33,
+            "range": "±9.0%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 166.67,
+            "range": "±2.0%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 8.67,
+            "range": "±73.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 4.7,
+            "range": "±71.3%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 3.6,
+            "range": "±56.3%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 238.19,
+            "range": "±5.4%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 3.16,
+            "range": "±82.4%",
             "unit": "ops/sec",
             "extra": "7 samples"
           }

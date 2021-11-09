@@ -30,6 +30,7 @@ jobs:
       - name: Store bundle size
         uses: rhysd/github-action-benchmark@v1
         with:
+          name: 'Bundle Sizes'
           tool: 'customSmallerIsBetter'
           output-file-path: bundle-sizes.json
           fail-on-alert: true

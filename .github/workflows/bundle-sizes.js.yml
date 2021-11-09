@@ -15,9 +15,10 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: 16.x
-
+      - run: npm install
+      
       # Builds bundles then measures bundles sizes and stores them to a file
-      - name: Run benchmark
+      - name: Build and measure bundles
         run: npm run build && node perf/bundle-sizes | tee bundle-sizes.json
 
       # Run `github-action-benchmark` action

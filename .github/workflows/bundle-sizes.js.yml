@@ -3,8 +3,6 @@ name: Bundle Sizes
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
   benchmark:
@@ -21,20 +19,20 @@ jobs:
       - name: Build and measure bundles
         run: npm run build && node perf/bundle-sizes | tee bundle-sizes.json
 
+      # install above may have modified package-lock, in which case
+      # rhysd/github-action-benchmark@v1 will error when trying to switch
+      # branches to commit the new data to the gh-pages branch
       - run: git restore package-lock.json
 
       # Run `github-action-benchmark` action
-      - name: Store benchmark result
+      - name: Store bundle size
         uses: rhysd/github-action-benchmark@v1
         with:
-          # What benchmark tool the output.json came from
           tool: 'customSmallerIsBetter'
-          # Where the output from the benchmark tool is stored
           output-file-path: bundle-sizes.json
-          # Workflow will fail when an alert happens
           fail-on-alert: true
           github-token: ${{ secrets.PERSONAL_GITHUB_TOKEN }}
           benchmark-data-dir-path: bundle-sizes
-          auto-push: false
+          auto-push: true
           alert-threshold: '105%'
           comment-on-alert: true

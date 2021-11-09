@@ -38,14 +38,12 @@ async function main() {
 
   const jsonEntries = [];
   for (const bundle of options.bundles) {
-    const stats = await fs.stat(
-      path.join(options.dir, bundle),
-    );
+    const stats = await fs.stat(path.join(options.dir, bundle));
     jsonEntries.push({
       name: `${bundle} size`,
       unit: 'bytes',
-      value: stats.size
-    })
+      value: stats.size,
+    });
   }
 
   process.stdout.write(JSON.stringify(jsonEntries, undefined, 2) + '\n');

@@ -15,6 +15,7 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: 16.x
+      - run: apt-get install -y --no-install-recommends brotli
       - run: npm install
       
       # Builds bundles then measures bundles sizes and stores them to a file

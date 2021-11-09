@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1636416030465,
+  "lastUpdate": 1636418150790,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -58057,6 +58057,86 @@ window.BENCHMARK_DATA = {
             "name": "[MemStore] create index 1024x5000",
             "value": 3.13,
             "range": "±79.7%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "212f6ad4a10479ddb866135b61e60c3fea5f5669",
+          "message": "refactor: Change commit refs computation (#675)\n\nMain motivation is to be able to compute the refs directly from the\r\nchunk data but this simplifies the code a bit. We used to have an object\r\ntelling us if the Hash in the commit was Weak or Strong. It was only\r\nused internally when computing the actual refs. Now we keep this logic\r\nin one place and we do need to keep this extra type around.",
+          "timestamp": "2021-11-09T00:34:23Z",
+          "tree_id": "4093c0cb3eb0c2ba6cd32ccf5b0baa69ca6f4232",
+          "url": "https://github.com/rocicorp/replicache/commit/212f6ad4a10479ddb866135b61e60c3fea5f5669"
+        },
+        "date": 1636418150507,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 384.62,
+            "range": "±4.2%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 270.27,
+            "range": "±8.4%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 312.5,
+            "range": "±3.0%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 8.17,
+            "range": "±55.8%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 4.69,
+            "range": "±43.2%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 3.69,
+            "range": "±56.7%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 238.19,
+            "range": "±6.0%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 3.14,
+            "range": "±79.1%",
             "unit": "ops/sec",
             "extra": "7 samples"
           }

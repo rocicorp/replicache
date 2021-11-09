@@ -11,6 +11,7 @@ import {
 } from '../src/mod';
 import {jsonArrayTestData, TestDataObject, jsonObjectTestData} from './data';
 import type {Bencher, Benchmark} from './perf';
+import {range, sampleSize} from 'lodash-es';
 
 export function benchmarkPopulate(opts: {
   numKeys: number;
@@ -236,8 +237,8 @@ export function benchmarkWriteSubRead(opts: {
       // Build our random changes ahead of time, outside the timed window.
       // invalidate numSubsDirty different subscriptions by writing to the first key each is scanning.
       const changes = new Map(
-        Array.from({length: numSubsDirty}).map((_, i) => [
-          sortedKeys[i * keysPerSub],
+        sampleSize(range(numSubsTotal), numSubsDirty).map(v => [
+          sortedKeys[v * keysPerSub],
           jsonObjectTestData(valueSize),
         ]),
       );

@@ -1,7 +1,8 @@
 import {expect} from '@esm-bundle/chai';
 import {MemStore} from '../kv/mod';
 import {Chunk} from './chunk';
-import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
+import {ChunkType} from './chunk-type';
+import {chunkDataKey, chunkRefCountKey, headKey} from './key';
 import {Write} from './write';
 import type * as kv from '../kv/mod';
 import {Read} from './read';
@@ -13,38 +14,30 @@ setup(async () => {
 });
 
 test('put chunk', async () => {
-  const t = async (data: Value, refs: Hash[]) => {
+  const t = async (data: Value) => {
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
-      const c = Chunk.new(data, refs);
+      const c = Chunk.new(ChunkType.NoRefs, data);
       await w.putChunk(c);
 
       const kd = chunkDataKey(c.hash);
-      const km = chunkMetaKey(c.hash);
 
       // The chunk data should always be there.
-      expect(await kvw.get(kd)).to.deep.equal(c.data);
-
-      // The chunk meta should only be there if there were refs.
-      if (refs.length === 0) {
-        expect(await kvw.has(km)).to.be.false;
-      } else {
-        expect(await kvw.get(km)).to.deep.equal(c.meta);
-      }
+      expect(await kvw.get(kd)).to.deep.equal([c.type, c.data]);
     });
   };
 
-  await t(0, []);
-  await t(42, []);
-  await t(true, []);
-  await t(false, []);
-  await t('', []);
-  await t('hello', []);
-  await t([], []);
-  await t([1], []);
-  await t({}, []);
-  await t({a: 42}, []);
+  await t(0);
+  await t(42);
+  await t(true);
+  await t(false);
+  await t('');
+  await t('hello');
+  await t([]);
+  await t([1]);
+  await t({});
+  await t({a: 42});
 });
 
 async function assertRefCount(kvr: kv.Read, hash: Hash, count: number) {
@@ -174,7 +167,7 @@ test('commit rollback', async () => {
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
-      const c = Chunk.new([0, 1], []);
+      const c = Chunk.new(ChunkType.NoRefs, [0, 1]);
       await w.putChunk(c);
 
       key = chunkDataKey(c.hash);
@@ -205,7 +198,7 @@ test('commit rollback', async () => {
 test('roundtrip', async () => {
   const t = async (name: string, data: Value, refs: Hash[]) => {
     const kv = new MemStore();
-    const c = Chunk.new(data, refs);
+    const c = Chunk.new(ChunkType.Test, [data, refs]);
     await kv.withWrite(async kvw => {
       const w = new Write(kvw);
       await w.putChunk(c);

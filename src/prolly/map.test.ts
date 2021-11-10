@@ -5,6 +5,7 @@ import {stringCompare} from './string-compare';
 import * as prolly from './mod';
 import {initHasher} from '../hash';
 import {binarySearch, Entry} from './map';
+import {ChunkType} from '../dag/chunk-type';
 
 setup(async () => {
   await initHasher();
@@ -180,7 +181,7 @@ test('load errors', async () => {
     let err;
     try {
       // @ts-expect-error Constructor is private
-      const chunk = new Chunk('hash', data, undefined);
+      const chunk = new Chunk(ChunkType.ProllyMap, 'hash', data);
       prolly.fromChunk(chunk);
     } catch (e) {
       err = e;

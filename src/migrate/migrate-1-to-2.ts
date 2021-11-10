@@ -5,7 +5,8 @@ import {assertEntries} from '../prolly/mod';
 import * as sync from '../sync/mod';
 import type {LogContext} from '../logger';
 import {BTreeWrite} from '../btree/mod';
-import {IndexRecord, MetaTyped} from '../db/commit';
+import type {IndexRecord} from '../db/commit';
+import {MetaTyped} from '../db/meta-typed';
 import type {Hash} from '../hash';
 import {setCurrentVersion} from './migrate-0-to-1';
 

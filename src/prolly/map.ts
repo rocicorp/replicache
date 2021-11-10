@@ -7,6 +7,7 @@ import {Leaf as LeafFB} from './generated/leaf/leaf';
 import * as utf8 from '../utf8';
 import {LeafEntry as LeafEntryFB} from './generated/leaf/leaf-entry';
 import type {Hash} from '../hash';
+import {ChunkType} from '../dag/chunk-type';
 
 export type Entry = readonly [key: string, value: ReadonlyJSONValue];
 
@@ -98,7 +99,7 @@ class ProllyMap {
     const entries = this._entries;
     // Now it is no longer safe to mutate the entries.
     this._isReadonly = true;
-    const chunk = dag.Chunk.new(entries, []);
+    const chunk = dag.Chunk.new(ChunkType.ProllyMap, entries);
     this._pendingChangedKeys.clear();
     await write.putChunk(chunk);
     return chunk.hash;
@@ -188,7 +189,7 @@ function assertEntry(v: ReadonlyJSONValue): asserts v is Entry {
 }
 
 export function assertEntries(
-  v: ReadonlyJSONValue,
+  v: ReadonlyJSONValue | undefined,
 ): asserts v is ReadonlyArray<Entry> {
   assertArray(v);
   for (const e of v as ReadonlyArray<ReadonlyJSONValue>) {

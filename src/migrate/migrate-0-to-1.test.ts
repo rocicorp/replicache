@@ -15,7 +15,8 @@ import * as db from '../db/mod';
 import * as sync from '../sync/mod';
 import * as utf8 from '../utf8';
 import * as prolly from '../prolly/mod';
-import {CommitData, MetaTyped} from '../db/commit';
+import type {CommitData} from '../db/commit';
+import {MetaTyped} from '../db/meta-typed';
 import {hashOf, initHasher} from '../hash';
 
 setup(async () => {

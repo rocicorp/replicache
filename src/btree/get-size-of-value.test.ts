@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import {getSizeOfValue, NODE_HEADER_SIZE} from './get-size-of-value';
-import {DataNode, NODE_ENTRIES} from './node';
+import {DataNode, NODE_ENTRIES} from './node-types';
 
 test('getSizeOfValue', async () => {
   expect(getSizeOfValue(null)).to.equal(1);

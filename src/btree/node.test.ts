@@ -1,22 +1,20 @@
 import {expect, assert} from '@esm-bundle/chai';
 import {Chunk} from '../dag/chunk';
+import {ChunkType} from '../dag/chunk-type';
 import * as dag from '../dag/mod';
 import type {ScanOptionsInternal} from '../db/scan';
 import {emptyHash, Hash, initHasher} from '../hash';
 import type {ReadonlyJSONValue} from '../json';
 import * as kv from '../kv/mod';
 import {
-  DataNode,
   findLeaf,
-  InternalNode,
   partition,
   assertBTreeNode,
-  Entry,
   DiffResult,
   DiffResultOp,
-  NODE_LEVEL,
-  NODE_ENTRIES,
 } from './node';
+import type {Entry} from './entry-type';
+import {DataNode, InternalNode, NODE_LEVEL, NODE_ENTRIES} from './node-types';
 import {BTreeWrite} from './write';
 import {BTreeRead} from './read';
 import {getSizeOfValue} from './get-size-of-value';
@@ -61,9 +59,9 @@ test('findLeaf', async () => {
   let rootHash: Hash;
 
   await dagStore.withWrite(async dagWrite => {
-    const c0 = Chunk.new(leaf0, []);
-    const c1 = Chunk.new(leaf1, []);
-    const c2 = Chunk.new(leaf2, []);
+    const c0 = Chunk.new(ChunkType.BTreeNode, leaf0);
+    const c1 = Chunk.new(ChunkType.BTreeNode, leaf1);
+    const c2 = Chunk.new(ChunkType.BTreeNode, leaf2);
 
     h0 = c0.hash;
     h1 = c1.hash;
@@ -78,7 +76,7 @@ test('findLeaf', async () => {
       ],
     ];
 
-    const rootChunk = Chunk.new(root, [h0, h1, h2]);
+    const rootChunk = Chunk.new(ChunkType.BTreeNode, root);
     rootHash = rootChunk.hash;
 
     await dagWrite.putChunk(c0);
@@ -146,7 +144,7 @@ function makeTree(node: TreeData, dagStore: dag.Store): Promise<Hash> {
     ).filter(e => e[0] !== '$level');
     if (node.$level === 0) {
       const dataNode: DataNode = [0, entries];
-      const chunk = Chunk.new(dataNode, []);
+      const chunk = Chunk.new(ChunkType.BTreeNode, dataNode);
       await dagWrite.putChunk(chunk);
       return [chunk.hash, 0];
     }
@@ -160,8 +158,7 @@ function makeTree(node: TreeData, dagStore: dag.Store): Promise<Hash> {
     const entries2 = await Promise.all(ps);
 
     const internalNode: InternalNode = [level + 1, entries2];
-    const refs = entries2.map(pair => pair[1]);
-    const chunk = Chunk.new(internalNode, refs);
+    const chunk = Chunk.new(ChunkType.BTreeNode, internalNode);
     await dagWrite.putChunk(chunk);
     return [chunk.hash, level + 1];
   }

@@ -4,6 +4,7 @@ export function chunkDataKey(hash: Hash): string {
   return `c/${hash}/d`;
 }
 
+/** @deprecated */
 export function chunkMetaKey(hash: Hash): string {
   return `c/${hash}/m`;
 }

@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import {computeSplices, Splice} from './splice';
-import type {ReadonlyEntry} from './node';
+import type {ReadonlyEntry} from './entry-type';
 
 test('splice', () => {
   const t = <T>(

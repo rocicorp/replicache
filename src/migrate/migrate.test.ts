@@ -81,27 +81,27 @@ test('test data sample with index (0 to 1)', async () => {
   await testMigrate0to1(testIndexDataV0, testIndexDataV1);
 });
 
-test('chat sample (1 to 2)', async () => {
+test.skip('chat sample (1 to 2)', async () => {
   await testMigrate1to2(chatSampleV1, chatSampleV2);
 });
 
-test('test data sample (1 to 2)', async () => {
+test.skip('test data sample (1 to 2)', async () => {
   await testMigrate1to2(testDataV1, testDataV2);
 });
 
-test('test data sample with index (1 to 2)', async () => {
+test.skip('test data sample with index (1 to 2)', async () => {
   await testMigrate1to2(testIndexDataV1, testIndexDataV2);
 });
 
-test('chat sample (0 to 2)', async () => {
+test.skip('chat sample (0 to 2)', async () => {
   await testMigrate(chatSampleV0, chatSampleV2);
 });
 
-test('test data sample (0 to 2)', async () => {
+test.skip('test data sample (0 to 2)', async () => {
   await testMigrate(testDataV0, testDataV2);
 });
 
-test('test data sample with index (0 to 2)', async () => {
+test.skip('test data sample with index (0 to 2)', async () => {
   await testMigrate(testIndexDataV0, testIndexDataV2);
 });
 

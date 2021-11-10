@@ -5,7 +5,6 @@ import {Hash, emptyHash} from '../hash';
 import {
   DataNodeImpl,
   InternalNodeImpl,
-  Entry,
   emptyDataNode,
   assertBTreeNode,
   newNodeImpl,
@@ -13,10 +12,9 @@ import {
   binarySearch,
   DiffResult,
   DiffResultOp,
-  ReadonlyEntry,
-  NODE_LEVEL,
-  NODE_ENTRIES,
 } from './node';
+import type {Entry, ReadonlyEntry} from './entry-type';
+import {NODE_LEVEL, NODE_ENTRIES} from './node-types';
 import {getSizeOfValue, NODE_HEADER_SIZE} from './get-size-of-value';
 import {
   computeSplices,

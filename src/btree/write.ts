@@ -5,14 +5,15 @@ import {BTreeRead} from './read';
 import {
   DataNodeImpl,
   InternalNodeImpl,
-  Entry,
   newNodeImpl,
   partition,
-  ReadonlyEntry,
   DiffResult,
+  isDataNodeImpl,
 } from './node';
+import type {Entry, ReadonlyEntry} from './entry-type';
 import {RWLock} from '../rw-lock';
 import type {ScanOptionsInternal} from '../db/scan';
+import {ChunkType} from '../dag/chunk-type';
 
 export class BTreeWrite extends BTreeRead {
   /**
@@ -210,25 +211,21 @@ export class BTreeWrite extends BTreeRead {
         // Not modified, use the original.
         return hash;
       }
-      if (node.level === 0) {
-        const chunk = dag.Chunk.new(node.toChunkData(), []);
+      if (isDataNodeImpl(node)) {
+        const chunk = dag.Chunk.new(ChunkType.BTreeNode, node.toChunkData());
         newChunks.push(chunk);
         return chunk.hash;
       }
-      const refs: Hash[] = [];
 
-      const internalNode = node as InternalNodeImpl;
-
-      for (const entry of internalNode.entries) {
+      for (const entry of node.entries) {
         const childHash = entry[1];
         const newChildHash = walk(childHash, newChunks);
         if (newChildHash !== childHash) {
           // MUTATES the node!
           entry[1] = newChildHash;
         }
-        refs.push(newChildHash);
       }
-      const chunk = dag.Chunk.new(internalNode.toChunkData(), refs);
+      const chunk = dag.Chunk.new(ChunkType.BTreeNode, node.toChunkData());
       newChunks.push(chunk);
       return chunk.hash;
     };
@@ -250,6 +247,7 @@ export class BTreeWrite extends BTreeRead {
     });
   }
 }
+
 async function* runRead<T>(
   lock: RWLock,
   ai: AsyncGenerator<T>,

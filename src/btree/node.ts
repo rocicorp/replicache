@@ -3,21 +3,8 @@ import {assert, assertArray, assertNumber, assertString} from '../asserts';
 import {Hash, emptyHash, newTempHash, isTempHash} from '../hash';
 import type {BTreeRead} from './read';
 import type {BTreeWrite} from './write';
-
-export type Entry<V> = [key: string, value: V];
-export type ReadonlyEntry<V> = readonly [key: string, value: V];
-
-export const NODE_LEVEL = 0;
-export const NODE_ENTRIES = 1;
-
-/**
- * The type of B+Tree node chunk data
- */
-type BaseNode<V> = readonly [level: number, entries: ReadonlyArray<Entry<V>>];
-
-export type InternalNode = BaseNode<Hash>;
-
-export type DataNode = BaseNode<ReadonlyJSONValue>;
+import type {ReadonlyEntry, Entry} from './entry-type';
+import type {DataNode, InternalNode} from './node-types';
 
 export const enum DiffResultOp {
   Add,
@@ -43,6 +30,12 @@ export type DiffResult<V> =
       newValue: V;
     };
 
+export function isDataNodeImpl(
+  node: DataNodeImpl | InternalNodeImpl,
+): node is DataNodeImpl {
+  return node.level === 0;
+}
+
 /**
  * Finds the leaf where a key is (if present) or where it should go if not
  * present.
@@ -53,19 +46,18 @@ export async function findLeaf(
   source: BTreeRead,
 ): Promise<DataNodeImpl> {
   const node = await source.getNode(hash);
-  if (node.level === 0) {
-    return node as DataNodeImpl;
+  if (isDataNodeImpl(node)) {
+    return node;
   }
-  const internalNode = node as InternalNodeImpl;
-  let index = binarySearch(key, internalNode.entries);
+  let index = binarySearch(key, node.entries);
   if (index < 0) {
     // not found
     index = ~index;
   }
-  if (index === internalNode.entries.length) {
+  if (index === node.entries.length) {
     index--;
   }
-  const entry = internalNode.entries[index];
+  const entry = node.entries[index];
   return findLeaf(key, entry[1], source);
 }
 

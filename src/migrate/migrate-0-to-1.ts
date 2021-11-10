@@ -7,6 +7,7 @@ import * as sync from '../sync/mod';
 import * as utf8 from '../utf8';
 import type {LogContext} from '../logger';
 import {Hash, parse} from '../hash';
+import {ChunkType} from '../dag/chunk-type';
 
 const VERSION_KEY = 'sys/storage-format-version';
 
@@ -114,7 +115,7 @@ export async function migrateMaybeWeakCommit(
   );
 
   const commitData = db.commitDataFromFlatbuffer(buf);
-  const commit = new db.Commit(dag.Chunk.new(commitData, []));
+  const commit = new db.Commit(dag.Chunk.new(ChunkType.Commit, commitData));
 
   ps.push(migrateProllyMap(commit.valueHash, write, pending));
   // basisHash is weak for Snapshot Commits

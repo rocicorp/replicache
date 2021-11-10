@@ -1,43 +1,55 @@
-import {assertString} from '../asserts';
+import {assert, assertArray, assertNumber} from '../asserts';
 import {Hash, hashOf} from '../hash';
+import {getRefs} from './get-refs';
 import type {Value} from '../kv/store';
+import type {ChunkType} from './chunk-type';
 
-type Refs = readonly Hash[];
+export type Refs = readonly Hash[];
 
 export class Chunk<V extends Value = Value> {
   readonly hash: Hash;
   readonly data: V;
+
   /**
    * Meta is an array of refs. If there are no refs we do not write a meta
    * chunk.
    */
-  readonly meta: Refs;
-
-  private constructor(hash: Hash, data: V, meta: Refs) {
-    this.hash = hash;
-    this.data = data;
-    this.meta = meta;
+  get refs(): Refs {
+    return getRefs(this.type, this.data);
   }
 
-  static new<V extends Value = Value>(data: V, refs: Refs): Chunk<V> {
+  /**
+   * Type describes what kind of chunk this is. This is used in getRef to
+   * determine how to find the refs in the value.
+   */
+  readonly type: ChunkType;
+
+  private constructor(type: ChunkType, hash: Hash, data: V) {
+    this.type = type;
+    this.hash = hash;
+    this.data = data;
+  }
+
+  static new<V extends Value = Value>(type: ChunkType, data: V): Chunk<V> {
     const hash = hashOf(JSON.stringify(data));
-    return new Chunk(hash, data, refs);
+    return new Chunk(type, hash, data);
   }
 
   static read<V extends Value = Value>(
     hash: Hash,
+    type: ChunkType,
     data: V,
-    refs: Refs,
   ): Chunk<V> {
-    return new Chunk(hash, data, refs);
+    return new Chunk(type, hash, data);
   }
 }
 
-export function assertMeta(v: unknown): asserts v is Refs {
-  if (!Array.isArray(v)) {
-    throw new Error('Meta must be an array');
-  }
-  for (const e of v) {
-    assertString(e);
-  }
+type ChunkData<V extends Value> = readonly [ChunkType, V];
+
+export function assertChunkData<V extends Value = Value>(
+  v: unknown,
+): asserts v is ChunkData<V> {
+  assertArray(v);
+  assert(v.length === 2);
+  assertNumber(v[0]);
 }

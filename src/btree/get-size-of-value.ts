@@ -1,6 +1,6 @@
 import {hasOwn} from '../has-own';
 import type {ReadonlyJSONObject, ReadonlyJSONValue} from '../json';
-import type {Entry} from './node';
+import type {Entry} from './entry-type';
 
 const SIZE_TAG = 1;
 const SIZE_INT32 = 4;

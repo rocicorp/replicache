@@ -22,15 +22,10 @@ import {IndexDefinition as IndexDefinitionFB} from './generated/commit/index-def
 import {IndexRecord as IndexRecordFB} from './generated/commit/index-record';
 import * as utf8 from '../utf8';
 import {assertHash, Hash} from '../hash';
+import {ChunkType} from '../dag/chunk-type';
+import {MetaTyped} from './meta-typed';
 
 export const DEFAULT_HEAD_NAME = 'main';
-
-export const enum MetaTyped {
-  NONE = 0,
-  IndexChange = 1,
-  Local = 2,
-  Snapshot = 3,
-}
 
 export class Commit<M extends Meta = Meta> {
   readonly chunk: Chunk<CommitData>;
@@ -317,35 +312,11 @@ export function fromChunk(chunk: Chunk): Commit {
 }
 
 function chunkFromCommitData(data: CommitData): Chunk<CommitData> {
-  const refs = getRefs(data);
-  return Chunk.new(data, refs);
+  return Chunk.new(ChunkType.Commit, data);
 }
 
 function commitFromCommitData(data: CommitData): Commit {
   return new Commit(chunkFromCommitData(data));
-}
-
-function getRefs(data: CommitData): Hash[] {
-  const refs: Hash[] = [data.valueHash];
-  const {meta} = data;
-  switch (meta.type) {
-    case MetaTyped.IndexChange:
-      meta.basisHash && refs.push(meta.basisHash);
-      break;
-    case MetaTyped.Local:
-      meta.basisHash && refs.push(meta.basisHash);
-      // Local has weak originalHash
-      break;
-    case MetaTyped.Snapshot:
-      // Snapshot has weak basisHash
-      break;
-  }
-
-  for (const index of data.indexes) {
-    refs.push(index.valueHash);
-  }
-
-  return refs;
 }
 
 export type CommitData = {
@@ -354,7 +325,7 @@ export type CommitData = {
   readonly indexes: IndexRecord[];
 };
 
-function assertCommitData(v: unknown): asserts v is CommitData {
+export function assertCommitData(v: unknown): asserts v is CommitData {
   assertObject(v);
   assertMeta(v.meta);
   assertString(v.valueHash);

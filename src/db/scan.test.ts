@@ -4,7 +4,7 @@ import * as kv from '../kv/mod';
 import * as dag from '../dag/mod';
 import {decodeIndexKey, encodeIndexKey} from './index';
 import {BTreeWrite} from '../btree/mod';
-import type {Entry} from '../btree/node';
+import type {Entry} from '../btree/entry-type';
 import type {ReadonlyJSONValue} from '../json';
 
 test('scan', async () => {

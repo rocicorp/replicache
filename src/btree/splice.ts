@@ -1,4 +1,4 @@
-import type {ReadonlyEntry} from './node';
+import type {ReadonlyEntry} from './entry-type';
 
 export type Splice = [at: number, removed: number, added: number, from: number];
 

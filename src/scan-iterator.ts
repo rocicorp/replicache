@@ -4,7 +4,7 @@ import {ScanOptions, toDbScanOptions} from './scan-options';
 import {asyncIterableToArray} from './async-iterable-to-array';
 import type * as db from './db/mod';
 import type {MaybePromise} from './replicache';
-import type {Entry} from './btree/node';
+import type {Entry} from './btree/entry-type';
 import {decodeIndexKey} from './db/mod';
 
 const VALUE = 0;

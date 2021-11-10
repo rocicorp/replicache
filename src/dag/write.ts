@@ -1,7 +1,8 @@
 import type * as kv from '../kv/mod';
-import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key';
+import {chunkDataKey, headKey, chunkRefCountKey} from './key';
 import {Read} from './read';
-import {assertMeta, Chunk} from './chunk';
+import {assertChunkData, Chunk} from './chunk';
+import {getRefs} from './get-refs';
 import {assertNumber} from '../asserts';
 import {assertNotTempHash, Hash} from '../hash';
 
@@ -25,21 +26,21 @@ export class Write extends Read {
   }
 
   async putChunk(c: Chunk): Promise<void> {
-    const {hash, data, meta} = c;
+    const {type, hash, data} = c;
     // We never want to write temp hashes to the underlying store.
     assertNotTempHash(hash);
     const key = chunkDataKey(hash);
-    const p1 = this._kvw.put(key, data);
-    let p2;
-    if (meta.length > 0) {
-      for (const h of meta) {
-        assertNotTempHash(h);
-      }
-      p2 = this._kvw.put(chunkMetaKey(hash), meta);
-    }
+    const p1 = this._kvw.put(key, [type, data]);
+    // let p2;
+    // if (meta.length > 0) {
+    //   for (const h of meta) {
+    //     assertNotTempHash(h);
+    //   }
+    //   p2 = this._kvw.put(chunkMetaKey(hash), meta);
+    // }
     this._newChunks.add(hash);
     await p1;
-    await p2;
+    // await p2;
   }
 
   setHead(name: string, hash: Hash): Promise<void> {
@@ -115,11 +116,13 @@ export class Write extends Read {
     const newCount = oldCount + delta;
 
     if ((oldCount === 0 && delta === 1) || (oldCount === 1 && delta === -1)) {
-      const meta = await this._kvw.get(chunkMetaKey(hash));
-      if (meta !== undefined) {
-        assertMeta(meta);
-        const ps = meta.map(ref => this.changeRefCount(ref, delta));
-        await Promise.all(ps);
+      const chunkData = await this._kvw.get(chunkDataKey(hash));
+      if (chunkData !== undefined) {
+        assertChunkData(chunkData);
+        const refs = getRefs(chunkData[0], chunkData[1]);
+        if (refs.length > 0) {
+          await Promise.all(refs.map(ref => this.changeRefCount(ref, delta)));
+        }
       }
     }
 
@@ -159,7 +162,6 @@ export class Write extends Read {
   ): Promise<void> {
     await Promise.all([
       this._kvw.del(chunkDataKey(hash)),
-      this._kvw.del(chunkMetaKey(hash)),
       this._kvw.del(chunkRefCountKey(hash)),
     ]);
 

@@ -8,12 +8,12 @@ import {
   fromChunk,
   IndexChangeMeta,
   Meta,
-  MetaTyped,
   newIndexChange as commitNewIndexChange,
   newLocal as commitNewLocal,
   newSnapshot as commitNewSnapshot,
   SnapshotMeta,
 } from './commit';
+import {MetaTyped} from './meta-typed';
 import {
   addGenesis,
   addIndexChange,
@@ -23,6 +23,7 @@ import {
 } from './test-helpers';
 import {Hash, hashOf, initHasher} from '../hash';
 import type {JSONValue} from '../json';
+import {ChunkType} from '../dag/chunk-type';
 
 setup(async () => {
   await initHasher();
@@ -147,7 +148,6 @@ test('load roundtrip', async () => {
           originalHash: original,
         },
         valueHash,
-        basisHash === null ? [valueHash] : [valueHash, basisHash],
       ),
       commitNewLocal(basisHash, 0, 'mutname', 42, original, valueHash, []),
     );
@@ -164,7 +164,6 @@ test('load roundtrip', async () => {
         originalHash: emptyStringHash,
       },
       hashOf('value-hash'),
-      [hashOf(''), hashOf('')],
     ),
     new Error('Missing mutator name'),
   );
@@ -180,7 +179,6 @@ test('load roundtrip', async () => {
         originalHash: emptyStringHash,
       },
       hashOf('value-hash'),
-      ['', ''],
     ),
     new Error('Invalid type: undefined, expected string'),
   );
@@ -197,7 +195,6 @@ test('load roundtrip', async () => {
           originalHash: null,
         },
         hashOf('vh'),
-        basisHash === null ? [hashOf('vh')] : [hashOf('vh'), basisHash],
       ),
       await commitNewLocal(basisHash, 0, 'mutname', 44, null, hashOf('vh'), []),
     );
@@ -216,7 +213,6 @@ test('load roundtrip', async () => {
 
       //@ts-expect-error we are testing invalid types
       undefined,
-      ['', ''],
     ),
     new Error('Invalid type: undefined, expected string'),
   );
@@ -227,7 +223,6 @@ test('load roundtrip', async () => {
       await makeCommit(
         makeSnapshotMeta(basisHash ?? null, 0, {foo: 'bar'}),
         hashOf('vh'),
-        [hashOf('vh')],
       ),
       commitNewSnapshot(basisHash, 0, cookie, hashOf('vh'), []),
     );
@@ -241,18 +236,13 @@ test('load roundtrip', async () => {
         undefined,
       ),
       hashOf('vh'),
-      [hashOf('vh'), hashOf('')],
     ),
     new Error('Invalid type: undefined, expected JSON value'),
   );
 
   for (const basisHash of [null, hashOf(''), hashOf('hash')]) {
     t(
-      await makeCommit(
-        makeIndexChangeMeta(basisHash, 0),
-        hashOf('value'),
-        basisHash === null ? [hashOf('value')] : [hashOf('value'), basisHash],
-      ),
+      await makeCommit(makeIndexChangeMeta(basisHash, 0), hashOf('value')),
       await commitNewIndexChange(basisHash, 0, hashOf('value'), []),
     );
   }
@@ -273,7 +263,6 @@ test('accessors', async () => {
         originalHash,
       },
       valueHash,
-      [valueHash, basisHash],
     ),
   );
   const lm = local.meta;
@@ -293,7 +282,6 @@ test('accessors', async () => {
     await makeCommit(
       makeSnapshotMeta(hashOf('basis_hash_2'), 2, 'cookie 2'),
       hashOf('value_hash 2'),
-      [hashOf('value_hash 2'), hashOf('basis_hash_2')],
     ),
   );
   const sm = snapshot.meta;
@@ -312,7 +300,6 @@ test('accessors', async () => {
     await makeCommit(
       makeIndexChangeMeta(hashOf('basis_hash 3'), 3),
       hashOf('value_hash 3'),
-      [hashOf('value_hash 3'), hashOf('basis_hash 3')],
     ),
   );
   const ic = indexChange.meta;
@@ -326,18 +313,14 @@ test('accessors', async () => {
   expect(indexChange.mutationID).to.equal(3);
 });
 
-async function makeCommit(
-  meta: Meta,
-  valueHash: Hash,
-  refs: Hash[],
-): Promise<Chunk> {
+async function makeCommit(meta: Meta, valueHash: Hash): Promise<Chunk> {
   const data: CommitData = {
     meta,
     valueHash,
     indexes: [],
   };
 
-  return Chunk.new(data, refs);
+  return Chunk.new(ChunkType.Commit, data);
 }
 
 function makeSnapshotMeta(

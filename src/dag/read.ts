@@ -1,6 +1,6 @@
 import type * as kv from '../kv/mod';
-import {assertMeta, Chunk} from './chunk';
-import {chunkDataKey, chunkMetaKey, headKey} from './key';
+import {assertChunkData, Chunk} from './chunk';
+import {chunkDataKey, headKey} from './key';
 import * as flatbuffers from 'flatbuffers';
 import {Meta as MetaFB} from './generated/meta/meta.js';
 import {assertHash, Hash} from '../hash';
@@ -17,20 +17,14 @@ export class Read {
   }
 
   async getChunk(hash: Hash): Promise<Chunk | undefined> {
-    const data = await this._kvr.get(chunkDataKey(hash));
-    if (data === undefined) {
+    const chunkData = await this._kvr.get(chunkDataKey(hash));
+    if (chunkData === undefined) {
       return undefined;
     }
 
-    const refsVal = await this._kvr.get(chunkMetaKey(hash));
-    let refs: readonly Hash[];
-    if (refsVal !== undefined) {
-      assertMeta(refsVal);
-      refs = refsVal;
-    } else {
-      refs = [];
-    }
-    return Chunk.read(hash, data, refs);
+    assertChunkData(chunkData);
+    const [type, data] = chunkData;
+    return Chunk.read(hash, type, data);
   }
 
   async getHead(name: string): Promise<Hash | undefined> {

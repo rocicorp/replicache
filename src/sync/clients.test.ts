@@ -140,7 +140,7 @@ test('setClients properly manages refs to client heads when clients are removed 
   });
 });
 
-test('setClients properly manages refs to client heads when client head changes', async () => {
+test('setClients properly manages refs to client heads when a client\'s head changes', async () => {
   const dagStore = new dag.Store(new MemStore());
   const client1V1HeadHash = hashOf('head of commit client1 is currently at');
   const client1V2HeadHash = hashOf(

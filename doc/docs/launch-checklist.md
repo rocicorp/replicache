@@ -13,6 +13,7 @@ Before you launch with Replicache in your product, it's a good idea to double-ch
   return a 401, be sure that re-auth is handled for **Push** and **Pull** via
   `getAuth`.
 - If you wish to store per-client state, be sure to key it by `clientID`, and not, for example, by user id which can be common to more than one client.
+- Be sure to use the "name" parameter to the Replicache constructor to differentiate Replicache instances for different users; otherwise Replicache may try to fork state from a different user at startup.
 
 ## All endpoints
 

@@ -98,7 +98,10 @@ export class Commit<M extends Meta = Meta> {
     return commits.filter(c => c.isLocal()) as Commit<LocalMeta>[];
   }
 
-  static async baseSnapshot(hash: Hash, dagRead: dag.Read): Promise<Commit> {
+  static async baseSnapshot(
+    hash: Hash,
+    dagRead: dag.Read,
+  ): Promise<Commit<SnapshotMeta>> {
     let commit = await Commit.fromHash(hash, dagRead);
     while (!commit.isSnapshot()) {
       const {meta} = commit;

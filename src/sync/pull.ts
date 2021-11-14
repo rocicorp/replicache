@@ -1,6 +1,6 @@
 import type * as dag from '../dag/mod';
 import * as db from '../db/mod';
-import {deepClone, JSONValue, ReadonlyJSONValue} from '../json';
+import {deepClone, deepEqual, JSONValue, ReadonlyJSONValue} from '../json';
 import {
   assertPullResponse,
   Puller,
@@ -66,8 +66,7 @@ export async function beginPull(
     return await db.Commit.baseSnapshot(mainHeadHash, dagRead);
   });
 
-  const [baseLastMutationID, baseCookie] =
-    db.Commit.snapshotMetaParts(baseSnapshot);
+  const [, baseCookie] = db.Commit.snapshotMetaParts(baseSnapshot);
 
   const pullReq = {
     clientID,
@@ -101,21 +100,38 @@ export async function beginPull(
     };
   }
 
+  const syncHead = await handlePullResponse(lc, store, baseCookie, response);
+  if (syncHead === null) {
+    throw new Error('Overlapping sync JsLogInfo');
+  }
+  return {
+    httpRequestInfo,
+    syncHead,
+  };
+}
+
+// Returns new sync head, or null if response did not apply due to mismatched cookie.
+export async function handlePullResponse(
+  lc: LogContext,
+  store: dag.Store,
+  expectedBaseCookie: ReadonlyJSONValue,
+  response: PullResponse,
+): Promise<Hash | null> {
   // It is possible that another sync completed while we were pulling. Ensure
   // that is not the case by re-checking the base snapshot.
   return await store.withWrite(async dagWrite => {
     const dagRead = dagWrite;
-    const mainHeadPostPull = await dagRead.getHead(db.DEFAULT_HEAD_NAME);
+    const mainHead = await dagRead.getHead(db.DEFAULT_HEAD_NAME);
 
-    if (mainHeadPostPull === undefined) {
+    if (mainHead === undefined) {
       throw new Error('Main head disappeared');
     }
-    const baseSnapshotPostPull = await db.Commit.baseSnapshot(
-      mainHeadPostPull,
-      dagRead,
-    );
-    if (baseSnapshot.chunk.hash !== baseSnapshotPostPull.chunk.hash) {
-      throw new Error('Overlapping syncs JSLogInfo');
+    const baseSnapshot = await db.Commit.baseSnapshot(mainHead, dagRead);
+    const [baseLastMutationID, baseCookie] =
+      db.Commit.snapshotMetaParts(baseSnapshot);
+
+    if (!deepEqual(expectedBaseCookie, baseCookie)) {
+      return null;
     }
 
     // If other entities (eg, other clients) are modifying the client view
@@ -123,7 +139,7 @@ export async function beginPull(
     // So be careful here to reject only a lesser lastMutationID.
     if (response.lastMutationID < baseLastMutationID) {
       throw new Error(
-        `base lastMutationID ${baseLastMutationID} is > than client view lastMutationID ${response.lastMutationID}; ignoring client view`,
+        `Received lastMutationID ${response.lastMutationID} is < than last snapshot lastMutationID ${baseLastMutationID}; ignoring client view`,
       );
     }
 
@@ -136,10 +152,7 @@ export async function beginPull(
       (response.cookie ?? null) === baseCookie
     ) {
       const syncHead = emptyHash;
-      return {
-        httpRequestInfo,
-        syncHead,
-      };
+      return syncHead;
     }
 
     // We are going to need to adjust the indexes. Imagine we have just pulled:
@@ -159,7 +172,7 @@ export async function beginPull(
     //
     // We start with the index definitions in the last commit that was
     // integrated into the new snapshot.
-    const chain = await db.Commit.chain(mainHeadPostPull, dagRead);
+    const chain = await db.Commit.chain(mainHead, dagRead);
     const lastIntegrated = chain.find(
       c => c.mutationID <= response.lastMutationID,
     );
@@ -195,13 +208,7 @@ export async function beginPull(
 
     const commitHash = await dbWrite.commit(SYNC_HEAD_NAME);
 
-    return {
-      httpRequestInfo: {
-        httpStatusCode: 200,
-        errorMessage: '',
-      },
-      syncHead: commitHash,
-    };
+    return commitHash;
   });
 }
 

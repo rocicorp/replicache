@@ -1616,6 +1616,84 @@ testWithBothStores('HTTP status push', async () => {
   expect(okCalled).to.equal(true);
 });
 
+testWithBothStores('poke', async () => {
+  // Things to test:
+  // - when we queue a poke and it matches, we update the snapshot
+  // - rebase still works
+  // - when the cookie doesn't match, it doesn't apply, but later when the cookie matches it does
+  // - per-client timing
+  const rep = await replicacheForTesting('pull', {
+    auth: '1',
+    mutators: {
+      setTodo: async <A extends {id: number}>(
+        tx: WriteTransaction,
+        args: A,
+      ) => {
+        await tx.put(`/todo/${args.id}`, args);
+      },
+    },
+  });
+
+  const {setTodo} = rep.mutate;
+
+  const id = 1;
+  const key = `/todo/${id}`;
+  const text = 'yo';
+
+  await setTodo({id, text});
+  expect(await rep.has(key)).true;
+
+  // cookie *does* apply
+  await rep.poke({
+    baseCookie: null,
+    pullResponse: {
+      cookie: 'c1',
+      lastMutationID: 1,
+      patch: [{op: 'del', key}],
+    },
+  });
+  expect(await rep.has(key)).false;
+
+  // cookie does not apply
+  await setTodo({id, text});
+  let error = null;
+  try {
+    await rep.poke({
+      baseCookie: null,
+      pullResponse: {
+        cookie: 'c1',
+        lastMutationID: 1,
+        patch: [{op: 'del', key}],
+      },
+    });
+  } catch (e) {
+    error = String(e);
+  }
+  expect(error).contains('unexpected base cookie for poke');
+  expect(await rep.has(key)).true;
+
+  // cookie applies, but lmid goes backward - should be an error.
+  await setTodo({id, text});
+  error = null;
+  try {
+    // blech could not figure out how to use chai-as-promised.
+    await rep.poke({
+      baseCookie: 'c1',
+      pullResponse: {
+        cookie: 'c2',
+        lastMutationID: 0,
+        patch: [{op: 'del', key}],
+      },
+    });
+  } catch (e: unknown) {
+    error = String(e);
+  }
+
+  expect(error).contains(
+    'Received lastMutationID 0 is < than last snapshot lastMutationID 1; ignoring client view',
+  );
+});
+
 testWithBothStores('closed tx', async () => {
   const rep = await replicacheForTesting('reauth', {
     mutators: {

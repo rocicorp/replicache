@@ -349,7 +349,7 @@ test('begin try pull', async () => {
       },
       expNewSyncHead: undefined,
       expBeginPullResult:
-        'base lastMutationID 1 is > than client view lastMutationID 0; ignoring client view',
+        'Received lastMutationID 0 is < than last snapshot lastMutationID 1; ignoring client view',
     },
     {
       name: 'pull 500s -> beginpull errors',

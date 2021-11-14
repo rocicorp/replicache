@@ -2,7 +2,7 @@ import {deepClone, deepEqual, ReadonlyJSONValue} from './json';
 import type {JSONValue} from './json';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options';
 import {Pusher, PushError} from './pusher';
-import {Puller, PullError} from './puller';
+import {Puller, PullError, PullResponse} from './puller';
 import {
   SubscriptionTransactionWrapper,
   IndexTransactionImpl,
@@ -40,6 +40,11 @@ export type BeginPullResult = {
   requestID: string;
   syncHead: Hash;
   ok: boolean;
+};
+
+export type Poke = {
+  baseCookie: ReadonlyJSONValue;
+  pullResponse: PullResponse;
 };
 
 export const httpStatusUnauthorized = 401;
@@ -804,6 +809,38 @@ export class Replicache<MD extends MutatorDefs = {}> {
    */
   pull(): void {
     this._pullConnectionLoop.send();
+  }
+
+  /**
+   * Applies an update from the server to Replicache.
+   * Throws an error if cookie does not match. Host should re-init.
+   *
+   * @experimental - This method is under development and its semantics will change.
+   */
+  async poke(poke: Poke): Promise<void> {
+    await this._ready;
+    const clientID = await this._clientIDPromise;
+    const requestID = sync.newRequestID(clientID);
+    const lc = this._lc
+      .addContext('rpc', 'handlePullResponse')
+      .addContext('request_id', requestID);
+    const syncHead = await sync.handlePullResponse(
+      lc,
+      this._dagStore,
+      poke.baseCookie,
+      poke.pullResponse,
+    );
+    if (syncHead === null) {
+      throw new Error(
+        'unexpected base cookie for poke: ' + JSON.stringify(poke),
+      );
+    }
+
+    await this._maybeEndPull({
+      requestID,
+      syncHead,
+      ok: true,
+    });
   }
 
   protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {

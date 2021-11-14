@@ -1,7 +1,12 @@
 export {Replicache} from './replicache';
 export {TransactionClosedError} from './transaction-closed-error';
 
-export type {MaybePromise, MutatorDefs, RequestOptions} from './replicache';
+export type {
+  MaybePromise,
+  MutatorDefs,
+  Poke,
+  RequestOptions,
+} from './replicache';
 export type {ReplicacheOptions} from './replicache-options';
 export type {
   CreateIndexDefinition,

@@ -3,9 +3,8 @@ import * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {assertNumber, assertObject} from '../asserts';
 import {hasOwn} from '../has-own';
+import type {ClientID} from './client-id';
 
-// TODO: Make ClientID an opaque type
-type ClientID = string;
 type ClientMap = Map<ClientID, Client>;
 
 type Client = {

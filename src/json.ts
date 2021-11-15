@@ -1,4 +1,4 @@
-import {throwInvalidType} from './asserts';
+import {assertObject, throwInvalidType} from './asserts';
 import {hasOwn} from './has-own';
 
 /** The values that can be represented in JSON */
@@ -178,12 +178,13 @@ export function assertJSONValue(v: unknown): asserts v is JSONValue {
       if (Array.isArray(v)) {
         return assertJSONArray(v);
       }
-      return assertJSONObject(v as Record<string, unknown>);
+      return assertJSONObject(v);
   }
   throwInvalidType(v, 'JSON value');
 }
 
-function assertJSONObject(v: Record<string, unknown>): asserts v is JSONObject {
+export function assertJSONObject(v: unknown): asserts v is JSONObject {
+  assertObject(v);
   for (const k in v) {
     if (hasOwn(v, k)) {
       const val = v[k];
@@ -196,6 +197,7 @@ function assertJSONObject(v: Record<string, unknown>): asserts v is JSONObject {
     }
   }
 }
+
 function assertJSONArray(v: unknown[]): asserts v is JSONValue[] {
   for (let i = 0; i < v.length; i++) {
     const val = v[i];

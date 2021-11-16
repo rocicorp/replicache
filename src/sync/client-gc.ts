@@ -1,4 +1,4 @@
-import type {ClientID} from './clients';
+import type {ClientID} from './client-id';
 import type * as dag from '../dag/mod';
 import {getClients, setClients} from './clients';
 
@@ -13,16 +13,15 @@ export function initClientGC(
     await dagStore.withWrite(async (write: dag.Write) => {
       const clients = await getClients(write);
       const now = Date.now();
-      for (const [id, client] of clients) {
-        if (
-          id !== clientID /* never collect ourself */ &&
-          now - client.heartbeatTimestampMs > CLIENT_MAX_INACTIVE_IN_MS
-        ) {
-          clients.delete(id);
-        }
+      const clientsAfterGC = Array.from(clients).filter(
+        ([id, client]) =>
+          id === clientID /* never collect ourself */ ||
+          now - client.heartbeatTimestampMs <= CLIENT_MAX_INACTIVE_IN_MS,
+      );
+      if (clientsAfterGC.length !== clients.size) {
+        await setClients(new Map(clientsAfterGC), write);
+        await write.commit();
       }
-      await setClients(clients, write);
-      await write.commit();
     });
   }, GC_INTERVAL_MS);
 

@@ -62,8 +62,8 @@ test('initClientGC starts 5 min interval that collects clients that have been in
 
   // client1 is not collected because it is the current client (despite being old enough to collect)
   // client2 is collected because it is > 7 days inactive
-  // client3 is not collected because its < 7 days inactive (by 1 minute)
-  // client4 is not collected because its < 7 days inactive (by 1 minute)
+  // client3 is not collected because it is < 7 days inactive (by 1 minute)
+  // client4 is not collected because it is < 7 days inactive (by 1 minute)
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
     expect(readClientMap).to.deep.equal(
@@ -158,7 +158,7 @@ test('calling function returned by initClientGC, stops Client GCs', async () => 
 
   // client1 is not collected because it is the current client (despite being old enough to collect)
   // client2 is collected because it is > 7 days inactive
-  // client3 is not collected because its < 7 days inactive (by 1 minute)
+  // client3 is not collected because it is < 7 days inactive (by 1 minute)
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
     expect(readClientMap).to.deep.equal(

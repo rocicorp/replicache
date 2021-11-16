@@ -1,6 +1,5 @@
 import {expect} from '@esm-bundle/chai';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
-import {MemStore} from '../kv/mod';
 import * as dag from '../dag/mod';
 import {startHeartbeats, writeHeartbeat} from './heartbeat';
 import {getClients, setClients} from './clients';
@@ -19,7 +18,7 @@ teardown(() => {
 });
 
 test('startHeartbeats starts interval that writes heartbeat each minute', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: 1000,
     headHash: hashOf('head of commit client1 is currently at'),
@@ -82,7 +81,7 @@ test('startHeartbeats starts interval that writes heartbeat each minute', async 
 });
 
 test('calling function returned by startHeartbeats, stops heartbeats', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: 1000,
     headHash: hashOf('head of commit client1 is currently at'),
@@ -147,7 +146,7 @@ test('calling function returned by startHeartbeats, stops heartbeats', async () 
 });
 
 test('writeHeartbeat writes heartbeat', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: 1000,
     headHash: hashOf('head of commit client1 is currently at'),
@@ -192,7 +191,7 @@ test('writeHeartbeat writes heartbeat', async () => {
 });
 
 test('writeHeartbeat throws Error if no Client is found for clientID', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   await dagStore.withWrite(async write => {
     let e;
     try {

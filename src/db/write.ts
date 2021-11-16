@@ -306,6 +306,7 @@ export class Write extends Read {
       case MetaType.Local: {
         const {mutationID, mutatorName, mutatorArgs, originalHash} = meta;
         commit = commitNewLocal(
+          this._dagWrite.createChunk,
           basisHash,
           mutationID,
           mutatorName,
@@ -319,6 +320,7 @@ export class Write extends Read {
       case MetaType.Snapshot: {
         const {lastMutationID, cookie} = meta;
         commit = commitNewSnapshot(
+          this._dagWrite.createChunk,
           basisHash,
           lastMutationID,
           cookie,
@@ -339,6 +341,7 @@ export class Write extends Read {
         }
 
         commit = commitNewIndexChange(
+          this._dagWrite.createChunk,
           basisHash,
           lastMutationID,
           valueHash,

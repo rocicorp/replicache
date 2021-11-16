@@ -1,5 +1,4 @@
 import {expect, assert} from '@esm-bundle/chai';
-import {Chunk} from '../dag/chunk';
 import * as dag from '../dag/mod';
 import type {ScanOptionsInternal} from '../db/scan';
 import {emptyHash, Hash, initHasher} from '../hash';
@@ -27,7 +26,7 @@ setup(async () => {
 
 test('findLeaf', async () => {
   const kvStore = new kv.MemStore();
-  const dagStore = new dag.Store(kvStore);
+  const dagStore = new dag.TestStore(kvStore);
 
   const leaf0: DataNode = [
     0,
@@ -61,9 +60,9 @@ test('findLeaf', async () => {
   let rootHash: Hash;
 
   await dagStore.withWrite(async dagWrite => {
-    const c0 = Chunk.new(leaf0, []);
-    const c1 = Chunk.new(leaf1, []);
-    const c2 = Chunk.new(leaf2, []);
+    const c0 = dagWrite.createChunk(leaf0, []);
+    const c1 = dagWrite.createChunk(leaf1, []);
+    const c2 = dagWrite.createChunk(leaf2, []);
 
     h0 = c0.hash;
     h1 = c1.hash;
@@ -78,7 +77,7 @@ test('findLeaf', async () => {
       ],
     ];
 
-    const rootChunk = Chunk.new(root, [h0, h1, h2]);
+    const rootChunk = dagWrite.createChunk(root, [h0, h1, h2]);
     rootHash = rootChunk.hash;
 
     await dagWrite.putChunk(c0);
@@ -146,7 +145,7 @@ function makeTree(node: TreeData, dagStore: dag.Store): Promise<Hash> {
     ).filter(e => e[0] !== '$level');
     if (node.$level === 0) {
       const dataNode: DataNode = [0, entries];
-      const chunk = Chunk.new(dataNode, []);
+      const chunk = dagWrite.createChunk(dataNode, []);
       await dagWrite.putChunk(chunk);
       return [chunk.hash, 0];
     }
@@ -161,7 +160,7 @@ function makeTree(node: TreeData, dagStore: dag.Store): Promise<Hash> {
 
     const internalNode: InternalNode = [level + 1, entries2];
     const refs = entries2.map(pair => pair[1]);
-    const chunk = Chunk.new(internalNode, refs);
+    const chunk = dagWrite.createChunk(internalNode, refs);
     await dagWrite.putChunk(chunk);
     return [chunk.hash, level + 1];
   }
@@ -265,7 +264,7 @@ async function asyncIterToArray<T>(iter: AsyncIterable<T>): Promise<T[]> {
 
 test('empty read tree', async () => {
   const kvStore = new kv.MemStore();
-  const dagStore = new dag.Store(kvStore);
+  const dagStore = new dag.TestStore(kvStore);
   await dagStore.withRead(async dagRead => {
     const r = new BTreeRead(dagRead);
     expect(await r.get('a')).to.be.undefined;
@@ -276,7 +275,7 @@ test('empty read tree', async () => {
 
 test('empty write tree', async () => {
   const kvStore = new kv.MemStore();
-  const dagStore = new dag.Store(kvStore);
+  const dagStore = new dag.TestStore(kvStore);
 
   await dagStore.withWrite(async dagWrite => {
     const w = new BTreeWrite(
@@ -321,7 +320,7 @@ test('empty write tree', async () => {
 
 test('get', async () => {
   const kvStore = new kv.MemStore();
-  const dagStore = new dag.Store(kvStore);
+  const dagStore = new dag.TestStore(kvStore);
 
   const tree: TreeData = {
     $level: 1,
@@ -380,7 +379,7 @@ test('get', async () => {
 
 test('has', async () => {
   const kvStore = new kv.MemStore();
-  const dagStore = new dag.Store(kvStore);
+  const dagStore = new dag.TestStore(kvStore);
 
   const tree: TreeData = {
     $level: 1,
@@ -488,7 +487,7 @@ test('partition', () => {
 
 test('put', async () => {
   const kvStore = new kv.MemStore();
-  const dagStore = new dag.Store(kvStore);
+  const dagStore = new dag.TestStore(kvStore);
 
   const tree: TreeData = {
     $level: 0,
@@ -831,7 +830,7 @@ test('put', async () => {
 
 test('del - single data node', async () => {
   const kvStore = new kv.MemStore();
-  const dagStore = new dag.Store(kvStore);
+  const dagStore = new dag.TestStore(kvStore);
 
   const tree: TreeData = {
     $level: 0,
@@ -873,7 +872,7 @@ test('del - single data node', async () => {
 
 test('del - flatten', async () => {
   const kvStore = new kv.MemStore();
-  const dagStore = new dag.Store(kvStore);
+  const dagStore = new dag.TestStore(kvStore);
 
   // This tests that we can flatten "an invalid tree"
 
@@ -936,7 +935,7 @@ test('del - flatten', async () => {
 
 test('del - with internal nodes', async () => {
   const kvStore = new kv.MemStore();
-  const dagStore = new dag.Store(kvStore);
+  const dagStore = new dag.TestStore(kvStore);
 
   const tree: TreeData = {
     $level: 2,
@@ -1105,7 +1104,7 @@ test('del - with internal nodes', async () => {
 
 test('put - invalid', async () => {
   const kvStore = new kv.MemStore();
-  const dagStore = new dag.Store(kvStore);
+  const dagStore = new dag.TestStore(kvStore);
 
   // This tests that we can do puts on "an invalid tree"
 
@@ -1145,7 +1144,7 @@ test('put/del - getSize', async () => {
   getEntrySize = getSizeOfValue;
 
   const kvStore = new kv.MemStore();
-  const dagStore = new dag.Store(kvStore);
+  const dagStore = new dag.TestStore(kvStore);
 
   // This tests that we can do puts on "an invalid tree"
 
@@ -1212,7 +1211,7 @@ test('scan', async () => {
     expectedEntries = entries,
   ) => {
     const kvStore = new kv.MemStore();
-    const dagStore = new dag.Store(kvStore);
+    const dagStore = new dag.TestStore(kvStore);
 
     const tree: TreeData = {
       $level: 0,
@@ -1432,7 +1431,7 @@ test('diff', async () => {
     expectedDiff: DiffResult<ReadonlyJSONValue>[],
   ) => {
     const kvStore = new kv.MemStore();
-    const dagStore = new dag.Store(kvStore);
+    const dagStore = new dag.TestStore(kvStore);
 
     const [oldHash, newHash] = await dagStore.withWrite(async dagWrite => {
       const oldTree = new BTreeWrite(

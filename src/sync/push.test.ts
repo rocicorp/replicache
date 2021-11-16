@@ -9,7 +9,6 @@ import {
   addSnapshot,
   Chain,
 } from '../db/test-helpers';
-import {MemStore} from '../kv/mod';
 import type {HTTPRequestInfo} from '../http-request-info';
 import {SYNC_HEAD_NAME} from './sync-head-name';
 import {push, PushRequest, PUSH_VERSION} from './push';
@@ -66,7 +65,7 @@ function makeFakePusher(options: FakePusherArgs): Pusher {
 }
 
 test('try push', async () => {
-  const store = new dag.Store(new MemStore());
+  const store = new dag.TestStore();
   const lc = new LogContext();
   const chain: Chain = [];
   await addGenesis(chain, store);

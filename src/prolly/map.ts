@@ -1,5 +1,5 @@
 import {assertArray, assertNotNull, assertString} from '../asserts';
-import * as dag from '../dag/mod';
+import type * as dag from '../dag/mod';
 import {assertJSONValue, deepEqual, ReadonlyJSONValue} from '../json';
 import {stringCompare} from './string-compare';
 import * as flatbuffers from 'flatbuffers';
@@ -98,7 +98,7 @@ class ProllyMap {
     const entries = this._entries;
     // Now it is no longer safe to mutate the entries.
     this._isReadonly = true;
-    const chunk = dag.Chunk.new(entries, []);
+    const chunk = write.createChunk(entries, []);
     this._pendingChangedKeys.clear();
     await write.putChunk(chunk);
     return chunk.hash;

@@ -12,7 +12,7 @@ setup(async () => {
 test('getRoot', async () => {
   const t = async (headHash: Hash | undefined, expected: Hash | Error) => {
     const kvs = new MemStore();
-    const ds = new dag.Store(kvs);
+    const ds = new dag.TestStore(kvs);
     if (headHash !== undefined) {
       await ds.withWrite(async dw => {
         await dw.setHead(DEFAULT_HEAD_NAME, headHash);

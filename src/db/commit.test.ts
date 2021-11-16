@@ -1,7 +1,5 @@
 import {expect} from '@esm-bundle/chai';
-import {Chunk} from '../dag/mod';
 import * as dag from '../dag/mod';
-import {MemStore} from '../kv/mod';
 import {
   Commit,
   CommitData,
@@ -23,13 +21,14 @@ import {
 } from './test-helpers';
 import {Hash, hashOf, initHasher} from '../hash';
 import type {JSONValue} from '../json';
+import type {Value} from '../kv/store';
 
 setup(async () => {
   await initHasher();
 });
 
 test('base snapshot', async () => {
-  const store = new dag.Store(new MemStore());
+  const store = new dag.TestStore();
   const chain: Chain = [];
   await addGenesis(chain, store);
   let genesisHash = chain[0].chunk.hash;
@@ -71,7 +70,7 @@ test('base snapshot', async () => {
 });
 
 test('local mutations', async () => {
-  const store = new dag.Store(new MemStore());
+  const store = new dag.TestStore();
   const chain: Chain = [];
   await addGenesis(chain, store);
   const genesisHash = chain[0].chunk.hash;
@@ -95,7 +94,7 @@ test('local mutations', async () => {
 });
 
 test('chain', async () => {
-  const store = new dag.Store(new MemStore());
+  const store = new dag.TestStore();
   const chain: Chain = [];
   await addGenesis(chain, store);
 
@@ -118,7 +117,7 @@ test('chain', async () => {
 });
 
 test('load roundtrip', async () => {
-  const t = (chunk: Chunk, expected: Commit | Error) => {
+  const t = (chunk: dag.Chunk, expected: Commit | Error) => {
     {
       if (expected instanceof Error) {
         expect(() => fromChunk(chunk)).to.throw(
@@ -135,6 +134,7 @@ test('load roundtrip', async () => {
   const valueHash = hashOf('value');
   const emptyStringHash = hashOf('');
   const hashHash = hashOf('hash');
+
   for (const basisHash of [null, emptyStringHash, hashHash]) {
     t(
       await makeCommit(
@@ -149,7 +149,16 @@ test('load roundtrip', async () => {
         valueHash,
         basisHash === null ? [valueHash] : [valueHash, basisHash],
       ),
-      commitNewLocal(basisHash, 0, 'mutname', 42, original, valueHash, []),
+      commitNewLocal(
+        createChunk,
+        basisHash,
+        0,
+        'mutname',
+        42,
+        original,
+        valueHash,
+        [],
+      ),
     );
   }
 
@@ -199,7 +208,16 @@ test('load roundtrip', async () => {
         hashOf('vh'),
         basisHash === null ? [hashOf('vh')] : [hashOf('vh'), basisHash],
       ),
-      await commitNewLocal(basisHash, 0, 'mutname', 44, null, hashOf('vh'), []),
+      await commitNewLocal(
+        createChunk,
+        basisHash,
+        0,
+        'mutname',
+        44,
+        null,
+        hashOf('vh'),
+        [],
+      ),
     );
   }
 
@@ -229,7 +247,7 @@ test('load roundtrip', async () => {
         hashOf('vh'),
         [hashOf('vh')],
       ),
-      commitNewSnapshot(basisHash, 0, cookie, hashOf('vh'), []),
+      commitNewSnapshot(createChunk, basisHash, 0, cookie, hashOf('vh'), []),
     );
   }
   t(
@@ -253,7 +271,13 @@ test('load roundtrip', async () => {
         hashOf('value'),
         basisHash === null ? [hashOf('value')] : [hashOf('value'), basisHash],
       ),
-      await commitNewIndexChange(basisHash, 0, hashOf('value'), []),
+      await commitNewIndexChange(
+        createChunk,
+        basisHash,
+        0,
+        hashOf('value'),
+        [],
+      ),
     );
   }
 });
@@ -326,18 +350,24 @@ test('accessors', async () => {
   expect(indexChange.mutationID).to.equal(3);
 });
 
+function createChunk<V extends Value>(
+  data: V,
+  refs: readonly Hash[],
+): dag.Chunk<V> {
+  return dag.createChunk(data, refs, dag.defaultChunkHasher);
+}
+
 async function makeCommit(
   meta: Meta,
   valueHash: Hash,
   refs: Hash[],
-): Promise<Chunk> {
+): Promise<dag.Chunk> {
   const data: CommitData = {
     meta,
     valueHash,
     indexes: [],
   };
-
-  return Chunk.new(data, refs);
+  return createChunk(data, refs);
 }
 
 function makeSnapshotMeta(

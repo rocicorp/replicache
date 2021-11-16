@@ -19,7 +19,7 @@ export async function migrate(
   }
 
   if (v === 1) {
-    const dagStore = new dag.Store(kvStore);
+    const dagStore = new dag.Store(kvStore, dag.defaultChunkHasher);
     await dagStore.withWrite(async dagWrite => {
       await migrate1to2(dagWrite, lc);
       await dagWrite.commit();

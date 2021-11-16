@@ -1,7 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
 import {initHasher} from '../hash';
-import {MemStore} from '../kv/mod';
 import {LogContext} from '../logger';
 import {DEFAULT_HEAD_NAME} from './commit';
 import {fromWhence, whenceHead} from './read';
@@ -12,7 +11,7 @@ setup(async () => {
 });
 
 test('basics', async () => {
-  const ds = new dag.Store(new MemStore());
+  const ds = new dag.TestStore();
   const lc = new LogContext();
   await initDB(await ds.write(), DEFAULT_HEAD_NAME);
   const w = await Write.newLocal(

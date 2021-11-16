@@ -59,7 +59,7 @@ async function testMigrate1to2(
   const kvStore = new TestMemStore();
   await writeSampleData(kvStore, inputdata);
 
-  const dagStore = new dag.Store(kvStore);
+  const dagStore = new dag.TestStore(kvStore);
   await dagStore.withWrite(async dagWrite => {
     await migrate1to2(dagWrite, new LogContext());
     await dagWrite.commit();

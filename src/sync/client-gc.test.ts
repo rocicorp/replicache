@@ -1,6 +1,5 @@
 import {expect} from '@esm-bundle/chai';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
-import {MemStore} from '../kv/mod';
 import * as dag from '../dag/mod';
 import {getClients, setClient, setClients} from './clients';
 import {hashOf, initHasher} from '../hash';
@@ -20,7 +19,7 @@ teardown(() => {
 });
 
 test('initClientGC starts 5 min interval that collects clients that have been inactive for > 7 days', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: START_TIME,
     headHash: hashOf('head of commit client1 is currently at'),
@@ -121,7 +120,7 @@ test('initClientGC starts 5 min interval that collects clients that have been in
 });
 
 test('calling function returned by initClientGC, stops Client GCs', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: START_TIME,
     headHash: hashOf('head of commit client1 is currently at'),

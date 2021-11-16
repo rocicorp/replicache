@@ -1,5 +1,5 @@
 import type {ReadonlyJSONValue} from '../json';
-import * as dag from '../dag/mod';
+import type * as dag from '../dag/mod';
 import {Hash, emptyHash, newTempHash} from '../hash';
 import {BTreeRead} from './read';
 import {
@@ -13,6 +13,7 @@ import {
 } from './node';
 import {RWLock} from '../rw-lock';
 import type {ScanOptionsInternal} from '../db/scan';
+import type {CreateChunk} from '../dag/chunk';
 
 export class BTreeWrite extends BTreeRead {
   /**
@@ -204,14 +205,18 @@ export class BTreeWrite extends BTreeRead {
   }
 
   flush(): Promise<Hash> {
-    const walk = (hash: Hash, newChunks: dag.Chunk[]): Hash => {
+    const walk = (
+      hash: Hash,
+      newChunks: dag.Chunk[],
+      createChunk: CreateChunk,
+    ): Hash => {
       const node = this._modified.get(hash);
       if (node === undefined) {
         // Not modified, use the original.
         return hash;
       }
       if (node.level === 0) {
-        const chunk = dag.Chunk.new(node.toChunkData(), []);
+        const chunk = createChunk(node.toChunkData(), []);
         newChunks.push(chunk);
         return chunk.hash;
       }
@@ -221,14 +226,14 @@ export class BTreeWrite extends BTreeRead {
 
       for (const entry of internalNode.entries) {
         const childHash = entry[1];
-        const newChildHash = walk(childHash, newChunks);
+        const newChildHash = walk(childHash, newChunks, createChunk);
         if (newChildHash !== childHash) {
           // MUTATES the node!
           entry[1] = newChildHash;
         }
         refs.push(newChildHash);
       }
-      const chunk = dag.Chunk.new(internalNode.toChunkData(), refs);
+      const chunk = createChunk(internalNode.toChunkData(), refs);
       newChunks.push(chunk);
       return chunk.hash;
     };
@@ -239,8 +244,9 @@ export class BTreeWrite extends BTreeRead {
       }
 
       const newChunks: dag.Chunk[] = [];
-      const newRoot = walk(this.rootHash, newChunks);
       const dagWrite = this._dagRead;
+      const newRoot = walk(this.rootHash, newChunks, dagWrite.createChunk);
+
       await Promise.all(newChunks.map(chunk => dagWrite.putChunk(chunk)));
 
       this._modified.clear();

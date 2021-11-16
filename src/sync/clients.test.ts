@@ -1,5 +1,4 @@
 import {expect} from '@esm-bundle/chai';
-import {MemStore} from '../kv/mod';
 import * as dag from '../dag/mod';
 import {assertHash, hashOf, initHasher, newTempHash} from '../hash';
 import {getClient, getClients, setClient, setClients} from './clients';
@@ -9,7 +8,7 @@ setup(async () => {
 });
 
 test('getClients with no existing ClientMap in dag store', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
     expect(readClientMap.size).to.equal(0);
@@ -17,7 +16,7 @@ test('getClients with no existing ClientMap in dag store', async () => {
 });
 
 test('setClients and getClients', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   const clientMap = new Map(
     Object.entries({
       client1: {
@@ -42,7 +41,7 @@ test('setClients and getClients', async () => {
 });
 
 test('setClients and getClients sequence', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   const clientMap1 = new Map(
     Object.entries({
       client1: {
@@ -86,7 +85,7 @@ test('setClients and getClients sequence', async () => {
 });
 
 test('setClients properly manages refs to client heads when clients are removed and added', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   const client1HeadHash = hashOf('head of commit client1 is currently at');
   const client2HeadHash = hashOf('head of commit client2 is currently at');
 
@@ -141,7 +140,7 @@ test('setClients properly manages refs to client heads when clients are removed 
 });
 
 test("setClients properly manages refs to client heads when a client's head changes", async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   const client1V1HeadHash = hashOf('head of commit client1 is currently at');
   const client1V2HeadHash = hashOf(
     'head of new commit client1 is currently at',
@@ -208,7 +207,7 @@ test("setClients properly manages refs to client heads when a client's head chan
 });
 
 test('setClient properly manages refs to client heads', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   const client1V1HeadHash = hashOf('head of commit client1 is currently at');
   const client1V2HeadHash = hashOf(
     'head of new commit client1 is currently at',
@@ -267,7 +266,7 @@ test('setClient properly manages refs to client heads', async () => {
 });
 
 test('getClient', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: 1000,
     headHash: hashOf('head of commit client1 is currently at'),
@@ -293,7 +292,7 @@ test('getClient', async () => {
 });
 
 test('setClient with existing client id', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   const client1V1 = {
     heartbeatTimestampMs: 1000,
     headHash: hashOf('head of commit client1 is currently at'),
@@ -336,7 +335,7 @@ test('setClient with existing client id', async () => {
 });
 
 test('setClient with new client id', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: 1000,
     headHash: hashOf('head of commit client1 is currently at'),
@@ -379,7 +378,7 @@ test('setClient with new client id', async () => {
 });
 
 test('setClients throws error if any client headHash is a temp hash', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: 1000,
     headHash: hashOf('head of commit client1 is currently at'),
@@ -432,7 +431,7 @@ test('setClients throws error if any client headHash is a temp hash', async () =
 });
 
 test('setClient throws error if client headHash is a temp hash', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: 1000,
     headHash: hashOf('head of commit client1 is currently at'),
@@ -482,7 +481,7 @@ test('setClient throws error if client headHash is a temp hash', async () => {
 });
 
 test('getClients throws errors if clients head exist but the chunk it refrences does not', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   await dagStore.withWrite(async (write: dag.Write) => {
     await write.setHead('clients', hashOf('random stuff'));
     await write.commit();
@@ -499,10 +498,10 @@ test('getClients throws errors if clients head exist but the chunk it refrences 
 });
 
 test('getClients throws errors if chunk pointed to by clients head does not contain a valid ClientMap', async () => {
-  const dagStore = new dag.Store(new MemStore());
+  const dagStore = new dag.TestStore();
   await dagStore.withWrite(async (write: dag.Write) => {
     const headHash = hashOf('head of commit client1 is currently at');
-    const chunk = dag.Chunk.new(
+    const chunk = write.createChunk(
       {
         heartbeatTimestampMs: 'this should be a number',
         headHash,

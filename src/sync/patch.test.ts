@@ -1,5 +1,4 @@
 import {expect} from '@esm-bundle/chai';
-import {MemStore} from '../kv/mem-store';
 import * as dag from '../dag/mod';
 import * as db from '../db/mod';
 import type {JSONValue} from '../json';
@@ -14,7 +13,7 @@ setup(async () => {
 });
 
 test('patch', async () => {
-  const store = new dag.Store(new MemStore());
+  const store = new dag.TestStore();
   const lc = new LogContext();
 
   type Case = {

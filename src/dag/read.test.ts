@@ -1,7 +1,7 @@
 import {expect} from '@esm-bundle/chai';
 import {Hash, hashOf, initHasher} from '../hash';
 import {MemStore} from '../kv/mod';
-import {Chunk} from './chunk';
+import {defaultChunkHasher, readChunk} from './chunk';
 import {chunkDataKey, chunkMetaKey} from './key';
 import {Read} from './read';
 import type {Value} from '../kv/store';
@@ -20,7 +20,7 @@ test('has chunk', async () => {
     });
 
     await kv.withRead(async kvr => {
-      const r = new Read(kvr);
+      const r = new Read(kvr, defaultChunkHasher);
       expect(await r.hasChunk(hash)).to.equal(expectHas);
     });
   };
@@ -32,7 +32,8 @@ test('has chunk', async () => {
 test('get chunk', async () => {
   const t = async (data: Value, refs: Hash[], getSameChunk: boolean) => {
     const kv = new MemStore();
-    const chunk = Chunk.new(data, refs);
+    const hash = defaultChunkHasher(data);
+    const chunk = readChunk(hash, data, refs);
     await kv.withWrite(async kvw => {
       await kvw.put(chunkDataKey(chunk.hash), chunk.data);
       if (chunk.meta.length > 0) {
@@ -42,7 +43,7 @@ test('get chunk', async () => {
     });
 
     await kv.withRead(async kvr => {
-      const r = new Read(kvr);
+      const r = new Read(kvr, defaultChunkHasher);
       let expected = undefined;
       let chunkHash: Hash;
       if (getSameChunk) {

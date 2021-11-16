@@ -1,5 +1,5 @@
 import {assertHash, assertNotTempHash, Hash} from './../hash';
-import * as dag from '../dag/mod';
+import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {assertNumber, assertObject} from '../asserts';
 import {hasOwn} from '../has-own';
@@ -70,7 +70,7 @@ export async function setClients(
   dagWrite: dag.Write,
 ): Promise<void> {
   const chunkData = clientMapToChunkData(clients);
-  const chunk = dag.Chunk.new(
+  const chunk = dagWrite.createChunk(
     chunkData,
     Array.from(clients.values(), client => client.headHash),
   );

@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import {MemStore} from '../kv/mod';
-import {Chunk} from './chunk';
+import {defaultChunkHasher, readChunk} from './chunk';
 import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
 import {Write} from './write';
 import type * as kv from '../kv/mod';
@@ -16,8 +16,8 @@ test('put chunk', async () => {
   const t = async (data: Value, refs: Hash[]) => {
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw);
-      const c = Chunk.new(data, refs);
+      const w = new Write(kvw, defaultChunkHasher);
+      const c = w.createChunk(data, refs);
       await w.putChunk(c);
 
       const kd = chunkDataKey(c.hash);
@@ -62,7 +62,7 @@ async function assertRefCount(kvr: kv.Read, hash: Hash, count: number) {
 test('set head', async () => {
   const t = async (kv: kv.Store, name: string, hash: Hash | undefined) => {
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw);
+      const w = new Write(kvw, defaultChunkHasher);
       await (hash === undefined ? w.removeHead(name) : w.setHead(name, hash));
       if (hash !== undefined) {
         const h = await kvw.get(headKey(name));
@@ -129,7 +129,7 @@ test('ref count invalid', async () => {
       await kvw.commit();
     });
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw);
+      const w = new Write(kvw, defaultChunkHasher);
       let err;
       try {
         await w.getRefCount(h);
@@ -173,8 +173,8 @@ test('commit rollback', async () => {
     let key: string;
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw);
-      const c = Chunk.new([0, 1], []);
+      const w = new Write(kvw, defaultChunkHasher);
+      const c = w.createChunk([0, 1], []);
       await w.putChunk(c);
 
       key = chunkDataKey(c.hash);
@@ -205,9 +205,10 @@ test('commit rollback', async () => {
 test('roundtrip', async () => {
   const t = async (name: string, data: Value, refs: Hash[]) => {
     const kv = new MemStore();
-    const c = Chunk.new(data, refs);
+    const hash = defaultChunkHasher(data);
+    const c = readChunk(hash, data, refs);
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw);
+      const w = new Write(kvw, defaultChunkHasher);
       await w.putChunk(c);
       await w.setHead(name, c.hash);
 
@@ -221,7 +222,7 @@ test('roundtrip', async () => {
 
     // Read the changes outside the tx.
     await kv.withRead(async kvr => {
-      const r = new Read(kvr);
+      const r = new Read(kvr, defaultChunkHasher);
       const c2 = await r.getChunk(c.hash);
       const h = await r.getHead(name);
       expect(c2).to.deep.equal(c);

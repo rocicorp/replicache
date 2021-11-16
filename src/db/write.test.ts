@@ -1,7 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import {assertNotUndefined} from '../asserts';
 import * as dag from '../dag/mod';
-import {MemStore} from '../kv/mod';
 import {DEFAULT_HEAD_NAME} from './commit';
 import {readCommit, readIndexesForRead, whenceHead} from './read';
 import {initDB, Write} from './write';
@@ -16,7 +15,7 @@ setup(async () => {
 });
 
 test('basics', async () => {
-  const ds = new dag.Store(new MemStore());
+  const ds = new dag.TestStore();
   const lc = new LogContext();
   await initDB(await ds.write(), DEFAULT_HEAD_NAME);
 
@@ -80,7 +79,7 @@ test('basics', async () => {
 });
 
 test('index commit type constraints', async () => {
-  const ds = new dag.Store(new MemStore());
+  const ds = new dag.TestStore();
   const lc = new LogContext();
   await initDB(await ds.write(), DEFAULT_HEAD_NAME);
 
@@ -113,7 +112,7 @@ test('index commit type constraints', async () => {
 });
 
 test('clear', async () => {
-  const ds = new dag.Store(new MemStore());
+  const ds = new dag.TestStore();
   const lc = new LogContext();
   await ds.withWrite(dagWrite => initDB(dagWrite, DEFAULT_HEAD_NAME));
   await ds.withWrite(async dagWrite => {
@@ -185,7 +184,7 @@ test('clear', async () => {
 
 test('create and drop index', async () => {
   const t = async (writeBeforeIndexing: boolean) => {
-    const ds = new dag.Store(new MemStore());
+    const ds = new dag.TestStore();
     const lc = new LogContext();
     await ds.withWrite(dagWrite => initDB(dagWrite, DEFAULT_HEAD_NAME));
 

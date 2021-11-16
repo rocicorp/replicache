@@ -13,7 +13,7 @@ setup(async () => {
 
 test.skip('generate', async () => {
   const kv = new TestMemStore();
-  const store = new dag.Store(kv);
+  const store = new dag.TestStore(kv);
 
   const mainChain: Chain = [];
 
@@ -28,7 +28,7 @@ test.skip('generate', async () => {
 
 test.skip('gen with index', async () => {
   const kv = new TestMemStore();
-  const store = new dag.Store(kv);
+  const store = new dag.TestStore(kv);
 
   const mainChain: Chain = [];
 

@@ -195,7 +195,7 @@ test('index value', async () => {
     expected: number[] | string,
   ) => {
     const memStore = new kv.MemStore();
-    const dagStore = new dag.Store(memStore);
+    const dagStore = new dag.TestStore(memStore);
     await dagStore.withWrite(async dagWrite => {
       const index = new BTreeWrite(dagWrite);
       await index.put(encodeIndexKey(['s1', '1']), 'v1');

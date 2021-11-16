@@ -14,7 +14,6 @@ import {
   createIndex,
 } from '../db/test-helpers';
 import type {ReadonlyJSONValue} from '../json';
-import {MemStore} from '../kv/mod';
 import type {
   PatchOperation,
   Puller,
@@ -42,7 +41,7 @@ setup(async () => {
 });
 
 test('begin try pull', async () => {
-  const store = new dag.Store(new MemStore());
+  const store = new dag.TestStore();
   const chain: Chain = [];
   await addGenesis(chain, store);
   await addSnapshot(chain, store, [['foo', '"bar"']]);
@@ -587,7 +586,7 @@ test('maybe end try pull', async () => {
   ];
 
   for (const [i, c] of cases.entries()) {
-    const store = new dag.Store(new MemStore());
+    const store = new dag.TestStore();
     const lc = new LogContext();
     const chain: Chain = [];
     await addGenesis(chain, store);
@@ -748,7 +747,7 @@ test('changed keys', async () => {
     patch: PatchOperation[],
     expectedChangedKeysMap: sync.ChangedKeysMap,
   ) => {
-    const store = new dag.Store(new MemStore());
+    const store = new dag.TestStore();
     const lc = new LogContext();
     const chain: Chain = [];
     await addGenesis(chain, store);

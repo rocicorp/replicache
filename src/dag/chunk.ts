@@ -4,7 +4,7 @@ import type {Value} from '../kv/store';
 
 type Refs = readonly Hash[];
 
-export class Chunk<V extends Value = Value> {
+export interface Chunk<V extends Value = Value> {
   readonly hash: Hash;
   readonly data: V;
   /**
@@ -12,24 +12,17 @@ export class Chunk<V extends Value = Value> {
    * chunk.
    */
   readonly meta: Refs;
+}
 
-  private constructor(hash: Hash, data: V, meta: Refs) {
+class ChunkImpl<V extends Value = Value> implements Chunk<V> {
+  readonly hash: Hash;
+  readonly data: V;
+  readonly meta: Refs;
+
+  constructor(hash: Hash, data: V, meta: Refs) {
     this.hash = hash;
     this.data = data;
     this.meta = meta;
-  }
-
-  static new<V extends Value = Value>(data: V, refs: Refs): Chunk<V> {
-    const hash = hashOf(JSON.stringify(data));
-    return new Chunk(hash, data, refs);
-  }
-
-  static read<V extends Value = Value>(
-    hash: Hash,
-    data: V,
-    refs: Refs,
-  ): Chunk<V> {
-    return new Chunk(hash, data, refs);
   }
 }
 
@@ -41,3 +34,28 @@ export function assertMeta(v: unknown): asserts v is Refs {
     assertString(e);
   }
 }
+
+export function createChunk<V extends Value>(
+  data: V,
+  refs: Refs,
+  chunkHasher: ChunkHasher,
+): Chunk<V> {
+  const hash = chunkHasher(data);
+  return new ChunkImpl(hash, data, refs);
+}
+
+export function readChunk<V extends Value>(
+  hash: Hash,
+  data: V,
+  refs: Refs,
+): Chunk<V> {
+  return new ChunkImpl(hash, data, refs);
+}
+
+export type CreateChunk = <V extends Value>(data: V, refs: Refs) => Chunk<V>;
+
+export function defaultChunkHasher<V extends Value>(data: V): Hash {
+  return hashOf(JSON.stringify(data));
+}
+
+export type ChunkHasher = typeof defaultChunkHasher;

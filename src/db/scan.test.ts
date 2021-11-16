@@ -16,7 +16,7 @@ test('scan', async () => {
     )}, expected: ${expected}`;
 
     const memStore = new kv.MemStore();
-    const dagStore = new dag.Store(memStore);
+    const dagStore = new dag.TestStore(memStore);
 
     await dagStore.withWrite(async dagWrite => {
       const map = new BTreeWrite(dagWrite);
@@ -325,7 +325,7 @@ test('exclusive regular map', async () => {
     const testDesc = `keys: ${keys}, startKey: ${startKey}, expected: ${expected}`;
 
     const memStore = new kv.MemStore();
-    const dagStore = new dag.Store(memStore);
+    const dagStore = new dag.TestStore(memStore);
 
     await dagStore.withWrite(async dagWrite => {
       const map = new BTreeWrite(dagWrite);
@@ -366,7 +366,7 @@ test('exclusive index map', async () => {
     const testDesc = `entries: ${entries}, startSecondaryKey ${startSecondaryKey}, startKey: ${startKey}, expected: ${expected}`;
 
     const memStore = new kv.MemStore();
-    const dagStore = new dag.Store(memStore);
+    const dagStore = new dag.TestStore(memStore);
 
     await dagStore.withWrite(async dagWrite => {
       const map = new BTreeWrite(dagWrite);
@@ -620,7 +620,7 @@ test('scan index startKey', async () => {
     expected: ScanItem[],
   ) => {
     const memStore = new kv.MemStore();
-    const dagStore = new dag.Store(memStore);
+    const dagStore = new dag.TestStore(memStore);
 
     await dagStore.withWrite(async dagWrite => {
       const map = await makeBTreeWrite(dagWrite, entries);

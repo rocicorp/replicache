@@ -1,4 +1,3 @@
-import {Chunk} from '../dag/mod';
 import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {assertJSONValue} from '../json';
@@ -33,9 +32,9 @@ export const enum MetaTyped {
 }
 
 export class Commit<M extends Meta = Meta> {
-  readonly chunk: Chunk<CommitData>;
+  readonly chunk: dag.Chunk<CommitData>;
 
-  constructor(chunk: Chunk<CommitData>) {
+  constructor(chunk: dag.Chunk<CommitData>) {
     this.chunk = chunk;
   }
 
@@ -262,6 +261,7 @@ function assertIndexRecord(v: unknown): asserts v is IndexRecord {
 }
 
 export function newLocal(
+  createChunk: dag.CreateChunk,
   basisHash: Hash | null,
   mutationID: number,
   mutatorName: string,
@@ -278,10 +278,11 @@ export function newLocal(
     mutatorArgsJSON,
     originalHash,
   };
-  return commitFromCommitData({meta, valueHash, indexes});
+  return commitFromCommitData(createChunk, {meta, valueHash, indexes});
 }
 
 export function newSnapshot(
+  createChunk: dag.CreateChunk,
   basisHash: Hash | null,
   lastMutationID: number,
   cookieJSON: ReadonlyJSONValue,
@@ -294,10 +295,11 @@ export function newSnapshot(
     lastMutationID,
     cookieJSON,
   };
-  return commitFromCommitData({meta, valueHash, indexes});
+  return commitFromCommitData(createChunk, {meta, valueHash, indexes});
 }
 
 export function newIndexChange(
+  createChunk: dag.CreateChunk,
   basisHash: Hash | null,
   lastMutationID: number,
   valueHash: Hash,
@@ -308,21 +310,27 @@ export function newIndexChange(
     basisHash,
     lastMutationID,
   };
-  return commitFromCommitData({meta, valueHash, indexes});
+  return commitFromCommitData(createChunk, {meta, valueHash, indexes});
 }
 
-export function fromChunk(chunk: Chunk): Commit {
+export function fromChunk(chunk: dag.Chunk): Commit {
   validateChunk(chunk);
   return new Commit(chunk);
 }
 
-function chunkFromCommitData(data: CommitData): Chunk<CommitData> {
+function chunkFromCommitData(
+  createChunk: dag.CreateChunk,
+  data: CommitData,
+): dag.Chunk<CommitData> {
   const refs = getRefs(data);
-  return Chunk.new(data, refs);
+  return createChunk(data, refs);
 }
 
-function commitFromCommitData(data: CommitData): Commit {
-  return new Commit(chunkFromCommitData(data));
+function commitFromCommitData(
+  createChunk: dag.CreateChunk,
+  data: CommitData,
+): Commit {
+  return new Commit(chunkFromCommitData(createChunk, data));
 }
 
 function getRefs(data: CommitData): Hash[] {
@@ -365,8 +373,8 @@ function assertCommitData(v: unknown): asserts v is CommitData {
 }
 
 function validateChunk(
-  chunk: Chunk<Value>,
-): asserts chunk is Chunk<CommitData> {
+  chunk: dag.Chunk<Value>,
+): asserts chunk is dag.Chunk<CommitData> {
   const {data} = chunk;
   assertCommitData(data);
 

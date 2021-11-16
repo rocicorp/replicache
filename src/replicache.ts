@@ -284,7 +284,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this._kvStore =
       experimentalKVStore ||
       (this._useMemstore ? new MemStore() : new IDBStore(this.name));
-    this._dagStore = new dag.Store(this._kvStore);
+    this._dagStore = new dag.Store(this._kvStore, dag.defaultChunkHasher);
 
     // Use a promise-resolve pair so that we have a promise to use even before
     // we call the Open RPC.

@@ -241,7 +241,7 @@ export const chatSampleV2 = {
 // This was used to generate test data below.
 export async function getTestData(): Promise<void> {
   const kv = new TestMemStore();
-  const store = new dag.Store(kv);
+  const store = new dag.TestStore(kv);
 
   const mainChain: Chain = [];
 

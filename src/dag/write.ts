@@ -1,7 +1,7 @@
 import type * as kv from '../kv/mod';
 import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key';
 import {Read} from './read';
-import {assertMeta, Chunk} from './chunk';
+import {assertMeta, Chunk, ChunkHasher} from './chunk';
 import {assertNumber} from '../asserts';
 import {assertNotTempHash, Hash} from '../hash';
 
@@ -15,8 +15,8 @@ export class Write extends Read {
   private readonly _newChunks = new Set<Hash>();
   private readonly _changedHeads = new Map<string, HeadChange>();
 
-  constructor(kvw: kv.Write) {
-    super(kvw);
+  constructor(kvw: kv.Write, chunkHasher: ChunkHasher) {
+    super(kvw, chunkHasher);
     this._kvw = kvw;
   }
 

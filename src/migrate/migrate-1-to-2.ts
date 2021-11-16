@@ -99,6 +99,7 @@ export async function migrateMaybeWeakCommit(
   switch (commit.meta.type) {
     case MetaTyped.IndexChange:
       newCommit = db.newIndexChange(
+        dagWrite.createChunk,
         basisHash,
         commit.meta.lastMutationID,
         valueHash,
@@ -107,6 +108,7 @@ export async function migrateMaybeWeakCommit(
       break;
     case MetaTyped.Snapshot:
       newCommit = db.newSnapshot(
+        dagWrite.createChunk,
         basisHash,
         commit.meta.lastMutationID,
         commit.meta.cookieJSON,
@@ -116,6 +118,7 @@ export async function migrateMaybeWeakCommit(
       break;
     case MetaTyped.Local:
       newCommit = db.newLocal(
+        dagWrite.createChunk,
         basisHash,
         commit.meta.mutationID,
         commit.meta.mutatorName,

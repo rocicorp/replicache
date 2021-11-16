@@ -1,10 +1,11 @@
 import {expect} from '@esm-bundle/chai';
-import {Chunk, Store} from '../dag/mod';
+import {Store} from '../dag/mod';
 import {MemStore} from '../kv/mod';
 import {stringCompare} from './string-compare';
 import * as prolly from './mod';
 import {initHasher} from '../hash';
 import {binarySearch, Entry} from './map';
+import {defaultChunkHasher, createChunk} from '../dag/chunk';
 
 setup(async () => {
   await initHasher();
@@ -93,7 +94,7 @@ test('iter flush', async () => {
     t(map, expected);
 
     const kv = new MemStore();
-    const store = new Store(kv);
+    const store = new Store(kv, defaultChunkHasher);
     const write = await store.write();
     const hash = await map.flush(write);
 
@@ -179,8 +180,8 @@ test('load errors', async () => {
   const t = async (data: any, expectedError: string) => {
     let err;
     try {
-      // @ts-expect-error Constructor is private
-      const chunk = new Chunk('hash', data, undefined);
+      // @ts-expect-error refs is wrong type and chunkHasher is wrong type.
+      const chunk = createChunk(data, undefined, () => 'hash');
       prolly.fromChunk(chunk);
     } catch (e) {
       err = e;

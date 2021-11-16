@@ -1,7 +1,8 @@
 import {expect} from '@esm-bundle/chai';
 import {Hash, hashOf, initHasher, parse} from '../hash';
 import type {Value} from '../kv/store';
-import {Chunk} from './chunk';
+import {defaultChunkHasher, createChunk, readChunk} from './chunk';
+import type {Chunk} from './chunk';
 
 setup(async () => {
   await initHasher();
@@ -9,13 +10,13 @@ setup(async () => {
 
 test('round trip', async () => {
   const t = (hash: Hash, data: Value, refs: Hash[]) => {
-    const c = Chunk.new(data, refs);
+    const c = createChunk(data, refs, defaultChunkHasher);
     expect(c.hash).to.equal(hash);
     expect(c.data).to.deep.equal(data);
     expect(c.meta).to.deep.equal(refs);
 
     const buf = c.meta;
-    const c2 = Chunk.read(hash, data, buf);
+    const c2 = readChunk(hash, data, buf);
     expect(c).to.deep.equal(c2);
   };
 
@@ -37,13 +38,17 @@ test('equals', async () => {
     expect(a).to.not.deep.equal(b);
   };
 
-  eq(Chunk.new([], []), Chunk.new([], []));
-  neq(Chunk.new([1], []), Chunk.new([], []));
-  neq(Chunk.new([0], []), Chunk.new([1], []));
+  const newChunk = (data: Value, refs: Hash[]) => {
+    return createChunk(data, refs, defaultChunkHasher);
+  };
 
-  eq(Chunk.new([1], []), Chunk.new([1], []));
-  eq(Chunk.new([], [hashOf('a')]), Chunk.new([], [hashOf('a')]));
+  eq(newChunk([], []), newChunk([], []));
+  neq(newChunk([1], []), newChunk([], []));
+  neq(newChunk([0], []), newChunk([1], []));
 
-  neq(Chunk.new([], [hashOf('a')]), Chunk.new([], [hashOf('b')]));
-  neq(Chunk.new([], [hashOf('a')]), Chunk.new([], [hashOf('a'), hashOf('b')]));
+  eq(newChunk([1], []), newChunk([1], []));
+  eq(newChunk([], [hashOf('a')]), newChunk([], [hashOf('a')]));
+
+  neq(newChunk([], [hashOf('a')]), newChunk([], [hashOf('b')]));
+  neq(newChunk([], [hashOf('a')]), newChunk([], [hashOf('a'), hashOf('b')]));
 });

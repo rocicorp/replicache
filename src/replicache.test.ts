@@ -27,6 +27,8 @@ import * as dag from './dag/mod';
 import {TestMemStore} from './kv/test-mem-store';
 import {WriteTransactionImpl} from './transactions';
 import {emptyHash, Hash} from './hash';
+import { defaultPuller } from './puller';
+import { defaultPusher } from './pusher';
 
 let clock: SinonFakeTimers;
 setup(() => {
@@ -1263,7 +1265,6 @@ testWithBothStores(
     await tickAFewTimes();
     fetchMock.reset();
     fetchMock.postAny({});
-
     let pusherCallCount = 0;
 
     rep.pusher = () => {
@@ -1277,7 +1278,21 @@ testWithBothStores(
     await createTodo({id: 'id4'});
     await tickAFewTimes();
 
+    expect(fetchMock.calls()).to.have.length(0);
     expect(pusherCallCount).to.equal(1);
+
+    await tickAFewTimes();
+    fetchMock.reset();
+    fetchMock.postAny({});
+    pusherCallCount = 0;
+
+    rep.pusher = defaultPusher;
+
+    await createTodo({id: 'id5'});
+    await tickAFewTimes();
+
+    expect(fetchMock.calls()).to.have.length(0);
+    expect(pusherCallCount).to.equal(0);
   },
 );
 
@@ -1472,13 +1487,13 @@ testWithBothStores(
 
     rep.pull();
     await tickAFewTimes();
-    expect(fetchMock.calls()).to.have.length(1);
+    expect(fetchMock.calls()).to.have.length.greaterThan(0);
 
     await tickAFewTimes();
     fetchMock.reset();
     fetchMock.postAny({});
 
-    rep.pushURL = '';
+    rep.pullURL = '';
 
     rep.pull();
     await tickAFewTimes();
@@ -1503,7 +1518,21 @@ testWithBothStores(
     rep.pull();
     await tickAFewTimes();
 
-    expect(pullerCallCount).to.equal(1);
+    expect(fetchMock.calls()).to.have.length(0);
+    expect(pullerCallCount).to.be.greaterThan(0);
+
+    await tickAFewTimes();
+    fetchMock.reset();
+    fetchMock.postAny({});
+    pullerCallCount = 0;
+
+    rep.puller = defaultPuller;
+
+    rep.pull();
+    await tickAFewTimes();
+
+    expect(fetchMock.calls()).to.have.length(0);
+    expect(pullerCallCount).to.equal(0);
   },
 );
 

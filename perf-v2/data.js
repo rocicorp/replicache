@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1637081853557,
+  "lastUpdate": 1637083817469,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -5100,6 +5100,142 @@ window.BENCHMARK_DATA = {
             "unit": "p95 ms",
             "range": "±87.2%",
             "extra": "[MemStore] create index 1024x5000 50/75/90/95%=316.50/328.60/403.70/403.70 ms avg=420.24 ms (7 runs sampled)"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9a4a5100173ac577e167f5838c6b35d4a7b60cf1",
+          "message": "feat: Implements Client state Garbage Collection for Simplified Dueling Dags (#689)\n\nSimplified Dueling Dags requires a mechanism for collecting the perdag state for Clients (i.e. tabs) which have been closed.\r\n\r\nEvery **five minutes**, each Client collects any Clients that haven't updated their heartbeat timestamp **for at least seven days**. \r\n\r\nSee larger design at https://www.notion.so/Simplified-DD1-1ed242a8c1094d9ca3734c46d65ffce4\r\n\r\nPart of #671",
+          "timestamp": "2021-11-16T17:26:47Z",
+          "tree_id": "57bd8b69d05ccce9336b15c615de5c24a9ada2c0",
+          "url": "https://github.com/rocicorp/replicache/commit/9a4a5100173ac577e167f5838c6b35d4a7b60cf1"
+        },
+        "date": 1637083817195,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 2.6000003814697266,
+            "unit": "median ms",
+            "range": "±6.1%",
+            "extra": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.60/3.10/4.10/8.70 ms avg=3.41 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 8.699999809265137,
+            "unit": "p95 ms",
+            "range": "±6.1%",
+            "extra": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.60/3.10/4.10/8.70 ms avg=3.41 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 4.800000190734863,
+            "unit": "median ms",
+            "range": "±2.8%",
+            "extra": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=4.80/6.10/7.60/7.60 ms avg=6.39 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 7.59999942779541,
+            "unit": "p95 ms",
+            "range": "±2.8%",
+            "extra": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=4.80/6.10/7.60/7.60 ms avg=6.39 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 5.199999809265137,
+            "unit": "median ms",
+            "range": "±15.5%",
+            "extra": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=5.20/8.00/20.70/20.70 ms avg=8.77 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 20.700000762939453,
+            "unit": "p95 ms",
+            "range": "±15.5%",
+            "extra": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=5.20/8.00/20.70/20.70 ms avg=8.77 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 113.19999980926514,
+            "unit": "median ms",
+            "range": "±82.9%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 0) 50/75/90/95%=113.20/113.50/196.10/196.10 ms avg=152.13 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0) p95",
+            "value": 196.10000038146973,
+            "unit": "p95 ms",
+            "range": "±82.9%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 0) 50/75/90/95%=113.20/113.50/196.10/196.10 ms avg=152.13 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 200.5,
+            "unit": "median ms",
+            "range": "±79.7%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 1) 50/75/90/95%=200.50/218.20/280.20/280.20 ms avg=268.07 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1) p95",
+            "value": 280.19999980926514,
+            "unit": "p95 ms",
+            "range": "±79.7%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 1) 50/75/90/95%=200.50/218.20/280.20/280.20 ms avg=268.07 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 265,
+            "unit": "median ms",
+            "range": "±101.7%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 2) 50/75/90/95%=265.00/282.20/366.70/366.70 ms avg=355.37 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2) p95",
+            "value": 366.69999980926514,
+            "unit": "p95 ms",
+            "range": "±101.7%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 2) 50/75/90/95%=265.00/282.20/366.70/366.70 ms avg=355.37 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 4.199999809265137,
+            "unit": "median ms",
+            "range": "±5.3%",
+            "extra": "[MemStore] scan 1024x1000 50/75/90/95%=4.20/5.70/8.40/9.50 ms avg=5.06 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000 p95",
+            "value": 9.5,
+            "unit": "p95 ms",
+            "range": "±5.3%",
+            "extra": "[MemStore] scan 1024x1000 50/75/90/95%=4.20/5.70/8.40/9.50 ms avg=5.06 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 329.70000076293945,
+            "unit": "median ms",
+            "range": "±63.3%",
+            "extra": "[MemStore] create index 1024x5000 50/75/90/95%=329.70/333.90/393.00/393.00 ms avg=427.09 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000 p95",
+            "value": 393,
+            "unit": "p95 ms",
+            "range": "±63.3%",
+            "extra": "[MemStore] create index 1024x5000 50/75/90/95%=329.70/333.90/393.00/393.00 ms avg=427.09 ms (7 runs sampled)"
           }
         ]
       }

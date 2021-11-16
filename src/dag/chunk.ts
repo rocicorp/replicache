@@ -35,7 +35,7 @@ export function assertMeta(v: unknown): asserts v is Refs {
   }
 }
 
-export function makeChunk<V extends Value>(
+export function createChunk<V extends Value>(
   data: V,
   refs: Refs,
   chunkHasher: ChunkHasher,

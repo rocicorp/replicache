@@ -21,7 +21,6 @@ import {
 } from './test-helpers';
 import {Hash, hashOf, initHasher} from '../hash';
 import type {JSONValue} from '../json';
-import {defaultChunkHasher, makeChunk} from '../dag/chunk';
 import type {Value} from '../kv/store';
 
 setup(async () => {
@@ -355,7 +354,7 @@ function createChunk<V extends Value>(
   data: V,
   refs: readonly Hash[],
 ): dag.Chunk<V> {
-  return makeChunk(data, refs, defaultChunkHasher);
+  return dag.createChunk(data, refs, dag.defaultChunkHasher);
 }
 
 async function makeCommit(

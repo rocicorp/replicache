@@ -27,8 +27,8 @@ import * as dag from './dag/mod';
 import {TestMemStore} from './kv/test-mem-store';
 import {WriteTransactionImpl} from './transactions';
 import {emptyHash, Hash} from './hash';
-import { defaultPuller } from './puller';
-import { defaultPusher } from './pusher';
+import {defaultPuller} from './puller';
+import {defaultPusher} from './pusher';
 
 let clock: SinonFakeTimers;
 setup(() => {

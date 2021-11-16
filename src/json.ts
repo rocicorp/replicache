@@ -178,13 +178,19 @@ export function assertJSONValue(v: unknown): asserts v is JSONValue {
       if (Array.isArray(v)) {
         return assertJSONArray(v);
       }
-      return assertJSONObject(v);
+      return assertObjectIsJSONObject(v as Record<string, unknown>);
   }
   throwInvalidType(v, 'JSON value');
 }
 
 export function assertJSONObject(v: unknown): asserts v is JSONObject {
   assertObject(v);
+  assertObjectIsJSONObject(v);
+}
+
+function assertObjectIsJSONObject(
+  v: Record<string, unknown>,
+): asserts v is JSONObject {
   for (const k in v) {
     if (hasOwn(v, k)) {
       const val = v[k];

@@ -3,9 +3,8 @@ import * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {assertNumber, assertObject} from '../asserts';
 import {hasOwn} from '../has-own';
+import type {ClientID} from './client-id';
 
-// TODO: Make ClientID an opaque type
-type ClientID = string;
 type ClientMap = Map<ClientID, Client>;
 
 type Client = {
@@ -14,9 +13,9 @@ type Client = {
    * while it is active and everytime the client persists its state to
    * the perdag.
    */
-  heartbeatTimestampMs: number;
+  readonly heartbeatTimestampMs: number;
   /** The hash of the commit this session is currently at. */
-  headHash: Hash;
+  readonly headHash: Hash;
 };
 const CLIENTS_HEAD = 'clients';
 

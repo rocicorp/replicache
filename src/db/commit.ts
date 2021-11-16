@@ -75,7 +75,7 @@ export class Commit<M extends Meta = Meta> {
     return this.mutationID + 1;
   }
 
-  get indexes(): IndexRecord[] {
+  get indexes(): readonly IndexRecord[] {
     // Already validated!
     return this.chunk.data.indexes;
   }
@@ -316,7 +316,7 @@ export function fromChunk(chunk: Chunk): Commit {
   return new Commit(chunk);
 }
 
-function chunkFromCommitData(data: CommitData): Chunk<CommitData> {
+export function chunkFromCommitData(data: CommitData): Chunk<CommitData> {
   const refs = getRefs(data);
   return Chunk.new(data, refs);
 }
@@ -325,7 +325,7 @@ function commitFromCommitData(data: CommitData): Commit {
   return new Commit(chunkFromCommitData(data));
 }
 
-function getRefs(data: CommitData): Hash[] {
+export function getRefs(data: CommitData): Hash[] {
   const refs: Hash[] = [data.valueHash];
   const {meta} = data;
   switch (meta.type) {
@@ -351,10 +351,10 @@ function getRefs(data: CommitData): Hash[] {
 export type CommitData = {
   readonly meta: Meta;
   readonly valueHash: Hash;
-  readonly indexes: IndexRecord[];
+  readonly indexes: readonly IndexRecord[];
 };
 
-function assertCommitData(v: unknown): asserts v is CommitData {
+export function assertCommitData(v: unknown): asserts v is CommitData {
   assertObject(v);
   assertMeta(v.meta);
   assertString(v.valueHash);

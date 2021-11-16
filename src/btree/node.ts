@@ -19,6 +19,13 @@ export type InternalNode = BaseNode<Hash>;
 
 export type DataNode = BaseNode<ReadonlyJSONValue>;
 
+export function getRefs(node: DataNode | InternalNode): ReadonlyArray<Hash> {
+  if (node[NODE_LEVEL] === 0) {
+    return [];
+  }
+  return node[NODE_ENTRIES].map(e => e[1]) as ReadonlyArray<Hash>;
+}
+
 export const enum DiffResultOp {
   Add,
   Delete,
@@ -136,6 +143,12 @@ export function assertBTreeNode(
   } else {
     entries.forEach(e => assertEntry(e, assertJSONValue));
   }
+}
+
+export function isInternalNode(
+  node: DataNode | InternalNode,
+): node is InternalNode {
+  return node[NODE_LEVEL] > 0;
 }
 
 abstract class NodeImpl<Value extends Hash | ReadonlyJSONValue> {

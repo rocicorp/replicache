@@ -17,9 +17,12 @@ export {
   newIndexChange,
   newLocal,
   newSnapshot,
+  chunkFromCommitData,
+  getRefs,
+  assertCommitData,
 } from './commit';
 export {getRoot} from './root';
 export {decodeIndexKey} from './index';
-export type {LocalMeta, IndexRecord} from './commit';
+export type {LocalMeta, IndexRecord, CommitData} from './commit';
 export type {ScanOptions} from './scan';
 export type {Whence} from './read';

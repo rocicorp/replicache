@@ -5,8 +5,8 @@ import {ChunkHasher, defaultChunkHasher} from './chunk';
 export class TestStore extends Store {
   constructor(
     kvStore: kv.Store = new kv.MemStore(),
-    chunkkHasher: ChunkHasher = defaultChunkHasher,
+    chunkHasher: ChunkHasher = defaultChunkHasher,
   ) {
-    super(kvStore, chunkkHasher);
+    super(kvStore, chunkHasher);
   }
 }

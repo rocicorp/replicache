@@ -32,7 +32,7 @@ test('setClients and getClients', async () => {
   );
   await dagStore.withWrite(async (write: dag.Write) => {
     await setClients(clientMap, write);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -66,7 +66,7 @@ test('setClients and getClients sequence', async () => {
   );
   await dagStore.withWrite(async (write: dag.Write) => {
     await setClients(clientMap1, write);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -76,7 +76,7 @@ test('setClients and getClients sequence', async () => {
 
   await dagStore.withWrite(async (write: dag.Write) => {
     await setClients(clientMap2, write);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -114,7 +114,7 @@ test('setClients properly manages refs to client heads when clients are removed 
   );
   await dagStore.withWrite(async (write: dag.Write) => {
     await setClients(clientMap1, write);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -129,7 +129,7 @@ test('setClients properly manages refs to client heads when clients are removed 
 
   await dagStore.withWrite(async (write: dag.Write) => {
     await setClients(clientMap2, write);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -170,7 +170,7 @@ test("setClients properly manages refs to client heads when a client's head chan
 
   await dagStore.withWrite(async (write: dag.Write) => {
     await setClients(clientMap1, write);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -193,7 +193,7 @@ test("setClients properly manages refs to client heads when a client's head chan
       ),
       write,
     );
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -237,7 +237,7 @@ test('setClient properly manages refs to client heads', async () => {
 
   await dagStore.withWrite(async (write: dag.Write) => {
     await setClients(clientMap1, write);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -252,7 +252,7 @@ test('setClient properly manages refs to client heads', async () => {
 
   await dagStore.withWrite(async (write: dag.Write) => {
     await setClient('client1', client1V2, write);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -283,7 +283,7 @@ test('getClient', async () => {
   );
   await dagStore.withWrite(async (write: dag.Write) => {
     await setClients(clientMap, write);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -314,12 +314,12 @@ test('setClient with existing client id', async () => {
   );
   await dagStore.withWrite(async (write: dag.Write) => {
     await setClients(clientMap, write);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withWrite(async (write: dag.Write) => {
     await setClient('client1', client1V2, write);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -357,11 +357,11 @@ test('setClient with new client id', async () => {
   );
   await dagStore.withWrite(async (write: dag.Write) => {
     await setClients(clientMap, write);
-    return write.commit();
+    await write.commit();
   });
   await dagStore.withWrite(async (write: dag.Write) => {
     await setClient('client3', client3, write);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -397,7 +397,7 @@ test('setClients throws error if any client headHash is a temp hash', async () =
 
   await dagStore.withWrite(async (write: dag.Write) => {
     await setClients(clientMap, write);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -422,7 +422,7 @@ test('setClients throws error if any client headHash is a temp hash', async () =
       e = ex;
     }
     expect(e).to.be.instanceOf(Error);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -449,7 +449,7 @@ test('setClient throws error if client headHash is a temp hash', async () => {
   );
   await dagStore.withWrite(async (write: dag.Write) => {
     await setClients(clientMap, write);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -472,7 +472,7 @@ test('setClient throws error if client headHash is a temp hash', async () => {
       e = ex;
     }
     expect(e).to.be.instanceOf(Error);
-    return write.commit();
+    await write.commit();
   });
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -485,7 +485,7 @@ test('getClients throws errors if clients head exist but the chunk it refrences 
   const dagStore = new dag.Store(new MemStore());
   await dagStore.withWrite(async (write: dag.Write) => {
     await write.setHead('clients', hashOf('random stuff'));
-    return write.commit();
+    await write.commit();
   });
   await dagStore.withRead(async (read: dag.Read) => {
     let e;
@@ -514,7 +514,7 @@ test('getClients throws errors if chunk pointed to by clients head does not cont
       write.putChunk(chunk),
       write.setHead('clients', chunk.hash),
     ]);
-    return write.commit();
+    await write.commit();
   });
   await dagStore.withRead(async (read: dag.Read) => {
     let e;

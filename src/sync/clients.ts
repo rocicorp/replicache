@@ -9,11 +9,13 @@ type ClientID = string;
 type ClientMap = Map<ClientID, Client>;
 
 type Client = {
-  // A UNIX timestamp in milliseconds updated by the client once a minute
-  // while it is active and everytime the client persists its state to
-  // the perdag.
+  /**
+   * A UNIX timestamp in milliseconds updated by the client once a minute
+   * while it is active and everytime the client persists its state to
+   * the perdag.
+   */
   heartbeatTimestampMs: number;
-  // The hash of the commit this session is currently at.
+  /** The hash of the commit this session is currently at. */
   headHash: Hash;
 };
 const CLIENTS_HEAD = 'clients';
@@ -64,19 +66,19 @@ export async function getClient(
   return clients.get(id);
 }
 
-export function setClients(
+export async function setClients(
   clients: ClientMap,
   dagWrite: dag.Write,
 ): Promise<void> {
   const chunkData = clientMapToChunkData(clients);
   const chunk = dag.Chunk.new(
     chunkData,
-    Array.from(clients.values()).map(client => client.headHash),
+    Array.from(clients.values(), client => client.headHash),
   );
-  return Promise.all([
+  await Promise.all([
     dagWrite.putChunk(chunk),
     dagWrite.setHead(CLIENTS_HEAD, chunk.hash),
-  ]).then(() => undefined);
+  ]);
 }
 
 export async function setClient(

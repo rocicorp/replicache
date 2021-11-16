@@ -14,6 +14,7 @@ import {
 import {RWLock} from '../rw-lock';
 import type {ScanOptionsInternal} from '../db/scan';
 import type {CreateChunk} from '../dag/chunk';
+import {assert} from '../asserts';
 
 export class BTreeWrite extends BTreeRead {
   /**
@@ -63,10 +64,12 @@ export class BTreeWrite extends BTreeRead {
   }
 
   private _addToModified(node: DataNodeImpl | InternalNodeImpl): void {
+    assert(node.isMutable);
     this._modified.set(node.hash, node);
   }
 
   updateNode(node: DataNodeImpl | InternalNodeImpl): void {
+    assert(node.isMutable);
     this._modified.delete(node.hash);
     node.hash = newTempHash();
     this._addToModified(node);
@@ -76,13 +79,13 @@ export class BTreeWrite extends BTreeRead {
     entries: Array<Entry<Hash>>,
     level: number,
   ): InternalNodeImpl {
-    const n = new InternalNodeImpl(entries, newTempHash(), level);
+    const n = new InternalNodeImpl(entries, newTempHash(), level, true);
     this._addToModified(n);
     return n;
   }
 
   newDataNodeImpl(entries: Entry<ReadonlyJSONValue>[]): DataNodeImpl {
-    const n = new DataNodeImpl(entries, newTempHash());
+    const n = new DataNodeImpl(entries, newTempHash(), true);
     this._addToModified(n);
     return n;
   }
@@ -97,7 +100,7 @@ export class BTreeWrite extends BTreeRead {
     entries: Entry<Hash>[] | Entry<ReadonlyJSONValue>[],
     level: number,
   ): InternalNodeImpl | DataNodeImpl {
-    const n = newNodeImpl(entries, newTempHash(), level);
+    const n = newNodeImpl(entries, newTempHash(), level, true);
     this._addToModified(n);
     return n;
   }

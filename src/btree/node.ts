@@ -1,6 +1,6 @@
 import {assertJSONValue, JSONValue, ReadonlyJSONValue} from '../json';
 import {assert, assertArray, assertNumber, assertString} from '../asserts';
-import {Hash, emptyHash, newTempHash, isTempHash} from '../hash';
+import {Hash, emptyHash, newTempHash} from '../hash';
 import type {BTreeRead} from './read';
 import type {BTreeWrite} from './write';
 
@@ -142,10 +142,12 @@ abstract class NodeImpl<Value extends Hash | ReadonlyJSONValue> {
   entries: Array<Entry<Value>>;
   hash: Hash;
   abstract readonly level: number;
+  readonly isMutable: boolean;
 
-  constructor(entries: Array<Entry<Value>>, hash: Hash) {
+  constructor(entries: Array<Entry<Value>>, hash: Hash, isMutable: boolean) {
     this.entries = entries;
     this.hash = hash;
+    this.isMutable = isMutable;
   }
 
   abstract set(
@@ -195,7 +197,7 @@ export class DataNodeImpl extends NodeImpl<ReadonlyJSONValue> {
     deleteCount: number,
     ...items: Entry<ReadonlyJSONValue>[]
   ): DataNodeImpl {
-    if (isTempHash(this.hash)) {
+    if (this.isMutable) {
       this.entries.splice(start, deleteCount, ...items);
       tree.updateNode(this);
       return this;
@@ -283,8 +285,13 @@ function* joinIterables<T>(...iters: Iterable<T>[]) {
 export class InternalNodeImpl extends NodeImpl<Hash> {
   readonly level: number;
 
-  constructor(entries: Array<Entry<Hash>>, hash: Hash, level: number) {
-    super(entries, hash);
+  constructor(
+    entries: Array<Entry<Hash>>,
+    hash: Hash,
+    level: number,
+    isMutable: boolean,
+  ) {
+    super(entries, hash, isMutable);
     this.level = level;
   }
 
@@ -363,7 +370,7 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
       newEntries.push([node.maxKey(), node.hash]);
     }
 
-    if (isTempHash(this.hash)) {
+    if (this.isMutable) {
       this.entries.splice(startIndex, removeCount, ...newEntries);
       tree.updateNode(this);
       return this;
@@ -384,7 +391,7 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
     index: number,
     newEntry: Entry<Hash>,
   ): InternalNodeImpl {
-    if (isTempHash(this.hash)) {
+    if (this.isMutable) {
       this.entries.splice(index, 1, newEntry);
       tree.updateNode(this);
       return this;
@@ -492,7 +499,7 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
     const {level} = this;
 
     if (length === 0) {
-      return new InternalNodeImpl([], newTempHash(), level - 1);
+      return new InternalNodeImpl([], newTempHash(), level - 1, true);
     }
 
     const output = await this.getChildren(start, start + length, tree);
@@ -502,7 +509,7 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
       for (const child of output as InternalNodeImpl[]) {
         entries.push(...child.entries);
       }
-      return new InternalNodeImpl(entries, newTempHash(), level - 1);
+      return new InternalNodeImpl(entries, newTempHash(), level - 1, true);
     }
 
     assert(level === 1);
@@ -510,7 +517,7 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
     for (const child of output as DataNodeImpl[]) {
       entries.push(...child.entries);
     }
-    return new DataNodeImpl(entries, newTempHash());
+    return new DataNodeImpl(entries, newTempHash(), true);
   }
 }
 
@@ -518,26 +525,30 @@ export function newNodeImpl(
   entries: Array<Entry<ReadonlyJSONValue>>,
   hash: Hash,
   level: number,
+  isMutable: boolean,
 ): DataNodeImpl;
 export function newNodeImpl(
   entries: Array<Entry<Hash>>,
   hash: Hash,
   level: number,
+  isMutable: boolean,
 ): InternalNodeImpl;
 export function newNodeImpl(
   entries: Array<Entry<ReadonlyJSONValue>> | Array<Entry<Hash>>,
   hash: Hash,
   level: number,
+  isMutable: boolean,
 ): DataNodeImpl | InternalNodeImpl;
 export function newNodeImpl(
   entries: Array<Entry<ReadonlyJSONValue>> | Array<Entry<Hash>>,
   hash: Hash,
   level: number,
+  isMutable: boolean,
 ): DataNodeImpl | InternalNodeImpl {
   if (level === 0) {
-    return new DataNodeImpl(entries, hash);
+    return new DataNodeImpl(entries, hash, isMutable);
   }
-  return new InternalNodeImpl(entries as Entry<Hash>[], hash, level);
+  return new InternalNodeImpl(entries as Entry<Hash>[], hash, level, isMutable);
 }
 
 export function partition<T>(
@@ -585,4 +596,4 @@ export function partition<T>(
   return partitions;
 }
 
-export const emptyDataNode = new DataNodeImpl([], emptyHash);
+export const emptyDataNode = new DataNodeImpl([], emptyHash, false);

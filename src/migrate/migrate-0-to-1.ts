@@ -7,6 +7,7 @@ import * as sync from '../sync/mod';
 import * as utf8 from '../utf8';
 import type {LogContext} from '../logger';
 import {Hash, parse} from '../hash';
+import {MetaTyped} from '../db/commit';
 
 const VERSION_KEY = 'sys/storage-format-version';
 
@@ -114,20 +115,20 @@ export async function migrateMaybeWeakCommit(
   );
 
   const commitData = db.commitDataFromFlatbuffer(buf);
-  const commit = new db.Commit(dag.Chunk.new(commitData, []));
 
-  ps.push(migrateProllyMap(commit.valueHash, write, pending));
+  ps.push(migrateProllyMap(commitData.valueHash, write, pending));
   // basisHash is weak for Snapshot Commits
-  if (commit.meta.basisHash) {
-    ps.push(migrateWeakCommit(commit.meta.basisHash, write, pending));
+  if (commitData.meta.basisHash) {
+    ps.push(migrateWeakCommit(commitData.meta.basisHash, write, pending));
   }
 
   // originalHash is weak for Local Commits
-  if (commit.isLocal() && commit.meta.originalHash) {
-    ps.push(migrateWeakCommit(commit.meta.originalHash, write, pending));
+  const {meta} = commitData;
+  if (meta.type === MetaTyped.Local && meta.originalHash) {
+    ps.push(migrateWeakCommit(meta.originalHash, write, pending));
   }
 
-  for (const index of commit.indexes) {
+  for (const index of commitData.indexes) {
     ps.push(migrateProllyMap(index.valueHash, write, pending));
   }
 

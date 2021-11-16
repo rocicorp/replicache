@@ -13,7 +13,7 @@ type Client = {
    * while it is active and everytime the client persists its state to
    * the perdag.
    */
-   readonly heartbeatTimestampMs: number;
+  readonly heartbeatTimestampMs: number;
   /** The hash of the commit this session is currently at. */
   readonly headHash: Hash;
 };

@@ -19,35 +19,7 @@ export interface ConnectionLoopDelegate extends Logger {
   minDelayMs: number;
 }
 
-export interface ConnectionLoop {
-  close(): void;
-  send(): void;
-  run(): Promise<void>;
-}
-
-export function createConnectionLoop(
-  delegate: ConnectionLoopDelegate,
-): ConnectionLoop {
-  return new ConnectionLoopImpl(delegate);
-}
-
-export function createNullConnectionLoop(): ConnectionLoop {
-  return new NullConnectionLoop();
-}
-
-class NullConnectionLoop implements ConnectionLoop {
-  close(): void {
-    return;
-  }
-  send(): void {
-    return;
-  }
-  run(): Promise<void> {
-    return Promise.resolve();
-  }
-}
-
-class ConnectionLoopImpl implements ConnectionLoop {
+export class ConnectionLoop {
   // ConnectionLoop runs a loop sending network requests (either pushes or
   // pulls) to the server. Our goal, generally, is to send requests as fast as
   // we can, but to adjust in case of slowness, network errors, etc. We will

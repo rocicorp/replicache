@@ -69,6 +69,7 @@ export class BTreeRead {
       data[NODE_ENTRIES] as Entry<ReadonlyJSONValue>[],
       hash,
       data[NODE_LEVEL],
+      false,
     );
     this._cache.set(hash, impl);
     return impl;

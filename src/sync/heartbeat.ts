@@ -32,8 +32,8 @@ export async function writeHeartbeat(
   await setClient(
     clientID,
     {
-      ...client,
       heartbeatTimestampMs: Date.now(),
+      headHash: client.headHash,
     },
     write,
   );

@@ -13,9 +13,9 @@ type Client = {
    * while it is active and everytime the client persists its state to
    * the perdag.
    */
-  heartbeatTimestampMs: number;
+   readonly heartbeatTimestampMs: number;
   /** The hash of the commit this session is currently at. */
-  headHash: Hash;
+  readonly headHash: Hash;
 };
 const CLIENTS_HEAD = 'clients';
 

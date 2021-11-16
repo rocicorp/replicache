@@ -27,6 +27,8 @@ import * as dag from './dag/mod';
 import {TestMemStore} from './kv/test-mem-store';
 import {WriteTransactionImpl} from './transactions';
 import {emptyHash, Hash} from './hash';
+import {defaultPuller} from './puller';
+import {defaultPusher} from './pusher';
 
 let clock: SinonFakeTimers;
 setup(() => {
@@ -1213,7 +1215,7 @@ testWithBothStores('push delay', async () => {
 });
 
 testWithBothStores(
-  'no push request when both pushURL and pusher are not provided',
+  'push request is only sent when pushURL or non-default pusher are set',
   async () => {
     const rep = await replicacheForTestingNoDefaultURLs('no push requests', {
       auth: '1',
@@ -1230,56 +1232,67 @@ testWithBothStores(
     });
 
     const {createTodo} = rep.mutate;
-
-    const id1 = 14323534;
 
     await tickAFewTimes();
     fetchMock.reset();
     fetchMock.postAny({});
 
-    await createTodo({id: id1});
+    await createTodo({id: 'id1'});
     await tickAFewTimes();
 
     expect(fetchMock.calls()).to.have.length(0);
-  },
-);
-
-testWithBothStores(
-  'push request is sent when pushURL is not provided but a pusher is provided',
-  async () => {
-    let pusherCallCount = 0;
-    const rep = await replicacheForTestingNoDefaultURLs('no push requests', {
-      auth: '1',
-      pullURL: 'https://diff.com/pull',
-      pushDelay: 1,
-      pusher: () => {
-        pusherCallCount++;
-        return Promise.resolve({
-          httpStatusCode: 200,
-          errorMessage: '',
-        });
-      },
-      mutators: {
-        createTodo: async <A extends {id: number}>(
-          tx: WriteTransaction,
-          args: A,
-        ) => {
-          await tx.put(`/todo/${args.id}`, args);
-        },
-      },
-    });
-
-    const {createTodo} = rep.mutate;
-
-    const id1 = 14323534;
 
     await tickAFewTimes();
+    fetchMock.reset();
+    fetchMock.postAny({});
+
+    rep.pushURL = 'https://diff.com/push';
+
+    await createTodo({id: 'id2'});
+    await tickAFewTimes();
+    expect(fetchMock.calls()).to.have.length(1);
+
+    await tickAFewTimes();
+    fetchMock.reset();
+    fetchMock.postAny({});
+
+    rep.pushURL = '';
+
+    await createTodo({id: 'id3'});
+    await tickAFewTimes();
+    expect(fetchMock.calls()).to.have.length(0);
+
+    await tickAFewTimes();
+    fetchMock.reset();
+    fetchMock.postAny({});
+    let pusherCallCount = 0;
+
+    rep.pusher = () => {
+      pusherCallCount++;
+      return Promise.resolve({
+        httpStatusCode: 200,
+        errorMessage: '',
+      });
+    };
+
+    await createTodo({id: 'id4'});
+    await tickAFewTimes();
+
+    expect(fetchMock.calls()).to.have.length(0);
+    expect(pusherCallCount).to.equal(1);
+
+    await tickAFewTimes();
+    fetchMock.reset();
+    fetchMock.postAny({});
     pusherCallCount = 0;
 
-    await createTodo({id: id1});
+    rep.pusher = defaultPusher;
+
+    await createTodo({id: 'id5'});
     await tickAFewTimes();
 
-    expect(pusherCallCount).to.equal(1);
+    expect(fetchMock.calls()).to.have.length(0);
+    expect(pusherCallCount).to.equal(0);
   },
 );
 
@@ -1450,9 +1463,9 @@ testWithBothStores('reauth pull', async () => {
 });
 
 testWithBothStores(
-  'no pull request when both pullURL and puller are not provided',
+  'pull request is only sent when pullURL or non-default puller are set',
   async () => {
-    const rep = await replicacheForTestingNoDefaultURLs('no pull requests', {
+    const rep = await replicacheForTestingNoDefaultURLs('no push requests', {
       auth: '1',
       pushURL: 'https://diff.com/push',
     });
@@ -1465,34 +1478,61 @@ testWithBothStores(
     await tickAFewTimes();
 
     expect(fetchMock.calls()).to.have.length(0);
-  },
-);
-
-testWithBothStores(
-  'pull request is sent when pullURL is not provided but a puller is provided',
-  async () => {
-    let pullerCallCount = 0;
-    const rep = await replicacheForTestingNoDefaultURLs('no push requests', {
-      auth: '1',
-      pushURL: 'https://diff.com/push',
-      puller: () => {
-        pullerCallCount++;
-        return Promise.resolve({
-          httpRequestInfo: {
-            httpStatusCode: 500,
-            errorMessage: 'Test failure',
-          },
-        });
-      },
-    });
 
     await tickAFewTimes();
-    pullerCallCount = 0;
+    fetchMock.reset();
+    fetchMock.postAny({});
+
+    rep.pullURL = 'https://diff.com/pull';
+
+    rep.pull();
+    await tickAFewTimes();
+    expect(fetchMock.calls()).to.have.length.greaterThan(0);
+
+    await tickAFewTimes();
+    fetchMock.reset();
+    fetchMock.postAny({});
+
+    rep.pullURL = '';
+
+    rep.pull();
+    await tickAFewTimes();
+    expect(fetchMock.calls()).to.have.length(0);
+
+    await tickAFewTimes();
+    fetchMock.reset();
+    fetchMock.postAny({});
+
+    let pullerCallCount = 0;
+
+    rep.puller = () => {
+      pullerCallCount++;
+      return Promise.resolve({
+        httpRequestInfo: {
+          httpStatusCode: 500,
+          errorMessage: 'Test failure',
+        },
+      });
+    };
 
     rep.pull();
     await tickAFewTimes();
 
-    expect(pullerCallCount).to.equal(1);
+    expect(fetchMock.calls()).to.have.length(0);
+    expect(pullerCallCount).to.be.greaterThan(0);
+
+    await tickAFewTimes();
+    fetchMock.reset();
+    fetchMock.postAny({});
+    pullerCallCount = 0;
+
+    rep.puller = defaultPuller;
+
+    rep.pull();
+    await tickAFewTimes();
+
+    expect(fetchMock.calls()).to.have.length(0);
+    expect(pullerCallCount).to.equal(0);
   },
 );
 

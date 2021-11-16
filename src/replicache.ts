@@ -15,13 +15,7 @@ import type {
   WriteTransaction,
 } from './transactions';
 import {ScanResult} from './scan-iterator';
-import {
-  createConnectionLoop,
-  createNullConnectionLoop,
-  MAX_DELAY_MS,
-  MIN_DELAY_MS,
-} from './connection-loop';
-import type {ConnectionLoop} from './connection-loop';
+import {ConnectionLoop, MAX_DELAY_MS, MIN_DELAY_MS} from './connection-loop';
 import {getLogger, LogContext} from './logger';
 import type {Logger} from './logger';
 import {defaultPuller} from './puller';
@@ -301,27 +295,21 @@ export class Replicache<MD extends MutatorDefs = {}> {
       requestOptions;
     this._requestOptions = {maxDelayMs, minDelayMs};
 
-    this._pullConnectionLoop =
-      options.pullURL || options.puller
-        ? createConnectionLoop(
-            new PullDelegate(
-              this,
-              () => this._invokePull(),
-              getLogger(['PULL'], logLevel),
-            ),
-          )
-        : createNullConnectionLoop();
+    this._pullConnectionLoop = new ConnectionLoop(
+      new PullDelegate(
+        this,
+        () => this._invokePull(),
+        getLogger(['PULL'], logLevel),
+      ),
+    );
 
-    this._pushConnectionLoop =
-      options.pushURL || options.pusher
-        ? createConnectionLoop(
-            new PushDelegate(
-              this,
-              () => this._invokePush(MAX_REAUTH_TRIES),
-              getLogger(['PUSH'], logLevel),
-            ),
-          )
-        : createNullConnectionLoop();
+    this._pushConnectionLoop = new ConnectionLoop(
+      new PushDelegate(
+        this,
+        () => this._invokePush(MAX_REAUTH_TRIES),
+        getLogger(['PUSH'], logLevel),
+      ),
+    );
 
     this._logger = getLogger([], logLevel);
 
@@ -675,6 +663,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
 
   private async _invokePull(): Promise<boolean> {
+    if (this.pullURL === '' && this.puller === defaultPuller) {
+      return true;
+    }
     return await this._wrapInOnlineCheck(async () => {
       try {
         this._changeSyncCounters(0, 1);
@@ -727,6 +718,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
 
   protected async _invokePush(maxAuthTries: number): Promise<boolean> {
+    if (this.pushURL === '' && this.pusher === defaultPusher) {
+      return true;
+    }
     return await this._wrapInOnlineCheck(async () => {
       let pushResponse;
       try {

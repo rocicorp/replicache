@@ -259,19 +259,22 @@ test('that we check if the hash is good when committing', async () => {
   ) => {
     const store = new Store(new MemStore(), chunkHasher, assertValidHash);
 
-    const hash = await store.withWrite(async dagWrite => {
-      const c = dagWrite.createChunk([0, 1], []);
+    const data = [true, 42];
+
+    await store.withWrite(async dagWrite => {
+      const c = dagWrite.createChunk(data, []);
       await dagWrite.putChunk(c);
       await dagWrite.setHead('test', c.hash);
       await dagWrite.commit();
-      return c.hash;
     });
 
     await store.withRead(async dagRead => {
-      const c = await dagRead.getChunk(hash);
       const h = await dagRead.getHead('test');
-      expect(c).to.deep.equal(c);
-      expect(c?.hash).to.equal(h);
+      assert(h);
+      const c = await dagRead.getChunk(h);
+      assert(c);
+      expect(c.hash).to.equal(h);
+      expect(c.data).to.deep.equal(data);
     });
   };
 

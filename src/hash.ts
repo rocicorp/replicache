@@ -139,7 +139,7 @@ export function isTempHash(v: unknown): v is Hash {
 
 export function assertNotTempHash(hash: Hash): void {
   if (tempHashRe.test(hash as unknown as string)) {
-    throw new Error('must not be a temp hash');
+    throw new Error('Unexpected temp hash');
   }
 }
 

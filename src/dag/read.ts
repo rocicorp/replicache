@@ -7,12 +7,18 @@ import {assertHash, Hash} from '../hash';
 import type {ReadonlyJSONValue} from '../json';
 
 export class Read {
-  private readonly _kvr: kv.Read;
+  protected readonly _kvr: kv.Read;
   private readonly _chunkHasher: ChunkHasher;
+  readonly assertValidHash: (hash: Hash) => void;
 
-  constructor(kv: kv.Read, chunkHasher: ChunkHasher) {
+  constructor(
+    kv: kv.Read,
+    chunkHasher: ChunkHasher,
+    assertValidHash: (hash: Hash) => void,
+  ) {
     this._kvr = kv;
     this._chunkHasher = chunkHasher;
+    this.assertValidHash = assertValidHash;
   }
 
   async hasChunk(hash: Hash): Promise<boolean> {

@@ -1,11 +1,10 @@
 import {expect} from '@esm-bundle/chai';
-import {Store} from '../dag/mod';
-import {MemStore} from '../kv/mod';
+import * as dag from '../dag/mod';
 import {stringCompare} from './string-compare';
 import * as prolly from './mod';
 import {initHasher} from '../hash';
 import {binarySearch, Entry} from './map';
-import {defaultChunkHasher, createChunk} from '../dag/chunk';
+import {createChunk} from '../dag/chunk';
 
 setup(async () => {
   await initHasher();
@@ -93,8 +92,7 @@ test('iter flush', async () => {
 
     t(map, expected);
 
-    const kv = new MemStore();
-    const store = new Store(kv, defaultChunkHasher);
+    const store = new dag.TestStore();
     const write = await store.write();
     const hash = await map.flush(write);
 

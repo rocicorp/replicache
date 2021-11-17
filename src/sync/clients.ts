@@ -1,4 +1,4 @@
-import {assertHash, assertNotTempHash, Hash} from './../hash';
+import {assertHash, Hash} from './../hash';
 import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {assertNumber, assertObject} from '../asserts';
@@ -41,9 +41,12 @@ function chunkDataToClientMap(chunkData?: ReadonlyJSONValue): ClientMap {
   return clients;
 }
 
-function clientMapToChunkData(clients: ClientMap): ReadonlyJSONValue {
+function clientMapToChunkData(
+  clients: ClientMap,
+  dagWrite: dag.Write,
+): ReadonlyJSONValue {
   clients.forEach(client => {
-    assertNotTempHash(client.headHash);
+    dagWrite.assertValidHash(client.headHash);
   });
   return Object.fromEntries(clients);
 }
@@ -69,7 +72,7 @@ export async function setClients(
   clients: ClientMap,
   dagWrite: dag.Write,
 ): Promise<void> {
-  const chunkData = clientMapToChunkData(clients);
+  const chunkData = clientMapToChunkData(clients, dagWrite);
   const chunk = dagWrite.createChunk(
     chunkData,
     Array.from(clients.values(), client => client.headHash),

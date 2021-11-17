@@ -5,8 +5,17 @@ import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
 import {Write} from './write';
 import type * as kv from '../kv/mod';
 import {Read} from './read';
-import {Hash, hashOf, initHasher} from '../hash';
+import {
+  assertNotTempHash,
+  Hash,
+  hashOf,
+  initHasher,
+  isTempHash,
+  newTempHash,
+} from '../hash';
 import type {Value} from '../kv/store';
+import {Store} from './store';
+import {assert} from '../asserts';
 
 setup(async () => {
   await initHasher();
@@ -16,7 +25,7 @@ test('put chunk', async () => {
   const t = async (data: Value, refs: Hash[]) => {
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw, defaultChunkHasher);
+      const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
       const c = w.createChunk(data, refs);
       await w.putChunk(c);
 
@@ -62,7 +71,7 @@ async function assertRefCount(kvr: kv.Read, hash: Hash, count: number) {
 test('set head', async () => {
   const t = async (kv: kv.Store, name: string, hash: Hash | undefined) => {
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw, defaultChunkHasher);
+      const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
       await (hash === undefined ? w.removeHead(name) : w.setHead(name, hash));
       if (hash !== undefined) {
         const h = await kvw.get(headKey(name));
@@ -129,7 +138,7 @@ test('ref count invalid', async () => {
       await kvw.commit();
     });
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw, defaultChunkHasher);
+      const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
       let err;
       try {
         await w.getRefCount(h);
@@ -173,7 +182,7 @@ test('commit rollback', async () => {
     let key: string;
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw, defaultChunkHasher);
+      const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
       const c = w.createChunk([0, 1], []);
       await w.putChunk(c);
 
@@ -208,7 +217,7 @@ test('roundtrip', async () => {
     const hash = defaultChunkHasher(data);
     const c = readChunk(hash, data, refs);
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw, defaultChunkHasher);
+      const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
       await w.putChunk(c);
       await w.setHead(name, c.hash);
 
@@ -222,7 +231,7 @@ test('roundtrip', async () => {
 
     // Read the changes outside the tx.
     await kv.withRead(async kvr => {
-      const r = new Read(kvr, defaultChunkHasher);
+      const r = new Read(kvr, defaultChunkHasher, assertNotTempHash);
       const c2 = await r.getChunk(c.hash);
       const h = await r.getHead(name);
       expect(c2).to.deep.equal(c);
@@ -241,4 +250,57 @@ test('roundtrip', async () => {
   await t('', null, []);
   await t('', [0], []);
   await t('', {a: true}, []);
+});
+
+test('that we check if the hash is good when committing', async () => {
+  const t = async (
+    chunkHasher: (v: Value) => Hash,
+    assertValidHash: (h: Hash) => void,
+  ) => {
+    const store = new Store(new MemStore(), chunkHasher, assertValidHash);
+
+    const data = [true, 42];
+
+    await store.withWrite(async dagWrite => {
+      const c = dagWrite.createChunk(data, []);
+      await dagWrite.putChunk(c);
+      await dagWrite.setHead('test', c.hash);
+      await dagWrite.commit();
+    });
+
+    await store.withRead(async dagRead => {
+      const h = await dagRead.getHead('test');
+      assert(h);
+      const c = await dagRead.getChunk(h);
+      assert(c);
+      expect(c.hash).to.equal(h);
+      expect(c.data).to.deep.equal(data);
+    });
+  };
+
+  {
+    let counter = 0;
+    const prefix = 'testhash';
+    const hasher = () =>
+      (counter++).toString().padStart(32, 'testhash') as unknown as Hash;
+    const testHash = (hash: Hash) => {
+      assert(hash.toString().startsWith(prefix));
+    };
+
+    await t(hasher, testHash);
+    await t(defaultChunkHasher, assertNotTempHash);
+    await t(newTempHash, (h: Hash) => {
+      assert(isTempHash(h));
+    });
+
+    let err;
+    try {
+      await t(newTempHash, assertNotTempHash);
+    } catch (e) {
+      err = e;
+    }
+    expect(err)
+      .to.be.instanceof(Error)
+      .with.property('message', 'Unexpected temp hash');
+  }
 });

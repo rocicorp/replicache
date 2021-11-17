@@ -3,7 +3,7 @@ import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key';
 import {Read} from './read';
 import {assertMeta, Chunk, ChunkHasher} from './chunk';
 import {assertNumber} from '../asserts';
-import {assertNotTempHash, Hash} from '../hash';
+import type {Hash} from '../hash';
 
 type HeadChange = {
   new: Hash | undefined;
@@ -11,31 +11,35 @@ type HeadChange = {
 };
 
 export class Write extends Read {
-  private readonly _kvw: kv.Write;
+  protected declare readonly _kvr: kv.Write;
+
   private readonly _newChunks = new Set<Hash>();
   private readonly _changedHeads = new Map<string, HeadChange>();
 
-  constructor(kvw: kv.Write, chunkHasher: ChunkHasher) {
-    super(kvw, chunkHasher);
-    this._kvw = kvw;
+  constructor(
+    kvw: kv.Write,
+    chunkHasher: ChunkHasher,
+    assertValidHash: (hash: Hash) => void,
+  ) {
+    super(kvw, chunkHasher, assertValidHash);
   }
 
   get kvWrite(): kv.Write {
-    return this._kvw;
+    return this._kvr as kv.Write;
   }
 
   async putChunk(c: Chunk): Promise<void> {
     const {hash, data, meta} = c;
     // We never want to write temp hashes to the underlying store.
-    assertNotTempHash(hash);
+    this.assertValidHash(hash);
     const key = chunkDataKey(hash);
-    const p1 = this._kvw.put(key, data);
+    const p1 = this._kvr.put(key, data);
     let p2;
     if (meta.length > 0) {
       for (const h of meta) {
-        assertNotTempHash(h);
+        this.assertValidHash(h);
       }
-      p2 = this._kvw.put(chunkMetaKey(hash), meta);
+      p2 = this._kvr.put(chunkMetaKey(hash), meta);
     }
     this._newChunks.add(hash);
     await p1;
@@ -56,9 +60,9 @@ export class Write extends Read {
 
     let p1: Promise<void>;
     if (hash === undefined) {
-      p1 = this._kvw.del(hk);
+      p1 = this._kvr.del(hk);
     } else {
-      p1 = this._kvw.put(hk, hash);
+      p1 = this._kvr.put(hk, hash);
     }
 
     const v = this._changedHeads.get(name);
@@ -74,7 +78,7 @@ export class Write extends Read {
 
   async commit(): Promise<void> {
     await this.collectGarbage();
-    await this._kvw.commit();
+    await this._kvr.commit();
   }
 
   async collectGarbage(): Promise<void> {
@@ -115,7 +119,7 @@ export class Write extends Read {
     const newCount = oldCount + delta;
 
     if ((oldCount === 0 && delta === 1) || (oldCount === 1 && delta === -1)) {
-      const meta = await this._kvw.get(chunkMetaKey(hash));
+      const meta = await this._kvr.get(chunkMetaKey(hash));
       if (meta !== undefined) {
         assertMeta(meta);
         const ps = meta.map(ref => this.changeRefCount(ref, delta));
@@ -133,14 +137,14 @@ export class Write extends Read {
   async setRefCount(hash: Hash, count: number): Promise<void> {
     const refCountKey = chunkRefCountKey(hash);
     if (count === 0) {
-      await this._kvw.del(refCountKey);
+      await this._kvr.del(refCountKey);
     } else {
-      await this._kvw.put(refCountKey, count);
+      await this._kvr.put(refCountKey, count);
     }
   }
 
   async getRefCount(hash: Hash): Promise<number> {
-    const value = await this._kvw.get(chunkRefCountKey(hash));
+    const value = await this._kvr.get(chunkRefCountKey(hash));
     if (value === undefined) {
       return 0;
     }
@@ -158,9 +162,9 @@ export class Write extends Read {
     updateMutatedChunks: boolean,
   ): Promise<void> {
     await Promise.all([
-      this._kvw.del(chunkDataKey(hash)),
-      this._kvw.del(chunkMetaKey(hash)),
-      this._kvw.del(chunkRefCountKey(hash)),
+      this._kvr.del(chunkDataKey(hash)),
+      this._kvr.del(chunkMetaKey(hash)),
+      this._kvr.del(chunkRefCountKey(hash)),
     ]);
 
     if (updateMutatedChunks) {
@@ -169,7 +173,7 @@ export class Write extends Read {
   }
 
   close(): void {
-    this._kvw.release();
+    this._kvr.release();
   }
 }
 

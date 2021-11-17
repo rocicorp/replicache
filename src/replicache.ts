@@ -33,7 +33,7 @@ import type * as kv from './kv/mod';
 import * as dag from './dag/mod';
 import * as db from './db/mod';
 import * as sync from './sync/mod';
-import {emptyHash, Hash, initHasher} from './hash';
+import {assertNotTempHash, emptyHash, Hash, initHasher} from './hash';
 import {migrate} from './migrate/migrate';
 
 export type BeginPullResult = {
@@ -284,7 +284,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this._kvStore =
       experimentalKVStore ||
       (this._useMemstore ? new MemStore() : new IDBStore(this.name));
-    this._dagStore = new dag.Store(this._kvStore, dag.defaultChunkHasher);
+    this._dagStore = new dag.Store(
+      this._kvStore,
+      dag.defaultChunkHasher,
+      assertNotTempHash,
+    );
 
     // Use a promise-resolve pair so that we have a promise to use even before
     // we call the Open RPC.

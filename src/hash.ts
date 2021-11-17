@@ -117,6 +117,10 @@ export async function initHasher(): Promise<unknown> {
   return hasherPromise;
 }
 
+// Temp hashes needs to have the same length as non temp hashes. This is
+// important because we split B+Tree nodes based on the size and we want the
+// size to be the same independent of whether the hash is temp or not.
+
 export const newTempHash = makeNewTempHashFunction();
 
 export function makeNewTempHashFunction(): () => Hash {

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1637109976093,
+  "lastUpdate": 1637173943608,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -59577,6 +59577,86 @@ window.BENCHMARK_DATA = {
             "name": "[MemStore] create index 1024x5000",
             "value": 3.26,
             "range": "±61.9%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7ad07333fb6ea30a0e431a74aa942b3a5efe9997",
+          "message": "refactor: Move createChunk to dag.Write (#699)\n\nIt was not needed on dag.Read.\r\n\r\nFollowup to #695",
+          "timestamp": "2021-11-17T18:30:26Z",
+          "tree_id": "611160eae10e771db88caa74c996b8e28f2f1ec0",
+          "url": "https://github.com/rocicorp/replicache/commit/7ad07333fb6ea30a0e431a74aa942b3a5efe9997"
+        },
+        "date": 1637173943227,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 370.37,
+            "range": "±3.6%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 222.22,
+            "range": "±2.0%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 185.19,
+            "range": "±3.3%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 8.93,
+            "range": "±80.5%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 4.56,
+            "range": "±57.3%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 3.78,
+            "range": "±47.3%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 244.14,
+            "range": "±5.4%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 3.25,
+            "range": "±62.4%",
             "unit": "ops/sec",
             "extra": "7 samples"
           }

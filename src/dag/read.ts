@@ -1,23 +1,16 @@
 import type * as kv from '../kv/mod';
-import {assertMeta, Chunk, ChunkHasher, createChunk, readChunk} from './chunk';
+import {assertMeta, Chunk, readChunk} from './chunk';
 import {chunkDataKey, chunkMetaKey, headKey} from './key';
 import * as flatbuffers from 'flatbuffers';
 import {Meta as MetaFB} from './generated/meta/meta.js';
 import {assertHash, Hash} from '../hash';
-import type {ReadonlyJSONValue} from '../json';
 
 export class Read {
   protected readonly _kvr: kv.Read;
-  private readonly _chunkHasher: ChunkHasher;
   readonly assertValidHash: (hash: Hash) => void;
 
-  constructor(
-    kv: kv.Read,
-    chunkHasher: ChunkHasher,
-    assertValidHash: (hash: Hash) => void,
-  ) {
+  constructor(kv: kv.Read, assertValidHash: (hash: Hash) => void) {
     this._kvr = kv;
-    this._chunkHasher = chunkHasher;
     this.assertValidHash = assertValidHash;
   }
 
@@ -41,11 +34,6 @@ export class Read {
     }
     return readChunk(hash, data, refs);
   }
-
-  createChunk = <V extends ReadonlyJSONValue>(
-    data: V,
-    refs: readonly Hash[],
-  ): Chunk<V> => createChunk(data, refs, this._chunkHasher);
 
   async getHead(name: string): Promise<Hash | undefined> {
     const data = await this._kvr.get(headKey(name));

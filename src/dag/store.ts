@@ -20,17 +20,11 @@ export class Store {
   }
 
   async read(): Promise<Read> {
-    return new Read(
-      await this._kv.read(),
-      this._chunkHasher,
-      this._assertValidHash,
-    );
+    return new Read(await this._kv.read(), this._assertValidHash);
   }
 
   async withRead<R>(fn: (read: Read) => R | Promise<R>): Promise<R> {
-    return this._kv.withRead(kvr =>
-      fn(new Read(kvr, this._chunkHasher, this._assertValidHash)),
-    );
+    return this._kv.withRead(kvr => fn(new Read(kvr, this._assertValidHash)));
   }
 
   async write(): Promise<Write> {

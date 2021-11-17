@@ -231,7 +231,7 @@ test('roundtrip', async () => {
 
     // Read the changes outside the tx.
     await kv.withRead(async kvr => {
-      const r = new Read(kvr, defaultChunkHasher, assertNotTempHash);
+      const r = new Read(kvr, assertNotTempHash);
       const c2 = await r.getChunk(c.hash);
       const h = await r.getHead(name);
       expect(c2).to.deep.equal(c);

@@ -20,7 +20,7 @@ test('has chunk', async () => {
     });
 
     await kv.withRead(async kvr => {
-      const r = new Read(kvr, defaultChunkHasher, assertNotTempHash);
+      const r = new Read(kvr, assertNotTempHash);
       expect(await r.hasChunk(hash)).to.equal(expectHas);
     });
   };
@@ -42,7 +42,7 @@ test('get chunk', async () => {
     });
 
     await kv.withRead(async kvr => {
-      const r = new Read(kvr, defaultChunkHasher, assertNotTempHash);
+      const r = new Read(kvr, assertNotTempHash);
       let expected = undefined;
       let chunkHash: Hash;
       if (getSameChunk) {

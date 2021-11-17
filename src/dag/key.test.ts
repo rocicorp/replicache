@@ -1,6 +1,14 @@
 import {expect} from '@esm-bundle/chai';
 import {hashOf, initHasher} from '../hash';
-import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
+import {
+  chunkDataKey,
+  chunkMetaKey,
+  chunkRefCountKey,
+  headKey,
+  Key,
+  KeyType,
+  parse,
+} from './key';
 
 setup(async () => {
   await initHasher();
@@ -22,4 +30,48 @@ test('toString', () => {
   expect(headKey('')).to.equal(`h/`);
   expect(headKey('a')).to.equal(`h/a`);
   expect(headKey('ab')).to.equal(`h/ab`);
+});
+
+test('parse', () => {
+  const hashA = hashOf('a');
+  const hashB = hashOf('b');
+
+  const t = (key: string, expected: Key) => {
+    expect(parse(key)).to.deep.equal(expected);
+  };
+
+  t(chunkDataKey(hashA), {type: KeyType.ChunkData, hash: hashA});
+  t(chunkMetaKey(hashA), {type: KeyType.ChunkMeta, hash: hashA});
+  t(chunkRefCountKey(hashA), {type: KeyType.ChunkRefCount, hash: hashA});
+  t(headKey('a'), {type: KeyType.Head, name: 'a'});
+
+  t(chunkDataKey(hashB), {type: KeyType.ChunkData, hash: hashB});
+  t(chunkMetaKey(hashB), {type: KeyType.ChunkMeta, hash: hashB});
+  t(chunkRefCountKey(hashB), {type: KeyType.ChunkRefCount, hash: hashB});
+  t(headKey('b'), {type: KeyType.Head, name: 'b'});
+
+  const invalid = (key: string, message: string) => {
+    expect(() => parse(key))
+      .to.throw(Error)
+      .with.property('message', message);
+  };
+
+  invalid('', `Invalid key: ''`);
+  invalid('c', `Invalid key: 'c'`);
+  invalid('c/', `Invalid key: 'c/'`);
+  invalid('c/abc', `Invalid key: 'c/abc'`);
+  invalid('c/abc/', `Invalid key: 'c/abc/'`);
+  invalid('c/abc/x', `Invalid key: 'c/abc/x'`);
+
+  invalid('c/abc/d', `Invalid hash: 'abc'`);
+  invalid('c/abc/m', `Invalid hash: 'abc'`);
+  invalid('c/abc/r', `Invalid hash: 'abc'`);
+
+  invalid('c//d', `Invalid hash: ''`);
+  invalid('c//m', `Invalid hash: ''`);
+  invalid('c//r', `Invalid hash: ''`);
+
+  invalid('c/d', `Invalid key: 'c/d'`);
+  invalid('c/m', `Invalid key: 'c/m'`);
+  invalid('c/r', `Invalid key: 'c/r'`);
 });

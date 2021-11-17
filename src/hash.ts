@@ -145,6 +145,6 @@ export function assertNotTempHash(hash: Hash): void {
 
 export function assertHash(v: unknown): asserts v is Hash {
   if (!isHash(v)) {
-    throw new Error('not a hash: ' + v);
+    throw new Error(`Invalid hash: '${v}'`);
   }
 }

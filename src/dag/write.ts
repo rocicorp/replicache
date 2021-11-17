@@ -1,9 +1,10 @@
 import type * as kv from '../kv/mod';
 import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key';
 import {Read} from './read';
-import {assertMeta, Chunk, ChunkHasher} from './chunk';
+import {assertMeta, Chunk, ChunkHasher, createChunk} from './chunk';
 import {assertNumber} from '../asserts';
 import type {Hash} from '../hash';
+import type {ReadonlyJSONValue} from '../json';
 
 type HeadChange = {
   new: Hash | undefined;
@@ -12,6 +13,7 @@ type HeadChange = {
 
 export class Write extends Read {
   protected declare readonly _kvr: kv.Write;
+  private readonly _chunkHasher: ChunkHasher;
 
   private readonly _newChunks = new Set<Hash>();
   private readonly _changedHeads = new Map<string, HeadChange>();
@@ -21,8 +23,14 @@ export class Write extends Read {
     chunkHasher: ChunkHasher,
     assertValidHash: (hash: Hash) => void,
   ) {
-    super(kvw, chunkHasher, assertValidHash);
+    super(kvw, assertValidHash);
+    this._chunkHasher = chunkHasher;
   }
+
+  createChunk = <V extends ReadonlyJSONValue>(
+    data: V,
+    refs: readonly Hash[],
+  ): Chunk<V> => createChunk(data, refs, this._chunkHasher);
 
   get kvWrite(): kv.Write {
     return this._kvr as kv.Write;

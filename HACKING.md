@@ -1,5 +1,11 @@
 # Building a release
 
+Get the dependencies
+
+```
+npm install
+```
+
 ## Run Automated Tests
 
 ```

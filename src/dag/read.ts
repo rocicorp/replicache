@@ -6,25 +6,25 @@ import {Meta as MetaFB} from './generated/meta/meta.js';
 import {assertHash, Hash} from '../hash';
 
 export class Read {
-  protected readonly _kvr: kv.Read;
+  protected readonly _tx: kv.Read;
   readonly assertValidHash: (hash: Hash) => void;
 
   constructor(kv: kv.Read, assertValidHash: (hash: Hash) => void) {
-    this._kvr = kv;
+    this._tx = kv;
     this.assertValidHash = assertValidHash;
   }
 
   async hasChunk(hash: Hash): Promise<boolean> {
-    return await this._kvr.has(chunkDataKey(hash));
+    return await this._tx.has(chunkDataKey(hash));
   }
 
   async getChunk(hash: Hash): Promise<Chunk | undefined> {
-    const data = await this._kvr.get(chunkDataKey(hash));
+    const data = await this._tx.get(chunkDataKey(hash));
     if (data === undefined) {
       return undefined;
     }
 
-    const refsVal = await this._kvr.get(chunkMetaKey(hash));
+    const refsVal = await this._tx.get(chunkMetaKey(hash));
     let refs: readonly Hash[];
     if (refsVal !== undefined) {
       assertMeta(refsVal);
@@ -36,7 +36,7 @@ export class Read {
   }
 
   async getHead(name: string): Promise<Hash | undefined> {
-    const data = await this._kvr.get(headKey(name));
+    const data = await this._tx.get(headKey(name));
     if (data === undefined) {
       return undefined;
     }
@@ -45,11 +45,11 @@ export class Read {
   }
 
   close(): void {
-    this._kvr.release();
+    this._tx.release();
   }
 
   get closed(): boolean {
-    return this._kvr.closed;
+    return this._tx.closed;
   }
 }
 

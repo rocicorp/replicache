@@ -3,6 +3,7 @@ import {currentVersion, migrate0to1} from './migrate-0-to-1';
 import {migrate1to2} from './migrate-1-to-2';
 import type * as kv from '../kv/mod';
 import type {LogContext} from '../logger';
+import {assertNotTempHash} from '../hash';
 
 export async function migrate(
   kvStore: kv.Store,
@@ -19,7 +20,11 @@ export async function migrate(
   }
 
   if (v === 1) {
-    const dagStore = new dag.Store(kvStore, dag.defaultChunkHasher);
+    const dagStore = new dag.Store(
+      kvStore,
+      dag.defaultChunkHasher,
+      assertNotTempHash,
+    );
     await dagStore.withWrite(async dagWrite => {
       await migrate1to2(dagWrite, lc);
       await dagWrite.commit();

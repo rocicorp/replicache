@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1637174402347,
+  "lastUpdate": 1637180808381,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -703,6 +703,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.mjs.br (Brotli compressed)",
             "value": 34783,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "268c15c4d6043a93763c89b15941cde1580e96e5",
+          "message": "refactor: Add back parse to dag/key.ts (#701)\n\nI need it for a test I'm writing...",
+          "timestamp": "2021-11-17T20:25:51Z",
+          "tree_id": "925063e5e1fb7037ce2085ee200eaa448f62396b",
+          "url": "https://github.com/rocicorp/replicache/commit/268c15c4d6043a93763c89b15941cde1580e96e5"
+        },
+        "date": 1637180806946,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 186070,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 34973,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 185716,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 34874,
             "unit": "bytes"
           }
         ]

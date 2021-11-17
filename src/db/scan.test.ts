@@ -1,6 +1,5 @@
 import {expect} from '@esm-bundle/chai';
 import {convert, scan, ScanItem, ScanOptions} from './scan';
-import * as kv from '../kv/mod';
 import * as dag from '../dag/mod';
 import {decodeIndexKey, encodeIndexKey} from './index';
 import {BTreeWrite} from '../btree/mod';
@@ -15,8 +14,7 @@ test('scan', async () => {
       2,
     )}, expected: ${expected}`;
 
-    const memStore = new kv.MemStore();
-    const dagStore = new dag.TestStore(memStore);
+    const dagStore = new dag.TestStore();
 
     await dagStore.withWrite(async dagWrite => {
       const map = new BTreeWrite(dagWrite);
@@ -324,8 +322,7 @@ test('exclusive regular map', async () => {
   const t = async (keys: string[], startKey: string, expected: string[]) => {
     const testDesc = `keys: ${keys}, startKey: ${startKey}, expected: ${expected}`;
 
-    const memStore = new kv.MemStore();
-    const dagStore = new dag.TestStore(memStore);
+    const dagStore = new dag.TestStore();
 
     await dagStore.withWrite(async dagWrite => {
       const map = new BTreeWrite(dagWrite);
@@ -365,8 +362,7 @@ test('exclusive index map', async () => {
   ) => {
     const testDesc = `entries: ${entries}, startSecondaryKey ${startSecondaryKey}, startKey: ${startKey}, expected: ${expected}`;
 
-    const memStore = new kv.MemStore();
-    const dagStore = new dag.TestStore(memStore);
+    const dagStore = new dag.TestStore();
 
     await dagStore.withWrite(async dagWrite => {
       const map = new BTreeWrite(dagWrite);
@@ -619,8 +615,7 @@ test('scan index startKey', async () => {
     opts: ScanOptions,
     expected: ScanItem[],
   ) => {
-    const memStore = new kv.MemStore();
-    const dagStore = new dag.TestStore(memStore);
+    const dagStore = new dag.TestStore();
 
     await dagStore.withWrite(async dagWrite => {
       const map = await makeBTreeWrite(dagWrite, entries);

@@ -1,7 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import type {JSONValue} from '../json';
 import {stringCompare} from '../prolly/string-compare';
-import * as kv from '../kv/mod';
 import * as dag from '../dag/mod';
 import {
   decodeIndexKey,
@@ -194,8 +193,7 @@ test('index value', async () => {
     op: IndexOperation,
     expected: number[] | string,
   ) => {
-    const memStore = new kv.MemStore();
-    const dagStore = new dag.TestStore(memStore);
+    const dagStore = new dag.TestStore();
     await dagStore.withWrite(async dagWrite => {
       const index = new BTreeWrite(dagWrite);
       await index.put(encodeIndexKey(['s1', '1']), 'v1');

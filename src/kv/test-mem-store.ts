@@ -5,7 +5,7 @@ export class TestMemStore extends MemStore {
   /**
    * This exposes the underlying map for testing purposes.
    */
-  entries(): Iterable<[string, Value]> {
+  entries(): IterableIterator<[string, Value]> {
     return this._map.entries();
   }
 

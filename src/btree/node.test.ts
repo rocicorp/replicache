@@ -3,7 +3,6 @@ import * as dag from '../dag/mod';
 import type {ScanOptionsInternal} from '../db/scan';
 import {emptyHash, Hash, initHasher} from '../hash';
 import type {ReadonlyJSONValue} from '../json';
-import * as kv from '../kv/mod';
 import {
   DataNode,
   findLeaf,
@@ -27,8 +26,7 @@ setup(async () => {
 const emptyTreeHash = 'mdcncodijhl6jk2o8bb7m0hg15p3sf24';
 
 test('findLeaf', async () => {
-  const kvStore = new kv.MemStore();
-  const dagStore = new dag.TestStore(kvStore);
+  const dagStore = new dag.TestStore();
 
   const leaf0: DataNode = [
     0,
@@ -265,8 +263,7 @@ async function asyncIterToArray<T>(iter: AsyncIterable<T>): Promise<T[]> {
 }
 
 test('empty read tree', async () => {
-  const kvStore = new kv.MemStore();
-  const dagStore = new dag.TestStore(kvStore);
+  const dagStore = new dag.TestStore();
   await dagStore.withRead(async dagRead => {
     const r = new BTreeRead(dagRead);
     expect(await r.get('a')).to.be.undefined;
@@ -276,8 +273,7 @@ test('empty read tree', async () => {
 });
 
 test('empty write tree', async () => {
-  const kvStore = new kv.MemStore();
-  const dagStore = new dag.TestStore(kvStore);
+  const dagStore = new dag.TestStore();
 
   await dagStore.withWrite(async dagWrite => {
     const w = new BTreeWrite(
@@ -323,8 +319,7 @@ test('empty write tree', async () => {
 });
 
 test('get', async () => {
-  const kvStore = new kv.MemStore();
-  const dagStore = new dag.TestStore(kvStore);
+  const dagStore = new dag.TestStore();
 
   const tree: TreeData = {
     $level: 1,
@@ -382,8 +377,7 @@ test('get', async () => {
 });
 
 test('has', async () => {
-  const kvStore = new kv.MemStore();
-  const dagStore = new dag.TestStore(kvStore);
+  const dagStore = new dag.TestStore();
 
   const tree: TreeData = {
     $level: 1,
@@ -490,8 +484,7 @@ test('partition', () => {
 });
 
 test('put', async () => {
-  const kvStore = new kv.MemStore();
-  const dagStore = new dag.TestStore(kvStore);
+  const dagStore = new dag.TestStore();
 
   const tree: TreeData = {
     $level: 0,
@@ -833,8 +826,7 @@ test('put', async () => {
 });
 
 test('del - single data node', async () => {
-  const kvStore = new kv.MemStore();
-  const dagStore = new dag.TestStore(kvStore);
+  const dagStore = new dag.TestStore();
 
   const tree: TreeData = {
     $level: 0,
@@ -875,8 +867,7 @@ test('del - single data node', async () => {
 });
 
 test('del - flatten', async () => {
-  const kvStore = new kv.MemStore();
-  const dagStore = new dag.TestStore(kvStore);
+  const dagStore = new dag.TestStore();
 
   // This tests that we can flatten "an invalid tree"
 
@@ -938,8 +929,7 @@ test('del - flatten', async () => {
 });
 
 test('del - with internal nodes', async () => {
-  const kvStore = new kv.MemStore();
-  const dagStore = new dag.TestStore(kvStore);
+  const dagStore = new dag.TestStore();
 
   const tree: TreeData = {
     $level: 2,
@@ -1107,8 +1097,7 @@ test('del - with internal nodes', async () => {
 });
 
 test('put - invalid', async () => {
-  const kvStore = new kv.MemStore();
-  const dagStore = new dag.TestStore(kvStore);
+  const dagStore = new dag.TestStore();
 
   // This tests that we can do puts on "an invalid tree"
 
@@ -1147,8 +1136,7 @@ test('put/del - getSize', async () => {
   maxSize = minSize * 2;
   getEntrySize = getSizeOfValue;
 
-  const kvStore = new kv.MemStore();
-  const dagStore = new dag.TestStore(kvStore);
+  const dagStore = new dag.TestStore();
 
   // This tests that we can do puts on "an invalid tree"
 
@@ -1214,8 +1202,7 @@ test('scan', async () => {
     options: ScanOptionsInternal = {},
     expectedEntries = entries,
   ) => {
-    const kvStore = new kv.MemStore();
-    const dagStore = new dag.TestStore(kvStore);
+    const dagStore = new dag.TestStore();
 
     const tree: TreeData = {
       $level: 0,
@@ -1434,8 +1421,7 @@ test('diff', async () => {
     newEntries: Entry<ReadonlyJSONValue>[],
     expectedDiff: DiffResult<ReadonlyJSONValue>[],
   ) => {
-    const kvStore = new kv.MemStore();
-    const dagStore = new dag.TestStore(kvStore);
+    const dagStore = new dag.TestStore();
 
     const [oldHash, newHash] = await dagStore.withWrite(async dagWrite => {
       const oldTree = new BTreeWrite(

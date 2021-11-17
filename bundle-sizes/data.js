@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1637105386318,
+  "lastUpdate": 1637109926792,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -571,6 +571,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.mjs.br (Brotli compressed)",
             "value": 34746,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "126b6a7e1918544d691bcd1a79f5ddae2f8dca0c",
+          "message": "refactor: Make assertValidChunk part of dag Store (#698)\n\nFor memdag we will allow temp hashes but for perdag we will not.\r\n\r\nTowards #671",
+          "timestamp": "2021-11-17T00:44:32Z",
+          "tree_id": "5092a6fdda5e931512d51568d3954760d9a9bb66",
+          "url": "https://github.com/rocicorp/replicache/commit/126b6a7e1918544d691bcd1a79f5ddae2f8dca0c"
+        },
+        "date": 1637109924751,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 185875,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 34884,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 185521,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 34792,
             "unit": "bytes"
           }
         ]

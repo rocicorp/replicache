@@ -50,19 +50,16 @@ export class Visitor {
     ]);
   }
 
-  async visitCommitMeta(meta: Meta): Promise<void> {
+  visitCommitMeta(meta: Meta): Promise<void> {
     switch (meta.type) {
       case MetaTyped.IndexChange:
-        await this.visitIndexChangeMeta(meta);
-        break;
+        return this.visitIndexChangeMeta(meta);
 
       case MetaTyped.Local:
-        await this.visitLocalMeta(meta);
-        break;
+        return this.visitLocalMeta(meta);
 
       case MetaTyped.Snapshot:
-        await this.visitSnapshot(meta);
-        break;
+        return this.visitSnapshot(meta);
     }
   }
 
@@ -87,8 +84,8 @@ export class Visitor {
     }
   }
 
-  async visitIndexChangeMeta(meta: IndexChangeMeta): Promise<void> {
-    await this._visitBasisHash(meta.basisHash, false);
+  visitIndexChangeMeta(meta: IndexChangeMeta): Promise<void> {
+    return this._visitBasisHash(meta.basisHash, false);
   }
 
   visitCommitValue(valueHash: Hash): Promise<void> {

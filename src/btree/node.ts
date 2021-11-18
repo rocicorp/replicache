@@ -596,4 +596,5 @@ export function partition<T>(
   return partitions;
 }
 
-export const emptyDataNode = new DataNodeImpl([], emptyHash, false);
+export const emptyDataNode: DataNode = [0, []];
+export const emptyDataNodeImpl = new DataNodeImpl([], emptyHash, false);

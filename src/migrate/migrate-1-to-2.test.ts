@@ -3,7 +3,7 @@ import {migrateProllyMap} from './migrate-1-to-2';
 import * as dag from '../dag/mod';
 import * as kv from '../kv/mod';
 import * as prolly from '../prolly/mod';
-import {emptyHash, initHasher} from '../hash';
+import {initHasher} from '../hash';
 
 setup(async () => {
   await initHasher();
@@ -29,12 +29,8 @@ test('migrateProllyMap', async () => {
       return newHash;
     });
 
-    if (entries.length === 0) {
-      expect(newHash).to.equal(emptyHash);
-    } else {
-      const chunkData = kvStore.map().get(dag.chunkDataKey(newHash));
-      expect(chunkData).to.deep.equal([0, entries]);
-    }
+    const chunkData = kvStore.map().get(dag.chunkDataKey(newHash));
+    expect(chunkData).to.deep.equal([0, entries]);
   };
 
   await t([]);

@@ -438,8 +438,7 @@ export const testDataV1 = {
 };
 
 export const testDataV2 = {
-  'c/00000000000000000000000000000000/r': 2,
-  'c/3qamjl84no3b1rsdikdh3leu3vraihlc/d': {
+  'c/9lrb08p9b7jqo8oad3aef60muj4td8ke/d': {
     indexes: [],
     meta: {
       basisHash: null,
@@ -447,33 +446,16 @@ export const testDataV2 = {
       lastMutationID: 0,
       type: 3,
     },
-    valueHash: '00000000000000000000000000000000',
+    valueHash: 'mdcncodijhl6jk2o8bb7m0hg15p3sf24',
   },
-  'c/3qamjl84no3b1rsdikdh3leu3vraihlc/m': ['00000000000000000000000000000000'],
-  'c/3qamjl84no3b1rsdikdh3leu3vraihlc/r': 1,
+  'c/9lrb08p9b7jqo8oad3aef60muj4td8ke/m': ['mdcncodijhl6jk2o8bb7m0hg15p3sf24'],
+  'c/9lrb08p9b7jqo8oad3aef60muj4td8ke/r': 1,
   'c/b3863icha1gsbso9ffljo02ei3rre2o2/d': [0, [['local', '1']]],
   'c/b3863icha1gsbso9ffljo02ei3rre2o2/r': 1,
-  'c/b69dbef5na7teqlacuio939dcfi7sc1q/d': {
+  'c/c1h0l57s5utibjcb949ounpad7epfbsa/d': {
     indexes: [],
     meta: {
-      basisHash: '3qamjl84no3b1rsdikdh3leu3vraihlc',
-      mutationID: 1,
-      mutatorArgsJSON: [1],
-      mutatorName: 'mutator_name_1',
-      originalHash: null,
-      type: 2,
-    },
-    valueHash: 'b3863icha1gsbso9ffljo02ei3rre2o2',
-  },
-  'c/b69dbef5na7teqlacuio939dcfi7sc1q/m': [
-    'b3863icha1gsbso9ffljo02ei3rre2o2',
-    '3qamjl84no3b1rsdikdh3leu3vraihlc',
-  ],
-  'c/b69dbef5na7teqlacuio939dcfi7sc1q/r': 1,
-  'c/hrlsc9asj5kvculk60q838r8sm1037cr/d': {
-    indexes: [],
-    meta: {
-      basisHash: 'b69dbef5na7teqlacuio939dcfi7sc1q',
+      basisHash: 'kf7ac7jta5b86iu74e3sqk49ec0tq6d3',
       mutationID: 2,
       mutatorArgsJSON: [2],
       mutatorName: 'mutator_name_2',
@@ -482,27 +464,46 @@ export const testDataV2 = {
     },
     valueHash: 'rkk61b2245as3tddh7gdsa1aedgujvhl',
   },
-  'c/hrlsc9asj5kvculk60q838r8sm1037cr/m': [
+  'c/c1h0l57s5utibjcb949ounpad7epfbsa/m': [
     'rkk61b2245as3tddh7gdsa1aedgujvhl',
-    'b69dbef5na7teqlacuio939dcfi7sc1q',
+    'kf7ac7jta5b86iu74e3sqk49ec0tq6d3',
   ],
-  'c/hrlsc9asj5kvculk60q838r8sm1037cr/r': 1,
-  'c/ns4mlkp3gnjp1kdlbvavo57q2ddu7p0h/d': {
+  'c/c1h0l57s5utibjcb949ounpad7epfbsa/r': 1,
+  'c/e3fh6n436slf6850mgv1uld8j2kf459b/d': {
     indexes: [],
     meta: {
-      basisHash: '3qamjl84no3b1rsdikdh3leu3vraihlc',
+      basisHash: '9lrb08p9b7jqo8oad3aef60muj4td8ke',
       cookieJSON: 'sync_cookie_2',
       lastMutationID: 0,
       type: 3,
     },
-    valueHash: '00000000000000000000000000000000',
+    valueHash: 'mdcncodijhl6jk2o8bb7m0hg15p3sf24',
   },
-  'c/ns4mlkp3gnjp1kdlbvavo57q2ddu7p0h/m': ['00000000000000000000000000000000'],
-  'c/ns4mlkp3gnjp1kdlbvavo57q2ddu7p0h/r': 1,
+  'c/e3fh6n436slf6850mgv1uld8j2kf459b/m': ['mdcncodijhl6jk2o8bb7m0hg15p3sf24'],
+  'c/e3fh6n436slf6850mgv1uld8j2kf459b/r': 1,
+  'c/kf7ac7jta5b86iu74e3sqk49ec0tq6d3/d': {
+    indexes: [],
+    meta: {
+      basisHash: '9lrb08p9b7jqo8oad3aef60muj4td8ke',
+      mutationID: 1,
+      mutatorArgsJSON: [1],
+      mutatorName: 'mutator_name_1',
+      originalHash: null,
+      type: 2,
+    },
+    valueHash: 'b3863icha1gsbso9ffljo02ei3rre2o2',
+  },
+  'c/kf7ac7jta5b86iu74e3sqk49ec0tq6d3/m': [
+    'b3863icha1gsbso9ffljo02ei3rre2o2',
+    '9lrb08p9b7jqo8oad3aef60muj4td8ke',
+  ],
+  'c/kf7ac7jta5b86iu74e3sqk49ec0tq6d3/r': 1,
+  'c/mdcncodijhl6jk2o8bb7m0hg15p3sf24/d': [0, []],
+  'c/mdcncodijhl6jk2o8bb7m0hg15p3sf24/r': 2,
   'c/rkk61b2245as3tddh7gdsa1aedgujvhl/d': [0, [['local', '2']]],
   'c/rkk61b2245as3tddh7gdsa1aedgujvhl/r': 1,
-  'h/main': 'hrlsc9asj5kvculk60q838r8sm1037cr',
-  'h/sync': 'ns4mlkp3gnjp1kdlbvavo57q2ddu7p0h',
+  'h/main': 'c1h0l57s5utibjcb949ounpad7epfbsa',
+  'h/sync': 'e3fh6n436slf6850mgv1uld8j2kf459b',
   'sys/storage-format-version': 2,
 };
 
@@ -717,70 +718,7 @@ export const testIndexDataV1 = {
 };
 
 export const testIndexDataV2 = {
-  'c/00000000000000000000000000000000/r': 1,
-  'c/1ntcehqqu0j2erqihpnjmembtt1q4pdp/d': {
-    indexes: [
-      {
-        definition: {
-          jsonPointer: '',
-          keyPrefix: 'local',
-          name: '2',
-        },
-        valueHash: 'rni607b73kne1e0ic5gkrri8ttrn5coa',
-      },
-    ],
-    meta: {
-      basisHash: 'qjdcmqg76riuhlgfficif8postlrg0vi',
-      mutationID: 2,
-      mutatorArgsJSON: [3],
-      mutatorName: 'mutator_name_3',
-      originalHash: null,
-      type: 2,
-    },
-    valueHash: 'cb46475b4lgd84e763otcji59br5ndmo',
-  },
-  'c/1ntcehqqu0j2erqihpnjmembtt1q4pdp/m': [
-    'cb46475b4lgd84e763otcji59br5ndmo',
-    'qjdcmqg76riuhlgfficif8postlrg0vi',
-    'rni607b73kne1e0ic5gkrri8ttrn5coa',
-  ],
-  'c/1ntcehqqu0j2erqihpnjmembtt1q4pdp/r': 1,
-  'c/3qamjl84no3b1rsdikdh3leu3vraihlc/d': {
-    indexes: [],
-    meta: {
-      basisHash: null,
-      cookieJSON: null,
-      lastMutationID: 0,
-      type: 3,
-    },
-    valueHash: '00000000000000000000000000000000',
-  },
-  'c/3qamjl84no3b1rsdikdh3leu3vraihlc/m': ['00000000000000000000000000000000'],
-  'c/3qamjl84no3b1rsdikdh3leu3vraihlc/r': 1,
-  'c/b3863icha1gsbso9ffljo02ei3rre2o2/d': [0, [['local', '1']]],
-  'c/b3863icha1gsbso9ffljo02ei3rre2o2/r': 1,
-  'c/b69dbef5na7teqlacuio939dcfi7sc1q/d': {
-    indexes: [],
-    meta: {
-      basisHash: '3qamjl84no3b1rsdikdh3leu3vraihlc',
-      mutationID: 1,
-      mutatorArgsJSON: [1],
-      mutatorName: 'mutator_name_1',
-      originalHash: null,
-      type: 2,
-    },
-    valueHash: 'b3863icha1gsbso9ffljo02ei3rre2o2',
-  },
-  'c/b69dbef5na7teqlacuio939dcfi7sc1q/m': [
-    'b3863icha1gsbso9ffljo02ei3rre2o2',
-    '3qamjl84no3b1rsdikdh3leu3vraihlc',
-  ],
-  'c/b69dbef5na7teqlacuio939dcfi7sc1q/r': 1,
-  'c/bla65gnithpsbf9o3i3hfljbdvfseph8/d': [0, [['\u00001\u0000local', '1']]],
-  'c/bla65gnithpsbf9o3i3hfljbdvfseph8/r': 1,
-  'c/cb46475b4lgd84e763otcji59br5ndmo/d': [0, [['local', '3']]],
-  'c/cb46475b4lgd84e763otcji59br5ndmo/r': 1,
-  'c/qjdcmqg76riuhlgfficif8postlrg0vi/d': {
+  'c/0ad65d6okc5uttpt6t7rougv91eoueka/d': {
     indexes: [
       {
         definition: {
@@ -792,20 +730,84 @@ export const testIndexDataV2 = {
       },
     ],
     meta: {
-      basisHash: 'b69dbef5na7teqlacuio939dcfi7sc1q',
+      basisHash: 'kf7ac7jta5b86iu74e3sqk49ec0tq6d3',
       lastMutationID: 1,
       type: 1,
     },
     valueHash: 'b3863icha1gsbso9ffljo02ei3rre2o2',
   },
-  'c/qjdcmqg76riuhlgfficif8postlrg0vi/m': [
+  'c/0ad65d6okc5uttpt6t7rougv91eoueka/m': [
     'b3863icha1gsbso9ffljo02ei3rre2o2',
-    'b69dbef5na7teqlacuio939dcfi7sc1q',
+    'kf7ac7jta5b86iu74e3sqk49ec0tq6d3',
     'bla65gnithpsbf9o3i3hfljbdvfseph8',
   ],
-  'c/qjdcmqg76riuhlgfficif8postlrg0vi/r': 1,
+  'c/0ad65d6okc5uttpt6t7rougv91eoueka/r': 1,
+  'c/9lrb08p9b7jqo8oad3aef60muj4td8ke/d': {
+    indexes: [],
+    meta: {
+      basisHash: null,
+      cookieJSON: null,
+      lastMutationID: 0,
+      type: 3,
+    },
+    valueHash: 'mdcncodijhl6jk2o8bb7m0hg15p3sf24',
+  },
+  'c/9lrb08p9b7jqo8oad3aef60muj4td8ke/m': ['mdcncodijhl6jk2o8bb7m0hg15p3sf24'],
+  'c/9lrb08p9b7jqo8oad3aef60muj4td8ke/r': 1,
+  'c/b3863icha1gsbso9ffljo02ei3rre2o2/d': [0, [['local', '1']]],
+  'c/b3863icha1gsbso9ffljo02ei3rre2o2/r': 1,
+  'c/bla65gnithpsbf9o3i3hfljbdvfseph8/d': [0, [['\u00001\u0000local', '1']]],
+  'c/bla65gnithpsbf9o3i3hfljbdvfseph8/r': 1,
+  'c/cb46475b4lgd84e763otcji59br5ndmo/d': [0, [['local', '3']]],
+  'c/cb46475b4lgd84e763otcji59br5ndmo/r': 1,
+  'c/kf7ac7jta5b86iu74e3sqk49ec0tq6d3/d': {
+    indexes: [],
+    meta: {
+      basisHash: '9lrb08p9b7jqo8oad3aef60muj4td8ke',
+      mutationID: 1,
+      mutatorArgsJSON: [1],
+      mutatorName: 'mutator_name_1',
+      originalHash: null,
+      type: 2,
+    },
+    valueHash: 'b3863icha1gsbso9ffljo02ei3rre2o2',
+  },
+  'c/kf7ac7jta5b86iu74e3sqk49ec0tq6d3/m': [
+    'b3863icha1gsbso9ffljo02ei3rre2o2',
+    '9lrb08p9b7jqo8oad3aef60muj4td8ke',
+  ],
+  'c/kf7ac7jta5b86iu74e3sqk49ec0tq6d3/r': 1,
+  'c/lvi3nkb9703am7ukcet80j7cjfv148vn/d': {
+    indexes: [
+      {
+        definition: {
+          jsonPointer: '',
+          keyPrefix: 'local',
+          name: '2',
+        },
+        valueHash: 'rni607b73kne1e0ic5gkrri8ttrn5coa',
+      },
+    ],
+    meta: {
+      basisHash: '0ad65d6okc5uttpt6t7rougv91eoueka',
+      mutationID: 2,
+      mutatorArgsJSON: [3],
+      mutatorName: 'mutator_name_3',
+      originalHash: null,
+      type: 2,
+    },
+    valueHash: 'cb46475b4lgd84e763otcji59br5ndmo',
+  },
+  'c/lvi3nkb9703am7ukcet80j7cjfv148vn/m': [
+    'cb46475b4lgd84e763otcji59br5ndmo',
+    '0ad65d6okc5uttpt6t7rougv91eoueka',
+    'rni607b73kne1e0ic5gkrri8ttrn5coa',
+  ],
+  'c/lvi3nkb9703am7ukcet80j7cjfv148vn/r': 1,
+  'c/mdcncodijhl6jk2o8bb7m0hg15p3sf24/d': [0, []],
+  'c/mdcncodijhl6jk2o8bb7m0hg15p3sf24/r': 1,
   'c/rni607b73kne1e0ic5gkrri8ttrn5coa/d': [0, [['\u00003\u0000local', '3']]],
   'c/rni607b73kne1e0ic5gkrri8ttrn5coa/r': 1,
-  'h/main': '1ntcehqqu0j2erqihpnjmembtt1q4pdp',
+  'h/main': 'lvi3nkb9703am7ukcet80j7cjfv148vn',
   'sys/storage-format-version': 2,
 };

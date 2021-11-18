@@ -169,21 +169,10 @@ export const chatSampleV1 = {
 
 // 8.0.0
 export const chatSampleV2 = {
-  'c/a4u1aepu6ecqj3vg4ipgimq2ma79113v/d': [
-    [
-      'message/h7jVd62dI7be4h8tHPgEa',
-      {
-        content: "Hi. I'm version 0",
-        from: 'Old',
-        order: 1,
-      },
-    ],
-  ],
-  'c/a4u1aepu6ecqj3vg4ipgimq2ma79113v/r': 1,
-  'c/p115b9rblk4futgrb5m26d8n3eimfh2f/d': {
+  'c/fdjkbhvnjrfb2mnc634fk790fu9as4gp/d': {
     indexes: [],
     meta: {
-      basisHash: 'r4kh3bl8f5il57v8aeailfe2oic7479p',
+      basisHash: 'o9gr71jco5lv284mhnke2nrg6raj57vg',
       mutationID: 2,
       mutatorArgsJSON: {
         content: 'Going offline',
@@ -195,14 +184,28 @@ export const chatSampleV2 = {
       originalHash: null,
       type: 2,
     },
-    valueHash: 'tjtt1mu0fds839fic6l08bg6pjj6qkra',
+    valueHash: 'ok5mmt1pcv0k9ur5esjjndp9pfqqlflv',
   },
-  'c/p115b9rblk4futgrb5m26d8n3eimfh2f/m': [
-    'tjtt1mu0fds839fic6l08bg6pjj6qkra',
-    'r4kh3bl8f5il57v8aeailfe2oic7479p',
+  'c/fdjkbhvnjrfb2mnc634fk790fu9as4gp/m': [
+    'ok5mmt1pcv0k9ur5esjjndp9pfqqlflv',
+    'o9gr71jco5lv284mhnke2nrg6raj57vg',
   ],
-  'c/p115b9rblk4futgrb5m26d8n3eimfh2f/r': 1,
-  'c/r4kh3bl8f5il57v8aeailfe2oic7479p/d': {
+  'c/fdjkbhvnjrfb2mnc634fk790fu9as4gp/r': 1,
+  'c/jlkcvk3hg2d8lkj184qfp0rsqr31uiou/d': [
+    0,
+    [
+      [
+        'message/h7jVd62dI7be4h8tHPgEa',
+        {
+          content: "Hi. I'm version 0",
+          from: 'Old',
+          order: 1,
+        },
+      ],
+    ],
+  ],
+  'c/jlkcvk3hg2d8lkj184qfp0rsqr31uiou/r': 1,
+  'c/o9gr71jco5lv284mhnke2nrg6raj57vg/d': {
     indexes: [],
     meta: {
       basisHash: '0rq1efi2innh6ci15bsf3td7rr0luqme',
@@ -210,30 +213,33 @@ export const chatSampleV2 = {
       lastMutationID: 1,
       type: 3,
     },
-    valueHash: 'a4u1aepu6ecqj3vg4ipgimq2ma79113v',
+    valueHash: 'jlkcvk3hg2d8lkj184qfp0rsqr31uiou',
   },
-  'c/r4kh3bl8f5il57v8aeailfe2oic7479p/m': ['a4u1aepu6ecqj3vg4ipgimq2ma79113v'],
-  'c/r4kh3bl8f5il57v8aeailfe2oic7479p/r': 1,
-  'c/tjtt1mu0fds839fic6l08bg6pjj6qkra/d': [
+  'c/o9gr71jco5lv284mhnke2nrg6raj57vg/m': ['jlkcvk3hg2d8lkj184qfp0rsqr31uiou'],
+  'c/o9gr71jco5lv284mhnke2nrg6raj57vg/r': 1,
+  'c/ok5mmt1pcv0k9ur5esjjndp9pfqqlflv/d': [
+    0,
     [
-      'message/XvfoiFHxWuZVbOVHufhyB',
-      {
-        content: 'Going offline',
-        from: 'Old',
-        order: 2,
-      },
-    ],
-    [
-      'message/h7jVd62dI7be4h8tHPgEa',
-      {
-        content: "Hi. I'm version 0",
-        from: 'Old',
-        order: 1,
-      },
+      [
+        'message/XvfoiFHxWuZVbOVHufhyB',
+        {
+          content: 'Going offline',
+          from: 'Old',
+          order: 2,
+        },
+      ],
+      [
+        'message/h7jVd62dI7be4h8tHPgEa',
+        {
+          content: "Hi. I'm version 0",
+          from: 'Old',
+          order: 1,
+        },
+      ],
     ],
   ],
-  'c/tjtt1mu0fds839fic6l08bg6pjj6qkra/r': 1,
-  'h/main': 'p115b9rblk4futgrb5m26d8n3eimfh2f',
+  'c/ok5mmt1pcv0k9ur5esjjndp9pfqqlflv/r': 1,
+  'h/main': 'fdjkbhvnjrfb2mnc634fk790fu9as4gp',
   'sys/cid': '8e99b4d7-abf5-496d-8304-e921e0fd60ba',
   'sys/storage-format-version': 2,
 };
@@ -432,40 +438,8 @@ export const testDataV1 = {
 };
 
 export const testDataV2 = {
-  'c/5vm3movfjjpjs5sanpmnd4n965kvn04p/d': {
-    indexes: [],
-    meta: {
-      basisHash: 'hjera9r19os7oumi22s4mkba84jdn16e',
-      mutationID: 1,
-      mutatorArgsJSON: [1],
-      mutatorName: 'mutator_name_1',
-      originalHash: null,
-      type: 2,
-    },
-    valueHash: 'bk5r3f2ui3neg8gh8na8pn8o1ij0n88p',
-  },
-  'c/5vm3movfjjpjs5sanpmnd4n965kvn04p/m': [
-    'bk5r3f2ui3neg8gh8na8pn8o1ij0n88p',
-    'hjera9r19os7oumi22s4mkba84jdn16e',
-  ],
-  'c/5vm3movfjjpjs5sanpmnd4n965kvn04p/r': 1,
-  'c/bk5r3f2ui3neg8gh8na8pn8o1ij0n88p/d': [['local', '1']],
-  'c/bk5r3f2ui3neg8gh8na8pn8o1ij0n88p/r': 1,
-  'c/c50qh3sv6pv6g956205g5566ftjd20pr/d': {
-    indexes: [],
-    meta: {
-      basisHash: 'hjera9r19os7oumi22s4mkba84jdn16e',
-      cookieJSON: 'sync_cookie_2',
-      lastMutationID: 0,
-      type: 3,
-    },
-    valueHash: 'jdh7scesonbpmik7k00vnb4ska0goree',
-  },
-  'c/c50qh3sv6pv6g956205g5566ftjd20pr/m': ['jdh7scesonbpmik7k00vnb4ska0goree'],
-  'c/c50qh3sv6pv6g956205g5566ftjd20pr/r': 1,
-  'c/e0vv0irhobdvsifog3v0prpkniapg1iv/d': [['local', '2']],
-  'c/e0vv0irhobdvsifog3v0prpkniapg1iv/r': 1,
-  'c/hjera9r19os7oumi22s4mkba84jdn16e/d': {
+  'c/00000000000000000000000000000000/r': 2,
+  'c/3qamjl84no3b1rsdikdh3leu3vraihlc/d': {
     indexes: [],
     meta: {
       basisHash: null,
@@ -473,31 +447,62 @@ export const testDataV2 = {
       lastMutationID: 0,
       type: 3,
     },
-    valueHash: 'jdh7scesonbpmik7k00vnb4ska0goree',
+    valueHash: '00000000000000000000000000000000',
   },
-  'c/hjera9r19os7oumi22s4mkba84jdn16e/m': ['jdh7scesonbpmik7k00vnb4ska0goree'],
-  'c/hjera9r19os7oumi22s4mkba84jdn16e/r': 1,
-  'c/jdh7scesonbpmik7k00vnb4ska0goree/d': [],
-  'c/jdh7scesonbpmik7k00vnb4ska0goree/r': 2,
-  'c/od2vk77iok5pjbp2d4mjv8u5bcjk0u4e/d': {
+  'c/3qamjl84no3b1rsdikdh3leu3vraihlc/m': ['00000000000000000000000000000000'],
+  'c/3qamjl84no3b1rsdikdh3leu3vraihlc/r': 1,
+  'c/b3863icha1gsbso9ffljo02ei3rre2o2/d': [0, [['local', '1']]],
+  'c/b3863icha1gsbso9ffljo02ei3rre2o2/r': 1,
+  'c/b69dbef5na7teqlacuio939dcfi7sc1q/d': {
     indexes: [],
     meta: {
-      basisHash: '5vm3movfjjpjs5sanpmnd4n965kvn04p',
+      basisHash: '3qamjl84no3b1rsdikdh3leu3vraihlc',
+      mutationID: 1,
+      mutatorArgsJSON: [1],
+      mutatorName: 'mutator_name_1',
+      originalHash: null,
+      type: 2,
+    },
+    valueHash: 'b3863icha1gsbso9ffljo02ei3rre2o2',
+  },
+  'c/b69dbef5na7teqlacuio939dcfi7sc1q/m': [
+    'b3863icha1gsbso9ffljo02ei3rre2o2',
+    '3qamjl84no3b1rsdikdh3leu3vraihlc',
+  ],
+  'c/b69dbef5na7teqlacuio939dcfi7sc1q/r': 1,
+  'c/hrlsc9asj5kvculk60q838r8sm1037cr/d': {
+    indexes: [],
+    meta: {
+      basisHash: 'b69dbef5na7teqlacuio939dcfi7sc1q',
       mutationID: 2,
       mutatorArgsJSON: [2],
       mutatorName: 'mutator_name_2',
       originalHash: null,
       type: 2,
     },
-    valueHash: 'e0vv0irhobdvsifog3v0prpkniapg1iv',
+    valueHash: 'rkk61b2245as3tddh7gdsa1aedgujvhl',
   },
-  'c/od2vk77iok5pjbp2d4mjv8u5bcjk0u4e/m': [
-    'e0vv0irhobdvsifog3v0prpkniapg1iv',
-    '5vm3movfjjpjs5sanpmnd4n965kvn04p',
+  'c/hrlsc9asj5kvculk60q838r8sm1037cr/m': [
+    'rkk61b2245as3tddh7gdsa1aedgujvhl',
+    'b69dbef5na7teqlacuio939dcfi7sc1q',
   ],
-  'c/od2vk77iok5pjbp2d4mjv8u5bcjk0u4e/r': 1,
-  'h/main': 'od2vk77iok5pjbp2d4mjv8u5bcjk0u4e',
-  'h/sync': 'c50qh3sv6pv6g956205g5566ftjd20pr',
+  'c/hrlsc9asj5kvculk60q838r8sm1037cr/r': 1,
+  'c/ns4mlkp3gnjp1kdlbvavo57q2ddu7p0h/d': {
+    indexes: [],
+    meta: {
+      basisHash: '3qamjl84no3b1rsdikdh3leu3vraihlc',
+      cookieJSON: 'sync_cookie_2',
+      lastMutationID: 0,
+      type: 3,
+    },
+    valueHash: '00000000000000000000000000000000',
+  },
+  'c/ns4mlkp3gnjp1kdlbvavo57q2ddu7p0h/m': ['00000000000000000000000000000000'],
+  'c/ns4mlkp3gnjp1kdlbvavo57q2ddu7p0h/r': 1,
+  'c/rkk61b2245as3tddh7gdsa1aedgujvhl/d': [0, [['local', '2']]],
+  'c/rkk61b2245as3tddh7gdsa1aedgujvhl/r': 1,
+  'h/main': 'hrlsc9asj5kvculk60q838r8sm1037cr',
+  'h/sync': 'ns4mlkp3gnjp1kdlbvavo57q2ddu7p0h',
   'sys/storage-format-version': 2,
 };
 
@@ -712,30 +717,35 @@ export const testIndexDataV1 = {
 };
 
 export const testIndexDataV2 = {
-  'c/4chshi38boio0e88c3aqgb8ubeoq3gfn/d': [['local', '3']],
-  'c/4chshi38boio0e88c3aqgb8ubeoq3gfn/r': 1,
-  'c/5vm3movfjjpjs5sanpmnd4n965kvn04p/d': {
-    indexes: [],
+  'c/00000000000000000000000000000000/r': 1,
+  'c/1ntcehqqu0j2erqihpnjmembtt1q4pdp/d': {
+    indexes: [
+      {
+        definition: {
+          jsonPointer: '',
+          keyPrefix: 'local',
+          name: '2',
+        },
+        valueHash: 'rni607b73kne1e0ic5gkrri8ttrn5coa',
+      },
+    ],
     meta: {
-      basisHash: 'hjera9r19os7oumi22s4mkba84jdn16e',
-      mutationID: 1,
-      mutatorArgsJSON: [1],
-      mutatorName: 'mutator_name_1',
+      basisHash: 'qjdcmqg76riuhlgfficif8postlrg0vi',
+      mutationID: 2,
+      mutatorArgsJSON: [3],
+      mutatorName: 'mutator_name_3',
       originalHash: null,
       type: 2,
     },
-    valueHash: 'bk5r3f2ui3neg8gh8na8pn8o1ij0n88p',
+    valueHash: 'cb46475b4lgd84e763otcji59br5ndmo',
   },
-  'c/5vm3movfjjpjs5sanpmnd4n965kvn04p/m': [
-    'bk5r3f2ui3neg8gh8na8pn8o1ij0n88p',
-    'hjera9r19os7oumi22s4mkba84jdn16e',
+  'c/1ntcehqqu0j2erqihpnjmembtt1q4pdp/m': [
+    'cb46475b4lgd84e763otcji59br5ndmo',
+    'qjdcmqg76riuhlgfficif8postlrg0vi',
+    'rni607b73kne1e0ic5gkrri8ttrn5coa',
   ],
-  'c/5vm3movfjjpjs5sanpmnd4n965kvn04p/r': 1,
-  'c/bk5r3f2ui3neg8gh8na8pn8o1ij0n88p/d': [['local', '1']],
-  'c/bk5r3f2ui3neg8gh8na8pn8o1ij0n88p/r': 2,
-  'c/fd4k0ag9h3h7i49q56bohra05cr0v236/d': [['\u00001\u0000local', '1']],
-  'c/fd4k0ag9h3h7i49q56bohra05cr0v236/r': 1,
-  'c/hjera9r19os7oumi22s4mkba84jdn16e/d': {
+  'c/1ntcehqqu0j2erqihpnjmembtt1q4pdp/r': 1,
+  'c/3qamjl84no3b1rsdikdh3leu3vraihlc/d': {
     indexes: [],
     meta: {
       basisHash: null,
@@ -743,42 +753,34 @@ export const testIndexDataV2 = {
       lastMutationID: 0,
       type: 3,
     },
-    valueHash: 'jdh7scesonbpmik7k00vnb4ska0goree',
+    valueHash: '00000000000000000000000000000000',
   },
-  'c/hjera9r19os7oumi22s4mkba84jdn16e/m': ['jdh7scesonbpmik7k00vnb4ska0goree'],
-  'c/hjera9r19os7oumi22s4mkba84jdn16e/r': 1,
-  'c/jdh7scesonbpmik7k00vnb4ska0goree/d': [],
-  'c/jdh7scesonbpmik7k00vnb4ska0goree/r': 1,
-  'c/oab8b08vla0k6a3380t77fqac15o33vl/d': [['\u00003\u0000local', '3']],
-  'c/oab8b08vla0k6a3380t77fqac15o33vl/r': 1,
-  'c/pf48rplga5cs3em9nevhvhmnq6pc72vq/d': {
-    indexes: [
-      {
-        definition: {
-          jsonPointer: '',
-          keyPrefix: 'local',
-          name: '2',
-        },
-        valueHash: 'oab8b08vla0k6a3380t77fqac15o33vl',
-      },
-    ],
+  'c/3qamjl84no3b1rsdikdh3leu3vraihlc/m': ['00000000000000000000000000000000'],
+  'c/3qamjl84no3b1rsdikdh3leu3vraihlc/r': 1,
+  'c/b3863icha1gsbso9ffljo02ei3rre2o2/d': [0, [['local', '1']]],
+  'c/b3863icha1gsbso9ffljo02ei3rre2o2/r': 1,
+  'c/b69dbef5na7teqlacuio939dcfi7sc1q/d': {
+    indexes: [],
     meta: {
-      basisHash: 'prs38sr9ijdeskrlf0oj5vqrs2j3lku2',
-      mutationID: 2,
-      mutatorArgsJSON: [3],
-      mutatorName: 'mutator_name_3',
+      basisHash: '3qamjl84no3b1rsdikdh3leu3vraihlc',
+      mutationID: 1,
+      mutatorArgsJSON: [1],
+      mutatorName: 'mutator_name_1',
       originalHash: null,
       type: 2,
     },
-    valueHash: '4chshi38boio0e88c3aqgb8ubeoq3gfn',
+    valueHash: 'b3863icha1gsbso9ffljo02ei3rre2o2',
   },
-  'c/pf48rplga5cs3em9nevhvhmnq6pc72vq/m': [
-    '4chshi38boio0e88c3aqgb8ubeoq3gfn',
-    'prs38sr9ijdeskrlf0oj5vqrs2j3lku2',
-    'oab8b08vla0k6a3380t77fqac15o33vl',
+  'c/b69dbef5na7teqlacuio939dcfi7sc1q/m': [
+    'b3863icha1gsbso9ffljo02ei3rre2o2',
+    '3qamjl84no3b1rsdikdh3leu3vraihlc',
   ],
-  'c/pf48rplga5cs3em9nevhvhmnq6pc72vq/r': 1,
-  'c/prs38sr9ijdeskrlf0oj5vqrs2j3lku2/d': {
+  'c/b69dbef5na7teqlacuio939dcfi7sc1q/r': 1,
+  'c/bla65gnithpsbf9o3i3hfljbdvfseph8/d': [0, [['\u00001\u0000local', '1']]],
+  'c/bla65gnithpsbf9o3i3hfljbdvfseph8/r': 1,
+  'c/cb46475b4lgd84e763otcji59br5ndmo/d': [0, [['local', '3']]],
+  'c/cb46475b4lgd84e763otcji59br5ndmo/r': 1,
+  'c/qjdcmqg76riuhlgfficif8postlrg0vi/d': {
     indexes: [
       {
         definition: {
@@ -786,22 +788,24 @@ export const testIndexDataV2 = {
           keyPrefix: 'local',
           name: '2',
         },
-        valueHash: 'fd4k0ag9h3h7i49q56bohra05cr0v236',
+        valueHash: 'bla65gnithpsbf9o3i3hfljbdvfseph8',
       },
     ],
     meta: {
-      basisHash: '5vm3movfjjpjs5sanpmnd4n965kvn04p',
+      basisHash: 'b69dbef5na7teqlacuio939dcfi7sc1q',
       lastMutationID: 1,
       type: 1,
     },
-    valueHash: 'bk5r3f2ui3neg8gh8na8pn8o1ij0n88p',
+    valueHash: 'b3863icha1gsbso9ffljo02ei3rre2o2',
   },
-  'c/prs38sr9ijdeskrlf0oj5vqrs2j3lku2/m': [
-    'bk5r3f2ui3neg8gh8na8pn8o1ij0n88p',
-    '5vm3movfjjpjs5sanpmnd4n965kvn04p',
-    'fd4k0ag9h3h7i49q56bohra05cr0v236',
+  'c/qjdcmqg76riuhlgfficif8postlrg0vi/m': [
+    'b3863icha1gsbso9ffljo02ei3rre2o2',
+    'b69dbef5na7teqlacuio939dcfi7sc1q',
+    'bla65gnithpsbf9o3i3hfljbdvfseph8',
   ],
-  'c/prs38sr9ijdeskrlf0oj5vqrs2j3lku2/r': 1,
-  'h/main': 'pf48rplga5cs3em9nevhvhmnq6pc72vq',
+  'c/qjdcmqg76riuhlgfficif8postlrg0vi/r': 1,
+  'c/rni607b73kne1e0ic5gkrri8ttrn5coa/d': [0, [['\u00003\u0000local', '3']]],
+  'c/rni607b73kne1e0ic5gkrri8ttrn5coa/r': 1,
+  'h/main': '1ntcehqqu0j2erqihpnjmembtt1q4pdp',
   'sys/storage-format-version': 2,
 };

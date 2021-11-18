@@ -21,7 +21,8 @@ export async function migrateHead(
   const hash = await dagWrite.getHead(name);
   if (hash !== undefined) {
     // Follow the ref.
-    await migrateCommit(hash, dagWrite, pending);
+    const newHash = await migrateCommit(hash, dagWrite, pending);
+    await dagWrite.setHead(name, newHash);
   }
 }
 

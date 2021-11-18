@@ -1,6 +1,5 @@
 import {benchmarks as replicacheBenchmarks} from './replicache';
 import {benchmarkIDBRead, benchmarkIDBWrite} from './idb';
-import {benchmarks as lockBenchmarks} from './lock';
 import {benchmarks as hashBenchmarks} from './hash';
 import {benchmarks as storageBenchmarks} from './storage';
 import {
@@ -126,7 +125,6 @@ async function runBenchmark(
 
 export const benchmarks = [
   ...replicacheBenchmarks(),
-  ...lockBenchmarks(),
   ...hashBenchmarks(),
   ...storageBenchmarks(),
 ];

@@ -24,6 +24,8 @@ setup(async () => {
   await initHasher();
 });
 
+const emptyTreeHash = 'mdcncodijhl6jk2o8bb7m0hg15p3sf24';
+
 test('findLeaf', async () => {
   const kvStore = new kv.MemStore();
   const dagStore = new dag.TestStore(kvStore);
@@ -291,7 +293,7 @@ test('empty write tree', async () => {
     expect(await asyncIterToArray(w.scan({}))).to.deep.equal([]);
 
     const h = await w.flush();
-    expect(h).to.equal(emptyHash);
+    expect(h).to.equal(emptyTreeHash);
   });
   let rootHash = await dagStore.withWrite(async dagWrite => {
     const w = new BTreeWrite(
@@ -305,6 +307,7 @@ test('empty write tree', async () => {
     await w.put('a', 1);
     const h = await w.flush();
     expect(h).to.not.equal(emptyHash);
+    expect(h).to.not.equal(emptyTreeHash);
     await dagWrite.setHead('test', h);
     await dagWrite.commit();
     return h;
@@ -316,6 +319,7 @@ test('empty write tree', async () => {
 
   // We do not restore back to empty hash when empty.
   expect(rootHash).to.not.equal(emptyHash);
+  expect(rootHash).to.equal(emptyTreeHash);
 });
 
 test('get', async () => {

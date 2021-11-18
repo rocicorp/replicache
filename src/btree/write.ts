@@ -10,6 +10,7 @@ import {
   partition,
   ReadonlyEntry,
   DiffResult,
+  emptyDataNode,
 } from './node';
 import {RWLock} from '../rw-lock';
 import type {ScanOptionsInternal} from '../db/scan';
@@ -187,7 +188,6 @@ export class BTreeWrite extends BTreeRead {
       // we can do about that.
       const found = this.rootHash !== newRootNode.hash;
       if (found) {
-        // TODO(arv): Should we restore back to emptyHash if empty?
         // Flatten one layer.
         if (newRootNode.level > 0 && newRootNode.entries.length === 1) {
           this.rootHash = (newRootNode as InternalNodeImpl).entries[0][1];
@@ -242,12 +242,17 @@ export class BTreeWrite extends BTreeRead {
     };
 
     return this._rwLock.withWrite(async () => {
+      const dagWrite = this._dagRead;
+
       if (this.rootHash === emptyHash) {
-        return emptyHash;
+        // Write a chunk for the empty tree.
+        const chunk = dagWrite.createChunk(emptyDataNode, []);
+        await dagWrite.putChunk(chunk);
+        return chunk.hash;
       }
 
       const newChunks: dag.Chunk[] = [];
-      const dagWrite = this._dagRead;
+
       const newRoot = walk(this.rootHash, newChunks, dagWrite.createChunk);
 
       await Promise.all(newChunks.map(chunk => dagWrite.putChunk(chunk)));

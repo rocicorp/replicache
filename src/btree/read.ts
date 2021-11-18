@@ -6,7 +6,7 @@ import {
   DataNodeImpl,
   InternalNodeImpl,
   Entry,
-  emptyDataNode,
+  emptyDataNodeImpl,
   assertBTreeNode,
   newNodeImpl,
   findLeaf,
@@ -49,7 +49,7 @@ export class BTreeRead {
 
   async getNode(hash: Hash): Promise<DataNodeImpl | InternalNodeImpl> {
     if (hash === emptyHash) {
-      return emptyDataNode;
+      return emptyDataNodeImpl;
     }
 
     const cached = this._cache.get(hash);

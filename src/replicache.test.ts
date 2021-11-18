@@ -1387,7 +1387,7 @@ testWithBothStores('pull', async () => {
   });
   beginPullResult = await rep.beginPull();
   ({syncHead} = beginPullResult);
-  expect(syncHead).equal('jsvpav41req4n63em3inclq559b8o8vv');
+  expect(syncHead).equal('qfu3cr72r5lvoceqh88ku809bt1f6tev');
 
   await createTodo({
     id: id2,

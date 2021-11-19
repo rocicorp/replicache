@@ -1,12 +1,12 @@
 import {expect} from '@esm-bundle/chai';
 import type * as dag from '../dag/mod';
-import {Commit, DEFAULT_HEAD_NAME} from './commit';
+import {Commit, DEFAULT_HEAD_NAME, Meta} from './commit';
 import {readCommit, whenceHead} from './read';
 import {initDB, Write, readIndexesForWrite} from './write';
 import {LogContext} from '../logger';
 import type {JSONValue} from '../json';
 
-export type Chain = Commit[];
+export type Chain = Commit<Meta>[];
 
 export async function addGenesis(
   chain: Chain,
@@ -18,7 +18,7 @@ export async function addGenesis(
   return chain;
 }
 
-export async function createGenesis(store: dag.Store): Promise<Commit> {
+export async function createGenesis(store: dag.Store): Promise<Commit<Meta>> {
   await store.withWrite(async w => {
     await initDB(w, DEFAULT_HEAD_NAME);
   });
@@ -43,7 +43,7 @@ export async function createLocal(
   entries: [string, JSONValue][],
   store: dag.Store,
   i: number,
-): Promise<Commit> {
+): Promise<Commit<Meta>> {
   const lc = new LogContext();
   await store.withWrite(async dagWrite => {
     const w = await Write.newLocal(
@@ -80,7 +80,7 @@ export async function createIndex(
   prefix: string,
   jsonPointer: string,
   store: dag.Store,
-): Promise<Commit> {
+): Promise<Commit<Meta>> {
   const lc = new LogContext();
   await store.withWrite(async dagWrite => {
     const w = await Write.newIndexChange(

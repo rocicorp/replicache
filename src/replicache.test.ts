@@ -1657,12 +1657,12 @@ testWithBothStores('HTTP status push', async () => {
 });
 
 testWithBothStores('poke', async () => {
-  // Things to test:
+  // TODO(MP) test:
   // - when we queue a poke and it matches, we update the snapshot
   // - rebase still works
   // - when the cookie doesn't match, it doesn't apply, but later when the cookie matches it does
   // - per-client timing
-  const rep = await replicacheForTesting('pull', {
+  const rep = await replicacheForTesting('poke', {
     auth: '1',
     mutators: {
       setTodo: async <A extends {id: number}>(
@@ -1728,7 +1728,6 @@ testWithBothStores('poke', async () => {
   } catch (e: unknown) {
     error = String(e);
   }
-
   expect(error).contains(
     'Received lastMutationID 0 is < than last snapshot lastMutationID 1; ignoring client view',
   );

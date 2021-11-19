@@ -43,10 +43,10 @@ export class Visitor {
 
     const {data} = chunk;
     assertCommitData(data);
-    await this.visitCommitChunk(chunk as dag.Chunk<CommitData>);
+    await this.visitCommitChunk(chunk as dag.Chunk<CommitData<Meta>>);
   }
 
-  async visitCommitChunk(chunk: dag.Chunk<CommitData>): Promise<void> {
+  async visitCommitChunk(chunk: dag.Chunk<CommitData<Meta>>): Promise<void> {
     const {data} = chunk;
     await Promise.all([
       this._visitCommitMeta(data.meta),

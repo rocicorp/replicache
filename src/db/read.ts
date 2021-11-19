@@ -1,7 +1,7 @@
 import {IndexRead} from './index';
 import * as dag from '../dag/mod';
 import {convert, scan, ScanOptions, ScanOptionsInternal} from './scan';
-import {Commit, DEFAULT_HEAD_NAME} from './commit';
+import {Commit, DEFAULT_HEAD_NAME, Meta} from './commit';
 import type {ReadonlyJSONValue} from '../json';
 import {BTreeRead, BTreeWrite, Entry} from '../btree/mod';
 import type {Hash} from '../hash';
@@ -107,15 +107,15 @@ export async function fromWhence(
 export function readCommit(
   whence: Whence,
   dagRead: dag.Write,
-): Promise<[Hash, Commit, BTreeWrite]>;
+): Promise<[Hash, Commit<Meta>, BTreeWrite]>;
 export function readCommit(
   whence: Whence,
   dagRead: dag.Read,
-): Promise<[Hash, Commit, BTreeRead]>;
+): Promise<[Hash, Commit<Meta>, BTreeRead]>;
 export async function readCommit(
   whence: Whence,
   dagRead: dag.Read,
-): Promise<[Hash, Commit, BTreeRead]> {
+): Promise<[Hash, Commit<Meta>, BTreeRead]> {
   let hash: Hash;
   switch (whence.type) {
     case WhenceType.Hash:
@@ -139,7 +139,9 @@ export async function readCommit(
   return [hash, commit, map];
 }
 
-export function readIndexesForRead(commit: Commit): Map<string, IndexRead> {
+export function readIndexesForRead(
+  commit: Commit<Meta>,
+): Map<string, IndexRead> {
   const m = new Map();
   for (const index of commit.indexes) {
     m.set(index.definition.name, new IndexRead(index, undefined));

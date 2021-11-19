@@ -2,6 +2,7 @@ import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {
   Commit,
+  Meta as CommitMeta,
   DEFAULT_HEAD_NAME,
   IndexDefinition,
   IndexRecord,
@@ -46,7 +47,7 @@ const enum MetaType {
 
 export class Write extends Read {
   private readonly _dagWrite: dag.Write;
-  private readonly _basis: Commit | undefined;
+  private readonly _basis: Commit<CommitMeta> | undefined;
   private readonly _meta: Meta;
 
   declare map: BTreeWrite;
@@ -56,7 +57,7 @@ export class Write extends Read {
   constructor(
     dagWrite: dag.Write,
     map: BTreeWrite,
-    basis: Commit | undefined,
+    basis: Commit<CommitMeta> | undefined,
     meta: Meta,
     indexes: Map<string, IndexWrite>,
   ) {
@@ -434,7 +435,9 @@ export async function maybeInitDefaultDB(dagStore: dag.Store): Promise<void> {
   });
 }
 
-export function readIndexesForWrite(commit: Commit): Map<string, IndexWrite> {
+export function readIndexesForWrite(
+  commit: Commit<CommitMeta>,
+): Map<string, IndexWrite> {
   const m = new Map();
   for (const index of commit.indexes) {
     m.set(index.definition.name, new IndexWrite(index, undefined));

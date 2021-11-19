@@ -813,12 +813,21 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   /**
    * Applies an update from the server to Replicache.
-   * Throws an error if cookie does not match. Host should re-init.
+   * Throws an error if cookie does not match. In that case the server thinks
+   * this client has a different cookie than it does; the caller should disconnect
+   * from the server and re-register, which transmits the cookie the client actually
+   * has.
    *
    * @experimental - This method is under development and its semantics will change.
    */
   async poke(poke: Poke): Promise<void> {
     await this._ready;
+    // TODO(MP) Previously we created a request ID here and included it with the
+    // PullRequest to the server so we could tie events across client and server
+    // together. Since the direction is now reversed, creating and adding a request ID
+    // here is kind of silly. We should consider creating the request ID
+    // on the *server* and passing it down in the poke for inclusion here in the log
+    // context.
     const clientID = await this._clientIDPromise;
     const requestID = sync.newRequestID(clientID);
     const lc = this._lc

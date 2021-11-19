@@ -580,7 +580,7 @@ test('maybe end try pull', async () => {
       numNeedingReplay: 0,
       interveningSync: true,
       expReplayIDs: [],
-      expErr: 'Overlapping syncs JSLogInfo',
+      expErr: 'Overlapping syncs',
       expChangedKeys: new Map(),
     },
   ];

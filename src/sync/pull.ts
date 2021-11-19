@@ -130,6 +130,10 @@ export async function handlePullResponse(
     const [baseLastMutationID, baseCookie] =
       db.Commit.snapshotMetaParts(baseSnapshot);
 
+    // TODO(MP) Here we are using whether the cookie has changes as a proxy for whether
+    // the base snapshot changed, which is the check we used to do. I don't think this
+    // is quite right. We need to firm up under what conditions we will/not accept an
+    // update from the server: https://github.com/rocicorp/replicache/issues/713.
     if (!deepEqual(expectedBaseCookie, baseCookie)) {
       return null;
     }
@@ -151,8 +155,7 @@ export async function handlePullResponse(
       response.lastMutationID === baseLastMutationID &&
       (response.cookie ?? null) === baseCookie
     ) {
-      const syncHead = emptyHash;
-      return syncHead;
+      return emptyHash;
     }
 
     // We are going to need to adjust the indexes. Imagine we have just pulled:
@@ -206,9 +209,7 @@ export async function handlePullResponse(
       );
     }
 
-    const commitHash = await dbWrite.commit(SYNC_HEAD_NAME);
-
-    return commitHash;
+    return await dbWrite.commit(SYNC_HEAD_NAME);
   });
 }
 
@@ -246,7 +247,7 @@ export async function maybeEndPull(
       throw new Error('Missing sync head');
     }
     if (syncHeadHash !== expectedSyncHead) {
-      throw new Error('Wrong sync head JSLogInfo');
+      throw new Error('Wrong sync head');
     }
 
     // Ensure another sync has not landed a new snapshot on the main chain.
@@ -263,7 +264,7 @@ export async function maybeEndPull(
       throw new Error('Sync snapshot with no basis');
     }
     if (syncSnapshotBasis !== mainSnapshot.chunk.hash) {
-      throw new Error('Overlapping syncs JSLogInfo');
+      throw new Error('Overlapping syncs');
     }
 
     // Collect pending commits from the main chain and determine which

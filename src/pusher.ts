@@ -16,9 +16,13 @@ export const defaultPusher: Pusher = async request => {
  */
 export class PushError extends Error {
   name = 'PushError';
-  cause?: Error;
-  constructor(cause?: Error) {
+  // causedBy is used instead of cause, because while cause has been proposed as a
+  // JavaScript language standard for this purpose (see
+  // https://github.com/tc39/proposal-error-cause) current browser behavior is
+  // inconsistent.
+  causedBy?: Error;
+  constructor(causedBy?: Error) {
     super('Failed to push');
-    this.cause = cause;
+    this.causedBy = causedBy;
   }
 }

@@ -6,14 +6,12 @@ import {
   addLocal,
   addSnapshot,
   Chain,
-  createGenesis,
 } from './test-helpers';
 import {hashOf, initHasher} from '../hash';
 import type {Node} from '../btree/node';
 import type {ReadonlyJSONValue} from '../json';
 import {Visitor} from './visitor';
 import {Commit, newLocal} from './commit';
-import {addSyncSnapshot} from '../sync/test-helpers';
 
 setup(async () => {
   await initHasher();
@@ -119,7 +117,6 @@ test('test that we get to the data nodes', async () => {
     await dagWrite.commit();
     return localCommit2;
   });
-  debugger;
   await t(localCommit2, [
     [
       ['k', 42],

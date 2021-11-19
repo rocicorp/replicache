@@ -141,6 +141,9 @@ export async function initClient(
       headHash: newClientCommit.chunk.hash,
     };
     await setClient(newClientID, newClient, dagWrite);
+
+    await dagWrite.commit();
+    
     return [newClientID, newClient];
   });
 }

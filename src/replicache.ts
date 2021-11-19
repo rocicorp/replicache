@@ -717,7 +717,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         online = false;
         this._logger.error?.(`${name} threw:\n`, e, '\nwith cause:\n', e.cause);
       } else {
-        this._logger.error?.(`${name} threw:`, e);
+        this._logger.error?.(`${name} threw:\n`, e);
       }
       return false;
     } finally {

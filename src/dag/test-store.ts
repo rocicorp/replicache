@@ -24,19 +24,16 @@ export class TestStore extends Store {
       const pk = parseKey(key);
       if (pk.type === KeyType.ChunkData) {
         const refsValue = this.kvStore.map().get(chunkMetaKey(pk.hash));
-        let refs: Hash[];
-        if (refsValue === undefined) {
-          refs = [];
-        } else {
-          refs = toRefs(refsValue);
-        }
-        yield readChunk(pk.hash, value, refs);
+        yield readChunk(pk.hash, value, toRefs(refsValue));
       }
     }
   }
 }
 
 function toRefs(refs: unknown): Hash[] {
+  if (refs === undefined) {
+    return [];
+  }
   assertArray(refs);
   return refs.map(h => {
     assertString(h);

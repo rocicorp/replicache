@@ -12,7 +12,12 @@ import {
 } from './commit';
 import type * as dag from '../dag/mod';
 import {emptyHash, Hash} from '../hash';
-import {DataNode, InternalNode, isInternalNode} from '../btree/node';
+import {InternalNode, isInternalNode, Node} from '../btree/node';
+
+export const enum HashType {
+  AllowWeak,
+  RequireStrong,
+}
 
 export class Visitor {
   readonly dagRead: dag.Read;
@@ -22,7 +27,7 @@ export class Visitor {
     this.dagRead = dagRead;
   }
 
-  async visitCommit(h: Hash, allowWeak = false): Promise<void> {
+  async visitCommit(h: Hash, hashType = HashType.RequireStrong): Promise<void> {
     if (this._visitedHashes.has(h)) {
       return;
     }
@@ -30,7 +35,7 @@ export class Visitor {
 
     const chunk = await this.dagRead.getChunk(h);
     if (!chunk) {
-      if (allowWeak) {
+      if (hashType === HashType.AllowWeak) {
         return;
       }
       throw new Error(`Chunk ${h} not found`);
@@ -44,51 +49,51 @@ export class Visitor {
   async visitCommitChunk(chunk: dag.Chunk<CommitData>): Promise<void> {
     const {data} = chunk;
     await Promise.all([
-      this.visitCommitMeta(data.meta),
-      this.visitCommitValue(data.valueHash),
-      this.visitCommitIndexes(data.indexes),
+      this._visitCommitMeta(data.meta),
+      this._visitCommitValue(data.valueHash),
+      this._visitCommitIndexes(data.indexes),
     ]);
   }
 
-  visitCommitMeta(meta: Meta): Promise<void> {
+  private _visitCommitMeta(meta: Meta): Promise<void> {
     switch (meta.type) {
       case MetaTyped.IndexChange:
-        return this.visitIndexChangeMeta(meta);
+        return this._visitIndexChangeMeta(meta);
 
       case MetaTyped.Local:
-        return this.visitLocalMeta(meta);
+        return this._visitLocalMeta(meta);
 
       case MetaTyped.Snapshot:
-        return this.visitSnapshot(meta);
+        return this._visitSnapshot(meta);
     }
   }
 
   private async _visitBasisHash(
     basisHash: Hash | null,
-    allowWeak: boolean,
+    hashType?: HashType,
   ): Promise<void> {
     if (basisHash !== null) {
-      await this.visitCommit(basisHash, allowWeak);
+      await this.visitCommit(basisHash, hashType);
     }
   }
 
-  async visitSnapshot(meta: SnapshotMeta): Promise<void> {
+  private async _visitSnapshot(meta: SnapshotMeta): Promise<void> {
     // basisHash is weak for Snapshot Commits
-    await this._visitBasisHash(meta.basisHash, true);
+    await this._visitBasisHash(meta.basisHash, HashType.AllowWeak);
   }
 
-  async visitLocalMeta(meta: LocalMeta): Promise<void> {
-    await this._visitBasisHash(meta.basisHash, false);
+  private async _visitLocalMeta(meta: LocalMeta): Promise<void> {
+    await this._visitBasisHash(meta.basisHash, HashType.RequireStrong);
     if (meta.originalHash !== null) {
-      await this.visitCommit(meta.originalHash, false);
+      await this.visitCommit(meta.originalHash, HashType.AllowWeak);
     }
   }
 
-  visitIndexChangeMeta(meta: IndexChangeMeta): Promise<void> {
-    return this._visitBasisHash(meta.basisHash, false);
+  private _visitIndexChangeMeta(meta: IndexChangeMeta): Promise<void> {
+    return this._visitBasisHash(meta.basisHash, HashType.RequireStrong);
   }
 
-  visitCommitValue(valueHash: Hash): Promise<void> {
+  private _visitCommitValue(valueHash: Hash): Promise<void> {
     return this.visitBTreeNode(valueHash);
   }
 
@@ -108,32 +113,28 @@ export class Visitor {
     const {data} = chunk;
     assertBTreeNode(data);
 
-    await this.visitBTreeNodeChunk(chunk as dag.Chunk<InternalNode | DataNode>);
+    await this.visitBTreeNodeChunk(chunk as dag.Chunk<Node>);
   }
 
-  async visitBTreeNodeChunk(
-    chunk: dag.Chunk<InternalNode | DataNode>,
-  ): Promise<void> {
+  async visitBTreeNodeChunk(chunk: dag.Chunk<Node>): Promise<void> {
     const {data} = chunk;
     if (isInternalNode(data)) {
-      await this.visitBTreeInternalNode(chunk as dag.Chunk<InternalNode>);
-    } else {
-      await this.visitBTreeDataNode(chunk as dag.Chunk<DataNode>);
+      await this._visitBTreeInternalNode(chunk as dag.Chunk<InternalNode>);
     }
   }
 
-  async visitBTreeInternalNode(chunk: dag.Chunk<InternalNode>): Promise<void> {
+  private async _visitBTreeInternalNode(
+    chunk: dag.Chunk<InternalNode>,
+  ): Promise<void> {
     const {data} = chunk;
     await Promise.all(
       data[1].map(entry => this.visitBTreeNode(entry[1] as Hash)),
     );
   }
 
-  async visitBTreeDataNode(_chunk: dag.Chunk<DataNode>): Promise<void> {
-    // empty
-  }
-
-  async visitCommitIndexes(indexes: readonly IndexRecord[]): Promise<void> {
+  private async _visitCommitIndexes(
+    indexes: readonly IndexRecord[],
+  ): Promise<void> {
     await Promise.all(
       indexes.map(async index => this.visitBTreeNode(index.valueHash)),
     );

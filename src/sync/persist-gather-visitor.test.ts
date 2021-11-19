@@ -76,7 +76,7 @@ test('dag with only temp hashes gathers eveything', async () => {
   await testGatheredChunks();
 });
 
-test('dag with some permanent hashes and some tempt hashes on top', async () => {
+test('dag with some permanent hashes and some temp hashes on top', async () => {
   const kvStore = new TestMemStore();
   const perdag = new dag.TestStore(kvStore);
   const chain: Chain = [];

@@ -268,7 +268,7 @@ export function newLocal(
   mutatorArgsJSON: ReadonlyJSONValue,
   originalHash: Hash | null,
   valueHash: Hash,
-  indexes: IndexRecord[],
+  indexes: readonly IndexRecord[],
 ): Commit {
   const meta: LocalMeta = {
     type: MetaTyped.Local,
@@ -287,7 +287,7 @@ export function newSnapshot(
   lastMutationID: number,
   cookieJSON: ReadonlyJSONValue,
   valueHash: Hash,
-  indexes: IndexRecord[],
+  indexes: readonly IndexRecord[],
 ): Commit {
   const meta: SnapshotMeta = {
     type: MetaTyped.Snapshot,
@@ -303,7 +303,7 @@ export function newIndexChange(
   basisHash: Hash | null,
   lastMutationID: number,
   valueHash: Hash,
-  indexes: IndexRecord[],
+  indexes: readonly IndexRecord[],
 ): Commit {
   const meta: IndexChangeMeta = {
     type: MetaTyped.IndexChange,

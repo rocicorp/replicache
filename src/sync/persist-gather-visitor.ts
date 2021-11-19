@@ -2,7 +2,7 @@ import * as db from '../db/mod';
 import {Hash, isTempHash} from '../hash';
 import type * as dag from '../dag/mod';
 import type * as btree from '../btree/mod';
-import type {ReadonlyJSONValue} from '../json';
+import type {HashType} from '../db/visitor';
 
 export class PersistGatherVisitor extends db.Visitor {
   private readonly _gatheredChunks: Map<Hash, dag.Chunk> = new Map();
@@ -11,30 +11,34 @@ export class PersistGatherVisitor extends db.Visitor {
     return this._gatheredChunks;
   }
 
+  override async visitCommit(h: Hash, hashType?: HashType): Promise<void> {
+    if (!isTempHash(h)) {
+      // Not a temp hash, no need to visit anything else.
+      return;
+    }
+    return super.visitCommit(h, hashType);
+  }
+
   override async visitCommitChunk(
     chunk: dag.Chunk<db.CommitData>,
   ): Promise<void> {
-    if (this._visitChunk(chunk)) {
-      // Recurse down the tree
-      return super.visitCommitChunk(chunk);
+    this._gatheredChunks.set(chunk.hash, chunk);
+    return super.visitCommitChunk(chunk);
+  }
+
+  override async visitBTreeNode(h: Hash): Promise<void> {
+    if (!isTempHash(h)) {
+      // Not a temp hash, no need to visit anything else.
+      return;
     }
-    // Not a temp hash, no need to visit anything else.
+
+    return super.visitBTreeNode(h);
   }
 
   override async visitBTreeNodeChunk(
     chunk: dag.Chunk<btree.Node>,
   ): Promise<void> {
-    if (this._visitChunk(chunk)) {
-      return super.visitBTreeNodeChunk(chunk);
-    }
-  }
-
-  private _visitChunk(chunk: dag.Chunk<ReadonlyJSONValue>): boolean {
-    if (isTempHash(chunk.hash)) {
-      // If this is a temp hash, then this is a chunk that has not yet been persisted.
-      this._gatheredChunks.set(chunk.hash, chunk);
-      return true;
-    }
-    return false;
+    this._gatheredChunks.set(chunk.hash, chunk);
+    return super.visitBTreeNodeChunk(chunk);
   }
 }

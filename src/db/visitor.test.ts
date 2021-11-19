@@ -6,12 +6,14 @@ import {
   addLocal,
   addSnapshot,
   Chain,
+  createGenesis,
 } from './test-helpers';
-import {initHasher} from '../hash';
-import type {DataNode} from '../btree/node';
+import {hashOf, initHasher} from '../hash';
+import type {Node} from '../btree/node';
 import type {ReadonlyJSONValue} from '../json';
 import {Visitor} from './visitor';
-import type {Commit} from './commit';
+import {Commit, newLocal} from './commit';
+import {addSyncSnapshot} from '../sync/test-helpers';
 
 setup(async () => {
   await initHasher();
@@ -24,7 +26,7 @@ test('test that we get to the data nodes', async () => {
   const chain: Chain = [];
 
   class TestVisitor extends Visitor {
-    override async visitBTreeDataNode(chunk: dag.Chunk<DataNode>) {
+    override async visitBTreeNodeChunk(chunk: dag.Chunk<Node>) {
       log.push(chunk.data[1]);
     }
   }
@@ -57,6 +59,68 @@ test('test that we get to the data nodes', async () => {
 
   await addSnapshot(chain, dagStore, [['k', 42]]);
   await t(chain[4], [
+    [
+      ['k', 42],
+      ['local', '3'],
+    ],
+    [['\u00003\u0000local', '3']],
+  ]);
+
+  // await addLocal(chain, dagStore);
+  // const syncChain = await addSyncSnapshot(chain, dagStore, chain.length - 1);
+  // await t(syncChain[0], [
+  //   [
+  //     ['k', 42],
+  //     ['local', '3'],
+  //   ],
+  //   [['\u00005\u0000local', '5']],
+  //   [['\u00003\u0000local', '3']],
+  // ]);
+
+  const localCommit = await dagStore.withWrite(async dagWrite => {
+    const prevCommit = chain[chain.length - 1];
+    const localCommit = newLocal(
+      dagWrite.createChunk,
+      prevCommit.chunk.hash,
+      42,
+      'mutname',
+      [],
+      hashOf('non existing'),
+      prevCommit.valueHash,
+      prevCommit.indexes,
+    );
+    await dagWrite.putChunk(localCommit.chunk);
+    await dagWrite.setHead('test', localCommit.chunk.hash);
+    await dagWrite.commit();
+    return localCommit;
+  });
+  await t(localCommit, [
+    [
+      ['k', 42],
+      ['local', '3'],
+    ],
+    [['\u00003\u0000local', '3']],
+  ]);
+
+  const localCommit2 = await dagStore.withWrite(async dagWrite => {
+    const prevCommit = chain[chain.length - 1];
+    const localCommit2 = newLocal(
+      dagWrite.createChunk,
+      prevCommit.chunk.hash,
+      42,
+      'mutname',
+      [],
+      localCommit.chunk.hash,
+      prevCommit.valueHash,
+      prevCommit.indexes,
+    );
+    await dagWrite.putChunk(localCommit2.chunk);
+    await dagWrite.setHead('test2', localCommit2.chunk.hash);
+    await dagWrite.commit();
+    return localCommit2;
+  });
+  debugger;
+  await t(localCommit2, [
     [
       ['k', 42],
       ['local', '3'],

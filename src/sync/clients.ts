@@ -102,15 +102,11 @@ export async function initClient(
   return dagStore.withWrite(async dagWrite => {
     const clients = await getClients(dagWrite);
     const newClientID = makeUuid();
-    let bootstrapClient: Client | undefined;
-    clients.forEach(client => {
-      if (
-        !bootstrapClient ||
-        bootstrapClient.heartbeatTimestampMs < client.heartbeatTimestampMs
-      ) {
-        bootstrapClient = client;
-      }
-    });
+    const bootstrapClient = [...clients.values()].reduce((prev, curr) =>
+      !prev || prev.heartbeatTimestampMs < curr.heartbeatTimestampMs
+        ? curr
+        : prev,
+    );
 
     let newClientCommit;
     if (bootstrapClient) {
@@ -118,7 +114,7 @@ export async function initClient(
         bootstrapClient.headHash,
         dagWrite,
       );
-      // Copy the commit with one change: set last mutation id to 0
+      // Copy the snapshot with one change: set last mutation id to 0.
       newClientCommit = newSnapshot(
         dagWrite.createChunk,
         bootstrapCommit.meta.basisHash,
@@ -128,14 +124,15 @@ export async function initClient(
         bootstrapCommit.indexes,
       );
     } else {
-      const valueHash = await new BTreeWrite(dagWrite).flush();
+      // No existing snapshot to bootstrap from. Create empty snapshot.
+      const emptyBTreeHash = await new BTreeWrite(dagWrite).flush();
       newClientCommit = newSnapshot(
         dagWrite.createChunk,
         null /* basisHash */,
         0 /* lastMutationID */,
         null /* cookie */,
-        valueHash,
-        [],
+        emptyBTreeHash,
+        [] /* indexes */,
       );
     }
 

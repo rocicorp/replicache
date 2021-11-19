@@ -143,7 +143,7 @@ export async function initClient(
     await setClient(newClientID, newClient, dagWrite);
 
     await dagWrite.commit();
-    
+
     return [newClientID, newClient];
   });
 }

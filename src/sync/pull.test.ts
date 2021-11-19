@@ -35,6 +35,7 @@ import {LogContext} from '../logger';
 import {emptyHash, initHasher} from '../hash';
 import {stringCompare} from '../prolly/string-compare';
 import {asyncIterableToArray} from '../async-iterable-to-array';
+import type {SnapshotMeta} from '../db/commit';
 
 setup(async () => {
   await initHasher();
@@ -49,8 +50,9 @@ test('begin try pull', async () => {
   await addIndexChange(chain, store);
   const startingNumCommits = chain.length;
   const baseSnapshot = chain[1];
-  const [baseLastMutationID, baseCookie] =
-    Commit.snapshotMetaParts(baseSnapshot);
+  const [baseLastMutationID, baseCookie] = Commit.snapshotMetaParts(
+    baseSnapshot as Commit<SnapshotMeta>,
+  );
   const baseValueMap = new Map([['foo', '"bar"']]);
 
   const requestID = 'requestID';
@@ -458,8 +460,9 @@ test('begin try pull', async () => {
         const chunk = await read.getChunk(syncHeadHash);
         assertNotUndefined(chunk);
         const syncHead = db.fromChunk(chunk);
-        const [gotLastMutationID, gotCookie] =
-          Commit.snapshotMetaParts(syncHead);
+        const [gotLastMutationID, gotCookie] = Commit.snapshotMetaParts(
+          syncHead as Commit<SnapshotMeta>,
+        );
         expect(expSyncHead.lastMutationID).to.equal(gotLastMutationID);
         expect(expSyncHead.cookie).to.deep.equal(gotCookie);
         // Check the value is what's expected.
@@ -762,8 +765,9 @@ test('changed keys', async () => {
     await addSnapshot(chain, store, entries);
 
     const baseSnapshot = chain[chain.length - 1];
-    const [baseLastMutationID, baseCookie] =
-      Commit.snapshotMetaParts(baseSnapshot);
+    const [baseLastMutationID, baseCookie] = Commit.snapshotMetaParts(
+      baseSnapshot as Commit<SnapshotMeta>,
+    );
 
     const requestID = 'request_id';
     const clientID = 'test_client_id';

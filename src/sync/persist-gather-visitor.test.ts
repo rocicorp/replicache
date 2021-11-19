@@ -111,7 +111,7 @@ test('dag with some permanent hashes and some temp hashes on top', async () => {
         data: {
           indexes: [],
           meta: {
-            basisHash: 'b69dbef5na7teqlacuio939dcfi7sc1q',
+            basisHash: 'kf7ac7jta5b86iu74e3sqk49ec0tq6d3',
             mutationID: 2,
             mutatorArgsJSON: [2],
             mutatorName: 'mutator_name_2',
@@ -123,7 +123,7 @@ test('dag with some permanent hashes and some temp hashes on top', async () => {
         hash: 't/000000000000000000000000000001',
         meta: [
           't/000000000000000000000000000000',
-          'b69dbef5na7teqlacuio939dcfi7sc1q',
+          'kf7ac7jta5b86iu74e3sqk49ec0tq6d3',
         ],
       },
     });

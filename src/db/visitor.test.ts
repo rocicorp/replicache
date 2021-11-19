@@ -39,13 +39,13 @@ test('test that we get to the data nodes', async () => {
   };
 
   await addGenesis(chain, dagStore);
-  await t(chain[0], []);
+  await t(chain[0], [[]]);
 
   await addLocal(chain, dagStore);
-  await t(chain[1], [[['local', '1']]]);
+  await t(chain[1], [[['local', '1']], []]);
 
   await addIndexChange(chain, dagStore);
-  await t(chain[2], [[['local', '1']], [['\u00001\u0000local', '1']]]);
+  await t(chain[2], [[['local', '1']], [['\u00001\u0000local', '1']], []]);
 
   await addLocal(chain, dagStore);
   await t(chain[3], [
@@ -53,6 +53,7 @@ test('test that we get to the data nodes', async () => {
     [['\u00003\u0000local', '3']],
     [['local', '1']],
     [['\u00001\u0000local', '1']],
+    [],
   ]);
 
   await addSnapshot(chain, dagStore, [['k', 42]]);

@@ -97,53 +97,51 @@ export async function setClient(
 }
 
 export async function initClient(
-  dagStore: dag.Store,
+  dagWrite: dag.Write,
 ): Promise<[ClientID, Client]> {
-  return dagStore.withWrite(async dagWrite => {
-    const clients = await getClients(dagWrite);
-    const newClientID = makeUuid();
-    const bootstrapClient = [...clients.values()].reduce((prev, curr) =>
-      !prev || prev.heartbeatTimestampMs < curr.heartbeatTimestampMs
-        ? curr
-        : prev,
+  const clients = await getClients(dagWrite);
+  const newClientID = makeUuid();
+  const bootstrapClient = [...clients.values()].reduce((prev, curr) =>
+    !prev || prev.heartbeatTimestampMs < curr.heartbeatTimestampMs
+      ? curr
+      : prev,
+  );
+
+  let newClientCommit;
+  if (bootstrapClient) {
+    const bootstrapCommit = await Commit.baseSnapshot(
+      bootstrapClient.headHash,
+      dagWrite,
     );
+    // Copy the snapshot with one change: set last mutation id to 0.
+    newClientCommit = newSnapshot(
+      dagWrite.createChunk,
+      bootstrapCommit.meta.basisHash,
+      0 /* lastMutationID */,
+      bootstrapCommit.meta.cookieJSON,
+      bootstrapCommit.valueHash,
+      bootstrapCommit.indexes,
+    );
+  } else {
+    // No existing snapshot to bootstrap from. Create empty snapshot.
+    const emptyBTreeHash = await new BTreeWrite(dagWrite).flush();
+    newClientCommit = newSnapshot(
+      dagWrite.createChunk,
+      null /* basisHash */,
+      0 /* lastMutationID */,
+      null /* cookie */,
+      emptyBTreeHash,
+      [] /* indexes */,
+    );
+  }
 
-    let newClientCommit;
-    if (bootstrapClient) {
-      const bootstrapCommit = await Commit.baseSnapshot(
-        bootstrapClient.headHash,
-        dagWrite,
-      );
-      // Copy the snapshot with one change: set last mutation id to 0.
-      newClientCommit = newSnapshot(
-        dagWrite.createChunk,
-        bootstrapCommit.meta.basisHash,
-        0 /* lastMutationID */,
-        bootstrapCommit.meta.cookieJSON,
-        bootstrapCommit.valueHash,
-        bootstrapCommit.indexes,
-      );
-    } else {
-      // No existing snapshot to bootstrap from. Create empty snapshot.
-      const emptyBTreeHash = await new BTreeWrite(dagWrite).flush();
-      newClientCommit = newSnapshot(
-        dagWrite.createChunk,
-        null /* basisHash */,
-        0 /* lastMutationID */,
-        null /* cookie */,
-        emptyBTreeHash,
-        [] /* indexes */,
-      );
-    }
+  const newClient = {
+    heartbeatTimestampMs: Date.now(),
+    headHash: newClientCommit.chunk.hash,
+  };
+  await setClient(newClientID, newClient, dagWrite);
 
-    const newClient = {
-      heartbeatTimestampMs: Date.now(),
-      headHash: newClientCommit.chunk.hash,
-    };
-    await setClient(newClientID, newClient, dagWrite);
+  await dagWrite.commit();
 
-    await dagWrite.commit();
-
-    return [newClientID, newClient];
-  });
+  return [newClientID, newClient];
 }

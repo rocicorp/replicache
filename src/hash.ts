@@ -48,7 +48,7 @@ const stringToUint8Array: (s: string) => Uint8Array =
     : s => encoder.encode(s);
 
 const hashRe = /^[0-9a-v]{32}$/;
-const tempHashRe = /^\/t\/[0-9]{29}$/;
+const tempHashRe = /^t\/[0-9]{30}$/;
 
 /**
  * Computes a SHA512 hash of the given data.
@@ -117,16 +117,23 @@ export async function initHasher(): Promise<unknown> {
   return hasherPromise;
 }
 
-let tempHashCounter = 0;
+// Temp hashes needs to have the same length as non temp hashes. This is
+// important because we split B+Tree nodes based on the size and we want the
+// size to be the same independent of whether the hash is temp or not.
 
-const tempPrefix = '/t/';
+export const newTempHash = makeNewTempHashFunction();
 
-export function newTempHash(): Hash {
-  // Must not overlap with hashOf results
-  return (tempPrefix +
-    (tempHashCounter++)
-      .toString()
-      .padStart(HASH_LENGTH - tempPrefix.length, '0')) as unknown as Hash;
+export function makeNewTempHashFunction(): () => Hash {
+  let tempHashCounter = 0;
+  const tempPrefix = 't/';
+
+  return () => {
+    // Must not overlap with hashOf results
+    return (tempPrefix +
+      (tempHashCounter++)
+        .toString()
+        .padStart(HASH_LENGTH - tempPrefix.length, '0')) as unknown as Hash;
+  };
 }
 
 export function isHash(v: unknown): v is Hash {

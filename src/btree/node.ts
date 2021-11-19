@@ -19,6 +19,8 @@ export type InternalNode = BaseNode<Hash>;
 
 export type DataNode = BaseNode<ReadonlyJSONValue>;
 
+export type Node = DataNode | InternalNode;
+
 export const enum DiffResultOp {
   Add,
   Delete,
@@ -138,6 +140,10 @@ export function assertBTreeNode(
   }
 }
 
+export function isInternalNode(node: Node): node is InternalNode {
+  return node[NODE_LEVEL] > 0;
+}
+
 abstract class NodeImpl<Value extends Hash | ReadonlyJSONValue> {
   entries: Array<Entry<Value>>;
   hash: Hash;
@@ -165,7 +171,7 @@ abstract class NodeImpl<Value extends Hash | ReadonlyJSONValue> {
     return this.entries[this.entries.length - 1][0];
   }
 
-  toChunkData(): DataNode | InternalNode {
+  toChunkData(): Node {
     return [this.level, this.entries];
   }
 }

@@ -74,7 +74,7 @@ export class Commit<M extends Meta = Meta> {
     return this.mutationID + 1;
   }
 
-  get indexes(): IndexRecord[] {
+  get indexes(): readonly IndexRecord[] {
     // Already validated!
     return this.chunk.data.indexes;
   }
@@ -268,7 +268,7 @@ export function newLocal(
   mutatorArgsJSON: ReadonlyJSONValue,
   originalHash: Hash | null,
   valueHash: Hash,
-  indexes: IndexRecord[],
+  indexes: readonly IndexRecord[],
 ): Commit {
   const meta: LocalMeta = {
     type: MetaTyped.Local,
@@ -287,7 +287,7 @@ export function newSnapshot(
   lastMutationID: number,
   cookieJSON: ReadonlyJSONValue,
   valueHash: Hash,
-  indexes: IndexRecord[],
+  indexes: readonly IndexRecord[],
 ): Commit {
   const meta: SnapshotMeta = {
     type: MetaTyped.Snapshot,
@@ -303,7 +303,7 @@ export function newIndexChange(
   basisHash: Hash | null,
   lastMutationID: number,
   valueHash: Hash,
-  indexes: IndexRecord[],
+  indexes: readonly IndexRecord[],
 ): Commit {
   const meta: IndexChangeMeta = {
     type: MetaTyped.IndexChange,
@@ -318,22 +318,14 @@ export function fromChunk(chunk: dag.Chunk): Commit {
   return new Commit(chunk);
 }
 
-function chunkFromCommitData(
-  createChunk: dag.CreateChunk,
-  data: CommitData,
-): dag.Chunk<CommitData> {
-  const refs = getRefs(data);
-  return createChunk(data, refs);
-}
-
 function commitFromCommitData(
   createChunk: dag.CreateChunk,
   data: CommitData,
 ): Commit {
-  return new Commit(chunkFromCommitData(createChunk, data));
+  return new Commit(createChunk(data, getRefs(data)));
 }
 
-function getRefs(data: CommitData): Hash[] {
+export function getRefs(data: CommitData): Hash[] {
   const refs: Hash[] = [data.valueHash];
   const {meta} = data;
   switch (meta.type) {
@@ -359,10 +351,10 @@ function getRefs(data: CommitData): Hash[] {
 export type CommitData = {
   readonly meta: Meta;
   readonly valueHash: Hash;
-  readonly indexes: IndexRecord[];
+  readonly indexes: readonly IndexRecord[];
 };
 
-function assertCommitData(v: unknown): asserts v is CommitData {
+export function assertCommitData(v: unknown): asserts v is CommitData {
   assertObject(v);
   assertMeta(v.meta);
   assertString(v.valueHash);

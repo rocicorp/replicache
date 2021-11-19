@@ -94,10 +94,11 @@ export class BTreeRead {
     return node.entries.length === 0;
   }
 
-  async *scan(
+  async *scan<R>(
     options: ScanOptionsInternal,
+    convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
     onLimitKey?: (inclusiveLimitKey: string) => void,
-  ): AsyncGenerator<Entry<ReadonlyJSONValue>> {
+  ): AsyncIterableIterator<R> {
     const node = await this.getNode(this.rootHash);
     const {prefix = '', limit = Infinity, startKey} = options;
     let fromKey = prefix;
@@ -107,15 +108,15 @@ export class BTreeRead {
       }
     }
 
-    yield* node.scan(this, prefix, fromKey, limit, onLimitKey);
+    yield* node.scan(this, prefix, fromKey, limit, convertEntry, onLimitKey);
   }
 
-  async *keys(): AsyncGenerator<string, void> {
+  async *keys(): AsyncIterableIterator<string> {
     const node = await this.getNode(this.rootHash);
     yield* node.keys(this);
   }
 
-  async *entries(): AsyncGenerator<ReadonlyEntry<ReadonlyJSONValue>, void> {
+  async *entries(): AsyncIterableIterator<ReadonlyEntry<ReadonlyJSONValue>> {
     const node = await this.getNode(this.rootHash);
     yield* node.entriesIter(this);
   }
@@ -128,7 +129,7 @@ export class BTreeRead {
 
   async *diff(
     last: BTreeRead,
-  ): AsyncGenerator<DiffResult<ReadonlyJSONValue>, void> {
+  ): AsyncIterableIterator<DiffResult<ReadonlyJSONValue>> {
     const [currentNode, lastNode] = await Promise.all([
       this.getNode(this.rootHash),
       last.getNode(last.rootHash),
@@ -136,7 +137,7 @@ export class BTreeRead {
     yield* diffNodes(lastNode, currentNode, last, this);
   }
 
-  async *diffKeys(last: BTreeRead): AsyncGenerator<string, void> {
+  async *diffKeys(last: BTreeRead): AsyncIterableIterator<string> {
     for await (const {key} of this.diff(last)) {
       yield key;
     }

@@ -224,13 +224,14 @@ export class DataNodeImpl extends NodeImpl<ReadonlyJSONValue> {
     return this._splice(tree, i, 1);
   }
 
-  async *scan(
+  async *scan<R>(
     _tree: BTreeRead,
     prefix: string,
     fromKey: string,
     limit: number,
+    convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
     onLimitKey?: (inclusiveLimitKey: string) => void,
-  ): AsyncGenerator<Entry<ReadonlyJSONValue>, number, unknown> {
+  ): AsyncGenerator<R, number, unknown> {
     const {entries} = this;
     let i = binarySearch(fromKey, entries);
     if (i < 0) {
@@ -244,7 +245,7 @@ export class DataNodeImpl extends NodeImpl<ReadonlyJSONValue> {
       if (onLimitKey && limit === 1) {
         onLimitKey(entries[i][0]);
       }
-      yield entries[i];
+      yield convertEntry(entries[i]);
     }
     return limit;
   }
@@ -447,13 +448,14 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
     return this._mergeAndPartition(tree, i, childNode);
   }
 
-  async *scan(
+  async *scan<R>(
     tree: BTreeRead,
     prefix: string,
     fromKey: string,
     limit: number,
+    convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
     onLimitKey?: (inclusiveLimitKey: string) => void,
-  ): AsyncGenerator<Entry<ReadonlyJSONValue>, number> {
+  ): AsyncGenerator<R, number> {
     const {entries} = this;
     let i = binarySearch(fromKey, entries);
     if (i < 0) {
@@ -464,7 +466,14 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
     }
     for (; i < entries.length && limit > 0; i++) {
       const childNode = await tree.getNode(entries[i][1]);
-      limit = yield* childNode.scan(tree, prefix, fromKey, limit, onLimitKey);
+      limit = yield* childNode.scan(
+        tree,
+        prefix,
+        fromKey,
+        limit,
+        convertEntry,
+        onLimitKey,
+      );
     }
     return limit;
   }

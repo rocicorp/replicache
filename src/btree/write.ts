@@ -126,27 +126,28 @@ export class BTreeWrite extends BTreeRead {
     return this._rwLock.withRead(() => super.isEmpty());
   }
 
-  override async *scan(
+  override async *scan<R>(
     options: ScanOptionsInternal,
-  ): AsyncGenerator<Entry<ReadonlyJSONValue>> {
-    yield* runRead(this._rwLock, super.scan(options));
+    convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
+  ): AsyncIterableIterator<R> {
+    yield* runRead(this._rwLock, super.scan(options, convertEntry));
   }
 
-  override async *keys(): AsyncGenerator<string, void> {
+  override async *keys(): AsyncIterableIterator<string> {
     yield* runRead(this._rwLock, super.keys());
   }
 
-  async *entries(): AsyncGenerator<ReadonlyEntry<ReadonlyJSONValue>, void> {
+  async *entries(): AsyncIterableIterator<ReadonlyEntry<ReadonlyJSONValue>> {
     yield* runRead(this._rwLock, super.entries());
   }
 
   override async *diff(
     last: BTreeRead,
-  ): AsyncGenerator<DiffResult<ReadonlyJSONValue>, void> {
+  ): AsyncIterableIterator<DiffResult<ReadonlyJSONValue>> {
     yield* runRead(this._rwLock, super.diff(last));
   }
 
-  override async *diffKeys(last: BTreeRead): AsyncGenerator<string, void> {
+  override async *diffKeys(last: BTreeRead): AsyncIterableIterator<string> {
     yield* runRead(this._rwLock, super.diffKeys(last));
   }
 
@@ -258,8 +259,8 @@ export class BTreeWrite extends BTreeRead {
 }
 async function* runRead<T>(
   lock: RWLock,
-  ai: AsyncGenerator<T>,
-): AsyncGenerator<T> {
+  ai: AsyncIterableIterator<T>,
+): AsyncIterableIterator<T> {
   const release = await lock.read();
   try {
     yield* ai;

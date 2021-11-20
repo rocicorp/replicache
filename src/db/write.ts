@@ -210,7 +210,7 @@ export class Write extends Read {
     }
 
     const indexMap = new BTreeWrite(this._dagWrite);
-    for await (const entry of this.map.scan({prefix: keyPrefix})) {
+    for await (const entry of this.map.scan({prefix: keyPrefix}, x => x)) {
       await indexValue(
         lc,
         indexMap,

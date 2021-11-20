@@ -63,7 +63,7 @@ export type ScanItem = {
   val: ReadonlyJSONValue;
 };
 
-export async function* scan<R>(
+export function scan<R>(
   map: BTreeRead,
   opts: ScanOptionsInternal,
   convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
@@ -74,9 +74,7 @@ export async function* scan<R>(
   // map key or an encoded IndexKey in an index map. Without encoding regular
   // prolly map keys we need to rely on the opts to tell us what we expect.
 
-  for await (const entry of map.scan(opts, onLimitKey)) {
-    yield convertEntry(entry);
-  }
+  return map.scan(opts, convertEntry, onLimitKey);
 }
 
 export function convert(source: ScanOptions): ScanOptionsInternal {

@@ -33,7 +33,7 @@ export class Read {
     return this.map.isEmpty();
   }
 
-  async *scan<R>(
+  scan<R>(
     opts: ScanOptions,
     convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
     onLimitKey?: (inclusiveLimitKey: string) => void,
@@ -45,12 +45,16 @@ export class Read {
       if (idx === undefined) {
         throw new Error(`Unknown index name: ${name}`);
       }
-      yield* await idx.withMap(this._dagRead, map =>
-        scan(map, optsInternal, convertEntry, onLimitKey),
+
+      return scanIndexMap(
+        idx,
+        this._dagRead,
+        optsInternal,
+        convertEntry,
+        onLimitKey,
       );
-    } else {
-      yield* scan(this.map, optsInternal, convertEntry, onLimitKey);
     }
+    return scan(this.map, optsInternal, convertEntry, onLimitKey);
   }
 
   get closed(): boolean {
@@ -60,6 +64,18 @@ export class Read {
   close(): void {
     this._dagRead.close();
   }
+}
+
+async function* scanIndexMap<R>(
+  idx: IndexRead,
+  dagRead: dag.Read,
+  optsInternal: ScanOptionsInternal,
+  convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
+  onLimitKey?: (inclusiveLimitKey: string) => void,
+): AsyncIterableIterator<R> {
+  yield* await idx.withMap(dagRead, map =>
+    scan(map, optsInternal, convertEntry, onLimitKey),
+  );
 }
 
 const enum WhenceType {

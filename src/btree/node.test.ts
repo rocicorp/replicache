@@ -268,7 +268,7 @@ test('empty read tree', async () => {
     const r = new BTreeRead(dagRead);
     expect(await r.get('a')).to.be.undefined;
     expect(await r.has('b')).to.be.false;
-    expect(await asyncIterToArray(r.scan({}))).to.deep.equal([]);
+    expect(await asyncIterToArray(r.scan({}, x => x))).to.deep.equal([]);
   });
 });
 
@@ -286,7 +286,7 @@ test('empty write tree', async () => {
     );
     expect(await w.get('a')).to.be.undefined;
     expect(await w.has('b')).to.be.false;
-    expect(await asyncIterToArray(w.scan({}))).to.deep.equal([]);
+    expect(await asyncIterToArray(w.scan({}, x => x))).to.deep.equal([]);
 
     const h = await w.flush();
     expect(h).to.equal(emptyTreeHash);
@@ -1219,9 +1219,13 @@ test('scan', async () => {
     await doRead(rootHash, dagStore, async r => {
       const res: Entry<ReadonlyJSONValue>[] = [];
       const onLimitKeyCalls: string[] = [];
-      const scanResult = r.scan(options, inclusiveLimitKey => {
-        onLimitKeyCalls.push(inclusiveLimitKey);
-      });
+      const scanResult = r.scan(
+        options,
+        x => x,
+        inclusiveLimitKey => {
+          onLimitKeyCalls.push(inclusiveLimitKey);
+        },
+      );
       for await (const e of scanResult) {
         res.push(e);
       }

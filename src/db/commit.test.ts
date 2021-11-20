@@ -117,7 +117,7 @@ test('chain', async () => {
 });
 
 test('load roundtrip', async () => {
-  const t = (chunk: dag.Chunk, expected: Commit | Error) => {
+  const t = (chunk: dag.Chunk, expected: Commit<Meta> | Error) => {
     {
       if (expected instanceof Error) {
         expect(() => fromChunk(chunk)).to.throw(
@@ -357,12 +357,12 @@ function createChunk<V extends Value>(
   return dag.createChunk(data, refs, dag.defaultChunkHasher);
 }
 
-async function makeCommit(
-  meta: Meta,
+async function makeCommit<M extends Meta>(
+  meta: M,
   valueHash: Hash,
   refs: Hash[],
-): Promise<dag.Chunk> {
-  const data: CommitData = {
+): Promise<dag.Chunk<CommitData<M>>> {
+  const data: CommitData<M> = {
     meta,
     valueHash,
     indexes: [],

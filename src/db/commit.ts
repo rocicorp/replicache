@@ -31,15 +31,15 @@ export const enum MetaTyped {
   Snapshot = 3,
 }
 
-export class Commit<M extends Meta = Meta> {
-  readonly chunk: dag.Chunk<CommitData>;
+export class Commit<M extends Meta> {
+  readonly chunk: dag.Chunk<CommitData<M>>;
 
-  constructor(chunk: dag.Chunk<CommitData>) {
+  constructor(chunk: dag.Chunk<CommitData<M>>) {
     this.chunk = chunk;
   }
 
   get meta(): M {
-    return this.chunk.data.meta as M;
+    return this.chunk.data.meta;
   }
 
   isLocal(): this is Commit<LocalMeta> {
@@ -115,13 +115,10 @@ export class Commit<M extends Meta = Meta> {
   }
 
   static snapshotMetaParts(
-    c: Commit,
+    c: Commit<SnapshotMeta>,
   ): [lastMutationID: number, cookie: ReadonlyJSONValue] {
     const m = c.meta;
-    if (m.type === MetaTyped.Snapshot) {
-      return [m.lastMutationID, m.cookieJSON];
-    }
-    throw new Error('Snapshot meta expected');
+    return [m.lastMutationID, m.cookieJSON];
   }
 
   /**
@@ -132,7 +129,7 @@ export class Commit<M extends Meta = Meta> {
   static async chain(
     fromCommitHash: Hash,
     dagRead: dag.Read,
-  ): Promise<Commit[]> {
+  ): Promise<Commit<Meta>[]> {
     let commit = await Commit.fromHash(fromCommitHash, dagRead);
     const commits = [];
     while (!commit.isSnapshot()) {
@@ -148,7 +145,7 @@ export class Commit<M extends Meta = Meta> {
     return commits;
   }
 
-  static async fromHash(hash: Hash, dagRead: dag.Read): Promise<Commit> {
+  static async fromHash(hash: Hash, dagRead: dag.Read): Promise<Commit<Meta>> {
     const chunk = await dagRead.getChunk(hash);
     if (!chunk) {
       throw new Error(`Missing commit for ${hash}`);
@@ -272,7 +269,7 @@ export function newLocal(
   originalHash: Hash | null,
   valueHash: Hash,
   indexes: readonly IndexRecord[],
-): Commit {
+): Commit<LocalMeta> {
   const meta: LocalMeta = {
     type: MetaTyped.Local,
     basisHash,
@@ -291,7 +288,7 @@ export function newSnapshot(
   cookieJSON: ReadonlyJSONValue,
   valueHash: Hash,
   indexes: readonly IndexRecord[],
-): Commit {
+): Commit<SnapshotMeta> {
   const meta: SnapshotMeta = {
     type: MetaTyped.Snapshot,
     basisHash,
@@ -307,7 +304,7 @@ export function newIndexChange(
   lastMutationID: number,
   valueHash: Hash,
   indexes: readonly IndexRecord[],
-): Commit {
+): Commit<IndexChangeMeta> {
   const meta: IndexChangeMeta = {
     type: MetaTyped.IndexChange,
     basisHash,
@@ -316,19 +313,19 @@ export function newIndexChange(
   return commitFromCommitData(createChunk, {meta, valueHash, indexes});
 }
 
-export function fromChunk(chunk: dag.Chunk): Commit {
+export function fromChunk(chunk: dag.Chunk): Commit<Meta> {
   validateChunk(chunk);
   return new Commit(chunk);
 }
 
-function commitFromCommitData(
+function commitFromCommitData<M extends Meta>(
   createChunk: dag.CreateChunk,
-  data: CommitData,
-): Commit {
+  data: CommitData<M>,
+): Commit<M> {
   return new Commit(createChunk(data, getRefs(data)));
 }
 
-export function getRefs(data: CommitData): Hash[] {
+export function getRefs(data: CommitData<Meta>): Hash[] {
   const refs: Hash[] = [data.valueHash];
   const {meta} = data;
   switch (meta.type) {
@@ -351,13 +348,13 @@ export function getRefs(data: CommitData): Hash[] {
   return refs;
 }
 
-export type CommitData = {
-  readonly meta: Meta;
+export type CommitData<M extends Meta> = {
+  readonly meta: M;
   readonly valueHash: Hash;
   readonly indexes: readonly IndexRecord[];
 };
 
-export function assertCommitData(v: unknown): asserts v is CommitData {
+export function assertCommitData(v: unknown): asserts v is CommitData<Meta> {
   assertObject(v);
   assertMeta(v.meta);
   assertString(v.valueHash);
@@ -369,7 +366,7 @@ export function assertCommitData(v: unknown): asserts v is CommitData {
 
 function validateChunk(
   chunk: dag.Chunk<Value>,
-): asserts chunk is dag.Chunk<CommitData> {
+): asserts chunk is dag.Chunk<CommitData<Meta>> {
   const {data} = chunk;
   assertCommitData(data);
 
@@ -384,7 +381,7 @@ function validateChunk(
   }
 }
 
-export function commitDataFromFlatbuffer(data: Uint8Array): CommitData {
+export function commitDataFromFlatbuffer(data: Uint8Array): CommitData<Meta> {
   const buf = new flatbuffers.ByteBuffer(data);
   const commitFB = CommitFB.getRootAsCommit(buf);
   const metaFB = commitFB.meta();
@@ -494,7 +491,7 @@ function snapshotMetaFromFlatbuffer(
   };
 }
 
-export function commitDataToFlatbuffer(data: CommitData): Uint8Array {
+export function commitDataToFlatbuffer(data: CommitData<Meta>): Uint8Array {
   const builder = new flatbuffers.Builder();
 
   const {basisHash} = data.meta;

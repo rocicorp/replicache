@@ -3,6 +3,7 @@ import type {Chain} from '../db/test-helpers';
 import type * as dag from '../dag/mod';
 import * as db from '../db/mod';
 import * as sync from '../sync/mod';
+import type {SnapshotMeta} from '../db/commit';
 
 // See db.test_helpers for addLocal, addSnapshot, etc. We can't put addLocalRebase
 // there because sync depends on db, and addLocalRebase depends on sync.
@@ -19,7 +20,7 @@ export async function addSyncSnapshot(
 ): Promise<Chain> {
   expect(chain.length >= 2).to.be.true;
 
-  let maybeBaseSnapshot: db.Commit | undefined;
+  let maybeBaseSnapshot: db.Commit<SnapshotMeta> | undefined;
   for (let i = chain.length - 1; i > 0; i--) {
     const commit = chain[i - 1];
     if (commit.isSnapshot()) {

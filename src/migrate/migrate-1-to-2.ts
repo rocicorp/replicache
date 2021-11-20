@@ -5,7 +5,7 @@ import {assertEntries} from '../prolly/mod';
 import * as sync from '../sync/mod';
 import type {LogContext} from '../logger';
 import {BTreeWrite} from '../btree/mod';
-import {IndexRecord, MetaTyped} from '../db/commit';
+import {IndexRecord, Meta, MetaTyped} from '../db/commit';
 import type {Hash} from '../hash';
 import {setCurrentVersion} from './migrate-0-to-1';
 
@@ -96,7 +96,7 @@ export async function migrateMaybeWeakCommit(
   const basisHash = basisHashP && (await basisHashP);
   const originalHash = originalHashP && (await originalHashP);
 
-  let newCommit: db.Commit;
+  let newCommit: db.Commit<Meta>;
   switch (commit.meta.type) {
     case MetaTyped.IndexChange:
       newCommit = db.newIndexChange(

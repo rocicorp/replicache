@@ -15,7 +15,7 @@ import * as db from '../db/mod';
 import * as sync from '../sync/mod';
 import * as utf8 from '../utf8';
 import * as prolly from '../prolly/mod';
-import {CommitData, MetaTyped} from '../db/commit';
+import {CommitData, MetaTyped, SnapshotMeta} from '../db/commit';
 import {hashOf, initHasher} from '../hash';
 
 setup(async () => {
@@ -183,7 +183,7 @@ test('migrateCommit', async () => {
   const entries: prolly.Entry[] = [['a', 42]];
   const entriesHash = hashOf('entries-hash');
 
-  const commit: CommitData = {
+  const commit: CommitData<SnapshotMeta> = {
     meta: {
       type: MetaTyped.Snapshot,
       basisHash: null,

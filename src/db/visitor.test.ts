@@ -11,7 +11,7 @@ import {hashOf, initHasher} from '../hash';
 import type {Node} from '../btree/node';
 import type {ReadonlyJSONValue} from '../json';
 import {Visitor} from './visitor';
-import {Commit, newLocal} from './commit';
+import {Commit, Meta, newLocal} from './commit';
 
 setup(async () => {
   await initHasher();
@@ -29,7 +29,7 @@ test('test that we get to the data nodes', async () => {
     }
   }
 
-  const t = async (commit: Commit, expected: ReadonlyJSONValue[]) => {
+  const t = async (commit: Commit<Meta>, expected: ReadonlyJSONValue[]) => {
     log.length = 0;
     await dagStore.withRead(async dagRead => {
       const visitor = new TestVisitor(dagRead);

@@ -18,6 +18,7 @@ import * as btree from '../btree/mod';
 import {BTreeRead} from '../btree/mod';
 import {updateIndexes} from '../db/write';
 import {emptyHash, Hash} from '../hash';
+import type {Meta} from '../db/commit';
 
 export const PULL_VERSION = 0;
 
@@ -388,8 +389,8 @@ function assertResult(v: any): asserts v is Result {
   assertHTTPRequestInfo(v.httpRequestInfo);
 }
 async function addChangedKeysForIndexes(
-  mainCommit: db.Commit,
-  syncCommit: db.Commit,
+  mainCommit: db.Commit<Meta>,
+  syncCommit: db.Commit<Meta>,
   read: dag.Read,
   changedKeysMap: ChangedKeysMap,
 ) {

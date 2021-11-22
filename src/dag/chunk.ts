@@ -44,7 +44,7 @@ export function createChunk<V extends Value>(
   return new ChunkImpl(hash, data, refs);
 }
 
-export function readChunk<V extends Value>(
+export function createChunkWithHash<V extends Value>(
   hash: Hash,
   data: V,
   refs: Refs,

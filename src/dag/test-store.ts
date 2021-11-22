@@ -1,6 +1,11 @@
 import {parse as parseHash} from '../hash';
 import {Store} from './store';
-import {Chunk, ChunkHasher, defaultChunkHasher, readChunk} from './chunk';
+import {
+  Chunk,
+  ChunkHasher,
+  defaultChunkHasher,
+  createChunkWithHash,
+} from './chunk';
 import {assertNotTempHash, Hash} from '../hash';
 import {chunkMetaKey, parse as parseKey} from './key';
 import {KeyType} from './key';
@@ -24,7 +29,7 @@ export class TestStore extends Store {
       const pk = parseKey(key);
       if (pk.type === KeyType.ChunkData) {
         const refsValue = this.kvStore.map().get(chunkMetaKey(pk.hash));
-        yield readChunk(pk.hash, value, toRefs(refsValue));
+        yield createChunkWithHash(pk.hash, value, toRefs(refsValue));
       }
     }
   }

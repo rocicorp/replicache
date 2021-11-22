@@ -82,11 +82,19 @@ export class Transformer {
     getRefs: (data: D) => readonly Hash[],
   ): Promise<Hash> {
     if (newData !== oldData || this.shouldForceWrite(h)) {
-      const newChunk = this.dagWrite.createChunk(newData, getRefs(newData));
-      await this.dagWrite.putChunk(newChunk);
-      return newChunk.hash;
+      return this.writeChunk(h, newData, getRefs);
     }
     return h;
+  }
+
+  async writeChunk<D extends Value>(
+    _h: Hash,
+    data: D,
+    getRefs: (data: D) => readonly Hash[],
+  ): Promise<Hash> {
+    const newChunk = this.dagWrite.createChunk(data, getRefs(data));
+    await this.dagWrite.putChunk(newChunk);
+    return newChunk.hash;
   }
 
   private async _transformCommitData<M extends Meta>(
@@ -240,7 +248,7 @@ export class Transformer {
   private async _transformBTreeDataEntries(
     entries: readonly btree.Entry<ReadonlyJSONValue>[],
   ): Promise<readonly btree.Entry<ReadonlyJSONValue>[]> {
-    return this._transformArray(entries, this.transformBTreeDataEntry);
+    return this._transformArray(entries, e => this.transformBTreeDataEntry(e));
   }
 
   async transformBTreeInternalEntry(
@@ -256,7 +264,9 @@ export class Transformer {
   private async _transformBTreeInternalEntries(
     entries: readonly btree.Entry<Hash>[],
   ): Promise<readonly btree.Entry<Hash>[]> {
-    return this._transformArray(entries, this.transformBTreeInternalEntry);
+    return this._transformArray(entries, e =>
+      this.transformBTreeInternalEntry(e),
+    );
   }
 
   private async _transformArray<T>(
@@ -275,9 +285,7 @@ export class Transformer {
   private _transformIndexRecords(
     indexes: readonly IndexRecord[],
   ): Promise<readonly IndexRecord[]> {
-    return this._transformArray(indexes, index =>
-      this.transformIndexRecord(index),
-    );
+    return this._transformArray(indexes, i => this.transformIndexRecord(i));
   }
 
   async transformIndexRecord(index: IndexRecord): Promise<IndexRecord> {

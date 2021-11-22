@@ -1,5 +1,6 @@
 import {createSHA512} from 'hash-wasm';
 import type {IHasher} from 'hash-wasm/dist/lib/WASMInterface';
+import {assert} from './asserts';
 
 const BYTE_LENGTH = 20;
 
@@ -154,4 +155,13 @@ export function assertHash(v: unknown): asserts v is Hash {
   if (!isHash(v)) {
     throw new Error(`Invalid hash: '${v}'`);
   }
+}
+
+/**
+ * Generates a fake hash useful for testing.
+ */
+export function fakeHash(s: string): Hash {
+  const fake = 'fake';
+  assert(/[a-v0-9]/.test(s), 'Fake hash must be a valid substring of a hash');
+  return (fake + s.padStart(HASH_LENGTH - fake.length, '0')) as unknown as Hash;
 }

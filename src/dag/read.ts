@@ -1,5 +1,5 @@
 import type * as kv from '../kv/mod';
-import {assertMeta, Chunk, readChunk} from './chunk';
+import {assertMeta, Chunk, createChunkWithHash} from './chunk';
 import {chunkDataKey, chunkMetaKey, headKey} from './key';
 import * as flatbuffers from 'flatbuffers';
 import {Meta as MetaFB} from './generated/meta/meta.js';
@@ -32,7 +32,7 @@ export class Read {
     } else {
       refs = [];
     }
-    return readChunk(hash, data, refs);
+    return createChunkWithHash(hash, data, refs);
   }
 
   async getHead(name: string): Promise<Hash | undefined> {

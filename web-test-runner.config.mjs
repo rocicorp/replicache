@@ -30,7 +30,7 @@ export default {
         'src/sync/*.test.ts',
         'src/migrate/*.test.ts',
         'src/btree/*.test.ts',
-        // src/worker-tests/ intentioanly excluded, see separate Worker group below
+        // src/worker-tests/ intentionally excluded, see separate Worker group below
       ],
       browsers: [firefox, chromium, webkit],
     },

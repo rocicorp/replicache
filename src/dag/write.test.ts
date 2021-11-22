@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import {MemStore} from '../kv/mod';
-import {defaultChunkHasher, readChunk} from './chunk';
+import {defaultChunkHasher, createChunkWithHash} from './chunk';
 import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
 import {Write} from './write';
 import type * as kv from '../kv/mod';
@@ -215,7 +215,7 @@ test('roundtrip', async () => {
   const t = async (name: string, data: Value, refs: Hash[]) => {
     const kv = new MemStore();
     const hash = defaultChunkHasher(data);
-    const c = readChunk(hash, data, refs);
+    const c = createChunkWithHash(hash, data, refs);
     await kv.withWrite(async kvw => {
       const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
       await w.putChunk(c);

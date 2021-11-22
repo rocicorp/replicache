@@ -22,7 +22,8 @@ export {
 export {getRoot} from './root';
 export {decodeIndexKey} from './index';
 export {Visitor} from './visitor';
+export {Transformer} from './transformer';
 
-export type {LocalMeta, IndexRecord, CommitData} from './commit';
+export type {LocalMeta, IndexRecord, CommitData, Meta} from './commit';
 export type {ScanOptions} from './scan';
 export type {Whence} from './read';

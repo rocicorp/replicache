@@ -21,6 +21,13 @@ export type DataNode = BaseNode<ReadonlyJSONValue>;
 
 export type Node = DataNode | InternalNode;
 
+export function getRefs(node: Node): ReadonlyArray<Hash> {
+  if (node[NODE_LEVEL] === 0) {
+    return [];
+  }
+  return node[NODE_ENTRIES].map(e => e[1]) as ReadonlyArray<Hash>;
+}
+
 export const enum DiffResultOp {
   Add,
   Delete,

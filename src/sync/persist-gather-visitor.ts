@@ -2,7 +2,7 @@ import * as db from '../db/mod';
 import {Hash, isTempHash} from '../hash';
 import type * as dag from '../dag/mod';
 import type * as btree from '../btree/mod';
-import type {HashType} from '../db/visitor';
+import type {HashType} from '../db/hash-type';
 import type {Meta} from '../db/commit';
 
 export class PersistGatherVisitor extends db.Visitor {

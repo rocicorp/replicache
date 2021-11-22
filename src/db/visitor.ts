@@ -13,11 +13,7 @@ import {
 import type * as dag from '../dag/mod';
 import {emptyHash, Hash} from '../hash';
 import {InternalNode, isInternalNode, Node} from '../btree/node';
-
-export const enum HashType {
-  AllowWeak,
-  RequireStrong,
-}
+import {HashType} from './hash-type';
 
 export class Visitor {
   readonly dagRead: dag.Read;

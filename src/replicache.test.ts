@@ -1505,6 +1505,8 @@ testWithBothStores(
 
     let pullerCallCount = 0;
 
+    const consoleErrorStub = sinon.stub(console, 'error');
+
     rep.puller = () => {
       pullerCallCount++;
       return Promise.resolve({
@@ -1520,6 +1522,11 @@ testWithBothStores(
 
     expect(fetchMock.calls()).to.have.length(0);
     expect(pullerCallCount).to.be.greaterThan(0);
+
+    expect(consoleErrorStub.firstCall.args[0]).to.equal(
+      'Got error response from server () doing pull: 500: Test failure',
+    );
+    consoleErrorStub.restore();
 
     await tickAFewTimes();
     fetchMock.reset();

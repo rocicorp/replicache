@@ -103,8 +103,11 @@ export async function initClient(
   const newClientID = makeUuid();
   let bootstrapClient;
   for (const client of clients.values()) {
-    if (!bootstrapClient || bootstrapClient.heartbeatTimestampMs < client.heartbeatTimestampMs) {
-      bootstrapClient = client
+    if (
+      !bootstrapClient ||
+      bootstrapClient.heartbeatTimestampMs < client.heartbeatTimestampMs
+    ) {
+      bootstrapClient = client;
     }
   }
 

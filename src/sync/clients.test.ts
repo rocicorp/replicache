@@ -1,12 +1,24 @@
 import {expect} from '@esm-bundle/chai';
-import { assertNotUndefined } from '../asserts';
-import { BTreeRead } from '../btree/read';
+import {assertNotUndefined} from '../asserts';
+import {BTreeRead} from '../btree/read';
 import * as dag from '../dag/mod';
-import { fromChunk, SnapshotMeta } from '../db/commit';
+import {fromChunk, SnapshotMeta} from '../db/commit';
 import {assertHash, hashOf, initHasher, newTempHash} from '../hash';
-import {getClient, getClients, initClient, setClient, setClients} from './clients';
+import {
+  getClient,
+  getClients,
+  initClient,
+  setClient,
+  setClients,
+} from './clients';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
-import { addGenesis, addIndexChange, addLocal, addSnapshot, Chain } from '../db/test-helpers';
+import {
+  addGenesis,
+  addIndexChange,
+  addLocal,
+  addSnapshot,
+  Chain,
+} from '../db/test-helpers';
 
 let clock: SinonFakeTimers;
 setup(async () => {
@@ -540,11 +552,13 @@ test('getClients throws errors if chunk pointed to by clients head does not cont
 test('initClient creates new empty snapshot when no existing snapshot to bootstrap from', async () => {
   const dagStore = new dag.TestStore();
   clock.tick(4000);
-  const [clientId, client] = await dagStore.withWrite(async (write: dag.Write) => {
-    const clientInfo = await initClient(write);
-    await write.commit();
-    return clientInfo;
-  });
+  const [clientId, client] = await dagStore.withWrite(
+    async (write: dag.Write) => {
+      const clientInfo = await initClient(write);
+      await write.commit();
+      return clientInfo;
+    },
+  );
 
   await dagStore.withRead(async (read: dag.Read) => {
     // Newly inited client was added to the client map.
@@ -567,7 +581,7 @@ test('initClient creates new empty snapshot when no existing snapshot to bootstr
 
 test('initClient bootstraps from base snapshot of client with highest heartbeat', async () => {
   const dagStore = new dag.TestStore();
-  
+
   const chain: Chain = [];
   await addGenesis(chain, dagStore);
   await addSnapshot(chain, dagStore, [['foo', 'bar']]);
@@ -597,18 +611,20 @@ test('initClient bootstraps from base snapshot of client with highest heartbeat'
     await write.commit();
   });
 
-  const [clientId, client] = await dagStore.withWrite(async (write: dag.Write) => {
-    const clientInfo = await initClient(write);
-    await write.commit();
-    return clientInfo;
-  });
+  const [clientId, client] = await dagStore.withWrite(
+    async (write: dag.Write) => {
+      const clientInfo = await initClient(write);
+      await write.commit();
+      return clientInfo;
+    },
+  );
 
   await dagStore.withRead(async (read: dag.Read) => {
     // Newly inited client was added to the client map.
     expect(await getClient(clientId, read)).to.deep.equal(client);
     expect(client.heartbeatTimestampMs).to.equal(clock.now);
 
-    // new client's head hash points to points to a commit that matches client2BaseSnapshoCommit 
+    // new client's head hash points to points to a commit that matches client2BaseSnapshoCommit
     // but with a local mutation id of 0
     const headChunk = await read.getChunk(client.headHash);
     assertNotUndefined(headChunk);
@@ -616,10 +632,13 @@ test('initClient bootstraps from base snapshot of client with highest heartbeat'
     expect(commit.isSnapshot()).to.be.true;
     const snapshotMeta = commit.meta as SnapshotMeta;
     expect(client2BaseSnapshotCommit.isSnapshot()).to.be.true;
-    const client2BaseSnapshotMeta = client2BaseSnapshotCommit.meta as SnapshotMeta;
+    const client2BaseSnapshotMeta =
+      client2BaseSnapshotCommit.meta as SnapshotMeta;
 
     expect(snapshotMeta.basisHash).to.equal(client2BaseSnapshotMeta.basisHash);
-    expect(snapshotMeta.cookieJSON).to.equal(client2BaseSnapshotMeta.cookieJSON);
+    expect(snapshotMeta.cookieJSON).to.equal(
+      client2BaseSnapshotMeta.cookieJSON,
+    );
     expect(commit.mutationID).to.equal(0);
     expect(commit.indexes).to.not.be.empty;
     expect(commit.indexes).to.deep.equal(client2BaseSnapshotCommit.indexes);

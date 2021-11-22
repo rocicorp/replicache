@@ -1481,9 +1481,9 @@ testWithBothStores(
 
     await tickAFewTimes();
     fetchMock.reset();
-    fetchMock.postAny({});
 
     rep.pullURL = 'https://diff.com/pull';
+    fetchMock.post(rep.pullURL, {lastMutationID: 0, patch: []});
 
     rep.pull();
     await tickAFewTimes();

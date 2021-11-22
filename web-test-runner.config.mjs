@@ -22,23 +22,24 @@ export default {
     {
       name: 'Main',
       files: [
-        'src/*.test.ts',
-        'src/dag/*.test.ts',
-        'src/db/*.test.ts',
-        'src/kv/*.test.ts',
-        'src/prolly/*.test.ts',
-        'src/sync/*.test.ts',
-        'src/migrate/*.test.ts',
-        'src/btree/*.test.ts',
+        'src/replicache.test.ts',
+        // 'src/*.test.ts',
+        // 'src/dag/*.test.ts',
+        // 'src/db/*.test.ts',
+        // 'src/kv/*.test.ts',
+        // 'src/prolly/*.test.ts',
+        // 'src/sync/*.test.ts',
+        // 'src/migrate/*.test.ts',
+        // 'src/btree/*.test.ts',
         // src/worker-tests/ intentioanly excluded, see separate Worker group below
       ],
-      browsers: [firefox, chromium, webkit],
-    },
-    {
-      name: 'Worker',
-      files: 'src/worker-tests/worker.test.ts',
-      // Only Chrome supports modules in workers at the moment
       browsers: [chromium],
     },
+    // {
+    //   name: 'Worker',
+    //   files: 'src/worker-tests/worker.test.ts',
+    //   // Only Chrome supports modules in workers at the moment
+    //   browsers: [chromium],
+    // },
   ],
 };

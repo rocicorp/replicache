@@ -1,10 +1,33 @@
 import {expect} from '@esm-bundle/chai';
+import {assertNotUndefined} from '../asserts';
+import {BTreeRead} from '../btree/read';
 import * as dag from '../dag/mod';
+import {fromChunk, SnapshotMeta} from '../db/commit';
 import {assertHash, hashOf, initHasher, newTempHash} from '../hash';
-import {getClient, getClients, setClient, setClients} from './clients';
+import {
+  getClient,
+  getClients,
+  initClient,
+  setClient,
+  setClients,
+} from './clients';
+import {SinonFakeTimers, useFakeTimers} from 'sinon';
+import {
+  addGenesis,
+  addIndexChange,
+  addLocal,
+  addSnapshot,
+  Chain,
+} from '../db/test-helpers';
 
+let clock: SinonFakeTimers;
 setup(async () => {
   await initHasher();
+  clock = useFakeTimers(0);
+});
+
+teardown(() => {
+  clock.restore();
 });
 
 test('getClients with no existing ClientMap in dag store', async () => {
@@ -523,5 +546,103 @@ test('getClients throws errors if chunk pointed to by clients head does not cont
       e = ex;
     }
     expect(e).to.be.instanceOf(Error);
+  });
+});
+
+test('initClient creates new empty snapshot when no existing snapshot to bootstrap from', async () => {
+  const dagStore = new dag.TestStore();
+  clock.tick(4000);
+  const [clientId, client] = await dagStore.withWrite(
+    async (write: dag.Write) => {
+      const clientInfo = await initClient(write);
+      await write.commit();
+      return clientInfo;
+    },
+  );
+
+  await dagStore.withRead(async (read: dag.Read) => {
+    // New client was added to the client map.
+    expect(await getClient(clientId, read)).to.deep.equal(client);
+    expect(client.heartbeatTimestampMs).to.equal(clock.now);
+
+    // New client's head hash points to an empty snapshot with an empty btree.
+    const headChunk = await read.getChunk(client.headHash);
+    assertNotUndefined(headChunk);
+    const commit = await fromChunk(headChunk);
+    expect(commit.isSnapshot()).to.be.true;
+    const snapshotMeta = commit.meta as SnapshotMeta;
+    expect(snapshotMeta.basisHash).to.be.null;
+    expect(snapshotMeta.cookieJSON).to.be.null;
+    expect(commit.mutationID).to.equal(0);
+    expect(commit.indexes).to.be.empty;
+    expect(await new BTreeRead(read, commit.valueHash).isEmpty()).to.be.true;
+  });
+});
+
+test('initClient bootstraps from base snapshot of client with highest heartbeat', async () => {
+  const dagStore = new dag.TestStore();
+
+  const chain: Chain = [];
+  await addGenesis(chain, dagStore);
+  await addSnapshot(chain, dagStore, [['foo', 'bar']]);
+  await addLocal(chain, dagStore);
+  const client1HeadCommit = chain[chain.length - 1];
+  await addIndexChange(chain, dagStore);
+  await addSnapshot(chain, dagStore, [['fuz', 'bang']]);
+  const client2BaseSnapshotCommit = chain[chain.length - 1];
+  await addLocal(chain, dagStore);
+  await addLocal(chain, dagStore);
+  const client2HeadCommit = chain[chain.length - 1];
+
+  await dagStore.withWrite(async (write: dag.Write) => {
+    const clientMap = new Map(
+      Object.entries({
+        client1: {
+          heartbeatTimestampMs: 1000,
+          headHash: client1HeadCommit.chunk.hash,
+        },
+        client2: {
+          heartbeatTimestampMs: 3000,
+          headHash: client2HeadCommit.chunk.hash,
+        },
+      }),
+    );
+    await setClients(clientMap, write);
+    await write.commit();
+  });
+
+  clock.tick(4000);
+  const [clientId, client] = await dagStore.withWrite(
+    async (write: dag.Write) => {
+      const clientInfo = await initClient(write);
+      await write.commit();
+      return clientInfo;
+    },
+  );
+
+  await dagStore.withRead(async (read: dag.Read) => {
+    // New client was added to the client map.
+    expect(await getClient(clientId, read)).to.deep.equal(client);
+    expect(client.heartbeatTimestampMs).to.equal(clock.now);
+
+    // New client's head hash points to a commit that matches client2BaseSnapshoCommit
+    // but with a local mutation id of 0.
+    const headChunk = await read.getChunk(client.headHash);
+    assertNotUndefined(headChunk);
+    const commit = await fromChunk(headChunk);
+    expect(commit.isSnapshot()).to.be.true;
+    const snapshotMeta = commit.meta as SnapshotMeta;
+    expect(client2BaseSnapshotCommit.isSnapshot()).to.be.true;
+    const client2BaseSnapshotMeta =
+      client2BaseSnapshotCommit.meta as SnapshotMeta;
+
+    expect(snapshotMeta.basisHash).to.equal(client2BaseSnapshotMeta.basisHash);
+    expect(snapshotMeta.cookieJSON).to.equal(
+      client2BaseSnapshotMeta.cookieJSON,
+    );
+    expect(commit.mutationID).to.equal(0);
+    expect(commit.indexes).to.not.be.empty;
+    expect(commit.indexes).to.deep.equal(client2BaseSnapshotCommit.indexes);
+    expect(commit.valueHash).to.equal(client2BaseSnapshotCommit.valueHash);
   });
 });

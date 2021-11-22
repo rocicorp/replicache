@@ -1163,7 +1163,7 @@ function checkStatus(
 ): boolean {
   const {httpStatusCode, errorMessage} = data;
   if (errorMessage || httpStatusCode >= 400) {
-    logger.info?.(
+    logger.error?.(
       `Got error response from server (${serverURL}) doing ${verb}: ${httpStatusCode}` +
         (errorMessage ? `: ${errorMessage}` : ''),
     );

@@ -2,6 +2,7 @@ import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {assertJSONValue} from '../json';
 import {
+  assert,
   assertArray,
   assertNotNull,
   assertNotUndefined,

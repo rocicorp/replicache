@@ -1,7 +1,13 @@
 import {expect} from '@esm-bundle/chai';
+import { assert, assertNotUndefined } from '../asserts';
+import { BTreeRead } from '../btree/read';
+import { BTreeWrite } from '../btree/write';
 import * as dag from '../dag/mod';
+import { fromChunk, SnapshotMeta } from '../db/commit';
 import {assertHash, hashOf, initHasher, newTempHash} from '../hash';
-import {getClient, getClients, setClient, setClients} from './clients';
+import {getClient, getClients, initClient, setClient, setClients} from './clients';
+import { LogContext } from '../logger';
+import { addGenesis, addLocal, addSnapshot, Chain } from '../db/test-helpers';
 
 setup(async () => {
   await initHasher();
@@ -523,5 +529,69 @@ test('getClients throws errors if chunk pointed to by clients head does not cont
       e = ex;
     }
     expect(e).to.be.instanceOf(Error);
+  });
+});
+
+test('initClient creates new empty snapshot when no existing snapshot to bootstrap from', async () => {
+  const dagStore = new dag.TestStore();
+  const [clientId, client] = await dagStore.withWrite(async (write: dag.Write) => {
+    const clientInfo = await initClient(write);
+    await write.commit();
+    return clientInfo;
+  });
+
+  await dagStore.withRead(async (read: dag.Read) => {
+    // Newly inited client was added to the client map.
+    expect(await getClient(clientId, read)).to.deep.equal(client);
+
+    // new client's head hash points to an empty snapshot with an empty btree
+    const headChunk = await read.getChunk(client.headHash);
+    assertNotUndefined(headChunk);
+    const commit = await fromChunk(headChunk);
+    expect(commit.isSnapshot()).to.be.true;
+    const snapshotMeta = commit.meta as SnapshotMeta;
+    expect(snapshotMeta.basisHash).to.be.null;
+    expect(snapshotMeta.cookieJSON).to.be.null;
+    expect(commit.mutationID).to.equal(0);
+    expect(commit.indexes).to.be.empty;
+    expect(await new BTreeRead(read, commit.valueHash).isEmpty()).to.be.true;
+  });
+});
+
+test('initClient bootstraps from base snapshot of client with highest heartbeat', async () => {
+  const dagStore = new dag.TestStore();
+  
+  const chain: Chain = [];
+  await addGenesis(chain, dagStore);
+  await addSnapshot(chain, dagStore, [['foo', 'bar']]);
+  await addLocal(chain, dagStore);
+  const client1HeadCommit = chain[chain.length - 1];
+  await addSnapshot(chain, dagStore, [['fuz', 'bang']]);
+  const client2BasisCommit = chain[chain.length - 1];
+  await addLocal(chain, dagStore);
+  await addLocal(chain, dagStore);
+  const client2HeadCommit = chain[chain.length - 1];
+
+  const [clientId, client] = await dagStore.withWrite(async (write: dag.Write) => {
+    const clientInfo = await initClient(write);
+    await write.commit();
+    return clientInfo;
+  });
+
+  await dagStore.withRead(async (read: dag.Read) => {
+    // Newly inited client was added to the client map.
+    expect(await getClient(clientId, read)).to.deep.equal(client);
+
+    // new client's head hash points to an empty snapshot with an empty btree
+    const headChunk = await read.getChunk(client.headHash);
+    assertNotUndefined(headChunk);
+    const commit = await fromChunk(headChunk);
+    expect(commit.isSnapshot()).to.be.true;
+    const snapshotMeta = commit.meta as SnapshotMeta;
+    expect(snapshotMeta.basisHash).to.be.null;
+    expect(snapshotMeta.cookieJSON).to.be.null;
+    expect(commit.mutationID).to.equal(0);
+    expect(commit.indexes).to.be.empty;
+    expect(await new BTreeRead(read, commit.valueHash).isEmpty()).to.be.true;
   });
 });

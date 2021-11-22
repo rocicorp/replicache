@@ -101,11 +101,12 @@ export async function initClient(
 ): Promise<[ClientID, Client]> {
   const clients = await getClients(dagWrite);
   const newClientID = makeUuid();
-  const bootstrapClient = [...clients.values()].reduce((prev, curr) =>
-    !prev || prev.heartbeatTimestampMs < curr.heartbeatTimestampMs
-      ? curr
-      : prev,
-  );
+  let bootstrapClient;
+  for (const client of clients.values()) {
+    if (!bootstrapClient || bootstrapClient.heartbeatTimestampMs < client.heartbeatTimestampMs) {
+      bootstrapClient = client
+    }
+  }
 
   let newClientCommit;
   if (bootstrapClient) {
@@ -113,7 +114,10 @@ export async function initClient(
       bootstrapClient.headHash,
       dagWrite,
     );
-    // Copy the snapshot with one change: set last mutation id to 0.
+    // Copy the snapshot with one change: set last mutation id to 0.  Replicache
+    // server implementations expect new client ids to start with last mutation id 0.
+    // If a server sees a new client id with a non-0 last mutation id, it may conclude
+    // this is a very old client whose state has been garbage collected on the server.
     newClientCommit = newSnapshot(
       dagWrite.createChunk,
       bootstrapCommit.meta.basisHash,
@@ -135,6 +139,7 @@ export async function initClient(
     );
   }
 
+  await dagWrite.putChunk(newClientCommit.chunk);
   const newClient = {
     heartbeatTimestampMs: Date.now(),
     headHash: newClientCommit.chunk.hash,

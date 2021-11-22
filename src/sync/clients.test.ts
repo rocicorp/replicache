@@ -561,11 +561,11 @@ test('initClient creates new empty snapshot when no existing snapshot to bootstr
   );
 
   await dagStore.withRead(async (read: dag.Read) => {
-    // Newly inited client was added to the client map.
+    // New client was added to the client map.
     expect(await getClient(clientId, read)).to.deep.equal(client);
     expect(client.heartbeatTimestampMs).to.equal(clock.now);
 
-    // new client's head hash points to an empty snapshot with an empty btree
+    // New client's head hash points to an empty snapshot with an empty btree.
     const headChunk = await read.getChunk(client.headHash);
     assertNotUndefined(headChunk);
     const commit = await fromChunk(headChunk);
@@ -611,6 +611,7 @@ test('initClient bootstraps from base snapshot of client with highest heartbeat'
     await write.commit();
   });
 
+  clock.tick(4000);
   const [clientId, client] = await dagStore.withWrite(
     async (write: dag.Write) => {
       const clientInfo = await initClient(write);
@@ -620,12 +621,12 @@ test('initClient bootstraps from base snapshot of client with highest heartbeat'
   );
 
   await dagStore.withRead(async (read: dag.Read) => {
-    // Newly inited client was added to the client map.
+    // New client was added to the client map.
     expect(await getClient(clientId, read)).to.deep.equal(client);
     expect(client.heartbeatTimestampMs).to.equal(clock.now);
 
-    // new client's head hash points to points to a commit that matches client2BaseSnapshoCommit
-    // but with a local mutation id of 0
+    // New client's head hash points to a commit that matches client2BaseSnapshoCommit
+    // but with a local mutation id of 0.
     const headChunk = await read.getChunk(client.headHash);
     assertNotUndefined(headChunk);
     const commit = await fromChunk(headChunk);

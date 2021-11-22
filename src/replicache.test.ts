@@ -2713,7 +2713,7 @@ test('online', async () => {
     log.push(b);
   };
 
-  const consoleError = sinon.stub(console, 'error');
+  const consoleInfoStub = sinon.stub(console, 'info');
 
   fetchMock.post(pushURL, async () => {
     await sleep(10);
@@ -2728,17 +2728,17 @@ test('online', async () => {
   await tickAFewTimes();
 
   expect(rep.online).to.equal(false);
-  expect(consoleError.callCount).to.be.greaterThan(0);
+  expect(consoleInfoStub.callCount).to.be.greaterThan(0);
   expect(log).to.deep.equal([false]);
 
-  consoleError.resetHistory();
+  consoleInfoStub.resetHistory();
 
   fetchMock.post(pushURL, {});
   await rep.mutate.addData({a: 1});
 
   await tickAFewTimes(20);
 
-  expect(consoleError.callCount).to.equal(0);
+  expect(consoleInfoStub.callCount).to.equal(0);
   expect(rep.online).to.equal(true);
   expect(log).to.deep.equal([false, true]);
 });

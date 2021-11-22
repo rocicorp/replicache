@@ -715,14 +715,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
       if (e instanceof PushError || e instanceof PullError) {
         online = false;
-        this._logger.error?.(
+        this._logger.info?.(
           `${name} threw:\n`,
           e,
           '\nwith cause:\n',
           e.causedBy,
         );
       } else {
-        this._logger.error?.(`${name} threw:\n`, e);
+        this._logger.info?.(`${name} threw:\n`, e);
       }
       return false;
     } finally {
@@ -1163,7 +1163,7 @@ function checkStatus(
 ): boolean {
   const {httpStatusCode, errorMessage} = data;
   if (errorMessage || httpStatusCode >= 400) {
-    logger.error?.(
+    logger.info?.(
       `Got error response from server (${serverURL}) doing ${verb}: ${httpStatusCode}` +
         (errorMessage ? `: ${errorMessage}` : ''),
     );

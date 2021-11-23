@@ -6,7 +6,7 @@ import {addGenesis, addIndexChange, addLocal, Chain} from '../db/test-helpers';
 import {
   GatheredChunks,
   PersistWriteTransformer,
-} from './persost-write-transformer';
+} from './persist-write-transformer';
 import {
   Commit,
   CommitData,
@@ -23,7 +23,7 @@ setup(async () => {
   await initHasher();
 });
 
-test('Nothing gachered, nothing written', async () => {
+test('Nothing gathered, nothing written', async () => {
   const dagStore = new dag.TestStore();
 
   const chain: Chain = [];
@@ -44,6 +44,7 @@ test('Nothing gachered, nothing written', async () => {
       data: btree.InternalNode,
     ): Promise<btree.InternalNode>;
     override transformBTreeNodeData(data: btree.Node): Promise<btree.Node> {
+      // Since the gathered chunks is empty, we should not be writing anything.
       assert.fail('should not be called with data: ' + JSON.stringify(data));
     }
   }

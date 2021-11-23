@@ -20,7 +20,7 @@ setup(async () => {
   await initHasher();
 });
 
-test('noops transformBTreeInternalEntry', async () => {
+test('transformBTreeInternalEntry - noop', async () => {
   const dagStore = new dag.TestStore();
 
   await dagStore.withWrite(async dagWrite => {

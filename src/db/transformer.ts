@@ -1,5 +1,5 @@
 import {assert} from '../asserts';
-import {assertBTreeNode} from '../btree/node';
+import {assertBTreeNode, isInternalNode} from '../btree/node';
 import * as btree from '../btree/mod';
 import {
   IndexChangeMeta,
@@ -8,9 +8,11 @@ import {
   SnapshotMeta,
   getRefs as getRefsFromCommitData,
   assertCommitData,
+  LocalMeta,
+  CommitData,
+  IndexRecord,
 } from './commit';
 import type {Hash} from '../hash';
-import type * as db from './mod';
 import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {HashType} from './hash-type';
@@ -62,7 +64,7 @@ export class Transformer {
     assertCommitData(data);
 
     const newCommitData = await this._transformCommitData(data);
-    return this._maybWriteChunk(h, newCommitData, data, getRefsFromCommitData);
+    return this._maybeWriteChunk(h, newCommitData, data, getRefsFromCommitData);
   }
 
   protected shouldForceWrite(_h: Hash): boolean {
@@ -73,7 +75,7 @@ export class Transformer {
     return this.dagWrite.getChunk(h);
   }
 
-  private async _maybWriteChunk<D extends Value>(
+  private async _maybeWriteChunk<D extends Value>(
     h: Hash,
     newData: D,
     oldData: D,
@@ -87,9 +89,9 @@ export class Transformer {
     return h;
   }
 
-  private async _transformCommitData<M extends db.Meta>(
-    data: db.CommitData<M>,
-  ): Promise<db.CommitData<M>> {
+  private async _transformCommitData<M extends Meta>(
+    data: CommitData<M>,
+  ): Promise<CommitData<Meta>> {
     const meta = await this._transformCommitMeta(data.meta);
     const valueHash = await this._transformCommitValue(data.valueHash);
     const indexes = await this._transformIndexRecords(data.indexes);
@@ -102,13 +104,13 @@ export class Transformer {
       return data;
     }
     return {
-      meta: meta as M,
+      meta,
       valueHash,
       indexes,
     };
   }
 
-  private _transformCommitMeta(meta: Meta): Promise<Meta> {
+  private _transformCommitMeta<M extends Meta>(meta: M): Promise<Meta> {
     switch (meta.type) {
       case MetaTyped.IndexChange:
         return this._transformIndexChangeMeta(meta);
@@ -148,7 +150,7 @@ export class Transformer {
     };
   }
 
-  private async _transformLocalMeta(meta: db.LocalMeta): Promise<db.LocalMeta> {
+  private async _transformLocalMeta(meta: LocalMeta): Promise<LocalMeta> {
     const basisHash = await this._transformBasisHash(
       meta.basisHash,
       HashType.RequireStrong,
@@ -205,7 +207,7 @@ export class Transformer {
     assertBTreeNode(data);
 
     const newData = await this.transformBTreeNodeData(data);
-    return this._maybWriteChunk(h, newData, data, btree.getRefs);
+    return this._maybeWriteChunk(h, newData, data, btree.getRefs);
   }
 
   transformBTreeNodeData(data: btree.DataNode): Promise<btree.DataNode>;
@@ -214,12 +216,12 @@ export class Transformer {
     const level = data[0];
     const entries = data[1];
     let newEntries: btree.Node[1];
-    if (level === 0) {
-      newEntries = await this._transformBTreeDataEntries(entries);
-    } else {
+    if (isInternalNode(data)) {
       newEntries = await this._transformBTreeInternalEntries(
         entries as btree.InternalNode[1],
       );
+    } else {
+      newEntries = await this._transformBTreeDataEntries(entries);
     }
     if (newEntries === entries) {
       return data;
@@ -271,14 +273,14 @@ export class Transformer {
   }
 
   private _transformIndexRecords(
-    indexes: readonly db.IndexRecord[],
-  ): Promise<readonly db.IndexRecord[]> {
+    indexes: readonly IndexRecord[],
+  ): Promise<readonly IndexRecord[]> {
     return this._transformArray(indexes, index =>
       this.transformIndexRecord(index),
     );
   }
 
-  async transformIndexRecord(index: db.IndexRecord): Promise<db.IndexRecord> {
+  async transformIndexRecord(index: IndexRecord): Promise<IndexRecord> {
     const valueHash = await this._transformBTreeNodeWithCache(index.valueHash);
     if (valueHash === index.valueHash) {
       return index;

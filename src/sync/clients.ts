@@ -4,10 +4,13 @@ import type {ReadonlyJSONValue} from '../json';
 import {assertNumber, assertObject} from '../asserts';
 import {hasOwn} from '../has-own';
 import type {ClientID} from './client-id';
+import {uuid as makeUuid} from './uuid';
+import {Commit, newSnapshot} from '../db/commit';
+import {BTreeWrite} from '../btree/write';
 
 type ClientMap = Map<ClientID, Client>;
 
-type Client = {
+export type Client = {
   /**
    * A UNIX timestamp in milliseconds updated by the client once a minute
    * while it is active and everytime the client persists its state to
@@ -91,4 +94,60 @@ export async function setClient(
   const clients = await getClients(dagWrite);
   clients.set(id, client);
   return setClients(clients, dagWrite);
+}
+
+export async function initClient(
+  dagWrite: dag.Write,
+): Promise<[ClientID, Client]> {
+  const clients = await getClients(dagWrite);
+  const newClientID = makeUuid();
+  let bootstrapClient;
+  for (const client of clients.values()) {
+    if (
+      !bootstrapClient ||
+      bootstrapClient.heartbeatTimestampMs < client.heartbeatTimestampMs
+    ) {
+      bootstrapClient = client;
+    }
+  }
+
+  let newClientCommit;
+  if (bootstrapClient) {
+    const bootstrapCommit = await Commit.baseSnapshot(
+      bootstrapClient.headHash,
+      dagWrite,
+    );
+    // Copy the snapshot with one change: set last mutation id to 0.  Replicache
+    // server implementations expect new client ids to start with last mutation id 0.
+    // If a server sees a new client id with a non-0 last mutation id, it may conclude
+    // this is a very old client whose state has been garbage collected on the server.
+    newClientCommit = newSnapshot(
+      dagWrite.createChunk,
+      bootstrapCommit.meta.basisHash,
+      0 /* lastMutationID */,
+      bootstrapCommit.meta.cookieJSON,
+      bootstrapCommit.valueHash,
+      bootstrapCommit.indexes,
+    );
+  } else {
+    // No existing snapshot to bootstrap from. Create empty snapshot.
+    const emptyBTreeHash = await new BTreeWrite(dagWrite).flush();
+    newClientCommit = newSnapshot(
+      dagWrite.createChunk,
+      null /* basisHash */,
+      0 /* lastMutationID */,
+      null /* cookie */,
+      emptyBTreeHash,
+      [] /* indexes */,
+    );
+  }
+
+  await dagWrite.putChunk(newClientCommit.chunk);
+  const newClient = {
+    heartbeatTimestampMs: Date.now(),
+    headHash: newClientCommit.chunk.hash,
+  };
+  await setClient(newClientID, newClient, dagWrite);
+
+  return [newClientID, newClient];
 }

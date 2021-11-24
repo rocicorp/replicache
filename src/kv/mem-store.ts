@@ -50,9 +50,9 @@ class ReadImpl implements Read {
   private readonly _release: () => void;
   private _closed = false;
 
-  constructor(map: Map<string, Value>, relase: () => void) {
+  constructor(map: Map<string, Value>, release: () => void) {
     this._map = map;
-    this._release = relase;
+    this._release = release;
   }
 
   release() {

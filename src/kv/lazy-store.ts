@@ -1,14 +1,18 @@
-import { RWLock } from '../rw-lock';
+import {RWLock} from '../rw-lock';
 import type {Read, Store, Value, Write} from './store';
-import { deleteSentinel, WriteImplBase } from './write-impl-base';
-import { getSizeOfValue } from '../get-size-of-value';
+import {deleteSentinel, WriteImplBase} from './write-impl-base';
+import {getSizeOfValue} from '../get-size-of-value';
 
 export class LazyStore implements Store {
   private readonly _cache: Cache;
   private readonly _rwLock = new RWLock();
   private readonly _base: Store;
 
-  constructor(base: Store, cacheSizeLimit: number, shouldBePinned: (key: string) => boolean) {
+  constructor(
+    base: Store,
+    cacheSizeLimit: number,
+    shouldBePinned: (key: string) => boolean,
+  ) {
     this._base = base;
     this._cache = new Cache(cacheSizeLimit, shouldBePinned);
   }
@@ -29,7 +33,10 @@ export class LazyStore implements Store {
 
   async write(): Promise<Write> {
     const release = await this._rwLock.write();
-    return new WriteImpl(this._cache, new ReadImpl(this._cache, this._base, release));
+    return new WriteImpl(
+      this._cache,
+      new ReadImpl(this._cache, this._base, release),
+    );
   }
 
   async withWrite<R>(fn: (write: Write) => R | Promise<R>): Promise<R> {
@@ -123,19 +130,21 @@ class WriteImpl extends WriteImplBase implements Write {
 }
 
 type CacheEntry = {
-  value: Value,
-  size: number
+  value: Value;
+  size: number;
 };
 
 class Cache {
-
   private readonly _cacheSizeLimit: number;
   private readonly _shouldBePinned: (key: string) => boolean;
-  private readonly _pinned= new Map<string, Value>();
+  private readonly _pinned = new Map<string, Value>();
   private readonly _cacheEntries = new Map<string, CacheEntry>();
   private _size = 0;
 
-  constructor(cacheSizeLimit: number, shouldBePinned: (key: string) => boolean) {
+  constructor(
+    cacheSizeLimit: number,
+    shouldBePinned: (key: string) => boolean,
+  ) {
     this._cacheSizeLimit = cacheSizeLimit;
     this._shouldBePinned = shouldBePinned;
   }
@@ -144,7 +153,7 @@ class Cache {
     return this._cacheEntries.has(key);
   }
 
-  get(key: string): Value| undefined {
+  get(key: string): Value | undefined {
     if (this._shouldBePinned(key)) {
       return this._pinned.get(key);
     }
@@ -169,7 +178,7 @@ class Cache {
     this._size += valueSize;
     this._cacheEntries.delete(key);
     this._cacheEntries.set(key, {value, size: valueSize});
-    
+
     let curr = this._cacheEntries.entries().next();
     while (this._size > this._cacheSizeLimit && !curr.done) {
       const [keyToEvict, cacheEntryToEvict] = curr.value;

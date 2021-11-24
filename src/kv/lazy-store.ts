@@ -83,13 +83,13 @@ class ReadImpl implements Read {
   }
 
   async has(key: string): Promise<boolean> {
-    return this._cache.has(key) || (await this.getBaseRead()).has(key);
+    return this.get(key) !== undefined;
   }
 
   async get(key: string): Promise<Value | undefined> {
     let v = this._cache.get(key);
     if (v === undefined) {
-      v = await (await this.getBaseRead()).get(key);
+      v = await (await this._getBaseRead()).get(key);
       if (v !== undefined) {
         this._cache.set(key, v);
       }
@@ -97,7 +97,7 @@ class ReadImpl implements Read {
     return v;
   }
 
-  private async getBaseRead(): Promise<Read> {
+  private async _getBaseRead(): Promise<Read> {
     if (!this._baseRead) {
       this._baseRead = await this._base.read();
     }
@@ -162,7 +162,7 @@ class Cache {
       this._cacheEntries.delete(key);
       this._cacheEntries.set(key, cacheEntry);
     }
-    return cacheEntry && cacheEntry.value;
+    return cacheEntry?.value;
   }
 
   set(key: string, value: Value): void {

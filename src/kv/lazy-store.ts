@@ -170,9 +170,9 @@ class Cache {
       this._pinned.set(key, value);
       return;
     }
-    const oldValue = this._cacheEntries.get(key);
-    if (oldValue) {
-      this._size -= getSizeOfValue(oldValue);
+    const oldCacheEntry = this._cacheEntries.get(key);
+    if (oldCacheEntry) {
+      this._size -= oldCacheEntry.size;
     }
     const valueSize = getSizeOfValue(value);
     this._size += valueSize;

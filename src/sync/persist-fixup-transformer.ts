@@ -1,6 +1,5 @@
 import type * as kv from '../kv/mod';
 import * as dag from '../dag/mod';
-import type * as btree from '../btree/mod';
 import type {HashType} from '../db/hash-type';
 import * as db from '../db/mod';
 import type {Hash} from '../hash';

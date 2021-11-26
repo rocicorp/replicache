@@ -13,17 +13,30 @@ import {
   IndexRecord,
 } from './commit';
 import type {Hash} from '../hash';
-import type * as dag from '../dag/mod';
+import * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {HashType} from './hash-type';
 import type {Value} from '../kv/store';
 
-export class Transformer {
-  readonly dagWrite: dag.Write;
+export class Transformer<Tx = dag.Write> {
+  private readonly _tx: Tx;
   private readonly _transforming: Map<Hash, Promise<Hash>> = new Map();
 
-  constructor(dagWrite: dag.Write) {
-    this.dagWrite = dagWrite;
+  constructor(tx: Tx) {
+    this._tx = tx;
+  }
+  get dagRead(): dag.Read {
+    if (!(this._tx instanceof dag.Read)) {
+      throw new Error('Expected a dag.Read');
+    }
+    return this._tx;
+  }
+
+  get dagWrite(): dag.Write {
+    if (!(this._tx instanceof dag.Write)) {
+      throw new Error('Expected a dag.Write');
+    }
+    return this._tx;
   }
 
   private _withTransformingCache(
@@ -80,7 +93,7 @@ export class Transformer {
   }
 
   protected getChunk(h: Hash): Promise<dag.Chunk | undefined> {
-    return this.dagWrite.getChunk(h);
+    return this.dagRead.getChunk(h);
   }
 
   private async _maybeWriteChunk<D extends Value>(
@@ -95,22 +108,25 @@ export class Transformer {
     return h;
   }
 
-  async writeChunk<D extends Value>(
+  protected async writeChunk<D extends Value>(
     _h: Hash,
     data: D,
     getRefs: (data: D) => readonly Hash[],
   ): Promise<Hash> {
-    const newChunk = this.dagWrite.createChunk(data, getRefs(data));
-    await this.dagWrite.putChunk(newChunk);
+    const {dagWrite} = this;
+    const newChunk = dagWrite.createChunk(data, getRefs(data));
+    await dagWrite.putChunk(newChunk);
     return newChunk.hash;
   }
 
   private async _transformCommitData<M extends Meta>(
     data: CommitData<M>,
   ): Promise<CommitData<Meta>> {
-    const meta = await this._transformCommitMeta(data.meta);
-    const valueHash = await this._transformCommitValue(data.valueHash);
-    const indexes = await this._transformIndexRecords(data.indexes);
+    const [meta, valueHash, indexes] = await Promise.all([
+      this._transformCommitMeta(data.meta),
+      this._transformCommitValue(data.valueHash),
+      this._transformIndexRecords(data.indexes),
+    ]);
 
     if (
       meta === data.meta &&
@@ -167,17 +183,18 @@ export class Transformer {
   }
 
   private async _transformLocalMeta(meta: LocalMeta): Promise<LocalMeta> {
-    const basisHash = await this._transformBasisHash(
+    const basisHashP = this._transformBasisHash(
       meta.basisHash,
       HashType.RequireStrong,
     );
     // originalHash is weak for Local Commits
-    const originalHash =
+    const originalHashP =
       meta.originalHash &&
-      (await this._transformCommitWithCache(
-        meta.originalHash,
-        HashType.AllowWeak,
-      ));
+      this._transformCommitWithCache(meta.originalHash, HashType.AllowWeak);
+
+    const basisHash = await basisHashP;
+    const originalHash = await originalHashP;
+
     if (basisHash === meta.basisHash && originalHash === meta.originalHash) {
       return meta;
     }

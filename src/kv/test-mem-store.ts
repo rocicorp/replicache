@@ -6,6 +6,13 @@ export class TestMemStore extends MemStore {
     return Object.fromEntries(this._map.entries());
   }
 
+  restoreSnapshot(snapshot: Record<string, Value>): void {
+    this._map.clear();
+    for (const [k, v] of Object.entries(snapshot)) {
+      this._map.set(k, v);
+    }
+  }
+
   /**
    * This exposes the underlying map for testing purposes.
    */

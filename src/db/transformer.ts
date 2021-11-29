@@ -24,22 +24,32 @@ type NewHash = Hash;
 export class Transformer<Tx = dag.Write> {
   private readonly _tx: Tx;
   private readonly _transforming: Map<Hash, Promise<Hash>> = new Map();
+  private readonly _writtenMappings = new Map<OldHash, NewHash>();
 
   constructor(tx: Tx) {
     this._tx = tx;
   }
+
+  /**
+   * This is a mapping from the old hash to the new hash for all the chunks that
+   * were written.
+   */
+  get mappings(): ReadonlyMap<OldHash, NewHash> {
+    return this._writtenMappings;
+  }
+
   get dagRead(): dag.Read {
-    if (!(this._tx instanceof dag.Read)) {
-      throw new Error('Expected a dag.Read');
+    if (this._tx instanceof dag.Read) {
+      return this._tx;
     }
-    return this._tx;
+    throw new Error('Expected a dag.Read');
   }
 
   get dagWrite(): dag.Write {
-    if (!(this._tx instanceof dag.Write)) {
-      throw new Error('Expected a dag.Write');
+    if (this._tx instanceof dag.Write) {
+      return this._tx;
     }
-    return this._tx;
+    throw new Error('Expected a dag.Write');
   }
 
   private _withTransformingCache(
@@ -111,7 +121,9 @@ export class Transformer<Tx = dag.Write> {
     getRefs: (data: D) => readonly NewHash[],
   ): Promise<NewHash> {
     if (newData !== oldData || this.shouldForceWrite(oldHash)) {
-      return this.writeChunk(oldHash, newData, getRefs);
+      const newHash = await this.writeChunk(oldHash, newData, getRefs);
+      this._writtenMappings.set(oldHash, newHash);
+      return newHash;
     }
     return oldHash;
   }

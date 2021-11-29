@@ -1,6 +1,5 @@
-import {hasOwn} from '../has-own';
-import type {ReadonlyJSONObject, ReadonlyJSONValue} from '../json';
-import type {Entry} from './node';
+import {hasOwn} from './has-own';
+import type {ReadonlyJSONObject, ReadonlyJSONValue} from './json';
 
 const SIZE_TAG = 1;
 const SIZE_INT32 = 4;
@@ -73,19 +72,3 @@ export function getSizeOfValue(value: ReadonlyJSONValue): number {
 function isSmi(value: number): boolean {
   return value === (value | 0);
 }
-
-export function getSizeOfNode(
-  entries: Entry<string>[] | Entry<ReadonlyJSONValue>[],
-): number {
-  // See object above
-
-  return NODE_HEADER_SIZE + getSizeOfValue(entries);
-}
-
-/**
- * The size of the header of a node. (If we had compile time
- * constants we would have used that).
- *
- * There is a test ensuring this is correct.
- */
-export const NODE_HEADER_SIZE = 11;

@@ -11,6 +11,14 @@ export const NODE_LEVEL = 0;
 export const NODE_ENTRIES = 1;
 
 /**
+ * The size of the header of a node. (If we had compile time
+ * constants we would have used that).
+ *
+ * There is a test ensuring this is correct.
+ */
+export const NODE_HEADER_SIZE = 11;
+
+/**
  * The type of B+Tree node chunk data
  */
 type BaseNode<V> = readonly [level: number, entries: ReadonlyArray<Entry<V>>];

@@ -14,10 +14,11 @@ import {
   DiffResultOp,
   NODE_LEVEL,
   NODE_ENTRIES,
+  NODE_HEADER_SIZE,
 } from './node';
 import {BTreeWrite} from './write';
 import {BTreeRead} from './read';
-import {getSizeOfValue} from './get-size-of-value';
+import {getSizeOfValue} from '../get-size-of-value';
 
 setup(async () => {
   await initHasher();
@@ -1638,4 +1639,12 @@ test('diff', async () => {
       },
     ],
   );
+});
+
+test('chunk header size', () => {
+  // This just ensures that the constant is correct.
+  const chunkData: DataNode = [0, []];
+  const entriesSize = getSizeOfValue(chunkData[NODE_ENTRIES]);
+  const chunkSize = getSizeOfValue(chunkData);
+  expect(chunkSize - entriesSize).to.equal(NODE_HEADER_SIZE);
 });

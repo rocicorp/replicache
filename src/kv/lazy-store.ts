@@ -150,6 +150,9 @@ class Cache {
   }
 
   has(key: string): boolean {
+    if (this._shouldBePinned(key)) {
+      return this._pinned.has(key);
+    }
     return this._cacheEntries.has(key);
   }
 
@@ -173,18 +176,19 @@ class Cache {
     const oldCacheEntry = this._cacheEntries.get(key);
     if (oldCacheEntry) {
       this._size -= oldCacheEntry.size;
+      this._cacheEntries.delete(key);
     }
     const valueSize = getSizeOfValue(value);
     this._size += valueSize;
-    this._cacheEntries.delete(key);
     this._cacheEntries.set(key, {value, size: valueSize});
 
-    let curr = this._cacheEntries.entries().next();
-    while (this._size > this._cacheSizeLimit && !curr.done) {
-      const [keyToEvict, cacheEntryToEvict] = curr.value;
+    for (const entry of this._cacheEntries) {
+      if (this._size <= this._cacheSizeLimit) {
+        break;
+      }
+      const [keyToEvict, cacheEntryToEvict] = entry;
       this._size -= cacheEntryToEvict.size;
       this._cacheEntries.delete(keyToEvict);
-      curr = this._cacheEntries.entries().next();
     }
   }
 

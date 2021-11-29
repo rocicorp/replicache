@@ -20,7 +20,7 @@ export {
   assertCommitData,
 } from './commit';
 export {getRoot} from './root';
-export {decodeIndexKey} from './index';
+export {decodeIndexKey, encodeIndexKey} from './index';
 export {Visitor} from './visitor';
 export {Transformer} from './transformer';
 

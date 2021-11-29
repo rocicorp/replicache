@@ -2,11 +2,14 @@ import type * as kv from '../kv/mod';
 import * as dag from '../dag/mod';
 import type {HashType} from '../db/hash-type';
 import * as db from '../db/mod';
-import type {Hash} from '../hash';
-import {assert} from '../asserts';
+import {Hash, isTempHash} from '../hash';
 
 type OldHash = Hash;
 type NewHash = Hash;
+/**
+ * Mappings are used to map from one hash to another. This is used when moving
+ * chunks between two DAG stores that uses different hash functions.
+ */
 type Mappings = ReadonlyMap<OldHash, NewHash>;
 
 /**
@@ -22,24 +25,28 @@ export class PersistFixupTransformer extends db.Transformer {
     this._mappings = mappings;
   }
 
+  shouldSkipTransform(hash: Hash): boolean {
+    // TODO(arv): Move to base class
+    if (isTempHash(hash)) {
+      return false;
+    }
+    return !this._mappings.has(hash);
+
+    // What if hash is for a data node that is not in the mappings?
+  }
+
   override async transformCommit(
     oldHash: OldHash,
     hashType?: HashType,
   ): Promise<NewHash> {
-    const newHash = this._mappings.get(oldHash);
-    if (newHash === undefined) {
-      // If the hash is not in the mapping we do not need to recurse into the
-      // subtree.
+    if (this.shouldSkipTransform(oldHash)) {
       return oldHash;
     }
     return super.transformCommit(oldHash, hashType);
   }
 
   override async transformBTreeNode(oldHash: OldHash): Promise<NewHash> {
-    const newHash = this._mappings.get(oldHash);
-    if (newHash === undefined) {
-      // If the hash is not in the mapping we do not need to recurse into the
-      // subtree.
+    if (this.shouldSkipTransform(oldHash)) {
       return oldHash;
     }
     return super.transformBTreeNode(oldHash);
@@ -58,11 +65,13 @@ export class PersistFixupTransformer extends db.Transformer {
     data: D,
     getRefs: (data: D) => readonly Hash[],
   ): Promise<Hash> {
+    // We get here if the chunk changed or if we had a mapping for the hash.
     const newHash = this._mappings.get(oldHash);
-    // We should not get here if there is no mapping.
-    assert(newHash);
-    const newChunk = dag.createChunkWithHash(newHash, data, getRefs(data));
+    const refs = getRefs(data);
+    const newChunk = newHash
+      ? dag.createChunkWithHash(newHash, data, refs)
+      : this.dagWrite.createChunk(data, refs);
     await this.dagWrite.putChunk(newChunk);
-    return newHash;
+    return newChunk.hash;
   }
 }

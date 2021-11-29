@@ -163,5 +163,6 @@ export function assertHash(v: unknown): asserts v is Hash {
 export function fakeHash(s: string): Hash {
   const fake = 'fake';
   assert(/[a-v0-9]/.test(s), 'Fake hash must be a valid substring of a hash');
+  assert(s.length <= HASH_LENGTH - fake.length, 'Fake hash is too long');
   return (fake + s.padStart(HASH_LENGTH - fake.length, '0')) as unknown as Hash;
 }

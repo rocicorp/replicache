@@ -1,6 +1,5 @@
 import type * as kv from '../kv/mod';
 import * as dag from '../dag/mod';
-import type {HashType} from '../db/hash-type';
 import * as db from '../db/mod';
 import {Hash, isTempHash} from '../hash';
 
@@ -25,31 +24,11 @@ export class PersistFixupTransformer extends db.Transformer {
     this._mappings = mappings;
   }
 
-  shouldSkipTransform(hash: Hash): boolean {
-    // TODO(arv): Move to base class
+  override shouldSkip(hash: Hash): boolean {
     if (isTempHash(hash)) {
       return false;
     }
     return !this._mappings.has(hash);
-
-    // What if hash is for a data node that is not in the mappings?
-  }
-
-  override async transformCommit(
-    oldHash: OldHash,
-    hashType?: HashType,
-  ): Promise<NewHash> {
-    if (this.shouldSkipTransform(oldHash)) {
-      return oldHash;
-    }
-    return super.transformCommit(oldHash, hashType);
-  }
-
-  override async transformBTreeNode(oldHash: OldHash): Promise<NewHash> {
-    if (this.shouldSkipTransform(oldHash)) {
-      return oldHash;
-    }
-    return super.transformBTreeNode(oldHash);
   }
 
   override shouldForceWrite(h: OldHash): boolean {

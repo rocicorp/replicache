@@ -53,6 +53,10 @@ export class Transformer {
     h: Hash,
     hashType = HashType.RequireStrong,
   ): Promise<Hash> {
+    if (this.shouldSkip(h)) {
+      return h;
+    }
+
     const chunk = await this.getChunk(h);
     if (!chunk) {
       if (hashType === HashType.AllowWeak) {
@@ -65,6 +69,10 @@ export class Transformer {
 
     const newCommitData = await this._transformCommitData(data);
     return this._maybeWriteChunk(h, newCommitData, data, getRefsFromCommitData);
+  }
+
+  protected shouldSkip(_h: Hash): boolean {
+    return false;
   }
 
   protected shouldForceWrite(_h: Hash): boolean {
@@ -209,6 +217,10 @@ export class Transformer {
   }
 
   async transformBTreeNode(h: Hash): Promise<Hash> {
+    if (this.shouldSkip(h)) {
+      return h;
+    }
+
     const chunk = await this.getChunk(h);
     assert(chunk, `Missing chunk: ${h}`);
     const {data} = chunk;

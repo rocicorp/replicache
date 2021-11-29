@@ -16,11 +16,13 @@ type Mappings = ReadonlyMap<OldHash, NewHash>;
  * perdag in our case) and rewrite the required chunks in the destination dag
  * (the memdag).
  */
-export class PersistFixupTransformer extends db.Transformer {
+export class PersistFixupTransformer<
+  Tx = dag.Write,
+> extends db.Transformer<Tx> {
   private readonly _mappings: Mappings;
 
-  constructor(dagWrite: dag.Write, mappings: Mappings) {
-    super(dagWrite);
+  constructor(tx: Tx, mappings: Mappings) {
+    super(tx);
     this._mappings = mappings;
   }
 
@@ -39,7 +41,7 @@ export class PersistFixupTransformer extends db.Transformer {
     return this._mappings.has(h);
   }
 
-  override async writeChunk<D extends kv.Value>(
+  protected override async writeChunk<D extends kv.Value>(
     oldHash: OldHash,
     data: D,
     getRefs: (data: D) => readonly Hash[],

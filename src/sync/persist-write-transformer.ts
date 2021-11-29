@@ -11,7 +11,9 @@ export type GatheredChunks = ReadonlyMap<Hash, dag.Chunk>;
  * the constructor and are also called the gathered chunks becasue they were
  * gathered on the source dag in a previous pass.
  */
-export class PersistWriteTransformer extends db.Transformer {
+export class PersistWriteTransformer<
+  Tx = dag.Write,
+> extends db.Transformer<Tx> {
   private readonly _gatheredChunks: GatheredChunks;
 
   /**
@@ -19,9 +21,14 @@ export class PersistWriteTransformer extends db.Transformer {
    * @param gatheredChunks The chunks that were gathered on the source dag in
    * a previous pass.
    */
-  constructor(dagWrite: dag.Write, gatheredChunks: GatheredChunks) {
+  constructor(dagWrite: Tx, gatheredChunks: GatheredChunks) {
     super(dagWrite);
     this._gatheredChunks = gatheredChunks;
+  }
+
+  override shouldSkip(hash: Hash): boolean {
+    // Skip all chunks that we did not get from the source.
+    return !this._gatheredChunks.has(hash);
   }
 
   protected override shouldForceWrite(h: Hash): boolean {
@@ -38,10 +45,5 @@ export class PersistWriteTransformer extends db.Transformer {
     // We cannot get here is we did not gather a chunk for this hash.
     assert(gatheredChunk !== undefined);
     return gatheredChunk;
-  }
-
-  override shouldSkip(hash: Hash): boolean {
-    // Skip all chunks that we did not get from the source.
-    return !this._gatheredChunks.has(hash);
   }
 }

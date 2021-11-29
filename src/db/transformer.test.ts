@@ -10,7 +10,7 @@ import {
 import {Commit} from './commit';
 import type {IndexRecord, Meta} from './commit';
 import {Transformer} from './transformer';
-import {Hash, initHasher} from '../hash';
+import {Hash, initHasher, makeNewTempHashFunction} from '../hash';
 import {BTreeRead, BTreeWrite, Entry} from '../btree/mod';
 import type {DataNode} from '../btree/node';
 import type {ReadonlyJSONValue} from '../json';
@@ -34,6 +34,8 @@ test('transformBTreeInternalEntry - noop', async () => {
     expect(await transformer.transformBTreeInternalEntry(entry)).to.equal(
       entry,
     );
+
+    expect(transformer.mappings).to.be.empty;
   });
 });
 
@@ -48,6 +50,7 @@ test('transformBTreeNode - noop', async () => {
     const valueHash = await map.flush();
 
     expect(await transformer.transformBTreeNode(valueHash)).to.equal(valueHash);
+    expect(transformer.mappings).to.be.empty;
   });
 });
 
@@ -61,6 +64,7 @@ test('transformCommit - noop', async () => {
       for (const commit of chain) {
         const h = commit.chunk.hash;
         expect(await transformer.transformCommit(h)).to.equal(h);
+        expect(transformer.mappings).to.be.empty;
       }
     });
   };
@@ -97,11 +101,16 @@ test('transformIndexRecord - noop', async () => {
     };
 
     expect(await transformer.transformIndexRecord(index)).to.equal(index);
+    expect(transformer.mappings).to.be.empty;
   });
 });
 
 test('transforms data entry', async () => {
-  const dagStore = new dag.TestStore();
+  const dagStore = new dag.TestStore(
+    undefined,
+    makeNewTempHashFunction(),
+    () => undefined,
+  );
 
   class TestTransformer extends Transformer {
     override async transformBTreeDataEntry(
@@ -127,6 +136,13 @@ test('transforms data entry', async () => {
 
     await write.setHead('test', h2);
     await write.commit();
+
+    expect(Object.fromEntries(transformer.mappings)).to.deep.equal({
+      't/000000000000000000000000000002': 't/000000000000000000000000000007',
+      't/000000000000000000000000000003': 't/000000000000000000000000000008',
+      't/000000000000000000000000000004': 't/000000000000000000000000000006',
+      ['t/000000000000000000000000000005']: 't/000000000000000000000000000009',
+    });
   });
 
   await dagStore.withRead(async read => {

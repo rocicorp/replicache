@@ -3,10 +3,7 @@ import * as dag from '../dag/mod';
 import type * as btree from '../btree/mod';
 import {initHasher, isTempHash, newTempHash} from '../hash';
 import {addGenesis, addIndexChange, addLocal, Chain} from '../db/test-helpers';
-import {
-  GatheredChunks,
-  PersistWriteTransformer,
-} from './persist-write-transformer';
+import {GatheredChunks, PersistWriteTransformer} from './write-transformer';
 import {
   Commit,
   CommitData,

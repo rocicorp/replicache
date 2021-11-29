@@ -8,7 +8,7 @@ import {
   addSnapshot,
   Chain,
 } from '../db/test-helpers';
-import {PersistGatherVisitor} from './persist-gather-visitor';
+import {PersistGatherVisitor} from './gather-visitor';
 import {TestMemStore} from '../kv/test-mem-store';
 import type {Value} from '../kv/store';
 import {stringCompare} from '../prolly/string-compare';

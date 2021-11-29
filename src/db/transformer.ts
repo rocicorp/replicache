@@ -24,7 +24,7 @@ type NewHash = Hash;
 export class Transformer<Tx = dag.Write> {
   private readonly _tx: Tx;
   private readonly _transforming: Map<Hash, Promise<Hash>> = new Map();
-  private readonly _mappings = new Map<OldHash, NewHash>();
+  private readonly _writtenMappings = new Map<OldHash, NewHash>();
 
   constructor(tx: Tx) {
     this._tx = tx;
@@ -35,7 +35,7 @@ export class Transformer<Tx = dag.Write> {
    * were written.
    */
   get mappings(): ReadonlyMap<OldHash, NewHash> {
-    return this._mappings;
+    return this._writtenMappings;
   }
 
   get dagRead(): dag.Read {
@@ -122,7 +122,7 @@ export class Transformer<Tx = dag.Write> {
   ): Promise<NewHash> {
     if (newData !== oldData || this.shouldForceWrite(oldHash)) {
       const newHash = await this.writeChunk(oldHash, newData, getRefs);
-      this._mappings.set(oldHash, newHash);
+      this._writtenMappings.set(oldHash, newHash);
       return newHash;
     }
     return oldHash;

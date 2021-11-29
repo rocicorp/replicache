@@ -13,7 +13,7 @@ import {
 import type * as dag from '../dag/mod';
 import {emptyHash, Hash} from '../hash';
 import {InternalNode, isInternalNode, Node} from '../btree/node';
-import {HashType} from './hash-type';
+import {HashRefType} from './hash-ref-type';
 
 export class Visitor {
   readonly dagRead: dag.Read;
@@ -23,7 +23,10 @@ export class Visitor {
     this.dagRead = dagRead;
   }
 
-  async visitCommit(h: Hash, hashType = HashType.RequireStrong): Promise<void> {
+  async visitCommit(
+    h: Hash,
+    hashRefType = HashRefType.RequireStrong,
+  ): Promise<void> {
     if (this._visitedHashes.has(h)) {
       return;
     }
@@ -31,7 +34,7 @@ export class Visitor {
 
     const chunk = await this.dagRead.getChunk(h);
     if (!chunk) {
-      if (hashType === HashType.AllowWeak) {
+      if (hashRefType === HashRefType.AllowWeak) {
         return;
       }
       throw new Error(`Chunk ${h} not found`);
@@ -66,27 +69,27 @@ export class Visitor {
 
   private async _visitBasisHash(
     basisHash: Hash | null,
-    hashType?: HashType,
+    hashRefType?: HashRefType,
   ): Promise<void> {
     if (basisHash !== null) {
-      await this.visitCommit(basisHash, hashType);
+      await this.visitCommit(basisHash, hashRefType);
     }
   }
 
   private async _visitSnapshot(meta: SnapshotMeta): Promise<void> {
     // basisHash is weak for Snapshot Commits
-    await this._visitBasisHash(meta.basisHash, HashType.AllowWeak);
+    await this._visitBasisHash(meta.basisHash, HashRefType.AllowWeak);
   }
 
   private async _visitLocalMeta(meta: LocalMeta): Promise<void> {
-    await this._visitBasisHash(meta.basisHash, HashType.RequireStrong);
+    await this._visitBasisHash(meta.basisHash, HashRefType.RequireStrong);
     if (meta.originalHash !== null) {
-      await this.visitCommit(meta.originalHash, HashType.AllowWeak);
+      await this.visitCommit(meta.originalHash, HashRefType.AllowWeak);
     }
   }
 
   private _visitIndexChangeMeta(meta: IndexChangeMeta): Promise<void> {
-    return this._visitBasisHash(meta.basisHash, HashType.RequireStrong);
+    return this._visitBasisHash(meta.basisHash, HashRefType.RequireStrong);
   }
 
   private _visitCommitValue(valueHash: Hash): Promise<void> {

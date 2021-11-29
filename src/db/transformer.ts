@@ -15,7 +15,7 @@ import {
 import type {Hash} from '../hash';
 import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
-import {HashType} from './hash-type';
+import {HashRefType} from './hash-ref-type';
 import type {Value} from '../kv/store';
 
 export class Transformer {
@@ -42,16 +42,16 @@ export class Transformer {
 
   private _transformCommitWithCache(
     h: Hash,
-    hashType = HashType.RequireStrong,
+    hashRefType = HashRefType.RequireStrong,
   ): Promise<Hash> {
     return this._withTransformingCache(h, () =>
-      this.transformCommit(h, hashType),
+      this.transformCommit(h, hashRefType),
     );
   }
 
   async transformCommit(
     h: Hash,
-    hashType = HashType.RequireStrong,
+    hashRefType = HashRefType.RequireStrong,
   ): Promise<Hash> {
     if (this.shouldSkip(h)) {
       return h;
@@ -59,7 +59,7 @@ export class Transformer {
 
     const chunk = await this.getChunk(h);
     if (!chunk) {
-      if (hashType === HashType.AllowWeak) {
+      if (hashRefType === HashRefType.AllowWeak) {
         return h;
       }
       throw new Error(`Chunk ${h} not found`);
@@ -141,10 +141,10 @@ export class Transformer {
 
   private _transformBasisHash(
     basisHash: Hash | null,
-    hashType: HashType,
+    hashRefType: HashRefType,
   ): Promise<Hash> | null {
     if (basisHash !== null) {
-      return this._transformCommitWithCache(basisHash, hashType);
+      return this._transformCommitWithCache(basisHash, hashRefType);
     }
     return null;
   }
@@ -153,7 +153,7 @@ export class Transformer {
     // basisHash is weak for Snapshot Commits
     const basisHash = await this._transformBasisHash(
       meta.basisHash,
-      HashType.AllowWeak,
+      HashRefType.AllowWeak,
     );
     if (basisHash === meta.basisHash) {
       return meta;
@@ -169,14 +169,14 @@ export class Transformer {
   private async _transformLocalMeta(meta: LocalMeta): Promise<LocalMeta> {
     const basisHash = await this._transformBasisHash(
       meta.basisHash,
-      HashType.RequireStrong,
+      HashRefType.RequireStrong,
     );
     // originalHash is weak for Local Commits
     const originalHash =
       meta.originalHash &&
       (await this._transformCommitWithCache(
         meta.originalHash,
-        HashType.AllowWeak,
+        HashRefType.AllowWeak,
       ));
     if (basisHash === meta.basisHash && originalHash === meta.originalHash) {
       return meta;
@@ -196,7 +196,7 @@ export class Transformer {
   ): Promise<IndexChangeMeta> {
     const basisHash = await this._transformBasisHash(
       meta.basisHash,
-      HashType.RequireStrong,
+      HashRefType.RequireStrong,
     );
     if (basisHash === meta.basisHash) {
       return meta;

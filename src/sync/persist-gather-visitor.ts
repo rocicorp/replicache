@@ -2,7 +2,7 @@ import * as db from '../db/mod';
 import {Hash, isTempHash} from '../hash';
 import type * as dag from '../dag/mod';
 import type * as btree from '../btree/mod';
-import type {HashType} from '../db/hash-type';
+import type {HashRefType} from '../db/hash-ref-type';
 import type {Meta} from '../db/commit';
 
 export class PersistGatherVisitor extends db.Visitor {
@@ -12,12 +12,15 @@ export class PersistGatherVisitor extends db.Visitor {
     return this._gatheredChunks;
   }
 
-  override async visitCommit(h: Hash, hashType?: HashType): Promise<void> {
+  override async visitCommit(
+    h: Hash,
+    hashRefType?: HashRefType,
+  ): Promise<void> {
     if (!isTempHash(h)) {
       // Not a temp hash, no need to visit anything else.
       return;
     }
-    return super.visitCommit(h, hashType);
+    return super.visitCommit(h, hashRefType);
   }
 
   override async visitCommitChunk(

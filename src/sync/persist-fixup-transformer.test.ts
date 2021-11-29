@@ -232,8 +232,6 @@ test('fixup of a single snapshot commit with a btree with internal nodes', async
     return [c.chunk.hash, valueHash];
   });
 
-  // console.log(JSON.stringify(memdag.kvStore.snapshot(), null, 2));
-
   assert.deepEqual(
     memdag.kvStore.snapshot(),
 
@@ -303,8 +301,6 @@ test('fixup of a single snapshot commit with a btree with internal nodes', async
   });
 
   assert.equal(newHeadHash, fakeHash('head'));
-
-  // console.log(JSON.stringify(memdag.kvStore.snapshot(), null, 2));
 
   assert.deepEqual(
     memdag.kvStore.snapshot(),

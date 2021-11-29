@@ -2,7 +2,7 @@ import * as dag from '../dag/mod';
 import type {Hash} from '../hash';
 import type {Value} from '../kv/mod';
 import type {MaybePromise} from '../replicache';
-import {PersistWriteTransformer} from './write-transformer';
+import {WriteTransformer} from './write-transformer';
 
 export type GatheredChunks = ReadonlyMap<Hash, dag.Chunk>;
 export type FixedChunks = ReadonlyMap<Hash, dag.Chunk>;
@@ -10,7 +10,7 @@ export type FixedChunks = ReadonlyMap<Hash, dag.Chunk>;
 /**
  * This transformer computes the hashes
  */
-export class PersistComputeHashTransformer extends PersistWriteTransformer<null> {
+export class ComputeHashTransformer extends WriteTransformer<null> {
   private readonly _fixedChunks: Map<Hash, dag.Chunk> = new Map();
   private readonly _hashFunc: (value: Value) => MaybePromise<Hash>;
 

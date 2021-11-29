@@ -11,9 +11,7 @@ export type GatheredChunks = ReadonlyMap<Hash, dag.Chunk>;
  * the constructor and are also called the gathered chunks becasue they were
  * gathered on the source dag in a previous pass.
  */
-export class PersistWriteTransformer<
-  Tx = dag.Write,
-> extends db.Transformer<Tx> {
+export class WriteTransformer<Tx = dag.Write> extends db.Transformer<Tx> {
   private readonly _gatheredChunks: GatheredChunks;
 
   /**

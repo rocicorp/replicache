@@ -3,7 +3,7 @@ import * as dag from '../dag/mod';
 import type * as btree from '../btree/mod';
 import {initHasher, isTempHash, newTempHash} from '../hash';
 import {addGenesis, addIndexChange, addLocal, Chain} from '../db/test-helpers';
-import {GatheredChunks, PersistWriteTransformer} from './write-transformer';
+import {GatheredChunks, WriteTransformer} from './write-transformer';
 import {
   Commit,
   CommitData,
@@ -33,7 +33,7 @@ test('Nothing gathered, nothing written', async () => {
 
   const snapshot = Object.fromEntries(dagStore.kvStore.entries());
 
-  class TestTransformer extends PersistWriteTransformer {
+  class TestTransformer extends WriteTransformer {
     override transformBTreeNodeData(
       data: btree.DataNode,
     ): Promise<btree.DataNode>;
@@ -69,7 +69,7 @@ test('single new commit on top of snapshot is written', async () => {
     const gatheredChunks: GatheredChunks = new Map([[c.chunk.hash, c.chunk]]);
 
     const newHash = await dagStore.withWrite(async dagWrite => {
-      const transformer = new PersistWriteTransformer(dagWrite, gatheredChunks);
+      const transformer = new WriteTransformer(dagWrite, gatheredChunks);
       const newHash = await transformer.transformCommit(c.chunk.hash);
       assert.notEqual(newHash, c.chunk.hash);
       await dagWrite.setHead('test', newHash);
@@ -199,7 +199,7 @@ test('single new snapshot with new btree on top of snapshot is written', async (
   ]);
 
   const newHash = await perdag.withWrite(async dagWrite => {
-    const transformer = new PersistWriteTransformer(dagWrite, gatheredChunks);
+    const transformer = new WriteTransformer(dagWrite, gatheredChunks);
     const newHash = await transformer.transformCommit(c.chunk.hash);
     assert.notEqual(newHash, c.chunk.hash);
     await dagWrite.setHead('main', newHash);

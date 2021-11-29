@@ -8,7 +8,7 @@ import {
   parse as parseHash,
 } from '../hash';
 import {BTreeWrite} from '../btree/write';
-import {PersistFixupTransformer} from './fixup-transformer';
+import {FixupTransformer} from './fixup-transformer';
 import type {ReadonlyJSONValue} from '../json';
 
 setup(async () => {
@@ -62,7 +62,7 @@ test('fixup of a single snapshot commit with empty btree', async () => {
   ]);
 
   const newHeadHash = await memdag.withWrite(async dagWrite => {
-    const transformer = new PersistFixupTransformer(dagWrite, mappings);
+    const transformer = new FixupTransformer(dagWrite, mappings);
     const newHeadHash = await transformer.transformCommit(headHash);
 
     await dagWrite.setHead('test', newHeadHash);
@@ -148,7 +148,7 @@ test('fixup of a single snapshot commit with empty btree', async () => {
     const mappings = new Map([[headHash, fakeHash('head2')]]);
 
     const newHeadHash2 = await memdag.withWrite(async dagWrite => {
-      const transformer = new PersistFixupTransformer(dagWrite, mappings);
+      const transformer = new FixupTransformer(dagWrite, mappings);
       const newHeadHash = await transformer.transformCommit(headHash);
 
       await dagWrite.setHead('test', newHeadHash);
@@ -286,7 +286,7 @@ test('fixup base snapshot when there is a local commit on top of it', async () =
   ]);
 
   const newLocalCommitHash = await memdag.withWrite(async dagWrite => {
-    const transformer = new PersistFixupTransformer(dagWrite, mappings);
+    const transformer = new FixupTransformer(dagWrite, mappings);
     const newLocalCommitHash = await transformer.transformCommit(
       localCommit.chunk.hash,
     );
@@ -443,7 +443,7 @@ test('fixup of a single snapshot commit with a btree with internal nodes', async
   ]);
 
   const newHeadHash = await memdag.withWrite(async dagWrite => {
-    const transformer = new PersistFixupTransformer(dagWrite, mappings);
+    const transformer = new FixupTransformer(dagWrite, mappings);
     const newHeadHash = await transformer.transformCommit(headHash);
 
     await dagWrite.setHead('test', newHeadHash);
@@ -646,7 +646,7 @@ test('fixup of a base snapshot with an index', async () => {
   ]);
 
   const newHeadHash = await memdag.withWrite(async dagWrite => {
-    const transformer = new PersistFixupTransformer(dagWrite, mappings);
+    const transformer = new FixupTransformer(dagWrite, mappings);
     const newHeadHash = await transformer.transformCommit(headHash);
 
     await dagWrite.setHead('test', newHeadHash);

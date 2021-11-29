@@ -9,7 +9,7 @@ import {
   parse as parseHash,
 } from '../hash';
 import {BTreeWrite} from '../btree/write';
-import {PersistComputeHashTransformer} from './persist-compute-hash-transformer';
+import {PersistComputeHashTransformer} from './compute-hash-transformer';
 import {encode} from '../base32-encode';
 import type {ReadonlyJSONValue} from '../json';
 

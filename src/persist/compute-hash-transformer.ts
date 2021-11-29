@@ -2,7 +2,7 @@ import * as dag from '../dag/mod';
 import type {Hash} from '../hash';
 import type {Value} from '../kv/mod';
 import type {MaybePromise} from '../replicache';
-import {PersistWriteTransformer} from './persist-write-transformer';
+import {PersistWriteTransformer} from './write-transformer';
 
 export type GatheredChunks = ReadonlyMap<Hash, dag.Chunk>;
 export type FixedChunks = ReadonlyMap<Hash, dag.Chunk>;

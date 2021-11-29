@@ -8,7 +8,7 @@ import {
   parse as parseHash,
 } from '../hash';
 import {BTreeWrite} from '../btree/write';
-import {PersistFixupTransformer} from './persist-fixup-transformer';
+import {PersistFixupTransformer} from './fixup-transformer';
 import type {ReadonlyJSONValue} from '../json';
 
 setup(async () => {

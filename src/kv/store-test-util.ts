@@ -166,6 +166,7 @@ async function simpleRollback(store: TestStore): Promise<void> {
 
 async function store(store: TestStore): Promise<void> {
   // Test put/has/get, which use read() and write() for one-shot txs.
+  const hasFoo = (await store.has('foo'));
   expect(await store.has('foo')).to.be.false;
   expect(await store.get('foo')).to.be.undefined;
 

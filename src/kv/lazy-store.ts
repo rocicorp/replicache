@@ -2,6 +2,7 @@ import {RWLock} from '../rw-lock';
 import type {Read, Store, Value, Write} from './store';
 import {deleteSentinel, WriteImplBase} from './write-impl-base';
 import {getSizeOfValue} from '../get-size-of-value';
+import { assert } from '../asserts';
 
 export class LazyStore implements Store {
   private readonly _cache: Cache;
@@ -13,6 +14,7 @@ export class LazyStore implements Store {
     cacheSizeLimit: number,
     shouldBePinned: (key: string) => boolean,
   ) {
+    assert(cacheSizeLimit > 0);
     this._base = base;
     this._cache = new Cache(cacheSizeLimit, shouldBePinned);
   }
@@ -83,7 +85,7 @@ class ReadImpl implements Read {
   }
 
   async has(key: string): Promise<boolean> {
-    return this.get(key) !== undefined;
+    return await this.get(key) !== undefined;
   }
 
   async get(key: string): Promise<Value | undefined> {
@@ -147,13 +149,6 @@ class Cache {
   ) {
     this._cacheSizeLimit = cacheSizeLimit;
     this._shouldBePinned = shouldBePinned;
-  }
-
-  has(key: string): boolean {
-    if (this._shouldBePinned(key)) {
-      return this._pinned.has(key);
-    }
-    return this._cacheEntries.has(key);
   }
 
   get(key: string): Value | undefined {

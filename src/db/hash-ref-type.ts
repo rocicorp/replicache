@@ -1,4 +1,4 @@
-export const enum HashType {
+export const enum HashRefType {
   AllowWeak,
   RequireStrong,
 }

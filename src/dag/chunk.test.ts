@@ -1,7 +1,7 @@
 import {expect} from '@esm-bundle/chai';
 import {Hash, hashOf, initHasher, parse} from '../hash';
 import type {Value} from '../kv/store';
-import {defaultChunkHasher, createChunk, readChunk} from './chunk';
+import {defaultChunkHasher, createChunk, createChunkWithHash} from './chunk';
 import type {Chunk} from './chunk';
 
 setup(async () => {
@@ -16,7 +16,7 @@ test('round trip', async () => {
     expect(c.meta).to.deep.equal(refs);
 
     const buf = c.meta;
-    const c2 = readChunk(hash, data, buf);
+    const c2 = createChunkWithHash(hash, data, buf);
     expect(c).to.deep.equal(c2);
   };
 

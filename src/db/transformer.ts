@@ -53,6 +53,10 @@ export class Transformer {
     h: Hash,
     hashType = HashType.RequireStrong,
   ): Promise<Hash> {
+    if (this.shouldSkip(h)) {
+      return h;
+    }
+
     const chunk = await this.getChunk(h);
     if (!chunk) {
       if (hashType === HashType.AllowWeak) {
@@ -65,6 +69,10 @@ export class Transformer {
 
     const newCommitData = await this._transformCommitData(data);
     return this._maybeWriteChunk(h, newCommitData, data, getRefsFromCommitData);
+  }
+
+  protected shouldSkip(_h: Hash): boolean {
+    return false;
   }
 
   protected shouldForceWrite(_h: Hash): boolean {
@@ -82,11 +90,19 @@ export class Transformer {
     getRefs: (data: D) => readonly Hash[],
   ): Promise<Hash> {
     if (newData !== oldData || this.shouldForceWrite(h)) {
-      const newChunk = this.dagWrite.createChunk(newData, getRefs(newData));
-      await this.dagWrite.putChunk(newChunk);
-      return newChunk.hash;
+      return this.writeChunk(h, newData, getRefs);
     }
     return h;
+  }
+
+  async writeChunk<D extends Value>(
+    _h: Hash,
+    data: D,
+    getRefs: (data: D) => readonly Hash[],
+  ): Promise<Hash> {
+    const newChunk = this.dagWrite.createChunk(data, getRefs(data));
+    await this.dagWrite.putChunk(newChunk);
+    return newChunk.hash;
   }
 
   private async _transformCommitData<M extends Meta>(
@@ -201,6 +217,10 @@ export class Transformer {
   }
 
   async transformBTreeNode(h: Hash): Promise<Hash> {
+    if (this.shouldSkip(h)) {
+      return h;
+    }
+
     const chunk = await this.getChunk(h);
     assert(chunk, `Missing chunk: ${h}`);
     const {data} = chunk;
@@ -240,7 +260,7 @@ export class Transformer {
   private async _transformBTreeDataEntries(
     entries: readonly btree.Entry<ReadonlyJSONValue>[],
   ): Promise<readonly btree.Entry<ReadonlyJSONValue>[]> {
-    return this._transformArray(entries, this.transformBTreeDataEntry);
+    return this._transformArray(entries, e => this.transformBTreeDataEntry(e));
   }
 
   async transformBTreeInternalEntry(
@@ -256,7 +276,9 @@ export class Transformer {
   private async _transformBTreeInternalEntries(
     entries: readonly btree.Entry<Hash>[],
   ): Promise<readonly btree.Entry<Hash>[]> {
-    return this._transformArray(entries, this.transformBTreeInternalEntry);
+    return this._transformArray(entries, e =>
+      this.transformBTreeInternalEntry(e),
+    );
   }
 
   private async _transformArray<T>(
@@ -275,9 +297,7 @@ export class Transformer {
   private _transformIndexRecords(
     indexes: readonly IndexRecord[],
   ): Promise<readonly IndexRecord[]> {
-    return this._transformArray(indexes, index =>
-      this.transformIndexRecord(index),
-    );
+    return this._transformArray(indexes, i => this.transformIndexRecord(i));
   }
 
   async transformIndexRecord(index: IndexRecord): Promise<IndexRecord> {

@@ -2,6 +2,10 @@ import {MemStore} from './mem-store';
 import type {Value} from './store';
 
 export class TestMemStore extends MemStore {
+  snapshot(): Record<string, Value> {
+    return Object.fromEntries(this._map.entries());
+  }
+
   /**
    * This exposes the underlying map for testing purposes.
    */

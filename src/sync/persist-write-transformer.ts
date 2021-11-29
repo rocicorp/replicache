@@ -1,7 +1,7 @@
 import * as db from '../db/mod';
 import type * as dag from '../dag/mod';
 import type {Hash} from '../hash';
-import type {HashType} from '../db/hash-type';
+import {assert} from '../asserts';
 
 export type GatheredChunks = ReadonlyMap<Hash, dag.Chunk>;
 
@@ -31,29 +31,17 @@ export class PersistWriteTransformer extends db.Transformer {
     return this._gatheredChunks.has(h);
   }
 
-  protected override getChunk(hash: Hash): Promise<dag.Chunk | undefined> {
-    const gatheredChunk = this._gatheredChunks.get(hash);
-    return gatheredChunk
-      ? Promise.resolve(gatheredChunk)
-      : super.getChunk(hash);
-  }
-
-  override async transformCommit(
+  protected override async getChunk(
     hash: Hash,
-    hashType?: HashType,
-  ): Promise<Hash> {
-    // Override to only transform the dag nodes we got from the source.
-    if (this._gatheredChunks.has(hash)) {
-      return super.transformCommit(hash, hashType);
-    }
-    return hash;
+  ): Promise<dag.Chunk | undefined> {
+    const gatheredChunk = this._gatheredChunks.get(hash);
+    // We cannot get here is we did not gather a chunk for this hash.
+    assert(gatheredChunk !== undefined);
+    return gatheredChunk;
   }
 
-  override async transformBTreeNode(hash: Hash): Promise<Hash> {
-    // Override to only transform the dag nodes we got from the source.
-    if (this._gatheredChunks.has(hash)) {
-      return super.transformBTreeNode(hash);
-    }
-    return hash;
+  override shouldSkip(hash: Hash): boolean {
+    // Skip all chunks that we did not get from the source.
+    return !this._gatheredChunks.has(hash);
   }
 }

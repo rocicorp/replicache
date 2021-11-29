@@ -63,8 +63,8 @@ export class IndexWrite extends Index<dag.Write, BTreeWrite> {
   }
 
   clear(): Promise<void> {
-    return this._rwLock.withWrite(() => {
-      this._map?.clear();
+    return this._rwLock.withWrite(async () => {
+      await this._map?.clear();
     });
   }
 }

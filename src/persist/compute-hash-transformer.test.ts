@@ -9,7 +9,7 @@ import {
   parse as parseHash,
 } from '../hash';
 import {BTreeWrite} from '../btree/write';
-import {PersistComputeHashTransformer} from './compute-hash-transformer';
+import {ComputeHashTransformer} from './compute-hash-transformer';
 import {encode} from '../base32-encode';
 import type {ReadonlyJSONValue} from '../json';
 
@@ -71,10 +71,7 @@ test('fix hashes up of a single snapshot commit with empty btree', async () => {
     return encode(buf2) as unknown as Hash;
   };
 
-  const transformer = new PersistComputeHashTransformer(
-    gatheredChunk,
-    hashFunc,
-  );
+  const transformer = new ComputeHashTransformer(gatheredChunk, hashFunc);
   const newHeadHash = await transformer.transformCommit(headChunk.hash);
   assert.equal(newHeadHash, parseHash('9lrb08p9b7jqo8oad3aef60muj4td8ke'));
 
@@ -106,10 +103,7 @@ test('fix hashes up of a single snapshot commit with empty btree', async () => {
 
     const gatheredChunk = new Map([[headChunk.hash, headChunk]]);
 
-    const transformer = new PersistComputeHashTransformer(
-      gatheredChunk,
-      hashFunc,
-    );
+    const transformer = new ComputeHashTransformer(gatheredChunk, hashFunc);
     const newHeadHash = await transformer.transformCommit(headChunk.hash);
     assert.equal(newHeadHash, parseHash('1fgr18o8m8p503lt3e9oaoct8k9ch47b'));
 

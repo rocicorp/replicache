@@ -8,7 +8,7 @@ import {
   addSnapshot,
   Chain,
 } from '../db/test-helpers';
-import {PersistGatherVisitor} from './gather-visitor';
+import {GatherVisitor} from './gather-visitor';
 import {TestMemStore} from '../kv/test-mem-store';
 import type {Value} from '../kv/store';
 import {stringCompare} from '../prolly/string-compare';
@@ -28,7 +28,7 @@ test('dag with no temp hashes gathers nothing', async () => {
 
   await dagStore.withRead(async dagRead => {
     for (const commit of chain) {
-      const visitor = new PersistGatherVisitor(dagRead);
+      const visitor = new GatherVisitor(dagRead);
       await visitor.visitCommit(commit.chunk.hash);
       expect(visitor.gatheredChunks).to.be.empty;
     }
@@ -37,7 +37,7 @@ test('dag with no temp hashes gathers nothing', async () => {
   await addSnapshot(chain, dagStore, undefined);
 
   await dagStore.withRead(async dagRead => {
-    const visitor = new PersistGatherVisitor(dagRead);
+    const visitor = new GatherVisitor(dagRead);
     await visitor.visitCommit(chain[chain.length - 1].chunk.hash);
     expect(visitor.gatheredChunks).to.be.empty;
   });
@@ -56,7 +56,7 @@ test('dag with only temp hashes gathers eveything', async () => {
 
   const testGatheredChunks = async () => {
     await dagStore.withRead(async dagRead => {
-      const visitor = new PersistGatherVisitor(dagRead);
+      const visitor = new GatherVisitor(dagRead);
       await visitor.visitCommit(chain[chain.length - 1].chunk.hash);
       expect(sortByHash(dagStore.chunks())).to.deep.equal(
         sortByHash(visitor.gatheredChunks.values()),
@@ -85,7 +85,7 @@ test('dag with some permanent hashes and some temp hashes on top', async () => {
   await addLocal(chain, perdag);
 
   await perdag.withRead(async dagRead => {
-    const visitor = new PersistGatherVisitor(dagRead);
+    const visitor = new GatherVisitor(dagRead);
     await visitor.visitCommit(chain[chain.length - 1].chunk.hash);
     expect(visitor.gatheredChunks).to.be.empty;
   });
@@ -99,7 +99,7 @@ test('dag with some permanent hashes and some temp hashes on top', async () => {
   await addLocal(chain, memdag);
 
   await memdag.withRead(async dagRead => {
-    const visitor = new PersistGatherVisitor(dagRead);
+    const visitor = new GatherVisitor(dagRead);
     await visitor.visitCommit(chain[chain.length - 1].chunk.hash);
     expect(Object.fromEntries(visitor.gatheredChunks)).to.deep.equal({
       't/000000000000000000000000000000': {
@@ -142,7 +142,7 @@ test('dag with some permanent hashes and some temp hashes on top', async () => {
   await addIndexChange(chain, memdag);
 
   await memdag.withRead(async dagRead => {
-    const visitor = new PersistGatherVisitor(dagRead);
+    const visitor = new GatherVisitor(dagRead);
     await visitor.visitCommit(chain[chain.length - 1].chunk.hash);
     expect(Object.fromEntries(visitor.gatheredChunks)).to.deep.equal({
       't/000000000000000000000000000002': {

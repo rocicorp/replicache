@@ -2,7 +2,9 @@ import {esbuildPlugin} from '@web/dev-server-esbuild';
 import {playwrightLauncher} from '@web/test-runner-playwright';
 
 const chromium = playwrightLauncher({product: 'chromium'});
-const webkit = playwrightLauncher({product: 'webkit'});
+// TODO(arv): Reenable webkit once it has been fixed upstream.
+// https://github.com/modernweb-dev/web/issues/1797
+// const webkit = playwrightLauncher({product: 'webkit'});
 const firefox = playwrightLauncher({product: 'firefox'});
 
 export default {
@@ -32,7 +34,7 @@ export default {
         'src/btree/*.test.ts',
         // src/worker-tests/ intentionally excluded, see separate Worker group below
       ],
-      browsers: [firefox, chromium, webkit],
+      browsers: [firefox, chromium],
     },
     {
       name: 'Worker',

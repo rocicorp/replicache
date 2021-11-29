@@ -18,6 +18,9 @@ import type {ReadonlyJSONValue} from '../json';
 import {HashRefType} from './hash-ref-type';
 import type {Value} from '../kv/store';
 
+type OldHash = Hash;
+type NewHash = Hash;
+
 export class Transformer<Tx = dag.Write> {
   private readonly _tx: Tx;
   private readonly _transforming: Map<Hash, Promise<Hash>> = new Map();
@@ -40,81 +43,86 @@ export class Transformer<Tx = dag.Write> {
   }
 
   private _withTransformingCache(
-    h: Hash,
+    oldHash: OldHash,
     f: () => Promise<Hash>,
-  ): Promise<Hash> {
-    const newHash = this._transforming.get(h);
+  ): Promise<NewHash> {
+    const newHash = this._transforming.get(oldHash);
     if (newHash !== undefined) {
       return newHash;
     }
 
     const p = f();
-    this._transforming.set(h, p);
+    this._transforming.set(oldHash, p);
     return p;
   }
 
   private _transformCommitWithCache(
-    h: Hash,
+    oldHash: OldHash,
     hashRefType = HashRefType.RequireStrong,
-  ): Promise<Hash> {
-    return this._withTransformingCache(h, () =>
-      this.transformCommit(h, hashRefType),
+  ): Promise<NewHash> {
+    return this._withTransformingCache(oldHash, () =>
+      this.transformCommit(oldHash, hashRefType),
     );
   }
 
   async transformCommit(
-    h: Hash,
+    oldHash: OldHash,
     hashRefType = HashRefType.RequireStrong,
-  ): Promise<Hash> {
-    if (this.shouldSkip(h)) {
-      return h;
+  ): Promise<NewHash> {
+    if (this.shouldSkip(oldHash)) {
+      return oldHash;
     }
 
-    const chunk = await this.getChunk(h);
+    const chunk = await this.getChunk(oldHash);
     if (!chunk) {
       if (hashRefType === HashRefType.AllowWeak) {
-        return h;
+        return oldHash;
       }
-      throw new Error(`Chunk ${h} not found`);
+      throw new Error(`Chunk ${oldHash} not found`);
     }
     const {data} = chunk;
     assertCommitData(data);
 
     const newCommitData = await this._transformCommitData(data);
-    return this._maybeWriteChunk(h, newCommitData, data, getRefsFromCommitData);
+    return this._maybeWriteChunk(
+      oldHash,
+      newCommitData,
+      data,
+      getRefsFromCommitData,
+    );
   }
 
-  protected shouldSkip(_h: Hash): boolean {
+  protected shouldSkip(_oldHash: OldHash): boolean {
     return false;
   }
 
-  protected shouldForceWrite(_h: Hash): boolean {
+  protected shouldForceWrite(_oldHash: OldHash): boolean {
     return false;
   }
 
-  protected getChunk(h: Hash): Promise<dag.Chunk | undefined> {
-    return this.dagRead.getChunk(h);
+  protected getChunk(oldHash: OldHash): Promise<dag.Chunk | undefined> {
+    return this.dagRead.getChunk(oldHash);
   }
 
   private async _maybeWriteChunk<D extends Value>(
-    h: Hash,
+    oldHash: OldHash,
     newData: D,
     oldData: D,
-    getRefs: (data: D) => readonly Hash[],
-  ): Promise<Hash> {
-    if (newData !== oldData || this.shouldForceWrite(h)) {
-      return this.writeChunk(h, newData, getRefs);
+    getRefs: (data: D) => readonly NewHash[],
+  ): Promise<NewHash> {
+    if (newData !== oldData || this.shouldForceWrite(oldHash)) {
+      return this.writeChunk(oldHash, newData, getRefs);
     }
-    return h;
+    return oldHash;
   }
 
   protected async writeChunk<D extends Value>(
-    _h: Hash,
-    data: D,
-    getRefs: (data: D) => readonly Hash[],
-  ): Promise<Hash> {
+    _oldHash: OldHash,
+    newData: D,
+    getRefs: (data: D) => readonly NewHash[],
+  ): Promise<NewHash> {
     const {dagWrite} = this;
-    const newChunk = dagWrite.createChunk(data, getRefs(data));
+    const newChunk = dagWrite.createChunk(newData, getRefs(newData));
     await dagWrite.putChunk(newChunk);
     return newChunk.hash;
   }
@@ -156,9 +164,9 @@ export class Transformer<Tx = dag.Write> {
   }
 
   private _transformBasisHash(
-    basisHash: Hash | null,
+    basisHash: OldHash | null,
     hashRefType: HashRefType,
-  ): Promise<Hash> | null {
+  ): Promise<NewHash> | null {
     if (basisHash !== null) {
       return this._transformCommitWithCache(basisHash, hashRefType);
     }
@@ -225,26 +233,26 @@ export class Transformer<Tx = dag.Write> {
     };
   }
 
-  private _transformCommitValue(valueHash: Hash): Promise<Hash> {
+  private _transformCommitValue(valueHash: OldHash): Promise<NewHash> {
     return this._transformBTreeNodeWithCache(valueHash);
   }
 
-  private _transformBTreeNodeWithCache(h: Hash): Promise<Hash> {
+  private _transformBTreeNodeWithCache(h: OldHash): Promise<NewHash> {
     return this._withTransformingCache(h, () => this.transformBTreeNode(h));
   }
 
-  async transformBTreeNode(h: Hash): Promise<Hash> {
-    if (this.shouldSkip(h)) {
-      return h;
+  async transformBTreeNode(oldHash: OldHash): Promise<NewHash> {
+    if (this.shouldSkip(oldHash)) {
+      return oldHash;
     }
 
-    const chunk = await this.getChunk(h);
-    assert(chunk, `Missing chunk: ${h}`);
+    const chunk = await this.getChunk(oldHash);
+    assert(chunk, `Missing chunk: ${oldHash}`);
     const {data} = chunk;
     assertBTreeNode(data);
 
     const newData = await this.transformBTreeNodeData(data);
-    return this._maybeWriteChunk(h, newData, data, btree.getRefs);
+    return this._maybeWriteChunk(oldHash, newData, data, btree.getRefs);
   }
 
   transformBTreeNodeData(data: btree.DataNode): Promise<btree.DataNode>;
@@ -281,8 +289,8 @@ export class Transformer<Tx = dag.Write> {
   }
 
   async transformBTreeInternalEntry(
-    entry: btree.Entry<Hash>,
-  ): Promise<btree.Entry<Hash>> {
+    entry: btree.Entry<OldHash>,
+  ): Promise<btree.Entry<NewHash>> {
     const hash = await this._transformBTreeNodeWithCache(entry[1]);
     if (hash === entry[1]) {
       return entry;
@@ -291,8 +299,8 @@ export class Transformer<Tx = dag.Write> {
   }
 
   private async _transformBTreeInternalEntries(
-    entries: readonly btree.Entry<Hash>[],
-  ): Promise<readonly btree.Entry<Hash>[]> {
+    entries: readonly btree.Entry<OldHash>[],
+  ): Promise<readonly btree.Entry<NewHash>[]> {
     return this._transformArray(entries, e =>
       this.transformBTreeInternalEntry(e),
     );

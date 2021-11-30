@@ -1,4 +1,4 @@
-import type {ClientID} from './client-id';
+import type {ClientID} from '../sync/client-id';
 import type * as dag from '../dag/mod';
 import {getClients, setClients} from './clients';
 

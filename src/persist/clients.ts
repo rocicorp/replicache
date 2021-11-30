@@ -1,10 +1,10 @@
-import {assertHash, Hash} from './../hash';
+import {assertHash, Hash} from '../hash';
 import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {assertNumber, assertObject} from '../asserts';
 import {hasOwn} from '../has-own';
-import type {ClientID} from './client-id';
-import {uuid as makeUuid} from './uuid';
+import type {ClientID} from '../sync/client-id';
+import {uuid as makeUuid} from '../sync/uuid';
 import {Commit, newSnapshot} from '../db/commit';
 import {BTreeWrite} from '../btree/write';
 

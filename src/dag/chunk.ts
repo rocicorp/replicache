@@ -55,7 +55,7 @@ export function createChunkWithHash<V extends Value>(
 export type CreateChunk = <V extends Value>(data: V, refs: Refs) => Chunk<V>;
 
 export function defaultChunkHasher<V extends Value>(data: V): Hash {
-  return hashOf(JSON.stringify(data));
+  return hashOf(data);
 }
 
 export type ChunkHasher = typeof defaultChunkHasher;

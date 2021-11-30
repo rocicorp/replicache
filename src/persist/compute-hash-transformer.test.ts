@@ -5,7 +5,7 @@ import * as utf8 from '../utf8';
 import {
   BYTE_LENGTH,
   Hash,
-  makeNewTempHashFunction,
+  makeNewFakeHashFunction,
   parse as parseHash,
 } from '../hash';
 import {BTreeWrite} from '../btree/write';
@@ -16,7 +16,7 @@ import type {ReadonlyJSONValue} from '../json';
 test('fix hashes up of a single snapshot commit with empty btree', async () => {
   const memdag = new dag.TestStore(
     undefined,
-    makeNewTempHashFunction('t/aaa'),
+    makeNewFakeHashFunction('t/aaa'),
     () => undefined,
   );
 

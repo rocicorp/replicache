@@ -10,7 +10,7 @@ import {
 import {Commit} from './commit';
 import type {IndexRecord, Meta} from './commit';
 import {Transformer} from './transformer';
-import {Hash, initHasher, makeNewTempHashFunction} from '../hash';
+import {Hash, initHasher, makeNewFakeHashFunction} from '../hash';
 import {BTreeRead, BTreeWrite, Entry} from '../btree/mod';
 import type {DataNode} from '../btree/node';
 import type {ReadonlyJSONValue} from '../json';
@@ -108,7 +108,7 @@ test('transformIndexRecord - noop', async () => {
 test('transforms data entry', async () => {
   const dagStore = new dag.TestStore(
     undefined,
-    makeNewTempHashFunction(),
+    makeNewFakeHashFunction(),
     () => undefined,
   );
 

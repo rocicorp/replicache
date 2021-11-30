@@ -4,7 +4,7 @@ import * as db from '../db/mod';
 import {
   fakeHash,
   initHasher,
-  makeNewTempHashFunction,
+  makeNewFakeHashFunction,
   parse as parseHash,
 } from '../hash';
 import {BTreeWrite} from '../btree/write';
@@ -18,7 +18,7 @@ setup(async () => {
 test('fixup of a single snapshot commit with empty btree', async () => {
   const memdag = new dag.TestStore(
     undefined,
-    makeNewTempHashFunction(),
+    makeNewFakeHashFunction(),
     () => undefined,
   );
 
@@ -201,7 +201,7 @@ test('fixup of a single snapshot commit with empty btree', async () => {
 test('fixup base snapshot when there is a local commit on top of it', async () => {
   const memdag = new dag.TestStore(
     undefined,
-    makeNewTempHashFunction(),
+    makeNewFakeHashFunction(),
     () => undefined,
   );
 
@@ -352,7 +352,7 @@ async function makeBTree(
 test('fixup of a single snapshot commit with a btree with internal nodes', async () => {
   const memdag = new dag.TestStore(
     undefined,
-    makeNewTempHashFunction(),
+    makeNewFakeHashFunction(),
     () => undefined,
   );
 
@@ -509,7 +509,7 @@ test('fixup of a single snapshot commit with a btree with internal nodes', async
 test('fixup of a base snapshot with an index', async () => {
   const memdag = new dag.TestStore(
     undefined,
-    makeNewTempHashFunction(),
+    makeNewFakeHashFunction(),
     () => undefined,
   );
 

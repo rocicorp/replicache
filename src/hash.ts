@@ -2,6 +2,8 @@ import {createSHA512} from 'hash-wasm';
 import type {IHasher} from 'hash-wasm/dist/lib/WASMInterface';
 import {assert} from './asserts';
 import {encode} from './base32-encode';
+import type {ReadonlyJSONValue} from './json';
+import * as utf8 from './utf8';
 
 export const BYTE_LENGTH = 20;
 
@@ -55,13 +57,20 @@ const tempHashRe = /^t\/[0-9a-v]{30}$/;
  *
  * You have to await the result of [[initHasher]] before calling this method.
  */
-export function hashOf(value: string): Hash {
+export function hashOf(value: ReadonlyJSONValue): Hash {
   if (!hasher) {
     throw new Error('hashOf() requires await initHasher');
   }
-  const typedArray = stringToUint8Array(value);
+  const typedArray = stringToUint8Array(JSON.stringify(value));
   const buf = hasher.init().update(typedArray).digest('binary');
   const buf2 = buf.subarray(0, BYTE_LENGTH);
+  return encode(buf2) as unknown as Hash;
+}
+
+export async function nativeHashOf(value: ReadonlyJSONValue): Promise<Hash> {
+  const typedArray = utf8.encode(JSON.stringify(value));
+  const buf = await crypto.subtle.digest('SHA-512', typedArray);
+  const buf2 = new Uint8Array(buf, 0, BYTE_LENGTH);
   return encode(buf2) as unknown as Hash;
 }
 

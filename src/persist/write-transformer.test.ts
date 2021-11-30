@@ -1,7 +1,12 @@
 import {assert} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
 import type * as btree from '../btree/mod';
-import {initHasher, isTempHash, newTempHash} from '../hash';
+import {
+  assertHash,
+  initHasher,
+  isTempHash,
+  makeNewFakeHashFunction,
+} from '../hash';
 import {addGenesis, addIndexChange, addLocal, Chain} from '../db/test-helpers';
 import {GatheredChunks, WriteTransformer} from './write-transformer';
 import {
@@ -64,14 +69,14 @@ test('single new commit on top of snapshot is written', async () => {
   await addGenesis(chain, dagStore);
 
   const t = async (c: Commit<Meta>) => {
-    assert.isTrue(isTempHash(c.chunk.hash));
+    assert.isFalse(isTempHash(c.chunk.hash));
 
     const gatheredChunks: GatheredChunks = new Map([[c.chunk.hash, c.chunk]]);
 
     const newHash = await dagStore.withWrite(async dagWrite => {
       const transformer = new WriteTransformer(dagWrite, gatheredChunks);
       const newHash = await transformer.transformCommit(c.chunk.hash);
-      assert.notEqual(newHash, c.chunk.hash);
+      assert.equal(newHash, c.chunk.hash);
       await dagWrite.setHead('test', newHash);
       await dagWrite.commit();
       return newHash;
@@ -90,16 +95,17 @@ test('single new commit on top of snapshot is written', async () => {
 
       assert.deepEqual(newChunk?.data, c.chunk.data);
       assert.deepEqual(newChunk?.data, c.chunk.data);
-      assert.notEqual(newChunk?.hash, c.chunk.hash);
+      assert.equal(newChunk?.hash, c.chunk.hash);
     });
   };
 
+  const fakeHasher = makeNewFakeHashFunction('fake');
   const {valueHash, indexes, chunk} = chain[0];
   const basisHash = chunk.hash;
   const lastMutationID = 123;
   const cookieJSON = 'monster';
   const createChunk: dag.CreateChunk = (data, refs) =>
-    dag.createChunk(data, refs, newTempHash);
+    dag.createChunkWithHash(fakeHasher(), data, refs);
 
   const mutationID = lastMutationID + 1;
   const mutatorName = 'test';
@@ -136,8 +142,16 @@ test('single new commit on top of snapshot is written', async () => {
 });
 
 test('single new snapshot with new btree on top of snapshot is written', async () => {
-  const memdag = new dag.TestStore(undefined, newTempHash, () => undefined);
-  const perdag = new dag.TestStore();
+  const memdag = new dag.TestStore(
+    undefined,
+    makeNewFakeHashFunction('t/memdag'),
+    assertHash,
+  );
+  const perdag = new dag.TestStore(
+    undefined,
+    makeNewFakeHashFunction('perdag'),
+    assertHash,
+  );
 
   const chain: Chain = [];
   await addGenesis(chain, perdag);
@@ -146,12 +160,13 @@ test('single new snapshot with new btree on top of snapshot is written', async (
   const basisHash = chunk.hash;
   const lastMutationID = 123;
   const cookieJSON = 'monster';
+  const fakeHasher = makeNewFakeHashFunction('fake');
   const createChunk: dag.CreateChunk = (data, refs) =>
-    dag.createChunk(data, refs, newTempHash);
+    dag.createChunkWithHash(fakeHasher(), data, refs);
 
   const entries = Object.entries({
-    memdag: true,
-    perdag: false,
+    a: true,
+    b: false,
   });
 
   const treeChunk = await memdag.withWrite(async dagWrite => {
@@ -167,41 +182,63 @@ test('single new snapshot with new btree on top of snapshot is written', async (
   });
   assert.isTrue(isTempHash(treeChunk.hash));
 
-  const snapshotBefore = Object.fromEntries(perdag.kvStore.entries());
-  assert.deepEqual(snapshotBefore, {
-    'c/mdcncodijhl6jk2o8bb7m0hg15p3sf24/d': [0, []],
-    'c/9lrb08p9b7jqo8oad3aef60muj4td8ke/d': {
-      meta: {type: 3, basisHash: null, lastMutationID: 0, cookieJSON: null},
-      valueHash: 'mdcncodijhl6jk2o8bb7m0hg15p3sf24',
+  assert.deepEqual(perdag.kvStore.snapshot(), {
+    'c/perdag00000000000000000000000000/d': [0, []],
+    'c/perdag00000000000000000000000000/r': 1,
+    'c/perdag00000000000000000000000001/d': {
       indexes: [],
+      meta: {
+        basisHash: null,
+        cookieJSON: null,
+        lastMutationID: 0,
+        type: 3,
+      },
+      valueHash: 'perdag00000000000000000000000000',
     },
-    'c/9lrb08p9b7jqo8oad3aef60muj4td8ke/m': [
-      'mdcncodijhl6jk2o8bb7m0hg15p3sf24',
+    'c/perdag00000000000000000000000001/m': [
+      'perdag00000000000000000000000000',
     ],
-    'h/main': '9lrb08p9b7jqo8oad3aef60muj4td8ke',
-    'c/mdcncodijhl6jk2o8bb7m0hg15p3sf24/r': 1,
-    'c/9lrb08p9b7jqo8oad3aef60muj4td8ke/r': 1,
+    'c/perdag00000000000000000000000001/r': 1,
+    'h/main': 'perdag00000000000000000000000001',
   });
+
+  assert.deepEqual(memdag.kvStore.snapshot(), {
+    'c/t/memdag000000000000000000000000/d': [
+      0,
+      [
+        ['a', true],
+        ['b', false],
+      ],
+    ],
+    'c/t/memdag000000000000000000000000/r': 1,
+    'h/tree': 't/memdag000000000000000000000000',
+  });
+
+  const fixedTreeChunk = dag.createChunkWithHash(
+    fakeHasher(),
+    treeChunk.data,
+    treeChunk.meta,
+  );
 
   const c = newSnapshot(
     createChunk,
     basisHash,
     lastMutationID,
     cookieJSON,
-    treeChunk.hash,
+    fixedTreeChunk.hash,
     indexes,
   );
-  assert.isTrue(isTempHash(c.chunk.hash));
+  assert.isFalse(isTempHash(c.chunk.hash));
 
   const gatheredChunks: GatheredChunks = new Map([
     [c.chunk.hash, c.chunk as dag.Chunk<Value>],
-    [treeChunk.hash, treeChunk as dag.Chunk<Value>],
+    [fixedTreeChunk.hash, fixedTreeChunk as dag.Chunk<Value>],
   ]);
 
   const newHash = await perdag.withWrite(async dagWrite => {
     const transformer = new WriteTransformer(dagWrite, gatheredChunks);
     const newHash = await transformer.transformCommit(c.chunk.hash);
-    assert.notEqual(newHash, c.chunk.hash);
+    assert.equal(newHash, c.chunk.hash);
     await dagWrite.setHead('main', newHash);
     await dagWrite.removeHead('test');
     await dagWrite.commit();
@@ -218,30 +255,29 @@ test('single new snapshot with new btree on top of snapshot is written', async (
     assert.deepEqual(newEntries, entries);
   });
 
-  const snapshotAfter = Object.fromEntries(perdag.kvStore.entries());
-  assert.deepEqual(snapshotAfter, {
-    'h/main': 'joi3b834ue0iql9tmfpkjc50ihml4mbl',
-    'c/8prggufvsba8bja61khrh70ut4daptcn/d': [
+  assert.deepEqual(perdag.kvStore.snapshot(), {
+    'c/fake0000000000000000000000000000/d': [
       0,
       [
-        ['memdag', true],
-        ['perdag', false],
+        ['a', true],
+        ['b', false],
       ],
     ],
-    'c/joi3b834ue0iql9tmfpkjc50ihml4mbl/d': {
-      meta: {
-        type: 3,
-        basisHash: '9lrb08p9b7jqo8oad3aef60muj4td8ke',
-        lastMutationID: 123,
-        cookieJSON: 'monster',
-      },
-      valueHash: '8prggufvsba8bja61khrh70ut4daptcn',
+    'c/fake0000000000000000000000000000/r': 1,
+    'c/fake0000000000000000000000000001/d': {
       indexes: [],
+      meta: {
+        basisHash: 'perdag00000000000000000000000001',
+        cookieJSON: 'monster',
+        lastMutationID: 123,
+        type: 3,
+      },
+      valueHash: 'fake0000000000000000000000000000',
     },
-    'c/joi3b834ue0iql9tmfpkjc50ihml4mbl/m': [
-      '8prggufvsba8bja61khrh70ut4daptcn',
+    'c/fake0000000000000000000000000001/m': [
+      'fake0000000000000000000000000000',
     ],
-    'c/8prggufvsba8bja61khrh70ut4daptcn/r': 1,
-    'c/joi3b834ue0iql9tmfpkjc50ihml4mbl/r': 1,
+    'c/fake0000000000000000000000000001/r': 1,
+    'h/main': 'fake0000000000000000000000000001',
   });
 });

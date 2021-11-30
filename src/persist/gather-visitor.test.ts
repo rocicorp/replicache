@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
-import {initHasher, makeNewTempHashFunction, newTempHash} from '../hash';
+import {initHasher, makeNewFakeHashFunction, newTempHash} from '../hash';
 import {
   addGenesis,
   addIndexChange,
@@ -92,7 +92,7 @@ test('dag with some permanent hashes and some temp hashes on top', async () => {
 
   const memdag = new dag.TestStore(
     kvStore,
-    makeNewTempHashFunction(),
+    makeNewFakeHashFunction(),
     () => void 0,
   );
 

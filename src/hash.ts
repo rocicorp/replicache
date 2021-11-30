@@ -88,16 +88,21 @@ export async function initHasher(): Promise<unknown> {
 // important because we split B+Tree nodes based on the size and we want the
 // size to be the same independent of whether the hash is temp or not.
 
-export const newTempHash = makeNewTempHashFunction();
+export const newTempHash = makeNewFakeHashFunction();
 
-export function makeNewTempHashFunction(tempPrefix = 't/'): () => Hash {
+/**
+ * Creates a new fake hash function.
+ * @param prefix The prefix of the hash. If left out the prefix is 't/' which
+ * signifies a temp hash.
+ */
+export function makeNewFakeHashFunction(hashPrefix = 't/'): () => Hash {
   let tempHashCounter = 0;
   return () => {
     // Must not overlap with hashOf results
-    return (tempPrefix +
+    return (hashPrefix +
       (tempHashCounter++)
         .toString()
-        .padStart(STRING_LENGTH - tempPrefix.length, '0')) as unknown as Hash;
+        .padStart(STRING_LENGTH - hashPrefix.length, '0')) as unknown as Hash;
   };
 }
 

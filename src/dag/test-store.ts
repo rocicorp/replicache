@@ -33,6 +33,10 @@ export class TestStore extends Store {
       }
     }
   }
+
+  clear(): void {
+    this.kvStore.clear();
+  }
 }
 
 function toRefs(refs: unknown): Hash[] {

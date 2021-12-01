@@ -1,27 +1,51 @@
 import {RWLock} from '../rw-lock';
 import type {Read, Store, Value, Write} from './store';
 import {deleteSentinel, WriteImplBase} from './write-impl-base';
-import {getSizeOfValue} from '../get-size-of-value';
-import {assert} from '../asserts';
-
+import {getSizeOfValue as defaultGetSizeOfValue} from '../get-size-of-value';
 export class LazyStore implements Store {
   private readonly _cache: Cache;
   private readonly _rwLock = new RWLock();
-  private readonly _base: Store;
+  private readonly _baseStore: Store;
 
+  /**
+   * Store which lazily loads values from a base store and then caches them in memory.
+   * 
+   * write only manipulates the in memory cache (thus values must be persisted to the
+   * base store through a separate process). 
+   * 
+   * The memory caches size is limited to `cacheSizeLimit`, and values are evicted in an LRU
+   * fashion.  `shouldBePinned` enables exempting some keys from eviction.  This mechanism
+   * should be used to prevent values not persisted to the base store from being lost.
+   * Values whose keys are pinned cannot be evicted, and their sizes are not included in the current
+   * cache size.
+   *  
+   * @param baseStore Store to lazy load and cache values from.
+   * @param cacheSizeLimit Limit in bytes.  Size of values is determined using `getSizeOfValue`.  Keys
+   * do not count towards cache size.  Pinned values (`shouldBePinned`) do not count towards cache
+   * size.
+   * @param shouldBePinned A predicate for determining if a key should be pinned.  Keys
+   * which are not persisted to the underlying base store should be pinned, as this store does
+   * not write through to the base store (it assumes values are persisted to base store via
+   * a separate process).
+   * @param getSizeOfValue Function for measure the size in bytes of a value
+   */
   constructor(
-    base: Store,
+    baseStore: Store,
     cacheSizeLimit: number,
     shouldBePinned: (key: string) => boolean,
+    getSizeOfValue = defaultGetSizeOfValue,
   ) {
-    assert(cacheSizeLimit > 0);
-    this._base = base;
-    this._cache = new Cache(cacheSizeLimit, shouldBePinned);
+    this._baseStore = baseStore;
+    this._cache = new Cache(
+      Math.max(cacheSizeLimit, 0),
+      shouldBePinned,
+      getSizeOfValue,
+    );
   }
 
   async read(): Promise<Read> {
     const release = await this._rwLock.read();
-    return new ReadImpl(this._cache, this._base, release);
+    return new ReadImpl(this._cache, this._baseStore, release);
   }
 
   async withRead<R>(fn: (read: Read) => R | Promise<R>): Promise<R> {
@@ -37,7 +61,7 @@ export class LazyStore implements Store {
     const release = await this._rwLock.write();
     return new WriteImpl(
       this._cache,
-      new ReadImpl(this._cache, this._base, release),
+      new ReadImpl(this._cache, this._baseStore, release),
     );
   }
 
@@ -51,11 +75,11 @@ export class LazyStore implements Store {
   }
 
   close(): Promise<void> {
-    return this._base.close();
+    return this._baseStore.close();
   }
 
   get closed(): boolean {
-    return this._base.closed;
+    return this._baseStore.closed;
   }
 }
 
@@ -139,6 +163,7 @@ type CacheEntry = {
 class Cache {
   private readonly _cacheSizeLimit: number;
   private readonly _shouldBePinned: (key: string) => boolean;
+  private readonly _getSizeOfValue: (v: Value) => number;
   private readonly _pinned = new Map<string, Value>();
   private readonly _cacheEntries = new Map<string, CacheEntry>();
   private _size = 0;
@@ -146,9 +171,11 @@ class Cache {
   constructor(
     cacheSizeLimit: number,
     shouldBePinned: (key: string) => boolean,
+    getSizeOfValue: (v: Value) => number,
   ) {
     this._cacheSizeLimit = cacheSizeLimit;
     this._shouldBePinned = shouldBePinned;
+    this._getSizeOfValue = getSizeOfValue;
   }
 
   get(key: string): Value | undefined {
@@ -173,7 +200,12 @@ class Cache {
       this._size -= oldCacheEntry.size;
       this._cacheEntries.delete(key);
     }
-    const valueSize = getSizeOfValue(value);
+    const valueSize = this._getSizeOfValue(value);
+    if (valueSize > this._cacheSizeLimit) {
+      // this value cannot be cached due to its size
+      // don't evict other entries to try to make room for it
+      return;
+    }
     this._size += valueSize;
     this._cacheEntries.set(key, {value, size: valueSize});
 

@@ -4,7 +4,7 @@ import * as db from '../db/mod';
 import * as sync from '../sync/mod';
 import {Hash, nativeHashOf} from '../hash';
 import type {ClientID} from '../sync/client-id';
-import {Client, setClient} from './clients';
+import {getClients, updateClients} from './clients';
 import {ComputeHashTransformer, FixedChunks} from './compute-hash-transformer';
 import {GatherVisitor} from './gather-visitor';
 import {FixupTransformer} from './fixup-transformer';
@@ -81,18 +81,24 @@ async function writeFixedChunks(
   mainHeadHash: Hash,
   clientID: string,
 ) {
-  await perdag.withWrite(async dagWrite => {
+  const tempHeadName = `${clientID}-fixed-chunks`;
+
+  const clients = await perdag.withWrite(async dagWrite => {
     const ps: Promise<void>[] = [];
     for (const chunk of fixedChunks.values()) {
       ps.push(dagWrite.putChunk(chunk));
     }
-    const client: Client = {
-      heartbeatTimestampMs: Date.now(),
-      headHash: mainHeadHash,
-    };
-    // We need to set a head here or the chunks will be GC'd
-    ps.push(setClient(clientID, client, dagWrite));
+
+    // We set a head here to make sure the chunks are not garbage collected.
+    // This head will be removed when the clients head is updated.
+    ps.push(dagWrite.setHead(tempHeadName, mainHeadHash));
+
+    const clients = await getClients(dagWrite);
+
     await Promise.all(ps);
     await dagWrite.commit();
+    return clients;
   });
+
+  return updateClients(perdag, clientID, mainHeadHash, tempHeadName, clients);
 }

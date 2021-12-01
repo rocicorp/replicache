@@ -1,6 +1,6 @@
-import {assertHash, Hash} from '../hash';
-import type * as dag from '../dag/mod';
-import type {ReadonlyJSONValue} from '../json';
+import {assertHash, assertNotTempHash, Hash, nativeHashOf} from '../hash';
+import * as dag from '../dag/mod';
+import {deepEqual, ReadonlyJSONValue} from '../json';
 import {assertNumber, assertObject} from '../asserts';
 import {hasOwn} from '../has-own';
 import type {ClientID} from '../sync/client-id';
@@ -51,6 +51,12 @@ function clientMapToChunkData(
   clients.forEach(client => {
     dagWrite.assertValidHash(client.headHash);
   });
+  return clientMapToChunkDataNoHashValidation(clients);
+}
+
+function clientMapToChunkDataNoHashValidation(
+  clients: ClientMap,
+): ReadonlyJSONValue {
   return Object.fromEntries(clients);
 }
 
@@ -71,15 +77,33 @@ export async function getClient(
   return clients.get(id);
 }
 
-export async function setClients(
+export function setClients(
   clients: ClientMap,
   dagWrite: dag.Write,
 ): Promise<void> {
-  const chunkData = clientMapToChunkData(clients, dagWrite);
-  const chunk = dagWrite.createChunk(
-    chunkData,
-    Array.from(clients.values(), client => client.headHash),
+  return setClientsWithMakeChunk(clients, dagWrite, (chunkData, refs) =>
+    dagWrite.createChunk(chunkData, refs),
   );
+}
+
+export function setClientsWithHash(
+  clients: ClientMap,
+  hash: Hash,
+  dagWrite: dag.Write,
+): Promise<void> {
+  return setClientsWithMakeChunk(clients, dagWrite, (chunkData, refs) =>
+    dag.createChunkWithHash(hash, chunkData, refs),
+  );
+}
+
+export async function setClientsWithMakeChunk(
+  clients: ClientMap,
+  dagWrite: dag.Write,
+  makeChunk: (chunkData: ReadonlyJSONValue, refs: readonly Hash[]) => dag.Chunk,
+): Promise<void> {
+  const chunkData = clientMapToChunkData(clients, dagWrite);
+  const refs = Array.from(clients.values(), client => client.headHash);
+  const chunk = makeChunk(chunkData, refs);
   await Promise.all([
     dagWrite.putChunk(chunk),
     dagWrite.setHead(CLIENTS_HEAD, chunk.hash),
@@ -150,4 +174,74 @@ export async function initClient(
   await setClient(newClientID, newClient, dagWrite);
 
   return [newClientID, newClient];
+}
+
+function nativeHashOfClients(clients: ClientMap): Promise<Hash> {
+  const data = clientMapToChunkDataNoHashValidation(clients);
+  return nativeHashOf(data);
+}
+
+/**
+ * Updates the clients head with a new client. This is function retries a DAG
+ * write transaction until the update succeeds without clobbering potential
+ * other updates.
+ *
+ * @param perdag
+ * @param clientID The ID of the client we are updating.
+ * @param headHash The new head hash for the client.
+ * @param tempHeadName The temporary head name used to ensure the chunks in the
+ * DAG are not GC'ed until the DAG is fully updated.
+ * @param clients The last `ClientMap` that we got. This is used for comparison
+ * to ensure we are not updating a stale client map.
+ */
+export async function updateClients(
+  perdag: dag.Store,
+  clientID: ClientID,
+  headHash: Hash,
+  tempHeadName: string,
+  clients: ClientMap,
+): Promise<void> {
+  assertNotTempHash(headHash);
+  const updatedClient: Client = {
+    heartbeatTimestampMs: Date.now(),
+    headHash,
+  };
+  const updatedClients = new Map(clients);
+  updatedClients.set(clientID, updatedClient);
+  const hash = await nativeHashOfClients(updatedClients);
+
+  const changedClients = await perdag.withWrite(async dagWrite => {
+    const currentClients = await getClients(dagWrite);
+    // We could compare the hashes instead but the code to pipe through the
+    // hashes makes more things complicated.
+    if (
+      !deepEqual(
+        // Our deepEqual is only defined on JSONValue so we cannot compare the two maps directly.
+        Object.fromEntries(clients),
+        Object.fromEntries(currentClients),
+      )
+    ) {
+      // Not equal, return new clients and try again
+      return currentClients;
+    }
+
+    currentClients.set(clientID, updatedClient);
+    await Promise.all([
+      setClientsWithHash(updatedClients, hash, dagWrite),
+      // No need to keep this temp head any more.
+      dagWrite.removeHead(tempHeadName),
+    ]);
+    return dagWrite.commit();
+  });
+
+  if (changedClients) {
+    // Clients was not what was expected in the transaction. Try again.
+    return updateClients(
+      perdag,
+      clientID,
+      headHash,
+      tempHeadName,
+      changedClients,
+    );
+  }
 }

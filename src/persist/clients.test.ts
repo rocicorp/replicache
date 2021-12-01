@@ -3,13 +3,15 @@ import {assertNotUndefined} from '../asserts';
 import {BTreeRead} from '../btree/read';
 import * as dag from '../dag/mod';
 import {fromChunk, SnapshotMeta} from '../db/commit';
-import {assertHash, hashOf, initHasher, newTempHash} from '../hash';
+import {assertHash, fakeHash, hashOf, initHasher, newTempHash} from '../hash';
 import {
   getClient,
   getClients,
   initClient,
   setClient,
   setClients,
+  setClientsWithHash,
+  updateClients,
 } from './clients';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import {
@@ -644,5 +646,122 @@ test('initClient bootstraps from base snapshot of client with highest heartbeat'
     expect(commit.indexes).to.not.be.empty;
     expect(commit.indexes).to.deep.equal(client2BaseSnapshotCommit.indexes);
     expect(commit.valueHash).to.equal(client2BaseSnapshotCommit.valueHash);
+  });
+});
+
+async function updateClientsSetup() {
+  const perdag = new dag.TestStore(
+    undefined,
+    () => {
+      throw new Error('should not be called');
+    },
+    assertHash,
+  );
+
+  const clientID = 'cid1';
+
+  const clients = await perdag.withWrite(async dagWrite => {
+    const clients = await getClients(dagWrite);
+    clients.set(clientID, {
+      headHash: fakeHash('cid1head1'),
+      heartbeatTimestampMs: Date.now(),
+    });
+    await setClientsWithHash(clients, fakeHash('clientshead1'), dagWrite);
+    await dagWrite.commit();
+    return clients;
+  });
+  return {perdag, clientID, clients};
+}
+
+test('update clients with no race', async () => {
+  const {perdag, clientID, clients} = await updateClientsSetup();
+
+  await updateClients(
+    perdag,
+    clientID,
+    fakeHash('cid1head2'),
+    `${clientID}-temp`,
+    clients,
+  );
+
+  const updatedClients = await perdag.withRead(dagRead => getClients(dagRead));
+  expect(Object.fromEntries(updatedClients)).to.deep.equal({
+    cid1: {
+      headHash: 'fake0000000000000000000cid1head2',
+      heartbeatTimestampMs: 0,
+    },
+  });
+});
+
+test('update clients with clients changed', async () => {
+  const {perdag, clientID, clients} = await updateClientsSetup();
+
+  clients.set(clientID, {
+    headHash: fakeHash('cid1head2'),
+    heartbeatTimestampMs: 42,
+  });
+  await perdag.withWrite(async dagWrite => {
+    await setClientsWithHash(clients, fakeHash('clientshead2'), dagWrite);
+    await dagWrite.commit();
+  });
+
+  await updateClients(
+    perdag,
+    clientID,
+    fakeHash('cid1head3'),
+    `${clientID}-temp`,
+    clients,
+  );
+
+  const updatedClients = await perdag.withRead(dagRead => getClients(dagRead));
+  expect(Object.fromEntries(updatedClients)).to.deep.equal({
+    cid1: {
+      headHash: 'fake0000000000000000000cid1head3',
+      heartbeatTimestampMs: 0,
+    },
+  });
+});
+
+test('update clients with race', async () => {
+  const {perdag, clientID, clients} = await updateClientsSetup();
+
+  const clientID2 = 'cid2';
+  clients.set(clientID2, {
+    headHash: fakeHash('cid2head1'),
+    heartbeatTimestampMs: Date.now(),
+  });
+
+  await perdag.withWrite(async dagWrite => {
+    await setClientsWithHash(clients, fakeHash('clientshead2'), dagWrite);
+    await dagWrite.commit();
+  });
+
+  await Promise.all([
+    updateClients(
+      perdag,
+      clientID,
+      fakeHash('cid1head2'),
+      `${clientID}-temp`,
+      clients,
+    ),
+    updateClients(
+      perdag,
+      clientID2,
+      fakeHash('cid2head2'),
+      `${clientID2}-temp`,
+      clients,
+    ),
+  ]);
+
+  const updatedClients = await perdag.withRead(dagRead => getClients(dagRead));
+  expect(Object.fromEntries(updatedClients)).to.deep.equal({
+    cid1: {
+      headHash: 'fake0000000000000000000cid1head2',
+      heartbeatTimestampMs: 0,
+    },
+    cid2: {
+      headHash: 'fake0000000000000000000cid2head2',
+      heartbeatTimestampMs: 0,
+    },
   });
 });

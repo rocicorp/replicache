@@ -5,6 +5,7 @@ import * as dag from '../dag/mod';
 import {fromChunk, SnapshotMeta} from '../db/commit';
 import {assertHash, fakeHash, hashOf, initHasher, newTempHash} from '../hash';
 import {
+  CLIENTS_HEAD,
   getClient,
   getClients,
   initClient,
@@ -21,6 +22,7 @@ import {
   addSnapshot,
   Chain,
 } from '../db/test-helpers';
+import {headKey} from '../dag/mod';
 
 let clock: SinonFakeTimers;
 setup(async () => {
@@ -704,6 +706,11 @@ test('update clients with clients changed', async () => {
     await setClientsWithHash(clients, fakeHash('clientshead2'), dagWrite);
     await dagWrite.commit();
   });
+  await perdag.withRead(async dagRead => {
+    expect(await dagRead.getHead(CLIENTS_HEAD)).to.equal(
+      fakeHash('clientshead2'),
+    );
+  });
 
   await updateClients(
     perdag,
@@ -720,6 +727,9 @@ test('update clients with clients changed', async () => {
       heartbeatTimestampMs: 0,
     },
   });
+  const clientsHeadHash = perdag.kvStore.map().get(headKey(CLIENTS_HEAD));
+  expect(clientsHeadHash).to.not.equal(fakeHash('clientshead2'));
+  expect(clientsHeadHash?.toString().startsWith('fake')).to.be.false;
 });
 
 test('update clients with race', async () => {

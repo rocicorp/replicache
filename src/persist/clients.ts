@@ -20,7 +20,7 @@ export type Client = {
   /** The hash of the commit this session is currently at. */
   readonly headHash: Hash;
 };
-const CLIENTS_HEAD = 'clients';
+export const CLIENTS_HEAD = 'clients';
 
 function assertClient(value: unknown): asserts value is Client {
   assertObject(value);

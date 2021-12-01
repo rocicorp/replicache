@@ -35,9 +35,7 @@ function createLazyStoreForTest(
     cacheSizeLimit?: number;
   } = {},
 ) {
-  const {
-    cacheSizeLimit = DEFAULT_CACHE_SIZE_LIMIT,
-  } = options;
+  const {cacheSizeLimit = DEFAULT_CACHE_SIZE_LIMIT} = options;
   const baseStore = new TestMemStore();
   return {
     baseStore,
@@ -106,8 +104,8 @@ test('values are loaded from base store and cached', async () => {
 // for keys that are not persisted to the base store.  In expected
 // use a pinned key not found in the pinned cache, will never be found
 // in the base store.  This test exists to document this behavior.
-// This behavior should not be problematic, and would complicate the code 
-// structure to not try to lookup pinned keys in the base store.  
+// This behavior should not be problematic, and would complicate the code
+// structure to not try to lookup pinned keys in the base store.
 test('pinned keys can be loaded from base store and are then pinned', async () => {
   const {baseStore, lazyStore} = createLazyStoreForTest();
   await lazyStore.withRead(async read => {
@@ -346,7 +344,6 @@ test('cache evicts in lru fashion, more advanced tests with reads and writes', a
     await write.commit();
   });
 
-
   await lazyStore.withWrite(async write => {
     await write.put('notPinned1', 'notPinned1V3Value');
     await write.commit();
@@ -357,7 +354,6 @@ test('cache evicts in lru fashion, more advanced tests with reads and writes', a
     expect(await read.get('inBase2')).to.be.undefined;
     expect(await read.get('inBase3')).to.be.undefined;
   });
-
 
   await baseStore.withWrite(async write => {
     await write.put('inBase1', 'inBase1V2Value');
@@ -378,7 +374,7 @@ test('cache evicts in lru fashion, more advanced tests with reads and writes', a
     expect(await read.get('inBase2')).to.equal('inBase2V2Value');
     expect(await read.get('inBase3')).to.equal('inBase3V2Value');
     expect(await read.get('notPinned1')).to.be.undefined;
-  });  
+  });
 });
 
 test('cache will evict multiple values to make room for new value', async () => {
@@ -589,7 +585,10 @@ test('cache is updated correctly on set of already cached key (including size tr
     await write.commit();
   });
   await lazyStore.withRead(async read => {
-    expect(await read.get('notPinned1')).to.deep.equal({name: 'notPinned1V2Value', size: 200});
+    expect(await read.get('notPinned1')).to.deep.equal({
+      name: 'notPinned1V2Value',
+      size: 200,
+    });
     expect(await read.get('notPinned2')).to.be.undefined;
     expect(await read.get('notPinned3')).to.be.undefined;
     expect(await read.get('notPinned4')).to.equal('notPinned4Value');
@@ -627,7 +626,7 @@ test('pinned keys are not counted towards cache size', async () => {
   await lazyStore.withWrite(async write => {
     await write.put('pinned1', 'pinned1Value');
     await write.put('pinned2', 'pinned2Value');
-    // both notPinned1 and notPinned2 are cached because pinned1 and pinned2 
+    // both notPinned1 and notPinned2 are cached because pinned1 and pinned2
     // are not counted towards the cache size.
     await write.put('notPinned1', 'notPinned1Value');
     await write.put('notPinned2', 'notPinned2Value');

@@ -9,16 +9,18 @@ export class LazyStore implements Store {
 
   /**
    * Store which lazily loads values from a base store and then caches them in memory.
-   * 
-   * write only manipulates the in memory cache (thus values must be persisted to the
-   * base store through a separate process). 
-   * 
+   *
+   * Writes only manipulate the in memory cache (thus values must be persisted to the
+   * base store through a separate process).
+   *
    * The memory caches size is limited to `cacheSizeLimit`, and values are evicted in an LRU
    * fashion.  `shouldBePinned` enables exempting some keys from eviction.  This mechanism
    * should be used to prevent values not persisted to the base store from being lost.
    * Values whose keys are pinned cannot be evicted, and their sizes are not included in the current
-   * cache size.
-   *  
+   * cache size. Once a value is persisted to the base store, it's temp key for which `shouldBePinned`
+   * is `true` can be deleted, and it can be re-put with a key for which `shouldBePinned` is false (making
+   * it subject to cache eviction, which is safe since it is now persisted).
+   *
    * @param baseStore Store to lazy load and cache values from.
    * @param cacheSizeLimit Limit in bytes.  Size of values is determined using `getSizeOfValue`.  Keys
    * do not count towards cache size.  Pinned values (`shouldBePinned`) do not count towards cache

@@ -1,8 +1,9 @@
+import {assert} from '../asserts';
 import * as dag from '../dag/mod';
+import * as db from '../db/mod';
 import type {Hash} from '../hash';
 import type {Value} from '../kv/mod';
 import type {MaybePromise} from '../replicache';
-import {WriteTransformer} from './write-transformer';
 
 export type GatheredChunks = ReadonlyMap<Hash, dag.Chunk>;
 export type FixedChunks = ReadonlyMap<Hash, dag.Chunk>;
@@ -10,8 +11,9 @@ export type FixedChunks = ReadonlyMap<Hash, dag.Chunk>;
 /**
  * This transformer computes the hashes
  */
-export class ComputeHashTransformer extends WriteTransformer<null> {
+export class ComputeHashTransformer extends db.Transformer<null> {
   private readonly _fixedChunks: Map<Hash, dag.Chunk> = new Map();
+  private readonly _gatheredChunks: GatheredChunks;
   private readonly _hashFunc: (value: Value) => MaybePromise<Hash>;
 
   /**
@@ -23,12 +25,34 @@ export class ComputeHashTransformer extends WriteTransformer<null> {
     gatheredChunks: GatheredChunks,
     hashFunc: (value: Value) => MaybePromise<Hash>,
   ) {
-    super(null, gatheredChunks);
+    super(null);
+    this._gatheredChunks = gatheredChunks;
     this._hashFunc = hashFunc;
   }
 
   get fixedChunks(): FixedChunks {
     return this._fixedChunks;
+  }
+
+  override shouldSkip(oldhash: Hash): boolean {
+    // Skip all chunks that we did not get from the source.
+    return !this._gatheredChunks.has(oldhash);
+  }
+
+  protected override shouldForceWrite(oldHash: Hash): boolean {
+    // We want to write the chunk to the destination dag even if the chunk did
+    // not change because the computed hash on the source is different than the
+    // one computed on the destination.
+    return this._gatheredChunks.has(oldHash);
+  }
+
+  protected override async getChunk(
+    hash: Hash,
+  ): Promise<dag.Chunk | undefined> {
+    const gatheredChunk = this._gatheredChunks.get(hash);
+    // We cannot get here is we did not gather a chunk for this hash.
+    assert(gatheredChunk !== undefined);
+    return gatheredChunk;
   }
 
   protected override async writeChunk<D extends Value>(

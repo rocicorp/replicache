@@ -23,4 +23,8 @@ export class TestMemStore extends MemStore {
   map(): Map<string, Value> {
     return this._map;
   }
+
+  clear(): void {
+    this._map.clear();
+  }
 }

@@ -7,7 +7,6 @@ import type {ClientID} from '../sync/client-id';
 import {Client, setClient} from './clients';
 import {ComputeHashTransformer, FixedChunks} from './compute-hash-transformer';
 import {GatherVisitor} from './gather-visitor';
-import {WriteTransformer} from './write-transformer';
 import {FixupTransformer} from './fixup-transformer';
 import type {ReadonlyJSONValue} from '../json';
 
@@ -83,16 +82,17 @@ async function writeFixedChunks(
   clientID: string,
 ) {
   await perdag.withWrite(async dagWrite => {
-    // TODO(arv): Maybe we can just write the chunks blinldy in here now that we fixed the hash?
-    const transformer = new WriteTransformer(dagWrite, fixedChunks);
-    const newMainHeadHash = await transformer.transformCommit(mainHeadHash);
-    assert(newMainHeadHash === mainHeadHash);
+    const ps: Promise<void>[] = [];
+    for (const chunk of fixedChunks.values()) {
+      ps.push(dagWrite.putChunk(chunk));
+    }
     const client: Client = {
       heartbeatTimestampMs: Date.now(),
-      headHash: newMainHeadHash,
+      headHash: mainHeadHash,
     };
     // We need to set a head here or the chunks will be GC'd
-    await setClient(clientID, client, dagWrite);
+    ps.push(setClient(clientID, client, dagWrite));
+    await Promise.all(ps);
     await dagWrite.commit();
   });
 }

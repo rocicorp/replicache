@@ -49,6 +49,8 @@ export type Poke = {
 
 export const httpStatusUnauthorized = 401;
 
+const REPLICACHE_FORMAT_VERSION = 3;
+
 export type MaybePromise<T> = T | Promise<T>;
 
 type ToPromise<P> = P extends Promise<unknown> ? P : Promise<P>;
@@ -137,6 +139,15 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   /** The name of the Replicache database. */
   readonly name: string;
+
+  /**
+   * This is the name Replicache uses for the IndexedDB database where data is
+   * stored.
+   */
+  get idbName(): string {
+    const n = `${this.name}:${REPLICACHE_FORMAT_VERSION}`;
+    return this.schemaVersion ? `${n}:${this.schemaVersion}` : n;
+  }
 
   private readonly _useMemstore: boolean;
 
@@ -288,7 +299,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.pusher = pusher;
     this._kvStore =
       experimentalKVStore ||
-      (this._useMemstore ? new MemStore() : new IDBStore(this.name));
+      (this._useMemstore ? new MemStore() : new IDBStore(this.idbName));
     this._dagStore = new dag.Store(
       this._kvStore,
       dag.defaultChunkHasher,

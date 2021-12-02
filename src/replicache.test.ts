@@ -83,7 +83,6 @@ async function replicacheForTestingNoDefaultURLs<MD extends MutatorDefs = {}>(
     ...rest
   }: ReplicacheOptions<MD> = {},
 ): Promise<ReplicacheTest<MD>> {
-  dbsToDrop.add(name);
   const rep = new ReplicacheTest<MD>({
     pullURL,
     pushDelay,
@@ -92,6 +91,7 @@ async function replicacheForTestingNoDefaultURLs<MD extends MutatorDefs = {}>(
     useMemstore,
     ...rest,
   });
+  dbsToDrop.add(rep.idbName);
   reps.add(rep);
   // Wait for open to be done.
   await rep.clientID;
@@ -955,8 +955,8 @@ testWithBothStores('name', async () => {
   await repA.close();
   await repB.close();
 
-  indexedDB.deleteDatabase('a');
-  indexedDB.deleteDatabase('b');
+  indexedDB.deleteDatabase(repA.idbName);
+  indexedDB.deleteDatabase(repB.idbName);
 });
 
 testWithBothStores('register with error', async () => {

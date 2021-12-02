@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1638472423657,
+  "lastUpdate": 1638474134611,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -10132,6 +10132,142 @@ window.BENCHMARK_DATA = {
             "unit": "p95 ms",
             "range": "±45.3%",
             "extra": "[MemStore] create index 1024x5000 50/75/90/95%=310.60/320.00/355.90/355.90 ms avg=399.49 ms (7 runs sampled)"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6b6d213bb554525a6834ce2cb8e5b76ebfa7f934",
+          "message": "refactor: Use abstract db transformer (#744)\n\nThe old code was pretty silly and used runtime type checks. Now we use\r\nan abstract base class and static type checking.",
+          "timestamp": "2021-12-02T19:40:31Z",
+          "tree_id": "2f8163c1d1660a21218ef59c2eeae2a1e1e41b3c",
+          "url": "https://github.com/rocicorp/replicache/commit/6b6d213bb554525a6834ce2cb8e5b76ebfa7f934"
+        },
+        "date": 1638474134188,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 2.6999998092651367,
+            "unit": "median ms",
+            "range": "±3.2%",
+            "extra": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.70/3.20/3.80/5.90 ms avg=3.25 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 5.899999618530273,
+            "unit": "p95 ms",
+            "range": "±3.2%",
+            "extra": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.70/3.20/3.80/5.90 ms avg=3.25 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 4.5,
+            "unit": "median ms",
+            "range": "±1.3%",
+            "extra": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=4.50/5.00/5.80/5.80 ms avg=5.70 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 5.800000190734863,
+            "unit": "p95 ms",
+            "range": "±1.3%",
+            "extra": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=4.50/5.00/5.80/5.80 ms avg=5.70 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 5.100000381469727,
+            "unit": "median ms",
+            "range": "±2.1%",
+            "extra": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=5.10/5.60/7.20/7.20 ms avg=6.44 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 7.199999809265137,
+            "unit": "p95 ms",
+            "range": "±2.1%",
+            "extra": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=5.10/5.60/7.20/7.20 ms avg=6.44 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 108.59999942779541,
+            "unit": "median ms",
+            "range": "±74.4%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 0) 50/75/90/95%=108.60/121.10/183.00/183.00 ms avg=149.81 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0) p95",
+            "value": 183,
+            "unit": "p95 ms",
+            "range": "±74.4%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 0) 50/75/90/95%=108.60/121.10/183.00/183.00 ms avg=149.81 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 196.30000019073486,
+            "unit": "median ms",
+            "range": "±46.2%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 1) 50/75/90/95%=196.30/202.70/242.50/242.50 ms avg=253.86 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1) p95",
+            "value": 242.5,
+            "unit": "p95 ms",
+            "range": "±46.2%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 1) 50/75/90/95%=196.30/202.70/242.50/242.50 ms avg=253.86 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 259.0999994277954,
+            "unit": "median ms",
+            "range": "±39.1%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 2) 50/75/90/95%=259.10/278.90/298.20/298.20 ms avg=333.96 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2) p95",
+            "value": 298.19999980926514,
+            "unit": "p95 ms",
+            "range": "±39.1%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 2) 50/75/90/95%=259.10/278.90/298.20/298.20 ms avg=333.96 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 3.1999998092651367,
+            "unit": "median ms",
+            "range": "±4.4%",
+            "extra": "[MemStore] scan 1024x1000 50/75/90/95%=3.20/4.00/5.70/7.60 ms avg=3.88 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000 p95",
+            "value": 7.600000381469727,
+            "unit": "p95 ms",
+            "range": "±4.4%",
+            "extra": "[MemStore] scan 1024x1000 50/75/90/95%=3.20/4.00/5.70/7.60 ms avg=3.88 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 303,
+            "unit": "median ms",
+            "range": "±59.9%",
+            "extra": "[MemStore] create index 1024x5000 50/75/90/95%=303.00/317.20/362.90/362.90 ms avg=399.74 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000 p95",
+            "value": 362.8999996185303,
+            "unit": "p95 ms",
+            "range": "±59.9%",
+            "extra": "[MemStore] create index 1024x5000 50/75/90/95%=303.00/317.20/362.90/362.90 ms avg=399.74 ms (7 runs sampled)"
           }
         ]
       }

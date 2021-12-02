@@ -56,95 +56,6 @@ async function assertSameDagData(
 
   expect(memSnapshot).to.deep.equal(perSnapshot);
 }
-
-test('persist pipeline', async () => {
-  const memdag = new dag.TestStore(
-    undefined,
-    makeNewFakeHashFunction('t/memdag'),
-    assertHash,
-  );
-  const perdag = new dag.TestStore(
-    undefined,
-    makeNewFakeHashFunction('perdag'),
-    assertNotTempHash,
-  );
-  const clientID = 'client-id';
-
-  const chain: Chain = [];
-
-  const reset = async () => {
-    memdag.clear();
-    perdag.clear();
-    chain.length = 0;
-    await addGenesis(chain, memdag);
-  };
-
-  const testPersist = async () => {
-    await persist(clientID, memdag, perdag);
-    await assertSameDagData(clientID, memdag, perdag);
-  };
-
-  await reset();
-  await testPersist();
-
-  await reset();
-  await addLocal(chain, memdag);
-  await testPersist();
-
-  await reset();
-  await addSnapshot(chain, memdag, [
-    ['a', 0],
-    ['b', 1],
-    ['c', 2],
-  ]);
-  await testPersist();
-
-  await reset();
-  await addLocal(chain, memdag);
-  await addSyncSnapshot(chain, memdag, 1);
-  await testPersist();
-
-  await reset();
-  await addLocal(chain, memdag);
-  await addLocal(chain, memdag);
-  await testPersist();
-
-  await reset();
-  await addLocal(chain, memdag);
-  await testPersist();
-  await addLocal(chain, memdag);
-  await testPersist();
-
-  await reset();
-  await addLocal(chain, memdag);
-  await addLocal(chain, memdag);
-  await addLocal(chain, memdag);
-  await testPersist();
-
-  await reset();
-  await addLocal(chain, memdag);
-  await addSnapshot(chain, memdag, [['changed', 3]]);
-  await testPersist();
-
-  await reset();
-  await addLocal(chain, memdag);
-  await addSnapshot(chain, memdag, [['changed', 4]]);
-  await addLocal(chain, memdag);
-  await testPersist();
-
-  await reset();
-  await addLocal(chain, memdag);
-  await addSnapshot(chain, memdag, [['changed', 5]]);
-  await addLocal(chain, memdag);
-  await addSyncSnapshot(chain, memdag, 3);
-  await testPersist();
-
-  await reset();
-  await addLocal(chain, memdag);
-  await addIndexChange(chain, memdag);
-  await testPersist();
-});
-
 class ChunkSnapshotVisitor extends db.Visitor {
   snapshot: Record<string, Value> = {};
 
@@ -171,3 +82,96 @@ async function getChunkSnapshot(
     return v.snapshot;
   });
 }
+
+suite('persist on top of different kinds of commits', () => {
+  const memdag = new dag.TestStore(
+    undefined,
+    makeNewFakeHashFunction('t/memdag'),
+    assertHash,
+  );
+  const perdag = new dag.TestStore(
+    undefined,
+    makeNewFakeHashFunction('perdag'),
+    assertNotTempHash,
+  );
+
+  const clientID = 'client-id';
+  const chain: Chain = [];
+
+  const testPersist = async () => {
+    await persist(clientID, memdag, perdag);
+    await assertSameDagData(clientID, memdag, perdag);
+  };
+
+  setup(async () => {
+    memdag.clear();
+    perdag.clear();
+    chain.length = 0;
+    await addGenesis(chain, memdag);
+  });
+
+  teardown(async () => {
+    await testPersist();
+  });
+
+  test('Genesis only', async () => {
+    // all the required work is done in setup/teardown.
+  });
+
+  test('local', async () => {
+    await addLocal(chain, memdag);
+  });
+
+  test('snapshot', async () => {
+    await addSnapshot(chain, memdag, [
+      ['a', 0],
+      ['b', 1],
+      ['c', 2],
+    ]);
+  });
+
+  test('local + syncSnapshot', async () => {
+    await addLocal(chain, memdag);
+    await addSyncSnapshot(chain, memdag, 1);
+  });
+
+  test('local + local', async () => {
+    await addLocal(chain, memdag);
+    await addLocal(chain, memdag);
+  });
+
+  test('local on to of a persisted local', async () => {
+    await addLocal(chain, memdag);
+    await testPersist();
+    await addLocal(chain, memdag);
+  });
+
+  test('local * 3', async () => {
+    await addLocal(chain, memdag);
+    await addLocal(chain, memdag);
+    await addLocal(chain, memdag);
+  });
+
+  test('local + snapshot', async () => {
+    await addLocal(chain, memdag);
+    await addSnapshot(chain, memdag, [['changed', 3]]);
+  });
+
+  test('local + snapshot + local', async () => {
+    await addLocal(chain, memdag);
+    await addSnapshot(chain, memdag, [['changed', 4]]);
+    await addLocal(chain, memdag);
+  });
+
+  test('local + snapshot + local + syncSnapshot', async () => {
+    await addLocal(chain, memdag);
+    await addSnapshot(chain, memdag, [['changed', 5]]);
+    await addLocal(chain, memdag);
+    await addSyncSnapshot(chain, memdag, 3);
+  });
+
+  test('local + indexChange', async () => {
+    await addLocal(chain, memdag);
+    await addIndexChange(chain, memdag);
+  });
+});

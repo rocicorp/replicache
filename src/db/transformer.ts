@@ -13,7 +13,7 @@ import {
   IndexRecord,
 } from './commit';
 import type {Hash} from '../hash';
-import * as dag from '../dag/mod';
+import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {HashRefType} from './hash-ref-type';
 import type {Value} from '../kv/store';
@@ -21,14 +21,11 @@ import type {Value} from '../kv/store';
 type OldHash = Hash;
 type NewHash = Hash;
 
-export class Transformer<Tx = dag.Write> {
-  private readonly _tx: Tx;
-  private readonly _transforming: Map<Hash, Promise<Hash>> = new Map();
+export abstract class BaseTransformer {
+  private readonly _transforming: Map<OldHash, Promise<NewHash>> = new Map();
   private readonly _writtenMappings = new Map<OldHash, NewHash>();
 
-  constructor(tx: Tx) {
-    this._tx = tx;
-  }
+  // no constructor as the base class doesn't take a dag.Read or dag.Write
 
   /**
    * This is a mapping from the old hash to the new hash for all the chunks that
@@ -36,20 +33,6 @@ export class Transformer<Tx = dag.Write> {
    */
   get mappings(): ReadonlyMap<OldHash, NewHash> {
     return this._writtenMappings;
-  }
-
-  get dagRead(): dag.Read {
-    if (this._tx instanceof dag.Read) {
-      return this._tx;
-    }
-    throw new Error('Expected a dag.Read');
-  }
-
-  get dagWrite(): dag.Write {
-    if (this._tx instanceof dag.Write) {
-      return this._tx;
-    }
-    throw new Error('Expected a dag.Write');
   }
 
   private _withTransformingCache(
@@ -110,9 +93,7 @@ export class Transformer<Tx = dag.Write> {
     return false;
   }
 
-  protected getChunk(oldHash: OldHash): Promise<dag.Chunk | undefined> {
-    return this.dagRead.getChunk(oldHash);
-  }
+  protected abstract getChunk(oldHash: OldHash): Promise<dag.Chunk | undefined>;
 
   private async _maybeWriteChunk<D extends Value>(
     oldHash: OldHash,
@@ -128,16 +109,11 @@ export class Transformer<Tx = dag.Write> {
     return oldHash;
   }
 
-  protected async writeChunk<D extends Value>(
-    _oldHash: OldHash,
+  protected abstract writeChunk<D extends Value>(
+    oldHash: OldHash,
     newData: D,
     getRefs: (data: D) => readonly NewHash[],
-  ): Promise<NewHash> {
-    const {dagWrite} = this;
-    const newChunk = dagWrite.createChunk(newData, getRefs(newData));
-    await dagWrite.putChunk(newChunk);
-    return newChunk.hash;
-  }
+  ): Promise<NewHash>;
 
   private async _transformCommitData<M extends Meta>(
     data: CommitData<M>,
@@ -346,5 +322,31 @@ export class Transformer<Tx = dag.Write> {
       definition: index.definition,
       valueHash,
     };
+  }
+}
+
+export class Transformer extends BaseTransformer {
+  protected readonly dagWrite: dag.Write;
+
+  constructor(dagWrite: dag.Write) {
+    super();
+    this.dagWrite = dagWrite;
+  }
+
+  protected override getChunk(
+    oldHash: OldHash,
+  ): Promise<dag.Chunk | undefined> {
+    return this.dagWrite.getChunk(oldHash);
+  }
+
+  protected override async writeChunk<D extends Value>(
+    _oldHash: OldHash,
+    newData: D,
+    getRefs: (data: D) => readonly NewHash[],
+  ): Promise<NewHash> {
+    const {dagWrite} = this;
+    const newChunk = dagWrite.createChunk(newData, getRefs(newData));
+    await dagWrite.putChunk(newChunk);
+    return newChunk.hash;
   }
 }

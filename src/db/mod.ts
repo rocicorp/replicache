@@ -22,7 +22,7 @@ export {
 export {getRoot} from './root';
 export {decodeIndexKey, encodeIndexKey} from './index';
 export {Visitor} from './visitor';
-export {Transformer} from './transformer';
+export {BaseTransformer, Transformer} from './transformer';
 
 export type {LocalMeta, IndexRecord, CommitData, Meta} from './commit';
 export type {ScanOptions} from './scan';

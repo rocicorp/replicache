@@ -16,11 +16,11 @@ type Mappings = ReadonlyMap<OldHash, NewHash>;
  * perdag in our case) and rewrite the required chunks in the destination dag
  * (the memdag).
  */
-export class FixupTransformer<Tx = dag.Write> extends db.Transformer<Tx> {
+export class FixupTransformer extends db.Transformer {
   private readonly _mappings: Mappings;
 
-  constructor(tx: Tx, mappings: Mappings) {
-    super(tx);
+  constructor(dagWrite: dag.Write, mappings: Mappings) {
+    super(dagWrite);
     this._mappings = mappings;
   }
 

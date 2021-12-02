@@ -11,7 +11,7 @@ export type FixedChunks = ReadonlyMap<Hash, dag.Chunk>;
 /**
  * This transformer computes the hashes
  */
-export class ComputeHashTransformer extends db.Transformer<null> {
+export class ComputeHashTransformer extends db.BaseTransformer {
   private readonly _fixedChunks: Map<Hash, dag.Chunk> = new Map();
   private readonly _gatheredChunks: GatheredChunks;
   private readonly _hashFunc: (value: Value) => MaybePromise<Hash>;
@@ -25,7 +25,7 @@ export class ComputeHashTransformer extends db.Transformer<null> {
     gatheredChunks: GatheredChunks,
     hashFunc: (value: Value) => MaybePromise<Hash>,
   ) {
-    super(null);
+    super();
     this._gatheredChunks = gatheredChunks;
     this._hashFunc = hashFunc;
   }
@@ -50,7 +50,7 @@ export class ComputeHashTransformer extends db.Transformer<null> {
     hash: Hash,
   ): Promise<dag.Chunk | undefined> {
     const gatheredChunk = this._gatheredChunks.get(hash);
-    // We cannot get here is we did not gather a chunk for this hash.
+    // We cannot get here if we did not gather a chunk for this hash.
     assert(gatheredChunk !== undefined);
     return gatheredChunk;
   }

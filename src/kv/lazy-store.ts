@@ -38,11 +38,7 @@ export class LazyStore implements Store {
     getSizeOfValue = defaultGetSizeOfValue,
   ) {
     this._baseStore = baseStore;
-    this._cache = new Cache(
-      cacheSizeLimit,
-      shouldBePinned,
-      getSizeOfValue,
-    );
+    this._cache = new Cache(cacheSizeLimit, shouldBePinned, getSizeOfValue);
   }
 
   async read(): Promise<Read> {

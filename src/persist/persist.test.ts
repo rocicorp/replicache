@@ -3,6 +3,7 @@ import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import {assert} from '../asserts';
 import type {Node} from '../btree/node';
 import * as dag from '../dag/mod';
+import * as sync from '../sync/mod';
 import * as db from '../db/mod';
 import {
   addGenesis,
@@ -168,6 +169,37 @@ suite('persist on top of different kinds of commits', () => {
     await addSnapshot(chain, memdag, [['changed', 5]]);
     await addLocal(chain, memdag);
     await addSyncSnapshot(chain, memdag, 3);
+
+    const syncHeadCommitBefore = await memdag.withRead(async dagRead => {
+      const h = await dagRead.getHead(sync.SYNC_HEAD_NAME);
+      assert(h);
+      return db.commitFromHash(h, dagRead);
+    });
+
+    expect(
+      isTempHash(
+        (syncHeadCommitBefore.chunk.data as db.CommitData<db.SnapshotMeta>)
+          .valueHash,
+      ),
+    ).to.be.true;
+    await testPersist();
+
+    const syncHeadCommitAfter = await memdag.withRead(async dagRead => {
+      const h = await dagRead.getHead(sync.SYNC_HEAD_NAME);
+      assert(h);
+      return db.commitFromHash(h, dagRead);
+    });
+
+    expect(syncHeadCommitBefore.chunk.hash).to.not.equal(
+      syncHeadCommitAfter.chunk.hash,
+    );
+
+    expect(
+      isTempHash(
+        (syncHeadCommitAfter.chunk.data as db.CommitData<db.SnapshotMeta>)
+          .valueHash,
+      ),
+    ).to.be.false;
   });
 
   test('local + indexChange', async () => {

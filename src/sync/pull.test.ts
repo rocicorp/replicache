@@ -50,7 +50,7 @@ test('begin try pull', async () => {
   await addIndexChange(chain, store);
   const startingNumCommits = chain.length;
   const baseSnapshot = chain[1];
-  const [baseLastMutationID, baseCookie] = Commit.snapshotMetaParts(
+  const [baseLastMutationID, baseCookie] = db.snapshotMetaParts(
     baseSnapshot as Commit<SnapshotMeta>,
   );
   const baseValueMap = new Map([['foo', '"bar"']]);
@@ -460,7 +460,7 @@ test('begin try pull', async () => {
         const chunk = await read.getChunk(syncHeadHash);
         assertNotUndefined(chunk);
         const syncHead = db.fromChunk(chunk);
-        const [gotLastMutationID, gotCookie] = Commit.snapshotMetaParts(
+        const [gotLastMutationID, gotCookie] = db.snapshotMetaParts(
           syncHead as Commit<SnapshotMeta>,
         );
         expect(expSyncHead.lastMutationID).to.equal(gotLastMutationID);
@@ -765,7 +765,7 @@ test('changed keys', async () => {
     await addSnapshot(chain, store, entries);
 
     const baseSnapshot = chain[chain.length - 1];
-    const [baseLastMutationID, baseCookie] = Commit.snapshotMetaParts(
+    const [baseLastMutationID, baseCookie] = db.snapshotMetaParts(
       baseSnapshot as Commit<SnapshotMeta>,
     );
 

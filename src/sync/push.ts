@@ -57,7 +57,7 @@ export async function push(
     if (!mainHeadHash) {
       throw new Error('Internal no main head');
     }
-    return await db.Commit.localMutations(mainHeadHash, dagRead);
+    return await db.localMutations(mainHeadHash, dagRead);
     // Important! Don't hold the lock through an HTTP request!
   });
   // Commit.pending gave us commits in head-first order; the bindings

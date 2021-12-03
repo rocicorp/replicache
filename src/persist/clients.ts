@@ -1,11 +1,12 @@
 import {assertHash, Hash} from '../hash';
 import type * as dag from '../dag/mod';
+import * as db from '../db/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {assertNumber, assertObject} from '../asserts';
 import {hasOwn} from '../has-own';
 import type {ClientID} from '../sync/client-id';
 import {uuid as makeUuid} from '../sync/uuid';
-import {Commit, newSnapshot} from '../db/commit';
+import {newSnapshot} from '../db/commit';
 import {BTreeWrite} from '../btree/write';
 
 type ClientMap = Map<ClientID, Client>;
@@ -113,7 +114,7 @@ export async function initClient(
 
   let newClientCommit;
   if (bootstrapClient) {
-    const bootstrapCommit = await Commit.baseSnapshot(
+    const bootstrapCommit = await db.baseSnapshot(
       bootstrapClient.headHash,
       dagWrite,
     );

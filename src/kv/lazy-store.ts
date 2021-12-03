@@ -39,7 +39,7 @@ export class LazyStore implements Store {
   ) {
     this._baseStore = baseStore;
     this._cache = new Cache(
-      Math.max(cacheSizeLimit, 0),
+      cacheSizeLimit,
       shouldBePinned,
       getSizeOfValue,
     );

@@ -18,12 +18,25 @@ export {
   newLocal,
   newSnapshot,
   assertCommitData,
+  fromHash as commitFromHash,
+  fromHead as commitFromHead,
+  localMutations,
+  snapshotMetaParts,
+  baseSnapshot,
+  chain as commitChain,
 } from './commit';
 export {getRoot} from './root';
 export {decodeIndexKey, encodeIndexKey} from './index';
 export {Visitor} from './visitor';
 export {BaseTransformer, Transformer} from './transformer';
 
-export type {LocalMeta, IndexRecord, CommitData, Meta} from './commit';
+export type {
+  SnapshotMeta,
+  LocalMeta,
+  IndexChangeMeta,
+  IndexRecord,
+  CommitData,
+  Meta,
+} from './commit';
 export type {ScanOptions} from './scan';
 export type {Whence} from './read';

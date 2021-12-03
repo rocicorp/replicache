@@ -2,6 +2,7 @@ import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {assertJSONValue} from '../json';
 import {
+  assert,
   assertArray,
   assertNotNull,
   assertNotUndefined,
@@ -78,80 +79,90 @@ export class Commit<M extends Meta> {
     // Already validated!
     return this.chunk.data.indexes;
   }
+}
 
-  /**
-   * Returns the set of local commits from the given from_commit_hash back to but not
-   * including its base snapshot. If from_commit_hash is a snapshot, the returned vector
-   * will be empty. When, as typical, from_commit_hash is the head of the default chain
-   * then the returned commits are the set of pending commits, ie the set of local commits
-   * that have not yet been pushed to the data layer.
-   *
-   * The vector of commits is returned in reverse chain order, that is, starting
-   * with the commit with hash from_commit_hash and walking backwards.
-   */
-  static async localMutations(
-    fromCommitHash: Hash,
-    dagRead: dag.Read,
-  ): Promise<Commit<LocalMeta>[]> {
-    const commits = await Commit.chain(fromCommitHash, dagRead);
-    // Filter does not deal with type narrowing.
-    return commits.filter(c => c.isLocal()) as Commit<LocalMeta>[];
-  }
+/**
+ * Returns the set of local commits from the given from_commit_hash back to but not
+ * including its base snapshot. If from_commit_hash is a snapshot, the returned vector
+ * will be empty. When, as typical, from_commit_hash is the head of the default chain
+ * then the returned commits are the set of pending commits, ie the set of local commits
+ * that have not yet been pushed to the data layer.
+ *
+ * The vector of commits is returned in reverse chain order, that is, starting
+ * with the commit with hash from_commit_hash and walking backwards.
+ */
+export async function localMutations(
+  fromCommitHash: Hash,
+  dagRead: dag.Read,
+): Promise<Commit<LocalMeta>[]> {
+  const commits = await chain(fromCommitHash, dagRead);
+  // Filter does not deal with type narrowing.
+  return commits.filter(c => c.isLocal()) as Commit<LocalMeta>[];
+}
 
-  static async baseSnapshot(
-    hash: Hash,
-    dagRead: dag.Read,
-  ): Promise<Commit<SnapshotMeta>> {
-    let commit = await Commit.fromHash(hash, dagRead);
-    while (!commit.isSnapshot()) {
-      const {meta} = commit;
-      const {basisHash} = meta;
-      if (basisHash === null) {
-        throw new Error(`Commit ${commit.chunk.hash} has no basis`);
-      }
-      commit = await Commit.fromHash(basisHash, dagRead);
+export async function baseSnapshot(
+  hash: Hash,
+  dagRead: dag.Read,
+): Promise<Commit<SnapshotMeta>> {
+  let commit = await fromHash(hash, dagRead);
+  while (!commit.isSnapshot()) {
+    const {meta} = commit;
+    const {basisHash} = meta;
+    if (basisHash === null) {
+      throw new Error(`Commit ${commit.chunk.hash} has no basis`);
     }
-    return commit;
+    commit = await fromHash(basisHash, dagRead);
   }
+  return commit;
+}
 
-  static snapshotMetaParts(
-    c: Commit<SnapshotMeta>,
-  ): [lastMutationID: number, cookie: ReadonlyJSONValue] {
-    const m = c.meta;
-    return [m.lastMutationID, m.cookieJSON];
-  }
+export function snapshotMetaParts(
+  c: Commit<SnapshotMeta>,
+): [lastMutationID: number, cookie: ReadonlyJSONValue] {
+  const m = c.meta;
+  return [m.lastMutationID, m.cookieJSON];
+}
 
-  /**
-   * Returns all commits from the commit with from_commit_hash to its base
-   * snapshot, inclusive of both. Resulting vector is in chain-head-first order
-   * (so snapshot comes last).
-   */
-  static async chain(
-    fromCommitHash: Hash,
-    dagRead: dag.Read,
-  ): Promise<Commit<Meta>[]> {
-    let commit = await Commit.fromHash(fromCommitHash, dagRead);
-    const commits = [];
-    while (!commit.isSnapshot()) {
-      const {meta} = commit;
-      const {basisHash} = meta;
-      if (basisHash === null) {
-        throw new Error(`Commit ${commit.chunk.hash} has no basis`);
-      }
-      commits.push(commit);
-      commit = await Commit.fromHash(basisHash, dagRead);
+/**
+ * Returns all commits from the commit with from_commit_hash to its base
+ * snapshot, inclusive of both. Resulting vector is in chain-head-first order
+ * (so snapshot comes last).
+ */
+export async function chain(
+  fromCommitHash: Hash,
+  dagRead: dag.Read,
+): Promise<Commit<Meta>[]> {
+  let commit = await fromHash(fromCommitHash, dagRead);
+  const commits = [];
+  while (!commit.isSnapshot()) {
+    const {meta} = commit;
+    const {basisHash} = meta;
+    if (basisHash === null) {
+      throw new Error(`Commit ${commit.chunk.hash} has no basis`);
     }
     commits.push(commit);
-    return commits;
+    commit = await fromHash(basisHash, dagRead);
   }
+  commits.push(commit);
+  return commits;
+}
 
-  static async fromHash(hash: Hash, dagRead: dag.Read): Promise<Commit<Meta>> {
-    const chunk = await dagRead.getChunk(hash);
-    if (!chunk) {
-      throw new Error(`Missing commit for ${hash}`);
-    }
-    return fromChunk(chunk);
-  }
+export async function fromHash(
+  hash: Hash,
+  dagRead: dag.Read,
+): Promise<Commit<Meta>> {
+  const chunk = await dagRead.getChunk(hash);
+  assert(chunk, `Missing commit for ${hash}`);
+  return fromChunk(chunk);
+}
+
+export async function fromHead(
+  name: string,
+  dagRead: dag.Read,
+): Promise<Commit<Meta>> {
+  const hash = await dagRead.getHead(name);
+  assert(hash, `Missing head ${name}`);
+  return fromHash(hash, dagRead);
 }
 
 type BasisHash = {

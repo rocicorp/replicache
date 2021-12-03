@@ -1,7 +1,12 @@
 import {IndexRead} from './index';
 import * as dag from '../dag/mod';
 import {convert, scan, ScanOptions, ScanOptionsInternal} from './scan';
-import {Commit, DEFAULT_HEAD_NAME, Meta} from './commit';
+import {
+  Commit,
+  DEFAULT_HEAD_NAME,
+  fromHash as commitFromHash,
+  Meta,
+} from './commit';
 import type {ReadonlyJSONValue} from '../json';
 import {BTreeRead, BTreeWrite, Entry} from '../btree/mod';
 import type {Hash} from '../hash';
@@ -147,7 +152,7 @@ export async function readCommit(
     }
   }
 
-  const commit = await Commit.fromHash(hash, dagRead);
+  const commit = await commitFromHash(hash, dagRead);
   const map =
     dagRead instanceof dag.Write
       ? new BTreeWrite(dagRead, commit.valueHash)

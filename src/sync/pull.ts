@@ -64,10 +64,10 @@ export async function beginPull(
     if (!mainHeadHash) {
       throw new Error('Internal no main head found');
     }
-    return await db.Commit.baseSnapshot(mainHeadHash, dagRead);
+    return await db.baseSnapshot(mainHeadHash, dagRead);
   });
 
-  const [, baseCookie] = db.Commit.snapshotMetaParts(baseSnapshot);
+  const [, baseCookie] = db.snapshotMetaParts(baseSnapshot);
 
   const pullReq = {
     clientID,
@@ -127,9 +127,8 @@ export async function handlePullResponse(
     if (mainHead === undefined) {
       throw new Error('Main head disappeared');
     }
-    const baseSnapshot = await db.Commit.baseSnapshot(mainHead, dagRead);
-    const [baseLastMutationID, baseCookie] =
-      db.Commit.snapshotMetaParts(baseSnapshot);
+    const baseSnapshot = await db.baseSnapshot(mainHead, dagRead);
+    const [baseLastMutationID, baseCookie] = db.snapshotMetaParts(baseSnapshot);
 
     // TODO(MP) Here we are using whether the cookie has changes as a proxy for whether
     // the base snapshot changed, which is the check we used to do. I don't think this
@@ -176,7 +175,7 @@ export async function handlePullResponse(
     //
     // We start with the index definitions in the last commit that was
     // integrated into the new snapshot.
-    const chain = await db.Commit.chain(mainHead, dagRead);
+    const chain = await db.commitChain(mainHead, dagRead);
     const lastIntegrated = chain.find(
       c => c.mutationID <= response.lastMutationID,
     );
@@ -252,12 +251,12 @@ export async function maybeEndPull(
     }
 
     // Ensure another sync has not landed a new snapshot on the main chain.
-    const syncSnapshot = await db.Commit.baseSnapshot(syncHeadHash, dagRead);
+    const syncSnapshot = await db.baseSnapshot(syncHeadHash, dagRead);
     const mainHeadHash = await dagRead.getHead(db.DEFAULT_HEAD_NAME);
     if (mainHeadHash === undefined) {
       throw new Error('Missing main head');
     }
-    const mainSnapshot = await db.Commit.baseSnapshot(mainHeadHash, dagRead);
+    const mainSnapshot = await db.baseSnapshot(mainHeadHash, dagRead);
 
     const {meta} = syncSnapshot;
     const syncSnapshotBasis = meta.basisHash;
@@ -270,8 +269,8 @@ export async function maybeEndPull(
 
     // Collect pending commits from the main chain and determine which
     // of them if any need to be replayed.
-    let pending = await db.Commit.localMutations(mainHeadHash, dagRead);
-    const syncHead = await db.Commit.fromHash(syncHeadHash, dagRead);
+    let pending = await db.localMutations(mainHeadHash, dagRead);
+    const syncHead = await db.commitFromHash(syncHeadHash, dagRead);
     pending = pending.filter(c => c.mutationID > syncHead.mutationID);
     // pending() gave us the pending mutations in sync-head-first order whereas
     // caller wants them in the order to replay (lower mutation ids first).
@@ -315,7 +314,7 @@ export async function maybeEndPull(
     // TODO check invariants
 
     // Compute diffs (changed keys) for value map and index maps.
-    const mainHead = await db.Commit.fromHash(mainHeadHash, dagRead);
+    const mainHead = await db.commitFromHash(mainHeadHash, dagRead);
     const mainHeadMap = new BTreeRead(dagRead, mainHead.valueHash);
     const syncHeadMap = new BTreeRead(dagRead, syncHead.valueHash);
     const valueChangedKeys = await btree.changedKeys(mainHeadMap, syncHeadMap);
@@ -332,10 +331,8 @@ export async function maybeEndPull(
     await dagWrite.commit();
 
     if (lc.debug) {
-      const [oldLastMutationID, oldCookie] =
-        db.Commit.snapshotMetaParts(mainSnapshot);
-      const [newLastMutationID, newCookie] =
-        db.Commit.snapshotMetaParts(syncSnapshot);
+      const [oldLastMutationID, oldCookie] = db.snapshotMetaParts(mainSnapshot);
+      const [newLastMutationID, newCookie] = db.snapshotMetaParts(syncSnapshot);
       lc.debug(
         'Successfully pulled new snapshot w/last_mutation_id={} (prev. {}), cookie={} (prev. {}), and value_hash={} (prev. {}).',
         newLastMutationID,

@@ -17,7 +17,7 @@ export class LazyStore implements Store {
    * fashion.  `shouldBePinned` enables exempting some keys from eviction.  This mechanism
    * should be used to prevent values not persisted to the base store from being lost.
    * Values whose keys are pinned cannot be evicted, and their sizes are not included in the current
-   * cache size. Once a value is persisted to the base store, it's temp key for which `shouldBePinned`
+   * cache size. Once a value is persisted to the base store, its temp key for which `shouldBePinned`
    * is `true` can be deleted, and it can be re-put with a key for which `shouldBePinned` is false (making
    * it subject to cache eviction, which is safe since it is now persisted).
    *
@@ -89,7 +89,7 @@ class ReadImpl implements Read {
   private readonly _cache: Cache;
   private readonly _release: () => void;
   private readonly _base: Store;
-  private _baseRead: Read | undefined;
+  private _baseRead: Promise<Read> | undefined = undefined;
   private _closed = false;
 
   constructor(cache: Cache, base: Store, release: () => void) {
@@ -100,7 +100,7 @@ class ReadImpl implements Read {
 
   release() {
     if (this._baseRead) {
-      this._baseRead.release();
+      void this._baseRead.then((read: Read) => read.release());
     }
     this._release();
     this._closed = true;
@@ -127,7 +127,7 @@ class ReadImpl implements Read {
 
   private async _getBaseRead(): Promise<Read> {
     if (!this._baseRead) {
-      this._baseRead = await this._base.read();
+      this._baseRead = this._base.read();
     }
     return this._baseRead;
   }
@@ -211,6 +211,9 @@ class Cache {
     this._size += valueSize;
     this._cacheEntries.set(key, {value, size: valueSize});
 
+    if (this._size <= this._cacheSizeLimit) {
+      return;
+    }
     for (const entry of this._cacheEntries) {
       if (this._size <= this._cacheSizeLimit) {
         break;

@@ -17,7 +17,7 @@ runAll(
 const DEFAULT_VALUE_SIZE = 100;
 function getSizeOfValueForTest(value: Value): number {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
-    const {size} = value as Record<string, Value>;
+    const {size} = value as {size?: Value};
     if (typeof size === 'number') {
       return size;
     }
@@ -63,14 +63,23 @@ test('del does not write through to base store', async () => {
   const {baseStore, lazyStore} = createLazyStoreForTest();
   await baseStore.withWrite(async write => {
     await write.put('inBase1', 'inBase1Value');
+    await write.put('inBase2', 'inBase2Value');
     await write.commit();
   });
+  await lazyStore.withRead(async read => {
+    // load one of keys into the lazy store cache
+    expect(await read.get('inBase1')).to.equal('inBase1Value');
+  });
   await lazyStore.withWrite(async write => {
+    // delete both keys (cached and not-cached) from lazy store
     await write.del('inBase1');
+    await write.del('inBase2');
     await write.commit();
   });
   await baseStore.withRead(async read => {
-    expect(await read.get('notPinned1')).to.be.undefined;
+    // neither delete impacts baseStore
+    expect(await read.get('inBase1')).to.equal('inBase1Value');
+    expect(await read.get('inBase1')).to.equal('inBase1Value');
   });
 });
 

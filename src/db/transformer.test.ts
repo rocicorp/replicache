@@ -7,7 +7,7 @@ import {
   addSnapshot,
   Chain,
 } from './test-helpers';
-import {Commit} from './commit';
+import {Commit, fromHash as commitFromHash} from './commit';
 import type {IndexRecord, Meta} from './commit';
 import {Transformer} from './transformer';
 import {Hash, initHasher, makeNewFakeHashFunction} from '../hash';
@@ -148,7 +148,7 @@ test('transforms data entry', async () => {
   await dagStore.withRead(async read => {
     const headHash = await read.getHead('test');
     assert(headHash);
-    const commit = await Commit.fromHash(headHash, read);
+    const commit = await commitFromHash(headHash, read);
     const map = new BTreeRead(read, commit.valueHash);
     expect(await map.get('k')).to.equal('k - Changed!');
   });

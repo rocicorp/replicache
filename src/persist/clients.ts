@@ -174,10 +174,10 @@ export async function updateClients(
     const clientsHead = await dagRead.getHead(CLIENTS_HEAD);
     return [clients, clientsHead];
   });
-  return _updateClients(update, clients, clientsHash, dagStore);
+  return updateClientsInternal(update, clients, clientsHash, dagStore);
 }
 
-export async function _updateClients(
+async function updateClientsInternal(
   update: ClientsUpdate,
   clients: ClientMap,
   clientsHash: Hash | undefined,

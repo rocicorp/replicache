@@ -1,4 +1,5 @@
 import {assertHash, Hash, nativeHashOf} from '../hash';
+import * as btree from '../btree/mod';
 import * as dag from '../dag/mod';
 import * as db from '../db/mod';
 import type {ReadonlyJSONValue} from '../json';
@@ -93,10 +94,13 @@ export async function initClient(
       }
     }
 
-    const newClientCommitData = await dagStore.withRead(async dagRead => {
-      if (bootstrapClient) {
+    let newClientCommitData;
+    const chunksToPut = []; 
+    if (bootstrapClient) {
+      const constBootstrapClient = bootstrapClient;
+      newClientCommitData = await dagStore.withRead(async dagRead => {
         const bootstrapCommit = await db.baseSnapshot(
-          bootstrapClient.headHash,
+          constBootstrapClient.headHash,
           dagRead,
         );
         // Copy the snapshot with one change: set last mutation id to 0.  Replicache
@@ -110,31 +114,37 @@ export async function initClient(
           bootstrapCommit.valueHash,
           bootstrapCommit.indexes,
         );
-      } else {
-        // No existing snapshot to bootstrap from. Create empty snapshot.
-        // TODO This empty btree write is a problem...
-        //const emptyBTreeHash = await new BTreeWrite(dagWrite).flush();
-        return newSnapshotCommitData(
-          null /* basisHash */,
-          0 /* lastMutationID */,
-          null /* cookie */,
-          'emptybtreehash' as unknown as Hash,
-          [] /* indexes */,
-        );
-      }
-    });
 
-    const newClientCommitChunk = dag.createChunkWithHash(
-      await nativeHashOf(newClientCommitData),
+      });
+    } else {
+      // No existing snapshot to bootstrap from. Create empty snapshot.
+      // TODO This empty btree write is a problem...
+      const emptyBTreeChunk = await dag.createChunkWithNativeHash(
+        btree.emptyDataNode,
+        [],
+      );
+      chunksToPut.push(emptyBTreeChunk);
+      newClientCommitData = newSnapshotCommitData(
+        null /* basisHash */,
+        0 /* lastMutationID */,
+        null /* cookie */,
+        emptyBTreeChunk.hash,
+        [] /* indexes */,
+      );
+    }
+
+    const newClientCommitChunk = await dag.createChunkWithNativeHash(
       newClientCommitData,
       getRefs(newClientCommitData),
     );
+    chunksToPut.push(newClientCommitChunk);
+
     return {
       clients: new Map(clients).set(newClientID, {
         heartbeatTimestampMs: Date.now(),
         headHash: newClientCommitChunk.hash,
       }),
-      chunksToPut: [newClientCommitChunk],
+      chunksToPut,
     };
   }, dagStore);
   const newClient = updatedClients.get(newClientID);

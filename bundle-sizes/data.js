@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1638491617791,
+  "lastUpdate": 1638830288990,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -2135,6 +2135,50 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/3d65d8110a477049d5b8afdbc179702e7c26434d"
         },
         "date": 1638491616129,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 186385,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 35014,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 186031,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 34912,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "alexandru_turcanu@ymail.com",
+            "name": "Alexandru Turcanu",
+            "username": "Pondorasti"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5d0a073a6bcc111c869219e284e4c083f3b46ad9",
+          "message": "Update sample-replidraw.md (#751)",
+          "timestamp": "2021-12-06T14:37:10-08:00",
+          "tree_id": "2e810c3a48d20e7f48f1994dd845f02590bf0d72",
+          "url": "https://github.com/rocicorp/replicache/commit/5d0a073a6bcc111c869219e284e4c083f3b46ad9"
+        },
+        "date": 1638830287214,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

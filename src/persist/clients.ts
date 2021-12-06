@@ -95,7 +95,7 @@ export async function initClient(
     }
 
     let newClientCommitData;
-    const chunksToPut = []; 
+    const chunksToPut = [];
     if (bootstrapClient) {
       const constBootstrapClient = bootstrapClient;
       newClientCommitData = await dagStore.withRead(async dagRead => {
@@ -114,7 +114,6 @@ export async function initClient(
           bootstrapCommit.valueHash,
           bootstrapCommit.indexes,
         );
-
       });
     } else {
       // No existing snapshot to bootstrap from. Create empty snapshot.

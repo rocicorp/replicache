@@ -4,13 +4,7 @@ import {BTreeRead} from '../btree/read';
 import * as dag from '../dag/mod';
 import {fromChunk, SnapshotMeta} from '../db/commit';
 import {assertHash, hashOf, initHasher, newTempHash} from '../hash';
-import {
-  getClient,
-  getClients,
-  initClient,
-  setClient,
-  setClients,
-} from './clients';
+import {getClient, getClients, initClient} from './clients';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import {
   addGenesis,
@@ -19,6 +13,7 @@ import {
   addSnapshot,
   Chain,
 } from '../db/test-helpers';
+import {setClients} from './clients-test-helpers';
 
 let clock: SinonFakeTimers;
 setup(async () => {
@@ -52,10 +47,7 @@ test('setClients and getClients', async () => {
       },
     }),
   );
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap, write);
-    await write.commit();
-  });
+  await setClients(clientMap, dagStore);
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
@@ -86,20 +78,14 @@ test('setClients and getClients sequence', async () => {
       },
     }),
   );
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap1, write);
-    await write.commit();
-  });
+  await setClients(clientMap1, dagStore);
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap1 = await getClients(read);
     expect(readClientMap1).to.deep.equal(clientMap1);
   });
 
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap2, write);
-    await write.commit();
-  });
+  await setClients(clientMap2, dagStore);
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap2 = await getClients(read);
@@ -134,10 +120,7 @@ test('setClients properly manages refs to client heads when clients are removed 
       },
     }),
   );
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap1, write);
-    await write.commit();
-  });
+  await setClients(clientMap1, dagStore);
 
   await dagStore.withRead(async (read: dag.Read) => {
     const clientsHash = await read.getHead('clients');
@@ -148,11 +131,7 @@ test('setClients properly manages refs to client heads when clients are removed 
       client2HeadHash,
     ]);
   });
-
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap2, write);
-    await write.commit();
-  });
+  await setClients(clientMap2, dagStore);
 
   await dagStore.withRead(async (read: dag.Read) => {
     const clientsHash = await read.getHead('clients');
@@ -190,10 +169,7 @@ test("setClients properly manages refs to client heads when a client's head chan
     }),
   );
 
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap1, write);
-    await write.commit();
-  });
+  await setClients(clientMap1, dagStore);
 
   await dagStore.withRead(async (read: dag.Read) => {
     const clientsHash = await read.getHead('clients');
@@ -205,77 +181,15 @@ test("setClients properly manages refs to client heads when a client's head chan
     ]);
   });
 
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(
-      new Map(
-        Object.entries({
-          client1: client1V2,
-          client2,
-        }),
-      ),
-      write,
-    );
-    await write.commit();
-  });
-
-  await dagStore.withRead(async (read: dag.Read) => {
-    const clientsHash = await read.getHead('clients');
-    assertHash(clientsHash);
-    const clientsChunk = await read.getChunk(clientsHash);
-    expect(clientsChunk?.meta).to.deep.equal([
-      client1V2HeadHash,
-      client2HeadHash,
-    ]);
-  });
-});
-
-test('setClient properly manages refs to client heads', async () => {
-  const dagStore = new dag.TestStore();
-  const client1V1HeadHash = hashOf('head of commit client1 is currently at');
-  const client1V2HeadHash = hashOf(
-    'head of new commit client1 is currently at',
+  await setClients(
+    new Map(
+      Object.entries({
+        client1: client1V2,
+        client2,
+      }),
+    ),
+    dagStore,
   );
-  const client2HeadHash = hashOf('head of commit client2 is currently at');
-
-  const client1V1 = {
-    heartbeatTimestampMs: 1000,
-    headHash: client1V1HeadHash,
-  };
-  const client1V2 = {
-    heartbeatTimestampMs: 2000,
-    headHash: client1V2HeadHash,
-  };
-  const client2 = {
-    heartbeatTimestampMs: 3000,
-    headHash: client2HeadHash,
-  };
-
-  const clientMap1 = new Map(
-    Object.entries({
-      client1: client1V1,
-      client2,
-    }),
-  );
-
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap1, write);
-    await write.commit();
-  });
-
-  await dagStore.withRead(async (read: dag.Read) => {
-    const clientsHash = await read.getHead('clients');
-    assertHash(clientsHash);
-    const clientsChunk = await read.getChunk(clientsHash);
-    expect(clientsChunk?.meta).to.deep.equal([
-      client1V1HeadHash,
-      client2HeadHash,
-    ]);
-  });
-
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClient('client1', client1V2, write);
-    await write.commit();
-  });
 
   await dagStore.withRead(async (read: dag.Read) => {
     const clientsHash = await read.getHead('clients');
@@ -303,100 +217,11 @@ test('getClient', async () => {
       },
     }),
   );
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap, write);
-    await write.commit();
-  });
+  await setClients(clientMap, dagStore);
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClient1 = await getClient('client1', read);
     expect(readClient1).to.deep.equal(client1);
-  });
-});
-
-test('setClient with existing client id', async () => {
-  const dagStore = new dag.TestStore();
-  const client1V1 = {
-    heartbeatTimestampMs: 1000,
-    headHash: hashOf('head of commit client1 is currently at'),
-  };
-  const client1V2 = {
-    heartbeatTimestampMs: 2000,
-    headHash: hashOf('head of new commit client1 is currently at'),
-  };
-  const client2 = {
-    heartbeatTimestampMs: 3000,
-    headHash: hashOf('head of commit client2 is currently at'),
-  };
-  const clientMap = new Map(
-    Object.entries({
-      client1: client1V1,
-      client2,
-    }),
-  );
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap, write);
-    await write.commit();
-  });
-
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClient('client1', client1V2, write);
-    await write.commit();
-  });
-
-  await dagStore.withRead(async (read: dag.Read) => {
-    const readClientMap = await getClients(read);
-    expect(readClientMap).to.deep.equal(
-      new Map(
-        Object.entries({
-          client1: client1V2,
-          client2,
-        }),
-      ),
-    );
-  });
-});
-
-test('setClient with new client id', async () => {
-  const dagStore = new dag.TestStore();
-  const client1 = {
-    heartbeatTimestampMs: 1000,
-    headHash: hashOf('head of commit client1 is currently at'),
-  };
-  const client2 = {
-    heartbeatTimestampMs: 3000,
-    headHash: hashOf('head of commit client2 is currently at'),
-  };
-  const client3 = {
-    heartbeatTimestampMs: 5000,
-    headHash: hashOf('head of commit client3 is currently at'),
-  };
-  const clientMap = new Map(
-    Object.entries({
-      client1,
-      client2,
-    }),
-  );
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap, write);
-    await write.commit();
-  });
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClient('client3', client3, write);
-    await write.commit();
-  });
-
-  await dagStore.withRead(async (read: dag.Read) => {
-    const readClientMap = await getClients(read);
-    expect(readClientMap).to.deep.equal(
-      new Map(
-        Object.entries({
-          client1,
-          client2,
-          client3,
-        }),
-      ),
-    );
   });
 });
 
@@ -417,85 +242,30 @@ test('setClients throws error if any client headHash is a temp hash', async () =
     }),
   );
 
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap, write);
-    await write.commit();
-  });
+  await setClients(clientMap, dagStore);
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
     expect(readClientMap).to.deep.equal(clientMap);
   });
 
-  await dagStore.withWrite(async (write: dag.Write) => {
-    const clientMapWTempHash = new Map(
-      Object.entries({
-        client1,
-        client2: {
-          heartbeatTimestampMs: 3000,
-          headHash: newTempHash(),
-        },
-      }),
-    );
-    let e;
-    try {
-      await setClients(clientMapWTempHash, write);
-    } catch (ex) {
-      e = ex;
-    }
-    expect(e).to.be.instanceOf(Error);
-    await write.commit();
-  });
-
-  await dagStore.withRead(async (read: dag.Read) => {
-    const readClientMap = await getClients(read);
-    expect(readClientMap).to.deep.equal(clientMap);
-  });
-});
-
-test('setClient throws error if client headHash is a temp hash', async () => {
-  const dagStore = new dag.TestStore();
-  const client1 = {
-    heartbeatTimestampMs: 1000,
-    headHash: hashOf('head of commit client1 is currently at'),
-  };
-  const client2 = {
-    heartbeatTimestampMs: 3000,
-    headHash: hashOf('head of commit client2 is currently at'),
-  };
-  const clientMap = new Map(
+  const clientMapWTempHash = new Map(
     Object.entries({
       client1,
-      client2,
+      client2: {
+        heartbeatTimestampMs: 3000,
+        headHash: newTempHash(),
+      },
     }),
   );
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap, write);
-    await write.commit();
-  });
 
-  await dagStore.withRead(async (read: dag.Read) => {
-    const readClientMap = await getClients(read);
-    expect(readClientMap).to.deep.equal(clientMap);
-  });
-
-  await dagStore.withWrite(async (write: dag.Write) => {
-    let e;
-    try {
-      await setClient(
-        'client2',
-        {
-          heartbeatTimestampMs: 3000,
-          headHash: newTempHash(),
-        },
-        write,
-      );
-    } catch (ex) {
-      e = ex;
-    }
-    expect(e).to.be.instanceOf(Error);
-    await write.commit();
-  });
+  let e;
+  try {
+    await setClients(clientMapWTempHash, dagStore);
+  } catch (ex) {
+    e = ex;
+  }
+  expect(e).to.be.instanceOf(Error);
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
@@ -552,13 +322,7 @@ test('getClients throws errors if chunk pointed to by clients head does not cont
 test('initClient creates new empty snapshot when no existing snapshot to bootstrap from', async () => {
   const dagStore = new dag.TestStore();
   clock.tick(4000);
-  const [clientId, client] = await dagStore.withWrite(
-    async (write: dag.Write) => {
-      const clientInfo = await initClient(write);
-      await write.commit();
-      return clientInfo;
-    },
-  );
+  const [clientId, client] = await initClient(dagStore);
 
   await dagStore.withRead(async (read: dag.Read) => {
     // New client was added to the client map.
@@ -594,31 +358,22 @@ test('initClient bootstraps from base snapshot of client with highest heartbeat'
   await addLocal(chain, dagStore);
   const client2HeadCommit = chain[chain.length - 1];
 
-  await dagStore.withWrite(async (write: dag.Write) => {
-    const clientMap = new Map(
-      Object.entries({
-        client1: {
-          heartbeatTimestampMs: 1000,
-          headHash: client1HeadCommit.chunk.hash,
-        },
-        client2: {
-          heartbeatTimestampMs: 3000,
-          headHash: client2HeadCommit.chunk.hash,
-        },
-      }),
-    );
-    await setClients(clientMap, write);
-    await write.commit();
-  });
+  const clientMap = new Map(
+    Object.entries({
+      client1: {
+        heartbeatTimestampMs: 1000,
+        headHash: client1HeadCommit.chunk.hash,
+      },
+      client2: {
+        heartbeatTimestampMs: 3000,
+        headHash: client2HeadCommit.chunk.hash,
+      },
+    }),
+  );
+  await setClients(clientMap, dagStore);
 
   clock.tick(4000);
-  const [clientId, client] = await dagStore.withWrite(
-    async (write: dag.Write) => {
-      const clientInfo = await initClient(write);
-      await write.commit();
-      return clientInfo;
-    },
-  );
+  const [clientId, client] = await initClient(dagStore);
 
   await dagStore.withRead(async (read: dag.Read) => {
     // New client was added to the client map.

@@ -1,6 +1,6 @@
 import type {ClientID} from '../sync/client-id';
 import type * as dag from '../dag/mod';
-import {getClient, setClient} from './clients';
+import {noUpdates, updateClients} from './clients';
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000;
 
@@ -9,10 +9,7 @@ export function startHeartbeats(
   dagStore: dag.Store,
 ): () => void {
   const intervalID = window.setInterval(async () => {
-    await dagStore.withWrite(async (write: dag.Write) => {
-      await writeHeartbeat(clientID, write);
-      await write.commit();
-    });
+    await writeHeartbeat(clientID, dagStore);
   }, HEARTBEAT_INTERVAL_MS);
   return () => {
     window.clearInterval(intervalID);
@@ -21,20 +18,22 @@ export function startHeartbeats(
 
 export async function writeHeartbeat(
   clientID: ClientID,
-  write: dag.Write,
+  dagStore: dag.Store,
 ): Promise<void> {
-  const client = await getClient(clientID, write);
-  if (!client) {
+  const updatedClients = await updateClients(clients => {
+    const client = clients.get(clientID);
+    if (!client) {
+      return Promise.resolve(noUpdates);
+    }
+    return Promise.resolve({
+      clients: new Map(clients).set(clientID, {
+        heartbeatTimestampMs: Date.now(),
+        headHash: client.headHash,
+      }),
+    });
+  }, dagStore);
+  if (updatedClients.get(clientID) === undefined) {
     // Should this be a more specific error so caller can detect and handle?
     throw new Error('Cannot write heartbeat. Client with clientID not found');
   }
-
-  await setClient(
-    clientID,
-    {
-      heartbeatTimestampMs: Date.now(),
-      headHash: client.headHash,
-    },
-    write,
-  );
 }

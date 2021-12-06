@@ -2,8 +2,9 @@ import {expect} from '@esm-bundle/chai';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import * as dag from '../dag/mod';
 import {startHeartbeats, writeHeartbeat} from './heartbeat';
-import {getClients, setClients} from './clients';
+import {getClients} from './clients';
 import {hashOf, initHasher} from '../hash';
+import {setClients} from './clients-test-helpers';
 
 let clock: SinonFakeTimers;
 const START_TIME = 100000;
@@ -33,10 +34,7 @@ test('startHeartbeats starts interval that writes heartbeat each minute', async 
       client2,
     }),
   );
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap, write);
-    return write.commit();
-  });
+  await setClients(clientMap, dagStore);
 
   startHeartbeats('client1', dagStore);
 
@@ -96,10 +94,7 @@ test('calling function returned by startHeartbeats, stops heartbeats', async () 
       client2,
     }),
   );
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap, write);
-    return write.commit();
-  });
+  await setClients(clientMap, dagStore);
 
   const stopHeartbeats = startHeartbeats('client1', dagStore);
 
@@ -162,43 +157,35 @@ test('writeHeartbeat writes heartbeat', async () => {
     }),
   );
 
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap, write);
-    return write.commit();
-  });
+  await setClients(clientMap, dagStore);
 
   const TICK_IN_MS = 20000;
   clock.tick(TICK_IN_MS);
 
-  await dagStore.withWrite(async write => {
-    await writeHeartbeat('client1', write);
-    await write.commit();
-    await dagStore.withRead(async (read: dag.Read) => {
-      const readClientMap = await getClients(read);
-      expect(readClientMap).to.deep.equal(
-        new Map(
-          Object.entries({
-            client1: {
-              ...client1,
-              heartbeatTimestampMs: START_TIME + TICK_IN_MS,
-            },
-            client2,
-          }),
-        ),
-      );
-    });
+  await writeHeartbeat('client1', dagStore);
+  await dagStore.withRead(async (read: dag.Read) => {
+    const readClientMap = await getClients(read);
+    expect(readClientMap).to.deep.equal(
+      new Map(
+        Object.entries({
+          client1: {
+            ...client1,
+            heartbeatTimestampMs: START_TIME + TICK_IN_MS,
+          },
+          client2,
+        }),
+      ),
+    );
   });
 });
 
 test('writeHeartbeat throws Error if no Client is found for clientID', async () => {
   const dagStore = new dag.TestStore();
-  await dagStore.withWrite(async write => {
-    let e;
-    try {
-      await writeHeartbeat('client1', write);
-    } catch (ex) {
-      e = ex;
-    }
-    expect(e).to.be.instanceOf(Error);
-  });
+  let e;
+  try {
+    await writeHeartbeat('client1', dagStore);
+  } catch (ex) {
+    e = ex;
+  }
+  expect(e).to.be.instanceOf(Error);
 });

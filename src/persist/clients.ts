@@ -67,7 +67,10 @@ export async function getClients(dagRead: dag.Read): Promise<ClientMap> {
   return getClientsAtHash(hash, dagRead);
 }
 
-async function getClientsAtHash(hash: Hash | undefined, dagRead: dag.Read): Promise<ClientMap> {
+async function getClientsAtHash(
+  hash: Hash | undefined,
+  dagRead: dag.Read,
+): Promise<ClientMap> {
   if (!hash) {
     return new Map();
   }

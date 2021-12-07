@@ -1,10 +1,17 @@
 import {expect} from '@esm-bundle/chai';
-import {assert, assertNotUndefined} from '../asserts';
+import {assertNotUndefined} from '../asserts';
 import {BTreeRead} from '../btree/read';
 import * as dag from '../dag/mod';
 import {fromChunk, SnapshotMeta} from '../db/commit';
-import {assertHash, assertNotTempHash, hashOf, initHasher, newTempHash} from '../hash';
-import {ClientMap, getClient, getClients, initClient, noUpdates, updateClients} from './clients';
+import {assertHash, hashOf, initHasher, newTempHash} from '../hash';
+import {
+  ClientMap,
+  getClient,
+  getClients,
+  initClient,
+  noUpdates,
+  updateClients,
+} from './clients';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import {
   addGenesis,
@@ -14,7 +21,6 @@ import {
   Chain,
 } from '../db/test-helpers';
 import {setClients} from './clients-test-helpers';
-import { update } from 'lodash';
 
 let clock: SinonFakeTimers;
 setup(async () => {
@@ -306,7 +312,7 @@ test('updateClients is a noop if noUpdates is returned from update', async () =>
     }),
   );
   await setClients(clientMap, dagStore);
-  await updateClients((_) => noUpdates, dagStore);
+  await updateClients(_ => noUpdates, dagStore);
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
     expect(readClientMap).to.deep.equal(clientMap);
@@ -316,16 +322,19 @@ test('updateClients is a noop if noUpdates is returned from update', async () =>
 test('updateClients puts chunksToPut returned by update', async () => {
   const dagStore = new dag.TestStore();
   const chunksToPut = [
-    dag.createChunkWithHash(hashOf("chunkToPut1"), "chunkToPut1", []),
-    dag.createChunkWithHash(hashOf("chunkToPut2"), "chunkToPut2", [hashOf("chunkToPut1")])
+    dag.createChunkWithHash(hashOf('chunkToPut1'), 'chunkToPut1', []),
+    dag.createChunkWithHash(hashOf('chunkToPut2'), 'chunkToPut2', [
+      hashOf('chunkToPut1'),
+    ]),
   ];
   const clientMap = new Map(
     Object.entries({
       client1: {
         heartbeatTimestampMs: 1000,
         headHash: chunksToPut[1].hash,
-      }
-    }));
+      },
+    }),
+  );
   const update = async (_: ClientMap) => {
     return {clients: clientMap, chunksToPut};
   };
@@ -336,8 +345,12 @@ test('updateClients puts chunksToPut returned by update', async () => {
     expect(readClientMap).to.deep.equal(clientMap);
   });
   await dagStore.withRead(async (read: dag.Read) => {
-    expect(await read.getChunk(chunksToPut[0].hash)).to.deep.equal(chunksToPut[0]);
-    expect(await read.getChunk(chunksToPut[1].hash)).to.deep.equal(chunksToPut[1]);
+    expect(await read.getChunk(chunksToPut[0].hash)).to.deep.equal(
+      chunksToPut[0],
+    );
+    expect(await read.getChunk(chunksToPut[1].hash)).to.deep.equal(
+      chunksToPut[1],
+    );
   });
 });
 
@@ -363,12 +376,14 @@ test('updateClients with conflict during update (i.e. testing race case with ret
     headHash: hashOf('head of commit client3 is currently at'),
   };
   const clientMap2 = new Map(clientMap).set('client3', client3);
-  
+
   await setClients(clientMap, dagStore);
-  
+
   const chunksToPut = [
-    dag.createChunkWithHash(hashOf("chunkToPut1"), "chunkToPut1", []),
-    dag.createChunkWithHash(hashOf("chunkToPut2"), "chunkToPut2", [hashOf("chunkToPut1")])
+    dag.createChunkWithHash(hashOf('chunkToPut1'), 'chunkToPut1', []),
+    dag.createChunkWithHash(hashOf('chunkToPut2'), 'chunkToPut2', [
+      hashOf('chunkToPut1'),
+    ]),
   ];
   const client4 = {
     heartbeatTimestampMs: 7000,
@@ -378,11 +393,14 @@ test('updateClients with conflict during update (i.e. testing race case with ret
   let updateCallCount = 0;
   const update = async (clients: ClientMap) => {
     updateCallCount++;
-    expect(updateCallCount).to.be.lessThan(3, 'Expect update to only be called twice');
+    expect(updateCallCount).to.be.lessThan(
+      3,
+      'Expect update to only be called twice',
+    );
     if (updateCallCount === 1) {
       // create conflict
       await setClients(clientMap2, dagStore);
-    } 
+    }
     if (updateCallCount === 2) {
       expect(clients).to.deep.equal(clientMap2);
     }
@@ -399,7 +417,7 @@ test('updateClients with conflict during update (i.e. testing race case with ret
       client1,
       client2,
       client3,
-      client4
+      client4,
     }),
   );
   const updatedClients = await updateClients(update, dagStore);
@@ -407,8 +425,12 @@ test('updateClients with conflict during update (i.e. testing race case with ret
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
     expect(readClientMap).to.deep.equal(expectedClientMap);
-    expect(await read.getChunk(chunksToPut[0].hash)).to.deep.equal(chunksToPut[0]);
-    expect(await read.getChunk(chunksToPut[1].hash)).to.deep.equal(chunksToPut[1]);
+    expect(await read.getChunk(chunksToPut[0].hash)).to.deep.equal(
+      chunksToPut[0],
+    );
+    expect(await read.getChunk(chunksToPut[1].hash)).to.deep.equal(
+      chunksToPut[1],
+    );
   });
 });
 
@@ -434,12 +456,14 @@ test('updateClients where update return noUpdates after conflict during update',
     headHash: hashOf('head of commit client3 is currently at'),
   };
   const clientMap2 = new Map(clientMap).set('client3', client3);
-  
+
   await setClients(clientMap, dagStore);
-  
+
   const chunksToPut = [
-    dag.createChunkWithHash(hashOf("chunkToPut1"), "chunkToPut1", []),
-    dag.createChunkWithHash(hashOf("chunkToPut2"), "chunkToPut2", [hashOf("chunkToPut1")])
+    dag.createChunkWithHash(hashOf('chunkToPut1'), 'chunkToPut1', []),
+    dag.createChunkWithHash(hashOf('chunkToPut2'), 'chunkToPut2', [
+      hashOf('chunkToPut1'),
+    ]),
   ];
   const client4 = {
     heartbeatTimestampMs: 7000,
@@ -449,12 +473,15 @@ test('updateClients where update return noUpdates after conflict during update',
   let updateCallCount = 0;
   const update = async (clients: ClientMap) => {
     updateCallCount++;
-    expect(updateCallCount).to.be.lessThan(3, 'Expect update to only be called twice');
+    expect(updateCallCount).to.be.lessThan(
+      3,
+      'Expect update to only be called twice',
+    );
     if (updateCallCount === 1) {
       // create conflict
       await setClients(clientMap2, dagStore);
       return {clients: new Map(clients).set('client4', client4), chunksToPut};
-    } 
+    }
     if (updateCallCount === 2) {
       expect(clients).to.deep.equal(clientMap2);
     }
@@ -466,7 +493,7 @@ test('updateClients where update return noUpdates after conflict during update',
     Object.entries({
       client1,
       client2,
-      client3
+      client3,
     }),
   );
   const updatedClients = await updateClients(update, dagStore);

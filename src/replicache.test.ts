@@ -2368,7 +2368,7 @@ test('push and pull concurrently', async () => {
     commit: 1,
     invokePush: 1,
     put: 1,
-    withWrite: 2,
+    withWrite: 4,
     write: 0,
   });
 
@@ -2385,7 +2385,7 @@ test('push and pull concurrently', async () => {
     commit: 0,
     invokePush: 0,
     put: 0,
-    withWrite: 2,
+    withWrite: 0,
     write: 0,
   });
 });
@@ -2906,7 +2906,7 @@ test('experiment KV Store', async () => {
   await rep.close();
   expect(store.readCount).to.equal(0);
   expect(store.writeCount).to.equal(0);
-  expect(store.closeCount).to.equal(0);
+  expect(store.closeCount).to.equal(1);
 });
 
 test('subscription coalescing', async () => {

@@ -1,4 +1,4 @@
-import type {JSONObject, JSONValue} from './json';
+import type {JSONObject, JSONValue, ReadonlyJSONValue} from './json';
 import * as utf8 from './utf8';
 import {resolver} from './resolver';
 import {uuid} from './sync/uuid';
@@ -8,6 +8,7 @@ import {
   BeginPullResult,
   MAX_REAUTH_TRIES,
 } from './replicache';
+import {Hash, makeNewTempHashFunction} from './hash';
 
 export class ReplicacheTest<
   // eslint-disable-next-line @typescript-eslint/ban-types
@@ -24,6 +25,12 @@ export class ReplicacheTest<
   invokePush(maxAuthTries: number): Promise<boolean> {
     // indirection to allow test to spy on it.
     return super._invokePush(maxAuthTries);
+  }
+
+  protected override _memdagHashFunction(): <V extends ReadonlyJSONValue>(
+    data: V,
+  ) => Hash {
+    return makeNewTempHashFunction();
   }
 
   protected override _invokePush(maxAuthTries: number): Promise<boolean> {

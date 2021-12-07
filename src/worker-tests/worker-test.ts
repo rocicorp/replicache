@@ -10,7 +10,7 @@ import {closeAllReps, reps} from '../test-util';
 onmessage = async (e: MessageEvent) => {
   const {name} = e.data;
   try {
-    await testGethasScanOnEmptyDB(name);
+    await testGetHasScanOnEmptyDB(name);
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore TypeScripts type defs are incorrect.
     postMessage(undefined);
@@ -23,7 +23,7 @@ onmessage = async (e: MessageEvent) => {
   }
 };
 
-async function testGethasScanOnEmptyDB(name: string) {
+async function testGetHasScanOnEmptyDB(name: string) {
   const rep = new ReplicacheTest({
     pushDelay: 60_000, // Large to prevent interferin;,
     name,

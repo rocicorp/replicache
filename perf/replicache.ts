@@ -26,7 +26,7 @@ export function benchmarkPopulate(opts: {
     group: 'replicache',
     byteSize: opts.numKeys * valSize,
     async run(bencher: Bencher) {
-      const rep = await makeRepWithPopulate(opts.useMemstore);
+      const rep = await makeRepWithPopulate();
       if (!opts.clean) {
         await rep.mutate.populate({
           numKeys: opts.numKeys,
@@ -60,7 +60,7 @@ export function benchmarkReadTransaction(opts: {
     group: 'replicache',
     byteSize: opts.numKeys * valSize,
     async setup() {
-      rep = await makeRepWithPopulate(opts.useMemstore);
+      rep = await makeRepWithPopulate();
       await rep.mutate.populate({
         numKeys: opts.numKeys,
         randomValues: jsonArrayTestData(opts.numKeys, valSize),
@@ -98,7 +98,7 @@ export function benchmarkScan(opts: {
     byteSize: opts.numKeys * valSize,
 
     async setup() {
-      rep = await makeRepWithPopulate(opts.useMemstore);
+      rep = await makeRepWithPopulate();
       await rep.mutate.populate({
         numKeys: opts.numKeys,
         randomValues: jsonArrayTestData(opts.numKeys, valSize),
@@ -131,7 +131,7 @@ export function benchmarkCreateIndex(opts: {
     group: 'replicache',
 
     async run(bencher: Bencher) {
-      const rep = await makeRepWithPopulate(opts.useMemstore);
+      const rep = await makeRepWithPopulate();
       await rep.mutate.populate({
         numKeys: opts.numKeys,
         randomValues: jsonArrayTestData(opts.numKeys, valSize),
@@ -183,7 +183,6 @@ export function benchmarkWriteSubRead(opts: {
       );
 
       const rep = await makeRep({
-        useMemstore: opts.useMemstore,
         mutators: {
           // Create `numKeys` key/value pairs, each holding `valueSize` data
           async init(tx: WriteTransaction) {
@@ -288,7 +287,7 @@ type ReplicacheWithPopulate = UnwrapPromise<
   ReturnType<typeof makeRepWithPopulate>
 >;
 
-async function makeRepWithPopulate(useMemstore: boolean) {
+async function makeRepWithPopulate() {
   const mutators = {
     populate: async (
       tx: WriteTransaction,
@@ -303,7 +302,6 @@ async function makeRepWithPopulate(useMemstore: boolean) {
     },
   };
   return makeRep({
-    useMemstore,
     mutators,
   });
 }

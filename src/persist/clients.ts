@@ -198,6 +198,7 @@ async function updateClientsInternal(
   const result = await dagStore.withWrite(async dagWrite => {
     const currClientsHash = await dagWrite.getHead(CLIENTS_HEAD);
     if (currClientsHash !== clientsHash) {
+      // Conflict!  Someone else updated the ClientsMap.  Retry update.
       return {
         updateApplied: false,
         clients: await getClientsAtHash(currClientsHash, dagWrite),

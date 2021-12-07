@@ -5,9 +5,9 @@ import {ClientMap, noUpdates, updateClients} from './clients';
 const CLIENT_MAX_INACTIVE_IN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const GC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
-let _latestGCUpdate: Promise<ClientMap> | undefined;
+let latestGCUpdate: Promise<ClientMap> | undefined;
 export function getLatestGCUpdate(): Promise<ClientMap> | undefined {
-  return _latestGCUpdate;
+  return latestGCUpdate;
 }
 
 export function initClientGC(
@@ -15,7 +15,7 @@ export function initClientGC(
   dagStore: dag.Store,
 ): () => void {
   const intervalID = window.setInterval(() => {
-    _latestGCUpdate = updateClients(clients => {
+    latestGCUpdate = updateClients(clients => {
       const now = Date.now();
       const clientsAfterGC = Array.from(clients).filter(
         ([id, client]) =>

@@ -4,9 +4,9 @@ import {ClientMap, noUpdates, updateClients} from './clients';
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000;
 
-let _latestHeartbeatUpdate: Promise<ClientMap> | undefined;
+let latestHeartbeatUpdate: Promise<ClientMap> | undefined;
 export function getLatestHeartbeatUpdate(): Promise<ClientMap> | undefined {
-  return _latestHeartbeatUpdate;
+  return latestHeartbeatUpdate;
 }
 
 export function startHeartbeats(
@@ -14,7 +14,7 @@ export function startHeartbeats(
   dagStore: dag.Store,
 ): () => void {
   const intervalID = window.setInterval(() => {
-    _latestHeartbeatUpdate = writeHeartbeat(clientID, dagStore);
+    latestHeartbeatUpdate = writeHeartbeat(clientID, dagStore);
   }, HEARTBEAT_INTERVAL_MS);
   return () => {
     window.clearInterval(intervalID);

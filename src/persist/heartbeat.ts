@@ -23,14 +23,14 @@ export async function writeHeartbeat(
   const updatedClients = await updateClients(clients => {
     const client = clients.get(clientID);
     if (!client) {
-      return Promise.resolve(noUpdates);
+      return noUpdates;
     }
-    return Promise.resolve({
+    return {
       clients: new Map(clients).set(clientID, {
         heartbeatTimestampMs: Date.now(),
         headHash: client.headHash,
       }),
-    });
+    };
   }, dagStore);
   if (updatedClients.get(clientID) === undefined) {
     // Should this be a more specific error so caller can detect and handle?

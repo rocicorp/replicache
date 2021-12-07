@@ -18,11 +18,11 @@ export function initClientGC(
           now - client.heartbeatTimestampMs <= CLIENT_MAX_INACTIVE_IN_MS,
       );
       if (clientsAfterGC.length === clients.size) {
-        return Promise.resolve(noUpdates);
+        return noUpdates;
       }
-      return Promise.resolve({
+      return {
         clients: new Map(clientsAfterGC),
-      });
+      };
     }, dagStore);
   }, GC_INTERVAL_MS);
 

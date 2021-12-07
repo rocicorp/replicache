@@ -8,7 +8,7 @@ import {hasOwn} from '../has-own';
 import type {ClientID} from '../sync/client-id';
 import {uuid as makeUuid} from '../sync/uuid';
 import {getRefs, newSnapshotCommitData} from '../db/commit';
-//import {BTreeWrite} from '../btree/write';
+import type { MaybePromise } from '../mod';
 
 export type ClientMap = ReadonlyMap<ClientID, Client>;
 
@@ -161,7 +161,7 @@ export type NoUpdates = typeof noUpdates;
 
 export type ClientsUpdate = (
   clients: ClientMap,
-) => Promise<
+) => MaybePromise<
   {clients: ClientMap; chunksToPut?: Iterable<dag.Chunk>} | NoUpdates
 >;
 
@@ -232,6 +232,6 @@ async function updateClientsInternal(
   if (result.updateApplied) {
     return result.clients;
   } else {
-    return _updateClients(update, result.clients, result.clientsHash, dagStore);
+    return updateClientsInternal(update, result.clients, result.clientsHash, dagStore);
   }
 }

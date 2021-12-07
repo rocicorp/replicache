@@ -83,12 +83,12 @@ async function writeFixedChunks(
 ) {
   const chunksToPut = fixedChunks.values();
   await updateClients(clients => {
-    return Promise.resolve({
+    return {
       clients: new Map(clients).set(clientID, {
         heartbeatTimestampMs: Date.now(),
         headHash: mainHeadHash,
       }),
       chunksToPut,
-    });
+    };
   }, perdag);
 }

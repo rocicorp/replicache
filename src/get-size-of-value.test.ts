@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
-import {getSizeOfValue, NODE_HEADER_SIZE} from './get-size-of-value';
-import {DataNode, NODE_ENTRIES} from './node';
+import {getSizeOfValue} from './get-size-of-value';
+import {DataNode, NODE_ENTRIES} from './btree/node';
 
 test('getSizeOfValue', async () => {
   expect(getSizeOfValue(null)).to.equal(1);
@@ -49,12 +49,4 @@ test('getSizeOfValue', async () => {
 
   expect(getSizeOfValue({})).to.equal(1 + 4 + 1);
   expect(getSizeOfValue({abc: 'def'})).to.equal(1 + 4 + 8 + 8 + 1);
-});
-
-test('chunk header size', () => {
-  // This just ensures that the constant is correct.
-  const chunkData: DataNode = [0, []];
-  const entriesSize = getSizeOfValue(chunkData[NODE_ENTRIES]);
-  const chunkSize = getSizeOfValue(chunkData);
-  expect(chunkSize - entriesSize).to.equal(NODE_HEADER_SIZE);
 });

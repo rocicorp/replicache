@@ -16,8 +16,9 @@ import {
   ReadonlyEntry,
   NODE_LEVEL,
   NODE_ENTRIES,
+  NODE_HEADER_SIZE
 } from './node';
-import {getSizeOfValue, NODE_HEADER_SIZE} from './get-size-of-value';
+import {getSizeOfValue} from '../get-size-of-value';
 import {
   computeSplices,
   SPLICE_ADDED,

@@ -1,33 +1,44 @@
-import type {Hash} from '../hash';
+import {Hash, isTempHash} from '../hash';
 import type * as kv from '../kv/mod';
-import type {ChunkHasher} from './chunk';
-import {Read} from './read';
-import {Write} from './write';
+import { RWLock } from '../rw-lock';
+import type {Chunk, ChunkHasher} from './chunk';
+import type {Store, Read, Write} from './store'
+import {getSizeOfValue as defaultGetSizeOfValue} from '../get-size-of-value';
 
-export class Store {
-  private readonly _cacheStore: Store;
+export class LazyStore implements Store {
+  private readonly _rwLock = new RWLock();
+  private readonly _heads: Map<string, Hash> = new Map();
+  private readonly _tempChunks: Map<Hash, Chunk> = new Map();
+  private readonly _sourceChunksCache: ChunksCache;
   private readonly _sourceStore: Store;
   private readonly _chunkHasher: ChunkHasher;
   private readonly _assertValidHash: (hash: Hash) => void;
 
   constructor(
-    cacheStore: Store,
     sourceStore: Store,
+    cacheSizeLimit: number,
     chunkHasher: ChunkHasher,
     assertValidHash: (hash: Hash) => void,
+    getSizeOfValue = defaultGetSizeOfValue,
   ) {
-    this._cacheStore = cacheStore;
+    this._sourceChunksCache = new ChunksCache(cacheSizeLimit, getSizeOfValue);
     this._sourceStore = sourceStore;
     this._chunkHasher = chunkHasher;
     this._assertValidHash = assertValidHash;
   }
 
   async read(): Promise<Read> {
-    return new Read(await this._kv.read(), this._assertValidHash);
+    const release = await this._rwLock.read();
+    return new ReadImpl(this._heads, this._tempChunks, this._sourceChunksCache, this._sourceStore, this._assertValidHash, release);
   }
 
   async withRead<R>(fn: (read: Read) => R | Promise<R>): Promise<R> {
-    return this._kv.withRead(kvr => fn(new Read(kvr, this._assertValidHash)));
+    const read = await this.read();
+    try {
+      return await fn(read);
+    } finally {
+      read.close();
+    }
   }
 
   async write(): Promise<Write> {
@@ -49,23 +60,44 @@ export class Store {
   }
 }
 
-export class Read {
-  private readonly _cacheStore: Store;
+export class ReadImpl implements Read {
+  private readonly _heads: Map<string, Hash> = new Map();
+  private readonly _tempChunks: Map<Hash, Chunk> = new Map();
+  private readonly _sourceChunksCache: ChunksCache;
   private readonly _sourceStore: Store;
   readonly assertValidHash: (hash: Hash) => void;
+  private readonly _release: () => void;
+  private _closed = false;
 
-  constructor(    cacheStore: Store,
-    sourceStore: Store, assertValidHash: (hash: Hash) => void) {
-    this._cacheStore = cacheStore;
+  constructor(heads: Map<string, Hash>, tempChunks: Map<Hash, Chunk>, sourceChunksCache: ChunksCache, sourceStore: Store, assertValidHash: (hash: Hash) => void, release: () => void) {
+    this._heads = heads;
+    this._tempChunks = tempChunks;
+    this._sourceChunksCache = sourceChunksCache;
     this._sourceStore = sourceStore;
     this.assertValidHash = assertValidHash;
+    this._release = release;
   }
 
   async hasChunk(hash: Hash): Promise<boolean> {
-    return await this._tx.has(chunkDataKey(hash));
+    return await (await this.getChunk(hash)) !== undefined
   }
 
   async getChunk(hash: Hash): Promise<Chunk | undefined> {
+    if (isTempHash(hash)) {
+      return this._tempChunks.get(hash);
+    }
+
+
+    let v = this._cache.get(key);
+    if (v === undefined) {
+      v = await (await this._getBaseRead()).get(key);
+      if (v !== undefined) {
+        this._cache.set(key, v);
+      }
+    }
+    return v;
+
+
     const data = await this._tx.get(chunkDataKey(hash));
     if (data === undefined) {
       return undefined;
@@ -83,42 +115,84 @@ export class Read {
   }
 
   async getHead(name: string): Promise<Hash | undefined> {
-    const data = await this._tx.get(headKey(name));
-    if (data === undefined) {
-      return undefined;
-    }
-    assertHash(data);
-    return data;
+    return this._heads.get(name);
   }
 
   close(): void {
-    this._tx.release();
+    if (!this._closed) {
+      this._release();
+      this._closed = true;
+    }
   }
 
   get closed(): boolean {
-    return this._tx.closed;
+    return this._closed;
   }
 }
 
-export function metaFromFlatbuffer(data: Uint8Array): string[] {
-  const buf = new flatbuffers.ByteBuffer(data);
-  const meta = MetaFB.getRootAsMeta(buf);
-  const length = meta.refsLength();
-  const refs: string[] = [];
-  for (let i = 0; i < length; i++) {
-    refs.push(meta.refs(i));
+type CacheEntry = {
+  chunk: Chunk;
+  size: number;
+};
+
+class ChunksCache {
+  private readonly _cacheSizeLimit: number;
+  private readonly _getSizeOfValue: (v: Value) => number;
+  private readonly _cacheEntries = new Map<Hash, CacheEntry>();
+  private _size = 0;
+
+  constructor(
+    cacheSizeLimit: number,
+    getSizeOfValue: (v: kv.Value) => number,
+  ) {
+    this._cacheSizeLimit = cacheSizeLimit;
+    this._getSizeOfValue = getSizeOfValue;
   }
-  return refs;
-}
 
-export function metaToFlatbuffer(refs: readonly string[]): Uint8Array {
-  const builder = new flatbuffers.Builder();
-  const refsOffset = MetaFB.createRefsVector(
-    builder,
-    refs.map(r => builder.createString(r)),
-  );
-  const m = MetaFB.createMeta(builder, refsOffset);
-  builder.finish(m);
-  return builder.asUint8Array();
-}
+  get(hash: Hash): Chunk | undefined {
+    const cacheEntry = this._cacheEntries.get(hash);
+    if (cacheEntry) {
+      this._cacheEntries.delete(hash);
+      this._cacheEntries.set(hash, cacheEntry);
+    }
+    return cacheEntry?.chunk;
+  }
 
+  put(chunk: Chunk): void {
+    const {hash} = chunk;
+    const oldCacheEntry = this._cacheEntries.get(hash);
+    if (oldCacheEntry) {
+      this._size -= oldCacheEntry.size;
+      this._cacheEntries.delete(hash);
+    }
+    const valueSize = this._getSizeOfValue(chunk.data);
+    if (valueSize > this._cacheSizeLimit) {
+      // this value cannot be cached due to its size
+      // don't evict other entries to try to make room for it
+      return;
+    }
+    this._size += valueSize;
+    this._cacheEntries.set(hash, {chunk, size: valueSize});
+
+    if (this._size <= this._cacheSizeLimit) {
+      return;
+    }
+    for (const entry of this._cacheEntries) {
+      if (this._size <= this._cacheSizeLimit) {
+        break;
+      }
+      const [keyToEvict, cacheEntryToEvict] = entry;
+      this._size -= cacheEntryToEvict.size;
+      this._cacheEntries.delete(keyToEvict);
+    }
+  }
+
+  delete(hash: Hash): void {
+    const cacheEntryToDelete = this._cacheEntries.get(hash);
+    if (cacheEntryToDelete) {
+      this._size -= cacheEntryToDelete.size;
+    }
+    this._cacheEntries.delete(hash);
+  }
+
+}

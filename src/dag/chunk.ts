@@ -1,5 +1,5 @@
 import {assertString} from '../asserts';
-import {Hash, hashOf} from '../hash';
+import {Hash, hashOf, nativeHashOf} from '../hash';
 import type {Value} from '../kv/store';
 
 type Refs = readonly Hash[];
@@ -50,6 +50,14 @@ export function createChunkWithHash<V extends Value>(
   refs: Refs,
 ): Chunk<V> {
   return new ChunkImpl(hash, data, refs);
+}
+
+export async function createChunkWithNativeHash<V extends Value>(
+  data: V,
+  refs: Refs,
+): Promise<Chunk<V>> {
+  const hash = await nativeHashOf(data);
+  return createChunkWithHash(hash, data, refs);
 }
 
 export type CreateChunk = <V extends Value>(data: V, refs: Refs) => Chunk<V>;

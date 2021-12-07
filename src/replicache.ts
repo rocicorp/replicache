@@ -33,8 +33,16 @@ import type * as kv from './kv/mod';
 import * as dag from './dag/mod';
 import * as db from './db/mod';
 import * as sync from './sync/mod';
-import {assertNotTempHash, emptyHash, Hash, initHasher} from './hash';
-import {migrate} from './migrate/migrate';
+import {
+  assertHash,
+  assertNotTempHash,
+  emptyHash,
+  Hash,
+  initHasher,
+  makeNewFakeHashFunction,
+} from './hash';
+import {Lock} from './rw-lock';
+import * as persist from './persist/mod';
 
 export type BeginPullResult = {
   requestID: string;
@@ -60,6 +68,8 @@ const storageKeyName = (name: string) => `/replicache/root/${name}`;
 
 /** The maximum number of time to call out to getDataLayerAuth before giving up and throwing an error. */
 export const MAX_REAUTH_TRIES = 8;
+
+const PERSIST_TIMEOUT = 100;
 
 /**
  * This type describes the data we send on the BroadcastChannel when things change.
@@ -139,6 +149,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   /** The name of the Replicache database. */
   readonly name: string;
+  private _endHearbeats: (() => void) | undefined = undefined;
 
   /**
    * This is the name Replicache uses for the IndexedDB database where data is
@@ -148,8 +159,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const n = `${this.name}:${REPLICACHE_FORMAT_VERSION}`;
     return this.schemaVersion ? `${n}:${this.schemaVersion}` : n;
   }
-
-  private readonly _useMemstore: boolean;
 
   /** The schema version of the data understood by this application. */
   schemaVersion: string;
@@ -207,10 +216,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
    */
   pusher: Pusher;
 
-  private readonly _kvStore: kv.Store;
-  private readonly _dagStore: dag.Store;
+  private readonly _memKVStore: kv.Store;
+  private readonly _memdag: dag.Store;
+  private readonly _perdag: dag.Store;
   private _hasPendingSubscriptionRuns = false;
   private readonly _lc: LogContext;
+
+  private readonly _persistLock = new Lock();
+  private _schedulePersistID = 0;
 
   /**
    * The options used to control the [[pull]] and push request behavior. This
@@ -277,7 +290,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
       pushURL = '',
       schemaVersion = '',
       pullInterval = 60_000,
-      useMemstore = false,
       mutators = {} as MD,
       requestOptions = {},
       puller = defaultPuller,
@@ -294,14 +306,18 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.schemaVersion = schemaVersion;
     this.pullInterval = pullInterval;
     this.pushDelay = pushDelay;
-    this._useMemstore = useMemstore;
     this.puller = puller;
     this.pusher = pusher;
-    this._kvStore =
-      experimentalKVStore ||
-      (this._useMemstore ? new MemStore() : new IDBStore(this.idbName));
-    this._dagStore = new dag.Store(
-      this._kvStore,
+
+    this._memKVStore = new MemStore();
+    this._memdag = new dag.Store(
+      this._memKVStore,
+      makeNewFakeHashFunction(),
+      assertHash,
+    );
+    const perKvStore = experimentalKVStore || new IDBStore(this.idbName);
+    this._perdag = new dag.Store(
+      perKvStore,
       dag.defaultChunkHasher,
       assertNotTempHash,
     );
@@ -351,14 +367,18 @@ export class Replicache<MD extends MutatorDefs = {}> {
     // wait for it to finish closing.
     await closingInstances.get(this.name);
 
-    await Promise.all([initHasher(), migrate(this._kvStore, this._lc)]);
+    await initHasher();
 
-    await Promise.all([
-      sync.initClientID(this._kvStore).then(clientID => {
-        resolveClientID(clientID);
-      }),
-      db.maybeInitDefaultDB(this._dagStore),
-    ]);
+    const initClientP = this._perdag.withWrite(async w => {
+      const [clientID] = await persist.initClient(w);
+      await w.commit();
+      return clientID;
+    });
+
+    await db.maybeInitDefaultDB(this._memdag);
+
+    const clientID = await initClientP;
+    resolveClientID(clientID);
 
     // Now we have both a clientID and DB!
     resolveReady();
@@ -375,6 +395,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     this.pull();
     this._push();
+
+    this._endHearbeats = persist.startHeartbeats(clientID, this._perdag);
   }
 
   /**
@@ -423,8 +445,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this._closed = true;
     const {promise, resolve} = resolver();
     closingInstances.set(this.name, promise);
+
+    this._endHearbeats?.();
+
     await this._ready;
-    const p = this._dagStore.close();
+    const p = this._memdag.close();
 
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
@@ -452,7 +477,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       return undefined;
     }
     await this._ready;
-    return await db.getRoot(this._dagStore, db.DEFAULT_HEAD_NAME);
+    return await db.getRoot(this._memdag, db.DEFAULT_HEAD_NAME);
   }
 
   private _onStorage = (e: StorageEvent) => {
@@ -566,7 +591,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       options,
       async () => {
         await this._ready;
-        const dagRead = await this._dagStore.read();
+        const dagRead = await this._memdag.read();
         return db.readFromDefaultHead(dagRead);
       },
       true, // shouldCloseTransaction
@@ -601,7 +626,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     // clientID must be awaited ouside dag transaction to avoid a premature
     // auto-commit of the idb transaction.
     const clientID = await this._clientIDPromise;
-    await this._dagStore.withWrite(async dagWrite => {
+    await this._memdag.withWrite(async dagWrite => {
       const dbWrite = await db.Write.newIndexChange(
         db.whenceHead(db.DEFAULT_HEAD_NAME),
         dagWrite,
@@ -627,7 +652,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       .addContext('rpc', 'maybeEndPull')
       .addContext('request_id', requestID);
     const {replayMutations, changedKeys} = await sync.maybeEndPull(
-      this._dagStore,
+      this._memdag,
       lc,
       syncHead,
     );
@@ -635,6 +660,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     if (!replayMutations || replayMutations.length === 0) {
       // All done.
       await this._checkChange(syncHead, changedKeys);
+      this._schedulePersist();
       return;
     }
 
@@ -760,7 +786,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
           .addContext('request_id', requestID);
         pushResponse = await sync.push(
           requestID,
-          this._dagStore,
+          this._memdag,
           lc,
           clientID,
           this.pusher,
@@ -853,7 +879,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       .addContext('request_id', requestID);
     const syncHead = await sync.handlePullResponse(
       lc,
-      this._dagStore,
+      this._memdag,
       poke.baseCookie,
       poke.pullResponse,
     );
@@ -889,7 +915,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       req,
       req.puller,
       requestID,
-      this._dagStore,
+      this._memdag,
       lc,
     );
 
@@ -924,6 +950,22 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
 
     return {requestID, syncHead, ok: httpRequestInfo.httpStatusCode === 200};
+  }
+
+  protected async _persist(): Promise<void> {
+    await this._ready;
+    const clientID = await this.clientID;
+    return this._persistLock.withLock(() =>
+      persist.persist(clientID, this._memdag, this._perdag),
+    );
+  }
+
+  private _schedulePersist(): void {
+    clearTimeout(this._schedulePersistID);
+
+    this._schedulePersistID = window.setTimeout(() => {
+      void this._persist();
+    }, PERSIST_TIMEOUT);
   }
 
   private _changeSyncCounters(pushDelta: 0, pullDelta: 1 | -1): void;
@@ -1072,7 +1114,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     // clientID must be awaited ouside dag transaction to avoid a premature
     // auto-commit of the idb transaction.
     const clientID = await this._clientIDPromise;
-    return await this._dagStore.withRead(async dagRead => {
+    return await this._memdag.withRead(async dagRead => {
       const dbRead = await db.readFromDefaultHead(dagRead);
       const tx = new ReadTransactionImpl(clientID, dbRead, this._lc);
       return await body(tx);
@@ -1133,7 +1175,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     // clientID must be awaited ouside dag transaction to avoid a premature
     // auto-commit of the idb transaction.
     const clientID = await this._clientIDPromise;
-    return await this._dagStore.withWrite(async dagWrite => {
+    return await this._memdag.withWrite(async dagWrite => {
       let whence: db.Whence | undefined;
       let originalHash: Hash | null = null;
       if (rebaseOpts === undefined) {
@@ -1159,6 +1201,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       if (!isReplay) {
         this._pushConnectionLoop.send();
         await this._checkChange(ref, changedKeys);
+        this._schedulePersist();
       }
 
       return {result, ref};

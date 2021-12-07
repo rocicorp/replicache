@@ -55,8 +55,6 @@ fetchMock.config.overwriteRoutes = true;
 
 const {fail} = assert;
 
-let overrideUseMemstore = false;
-
 // eslint-disable-next-line @typescript-eslint/ban-types
 async function replicacheForTesting<MD extends MutatorDefs = {}>(
   name: string,
@@ -78,7 +76,6 @@ async function replicacheForTestingNoDefaultURLs<MD extends MutatorDefs = {}>(
     pullURL,
     pushDelay = 60_000, // Large to prevent interfering
     pushURL,
-    useMemstore = overrideUseMemstore,
 
     ...rest
   }: ReplicacheOptions<MD> = {},
@@ -88,7 +85,6 @@ async function replicacheForTestingNoDefaultURLs<MD extends MutatorDefs = {}>(
     pushDelay,
     pushURL,
     name,
-    useMemstore,
     ...rest,
   });
   dbsToDrop.add(rep.idbName);
@@ -129,20 +125,7 @@ async function expectAsyncFuncToThrow(f: () => unknown, c: unknown) {
   (await expectPromiseToReject(f())).to.be.instanceof(c);
 }
 
-function testWithBothStores(name: string, func: () => Promise<void>) {
-  for (const useMemstore of [false, true]) {
-    test(`${name} {useMemstore: ${useMemstore}}`, async () => {
-      try {
-        overrideUseMemstore = useMemstore;
-        await func();
-      } finally {
-        overrideUseMemstore = false;
-      }
-    });
-  }
-}
-
-testWithBothStores('get, has, scan on empty db', async () => {
+test('get, has, scan on empty db', async () => {
   const rep = await replicacheForTesting('test2');
   async function t(tx: ReadTransaction) {
     expect(await tx.get('key')).to.equal(undefined);
@@ -155,7 +138,7 @@ testWithBothStores('get, has, scan on empty db', async () => {
   await rep.query(t);
 });
 
-testWithBothStores('put, get, has, del inside tx', async () => {
+test('put, get, has, del inside tx', async () => {
   const rep = await replicacheForTesting('test3', {
     mutators: {
       testMut: async (
@@ -238,7 +221,7 @@ async function testScanResult<K, V>(
   });
 }
 
-testWithBothStores('scan', async () => {
+test('scan', async () => {
   const rep = await replicacheForTesting('test4', {
     mutators: {
       addData,
@@ -357,7 +340,7 @@ testWithBothStores('scan', async () => {
   );
 });
 
-testWithBothStores('subscribe', async () => {
+test('subscribe', async () => {
   const log: [string, ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe', {
@@ -421,7 +404,7 @@ testWithBothStores('subscribe', async () => {
 });
 
 // for (const 'prefix' of ['prefix', 'keyPrefix']) {
-testWithBothStores(`subscribe with index`, async () => {
+test(`subscribe with index`, async () => {
   const log: [[string, string], ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index', {
@@ -556,7 +539,7 @@ testWithBothStores(`subscribe with index`, async () => {
   cancel();
 });
 
-testWithBothStores('subscribe with index and start', async () => {
+test('subscribe with index and start', async () => {
   const log: [[string, string], ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index-and-start', {
@@ -664,7 +647,7 @@ testWithBothStores('subscribe with index and start', async () => {
   cancel();
 });
 
-testWithBothStores('subscribe with index and prefix', async () => {
+test('subscribe with index and prefix', async () => {
   const log: [[string, string], ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index-and-prefix', {
@@ -755,7 +738,7 @@ testWithBothStores('subscribe with index and prefix', async () => {
   cancel();
 });
 
-testWithBothStores('subscribe with isEmpty and prefix', async () => {
+test('subscribe with isEmpty and prefix', async () => {
   const log: boolean[] = [];
 
   const rep = await replicacheForTesting('subscribe-with-is-empty', {
@@ -821,7 +804,7 @@ testWithBothStores('subscribe with isEmpty and prefix', async () => {
   cancel();
 });
 
-testWithBothStores('subscribe change keys', async () => {
+test('subscribe change keys', async () => {
   const log: ReadonlyJSONValue[][] = [];
 
   const rep = await replicacheForTesting('subscribe-change-keys', {
@@ -913,7 +896,7 @@ testWithBothStores('subscribe change keys', async () => {
   cancel();
 });
 
-testWithBothStores('subscribe close', async () => {
+test('subscribe close', async () => {
   const rep = await replicacheForTesting('subscribe-close', {
     mutators: {addData},
   });
@@ -939,7 +922,7 @@ testWithBothStores('subscribe close', async () => {
   cancel();
 });
 
-testWithBothStores('name', async () => {
+test('name', async () => {
   const repA = await replicacheForTesting('a', {mutators: {addData}});
   const repB = await replicacheForTesting('b', {mutators: {addData}});
 
@@ -959,7 +942,7 @@ testWithBothStores('name', async () => {
   indexedDB.deleteDatabase(repB.idbName);
 });
 
-testWithBothStores('register with error', async () => {
+test('register with error', async () => {
   const rep = await replicacheForTesting('regerr', {
     mutators: {
       err: async (_: WriteTransaction, args: number) => {
@@ -978,7 +961,7 @@ testWithBothStores('register with error', async () => {
   }
 });
 
-testWithBothStores('subscribe with error', async () => {
+test('subscribe with error', async () => {
   const rep = await replicacheForTesting('suberr', {mutators: {addData}});
 
   const add = rep.mutate.addData;
@@ -1016,7 +999,7 @@ testWithBothStores('subscribe with error', async () => {
   cancel();
 });
 
-testWithBothStores('overlapping writes', async () => {
+test('overlapping writes', async () => {
   async function dbWait(tx: ReadTransaction, dur: number) {
     // Try to take setTimeout away from me???
     const t0 = Date.now();
@@ -1065,7 +1048,7 @@ testWithBothStores('overlapping writes', async () => {
   await resB;
 });
 
-testWithBothStores('push', async () => {
+test('push', async () => {
   const pushURL = 'https://push.com';
 
   const rep = await replicacheForTesting('push', {
@@ -1175,7 +1158,7 @@ testWithBothStores('push', async () => {
   expect(createCount).to.equal(2);
 });
 
-testWithBothStores('push delay', async () => {
+test('push delay', async () => {
   const pushURL = 'https://push.com';
 
   const rep = await replicacheForTesting('push', {
@@ -1214,89 +1197,86 @@ testWithBothStores('push delay', async () => {
   expect(fetchMock.calls()).to.have.length(1);
 });
 
-testWithBothStores(
-  'push request is only sent when pushURL or non-default pusher are set',
-  async () => {
-    const rep = await replicacheForTestingNoDefaultURLs('no push requests', {
-      auth: '1',
-      pullURL: 'https://diff.com/pull',
-      pushDelay: 1,
-      mutators: {
-        createTodo: async <A extends {id: number}>(
-          tx: WriteTransaction,
-          args: A,
-        ) => {
-          await tx.put(`/todo/${args.id}`, args);
-        },
+test('push request is only sent when pushURL or non-default pusher are set', async () => {
+  const rep = await replicacheForTestingNoDefaultURLs('no push requests', {
+    auth: '1',
+    pullURL: 'https://diff.com/pull',
+    pushDelay: 1,
+    mutators: {
+      createTodo: async <A extends {id: number}>(
+        tx: WriteTransaction,
+        args: A,
+      ) => {
+        await tx.put(`/todo/${args.id}`, args);
       },
+    },
+  });
+
+  const {createTodo} = rep.mutate;
+
+  await tickAFewTimes();
+  fetchMock.reset();
+  fetchMock.postAny({});
+
+  await createTodo({id: 'id1'});
+  await tickAFewTimes();
+
+  expect(fetchMock.calls()).to.have.length(0);
+
+  await tickAFewTimes();
+  fetchMock.reset();
+  fetchMock.postAny({});
+
+  rep.pushURL = 'https://diff.com/push';
+
+  await createTodo({id: 'id2'});
+  await tickAFewTimes();
+  expect(fetchMock.calls()).to.have.length(1);
+
+  await tickAFewTimes();
+  fetchMock.reset();
+  fetchMock.postAny({});
+
+  rep.pushURL = '';
+
+  await createTodo({id: 'id3'});
+  await tickAFewTimes();
+  expect(fetchMock.calls()).to.have.length(0);
+
+  await tickAFewTimes();
+  fetchMock.reset();
+  fetchMock.postAny({});
+  let pusherCallCount = 0;
+
+  rep.pusher = () => {
+    pusherCallCount++;
+    return Promise.resolve({
+      httpStatusCode: 200,
+      errorMessage: '',
     });
+  };
 
-    const {createTodo} = rep.mutate;
+  await createTodo({id: 'id4'});
+  await tickAFewTimes();
 
-    await tickAFewTimes();
-    fetchMock.reset();
-    fetchMock.postAny({});
+  expect(fetchMock.calls()).to.have.length(0);
+  expect(pusherCallCount).to.equal(1);
 
-    await createTodo({id: 'id1'});
-    await tickAFewTimes();
+  await tickAFewTimes();
+  fetchMock.reset();
+  fetchMock.postAny({});
+  pusherCallCount = 0;
 
-    expect(fetchMock.calls()).to.have.length(0);
+  rep.pusher = defaultPusher;
 
-    await tickAFewTimes();
-    fetchMock.reset();
-    fetchMock.postAny({});
+  await createTodo({id: 'id5'});
+  await tickAFewTimes();
 
-    rep.pushURL = 'https://diff.com/push';
+  expect(fetchMock.calls()).to.have.length(0);
+  expect(pusherCallCount).to.equal(0);
+});
 
-    await createTodo({id: 'id2'});
-    await tickAFewTimes();
-    expect(fetchMock.calls()).to.have.length(1);
-
-    await tickAFewTimes();
-    fetchMock.reset();
-    fetchMock.postAny({});
-
-    rep.pushURL = '';
-
-    await createTodo({id: 'id3'});
-    await tickAFewTimes();
-    expect(fetchMock.calls()).to.have.length(0);
-
-    await tickAFewTimes();
-    fetchMock.reset();
-    fetchMock.postAny({});
-    let pusherCallCount = 0;
-
-    rep.pusher = () => {
-      pusherCallCount++;
-      return Promise.resolve({
-        httpStatusCode: 200,
-        errorMessage: '',
-      });
-    };
-
-    await createTodo({id: 'id4'});
-    await tickAFewTimes();
-
-    expect(fetchMock.calls()).to.have.length(0);
-    expect(pusherCallCount).to.equal(1);
-
-    await tickAFewTimes();
-    fetchMock.reset();
-    fetchMock.postAny({});
-    pusherCallCount = 0;
-
-    rep.pusher = defaultPusher;
-
-    await createTodo({id: 'id5'});
-    await tickAFewTimes();
-
-    expect(fetchMock.calls()).to.have.length(0);
-    expect(pusherCallCount).to.equal(0);
-  },
-);
-
-testWithBothStores('pull', async () => {
+test('pull', async () => {
   const pullURL = 'https://diff.com/pull';
 
   const rep = await replicacheForTesting('pull', {
@@ -1387,7 +1367,7 @@ testWithBothStores('pull', async () => {
   });
   beginPullResult = await rep.beginPull();
   ({syncHead} = beginPullResult);
-  expect(syncHead).equal('qfu3cr72r5lvoceqh88ku809bt1f6tev');
+  expect(syncHead).equal('t/000000000000000000000000000009');
 
   await createTodo({
     id: id2,
@@ -1426,7 +1406,7 @@ testWithBothStores('pull', async () => {
   expect(createCount).to.equal(3);
 });
 
-testWithBothStores('reauth pull', async () => {
+test('reauth pull', async () => {
   const pullURL = 'https://diff.com/pull';
 
   const rep = await replicacheForTesting('reauth', {
@@ -1462,88 +1442,85 @@ testWithBothStores('reauth pull', async () => {
   }
 });
 
-testWithBothStores(
-  'pull request is only sent when pullURL or non-default puller are set',
-  async () => {
-    const rep = await replicacheForTestingNoDefaultURLs('no push requests', {
-      auth: '1',
-      pushURL: 'https://diff.com/push',
+test('pull request is only sent when pullURL or non-default puller are set', async () => {
+  const rep = await replicacheForTestingNoDefaultURLs('no push requests', {
+    auth: '1',
+    pushURL: 'https://diff.com/push',
+  });
+
+  await tickAFewTimes();
+  fetchMock.reset();
+  fetchMock.postAny({});
+
+  rep.pull();
+  await tickAFewTimes();
+
+  expect(fetchMock.calls()).to.have.length(0);
+
+  await tickAFewTimes();
+  fetchMock.reset();
+
+  rep.pullURL = 'https://diff.com/pull';
+  fetchMock.post(rep.pullURL, {lastMutationID: 0, patch: []});
+
+  rep.pull();
+  await tickAFewTimes();
+  expect(fetchMock.calls()).to.have.length.greaterThan(0);
+
+  await tickAFewTimes();
+  fetchMock.reset();
+  fetchMock.postAny({});
+
+  rep.pullURL = '';
+
+  rep.pull();
+  await tickAFewTimes();
+  expect(fetchMock.calls()).to.have.length(0);
+
+  await tickAFewTimes();
+  fetchMock.reset();
+  fetchMock.postAny({});
+
+  let pullerCallCount = 0;
+
+  const consoleErrorStub = sinon.stub(console, 'error');
+
+  rep.puller = () => {
+    pullerCallCount++;
+    return Promise.resolve({
+      httpRequestInfo: {
+        httpStatusCode: 500,
+        errorMessage: 'Test failure',
+      },
     });
+  };
 
-    await tickAFewTimes();
-    fetchMock.reset();
-    fetchMock.postAny({});
+  rep.pull();
+  await tickAFewTimes();
 
-    rep.pull();
-    await tickAFewTimes();
+  expect(fetchMock.calls()).to.have.length(0);
+  expect(pullerCallCount).to.be.greaterThan(0);
 
-    expect(fetchMock.calls()).to.have.length(0);
+  expect(consoleErrorStub.firstCall.args[0]).to.equal(
+    'Got error response from server () doing pull: 500: Test failure',
+  );
+  consoleErrorStub.restore();
 
-    await tickAFewTimes();
-    fetchMock.reset();
+  await tickAFewTimes();
+  fetchMock.reset();
+  fetchMock.postAny({});
+  pullerCallCount = 0;
 
-    rep.pullURL = 'https://diff.com/pull';
-    fetchMock.post(rep.pullURL, {lastMutationID: 0, patch: []});
+  rep.puller = defaultPuller;
 
-    rep.pull();
-    await tickAFewTimes();
-    expect(fetchMock.calls()).to.have.length.greaterThan(0);
+  rep.pull();
+  await tickAFewTimes();
 
-    await tickAFewTimes();
-    fetchMock.reset();
-    fetchMock.postAny({});
+  expect(fetchMock.calls()).to.have.length(0);
+  expect(pullerCallCount).to.equal(0);
+});
 
-    rep.pullURL = '';
-
-    rep.pull();
-    await tickAFewTimes();
-    expect(fetchMock.calls()).to.have.length(0);
-
-    await tickAFewTimes();
-    fetchMock.reset();
-    fetchMock.postAny({});
-
-    let pullerCallCount = 0;
-
-    const consoleErrorStub = sinon.stub(console, 'error');
-
-    rep.puller = () => {
-      pullerCallCount++;
-      return Promise.resolve({
-        httpRequestInfo: {
-          httpStatusCode: 500,
-          errorMessage: 'Test failure',
-        },
-      });
-    };
-
-    rep.pull();
-    await tickAFewTimes();
-
-    expect(fetchMock.calls()).to.have.length(0);
-    expect(pullerCallCount).to.be.greaterThan(0);
-
-    expect(consoleErrorStub.firstCall.args[0]).to.equal(
-      'Got error response from server () doing pull: 500: Test failure',
-    );
-    consoleErrorStub.restore();
-
-    await tickAFewTimes();
-    fetchMock.reset();
-    fetchMock.postAny({});
-    pullerCallCount = 0;
-
-    rep.puller = defaultPuller;
-
-    rep.pull();
-    await tickAFewTimes();
-
-    expect(fetchMock.calls()).to.have.length(0);
-    expect(pullerCallCount).to.equal(0);
-  },
-);
-
-testWithBothStores('reauth push', async () => {
+test('reauth push', async () => {
   const pushURL = 'https://diff.com/push';
 
   const rep = await replicacheForTesting('reauth', {
@@ -1588,7 +1565,7 @@ testWithBothStores('reauth push', async () => {
   }
 });
 
-testWithBothStores('HTTP status pull', async () => {
+test('HTTP status pull', async () => {
   const pullURL = 'https://diff.com/pull';
 
   const rep = await replicacheForTesting('http-status-pull', {
@@ -1623,7 +1600,7 @@ testWithBothStores('HTTP status pull', async () => {
   expect(okCalled).to.equal(true);
 });
 
-testWithBothStores('HTTP status push', async () => {
+test('HTTP status push', async () => {
   const pushURL = 'https://diff.com/push';
 
   const rep = await replicacheForTesting('http-status-push', {
@@ -1663,7 +1640,7 @@ testWithBothStores('HTTP status push', async () => {
   expect(okCalled).to.equal(true);
 });
 
-testWithBothStores('poke', async () => {
+test('poke', async () => {
   // TODO(MP) test:
   // - when we queue a poke and it matches, we update the snapshot
   // - rebase still works
@@ -1740,7 +1717,7 @@ testWithBothStores('poke', async () => {
   );
 });
 
-testWithBothStores('closed tx', async () => {
+test('closed tx', async () => {
   const rep = await replicacheForTesting('reauth', {
     mutators: {
       mut: async tx => {
@@ -1767,7 +1744,7 @@ testWithBothStores('closed tx', async () => {
   await expectAsyncFuncToThrow(() => wtx?.del('w'), TransactionClosedError);
 });
 
-testWithBothStores('pullInterval in constructor', async () => {
+test('pullInterval in constructor', async () => {
   const rep = await replicacheForTesting('pullInterval', {
     pullInterval: 12.34,
   });
@@ -1775,7 +1752,7 @@ testWithBothStores('pullInterval in constructor', async () => {
   await rep.close();
 });
 
-testWithBothStores('closeTransaction after rep.scan', async () => {
+test('closeTransaction after rep.scan', async () => {
   const readSpy = sinon.spy(dag.Store.prototype, 'read');
   const scanSpy = sinon.spy(db.Read.prototype, 'scan');
   const closeSpy = sinon.spy(db.Read.prototype, 'close');
@@ -1868,7 +1845,7 @@ testWithBothStores('closeTransaction after rep.scan', async () => {
   expectCalls([0]);
 });
 
-testWithBothStores('index', async () => {
+test('index', async () => {
   const rep = await replicacheForTesting('test-index', {mutators: {addData}});
 
   const add = rep.mutate.addData;
@@ -1939,7 +1916,7 @@ testWithBothStores('index', async () => {
   await rep.dropIndex('emptyKeyIndex');
 });
 
-testWithBothStores('index array', async () => {
+test('index array', async () => {
   const rep = await replicacheForTesting('test-index', {mutators: {addData}});
 
   const add = rep.mutate.addData;
@@ -1966,7 +1943,7 @@ testWithBothStores('index array', async () => {
   await rep.dropIndex('aIndex');
 });
 
-testWithBothStores('index scan start', async () => {
+test('index scan start', async () => {
   const rep = await replicacheForTesting('test-index-scan', {
     mutators: {addData},
   });
@@ -2093,7 +2070,7 @@ testWithBothStores('index scan start', async () => {
   await rep.dropIndex('bIndex');
 });
 
-testWithBothStores('logLevel', async () => {
+test('logLevel', async () => {
   const info = sinon.stub(console, 'info');
   const debug = sinon.stub(console, 'debug');
 
@@ -2123,13 +2100,13 @@ testWithBothStores('logLevel', async () => {
   expect(debug.callCount).to.be.greaterThan(0);
 
   expect(
-    debug.getCalls().some(call => call.firstArg === 'db=log-level'),
+    debug.getCalls().some(({firstArg}) => firstArg.startsWith('db=log-level')),
   ).to.equal(true);
   expect(
-    debug.getCalls().some(call => call.firstArg.includes('PULL')),
+    debug.getCalls().some(call => call.firstArg.startsWith('PULL')),
   ).to.equal(true);
   expect(
-    debug.getCalls().some(call => call.firstArg.includes('PUSH')),
+    debug.getCalls().some(call => call.firstArg.startsWith('PUSH')),
   ).to.equal(true);
 
   await rep.close();
@@ -2138,7 +2115,6 @@ testWithBothStores('logLevel', async () => {
 test('mem store', async () => {
   let rep = await replicacheForTesting('mem', {
     mutators: {addData},
-    useMemstore: true,
   });
   const add = rep.mutate.addData;
   await add({a: 42});
@@ -2146,11 +2122,11 @@ test('mem store', async () => {
   await rep.close();
 
   // Open again and test that we lost the data
-  rep = await replicacheForTesting('mem', {useMemstore: true});
+  rep = await replicacheForTesting('mem');
   expect(await rep.query(tx => tx.get('a'))).to.equal(undefined);
 });
 
-testWithBothStores('isEmpty', async () => {
+test('isEmpty', async () => {
   const rep = await replicacheForTesting('test-is-empty', {
     mutators: {
       addData,
@@ -2192,7 +2168,7 @@ testWithBothStores('isEmpty', async () => {
   await t(false);
 });
 
-testWithBothStores('onSync', async () => {
+test('onSync', async () => {
   const pullURL = 'https://pull.com/pull';
   const pushURL = 'https://push.com/push';
 
@@ -2270,14 +2246,13 @@ testWithBothStores('onSync', async () => {
   expect(onSync.callCount).to.equal(0);
 });
 
-testWithBothStores('push timing', async () => {
+test('push timing', async () => {
   const pushURL = 'https://push.com/push';
   const pushDelay = 5;
 
   const rep = await replicacheForTesting('push-timing', {
     pushURL,
     pushDelay,
-    useMemstore: true,
     mutators: {addData},
   });
 
@@ -2326,14 +2301,13 @@ testWithBothStores('push timing', async () => {
   expect(pushCallCount()).to.equal(0);
 });
 
-testWithBothStores('push and pull concurrently', async () => {
+test('push and pull concurrently', async () => {
   const pushURL = 'https://push.com/push';
   const pullURL = 'https://pull.com/pull';
 
   const rep = await replicacheForTesting('concurrently', {
     pullURL,
     pushURL,
-    useMemstore: true,
     pushDelay: 10,
     mutators: {addData},
   });
@@ -2411,7 +2385,7 @@ testWithBothStores('push and pull concurrently', async () => {
     commit: 0,
     invokePush: 0,
     put: 0,
-    withWrite: 0,
+    withWrite: 2,
     write: 0,
   });
 });
@@ -2468,7 +2442,8 @@ test('clientID', async () => {
   rep = await replicacheForTesting('clientID');
   const clientID3 = await rep.clientID;
   expect(clientID3).to.match(re);
-  expect(clientID3).to.equal(clientID);
+  // With SDD we never reuse client IDs.
+  expect(clientID3).to.not.equal(clientID);
 
   const rep4 = new Replicache({name: 'clientID4', pullInterval: null});
   const clientID4 = await rep4.clientID;
@@ -2476,7 +2451,7 @@ test('clientID', async () => {
   await rep4.close();
 });
 
-testWithBothStores('pull and index update', async () => {
+test('pull and index update', async () => {
   const pullURL = 'https://pull.com/rep';
   const rep = await replicacheForTesting('pull-and-index-update', {
     pullURL,
@@ -2562,7 +2537,7 @@ testWithBothStores('pull and index update', async () => {
   });
 });
 
-testWithBothStores('subscribe pull and index update', async () => {
+test('subscribe pull and index update', async () => {
   const pullURL = 'https://pull.com/rep';
   const rep = await replicacheForTesting('subscribe-pull-and-index-update', {
     pullURL,
@@ -2742,7 +2717,6 @@ test('pull mutate options', async () => {
   const pullURL = 'https://diff.com/pull';
   const rep = await replicacheForTesting('pull-mutate-options', {
     pullURL,
-    useMemstore: true,
   });
 
   const log: number[] = [];
@@ -2786,7 +2760,6 @@ test('pull mutate options', async () => {
 test('online', async () => {
   const pushURL = 'https://diff.com/push';
   const rep = await replicacheForTesting('online', {
-    useMemstore: true,
     pushURL,
     pushDelay: 0,
     mutators: {addData},
@@ -2905,20 +2878,26 @@ test('experiment KV Store', async () => {
     mutators: {addData},
   });
 
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(5);
+  expect(store.readCount).to.equal(0);
+  expect(store.writeCount).to.equal(1);
   expect(store.closeCount).to.equal(0);
   store.resetCounters();
 
   const b = await rep.query(tx => tx.has('foo'));
   expect(b).to.be.false;
 
-  expect(store.readCount).to.equal(1);
+  expect(store.readCount).to.equal(0);
   expect(store.writeCount).to.equal(0);
   expect(store.closeCount).to.equal(0);
   store.resetCounters();
 
   await rep.mutate.addData({foo: 'bar'});
+  expect(store.readCount).to.equal(0);
+  expect(store.writeCount).to.equal(0);
+  expect(store.closeCount).to.equal(0);
+  store.resetCounters();
+
+  await rep.persist();
   expect(store.readCount).to.equal(0);
   expect(store.writeCount).to.equal(1);
   expect(store.closeCount).to.equal(0);
@@ -2927,20 +2906,26 @@ test('experiment KV Store', async () => {
   await rep.close();
   expect(store.readCount).to.equal(0);
   expect(store.writeCount).to.equal(0);
-  expect(store.closeCount).to.equal(1);
+  expect(store.closeCount).to.equal(0);
 });
 
 test('subscription coalescing', async () => {
-  const store = new MemStoreWithCounters();
-  const rep = await replicacheForTesting('experiment-kv-store', {
-    experimentalKVStore: store,
+  const rep = await replicacheForTesting('subscription coalescing', {
     mutators: {addData},
   });
 
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(5);
-  expect(store.closeCount).to.equal(0);
-  store.resetCounters();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const store = sinon.spy((rep as any)._memKVStore as kv.Store);
+  const resetCounters = () => {
+    store.read.resetHistory();
+    store.write.resetHistory();
+    store.close.resetHistory();
+  };
+
+  expect(store.read.callCount).to.equal(0);
+  expect(store.write.callCount).to.equal(0);
+  expect(store.close.callCount).to.equal(0);
+  resetCounters();
 
   const log: string[] = [];
   const ca = rep.subscribe(tx => tx.has('a'), {
@@ -2962,10 +2947,10 @@ test('subscription coalescing', async () => {
   await tickUntil(() => log.length === 3);
   expect(log).to.deep.equal(['a', 'b', 'c']);
 
-  expect(store.readCount).to.equal(1);
-  expect(store.writeCount).to.equal(0);
-  expect(store.closeCount).to.equal(0);
-  store.resetCounters();
+  expect(store.read.callCount).to.equal(1);
+  expect(store.write.callCount).to.equal(0);
+  expect(store.close.callCount).to.equal(0);
+  resetCounters();
 
   ca();
   cb();
@@ -2981,17 +2966,17 @@ test('subscription coalescing', async () => {
       log.push('e');
     },
   });
-
-  expect(store.readCount).to.equal(0);
-  expect(store.writeCount).to.equal(0);
-  expect(store.closeCount).to.equal(0);
-  store.resetCounters();
+  expect(store.read.callCount).to.equal(0);
+  expect(store.write.callCount).to.equal(0);
+  expect(store.close.callCount).to.equal(0);
+  resetCounters();
 
   await rep.mutate.addData({a: 1});
 
-  expect(store.readCount).to.equal(1);
-  expect(store.writeCount).to.equal(1);
-  expect(store.closeCount).to.equal(0);
+  expect(store.read.callCount).to.equal(1);
+  expect(store.write.callCount).to.equal(1);
+  expect(store.close.callCount).to.equal(0);
+  resetCounters();
 
   expect(log).to.deep.equal(['d', 'e']);
 });
@@ -3039,13 +3024,15 @@ test('mutate args in mutation', async () => {
 
   await rep.mutate.mutArgs({v: 1});
 
+  await clock.tickAsync(200);
+
   const o = findPropertyValue(store.map(), 'mutatorName', 'mutArgs');
   expect((o as {mutatorArgsJSON?: unknown}).mutatorArgsJSON).to.deep.equal({
     v: 1,
   });
 });
 
-testWithBothStores('subscribe perf test regression', async () => {
+test('subscribe perf test regression', async () => {
   clock.restore();
   const count = 100;
   const maxCount = 1000;
@@ -3059,7 +3046,6 @@ testWithBothStores('subscribe perf test regression', async () => {
         );
       },
       async put(tx: WriteTransaction, options: {key: string; val: JSONValue}) {
-        // console.log('put', options.key, options.val);
         await tx.put(options.key, options.val);
       },
     },
@@ -3106,7 +3092,7 @@ testWithBothStores('subscribe perf test regression', async () => {
   }
 });
 
-testWithBothStores('client ID is set correctly on transactions', async () => {
+test('client ID is set correctly on transactions', async () => {
   const rep = await replicacheForTesting(
     'client-id-is-set-correctly-on-transactions',
     {

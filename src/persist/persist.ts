@@ -18,6 +18,11 @@ export async function persist(
   // 1. Gather all temp chunks from main head on the memdag
   const [gatheredChunks, mainHeadTempHash] = await gatherTempChunks(memdag);
 
+  if (gatheredChunks.size === 0) {
+    // Nothing to persist
+    return;
+  }
+
   // 2. Compute the hashes for these gathered chunks.\
   const [fixedChunks, mappings, mainHeadHash] = await computeHashes(
     gatheredChunks,

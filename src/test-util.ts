@@ -35,6 +35,10 @@ export class ReplicacheTest<
   ): Promise<BeginPullResult> {
     return this.beginPull(maxAuthTries);
   }
+
+  persist() {
+    return super._persist();
+  }
 }
 
 export const reps: Set<ReplicacheTest> = new Set();

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1638905791136,
+  "lastUpdate": 1638920229896,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -62537,6 +62537,86 @@ window.BENCHMARK_DATA = {
             "name": "[MemStore] create index 1024x5000",
             "value": 3.29,
             "range": "±52.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "76e609e60595097434f969f2bed6adb343210186",
+          "message": "chore: Remove dead test code (#755)\n\nThis code was left over from when we removed the weblocks test",
+          "timestamp": "2021-12-07T23:33:48Z",
+          "tree_id": "083182b167c6b0b43e711e0a4948d60af57d616b",
+          "url": "https://github.com/rocicorp/replicache/commit/76e609e60595097434f969f2bed6adb343210186"
+        },
+        "date": 1638920229581,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 370.37,
+            "range": "±3.0%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 232.56,
+            "range": "±2.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 200,
+            "range": "±2.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 9.08,
+            "range": "±82.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 4.91,
+            "range": "±37.3%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 3.85,
+            "range": "±66.9%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 315.02,
+            "range": "±4.5%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 3.18,
+            "range": "±51.4%",
             "unit": "ops/sec",
             "extra": "7 samples"
           }

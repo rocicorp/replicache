@@ -64,6 +64,10 @@ function clientMapToChunkDataNoHashValidation(
 
 export async function getClients(dagRead: dag.Read): Promise<ClientMap> {
   const hash = await dagRead.getHead(CLIENTS_HEAD);
+  return getClientsAtHash(hash, dagRead);
+}
+
+async function getClientsAtHash(hash: Hash | undefined, dagRead: dag.Read): Promise<ClientMap> {
   if (!hash) {
     return new Map();
   }
@@ -117,7 +121,6 @@ export async function initClient(
       });
     } else {
       // No existing snapshot to bootstrap from. Create empty snapshot.
-      // TODO This empty btree write is a problem...
       const emptyBTreeChunk = await dag.createChunkWithNativeHash(
         btree.emptyDataNode,
         [],
@@ -170,9 +173,9 @@ export async function updateClients(
   dagStore: dag.Store,
 ): Promise<ClientMap> {
   const [clients, clientsHash] = await dagStore.withRead(async dagRead => {
-    const clients = await getClients(dagRead);
-    const clientsHead = await dagRead.getHead(CLIENTS_HEAD);
-    return [clients, clientsHead];
+    const clientsHash = await dagRead.getHead(CLIENTS_HEAD);
+    const clients = await getClientsAtHash(clientsHash, dagRead);
+    return [clients, clientsHash];
   });
   return updateClientsInternal(update, clients, clientsHash, dagStore);
 }
@@ -194,7 +197,7 @@ async function updateClientsInternal(
     if (currClientsHash !== clientsHash) {
       return {
         updateApplied: false,
-        clients: await getClients(dagWrite),
+        clients: await getClientsAtHash(currClientsHash, dagWrite),
         clientsHash: currClientsHash,
       };
     }

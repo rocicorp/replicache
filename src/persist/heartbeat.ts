@@ -1,15 +1,20 @@
 import type {ClientID} from '../sync/client-id';
 import type * as dag from '../dag/mod';
-import {noUpdates, updateClients} from './clients';
+import {ClientMap, noUpdates, updateClients} from './clients';
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000;
+
+let _latestHeartbeatUpdate: Promise<ClientMap> | undefined;
+export function getLatestHeartbeatUpdate(): Promise<ClientMap> | undefined {
+  return _latestHeartbeatUpdate;
+}
 
 export function startHeartbeats(
   clientID: ClientID,
   dagStore: dag.Store,
 ): () => void {
-  const intervalID = window.setInterval(async () => {
-    await writeHeartbeat(clientID, dagStore);
+  const intervalID = window.setInterval(() => {
+    _latestHeartbeatUpdate = writeHeartbeat(clientID, dagStore);
   }, HEARTBEAT_INTERVAL_MS);
   return () => {
     window.clearInterval(intervalID);
@@ -19,7 +24,7 @@ export function startHeartbeats(
 export async function writeHeartbeat(
   clientID: ClientID,
   dagStore: dag.Store,
-): Promise<void> {
+): Promise<ClientMap> {
   const updatedClients = await updateClients(clients => {
     const client = clients.get(clientID);
     if (!client) {
@@ -36,4 +41,5 @@ export async function writeHeartbeat(
     // Should this be a more specific error so caller can detect and handle?
     throw new Error('Cannot write heartbeat. Client with clientID not found');
   }
+  return updatedClients;
 }

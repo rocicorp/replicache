@@ -8,7 +8,7 @@ import {hasOwn} from '../has-own';
 import type {ClientID} from '../sync/client-id';
 import {uuid as makeUuid} from '../sync/uuid';
 import {getRefs, newSnapshotCommitData} from '../db/commit';
-import type { MaybePromise } from '../mod';
+import type {MaybePromise} from '../mod';
 
 export type ClientMap = ReadonlyMap<ClientID, Client>;
 
@@ -232,6 +232,11 @@ async function updateClientsInternal(
   if (result.updateApplied) {
     return result.clients;
   } else {
-    return updateClientsInternal(update, result.clients, result.clientsHash, dagStore);
+    return updateClientsInternal(
+      update,
+      result.clients,
+      result.clientsHash,
+      dagStore,
+    );
   }
 }

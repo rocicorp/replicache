@@ -1,10 +1,15 @@
 import {expect} from '@esm-bundle/chai';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import * as dag from '../dag/mod';
-import {startHeartbeats, writeHeartbeat} from './heartbeat';
-import {getClients} from './clients';
+import {
+  getLatestHeartbeatUpdate,
+  startHeartbeats,
+  writeHeartbeat,
+} from './heartbeat';
+import {ClientMap, getClients} from './clients';
 import {hashOf, initHasher} from '../hash';
 import {setClients} from './clients-test-helpers';
+import {assertNotUndefined} from '../asserts';
 
 let clock: SinonFakeTimers;
 const START_TIME = 100000;
@@ -17,6 +22,12 @@ setup(async () => {
 teardown(() => {
   clock.restore();
 });
+
+function awaitLatestHeartbeatUpdate(): Promise<ClientMap> {
+  const latest = getLatestHeartbeatUpdate();
+  assertNotUndefined(latest);
+  return latest;
+}
 
 test('startHeartbeats starts interval that writes heartbeat each minute', async () => {
   const dagStore = new dag.TestStore();
@@ -44,6 +55,7 @@ test('startHeartbeats starts interval that writes heartbeat each minute', async 
   });
 
   clock.tick(ONE_MIN_IN_MS);
+  await awaitLatestHeartbeatUpdate();
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
@@ -60,7 +72,8 @@ test('startHeartbeats starts interval that writes heartbeat each minute', async 
     );
   });
 
-  clock.tick(ONE_MIN_IN_MS);
+  await clock.tickAsync(ONE_MIN_IN_MS);
+  await awaitLatestHeartbeatUpdate();
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
@@ -104,6 +117,7 @@ test('calling function returned by startHeartbeats, stops heartbeats', async () 
   });
 
   clock.tick(ONE_MIN_IN_MS);
+  await awaitLatestHeartbeatUpdate();
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
@@ -122,6 +136,7 @@ test('calling function returned by startHeartbeats, stops heartbeats', async () 
 
   stopHeartbeats();
   clock.tick(ONE_MIN_IN_MS);
+  await awaitLatestHeartbeatUpdate();
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);

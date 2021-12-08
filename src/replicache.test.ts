@@ -1625,16 +1625,12 @@ test('push and pull concurrently', async () => {
   const commitSpy = sinon.spy(db.Write.prototype, 'commitWithChangedKeys');
   const invokePushSpy = sinon.spy(rep, 'invokePush');
   const putSpy = sinon.spy(WriteTransactionImpl.prototype, 'put');
-  const withWriteSpy = sinon.spy(dag.Store.prototype, 'withWrite');
-  const writeSpy = sinon.spy(dag.Store.prototype, 'write');
 
   function resetSpys() {
     beginPullSpy.resetHistory();
     commitSpy.resetHistory();
     invokePushSpy.resetHistory();
     putSpy.resetHistory();
-    withWriteSpy.resetHistory();
-    writeSpy.resetHistory();
   }
 
   const callCounts = () => {
@@ -1643,8 +1639,6 @@ test('push and pull concurrently', async () => {
       commit: commitSpy.callCount,
       invokePush: invokePushSpy.callCount,
       put: putSpy.callCount,
-      withWrite: withWriteSpy.callCount,
-      write: writeSpy.callCount,
     };
     resetSpys();
     return rv;
@@ -1677,8 +1671,6 @@ test('push and pull concurrently', async () => {
     commit: 1,
     invokePush: 1,
     put: 1,
-    withWrite: 4,
-    write: 0,
   });
 
   await tickAFewTimes();
@@ -1694,8 +1686,6 @@ test('push and pull concurrently', async () => {
     commit: 0,
     invokePush: 0,
     put: 0,
-    withWrite: 0,
-    write: 0,
   });
 });
 
@@ -1975,35 +1965,35 @@ test('experiment KV Store', async () => {
     mutators: {addData},
   });
 
-  expect(store.readCount).to.equal(0);
-  expect(store.writeCount).to.equal(1);
-  expect(store.closeCount).to.equal(0);
+  expect(store.readCount).to.equal(1, 'readCount');
+  expect(store.writeCount).to.equal(1, 'writeCount');
+  expect(store.closeCount).to.equal(0, 'closeCount');
   store.resetCounters();
 
   const b = await rep.query(tx => tx.has('foo'));
   expect(b).to.be.false;
 
-  expect(store.readCount).to.equal(0);
-  expect(store.writeCount).to.equal(0);
-  expect(store.closeCount).to.equal(0);
+  expect(store.readCount).to.equal(0, 'readCount');
+  expect(store.writeCount).to.equal(0, 'writeCount');
+  expect(store.closeCount).to.equal(0, 'closeCount');
   store.resetCounters();
 
   await rep.mutate.addData({foo: 'bar'});
-  expect(store.readCount).to.equal(0);
-  expect(store.writeCount).to.equal(0);
-  expect(store.closeCount).to.equal(0);
+  expect(store.readCount).to.equal(0, 'readCount');
+  expect(store.writeCount).to.equal(0, 'writeCount');
+  expect(store.closeCount).to.equal(0, 'closeCount');
   store.resetCounters();
 
   await rep.persist();
-  expect(store.readCount).to.equal(0);
-  expect(store.writeCount).to.equal(1);
-  expect(store.closeCount).to.equal(0);
+  expect(store.readCount).to.equal(1, 'readCount');
+  expect(store.writeCount).to.equal(1, 'writeCount');
+  expect(store.closeCount).to.equal(0, 'closeCount');
   store.resetCounters();
 
   await rep.close();
-  expect(store.readCount).to.equal(0);
-  expect(store.writeCount).to.equal(0);
-  expect(store.closeCount).to.equal(1);
+  expect(store.readCount).to.equal(0, 'readCount');
+  expect(store.writeCount).to.equal(0, 'writeCount');
+  expect(store.closeCount).to.equal(1, 'closeCount');
 });
 
 function findPropertyValue(

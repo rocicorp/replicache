@@ -388,15 +388,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     await initHasher();
 
-    const initClientP = this._perdag.withWrite(async w => {
-      const [clientID] = await persist.initClient(w);
-      await w.commit();
-      return clientID;
-    });
+    const initClientP = persist.initClient(this._perdag);
 
     await db.maybeInitDefaultDB(this._memdag);
 
-    const clientID = await initClientP;
+    const [clientID] = await initClientP;
     resolveClientID(clientID);
 
     // Now we have both a clientID and DB!

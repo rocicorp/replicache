@@ -1,9 +1,7 @@
 import {
   clock,
   initReplicacheTesting,
-  MemStoreWithCounters,
   replicacheForTesting,
-  testWithBothStores,
   tickAFewTimes,
   tickUntil,
 } from './test-util';
@@ -12,6 +10,8 @@ import type {ReadTransaction, WriteTransaction} from './mod';
 import type {JSONValue, ReadonlyJSONValue} from './json';
 import {expect} from '@esm-bundle/chai';
 import {sleep} from './sleep';
+import type * as kv from './kv/mod';
+import * as sinon from 'sinon';
 
 // fetch-mock has invalid d.ts file so we removed that on npm install.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -26,7 +26,7 @@ async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
   }
 }
 
-testWithBothStores('subscribe', async () => {
+test('subscribe', async () => {
   const log: [string, ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe', {
@@ -89,7 +89,7 @@ testWithBothStores('subscribe', async () => {
   expect(queryCallCount).to.equal(4);
 });
 
-testWithBothStores(`subscribe with index`, async () => {
+test('subscribe with index', async () => {
   const log: [[string, string], ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index', {
@@ -224,7 +224,7 @@ testWithBothStores(`subscribe with index`, async () => {
   cancel();
 });
 
-testWithBothStores('subscribe with index and start', async () => {
+test('subscribe with index and start', async () => {
   const log: [[string, string], ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index-and-start', {
@@ -332,7 +332,7 @@ testWithBothStores('subscribe with index and start', async () => {
   cancel();
 });
 
-testWithBothStores('subscribe with index and prefix', async () => {
+test('subscribe with index and prefix', async () => {
   const log: [[string, string], ReadonlyJSONValue][] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index-and-prefix', {
@@ -423,7 +423,7 @@ testWithBothStores('subscribe with index and prefix', async () => {
   cancel();
 });
 
-testWithBothStores('subscribe with isEmpty and prefix', async () => {
+test('subscribe with isEmpty and prefix', async () => {
   const log: boolean[] = [];
 
   const rep = await replicacheForTesting('subscribe-with-is-empty', {
@@ -489,7 +489,7 @@ testWithBothStores('subscribe with isEmpty and prefix', async () => {
   cancel();
 });
 
-testWithBothStores('subscribe change keys', async () => {
+test('subscribe change keys', async () => {
   const log: ReadonlyJSONValue[][] = [];
 
   const rep = await replicacheForTesting('subscribe-change-keys', {
@@ -581,7 +581,7 @@ testWithBothStores('subscribe change keys', async () => {
   cancel();
 });
 
-testWithBothStores('subscribe close', async () => {
+test('subscribe close', async () => {
   const rep = await replicacheForTesting('subscribe-close', {
     mutators: {addData},
   });
@@ -607,7 +607,7 @@ testWithBothStores('subscribe close', async () => {
   cancel();
 });
 
-testWithBothStores('subscribe with error', async () => {
+test('subscribe with error', async () => {
   const rep = await replicacheForTesting('suberr', {mutators: {addData}});
 
   const add = rep.mutate.addData;
@@ -645,7 +645,7 @@ testWithBothStores('subscribe with error', async () => {
   cancel();
 });
 
-testWithBothStores('subscribe pull and index update', async () => {
+test('subscribe pull and index update', async () => {
   const pullURL = 'https://pull.com/rep';
   const rep = await replicacheForTesting('subscribe-pull-and-index-update', {
     pullURL,
@@ -816,16 +816,22 @@ testWithBothStores('subscribe pull and index update', async () => {
 });
 
 test('subscription coalescing', async () => {
-  const store = new MemStoreWithCounters();
   const rep = await replicacheForTesting('experiment-kv-store', {
-    experimentalKVStore: store,
     mutators: {addData},
   });
 
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(5);
-  expect(store.closeCount).to.equal(0);
-  store.resetCounters();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const store = sinon.spy((rep as any)._memKVStore as kv.Store);
+  const resetCounters = () => {
+    store.read.resetHistory();
+    store.write.resetHistory();
+    store.close.resetHistory();
+  };
+
+  expect(store.read.callCount).to.equal(0);
+  expect(store.write.callCount).to.equal(0);
+  expect(store.close.callCount).to.equal(0);
+  resetCounters();
 
   const log: string[] = [];
   const ca = rep.subscribe(tx => tx.has('a'), {
@@ -847,10 +853,10 @@ test('subscription coalescing', async () => {
   await tickUntil(() => log.length === 3);
   expect(log).to.deep.equal(['a', 'b', 'c']);
 
-  expect(store.readCount).to.equal(1);
-  expect(store.writeCount).to.equal(0);
-  expect(store.closeCount).to.equal(0);
-  store.resetCounters();
+  expect(store.read.callCount).to.equal(1);
+  expect(store.write.callCount).to.equal(0);
+  expect(store.close.callCount).to.equal(0);
+  resetCounters();
 
   ca();
   cb();
@@ -867,21 +873,22 @@ test('subscription coalescing', async () => {
     },
   });
 
-  expect(store.readCount).to.equal(0);
-  expect(store.writeCount).to.equal(0);
-  expect(store.closeCount).to.equal(0);
-  store.resetCounters();
+  expect(store.read.callCount).to.equal(0);
+  expect(store.write.callCount).to.equal(0);
+  expect(store.close.callCount).to.equal(0);
+  resetCounters();
 
   await rep.mutate.addData({a: 1});
 
-  expect(store.readCount).to.equal(1);
-  expect(store.writeCount).to.equal(1);
-  expect(store.closeCount).to.equal(0);
+  expect(store.read.callCount).to.equal(1);
+  expect(store.write.callCount).to.equal(1);
+  expect(store.close.callCount).to.equal(0);
+  resetCounters();
 
   expect(log).to.deep.equal(['d', 'e']);
 });
 
-testWithBothStores('subscribe perf test regression', async () => {
+test('subscribe perf test regression', async () => {
   clock.restore();
   const count = 100;
   const maxCount = 1000;

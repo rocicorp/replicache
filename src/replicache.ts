@@ -914,14 +914,18 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const results = await this._queryInternal(async tx => {
       const promises = subs.map(async s => {
         // Tag the result so we can deal with success vs error below.
+        const stx = new SubscriptionTransactionWrapper(tx);
         try {
-          const stx = new SubscriptionTransactionWrapper(tx);
           const value = await s.body(stx);
-          s.keys = stx.keys;
-          s.scans = stx.scans;
           return {ok: true, value} as R;
         } catch (error) {
           return {ok: false, error} as R;
+        } finally {
+          // We need to keep track of the subscription keys even if there was an
+          // exception because changes to the keys can make the subscription
+          // body succeeed.
+          s.keys = stx.keys;
+          s.scans = stx.scans;
         }
       });
       return await Promise.all(promises);

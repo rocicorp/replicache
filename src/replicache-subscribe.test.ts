@@ -941,3 +941,59 @@ testWithBothStores('subscribe perf test regression', async () => {
     expect(data[i]).to.equal(i < mut ? i ** 2 + rand : i);
   }
 });
+
+test('subscription with error in body', async () => {
+  const rep = await replicacheForTesting('subscription-with-error-in-body', {
+    mutators: {
+      addData,
+    },
+  });
+
+  let bodyCallCounter = 0;
+  let errorCounter = 0;
+  const letters = 'abc';
+
+  rep.subscribe(
+    async tx => {
+      bodyCallCounter++;
+      const a = await tx.get('a');
+      if (a === undefined) {
+        throw new Error('a is undefined');
+      }
+      const b = await tx.get('b');
+      if (b === undefined) {
+        throw new Error('b is undefined');
+      }
+      const c = await tx.get('c');
+      if (c === undefined) {
+        throw new Error('c is undefined');
+      }
+      return {a, b, c};
+    },
+    {
+      onData(data) {
+        expect(data).to.deep.equal({a: 1, b: 2, c: 3});
+      },
+      onError(err) {
+        expect(err)
+          .to.be.instanceOf(Error)
+          .with.property(
+            'message',
+            letters[errorCounter++] + ' is undefined',
+            `Error for ${errorCounter} is incorrect`,
+          );
+      },
+    },
+  );
+
+  await tickUntil(() => bodyCallCounter === 1);
+
+  await rep.mutate.addData({a: 1});
+  expect(bodyCallCounter).to.equal(2);
+
+  await rep.mutate.addData({b: 2});
+  expect(bodyCallCounter).to.equal(3);
+
+  await rep.mutate.addData({c: 3});
+  expect(bodyCallCounter).to.equal(4);
+});

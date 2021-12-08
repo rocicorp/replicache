@@ -300,13 +300,32 @@ export function newSnapshot(
   valueHash: Hash,
   indexes: readonly IndexRecord[],
 ): Commit<SnapshotMeta> {
+  return commitFromCommitData(
+    createChunk,
+    newSnapshotCommitData(
+      basisHash,
+      lastMutationID,
+      cookieJSON,
+      valueHash,
+      indexes,
+    ),
+  );
+}
+
+export function newSnapshotCommitData(
+  basisHash: Hash | null,
+  lastMutationID: number,
+  cookieJSON: ReadonlyJSONValue,
+  valueHash: Hash,
+  indexes: readonly IndexRecord[],
+): CommitData<SnapshotMeta> {
   const meta: SnapshotMeta = {
     type: MetaTyped.Snapshot,
     basisHash,
     lastMutationID,
     cookieJSON,
   };
-  return commitFromCommitData(createChunk, {meta, valueHash, indexes});
+  return {meta, valueHash, indexes};
 }
 
 export function newIndexChange(

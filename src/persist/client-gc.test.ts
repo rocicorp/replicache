@@ -1,9 +1,11 @@
 import {expect} from '@esm-bundle/chai';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import * as dag from '../dag/mod';
-import {getClients, setClient, setClients} from './clients';
+import {ClientMap, getClients, updateClients} from './clients';
 import {hashOf, initHasher} from '../hash';
-import {initClientGC} from './client-gc';
+import {initClientGC, getLatestGCUpdate} from './client-gc';
+import {setClients} from './clients-test-helpers';
+import {assertNotUndefined} from '../asserts';
 
 let clock: SinonFakeTimers;
 const START_TIME = 0;
@@ -17,6 +19,12 @@ setup(async () => {
 teardown(() => {
   clock.restore();
 });
+
+function awaitLatestGCUpdate(): Promise<ClientMap> {
+  const latest = getLatestGCUpdate();
+  assertNotUndefined(latest);
+  return latest;
+}
 
 test('initClientGC starts 5 min interval that collects clients that have been inactive for > 7 days', async () => {
   const dagStore = new dag.TestStore();
@@ -45,10 +53,7 @@ test('initClientGC starts 5 min interval that collects clients that have been in
     }),
   );
 
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap, write);
-    return write.commit();
-  });
+  await setClients(clientMap, dagStore);
 
   initClientGC('client1', dagStore);
 
@@ -58,6 +63,7 @@ test('initClientGC starts 5 min interval that collects clients that have been in
   });
 
   clock.tick(SEVEN_DAYS_IN_MS + 1);
+  await awaitLatestGCUpdate();
 
   // client1 is not collected because it is the current client (despite being old enough to collect)
   // client2 is collected because it is > 7 days inactive
@@ -81,12 +87,15 @@ test('initClientGC starts 5 min interval that collects clients that have been in
     ...client4,
     heartbeatTimestampMs: clock.now,
   };
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClient('client4', client4WUpdatedHeartbeat, write);
-    return write.commit();
-  });
+
+  await updateClients(clients => {
+    return Promise.resolve({
+      clients: new Map(clients).set('client4', client4WUpdatedHeartbeat),
+    });
+  }, dagStore);
 
   clock.tick(FIVE_MINS_IN_MS);
+  await awaitLatestGCUpdate();
 
   // client1 is not collected because it is the current client (despite being old enough to collect)
   // client3 is collected because it is > 7 days inactive (by 4 mins)
@@ -104,6 +113,7 @@ test('initClientGC starts 5 min interval that collects clients that have been in
   });
 
   clock.tick(SEVEN_DAYS_IN_MS);
+  await awaitLatestGCUpdate();
 
   // client1 is not collected because it is the current client (despite being old enough to collect)
   // client4 is collected because it is > 7 days inactive
@@ -141,10 +151,7 @@ test('calling function returned by initClientGC, stops Client GCs', async () => 
     }),
   );
 
-  await dagStore.withWrite(async (write: dag.Write) => {
-    await setClients(clientMap, write);
-    return write.commit();
-  });
+  await setClients(clientMap, dagStore);
 
   const stopClientGC = initClientGC('client1', dagStore);
 
@@ -154,6 +161,7 @@ test('calling function returned by initClientGC, stops Client GCs', async () => 
   });
 
   clock.tick(SEVEN_DAYS_IN_MS + 1);
+  await awaitLatestGCUpdate();
 
   // client1 is not collected because it is the current client (despite being old enough to collect)
   // client2 is collected because it is > 7 days inactive
@@ -172,6 +180,7 @@ test('calling function returned by initClientGC, stops Client GCs', async () => 
 
   stopClientGC();
   clock.tick(FIVE_MINS_IN_MS);
+  await awaitLatestGCUpdate();
 
   // client3 is not collected because GC has been stopped
   await dagStore.withRead(async (read: dag.Read) => {

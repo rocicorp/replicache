@@ -1,14 +1,20 @@
-import type {JSONObject, JSONValue, ReadonlyJSONValue} from './json';
-import * as utf8 from './utf8';
-import {resolver} from './resolver';
-import {uuid} from './sync/uuid';
 import {
   MutatorDefs,
   Replicache,
   BeginPullResult,
   MAX_REAUTH_TRIES,
 } from './replicache';
-import {Hash, makeNewTempHashFunction} from './hash';
+import type {ReplicacheOptions} from './replicache-options';
+import * as kv from './kv/mod';
+import {SinonFakeTimers, useFakeTimers} from 'sinon';
+import * as sinon from 'sinon';
+import type {ReadonlyJSONValue} from './json';
+import type {Hash} from './hash';
+
+// fetch-mock has invalid d.ts file so we removed that on npm install.
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error
+import fetchMock from 'fetch-mock/esm/client';
 
 export class ReplicacheTest<
   // eslint-disable-next-line @typescript-eslint/ban-types
@@ -68,231 +74,141 @@ export function deletaAllDatabases(): void {
   dbsToDrop.clear();
 }
 
-export function b(
-  templatePart: TemplateStringsArray,
-  ...placeholderValues: unknown[]
-): Uint8Array {
-  let s = templatePart[0];
-  for (let i = 1; i < templatePart.length; i++) {
-    s += String(placeholderValues[i - 1]) + templatePart[i];
-  }
-  return utf8.encode(s);
-}
+let overrideUseMemstore = false;
 
-export function defineTestFunctions(self: Window & typeof globalThis): void {
-  // Mocha functions aren't available when importing from a new page.
-  if (typeof self.suiteSetup !== 'function') {
-    const noop = () => undefined;
-
-    self.setup = noop;
-    self.teardown = noop;
-    self.suiteSetup = noop;
-    self.suiteTeardown = noop;
-
-    const suite = () => undefined;
-    suite.only = noop;
-    suite.skip = noop;
-    self.suite = suite as unknown as Mocha.SuiteFunction;
-
-    const test = () => undefined;
-    test.only = noop;
-    test.skip = noop;
-    test.retries = noop;
-    self.test = test as unknown as Mocha.TestFunction;
-  }
-}
-
-export function isFirefox(): boolean {
-  return /firefox/i.test(navigator.userAgent);
-}
-
-defineTestFunctions(self);
-
-type Response = {
-  id: string;
-  result?: JSONValue;
-  error?: JSONValue;
-};
-
-type LogResponse = {
-  level: string;
-  data: JSONValue[];
-};
-
-export async function initializeNewTab(
-  tabId: string,
-  path: string | null,
-  event: StorageEvent,
-): Promise<void> {
-  const send = (message: JSONObject) => {
-    localStorage.setItem(
-      tabId + '-in-' + performance.now(),
-      JSON.stringify(message),
-    );
-  };
-
-  ['error', 'warn', 'info', 'debug', 'log'].forEach(level => {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore No index signature of type 'string' was found on 'Console'.
-    console[level] = (...data) => {
-      send({id: 'log', result: {level, data}});
-    };
+// eslint-disable-next-line @typescript-eslint/ban-types
+export async function replicacheForTesting<MD extends MutatorDefs = {}>(
+  name: string,
+  options: ReplicacheOptions<MD> = {},
+): Promise<ReplicacheTest<MD>> {
+  const pullURL = 'https://pull.com/?name=' + name;
+  const pushURL = 'https://push.com/?name=' + name;
+  return replicacheForTestingNoDefaultURLs(name, {
+    pullURL,
+    pushURL,
+    ...options,
   });
-
-  let module: typeof import('./test-util');
-  if (path) {
-    try {
-      module = await import('/' + path);
-    } catch (e) {
-      console.log('Error importing ' + path + ':', e);
-    }
-  }
-
-  const handle = async (event: StorageEvent) => {
-    if (!event.key?.startsWith(tabId) || event.newValue === null) {
-      return;
-    }
-    const {id, expr} = JSON.parse(event.newValue);
-    const response: Response = {id};
-
-    if (id === 'close') {
-      window.close();
-    } else if (expr) {
-      try {
-        response.result = await Function(
-          'module',
-          `"use strict";
-           Object.assign(self, module);
-           return (async () => { ${expr} })();`,
-        )(module);
-      } catch (e) {
-        response.error = `${e}`;
-      }
-    }
-    send(response);
-  };
-
-  addEventListener('storage', handle, false);
-  await handle(event);
 }
 
-function withTimeout<T = void>(promise: Promise<T>, ms: number) {
-  const timeout = new Promise((_resolve, reject) => {
-    setTimeout(() => reject(new Error(`Timeout after ${ms}ms.`)), ms);
-  });
-  return Promise.race([promise, timeout]);
-}
-
-export type Tab = {
-  run: (expr: string) => Promise<unknown>;
-  close: () => void;
-};
-
-// Registered callbacks for listener(), by tabId and call id.
-type TabCallbacks = Map<
-  string,
+export async function replicacheForTestingNoDefaultURLs<
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  MD extends MutatorDefs = {},
+>(
+  name: string,
   {
-    resolve: (res: unknown) => void;
-    reject?: (err: unknown) => void;
-  }
->;
-const callbacks: Map<string, TabCallbacks> = new Map();
+    pullURL,
+    pushDelay = 60_000, // Large to prevent interfering
+    pushURL,
+    useMemstore = overrideUseMemstore,
 
-function listener(event: StorageEvent): void {
-  if (event.newValue === null || event.key === null) {
-    return;
-  }
-  const tabId = event.key.substr(0, 36);
-  const tabCallbacks = callbacks.get(tabId);
-  if (tabCallbacks === undefined) {
-    return;
-  }
+    ...rest
+  }: ReplicacheOptions<MD> = {},
+): Promise<ReplicacheTest<MD>> {
+  const rep = new ReplicacheTest<MD>({
+    pullURL,
+    pushDelay,
+    pushURL,
+    name,
+    useMemstore,
+    ...rest,
+  });
+  dbsToDrop.add(rep.idbName);
+  reps.add(rep);
+  // Wait for open to be done.
+  await rep.clientID;
+  fetchMock.post(pullURL, {lastMutationID: 0, patch: []});
+  fetchMock.post(pushURL, 'ok');
+  await tickAFewTimes();
+  return rep;
+}
 
-  const {id, result, error} = JSON.parse(event.newValue) as Response;
-  if (id === 'log') {
-    const levels: Record<string, typeof console.log> = {
-      error: console.error,
-      warn: console.warn,
-      info: console.info,
-      debug: console.debug,
-    };
-    const {level, data} = result as LogResponse;
-    (levels[level] ?? console.log)('Tab:', ...data);
-  } else {
-    const callback = tabCallbacks.get(id);
-    if (callback === undefined) {
-      return;
-    }
-    const {resolve, reject} = callback;
-    if (error !== undefined && reject !== undefined) {
-      reject(error);
-    } else {
-      resolve(result);
-    }
+export function testWithBothStores(name: string, func: () => Promise<void>) {
+  for (const useMemstore of [false, true]) {
+    test(`${name} {useMemstore: ${useMemstore}}`, async () => {
+      try {
+        overrideUseMemstore = useMemstore;
+        await func();
+      } finally {
+        overrideUseMemstore = false;
+      }
+    });
   }
 }
 
-export type NewTabOptions = {
-  /** Don't pass `noopener` when opening the new window. */
-  opener?: boolean;
-};
+export let clock: SinonFakeTimers;
 
-export async function newTab(
-  path?: string,
-  options?: NewTabOptions,
-): Promise<Tab> {
-  const tabId = uuid();
-  const {promise, resolve} = resolver<unknown>();
+export function initReplicacheTesting() {
+  fetchMock.config.overwriteRoutes = true;
 
-  if (!Object.keys(callbacks).length) {
-    addEventListener('storage', listener, false);
+  setup(() => {
+    clock = useFakeTimers(0);
+  });
+
+  teardown(async () => {
+    clock.restore();
+    fetchMock.restore();
+    sinon.restore();
+
+    await closeAllReps();
+    deletaAllDatabases();
+  });
+}
+
+export async function tickAFewTimes(n = 10, time = 10) {
+  for (let i = 0; i < n; i++) {
+    await clock.tickAsync(time);
   }
-  const tabCallbacks: TabCallbacks = new Map([['init', {resolve}]]);
-  callbacks.set(tabId, tabCallbacks);
+}
 
-  const params: Record<string, string> = {tabId};
-  if (path !== undefined) {
-    params['path'] = path;
+export async function tickUntil(f: () => boolean, msPerTest = 10) {
+  while (!f()) {
+    await clock.tickAsync(msPerTest);
   }
-  open(
-    '/src/test-util-new-tab.html?' + new URLSearchParams(params).toString(),
-    '_blank',
-    options?.opener ? '' : 'noopener',
-  );
+}
 
-  const send = (message: JSONObject) => {
-    localStorage.setItem(
-      tabId + '-out-' + performance.now(),
-      JSON.stringify(message),
-    );
-  };
+export class MemStoreWithCounters implements kv.Store {
+  readonly store = new kv.MemStore();
+  readCount = 0;
+  writeCount = 0;
+  closeCount = 0;
 
-  // Start initialization process, waiting for page to become live.
-  const interval = setInterval(() => {
-    send({id: 'init'});
-  }, 50);
-  await withTimeout(promise, 25000);
-  clearInterval(interval);
+  resetCounters() {
+    this.readCount = 0;
+    this.writeCount = 0;
+    this.closeCount = 0;
+  }
 
-  return {
-    run: async (expr: string) => {
-      const id = uuid();
-      const {promise, resolve, reject} = resolver<unknown>();
-      tabCallbacks.set(id, {resolve, reject});
-      if (expr.search('return ') === -1) {
-        expr = 'return ' + expr;
-      }
-      send({id, expr});
-      const result = await withTimeout(promise, 5000);
-      tabCallbacks.delete(id);
-      return result;
-    },
-    close: () => {
-      send({id: 'close'});
-      callbacks.delete(tabId);
-      if (!Object.keys(callbacks).length) {
-        removeEventListener('storage', listener);
-      }
-    },
-  };
+  read() {
+    this.readCount++;
+    return this.store.read();
+  }
+
+  withRead<R>(fn: (read: kv.Read) => R | Promise<R>): Promise<R> {
+    this.readCount++;
+    return this.store.withRead(fn);
+  }
+
+  write() {
+    this.writeCount++;
+    return this.store.write();
+  }
+
+  withWrite<R>(fn: (write: kv.Write) => R | Promise<R>): Promise<R> {
+    this.writeCount++;
+    return this.store.withWrite(fn);
+  }
+
+  async close() {
+    this.closeCount++;
+    await this.store.close();
+  }
+
+  get closed(): boolean {
+    return this.store.closed;
+  }
+}
+function makeNewTempHashFunction(): <V extends ReadonlyJSONValue>(
+  data: V,
+) => Hash {
+  throw new Error('Function not implemented.');
 }

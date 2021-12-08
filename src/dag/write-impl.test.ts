@@ -2,9 +2,9 @@ import {expect} from '@esm-bundle/chai';
 import {MemStore} from '../kv/mod';
 import {defaultChunkHasher, createChunkWithHash} from './chunk';
 import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
-import {Write} from './write';
+import {WriteImpl} from './write-impl';
 import type * as kv from '../kv/mod';
-import {Read} from './read';
+import {ReadImpl} from './read-impl';
 import {
   assertNotTempHash,
   Hash,
@@ -14,7 +14,7 @@ import {
   newTempHash,
 } from '../hash';
 import type {Value} from '../kv/store';
-import {Store} from './store';
+import {StoreImpl} from './store-impl';
 import {assert} from '../asserts';
 
 setup(async () => {
@@ -25,7 +25,7 @@ test('put chunk', async () => {
   const t = async (data: Value, refs: Hash[]) => {
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
+      const w = new WriteImpl(kvw, defaultChunkHasher, assertNotTempHash);
       const c = w.createChunk(data, refs);
       await w.putChunk(c);
 
@@ -71,7 +71,7 @@ async function assertRefCount(kvr: kv.Read, hash: Hash, count: number) {
 test('set head', async () => {
   const t = async (kv: kv.Store, name: string, hash: Hash | undefined) => {
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
+      const w = new WriteImpl(kvw, defaultChunkHasher, assertNotTempHash);
       await (hash === undefined ? w.removeHead(name) : w.setHead(name, hash));
       if (hash !== undefined) {
         const h = await kvw.get(headKey(name));
@@ -138,7 +138,7 @@ test('ref count invalid', async () => {
       await kvw.commit();
     });
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
+      const w = new WriteImpl(kvw, defaultChunkHasher, assertNotTempHash);
       let err;
       try {
         await w.getRefCount(h);
@@ -182,7 +182,7 @@ test('commit rollback', async () => {
     let key: string;
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
+      const w = new WriteImpl(kvw, defaultChunkHasher, assertNotTempHash);
       const c = w.createChunk([0, 1], []);
       await w.putChunk(c);
 
@@ -217,7 +217,7 @@ test('roundtrip', async () => {
     const hash = defaultChunkHasher(data);
     const c = createChunkWithHash(hash, data, refs);
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
+      const w = new WriteImpl(kvw, defaultChunkHasher, assertNotTempHash);
       await w.putChunk(c);
       await w.setHead(name, c.hash);
 
@@ -231,7 +231,7 @@ test('roundtrip', async () => {
 
     // Read the changes outside the tx.
     await kv.withRead(async kvr => {
-      const r = new Read(kvr, assertNotTempHash);
+      const r = new ReadImpl(kvr, assertNotTempHash);
       const c2 = await r.getChunk(c.hash);
       const h = await r.getHead(name);
       expect(c2).to.deep.equal(c);
@@ -257,7 +257,7 @@ test('that we check if the hash is good when committing', async () => {
     chunkHasher: (v: Value) => Hash,
     assertValidHash: (h: Hash) => void,
   ) => {
-    const store = new Store(new MemStore(), chunkHasher, assertValidHash);
+    const store = new StoreImpl(new MemStore(), chunkHasher, assertValidHash);
 
     const data = [true, 42];
 

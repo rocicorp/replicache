@@ -300,7 +300,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this._kvStore =
       experimentalKVStore ||
       (this._useMemstore ? new MemStore() : new IDBStore(this.idbName));
-    this._dagStore = new dag.Store(
+    this._dagStore = new dag.StoreImpl(
       this._kvStore,
       dag.defaultChunkHasher,
       assertNotTempHash,

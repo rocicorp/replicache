@@ -14,7 +14,7 @@ import {
   DiffResultOp,
   NODE_LEVEL,
   NODE_ENTRIES,
-  NODE_HEADER_SIZE
+  NODE_HEADER_SIZE,
 } from './node';
 import {BTreeWrite} from './write';
 import {BTreeRead} from './read';

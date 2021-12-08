@@ -1,17 +1,18 @@
 import type * as kv from '../kv/mod';
 import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key';
-import {Read} from './read';
+import {ReadImpl} from './read-impl';
 import {assertMeta, Chunk, ChunkHasher, createChunk} from './chunk';
 import {assertNumber} from '../asserts';
 import type {Hash} from '../hash';
 import type {ReadonlyJSONValue} from '../json';
+import {GarbargeCollector} from './gc';
 
 type HeadChange = {
   new: Hash | undefined;
   old: Hash | undefined;
 };
 
-export class Write extends Read {
+export class WriteImpl extends ReadImpl {
   protected declare readonly _tx: kv.Write;
   private readonly _chunkHasher: ChunkHasher;
 
@@ -85,61 +86,25 @@ export class Write extends Read {
   }
 
   async commit(): Promise<void> {
-    await this.collectGarbage();
+    const garbargeCollector = new GarbargeCollector(
+      this.setRefCount.bind(this),
+      this.getRefCount.bind(this),
+      this.removeAllRelatedKeys.bind(this),
+      this.getRefs.bind(this),
+    );
+    await garbargeCollector.collect(
+      this._changedHeads.values(),
+      this._newChunks,
+    );
     await this._tx.commit();
   }
 
-  async collectGarbage(): Promise<void> {
-    // We increment all the ref counts before we do all the decrements. This
-    // is so that we do not remove an item that goes from 1 -> 0 -> 1
-    const newHeads: (Hash | undefined)[] = [];
-    const oldHeads: (Hash | undefined)[] = [];
-    for (const changedHead of this._changedHeads.values()) {
-      oldHeads.push(changedHead.old);
-      newHeads.push(changedHead.new);
+  async getRefs(hash: Hash): Promise<readonly Hash[] | undefined> {
+    const meta = await this._tx.get(chunkMetaKey(hash));
+    if (meta !== undefined) {
+      assertMeta(meta);
     }
-
-    for (const n of newHeads) {
-      if (n !== undefined) {
-        await this.changeRefCount(n, 1);
-      }
-    }
-
-    for (const o of oldHeads) {
-      if (o !== undefined) {
-        await this.changeRefCount(o, -1);
-      }
-    }
-
-    // Now we go through the mutated chunks to see if any of them are still orphaned.
-    const ps = [];
-    for (const hash of this._newChunks) {
-      const count = await this.getRefCount(hash);
-      if (count === 0) {
-        ps.push(this.removeAllRelatedKeys(hash, false));
-      }
-    }
-    await Promise.all(ps);
-  }
-
-  async changeRefCount(hash: Hash, delta: number): Promise<void> {
-    const oldCount = await this.getRefCount(hash);
-    const newCount = oldCount + delta;
-
-    if ((oldCount === 0 && delta === 1) || (oldCount === 1 && delta === -1)) {
-      const meta = await this._tx.get(chunkMetaKey(hash));
-      if (meta !== undefined) {
-        assertMeta(meta);
-        const ps = meta.map(ref => this.changeRefCount(ref, delta));
-        await Promise.all(ps);
-      }
-    }
-
-    if (newCount === 0) {
-      await this.removeAllRelatedKeys(hash, true);
-    } else {
-      await this.setRefCount(hash, newCount);
-    }
+    return meta;
   }
 
   async setRefCount(hash: Hash, count: number): Promise<void> {
@@ -165,19 +130,12 @@ export class Write extends Read {
     return value;
   }
 
-  async removeAllRelatedKeys(
-    hash: Hash,
-    updateMutatedChunks: boolean,
-  ): Promise<void> {
+  async removeAllRelatedKeys(hash: Hash): Promise<void> {
     await Promise.all([
       this._tx.del(chunkDataKey(hash)),
       this._tx.del(chunkMetaKey(hash)),
       this._tx.del(chunkRefCountKey(hash)),
     ]);
-
-    if (updateMutatedChunks) {
-      this._newChunks.delete(hash);
-    }
   }
 
   close(): void {

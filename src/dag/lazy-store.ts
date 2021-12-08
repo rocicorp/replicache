@@ -1,16 +1,20 @@
 import {Hash, isTempHash} from '../hash';
 import type * as kv from '../kv/mod';
-import { RWLock } from '../rw-lock';
-import type {Chunk, ChunkHasher} from './chunk';
-import type {Store, Read, Write} from './store'
+import {RWLock} from '../rw-lock';
+import {Chunk, ChunkHasher, createChunk} from './chunk';
+import type {Store, Read, Write} from './store';
 import {getSizeOfValue as defaultGetSizeOfValue} from '../get-size-of-value';
+import type {ReadonlyJSONValue} from '../mod';
+import {GarbargeCollector, HeadChange} from './gc';
 
 export class LazyStore implements Store {
   private readonly _rwLock = new RWLock();
-  private readonly _heads: Map<string, Hash> = new Map();
-  private readonly _tempChunks: Map<Hash, Chunk> = new Map();
+  private readonly _heads = new Map<string, Hash>();
+  private readonly _tempChunks = new Map<Hash, Chunk>();
   private readonly _sourceChunksCache: ChunksCache;
   private readonly _sourceStore: Store;
+  private readonly _refCounts = new Map<Hash, number>();
+  // TODO I don't think chunkHasher and assertValidHash are quite right, need to think those through
   private readonly _chunkHasher: ChunkHasher;
   private readonly _assertValidHash: (hash: Hash) => void;
 
@@ -29,7 +33,14 @@ export class LazyStore implements Store {
 
   async read(): Promise<Read> {
     const release = await this._rwLock.read();
-    return new ReadImpl(this._heads, this._tempChunks, this._sourceChunksCache, this._sourceStore, this._assertValidHash, release);
+    return new LazyRead(
+      this._heads,
+      this._tempChunks,
+      this._sourceChunksCache,
+      this._sourceStore,
+      release,
+      this._assertValidHash,
+    );
   }
 
   async withRead<R>(fn: (read: Read) => R | Promise<R>): Promise<R> {
@@ -42,76 +53,75 @@ export class LazyStore implements Store {
   }
 
   async write(): Promise<Write> {
-    return new Write(
-      await this._kv.write(),
+    const release = await this._rwLock.write();
+    return new LazyWrite(
+      this._heads,
+      this._tempChunks,
+      this._sourceChunksCache,
+      this._sourceStore,
+      this._refCounts,
+      release,
       this._chunkHasher,
       this._assertValidHash,
     );
   }
 
   async withWrite<R>(fn: (Write: Write) => R | Promise<R>): Promise<R> {
-    return this._kv.withWrite(kvw =>
-      fn(new Write(kvw, this._chunkHasher, this._assertValidHash)),
-    );
+    const write = await this.write();
+    try {
+      return await fn(write);
+    } finally {
+      write.close();
+    }
   }
 
   async close(): Promise<void> {
-    await this._kv.close();
+    return;
   }
 }
 
-export class ReadImpl implements Read {
-  private readonly _heads: Map<string, Hash> = new Map();
-  private readonly _tempChunks: Map<Hash, Chunk> = new Map();
-  private readonly _sourceChunksCache: ChunksCache;
-  private readonly _sourceStore: Store;
-  readonly assertValidHash: (hash: Hash) => void;
+export class LazyRead implements Read {
+  protected readonly _heads: Map<string, Hash> = new Map();
+  protected readonly _tempChunks: Map<Hash, Chunk> = new Map();
+  protected readonly _sourceChunksCache: ChunksCache;
+  protected readonly _sourceStore: Store;
+  private _sourceRead: Promise<Read> | undefined = undefined;
   private readonly _release: () => void;
   private _closed = false;
+  readonly assertValidHash: (hash: Hash) => void;
 
-  constructor(heads: Map<string, Hash>, tempChunks: Map<Hash, Chunk>, sourceChunksCache: ChunksCache, sourceStore: Store, assertValidHash: (hash: Hash) => void, release: () => void) {
+  constructor(
+    heads: Map<string, Hash>,
+    tempChunks: Map<Hash, Chunk>,
+    sourceChunksCache: ChunksCache,
+    sourceStore: Store,
+    release: () => void,
+    assertValidHash: (hash: Hash) => void,
+  ) {
     this._heads = heads;
     this._tempChunks = tempChunks;
     this._sourceChunksCache = sourceChunksCache;
     this._sourceStore = sourceStore;
-    this.assertValidHash = assertValidHash;
     this._release = release;
+    this.assertValidHash = assertValidHash;
   }
 
   async hasChunk(hash: Hash): Promise<boolean> {
-    return await (await this.getChunk(hash)) !== undefined
+    return (await this.getChunk(hash)) !== undefined;
   }
 
   async getChunk(hash: Hash): Promise<Chunk | undefined> {
     if (isTempHash(hash)) {
       return this._tempChunks.get(hash);
     }
-
-
-    let v = this._cache.get(key);
-    if (v === undefined) {
-      v = await (await this._getBaseRead()).get(key);
-      if (v !== undefined) {
-        this._cache.set(key, v);
+    let chunk = this._sourceChunksCache.get(hash);
+    if (chunk === undefined) {
+      chunk = await (await this._getSourceRead()).getChunk(hash);
+      if (chunk !== undefined) {
+        this._sourceChunksCache.put(chunk);
       }
     }
-    return v;
-
-
-    const data = await this._tx.get(chunkDataKey(hash));
-    if (data === undefined) {
-      return undefined;
-    }
-
-    const refsVal = await this._tx.get(chunkMetaKey(hash));
-    let refs: readonly Hash[];
-    if (refsVal !== undefined) {
-      assertMeta(refsVal);
-      refs = refsVal;
-    } else {
-      refs = [];
-    }
-    return createChunkWithHash(hash, data, refs);
+    return chunk;
   }
 
   async getHead(name: string): Promise<Hash | undefined> {
@@ -121,12 +131,158 @@ export class ReadImpl implements Read {
   close(): void {
     if (!this._closed) {
       this._release();
+      this._sourceRead?.then(read => read.close());
       this._closed = true;
     }
   }
 
   get closed(): boolean {
     return this._closed;
+  }
+
+  private async _getSourceRead(): Promise<Read> {
+    if (!this._sourceRead) {
+      this._sourceRead = this._sourceStore.read();
+    }
+    return this._sourceRead;
+  }
+}
+
+export class LazyWrite extends LazyRead implements Write {
+  private readonly _refCounts: Map<Hash, number>;
+  private readonly _chunkHasher: ChunkHasher;
+  protected readonly _pendingHeadChanges = new Map<string, HeadChange>();
+  protected readonly _pendingChunks = new Map<Hash, Chunk | undefined>();
+
+  constructor(
+    heads: Map<string, Hash>,
+    tempChunks: Map<Hash, Chunk>,
+    sourceChunksCache: ChunksCache,
+    sourceStore: Store,
+    refCounts: Map<Hash, number>,
+    release: () => void,
+    chunkHasher: ChunkHasher,
+    assertValidHash: (hash: Hash) => void,
+  ) {
+    super(
+      heads,
+      tempChunks,
+      sourceChunksCache,
+      sourceStore,
+      release,
+      assertValidHash,
+    );
+    this._refCounts = refCounts;
+    this._chunkHasher = chunkHasher;
+  }
+  createChunk = <V extends ReadonlyJSONValue>(
+    data: V,
+    refs: readonly Hash[],
+  ): Chunk<V> => createChunk(data, refs, this._chunkHasher);
+
+  async putChunk(c: Chunk): Promise<void> {
+    const {hash, meta} = c;
+    // TODO not sure this is really needed in this store
+    this.assertValidHash(hash);
+    if (meta.length > 0) {
+      for (const h of meta) {
+        this.assertValidHash(h);
+      }
+    }
+    this._pendingChunks.set(hash, c);
+  }
+  async setHead(name: string, hash: Hash): Promise<void> {
+    await this._setHead(name, hash);
+  }
+  async removeHead(name: string): Promise<void> {
+    await this._setHead(name, undefined);
+  }
+
+  private async _setHead(name: string, hash: Hash | undefined): Promise<void> {
+    const oldHash = await this.getHead(name);
+    const v = this._pendingHeadChanges.get(name);
+    if (v === undefined) {
+      this._pendingHeadChanges.set(name, {new: hash, old: oldHash});
+    } else {
+      // Keep old if existing
+      v.new = hash;
+    }
+  }
+
+  override async hasChunk(hash: Hash): Promise<boolean> {
+    return this._pendingChunks.get(hash) !== undefined || super.hasChunk(hash);
+  }
+
+  async getChunk(hash: Hash): Promise<Chunk | undefined> {
+    if (this._pendingChunks.has(hash)) {
+      return this._pendingChunks.get(hash);
+    }
+    return super.getChunk(hash);
+  }
+
+  async getHead(name: string): Promise<Hash | undefined> {
+    const headChange = this._pendingHeadChanges.get(name);
+    if (headChange) {
+      return headChange.new;
+    }
+    return super.getHead(name);
+  }
+
+  async commit(): Promise<void> {
+    const pendingRefCountUpdates = new Map<Hash, number | undefined>();
+    const garbargeCollector = new GarbargeCollector(
+      async (hash, count) => {
+        pendingRefCountUpdates.set(hash, count);
+      },
+      async hash => {
+        return (
+          (pendingRefCountUpdates.has(hash)
+            ? pendingRefCountUpdates.get(hash)
+            : this._refCounts.get(hash)) || 0
+        );
+      },
+      async hash => {
+        this._pendingChunks.set(hash, undefined);
+        pendingRefCountUpdates.set(hash, undefined);
+      },
+      async hash => {
+        return (await this.getChunk(hash))?.meta;
+      },
+    );
+    await garbargeCollector.collect(
+      this._pendingHeadChanges.values(),
+      new Set(this._pendingChunks.keys()),
+    );
+
+    this._pendingChunks.forEach((chunk, hash) => {
+      if (isTempHash(hash)) {
+        if (chunk) {
+          this._tempChunks.set(hash, chunk);
+        } else {
+          this._tempChunks.delete(hash);
+        }
+      } else {
+        if (chunk) {
+          this._sourceChunksCache.put(chunk);
+        } else {
+          this._sourceChunksCache.delete(hash);
+        }
+      }
+    });
+    this._pendingHeadChanges.forEach((headChange, name) => {
+      if (headChange.new) {
+        this._heads.set(name, headChange.new);
+      } else {
+        this._heads.delete(name);
+      }
+    });
+    pendingRefCountUpdates.forEach((count, hash) => {
+      if (count) {
+        this._refCounts.set(hash, count);
+      } else {
+        this._refCounts.delete(hash);
+      }
+    });
   }
 }
 
@@ -137,14 +293,11 @@ type CacheEntry = {
 
 class ChunksCache {
   private readonly _cacheSizeLimit: number;
-  private readonly _getSizeOfValue: (v: Value) => number;
+  private readonly _getSizeOfValue: (v: kv.Value) => number;
   private readonly _cacheEntries = new Map<Hash, CacheEntry>();
   private _size = 0;
 
-  constructor(
-    cacheSizeLimit: number,
-    getSizeOfValue: (v: kv.Value) => number,
-  ) {
+  constructor(cacheSizeLimit: number, getSizeOfValue: (v: kv.Value) => number) {
     this._cacheSizeLimit = cacheSizeLimit;
     this._getSizeOfValue = getSizeOfValue;
   }
@@ -194,5 +347,4 @@ class ChunksCache {
     }
     this._cacheEntries.delete(hash);
   }
-
 }

@@ -1,10 +1,11 @@
 import type {Hash} from '../hash';
 import type * as kv from '../kv/mod';
 import type {ChunkHasher} from './chunk';
-import {Read} from './read';
-import {Write} from './write';
+import {ReadImpl} from './read-impl';
+import type {Read, Write} from './store';
+import {WriteImpl} from './write-impl';
 
-export class Store {
+export class StoreImpl {
   private readonly _kv: kv.Store;
   private readonly _chunkHasher: ChunkHasher;
   private readonly _assertValidHash: (hash: Hash) => void;
@@ -20,24 +21,26 @@ export class Store {
   }
 
   async read(): Promise<Read> {
-    return new Read(await this._kv.read(), this._assertValidHash);
+    return new ReadImpl(await this._kv.read(), this._assertValidHash);
   }
 
   async withRead<R>(fn: (read: Read) => R | Promise<R>): Promise<R> {
-    return this._kv.withRead(kvr => fn(new Read(kvr, this._assertValidHash)));
+    return this._kv.withRead(kvr =>
+      fn(new ReadImpl(kvr, this._assertValidHash)),
+    );
   }
 
   async write(): Promise<Write> {
-    return new Write(
+    return new WriteImpl(
       await this._kv.write(),
       this._chunkHasher,
       this._assertValidHash,
     );
   }
 
-  async withWrite<R>(fn: (Write: Write) => R | Promise<R>): Promise<R> {
+  async withWrite<R>(fn: (write: WriteImpl) => R | Promise<R>): Promise<R> {
     return this._kv.withWrite(kvw =>
-      fn(new Write(kvw, this._chunkHasher, this._assertValidHash)),
+      fn(new WriteImpl(kvw, this._chunkHasher, this._assertValidHash)),
     );
   }
 

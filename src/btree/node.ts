@@ -16,7 +16,7 @@ export const NODE_ENTRIES = 1;
  *
  * There is a test ensuring this is correct.
  */
- export const NODE_HEADER_SIZE = 11;
+export const NODE_HEADER_SIZE = 11;
 
 /**
  * The type of B+Tree node chunk data

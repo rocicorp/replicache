@@ -177,7 +177,7 @@ export async function migrateProllyMap(
  * known heads; `db.DEFAULT_HEAD_NAME` and `sync.SYNC_HEAD_NAME`.
  */
 export async function migrate1to2(
-  dagWrite: dag.Write,
+  dagWrite: dag.WriteImpl,
   lc: LogContext,
 ): Promise<void> {
   lc.debug?.(`migrating from version 1 to version 2`);

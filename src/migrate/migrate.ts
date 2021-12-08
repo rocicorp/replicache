@@ -20,7 +20,7 @@ export async function migrate(
   }
 
   if (v === 1) {
-    const dagStore = new dag.Store(
+    const dagStore = new dag.StoreImpl(
       kvStore,
       dag.defaultChunkHasher,
       assertNotTempHash,

@@ -3,7 +3,7 @@ import {assertNotTempHash, Hash, hashOf, initHasher} from '../hash';
 import {MemStore} from '../kv/mod';
 import {defaultChunkHasher, createChunk} from './chunk';
 import {chunkDataKey, chunkMetaKey} from './key';
-import {Read} from './read';
+import {ReadImpl} from './read-impl';
 import type {Value} from '../kv/store';
 
 setup(async () => {
@@ -20,7 +20,7 @@ test('has chunk', async () => {
     });
 
     await kv.withRead(async kvr => {
-      const r = new Read(kvr, assertNotTempHash);
+      const r = new ReadImpl(kvr, assertNotTempHash);
       expect(await r.hasChunk(hash)).to.equal(expectHas);
     });
   };
@@ -42,7 +42,7 @@ test('get chunk', async () => {
     });
 
     await kv.withRead(async kvr => {
-      const r = new Read(kvr, assertNotTempHash);
+      const r = new ReadImpl(kvr, assertNotTempHash);
       let expected = undefined;
       let chunkHash: Hash;
       if (getSameChunk) {

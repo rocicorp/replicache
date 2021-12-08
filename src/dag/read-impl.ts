@@ -4,8 +4,9 @@ import {chunkDataKey, chunkMetaKey, headKey} from './key';
 import * as flatbuffers from 'flatbuffers';
 import {Meta as MetaFB} from './generated/meta/meta.js';
 import {assertHash, Hash} from '../hash';
+import type {Read} from './store';
 
-export class Read {
+export class ReadImpl implements Read {
   protected readonly _tx: kv.Read;
   readonly assertValidHash: (hash: Hash) => void;
 

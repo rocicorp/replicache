@@ -1,5 +1,5 @@
 import {parse as parseHash} from '../hash';
-import {Store} from './store';
+import {StoreImpl} from './store-impl';
 import {
   Chunk,
   ChunkHasher,
@@ -12,7 +12,7 @@ import {KeyType} from './key';
 import {TestMemStore} from '../kv/test-mem-store';
 import {assertArray, assertString} from '../asserts';
 
-export class TestStore extends Store {
+export class TestStore extends StoreImpl {
   readonly kvStore: TestMemStore;
 
   constructor(

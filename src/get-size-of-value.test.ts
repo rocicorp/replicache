@@ -1,6 +1,5 @@
 import {expect} from '@esm-bundle/chai';
 import {getSizeOfValue} from './get-size-of-value';
-import {DataNode, NODE_ENTRIES} from './btree/node';
 
 test('getSizeOfValue', async () => {
   expect(getSizeOfValue(null)).to.equal(1);

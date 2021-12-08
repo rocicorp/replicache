@@ -16,7 +16,7 @@ import {
   ReadonlyEntry,
   NODE_LEVEL,
   NODE_ENTRIES,
-  NODE_HEADER_SIZE
+  NODE_HEADER_SIZE,
 } from './node';
 import {getSizeOfValue} from '../get-size-of-value';
 import {

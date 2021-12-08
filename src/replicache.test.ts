@@ -1776,7 +1776,7 @@ testWithBothStores('pullInterval in constructor', async () => {
 });
 
 testWithBothStores('closeTransaction after rep.scan', async () => {
-  const readSpy = sinon.spy(dag.Store.prototype, 'read');
+  const readSpy = sinon.spy(dag.StoreImpl.prototype, 'read');
   const scanSpy = sinon.spy(db.Read.prototype, 'scan');
   const closeSpy = sinon.spy(db.Read.prototype, 'close');
 
@@ -2342,8 +2342,8 @@ testWithBothStores('push and pull concurrently', async () => {
   const commitSpy = sinon.spy(db.Write.prototype, 'commitWithChangedKeys');
   const invokePushSpy = sinon.spy(rep, 'invokePush');
   const putSpy = sinon.spy(WriteTransactionImpl.prototype, 'put');
-  const withWriteSpy = sinon.spy(dag.Store.prototype, 'withWrite');
-  const writeSpy = sinon.spy(dag.Store.prototype, 'write');
+  const withWriteSpy = sinon.spy(dag.StoreImpl.prototype, 'withWrite');
+  const writeSpy = sinon.spy(dag.StoreImpl.prototype, 'write');
 
   function resetSpys() {
     beginPullSpy.resetHistory();

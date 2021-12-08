@@ -15,7 +15,7 @@ export async function persist(
   memdag: dag.Store,
   perdag: dag.Store,
 ): Promise<void> {
-  // 1. Gather all temp chunks from main head on the memdag
+  // 1. Gather all temp chunks from main head on the memdag.
   const [gatheredChunks, mainHeadTempHash] = await gatherTempChunks(memdag);
 
   if (gatheredChunks.size === 0) {
@@ -23,16 +23,16 @@ export async function persist(
     return;
   }
 
-  // 2. Compute the hashes for these gathered chunks.\
+  // 2. Compute the hashes for these gathered chunks.
   const [fixedChunks, mappings, mainHeadHash] = await computeHashes(
     gatheredChunks,
     mainHeadTempHash,
   );
 
-  // 3. write and fixup temp chunks to perdag
+  // 3. write chunks to perdag.
   await writeFixedChunks(perdag, fixedChunks, mainHeadHash, clientID);
 
-  // 4. fixup the memdag with the new hashes
+  // 4. fixup the memdag with the new hashes.
   await fixupMemdagWithNewHashes(memdag, mappings);
 }
 

@@ -1,3 +1,9 @@
+// TODO(arv): Remove workaround once docs/ builds cleanly without this.
+declare function requestIdleCallback(
+  callback: () => void,
+  options?: {timeout?: number},
+): number;
+
 /**
  * A Promise wrapper for requestIdleCallback with fallback to setTimeout for
  * browsers without support (aka Safari)

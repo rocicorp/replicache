@@ -416,11 +416,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
 
   /**
-   * The client ID for this instance of Replicache. Each web browser and
-   * instance of Replicache gets a unique client ID keyed by the
-   * {@link ReplicacheOptions.name | name}. This is persisted locally between
-   * sessions (unless [[useMemstore]] is true in which case it is reset every
-   * time a new Replicache instance is created).
+   * The client ID for this instance of Replicache. Each instance of Replicache
+   * gets a unique client ID.
    */
   get clientID(): Promise<string> {
     return this._clientIDPromise;

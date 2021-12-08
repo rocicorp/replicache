@@ -1,10 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import {MemStore} from '../kv/mod';
-import {defaultChunkHasher, createChunkWithHash, Chunk} from './chunk';
-import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
-import {LazyWrite} from './lazy-store';
-import type * as kv from '../kv/mod';
-import {ReadImpl} from './read-impl';
+import {defaultChunkHasher, Chunk} from './chunk';
 import {
   assertNotTempHash,
   Hash,

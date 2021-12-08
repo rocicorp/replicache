@@ -183,6 +183,7 @@ test.skip('mut [type checking only]', async () => {
   type ToRecord<T> = {[P in keyof T]: T[P]};
 
   const rep = new Replicache({
+    name: 'type-checking-only',
     mutators: {
       a: (tx: WriteTransaction) => {
         console.log(tx);
@@ -291,19 +292,19 @@ test.skip('mut [type checking only]', async () => {
   await rep.mutate.h(null);
 
   {
-    const rep = new Replicache({mutators: {}});
+    const rep = new Replicache({name: 'type-checking-only', mutators: {}});
     // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
     rep.mutate.abc(43);
   }
 
   {
-    const rep = new Replicache({});
+    const rep = new Replicache({name: 'type-checking-only'});
     // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
     rep.mutate.abc(1, 2, 3);
   }
 
   {
-    const rep = new Replicache();
+    const rep = new Replicache({name: 'type-checking-only'});
     // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
     rep.mutate.abc(1, 2, 3);
   }

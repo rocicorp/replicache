@@ -1,8 +1,2 @@
-export {
-  Map,
-  fromChunk,
-  entriesFromFlatbuffer,
-  entriesToFlatbuffer,
-  assertEntries,
-} from './map';
+export {Map, fromChunk, assertEntries} from './map';
 export type {Entry} from './map';

@@ -300,7 +300,7 @@ export class LazyWrite extends LazyRead implements Write {
         if (chunk) {
           this._sourceChunksCache.put(chunk);
         } else {
-          this._sourceChunksCache.delete(hash);
+          this._sourceChunksCache.deleteWithoutDecrementingRefCounts(hash);
         }
       }
     });
@@ -361,6 +361,7 @@ class ChunksCache {
       return;
     }
 
+    // Only cache if there is a ref from a head to this chunk
     const refCount = this._refCounts.get(hash);
     if (refCount === undefined || refCount < 1) {
       return;
@@ -394,7 +395,7 @@ class ChunksCache {
     }
   }
 
-  delete(hash: Hash): void {
+  deleteWithoutDecrementingRefCounts(hash: Hash): void {
     const cacheEntryToDelete = this._cacheEntries.get(hash);
     if (cacheEntryToDelete) {
       this._size -= cacheEntryToDelete.size;

@@ -6,8 +6,29 @@ import type {Store, Read, Write} from './store';
 import {getSizeOfValue as defaultGetSizeOfValue} from '../get-size-of-value';
 import type {ReadonlyJSONValue} from '../mod';
 import {GarbargeCollector, HeadChange} from './gc';
+import {assert, assertNotUndefined} from '../asserts';
 
 export class LazyStore implements Store {
+  /**
+   * This lock is used to ensure correct isolation of Reads and Writes.  Multiple Reads
+   * are allowed in parallel but only a single Write.  Reads and Writes see a isolated
+   * view of the store (corresponding to the Serializable level of transaction isolation
+   * defined in the SQL standard).
+   *
+   * To ensure these semantics the read lock must be acquired when a Read is created
+   * and held til it is closed, and a Write lock must be acquired when a Write is
+   * created and held til it is commited.
+   *
+   * Code must have a read or write lock to
+   * - read `heads`
+   * - read `tempChunks`
+   * - read `_sourceStore`
+   * - read and write `_sourceChunksCache`
+   * - read and write `_refCounts`
+   * and must have a write lock to
+   * - write `heads`
+   * - write `tempChunks`
+   */
   private readonly _rwLock = new RWLock();
   private readonly _heads = new Map<string, Hash>();
   private readonly _tempChunks = new Map<Hash, Chunk>();
@@ -25,7 +46,11 @@ export class LazyStore implements Store {
     assertValidHash: (hash: Hash) => void,
     getSizeOfValue = defaultGetSizeOfValue,
   ) {
-    this._sourceChunksCache = new ChunksCache(cacheSizeLimit, getSizeOfValue);
+    this._sourceChunksCache = new ChunksCache(
+      cacheSizeLimit,
+      getSizeOfValue,
+      this._refCounts,
+    );
     this._sourceStore = sourceStore;
     this._chunkHasher = chunkHasher;
     this._assertValidHash = assertValidHash;
@@ -80,6 +105,11 @@ export class LazyStore implements Store {
   }
 }
 
+enum LoadFromSource {
+  True,
+  False,
+}
+
 export class LazyRead implements Read {
   protected readonly _heads: Map<string, Hash> = new Map();
   protected readonly _tempChunks: Map<Hash, Chunk> = new Map();
@@ -110,12 +140,15 @@ export class LazyRead implements Read {
     return (await this.getChunk(hash)) !== undefined;
   }
 
-  async getChunk(hash: Hash): Promise<Chunk | undefined> {
+  async getChunk(
+    hash: Hash,
+    loadFromSource: LoadFromSource = LoadFromSource.True,
+  ): Promise<Chunk | undefined> {
     if (isTempHash(hash)) {
       return this._tempChunks.get(hash);
     }
     let chunk = this._sourceChunksCache.get(hash);
-    if (chunk === undefined) {
+    if (chunk === undefined && loadFromSource === LoadFromSource.True) {
       chunk = await (await this._getSourceRead()).getChunk(hash);
       if (chunk !== undefined) {
         this._sourceChunksCache.put(chunk);
@@ -213,14 +246,16 @@ export class LazyWrite extends LazyRead implements Write {
     return this._pendingChunks.get(hash) !== undefined || super.hasChunk(hash);
   }
 
-  async getChunk(hash: Hash): Promise<Chunk | undefined> {
-    if (this._pendingChunks.has(hash)) {
-      return this._pendingChunks.get(hash);
-    }
-    return super.getChunk(hash);
+  override async getChunk(
+    hash: Hash,
+    loadFromSource: LoadFromSource = LoadFromSource.True,
+  ): Promise<Chunk | undefined> {
+    return (
+      this._pendingChunks.get(hash) || super.getChunk(hash, loadFromSource)
+    );
   }
 
-  async getHead(name: string): Promise<Hash | undefined> {
+  override async getHead(name: string): Promise<Hash | undefined> {
     const headChange = this._pendingHeadChanges.get(name);
     if (headChange) {
       return headChange.new;
@@ -246,7 +281,7 @@ export class LazyWrite extends LazyRead implements Write {
         pendingRefCountUpdates.set(hash, undefined);
       },
       async hash => {
-        return (await this.getChunk(hash))?.meta;
+        return (await this.getChunk(hash, LoadFromSource.False))?.meta;
       },
     );
     await garbargeCollector.collect(
@@ -294,12 +329,18 @@ type CacheEntry = {
 class ChunksCache {
   private readonly _cacheSizeLimit: number;
   private readonly _getSizeOfValue: (v: kv.Value) => number;
+  private readonly _refCounts: Map<Hash, number>;
   private readonly _cacheEntries = new Map<Hash, CacheEntry>();
   private _size = 0;
 
-  constructor(cacheSizeLimit: number, getSizeOfValue: (v: kv.Value) => number) {
+  constructor(
+    cacheSizeLimit: number,
+    getSizeOfValue: (v: kv.Value) => number,
+    refCounts: Map<Hash, number>,
+  ) {
     this._cacheSizeLimit = cacheSizeLimit;
     this._getSizeOfValue = getSizeOfValue;
+    this._refCounts = refCounts;
   }
 
   get(hash: Hash): Chunk | undefined {
@@ -313,19 +354,33 @@ class ChunksCache {
 
   put(chunk: Chunk): void {
     const {hash} = chunk;
+    // If there is an existing cache entry then the cache value must be equivalent,
+    // early return
     const oldCacheEntry = this._cacheEntries.get(hash);
     if (oldCacheEntry) {
-      this._size -= oldCacheEntry.size;
-      this._cacheEntries.delete(hash);
-    }
-    const valueSize = this._getSizeOfValue(chunk.data);
-    if (valueSize > this._cacheSizeLimit) {
-      // this value cannot be cached due to its size
-      // don't evict other entries to try to make room for it
       return;
     }
+
+    const refCount = this._refCounts.get(hash);
+    if (refCount === undefined || refCount < 1) {
+      return;
+    }
+
+    const valueSize = this._getSizeOfValue(chunk.data);
+    if (valueSize > this._cacheSizeLimit) {
+      // This value cannot be cached due to its size
+      // don't evict other entries to try to make room for it.
+      // This also prevents chunks only referenced by this chunk
+      // from being cached, as they will never have a positive
+      // ref count.
+      return;
+    }
+
     this._size += valueSize;
     this._cacheEntries.set(hash, {chunk, size: valueSize});
+    chunk.meta.forEach(refHash => {
+      this._refCounts.set(refHash, (this._refCounts.get(refHash) || 0) + 1);
+    });
 
     if (this._size <= this._cacheSizeLimit) {
       return;
@@ -335,8 +390,7 @@ class ChunksCache {
         break;
       }
       const [keyToEvict, cacheEntryToEvict] = entry;
-      this._size -= cacheEntryToEvict.size;
-      this._cacheEntries.delete(keyToEvict);
+      this.deleteAndDecrementRefCounts(keyToEvict, cacheEntryToEvict);
     }
   }
 
@@ -344,7 +398,27 @@ class ChunksCache {
     const cacheEntryToDelete = this._cacheEntries.get(hash);
     if (cacheEntryToDelete) {
       this._size -= cacheEntryToDelete.size;
+      this._cacheEntries.delete(hash);
     }
+  }
+
+  deleteAndDecrementRefCounts(hash: Hash, cacheEntry: CacheEntry): void {
+    this._size -= cacheEntry.size;
     this._cacheEntries.delete(hash);
+    cacheEntry.chunk.meta.forEach(refHash => {
+      const oldCount = this._refCounts.get(refHash);
+      assertNotUndefined(oldCount);
+      assert(oldCount > 0);
+      const newCount = oldCount - 1;
+      if (newCount === 0) {
+        this._refCounts.delete(hash);
+        const refCacheEntry = this._cacheEntries.get(refHash);
+        if (refCacheEntry) {
+          this.deleteAndDecrementRefCounts(refHash, refCacheEntry);
+        }
+      } else {
+        this._refCounts.set(refHash, newCount);
+      }
+    });
   }
 }

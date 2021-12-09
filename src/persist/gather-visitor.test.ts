@@ -11,7 +11,7 @@ import {
 import {GatherVisitor} from './gather-visitor';
 import {TestMemStore} from '../kv/test-mem-store';
 import type {Value} from '../kv/store';
-import {stringCompare} from '../prolly/string-compare';
+import {stringCompare} from '../string-compare';
 
 setup(async () => {
   await initHasher();

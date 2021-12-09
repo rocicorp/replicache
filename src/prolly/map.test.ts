@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
-import {stringCompare} from './string-compare';
+import {stringCompare} from '../string-compare';
 import * as prolly from './mod';
 import {initHasher} from '../hash';
 import {binarySearch, Entry} from './map';

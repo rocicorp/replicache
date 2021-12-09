@@ -12,8 +12,6 @@ export {
   DEFAULT_HEAD_NAME,
   Commit,
   fromChunk,
-  commitDataFromFlatbuffer,
-  commitDataToFlatbuffer,
   newIndexChange,
   newLocal,
   newSnapshot,

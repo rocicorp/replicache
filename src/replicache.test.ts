@@ -1409,7 +1409,9 @@ test('logLevel', async () => {
   expect(debug.callCount).to.be.greaterThan(0);
 
   expect(
-    debug.getCalls().some(({firstArg}) => firstArg.startsWith('db=log-level')),
+    debug
+      .getCalls()
+      .some(call => (call.firstArg + '').startsWith('db=log-level')),
   ).to.equal(true);
   expect(
     debug.getCalls().some(call => call.firstArg.startsWith('PULL')),

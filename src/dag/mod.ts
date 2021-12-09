@@ -1,4 +1,4 @@
-export {Read, metaFromFlatbuffer, metaToFlatbuffer} from './read';
+export {Read} from './read';
 export {Write, fromLittleEndian, toLittleEndian} from './write';
 export type {Chunk, CreateChunk} from './chunk';
 export {

@@ -17,11 +17,12 @@ export function benchmarkPopulate(opts: {
   numKeys: number;
   clean: boolean;
   indexes?: number;
+  useMemstore: boolean;
 }): Benchmark {
   return {
-    name: `populate ${valSize}x${opts.numKeys} (${
-      opts.clean ? 'clean' : 'dirty'
-    }, ${`indexes: ${opts.indexes || 0}`})`,
+    name: `${opts.useMemstore ? '[MemStore] ' : ''}populate ${valSize}x${
+      opts.numKeys
+    } (${opts.clean ? 'clean' : 'dirty'}, ${`indexes: ${opts.indexes || 0}`})`,
     group: 'replicache',
     byteSize: opts.numKeys * valSize,
     async run(bencher: Bencher) {
@@ -47,10 +48,15 @@ export function benchmarkPopulate(opts: {
   };
 }
 
-export function benchmarkReadTransaction(opts: {numKeys: number}): Benchmark {
+export function benchmarkReadTransaction(opts: {
+  numKeys: number;
+  useMemstore: boolean;
+}): Benchmark {
   let rep: ReplicacheWithPopulate;
   return {
-    name: `read tx ${valSize}x${opts.numKeys}`,
+    name: `${opts.useMemstore ? '[MemStore] ' : ''}read tx ${valSize}x${
+      opts.numKeys
+    }`,
     group: 'replicache',
     byteSize: opts.numKeys * valSize,
     async setup() {
@@ -79,10 +85,15 @@ export function benchmarkReadTransaction(opts: {numKeys: number}): Benchmark {
   };
 }
 
-export function benchmarkScan(opts: {numKeys: number}): Benchmark {
+export function benchmarkScan(opts: {
+  numKeys: number;
+  useMemstore: boolean;
+}): Benchmark {
   let rep: ReplicacheWithPopulate;
   return {
-    name: `scan ${valSize}x${opts.numKeys}`,
+    name: `${opts.useMemstore ? '[MemStore] ' : ''}scan ${valSize}x${
+      opts.numKeys
+    }`,
     group: 'replicache',
     byteSize: opts.numKeys * valSize,
 
@@ -109,9 +120,14 @@ export function benchmarkScan(opts: {numKeys: number}): Benchmark {
   };
 }
 
-export function benchmarkCreateIndex(opts: {numKeys: number}): Benchmark {
+export function benchmarkCreateIndex(opts: {
+  numKeys: number;
+  useMemstore: boolean;
+}): Benchmark {
   return {
-    name: `create index ${valSize}x${opts.numKeys}`,
+    name: `${opts.useMemstore ? '[MemStore] ' : ''}create index ${valSize}x${
+      opts.numKeys
+    }`,
     group: 'replicache',
 
     async run(bencher: Bencher) {
@@ -144,6 +160,7 @@ export function benchmarkWriteSubRead(opts: {
   keysPerSub: number;
   keysWatchedPerSub: number;
   numSubsDirty: number;
+  useMemstore: boolean;
 }): Benchmark {
   const {valueSize, numSubsTotal, keysPerSub, keysWatchedPerSub, numSubsDirty} =
     opts;
@@ -154,7 +171,9 @@ export function benchmarkWriteSubRead(opts: {
   const makeKey = (index: number) => `key${index}`;
 
   return {
-    name: `writeSubRead ${cacheSizeMB}MB total, ${numSubsTotal} subs total, ${numSubsDirty} subs dirty, ${kbReadPerSub}kb read per sub`,
+    name: `${
+      opts.useMemstore ? '[MemStore] ' : ''
+    }writeSubRead ${cacheSizeMB}MB total, ${numSubsTotal} subs total, ${numSubsDirty} subs dirty, ${kbReadPerSub}kb read per sub`,
     group: 'replicache',
     async run(bencher: Bencher) {
       const keys = Array.from({length: numKeys}, (_, index) => makeKey(index));
@@ -288,7 +307,7 @@ async function makeRepWithPopulate() {
 }
 
 export function benchmarks(): Benchmark[] {
-  return [
+  const bs = (useMemstore: boolean) => [
     // write/sub/read 1mb
     benchmarkWriteSubRead({
       valueSize: 1024,
@@ -296,6 +315,7 @@ export function benchmarks(): Benchmark[] {
       keysPerSub: 16,
       keysWatchedPerSub: 16,
       numSubsDirty: 5,
+      useMemstore,
     }),
     // write/sub/read 4mb
     benchmarkWriteSubRead({
@@ -304,6 +324,7 @@ export function benchmarks(): Benchmark[] {
       keysPerSub: 32,
       keysWatchedPerSub: 16,
       numSubsDirty: 5,
+      useMemstore,
     }),
     // write/sub/read 16mb
     benchmarkWriteSubRead({
@@ -312,12 +333,19 @@ export function benchmarks(): Benchmark[] {
       keysPerSub: 128,
       keysWatchedPerSub: 16,
       numSubsDirty: 5,
+      useMemstore,
     }),
     // 128 mb is unusable
-    benchmarkPopulate({numKeys: 1000, clean: true}),
-    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1}),
-    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 2}),
-    benchmarkScan({numKeys: 1000}),
-    benchmarkCreateIndex({numKeys: 5000}),
+    benchmarkPopulate({numKeys: 1000, clean: true, useMemstore}),
+    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1, useMemstore}),
+    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 2, useMemstore}),
+    benchmarkScan({numKeys: 1000, useMemstore}),
+    benchmarkCreateIndex({numKeys: 5000, useMemstore}),
   ];
+  // We do not support useMemstore any more but we keep running the benchmark
+  // with the flag to preserve the benchmark name so it is easier to keep track
+  // of the results.
+  //
+  // Run with both true and false. After a few runs we can remove the flag.
+  return [...bs(true), ...bs(false)];
 }

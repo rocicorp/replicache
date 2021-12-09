@@ -1,11 +1,7 @@
-import {assertArray, assertNotNull, assertString} from '../asserts';
+import {assertArray, assertString} from '../asserts';
 import type * as dag from '../dag/mod';
 import {assertJSONValue, deepEqual, ReadonlyJSONValue} from '../json';
 import {stringCompare} from '../string-compare';
-import * as flatbuffers from 'flatbuffers';
-import {Leaf as LeafFB} from './generated/leaf/leaf';
-import * as utf8 from '../utf8';
-import {LeafEntry as LeafEntryFB} from './generated/leaf/leaf-entry';
 import type {Hash} from '../hash';
 
 export type Entry = readonly [key: string, value: ReadonlyJSONValue];
@@ -231,46 +227,6 @@ export function binarySearch(
   }
   const index = base + (cmp === -1 ? 1 : 0);
   return -index - 1;
-}
-
-export function entriesFromFlatbuffer(data: Uint8Array): Entry[] {
-  const buf = new flatbuffers.ByteBuffer(data);
-  const root = LeafFB.getRootAsLeaf(buf);
-  const entries: Entry[] = [];
-  for (let i = 0; i < root.entriesLength(); i++) {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const entry = root.entries(i)!;
-    const keyArray = entry.keyArray();
-    assertNotNull(keyArray);
-    const key = utf8.decode(keyArray);
-    const valArray = entry.valArray();
-    assertNotNull(valArray);
-    const val = JSON.parse(utf8.decode(valArray));
-    entries.push([key, val]);
-  }
-  return entries;
-}
-
-export function entriesToFlatbuffer(entries: Entry[]): Uint8Array {
-  const builder = new flatbuffers.Builder();
-  const leafEntries = [];
-  for (const entry of entries) {
-    const leafEntry = LeafEntryFB.createLeafEntry(
-      builder,
-      LeafEntryFB.createKeyVector(builder, utf8.encode(entry[0])),
-      LeafEntryFB.createValVector(
-        builder,
-        utf8.encode(JSON.stringify(entry[1])),
-      ),
-    );
-    leafEntries.push(leafEntry);
-  }
-  const root = LeafFB.createLeaf(
-    builder,
-    LeafFB.createEntriesVector(builder, leafEntries),
-  );
-  builder.finish(root);
-  return builder.asUint8Array();
 }
 
 export {ProllyMap as Map};

@@ -1,7 +1,7 @@
 import {assertArray, assertNotNull, assertString} from '../asserts';
 import type * as dag from '../dag/mod';
 import {assertJSONValue, deepEqual, ReadonlyJSONValue} from '../json';
-import {stringCompare} from './string-compare';
+import {stringCompare} from '../string-compare';
 import * as flatbuffers from 'flatbuffers';
 import {Leaf as LeafFB} from './generated/leaf/leaf';
 import * as utf8 from '../utf8';

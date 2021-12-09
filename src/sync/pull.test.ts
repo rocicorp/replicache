@@ -33,7 +33,7 @@ import {
 } from './pull';
 import {LogContext} from '../logger';
 import {emptyHash, initHasher} from '../hash';
-import {stringCompare} from '../prolly/string-compare';
+import {stringCompare} from '../string-compare';
 import {asyncIterableToArray} from '../async-iterable-to-array';
 import type {SnapshotMeta} from '../db/commit';
 

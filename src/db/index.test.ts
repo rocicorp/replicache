@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import type {JSONValue} from '../json';
-import {stringCompare} from '../prolly/string-compare';
+import {stringCompare} from '../string-compare';
 import * as dag from '../dag/mod';
 import {
   decodeIndexKey,

@@ -1416,7 +1416,9 @@ testWithBothStores('logLevel', async () => {
   expect(debug.callCount).to.be.greaterThan(0);
 
   expect(
-    debug.getCalls().some(call => call.firstArg === 'db=log-level'),
+    debug
+      .getCalls()
+      .some(call => (call.firstArg + '').startsWith('db=log-level')),
   ).to.equal(true);
   expect(
     debug.getCalls().some(call => call.firstArg.includes('PULL')),
@@ -1986,8 +1988,8 @@ test('experiment KV Store', async () => {
     mutators: {addData},
   });
 
-  expect(store.readCount).to.equal(4);
-  expect(store.writeCount).to.equal(5);
+  expect(store.readCount).to.equal(3);
+  expect(store.writeCount).to.equal(3);
   expect(store.closeCount).to.equal(0);
   store.resetCounters();
 

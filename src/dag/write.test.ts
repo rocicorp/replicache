@@ -450,8 +450,6 @@ test('that we changeRefCount does not write stale value with a 3 incoming refs',
 test('that we changeRefCount does not write stale value with a 3 incoming refs bypassing one level', async () => {
   const dagStore = new TestStore();
 
-  // If we have a diamond structure we update the refcount for D three times.
-  //
   //    R
   //  / | \
   //  A B  |

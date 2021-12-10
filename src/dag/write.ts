@@ -17,6 +17,11 @@ export class Write extends Read {
 
   private readonly _newChunks = new Set<Hash>();
   private readonly _changedHeads = new Map<string, HeadChange>();
+
+  /**
+   * This map is used to ensure we do not load the ref count key more than once.
+   * Once it is loaded we only operate on a cache of the ref counts.
+   */
   private readonly _refCountLoadingPromises = new Map<Hash, Promise<void>>();
 
   constructor(

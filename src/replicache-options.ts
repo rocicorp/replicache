@@ -53,14 +53,14 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
   pullURL?: string;
 
   /**
-   * The name of the Replicache database. This defaults to `"default"`.
+   * The name of the Replicache database.
+   *
+   * It is important to use user specific names so that if there are multiple
+   * tabs open for different distinct users the data is kept seperate.
    *
    * You can use multiple Replicache instances as long as the names are unique.
-   *
-   * Using different names for different users allows you to switch users even
-   * when you are offline.
    */
-  name?: string;
+  name: string;
 
   /**
    * The schema version of the data understood by this application. This enables
@@ -102,6 +102,7 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    *
    * ```ts
    * const rep = new Replicache({
+   *   name: 'user-id',
    *   mutators: {
    *     async createTodo(tx: WriteTransaction, args: JSONValue) {
    *       const key = `/todo/${args.id}`;

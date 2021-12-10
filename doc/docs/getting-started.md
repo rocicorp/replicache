@@ -48,6 +48,7 @@ import {useSubscribe} from 'replicache-react';
 import {nanoid} from 'nanoid';
 
 const rep = new Replicache({
+  name: 'user-id',
   mutators: {
     createTodo: (tx, args) => {
       tx.put(`/todo/${args.id}`, args);
@@ -82,6 +83,7 @@ import {Replicache} from 'replicache';
 import {nanoid} from 'nanoid';
 
 const rep = new Replicache({
+  name: 'user-id',
   mutators: {
     createTodo: (tx, args) => {
       tx.put(`/todo/${args.id}`, args);

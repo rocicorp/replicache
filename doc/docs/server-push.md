@@ -14,6 +14,7 @@ constructor option:
 
 ```js
 const rep = new Replicache({
+  // ...
   pushURL: '/replicache-push',
 });
 ```

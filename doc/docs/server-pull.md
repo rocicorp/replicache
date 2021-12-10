@@ -13,6 +13,7 @@ Specify the URL with the [`pullURL`](api/interfaces/ReplicacheOptions#pullURL) c
 
 ```js
 const rep = new Replicache({
+  // ...
   pullURL: '/replicache-pull',
 });
 ```

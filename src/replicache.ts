@@ -291,9 +291,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
   getAuth: (() => MaybePromise<string | null | undefined>) | null | undefined =
     null;
 
-  constructor(options: ReplicacheOptions<MD> = {}) {
+  constructor(options: ReplicacheOptions<MD>) {
     const {
-      name = 'default',
+      name,
       logLevel = 'info',
       pullAuth,
       pullURL = '',

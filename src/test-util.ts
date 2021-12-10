@@ -77,7 +77,7 @@ export function deletaAllDatabases(): void {
 // eslint-disable-next-line @typescript-eslint/ban-types
 export async function replicacheForTesting<MD extends MutatorDefs = {}>(
   name: string,
-  options: ReplicacheOptions<MD> = {},
+  options: Omit<ReplicacheOptions<MD>, 'name'> = {},
 ): Promise<ReplicacheTest<MD>> {
   const pullURL = 'https://pull.com/?name=' + name;
   const pushURL = 'https://push.com/?name=' + name;
@@ -98,7 +98,7 @@ export async function replicacheForTestingNoDefaultURLs<
     pushDelay = 60_000, // Large to prevent interfering
     pushURL,
     ...rest
-  }: ReplicacheOptions<MD> = {},
+  }: Omit<ReplicacheOptions<MD>, 'name'> = {},
 ): Promise<ReplicacheTest<MD>> {
   const rep = new ReplicacheTest<MD>({
     pullURL,

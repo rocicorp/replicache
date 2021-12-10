@@ -10,8 +10,7 @@ import {
 } from '../db/test-helpers';
 import {GatherVisitor} from './gather-visitor';
 import {TestMemStore} from '../kv/test-mem-store';
-import type {Value} from '../kv/store';
-import {stringCompare} from '../string-compare';
+import {sortByHash} from '../dag/test-store';
 
 setup(async () => {
   await initHasher();
@@ -43,12 +42,6 @@ test('dag with no temp hashes gathers nothing', async () => {
   });
 });
 
-function sortByHash(
-  arr: IterableIterator<dag.Chunk<Value>>,
-): dag.Chunk<Value>[] {
-  return [...arr].sort((a, b) => stringCompare(String(a.hash), String(b.hash)));
-}
-
 test('dag with only temp hashes gathers eveything', async () => {
   const kvStore = new TestMemStore();
   const dagStore = new dag.TestStore(kvStore, newTempHash, () => void 0);
@@ -58,7 +51,7 @@ test('dag with only temp hashes gathers eveything', async () => {
     await dagStore.withRead(async dagRead => {
       const visitor = new GatherVisitor(dagRead);
       await visitor.visitCommit(chain[chain.length - 1].chunk.hash);
-      expect(sortByHash(dagStore.chunks())).to.deep.equal(
+      expect(dagStore.chunks()).to.deep.equal(
         sortByHash(visitor.gatheredChunks.values()),
       );
     });

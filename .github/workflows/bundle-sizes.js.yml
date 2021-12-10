@@ -16,10 +16,10 @@ jobs:
       - run: npm install
       - run: npm run build
       - run: brotli ./out/*
-      
+
       # Builds bundles then measures bundles sizes and stores them to a file
       - name: Measure bundles
-        run: node perf/bundle-sizes --bundles replicache.js replicache.js.br replicache.mjs replicache.mjs.br | tee bundle-sizes.json
+        run: node perf/bundle-sizes --bundles replicache.js replicache.js.br replicache.mjs replicache.mjs.br replicache.min.mjs replicache.min.mjs.br | tee bundle-sizes.json
 
       # install above may have modified package-lock, in which case
       # rhysd/github-action-benchmark@v1 will error when trying to switch

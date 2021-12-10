@@ -141,6 +141,7 @@ export class Write extends Read {
     }
 
     {
+      // Read again since the ref count might have changed.
       const oldCount = refCountCache.get(hash);
       assertNumber(oldCount);
       const newCount = oldCount + delta;

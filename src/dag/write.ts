@@ -18,6 +18,12 @@ export class Write extends Read {
   private readonly _newChunks = new Set<Hash>();
   private readonly _changedHeads = new Map<string, HeadChange>();
 
+  /**
+   * This map is used to ensure we do not load the ref count key more than once.
+   * Once it is loaded we only operate on a cache of the ref counts.
+   */
+  private readonly _refCountLoadingPromises = new Map<Hash, Promise<void>>();
+
   constructor(
     kvw: kv.Write,
     chunkHasher: ChunkHasher,
@@ -85,73 +91,85 @@ export class Write extends Read {
   }
 
   async commit(): Promise<void> {
-    await this.collectGarbage();
+    await this._collectGarbage();
     await this._tx.commit();
   }
 
-  async collectGarbage(): Promise<void> {
+  private async _collectGarbage(): Promise<void> {
     // We increment all the ref counts before we do all the decrements. This
     // is so that we do not remove an item that goes from 1 -> 0 -> 1
-    const newHeads: (Hash | undefined)[] = [];
-    const oldHeads: (Hash | undefined)[] = [];
+    const newHeads: Hash[] = [];
+    const oldHeads: Hash[] = [];
     for (const changedHead of this._changedHeads.values()) {
-      oldHeads.push(changedHead.old);
-      newHeads.push(changedHead.new);
+      changedHead.old && oldHeads.push(changedHead.old);
+      changedHead.new && newHeads.push(changedHead.new);
     }
 
+    const refCountCache: Map<Hash, number> = new Map();
+
     for (const n of newHeads) {
-      if (n !== undefined) {
-        await this.changeRefCount(n, 1);
-      }
+      await this._changeRefCount(n, 1, refCountCache);
     }
 
     for (const o of oldHeads) {
-      if (o !== undefined) {
-        await this.changeRefCount(o, -1);
-      }
+      await this._changeRefCount(o, -1, refCountCache);
     }
+
+    await this._applyGatheredRefCountChanges(refCountCache);
 
     // Now we go through the mutated chunks to see if any of them are still orphaned.
     const ps = [];
     for (const hash of this._newChunks) {
-      const count = await this.getRefCount(hash);
+      await this._ensureRefCountLoaded(hash, refCountCache);
+      const count = refCountCache.get(hash);
       if (count === 0) {
-        ps.push(this.removeAllRelatedKeys(hash, false));
+        ps.push(this._removeAllRelatedKeys(hash));
       }
     }
     await Promise.all(ps);
   }
 
-  async changeRefCount(hash: Hash, delta: number): Promise<void> {
-    const oldCount = await this.getRefCount(hash);
-    const newCount = oldCount + delta;
+  private async _changeRefCount(
+    hash: Hash,
+    delta: number,
+    refCountCache: Map<Hash, number>,
+  ): Promise<void> {
+    // First make sure that we have the ref count in the cache. This is async
+    // because it might need to load the ref count from the store.
+    //
+    // Once we have loaded the ref count all the updates to it are sync to
+    // prevent race conditions.
+    await this._ensureRefCountLoaded(hash, refCountCache);
 
-    if ((oldCount === 0 && delta === 1) || (oldCount === 1 && delta === -1)) {
+    if (updateRefCount(hash, delta, refCountCache)) {
       const meta = await this._tx.get(chunkMetaKey(hash));
       if (meta !== undefined) {
         assertMeta(meta);
-        const ps = meta.map(ref => this.changeRefCount(ref, delta));
+        const ps = meta.map(ref =>
+          this._changeRefCount(ref, delta, refCountCache),
+        );
         await Promise.all(ps);
       }
     }
-
-    if (newCount === 0) {
-      await this.removeAllRelatedKeys(hash, true);
-    } else {
-      await this.setRefCount(hash, newCount);
-    }
   }
 
-  async setRefCount(hash: Hash, count: number): Promise<void> {
-    const refCountKey = chunkRefCountKey(hash);
-    if (count === 0) {
-      await this._tx.del(refCountKey);
-    } else {
-      await this._tx.put(refCountKey, count);
+  private _ensureRefCountLoaded(
+    hash: Hash,
+    refCountCache: Map<Hash, number>,
+  ): Promise<void> {
+    // Only get the ref count once.
+    let p = this._refCountLoadingPromises.get(hash);
+    if (p === undefined) {
+      p = (async () => {
+        const value = await this._getRefCount(hash);
+        refCountCache.set(hash, value);
+      })();
+      this._refCountLoadingPromises.set(hash, p);
     }
+    return p;
   }
 
-  async getRefCount(hash: Hash): Promise<number> {
+  private async _getRefCount(hash: Hash): Promise<number> {
     const value = await this._tx.get(chunkRefCountKey(hash));
     if (value === undefined) {
       return 0;
@@ -165,24 +183,51 @@ export class Write extends Read {
     return value;
   }
 
-  async removeAllRelatedKeys(
-    hash: Hash,
-    updateMutatedChunks: boolean,
-  ): Promise<void> {
+  private async _removeAllRelatedKeys(hash: Hash): Promise<void> {
     await Promise.all([
       this._tx.del(chunkDataKey(hash)),
       this._tx.del(chunkMetaKey(hash)),
       this._tx.del(chunkRefCountKey(hash)),
     ]);
 
-    if (updateMutatedChunks) {
-      this._newChunks.delete(hash);
-    }
+    this._newChunks.delete(hash);
+  }
+
+  private async _applyGatheredRefCountChanges(
+    refCountCache: Map<Hash, number>,
+  ): Promise<void> {
+    const ps: Promise<void>[] = [];
+    refCountCache.forEach((count, hash) => {
+      if (count === 0) {
+        ps.push(this._removeAllRelatedKeys(hash));
+      } else {
+        const refCountKey = chunkRefCountKey(hash);
+        ps.push(this._tx.put(refCountKey, count));
+      }
+    });
+    await Promise.all(ps);
   }
 
   close(): void {
     this._tx.release();
   }
+}
+
+/**
+ * Updates the ref count in the refCountCache.
+ *
+ * Returns true if the the node changed from reachable to unreachable and vice
+ * versa.
+ */
+function updateRefCount(
+  hash: Hash,
+  delta: number,
+  refCountCache: Map<Hash, number>,
+): boolean {
+  const oldCount = refCountCache.get(hash);
+  assertNumber(oldCount);
+  refCountCache.set(hash, oldCount + delta);
+  return (oldCount === 0 && delta === 1) || (oldCount === 1 && delta === -1);
 }
 
 export function toLittleEndian(count: number): Uint8Array {

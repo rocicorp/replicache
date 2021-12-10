@@ -10,8 +10,6 @@ import {
 } from '../db/test-helpers';
 import {GatherVisitor} from './gather-visitor';
 import {TestMemStore} from '../kv/test-mem-store';
-import type {Value} from '../kv/store';
-import {stringCompare} from '../string-compare';
 import {sortByHash} from '../dag/test-store';
 
 setup(async () => {

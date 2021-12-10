@@ -34,7 +34,6 @@ import * as dag from './dag/mod';
 import * as db from './db/mod';
 import * as sync from './sync/mod';
 import {assertNotTempHash, emptyHash, Hash, initHasher} from './hash';
-import {migrate} from './migrate/migrate';
 
 export type BeginPullResult = {
   requestID: string;
@@ -351,17 +350,16 @@ export class Replicache<MD extends MutatorDefs = {}> {
     // wait for it to finish closing.
     await closingInstances.get(this.name);
 
-    await Promise.all([initHasher(), migrate(this._kvStore, this._lc)]);
-
     await Promise.all([
+      initHasher(),
       sync.initClientID(this._kvStore).then(clientID => {
         resolveClientID(clientID);
       }),
-      db.maybeInitDefaultDB(this._dagStore),
     ]);
 
-    // Now we have both a clientID and DB!
-    resolveReady();
+    await db.maybeInitDefaultDB(this._dagStore),
+      // Now we have both a clientID and DB!
+      resolveReady();
 
     if (hasBroadcastChannel) {
       this._broadcastChannel = new BroadcastChannel(storageKeyName(this.name));

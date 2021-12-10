@@ -82,14 +82,6 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
   pushDelay?: number;
 
   /**
-   * Allows using an in memory store instead of IndexedDB. This is useful for
-   * testing for example. Notice that when this is `true` no data is persisted
-   * in Replicache and all the data that has not yet been synced when Replicache
-   * is [[closed]] or the page is unloaded is lost.
-   */
-  useMemstore?: boolean;
-
-  /**
    * Determines how much logging to do. When this is set to `'debug'`,
    * Replicache will also log `'info'` and `'error'` messages. When set to
    * `'info'` we log `'info'` and `'error'` but not `'debug'`. When set to

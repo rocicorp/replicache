@@ -17,6 +17,7 @@ export class Write extends Read {
 
   private readonly _newChunks = new Set<Hash>();
   private readonly _changedHeads = new Map<string, HeadChange>();
+  private readonly _refCountLoadingPromises = new Map<Hash, Promise<void>>();
 
   constructor(
     kvw: kv.Write,
@@ -109,12 +110,13 @@ export class Write extends Read {
       await this._changeRefCount(o, -1, refCountCache);
     }
 
-    await this._applyRefCountCache(refCountCache);
+    await this._applyGatheredRefCountChanges(refCountCache);
 
     // Now we go through the mutated chunks to see if any of them are still orphaned.
     const ps = [];
     for (const hash of this._newChunks) {
-      const count = await this._getRefCount(hash, refCountCache);
+      await this._ensureRefCountLoaded(hash, refCountCache);
+      const count = refCountCache.get(hash);
       if (count === 0) {
         ps.push(this._removeAllRelatedKeys(hash));
       }
@@ -127,9 +129,14 @@ export class Write extends Read {
     delta: number,
     refCountCache: Map<Hash, number>,
   ): Promise<void> {
-    const oldCount = await this._getRefCount(hash, refCountCache);
+    // First make sure that we have the ref count in the cache. This is async
+    // because it might need to load the ref count from the store.
+    //
+    // Once we have loaded the ref count all the updates to it are sync to
+    // prevent race conditions.
+    await this._ensureRefCountLoaded(hash, refCountCache);
 
-    if ((oldCount === 0 && delta === 1) || (oldCount === 1 && delta === -1)) {
+    if (updateRefCount(hash, delta, refCountCache)) {
       const meta = await this._tx.get(chunkMetaKey(hash));
       if (meta !== undefined) {
         assertMeta(meta);
@@ -139,27 +146,27 @@ export class Write extends Read {
         await Promise.all(ps);
       }
     }
-
-    {
-      // Read again since the ref count might have changed.
-      const oldCount = refCountCache.get(hash);
-      assertNumber(oldCount);
-      const newCount = oldCount + delta;
-      refCountCache.set(hash, newCount);
-    }
   }
 
-  private async _getRefCount(
+  private _ensureRefCountLoaded(
     hash: Hash,
     refCountCache: Map<Hash, number>,
-  ): Promise<number> {
-    const cached = refCountCache.get(hash);
-    if (cached !== undefined) {
-      return cached;
+  ): Promise<void> {
+    // Only get the ref count once.
+    let p = this._refCountLoadingPromises.get(hash);
+    if (p === undefined) {
+      p = (async () => {
+        const value = await this._getRefCount(hash);
+        refCountCache.set(hash, value);
+      })();
+      this._refCountLoadingPromises.set(hash, p);
     }
+    return p;
+  }
+
+  private async _getRefCount(hash: Hash): Promise<number> {
     const value = await this._tx.get(chunkRefCountKey(hash));
     if (value === undefined) {
-      refCountCache.set(hash, 0);
       return 0;
     }
     assertNumber(value);
@@ -168,7 +175,6 @@ export class Write extends Read {
         `Invalid ref count ${value}. We expect the value to be a Uint16`,
       );
     }
-    refCountCache.set(hash, value);
     return value;
   }
 
@@ -182,7 +188,7 @@ export class Write extends Read {
     this._newChunks.delete(hash);
   }
 
-  private async _applyRefCountCache(
+  private async _applyGatheredRefCountChanges(
     refCountCache: Map<Hash, number>,
   ): Promise<void> {
     const ps: Promise<void>[] = [];
@@ -200,6 +206,23 @@ export class Write extends Read {
   close(): void {
     this._tx.release();
   }
+}
+
+/**
+ * Updates the ref count in the refCountCache.
+ *
+ * Returns true if the the node changed from reachable to unreachable and vice
+ * versa.
+ */
+function updateRefCount(
+  hash: Hash,
+  delta: number,
+  refCountCache: Map<Hash, number>,
+): boolean {
+  const oldCount = refCountCache.get(hash);
+  assertNumber(oldCount);
+  refCountCache.set(hash, oldCount + delta);
+  return (oldCount === 0 && delta === 1) || (oldCount === 1 && delta === -1);
 }
 
 export function toLittleEndian(count: number): Uint8Array {

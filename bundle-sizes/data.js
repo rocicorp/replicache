@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1639165976607,
+  "lastUpdate": 1639168647006,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -2443,6 +2443,50 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/ae89eca17baa249a8b68796f8a120ea34deac58a"
         },
         "date": 1639165974312,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 142077,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 29293,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 141723,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 29197,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "distinct": true,
+          "id": "bedf419842d30445c1174b61f0cc3a88ea34c2b2",
+          "message": "comments: Forgot to commit these comments\n\nFollow up to ae89eca17baa249a8b68796f8a120ea34deac58a",
+          "timestamp": "2021-12-10T12:33:23-08:00",
+          "tree_id": "08d9ed444b0bf8f0fa41b8c172e1ec1678f491ea",
+          "url": "https://github.com/rocicorp/replicache/commit/bedf419842d30445c1174b61f0cc3a88ea34c2b2"
+        },
+        "date": 1639168645743,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

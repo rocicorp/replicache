@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1639078970344,
+  "lastUpdate": 1639165976607,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -2419,6 +2419,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.mjs.br (Brotli compressed)",
             "value": 29093,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ae89eca17baa249a8b68796f8a120ea34deac58a",
+          "message": "fix: Incorrect ref count (#761)\n\nIf there is a diamond shape (or similar) we could end up writing a stale\r\nref count.\r\n\r\nThis happened because we read the ref count async and when that resolves\r\nwe end up with the same ref count in more than one possible execution of\r\nchangeRefCount and the ref count gets modified and written in both those\r\ncalls to changeRefCount.\r\n\r\nBy only loading the ref count once, and after that only operate on the\r\ncache we can ensure we are always working with the up to data ref count.",
+          "timestamp": "2021-12-10T11:52:03-08:00",
+          "tree_id": "92db6a93979b5f1e49d72d3dc61bb6904f79c242",
+          "url": "https://github.com/rocicorp/replicache/commit/ae89eca17baa249a8b68796f8a120ea34deac58a"
+        },
+        "date": 1639165974312,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 142077,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 29293,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 141723,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 29197,
             "unit": "bytes"
           }
         ]

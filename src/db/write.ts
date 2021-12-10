@@ -3,7 +3,6 @@ import type {ReadonlyJSONValue} from '../json';
 import {
   Commit,
   Meta as CommitMeta,
-  DEFAULT_HEAD_NAME,
   IndexDefinition,
   IndexRecord,
   newIndexChange as commitNewIndexChange,
@@ -424,15 +423,6 @@ export async function initDB(
     new Map(),
   );
   return await w.commit(headName);
-}
-
-export async function maybeInitDefaultDB(dagStore: dag.Store): Promise<void> {
-  await dagStore.withWrite(async dagWrite => {
-    const head = await dagWrite.getHead(DEFAULT_HEAD_NAME);
-    if (!head) {
-      await initDB(dagWrite, DEFAULT_HEAD_NAME);
-    }
-  });
 }
 
 export function readIndexesForWrite(

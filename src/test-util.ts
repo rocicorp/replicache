@@ -8,6 +8,8 @@ import type {ReplicacheOptions} from './replicache-options';
 import * as kv from './kv/mod';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import * as sinon from 'sinon';
+import type {ReadonlyJSONValue} from './json';
+import {Hash, makeNewTempHashFunction} from './hash';
 
 // fetch-mock has invalid d.ts file so we removed that on npm install.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -31,6 +33,12 @@ export class ReplicacheTest<
     return super._invokePush(maxAuthTries);
   }
 
+  protected override _memdagHashFunction(): <V extends ReadonlyJSONValue>(
+    data: V,
+  ) => Hash {
+    return makeNewTempHashFunction();
+  }
+
   protected override _invokePush(maxAuthTries: number): Promise<boolean> {
     return this.invokePush(maxAuthTries);
   }
@@ -39,6 +47,10 @@ export class ReplicacheTest<
     maxAuthTries: number,
   ): Promise<BeginPullResult> {
     return this.beginPull(maxAuthTries);
+  }
+
+  persist() {
+    return super._persist();
   }
 }
 
@@ -61,8 +73,6 @@ export function deletaAllDatabases(): void {
   }
   dbsToDrop.clear();
 }
-
-let overrideUseMemstore = false;
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export async function replicacheForTesting<MD extends MutatorDefs = {}>(
@@ -87,8 +97,6 @@ export async function replicacheForTestingNoDefaultURLs<
     pullURL,
     pushDelay = 60_000, // Large to prevent interfering
     pushURL,
-    useMemstore = overrideUseMemstore,
-
     ...rest
   }: ReplicacheOptions<MD> = {},
 ): Promise<ReplicacheTest<MD>> {
@@ -97,7 +105,6 @@ export async function replicacheForTestingNoDefaultURLs<
     pushDelay,
     pushURL,
     name,
-    useMemstore,
     ...rest,
   });
   dbsToDrop.add(rep.idbName);
@@ -108,19 +115,6 @@ export async function replicacheForTestingNoDefaultURLs<
   fetchMock.post(pushURL, 'ok');
   await tickAFewTimes();
   return rep;
-}
-
-export function testWithBothStores(name: string, func: () => Promise<void>) {
-  for (const useMemstore of [false, true]) {
-    test(`${name} {useMemstore: ${useMemstore}}`, async () => {
-      try {
-        overrideUseMemstore = useMemstore;
-        await func();
-      } finally {
-        overrideUseMemstore = false;
-      }
-    });
-  }
 }
 
 export let clock: SinonFakeTimers;

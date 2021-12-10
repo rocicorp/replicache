@@ -25,10 +25,7 @@ class SlurpVisitor extends db.Visitor {
   }
 }
 
-/**
- * Copies all the chunks reachable from `hash` from `src` to `dst`.
- */
-export async function slurp(
+async function slurpInner(
   hash: Hash,
   dst: dag.Write,
   src: dag.Read,
@@ -39,4 +36,21 @@ export async function slurp(
   });
   await slurpVisitor.visitCommit(hash);
   await Promise.all(ps);
+}
+
+/**
+ * Copies all the chunks reachable from `hash` from `src` to `dst`.
+ */
+export function slurp(hash: Hash, dstStore: dag.Store, srcStore: dag.Store) {
+  // dst is generally the memdag and we do not want to hold that open for longer
+  // than necessary so we open the src/perdag first.
+  return srcStore.withRead(async srcRead => {
+    await dstStore.withWrite(async dstWrite => {
+      await Promise.all([
+        slurpInner(hash, dstWrite, srcRead),
+        dstWrite.setHead(db.DEFAULT_HEAD_NAME, hash),
+      ]);
+      await dstWrite.commit();
+    });
+  });
 }

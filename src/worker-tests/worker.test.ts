@@ -23,20 +23,11 @@ test.skip('worker test', async () => {
   const name = 'worker-test';
   dbsToDrop.add(name);
 
-  {
-    const data = await send(w, {name, useMemstore: false});
-    expect(data).to.be.undefined;
-  }
-  {
-    const data = await send(w, {name, useMemstore: true});
-    expect(data).to.be.undefined;
-  }
+  const data = await send(w, {name});
+  expect(data).to.be.undefined;
 });
 
-async function send(
-  w: Worker,
-  data: {name: string; useMemstore: boolean},
-): Promise<unknown> {
+async function send(w: Worker, data: {name: string}): Promise<unknown> {
   const p = new Promise((resolve, reject) => {
     w.onmessage = e => resolve(e.data);
     w.onerror = reject;

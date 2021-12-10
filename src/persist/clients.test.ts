@@ -549,7 +549,7 @@ test('initClient creates new empty snapshot when no existing snapshot to bootstr
     // New client's head hash points to an empty snapshot with an empty btree.
     const headChunk = await read.getChunk(client.headHash);
     assertNotUndefined(headChunk);
-    const commit = await fromChunk(headChunk);
+    const commit = fromChunk(headChunk);
     expect(commit.isSnapshot()).to.be.true;
     const snapshotMeta = commit.meta as SnapshotMeta;
     expect(snapshotMeta.basisHash).to.be.null;
@@ -601,7 +601,7 @@ test('initClient bootstraps from base snapshot of client with highest heartbeat'
     // but with a local mutation id of 0.
     const headChunk = await read.getChunk(client.headHash);
     assertNotUndefined(headChunk);
-    const commit = await fromChunk(headChunk);
+    const commit = fromChunk(headChunk);
     expect(commit.isSnapshot()).to.be.true;
     const snapshotMeta = commit.meta as SnapshotMeta;
     expect(client2BaseSnapshotCommit.isSnapshot()).to.be.true;

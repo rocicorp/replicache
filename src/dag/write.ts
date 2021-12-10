@@ -5,7 +5,6 @@ import {assertMeta, Chunk, ChunkHasher, createChunk} from './chunk';
 import {assertNumber} from '../asserts';
 import type {Hash} from '../hash';
 import type {ReadonlyJSONValue} from '../json';
-import {Lock} from '../rw-lock';
 
 type HeadChange = {
   new: Hash | undefined;
@@ -18,7 +17,6 @@ export class Write extends Read {
 
   private readonly _newChunks = new Set<Hash>();
   private readonly _changedHeads = new Map<string, HeadChange>();
-  private _changeRefCountLocks: Map<Hash, Lock> = new Map();
 
   constructor(
     kvw: kv.Write,
@@ -101,64 +99,66 @@ export class Write extends Read {
       changedHead.new && newHeads.push(changedHead.new);
     }
 
+    const refCountCache: Map<Hash, number> = new Map();
+
     for (const n of newHeads) {
-      await this._changeRefCount(n, 1);
+      await this._changeRefCount(n, 1, refCountCache);
     }
 
     for (const o of oldHeads) {
-      await this._changeRefCount(o, -1);
+      await this._changeRefCount(o, -1, refCountCache);
     }
+
+    await this._applyRefCountCache(refCountCache);
 
     // Now we go through the mutated chunks to see if any of them are still orphaned.
     const ps = [];
     for (const hash of this._newChunks) {
-      const count = await this._getRefCount(hash);
+      const count = await this._getRefCount(hash, refCountCache);
       if (count === 0) {
-        ps.push(this._removeAllRelatedKeys(hash, false));
+        ps.push(this._removeAllRelatedKeys(hash));
       }
     }
     await Promise.all(ps);
   }
 
-  private async _changeRefCount(hash: Hash, delta: number): Promise<void> {
-    let lock = this._changeRefCountLocks.get(hash);
-    if (lock === undefined) {
-      lock = new Lock();
-      this._changeRefCountLocks.set(hash, lock);
+  private async _changeRefCount(
+    hash: Hash,
+    delta: number,
+    refCountCache: Map<Hash, number>,
+  ): Promise<void> {
+    const oldCount = await this._getRefCount(hash, refCountCache);
+
+    if ((oldCount === 0 && delta === 1) || (oldCount === 1 && delta === -1)) {
+      const meta = await this._tx.get(chunkMetaKey(hash));
+      if (meta !== undefined) {
+        assertMeta(meta);
+        const ps = meta.map(ref =>
+          this._changeRefCount(ref, delta, refCountCache),
+        );
+        await Promise.all(ps);
+      }
     }
-    await lock.withLock(async () => {
-      const oldCount = await this._getRefCount(hash);
+
+    {
+      const oldCount = refCountCache.get(hash);
+      assertNumber(oldCount);
       const newCount = oldCount + delta;
-
-      if ((oldCount === 0 && delta === 1) || (oldCount === 1 && delta === -1)) {
-        const meta = await this._tx.get(chunkMetaKey(hash));
-        if (meta !== undefined) {
-          assertMeta(meta);
-          const ps = meta.map(ref => this._changeRefCount(ref, delta));
-          await Promise.all(ps);
-        }
-      }
-
-      if (newCount === 0) {
-        await this._removeAllRelatedKeys(hash, true);
-      } else {
-        await this._setRefCount(hash, newCount);
-      }
-    });
-  }
-
-  private async _setRefCount(hash: Hash, count: number): Promise<void> {
-    const refCountKey = chunkRefCountKey(hash);
-    if (count === 0) {
-      await this._tx.del(refCountKey);
-    } else {
-      await this._tx.put(refCountKey, count);
+      refCountCache.set(hash, newCount);
     }
   }
 
-  private async _getRefCount(hash: Hash): Promise<number> {
+  private async _getRefCount(
+    hash: Hash,
+    refCountCache: Map<Hash, number>,
+  ): Promise<number> {
+    const cached = refCountCache.get(hash);
+    if (cached !== undefined) {
+      return cached;
+    }
     const value = await this._tx.get(chunkRefCountKey(hash));
     if (value === undefined) {
+      refCountCache.set(hash, 0);
       return 0;
     }
     assertNumber(value);
@@ -167,22 +167,33 @@ export class Write extends Read {
         `Invalid ref count ${value}. We expect the value to be a Uint16`,
       );
     }
+    refCountCache.set(hash, value);
     return value;
   }
 
-  private async _removeAllRelatedKeys(
-    hash: Hash,
-    updateMutatedChunks: boolean,
-  ): Promise<void> {
+  private async _removeAllRelatedKeys(hash: Hash): Promise<void> {
     await Promise.all([
       this._tx.del(chunkDataKey(hash)),
       this._tx.del(chunkMetaKey(hash)),
       this._tx.del(chunkRefCountKey(hash)),
     ]);
 
-    if (updateMutatedChunks) {
-      this._newChunks.delete(hash);
-    }
+    this._newChunks.delete(hash);
+  }
+
+  private async _applyRefCountCache(
+    refCountCache: Map<Hash, number>,
+  ): Promise<void> {
+    const ps: Promise<void>[] = [];
+    refCountCache.forEach((count, hash) => {
+      if (count === 0) {
+        ps.push(this._removeAllRelatedKeys(hash));
+      } else {
+        const refCountKey = chunkRefCountKey(hash);
+        ps.push(this._tx.put(refCountKey, count));
+      }
+    });
+    await Promise.all(ps);
   }
 
   close(): void {

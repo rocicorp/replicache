@@ -23,14 +23,8 @@ test.skip('worker test', async () => {
   const name = 'worker-test';
   dbsToDrop.add(name);
 
-  {
-    const data = await send(w, {name});
-    expect(data).to.be.undefined;
-  }
-  {
-    const data = await send(w, {name});
-    expect(data).to.be.undefined;
-  }
+  const data = await send(w, {name});
+  expect(data).to.be.undefined;
 });
 
 async function send(w: Worker, data: {name: string}): Promise<unknown> {

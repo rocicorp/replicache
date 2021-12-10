@@ -1,5 +1,5 @@
 export {Read} from './read';
-export {Write, fromLittleEndian, toLittleEndian} from './write';
+export {Write} from './write';
 export type {Chunk, CreateChunk} from './chunk';
 export {
   createChunk,

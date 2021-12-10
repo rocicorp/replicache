@@ -676,7 +676,7 @@ test('pull', async () => {
   });
   beginPullResult = await rep.beginPull();
   ({syncHead} = beginPullResult);
-  expect(syncHead).equal('t/000000000000000000000000000009');
+  expect(syncHead).equal('t/000000000000000000000000000007');
 
   await createTodo({
     id: id2,
@@ -1967,7 +1967,7 @@ test('experiment KV Store', async () => {
     mutators: {addData},
   });
 
-  expect(store.readCount).to.equal(1, 'readCount');
+  expect(store.readCount).to.equal(2, 'readCount');
   expect(store.writeCount).to.equal(1, 'writeCount');
   expect(store.closeCount).to.equal(0, 'closeCount');
   store.resetCounters();

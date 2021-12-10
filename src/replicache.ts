@@ -388,12 +388,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     await initHasher();
 
-    const initClientP = persist.initClient(this._perdag);
-
-    await db.maybeInitDefaultDB(this._memdag);
-
-    const [clientID] = await initClientP;
+    const [clientID, client] = await persist.initClient(this._perdag);
     resolveClientID(clientID);
+
+    // Copy chunks from perdag to memdag.
+    await persist.slurp(client.headHash, this._memdag, this._perdag);
 
     // Now we have both a clientID and DB!
     resolveReady();

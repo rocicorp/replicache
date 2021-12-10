@@ -7,10 +7,8 @@ import {
   addSnapshot,
   Chain,
 } from '../db/test-helpers';
-import {Hash, initHasher} from '../hash';
+import {initHasher} from '../hash';
 import {slurp} from './slurp';
-import * as db from '../db/mod';
-import type * as dag from '../dag/mod';
 
 setup(async () => {
   await initHasher();
@@ -29,22 +27,10 @@ suite('slurp', () => {
     await addGenesis(chain, srcStore);
   });
 
-  function slurpStores(hash: Hash, dstStore: dag.Store, srcStore: dag.Store) {
-    return dstStore.withWrite(async dstWrite => {
-      await srcStore.withRead(async srcRead => {
-        await Promise.all([
-          slurp(hash, dstWrite, srcRead),
-          dstWrite.setHead(db.DEFAULT_HEAD_NAME, hash),
-        ]);
-        await dstWrite.commit();
-      });
-    });
-  }
-
   teardown(async () => {
     const {hash} = chain[chain.length - 1].chunk;
 
-    await slurpStores(hash, dstStore, srcStore);
+    await slurp(hash, dstStore, srcStore);
 
     expect(srcStore.kvStore.snapshot()).to.deep.equal(
       dstStore.kvStore.snapshot(),
@@ -93,7 +79,7 @@ suite('slurp', () => {
 
   test('local + slurp + local', async () => {
     await addLocal(chain, srcStore);
-    await slurpStores(chain[chain.length - 1].chunk.hash, dstStore, srcStore);
+    await slurp(chain[chain.length - 1].chunk.hash, dstStore, srcStore);
     await addLocal(chain, srcStore);
   });
 });

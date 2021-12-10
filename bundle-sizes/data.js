@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1639177945498,
+  "lastUpdate": 1639178525409,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -2723,6 +2723,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 25141,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "abf8eccba602014745c95e0b47775b3310eb335a",
+          "message": "feat!: Make ReplicacheOptions name required (#759)\n\nIt is important to not use a generic default name if you ever intend to\r\nallow Replicache to be used by multiple users on the same machine.\r\nTherefore remove the default name value.\r\n\r\nBREAKING CHANGE\r\n\r\nFixes #742",
+          "timestamp": "2021-12-10T23:21:06Z",
+          "tree_id": "b26246137ba42d1910ef6b04b161c222bea23eea",
+          "url": "https://github.com/rocicorp/replicache/commit/abf8eccba602014745c95e0b47775b3310eb335a"
+        },
+        "date": 1639178523471,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 164545,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 32929,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 164191,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 32811,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 89639,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 25119,
             "unit": "bytes"
           }
         ]

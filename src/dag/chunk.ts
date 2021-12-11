@@ -1,5 +1,5 @@
 import {assertString} from '../asserts';
-import {Hash, hashOf, nativeHashOf} from '../hash';
+import {Hash, makeNewFakeHashFunction, nativeHashOf} from '../hash';
 import type {Value} from '../kv/store';
 
 type Refs = readonly Hash[];
@@ -62,8 +62,24 @@ export async function createChunkWithNativeHash<V extends Value>(
 
 export type CreateChunk = <V extends Value>(data: V, refs: Refs) => Chunk<V>;
 
-export function defaultChunkHasher<V extends Value>(data: V): Hash {
-  return hashOf(data);
+export type ChunkHasher = (data: Value) => Hash;
+
+export function makeTestChunkHasher(prefix = 'fake'): ChunkHasher {
+  const makeHash = makeNewFakeHashFunction(prefix);
+  const map = new Map<string, Hash>();
+  const ch: ChunkHasher = data => {
+    const jsonString = JSON.stringify(data);
+    const h = map.get(jsonString);
+    if (h) {
+      return h;
+    }
+    const h2 = makeHash();
+    map.set(jsonString, h2);
+    return h2;
+  };
+  return ch;
 }
 
-export type ChunkHasher = typeof defaultChunkHasher;
+export function throwChunkHasher(_data: Value): Hash {
+  throw new Error('unexpected call to compute chunk hash');
+}

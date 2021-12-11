@@ -1,16 +1,13 @@
 import {expect} from '@esm-bundle/chai';
-import {Hash, hashOf, initHasher, parse} from '../hash';
+import {Hash, fakeHash, parse} from '../hash';
 import type {Value} from '../kv/store';
-import {defaultChunkHasher, createChunk, createChunkWithHash} from './chunk';
+import {createChunk, createChunkWithHash, makeTestChunkHasher} from './chunk';
 import type {Chunk} from './chunk';
 
-setup(async () => {
-  await initHasher();
-});
-
 test('round trip', async () => {
+  const chunkHasher = makeTestChunkHasher();
   const t = (hash: Hash, data: Value, refs: Hash[]) => {
-    const c = createChunk(data, refs, defaultChunkHasher);
+    const c = createChunk(data, refs, chunkHasher);
     expect(c.hash).to.equal(hash);
     expect(c.data).to.deep.equal(data);
     expect(c.meta).to.deep.equal(refs);
@@ -20,12 +17,12 @@ test('round trip', async () => {
     expect(c).to.deep.equal(c2);
   };
 
-  t(parse('m9diij5krqr9t80a9guf649p0i01mo0l'), [], []);
-  t(parse('i4ua4lkdobnv4u5rdenb9jfumr4ru3k7'), [0], [hashOf('r1')]);
+  t(parse('fake0000000000000000000000000000'), [], []);
+  t(parse('fake0000000000000000000000000001'), [0], [fakeHash('r1')]);
   t(
-    parse('1rk961et3nqfi61oceeh6nc0sirin2lv'),
+    parse('fake0000000000000000000000000002'),
     [0, 1],
-    [hashOf('r1'), hashOf('r2')],
+    [fakeHash('r1'), fakeHash('r2')],
   );
 });
 
@@ -38,8 +35,10 @@ test('equals', async () => {
     expect(a).to.not.deep.equal(b);
   };
 
+  const chunkHasher = makeTestChunkHasher('fake');
+
   const newChunk = (data: Value, refs: Hash[]) => {
-    return createChunk(data, refs, defaultChunkHasher);
+    return createChunk(data, refs, chunkHasher);
   };
 
   eq(newChunk([], []), newChunk([], []));
@@ -47,8 +46,11 @@ test('equals', async () => {
   neq(newChunk([0], []), newChunk([1], []));
 
   eq(newChunk([1], []), newChunk([1], []));
-  eq(newChunk([], [hashOf('a')]), newChunk([], [hashOf('a')]));
+  eq(newChunk([], [fakeHash('a')]), newChunk([], [fakeHash('a')]));
 
-  neq(newChunk([], [hashOf('a')]), newChunk([], [hashOf('b')]));
-  neq(newChunk([], [hashOf('a')]), newChunk([], [hashOf('a'), hashOf('b')]));
+  neq(newChunk([], [fakeHash('a')]), newChunk([], [fakeHash('b')]));
+  neq(
+    newChunk([], [fakeHash('a')]),
+    newChunk([], [fakeHash('a'), fakeHash('b')]),
+  );
 });

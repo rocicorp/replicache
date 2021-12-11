@@ -32,14 +32,10 @@ import {
   PULL_VERSION,
 } from './pull';
 import {LogContext} from '../logger';
-import {emptyHash, initHasher} from '../hash';
+import {emptyHash} from '../hash';
 import {stringCompare} from '../string-compare';
 import {asyncIterableToArray} from '../async-iterable-to-array';
 import type {SnapshotMeta} from '../db/commit';
-
-setup(async () => {
-  await initHasher();
-});
 
 test('begin try pull', async () => {
   const store = new dag.TestStore();

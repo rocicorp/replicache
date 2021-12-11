@@ -1,19 +1,10 @@
 import {assert} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
 import * as db from '../db/mod';
-import {
-  fakeHash,
-  initHasher,
-  makeNewTempHashFunction,
-  parse as parseHash,
-} from '../hash';
+import {fakeHash, makeNewTempHashFunction, parse as parseHash} from '../hash';
 import {BTreeWrite} from '../btree/write';
 import {FixupTransformer} from './fixup-transformer';
 import type {ReadonlyJSONValue} from '../json';
-
-setup(async () => {
-  await initHasher();
-});
 
 test('fixup of a single snapshot commit with empty btree', async () => {
   const memdag = new dag.TestStore(
@@ -638,7 +629,7 @@ test('fixup of a base snapshot with an index', async () => {
   const mappings = new Map([
     [headHash, fakeHash('head')],
     [valueHash, fakeHash('value')],
-    [indexHash, fakeHash('index')],
+    [indexHash, fakeHash('indecs')],
     [parseHash('t/000000000000000000000000000000'), fakeHash('data0')],
     [parseHash('t/000000000000000000000000000001'), fakeHash('data1')],
     [parseHash('t/000000000000000000000000000003'), fakeHash('data3')],
@@ -665,7 +656,7 @@ test('fixup of a base snapshot with an index', async () => {
             keyPrefix: '',
             name: 'idx',
           },
-          valueHash: 'fake00000000000000000000000index',
+          valueHash: 'fake0000000000000000000000indecs',
         },
       ],
       meta: {
@@ -678,7 +669,7 @@ test('fixup of a base snapshot with an index', async () => {
     },
     'c/fake000000000000000000000000head/m': [
       'fake00000000000000000000000value',
-      'fake00000000000000000000000index',
+      'fake0000000000000000000000indecs',
     ],
     'c/fake000000000000000000000000head/r': 1,
     'c/fake00000000000000000000000data0/d': [
@@ -771,18 +762,18 @@ test('fixup of a base snapshot with an index', async () => {
       ],
     ],
     'c/fake00000000000000000000000data4/r': 1,
-    'c/fake00000000000000000000000index/d': [
+    'c/fake0000000000000000000000indecs/d': [
       1,
       [
         ['\u00001\u0000b', 'fake00000000000000000000000data3'],
         ['\u00004\u0000e', 'fake00000000000000000000000data4'],
       ],
     ],
-    'c/fake00000000000000000000000index/m': [
+    'c/fake0000000000000000000000indecs/m': [
       'fake00000000000000000000000data3',
       'fake00000000000000000000000data4',
     ],
-    'c/fake00000000000000000000000index/r': 1,
+    'c/fake0000000000000000000000indecs/r': 1,
     'c/fake00000000000000000000000value/d': [
       1,
       [

@@ -1,12 +1,11 @@
-import {parse as parseHash} from '../hash';
-import {Store} from './store';
 import {
-  Chunk,
-  ChunkHasher,
-  defaultChunkHasher,
-  createChunkWithHash,
-} from './chunk';
-import {assertNotTempHash, Hash} from '../hash';
+  assertNotTempHash,
+  makeNewFakeHashFunction,
+  parse as parseHash,
+} from '../hash';
+import {Store} from './store';
+import {Chunk, ChunkHasher, createChunkWithHash} from './chunk';
+import type {Hash} from '../hash';
 import {chunkMetaKey, parse as parseKey} from './key';
 import {KeyType} from './key';
 import {TestMemStore} from '../kv/test-mem-store';
@@ -18,7 +17,7 @@ export class TestStore extends Store {
 
   constructor(
     kvStore = new TestMemStore(),
-    chunkHasher: ChunkHasher = defaultChunkHasher,
+    chunkHasher: ChunkHasher = makeNewFakeHashFunction('fakehash'),
     assertValidHash = assertNotTempHash,
   ) {
     super(kvStore, chunkHasher, assertValidHash);

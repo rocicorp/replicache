@@ -1,5 +1,5 @@
 import {expect} from '@esm-bundle/chai';
-import {hashOf, initHasher} from '../hash';
+import {fakeHash} from '../hash';
 import {
   chunkDataKey,
   chunkMetaKey,
@@ -10,14 +10,10 @@ import {
   parse,
 } from './key';
 
-setup(async () => {
-  await initHasher();
-});
-
 test('toString', () => {
-  const hashEmptyString = hashOf('');
-  const hashA = hashOf('a');
-  const hashAB = hashOf('ab');
+  const hashEmptyString = fakeHash('');
+  const hashA = fakeHash('a');
+  const hashAB = fakeHash('ab');
   expect(chunkDataKey(hashEmptyString)).to.equal(`c/${hashEmptyString}/d`);
   expect(chunkDataKey(hashA)).to.equal(`c/${hashA}/d`);
   expect(chunkDataKey(hashAB)).to.equal(`c/${hashAB}/d`);
@@ -33,8 +29,8 @@ test('toString', () => {
 });
 
 test('parse', () => {
-  const hashA = hashOf('a');
-  const hashB = hashOf('b');
+  const hashA = fakeHash('a');
+  const hashB = fakeHash('b');
 
   const t = (key: string, expected: Key) => {
     expect(parse(key)).to.deep.equal(expected);

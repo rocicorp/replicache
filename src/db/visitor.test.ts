@@ -7,15 +7,11 @@ import {
   addSnapshot,
   Chain,
 } from './test-helpers';
-import {hashOf, initHasher} from '../hash';
+import {fakeHash} from '../hash';
 import type {Node} from '../btree/node';
 import type {ReadonlyJSONValue} from '../json';
 import {Visitor} from './visitor';
 import {Commit, Meta, newLocal} from './commit';
-
-setup(async () => {
-  await initHasher();
-});
 
 test('test that we get to the data nodes', async () => {
   const dagStore = new dag.TestStore();
@@ -84,7 +80,7 @@ test('test that we get to the data nodes', async () => {
       42,
       'mutname',
       [],
-      hashOf('non existing'),
+      fakeHash('none'),
       prevCommit.valueHash,
       prevCommit.indexes,
     );

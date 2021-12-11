@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import {MemStore} from '../kv/mod';
-import {defaultChunkHasher, createChunkWithHash} from './chunk';
+import {createChunkWithHash, makeTestChunkHasher} from './chunk';
 import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
 import {Write} from './write';
 import type * as kv from '../kv/mod';
@@ -9,8 +9,6 @@ import {
   assertNotTempHash,
   fakeHash,
   Hash,
-  hashOf,
-  initHasher,
   isTempHash,
   newTempHash,
 } from '../hash';
@@ -19,15 +17,12 @@ import {Store} from './store';
 import {assert} from '../asserts';
 import {TestStore} from './test-store';
 
-setup(async () => {
-  await initHasher();
-});
-
 test('put chunk', async () => {
+  const chunkHasher = makeTestChunkHasher();
   const t = async (data: Value, refs: Hash[]) => {
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
+      const w = new Write(kvw, chunkHasher, assertNotTempHash);
       const c = w.createChunk(data, refs);
       await w.putChunk(c);
 
@@ -71,9 +66,10 @@ async function assertRefCount(kvr: kv.Read, hash: Hash, count: number) {
 }
 
 test('set head', async () => {
+  const chunkHasher = makeTestChunkHasher();
   const t = async (kv: kv.Store, name: string, hash: Hash | undefined) => {
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
+      const w = new Write(kvw, chunkHasher, assertNotTempHash);
       await (hash === undefined ? w.removeHead(name) : w.setHead(name, hash));
       if (hash !== undefined) {
         const h = await kvw.get(headKey(name));
@@ -87,13 +83,13 @@ test('set head', async () => {
 
   const kv = new MemStore();
 
-  const h0 = hashOf('');
+  const h0 = fakeHash('');
   await t(kv, '', h0);
   await kv.withRead(async kvr => {
     await assertRefCount(kvr, h0, 1);
   });
 
-  const h1 = hashOf('h1');
+  const h1 = fakeHash('h1');
   await t(kv, '', h1);
   await kv.withRead(async kvr => {
     await assertRefCount(kvr, h1, 1);
@@ -131,16 +127,18 @@ test('set head', async () => {
 });
 
 test('ref count invalid', async () => {
+  const chunkHasher = makeTestChunkHasher();
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const t = async (v: any, expectError?: string) => {
     const kv = new MemStore();
-    const h = hashOf('fakehash1');
+    const h = fakeHash('fakehash1');
     await kv.withWrite(async kvw => {
       await kvw.put(chunkRefCountKey(h), v);
       await kvw.commit();
     });
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
+      const w = new Write(kvw, chunkHasher, assertNotTempHash);
       let err;
       try {
         await w.setHead('fakehead', h);
@@ -181,11 +179,12 @@ test('ref count invalid', async () => {
 });
 
 test('commit rollback', async () => {
+  const chunkHasher = makeTestChunkHasher();
   const t = async (commit: boolean, setHead: boolean) => {
     let key: string;
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
+      const w = new Write(kvw, chunkHasher, assertNotTempHash);
       const c = w.createChunk([0, 1], []);
       await w.putChunk(c);
 
@@ -215,12 +214,13 @@ test('commit rollback', async () => {
 });
 
 test('roundtrip', async () => {
+  const chunkHasher = makeTestChunkHasher();
   const t = async (name: string, data: Value, refs: Hash[]) => {
     const kv = new MemStore();
-    const hash = defaultChunkHasher(data);
+    const hash = chunkHasher(data);
     const c = createChunkWithHash(hash, data, refs);
     await kv.withWrite(async kvw => {
-      const w = new Write(kvw, defaultChunkHasher, assertNotTempHash);
+      const w = new Write(kvw, chunkHasher, assertNotTempHash);
       await w.putChunk(c);
       await w.setHead(name, c.hash);
 
@@ -243,8 +243,8 @@ test('roundtrip', async () => {
   };
 
   await t('', 0, []);
-  await t('n1', 1, [hashOf('r1')]);
-  await t('n2', 42, [hashOf('r1'), hashOf('r2')]);
+  await t('n1', 1, [fakeHash('r1')]);
+  await t('n2', 42, [fakeHash('r1'), fakeHash('r2')]);
 
   await t('', true, []);
   await t('', false, []);
@@ -256,6 +256,7 @@ test('roundtrip', async () => {
 });
 
 test('that we check if the hash is good when committing', async () => {
+  const chunkHasher = makeTestChunkHasher();
   const t = async (
     chunkHasher: (v: Value) => Hash,
     assertValidHash: (h: Hash) => void,
@@ -291,7 +292,7 @@ test('that we check if the hash is good when committing', async () => {
     };
 
     await t(hasher, testHash);
-    await t(defaultChunkHasher, assertNotTempHash);
+    await t(chunkHasher, assertNotTempHash);
     await t(newTempHash, (h: Hash) => {
       assert(isTempHash(h));
     });

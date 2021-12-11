@@ -6,13 +6,8 @@ import {readCommit, readIndexesForRead, whenceHead} from './read';
 import {initDB, Write} from './write';
 import {encodeIndexKey} from './index';
 import {LogContext} from '../logger';
-import {initHasher} from '../hash';
 import {asyncIterableToArray} from '../async-iterable-to-array';
 import {BTreeRead} from '../btree/mod';
-
-setup(async () => {
-  await initHasher();
-});
 
 test('basics', async () => {
   const ds = new dag.TestStore();

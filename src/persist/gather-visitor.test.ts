@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
-import {initHasher, makeNewTempHashFunction, newTempHash} from '../hash';
+import {makeNewTempHashFunction, newTempHash} from '../hash';
 import {
   addGenesis,
   addIndexChange,
@@ -11,10 +11,6 @@ import {
 import {GatherVisitor} from './gather-visitor';
 import {TestMemStore} from '../kv/test-mem-store';
 import {sortByHash} from '../dag/test-store';
-
-setup(async () => {
-  await initHasher();
-});
 
 test('dag with no temp hashes gathers nothing', async () => {
   const dagStore = new dag.TestStore();
@@ -104,7 +100,7 @@ test('dag with some permanent hashes and some temp hashes on top', async () => {
         data: {
           indexes: [],
           meta: {
-            basisHash: 'kf7ac7jta5b86iu74e3sqk49ec0tq6d3',
+            basisHash: 'fakehash000000000000000000000003',
             mutationID: 2,
             mutatorArgsJSON: [2],
             mutatorName: 'mutator_name_2',
@@ -116,7 +112,7 @@ test('dag with some permanent hashes and some temp hashes on top', async () => {
         hash: 't/000000000000000000000000000001',
         meta: [
           't/000000000000000000000000000000',
-          'kf7ac7jta5b86iu74e3sqk49ec0tq6d3',
+          'fakehash000000000000000000000003',
         ],
       },
     });
@@ -156,16 +152,16 @@ test('dag with some permanent hashes and some temp hashes on top', async () => {
             },
           ],
           meta: {
-            basisHash: 'itibu92mh4kb91a7mer7fhl4bi65mpe0',
+            basisHash: 'fakehash000000000000000000000005',
             lastMutationID: 3,
             type: 1,
           },
-          valueHash: 'nv13uk6dcs4eu565hqts1uc70h8ouk9a',
+          valueHash: 'fakehash000000000000000000000004',
         },
         hash: 't/000000000000000000000000000003',
         meta: [
-          'nv13uk6dcs4eu565hqts1uc70h8ouk9a',
-          'itibu92mh4kb91a7mer7fhl4bi65mpe0',
+          'fakehash000000000000000000000004',
+          'fakehash000000000000000000000005',
           't/000000000000000000000000000002',
         ],
       },

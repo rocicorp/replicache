@@ -22,13 +22,10 @@ import {
   addSnapshot,
   Chain,
 } from './test-helpers';
-import {Hash, hashOf, initHasher} from '../hash';
+import {Hash, fakeHash} from '../hash';
 import type {JSONValue} from '../json';
 import type {Value} from '../kv/store';
-
-setup(async () => {
-  await initHasher();
-});
+import {makeTestChunkHasher} from '../dag/chunk';
 
 test('base snapshot', async () => {
   const store = new dag.TestStore();
@@ -131,10 +128,10 @@ test('load roundtrip', async () => {
       }
     }
   };
-  const original = hashOf('original');
-  const valueHash = hashOf('value');
-  const emptyStringHash = hashOf('');
-  const hashHash = hashOf('hash');
+  const original = fakeHash('original');
+  const valueHash = fakeHash('value');
+  const emptyStringHash = fakeHash('');
+  const hashHash = fakeHash('hash');
 
   for (const basisHash of [null, emptyStringHash, hashHash]) {
     t(
@@ -167,14 +164,14 @@ test('load roundtrip', async () => {
     await makeCommit(
       {
         type: MetaTyped.Local,
-        basisHash: hashOf('basis'),
+        basisHash: fakeHash('basis'),
         mutationID: 0,
         mutatorName: '',
         mutatorArgsJSON: 43,
         originalHash: emptyStringHash,
       },
-      hashOf('value-hash'),
-      [hashOf(''), hashOf('')],
+      fakeHash('valuehash'),
+      [fakeHash(''), fakeHash('')],
     ),
     new Error('Missing mutator name'),
   );
@@ -189,13 +186,13 @@ test('load roundtrip', async () => {
         mutatorArgsJSON: 43,
         originalHash: emptyStringHash,
       },
-      hashOf('value-hash'),
+      fakeHash('valuehash'),
       ['', ''],
     ),
     new Error('Invalid type: undefined, expected string'),
   );
 
-  for (const basisHash of [null, hashOf(''), hashOf('hash')]) {
+  for (const basisHash of [null, fakeHash(''), fakeHash('hash')]) {
     t(
       await makeCommit(
         {
@@ -206,8 +203,8 @@ test('load roundtrip', async () => {
           mutatorArgsJSON: 44,
           originalHash: null,
         },
-        hashOf('vh'),
-        basisHash === null ? [hashOf('vh')] : [hashOf('vh'), basisHash],
+        fakeHash('vh'),
+        basisHash === null ? [fakeHash('vh')] : [fakeHash('vh'), basisHash],
       ),
       await commitNewLocal(
         createChunk,
@@ -216,7 +213,7 @@ test('load roundtrip', async () => {
         'mutname',
         44,
         null,
-        hashOf('vh'),
+        fakeHash('vh'),
         [],
       ),
     );
@@ -241,14 +238,14 @@ test('load roundtrip', async () => {
   );
 
   const cookie = {foo: 'bar'};
-  for (const basisHash of [null, hashOf(''), hashOf('hash')]) {
+  for (const basisHash of [null, fakeHash(''), fakeHash('hash')]) {
     t(
       await makeCommit(
         makeSnapshotMeta(basisHash ?? null, 0, {foo: 'bar'}),
-        hashOf('vh'),
-        [hashOf('vh')],
+        fakeHash('vh'),
+        [fakeHash('vh')],
       ),
-      commitNewSnapshot(createChunk, basisHash, 0, cookie, hashOf('vh'), []),
+      commitNewSnapshot(createChunk, basisHash, 0, cookie, fakeHash('vh'), []),
     );
   }
   t(
@@ -259,24 +256,26 @@ test('load roundtrip', async () => {
         // @ts-expect-error we are testing invalid types
         undefined,
       ),
-      hashOf('vh'),
-      [hashOf('vh'), hashOf('')],
+      fakeHash('vh'),
+      [fakeHash('vh'), fakeHash('')],
     ),
     new Error('Invalid type: undefined, expected JSON value'),
   );
 
-  for (const basisHash of [null, hashOf(''), hashOf('hash')]) {
+  for (const basisHash of [null, fakeHash(''), fakeHash('hash')]) {
     t(
       await makeCommit(
         makeIndexChangeMeta(basisHash, 0),
-        hashOf('value'),
-        basisHash === null ? [hashOf('value')] : [hashOf('value'), basisHash],
+        fakeHash('value'),
+        basisHash === null
+          ? [fakeHash('value')]
+          : [fakeHash('value'), basisHash],
       ),
       await commitNewIndexChange(
         createChunk,
         basisHash,
         0,
-        hashOf('value'),
+        fakeHash('value'),
         [],
       ),
     );
@@ -284,9 +283,9 @@ test('load roundtrip', async () => {
 });
 
 test('accessors', async () => {
-  const originalHash = hashOf('originalHash');
-  const basisHash = hashOf('basisHash');
-  const valueHash = hashOf('valueHash');
+  const originalHash = fakeHash('originalhash');
+  const basisHash = fakeHash('basishash');
+  const valueHash = fakeHash('valuehash');
   const local = fromChunk(
     await makeCommit(
       {
@@ -316,9 +315,9 @@ test('accessors', async () => {
 
   const snapshot = fromChunk(
     await makeCommit(
-      makeSnapshotMeta(hashOf('basis_hash_2'), 2, 'cookie 2'),
-      hashOf('value_hash 2'),
-      [hashOf('value_hash 2'), hashOf('basis_hash_2')],
+      makeSnapshotMeta(fakeHash('basishash2'), 2, 'cookie 2'),
+      fakeHash('valuehash2'),
+      [fakeHash('valuehash2'), fakeHash('basishash2')],
     ),
   );
   const sm = snapshot.meta;
@@ -329,15 +328,15 @@ test('accessors', async () => {
   } else {
     throw new Error('unexpected type');
   }
-  expect(snapshot.meta.basisHash).to.equal(hashOf('basis_hash_2'));
-  expect(snapshot.valueHash).to.equal(hashOf('value_hash 2'));
+  expect(snapshot.meta.basisHash).to.equal(fakeHash('basishash2'));
+  expect(snapshot.valueHash).to.equal(fakeHash('valuehash2'));
   expect(snapshot.nextMutationID).to.equal(3);
 
   const indexChange = fromChunk(
     await makeCommit(
-      makeIndexChangeMeta(hashOf('basis_hash 3'), 3),
-      hashOf('value_hash 3'),
-      [hashOf('value_hash 3'), hashOf('basis_hash 3')],
+      makeIndexChangeMeta(fakeHash('basishash3'), 3),
+      fakeHash('valuehash3'),
+      [fakeHash('valuehash3'), fakeHash('basishash3')],
     ),
   );
   const ic = indexChange.meta;
@@ -346,16 +345,18 @@ test('accessors', async () => {
   } else {
     throw new Error('unexpected type');
   }
-  expect(indexChange.meta.basisHash).to.equal(hashOf('basis_hash 3'));
-  expect(indexChange.valueHash).to.equal(hashOf('value_hash 3'));
+  expect(indexChange.meta.basisHash).to.equal(fakeHash('basishash3'));
+  expect(indexChange.valueHash).to.equal(fakeHash('valuehash3'));
   expect(indexChange.mutationID).to.equal(3);
 });
+
+const chunkHasher = makeTestChunkHasher('test');
 
 function createChunk<V extends Value>(
   data: V,
   refs: readonly Hash[],
 ): dag.Chunk<V> {
-  return dag.createChunk(data, refs, dag.defaultChunkHasher);
+  return dag.createChunk(data, refs, chunkHasher);
 }
 
 async function makeCommit<M extends Meta>(

@@ -1,18 +1,14 @@
 import {expect} from '@esm-bundle/chai';
-import {assertNotTempHash, Hash, hashOf, initHasher} from '../hash';
+import {assertNotTempHash, Hash, fakeHash} from '../hash';
 import {MemStore} from '../kv/mod';
-import {defaultChunkHasher, createChunk} from './chunk';
+import {createChunk, makeTestChunkHasher} from './chunk';
 import {chunkDataKey, chunkMetaKey} from './key';
 import {Read} from './read';
 import type {Value} from '../kv/store';
 
-setup(async () => {
-  await initHasher();
-});
-
 test('has chunk', async () => {
   const t = async (hash: Hash, expectHas: boolean) => {
-    const h = hashOf('present');
+    const h = fakeHash('present');
     const kv = new MemStore();
     await kv.withWrite(async kvw => {
       await kvw.put(chunkDataKey(h), [0, 1]);
@@ -25,14 +21,16 @@ test('has chunk', async () => {
     });
   };
 
-  await t(hashOf('present'), true);
-  await t(hashOf('no such hash'), false);
+  await t(fakeHash('present'), true);
+  await t(fakeHash('nosuchhash'), false);
 });
 
 test('get chunk', async () => {
+  const chunkHasher = makeTestChunkHasher('fake');
+
   const t = async (data: Value, refs: Hash[], getSameChunk: boolean) => {
     const kv = new MemStore();
-    const chunk = createChunk(data, refs, defaultChunkHasher);
+    const chunk = createChunk(data, refs, chunkHasher);
     await kv.withWrite(async kvw => {
       await kvw.put(chunkDataKey(chunk.hash), chunk.data);
       if (chunk.meta.length > 0) {
@@ -49,7 +47,7 @@ test('get chunk', async () => {
         expected = chunk;
         chunkHash = expected.hash;
       } else {
-        chunkHash = hashOf('no such hash');
+        chunkHash = fakeHash('nosuchhash');
       }
       expect(await r.getChunk(chunkHash)).to.deep.equal(expected);
       if (expected) {
@@ -60,7 +58,7 @@ test('get chunk', async () => {
     });
   };
 
-  await t('Hello', [hashOf('r1'), hashOf('r2')], true);
+  await t('Hello', [fakeHash('r1'), fakeHash('r2')], true);
   await t(42, [], true);
-  await t(null, [hashOf('r1'), hashOf('r2')], false);
+  await t(null, [fakeHash('r1'), fakeHash('r2')], false);
 });

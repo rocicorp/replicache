@@ -38,7 +38,6 @@ import {
   assertNotTempHash,
   emptyHash,
   Hash,
-  initHasher,
   newTempHash,
 } from './hash';
 import {Lock} from './rw-lock';
@@ -331,7 +330,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const perKvStore = experimentalKVStore || new IDBStore(this.idbName);
     this._perdag = new dag.Store(
       perKvStore,
-      dag.defaultChunkHasher,
+      () => {
+        throw new Error('should not compute hash of');
+      },
       assertNotTempHash,
     );
 
@@ -385,8 +386,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
     // If we are currently closing a Replicache instance with the same name,
     // wait for it to finish closing.
     await closingInstances.get(this.name);
-
-    await initHasher();
 
     const [clientID, client] = await persist.initClient(this._perdag);
     resolveClientID(clientID);

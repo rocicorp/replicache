@@ -7,15 +7,14 @@ import {
   writeHeartbeat,
 } from './heartbeat';
 import {ClientMap, getClients} from './clients';
-import {hashOf, initHasher} from '../hash';
+import {fakeHash} from '../hash';
 import {setClients} from './clients-test-helpers';
 import {assertNotUndefined} from '../asserts';
 
 let clock: SinonFakeTimers;
 const START_TIME = 100000;
 const ONE_MIN_IN_MS = 60 * 1000;
-setup(async () => {
-  await initHasher();
+setup(() => {
   clock = useFakeTimers(START_TIME);
 });
 
@@ -33,11 +32,11 @@ test('startHeartbeats starts interval that writes heartbeat each minute', async 
   const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: 1000,
-    headHash: hashOf('head of commit client1 is currently at'),
+    headHash: fakeHash('headclient1'),
   };
   const client2 = {
     heartbeatTimestampMs: 3000,
-    headHash: hashOf('head of commit client2 is currently at'),
+    headHash: fakeHash('headclient2'),
   };
   const clientMap = new Map(
     Object.entries({
@@ -95,11 +94,11 @@ test('calling function returned by startHeartbeats, stops heartbeats', async () 
   const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: 1000,
-    headHash: hashOf('head of commit client1 is currently at'),
+    headHash: fakeHash('headclient1'),
   };
   const client2 = {
     heartbeatTimestampMs: 3000,
-    headHash: hashOf('head of commit client2 is currently at'),
+    headHash: fakeHash('headclient2'),
   };
   const clientMap = new Map(
     Object.entries({
@@ -159,11 +158,11 @@ test('writeHeartbeat writes heartbeat', async () => {
   const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: 1000,
-    headHash: hashOf('head of commit client1 is currently at'),
+    headHash: fakeHash('headclient1'),
   };
   const client2 = {
     heartbeatTimestampMs: 3000,
-    headHash: hashOf('head of commit client2 is currently at'),
+    headHash: fakeHash('headclient2'),
   };
   const clientMap = new Map(
     Object.entries({

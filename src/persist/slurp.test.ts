@@ -7,12 +7,7 @@ import {
   addSnapshot,
   Chain,
 } from '../db/test-helpers';
-import {initHasher} from '../hash';
 import {slurp} from './slurp';
-
-setup(async () => {
-  await initHasher();
-});
 
 suite('slurp', () => {
   const chain: Chain = [];

@@ -10,15 +10,11 @@ import {
 import {Commit, fromHash as commitFromHash} from './commit';
 import type {IndexRecord, Meta} from './commit';
 import {Transformer} from './transformer';
-import {Hash, initHasher, makeNewTempHashFunction} from '../hash';
+import {Hash, makeNewTempHashFunction} from '../hash';
 import {BTreeRead, BTreeWrite, Entry} from '../btree/mod';
 import type {DataNode} from '../btree/node';
 import type {ReadonlyJSONValue} from '../json';
 import {assert} from '../asserts';
-
-setup(async () => {
-  await initHasher();
-});
 
 test('transformBTreeInternalEntry - noop', async () => {
   const dagStore = new dag.TestStore();

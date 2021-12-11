@@ -1,7 +1,7 @@
 import {expect, assert} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
 import type {ScanOptionsInternal} from '../db/scan';
-import {emptyHash, Hash, initHasher} from '../hash';
+import {emptyHash, Hash} from '../hash';
 import type {ReadonlyJSONValue} from '../json';
 import {
   DataNode,
@@ -14,16 +14,12 @@ import {
   DiffResultOp,
   NODE_LEVEL,
   NODE_ENTRIES,
+  emptyDataNode,
 } from './node';
 import {BTreeWrite} from './write';
 import {BTreeRead} from './read';
 import {getSizeOfValue} from './get-size-of-value';
-
-setup(async () => {
-  await initHasher();
-});
-
-const emptyTreeHash = 'mdcncodijhl6jk2o8bb7m0hg15p3sf24';
+import {makeTestChunkHasher} from '../dag/chunk';
 
 test('findLeaf', async () => {
   const dagStore = new dag.TestStore();
@@ -273,7 +269,10 @@ test('empty read tree', async () => {
 });
 
 test('empty write tree', async () => {
-  const dagStore = new dag.TestStore();
+  const chunkHasher = makeTestChunkHasher('tree');
+  const dagStore = new dag.TestStore(undefined, chunkHasher);
+
+  const emptyTreeHash = chunkHasher(emptyDataNode);
 
   await dagStore.withWrite(async dagWrite => {
     const w = new BTreeWrite(

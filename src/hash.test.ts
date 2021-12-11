@@ -4,26 +4,26 @@ import {
   emptyHash,
   isHash,
   isTempHash,
-  nativeHashOf,
+  hashOf,
   newTempHash,
   parse,
 } from './hash';
 import type {ReadonlyJSONValue} from './json';
 
 test('test of', async () => {
-  const h = await nativeHashOf('abc');
+  const h = await hashOf('abc');
   expect(h).to.not.equal(emptyHash);
 });
 
 test('test native of', async () => {
-  const h = await nativeHashOf('abc');
+  const h = await hashOf('abc');
   expect(h).to.not.equal(emptyHash);
 
   const testData = ['abc', '', '\u0000', 'abc', '💩'];
 
   for (const s of testData) {
-    const hash = await nativeHashOf(s);
-    const nativeHash = await nativeHashOf(s);
+    const hash = await hashOf(s);
+    const nativeHash = await hashOf(s);
     expect(hash).to.equal(nativeHash);
   }
 });
@@ -31,14 +31,14 @@ test('test native of', async () => {
 test('isHash', async () => {
   expect(isHash(emptyHash)).to.be.true;
 
-  const h = await nativeHashOf('abc');
+  const h = await hashOf('abc');
   expect(isHash(h)).to.be.true;
   expect(isHash(h + 'a')).to.be.false;
   expect(isHash(String(h).slice(0, -1))).to.be.false;
 });
 
 test('parse', async () => {
-  const h = await nativeHashOf('abc');
+  const h = await hashOf('abc');
   expect(parse(String(emptyHash))).to.equal(emptyHash);
   expect(parse(String(h))).to.equal(h);
   expect(() => parse(h + 'a')).to.throw(Error);
@@ -47,7 +47,7 @@ test('parse', async () => {
 
 test('temp hash', async () => {
   const t = newTempHash();
-  const c = {hash: await nativeHashOf('dummy')};
+  const c = {hash: await hashOf('dummy')};
   expect(String(t).length, 'temp hash length').to.equal(String(c.hash).length);
   expect(isTempHash(t)).to.equal(true);
   expect(isTempHash(c.hash)).to.equal(false);
@@ -56,7 +56,7 @@ test('temp hash', async () => {
 });
 
 test.skip('type checking only', async () => {
-  const h = await nativeHashOf('abc');
+  const h = await hashOf('abc');
   // @ts-expect-error Should be an error
   const s: string = h;
   console.log(s);
@@ -68,7 +68,7 @@ test.skip('type checking only', async () => {
 
 test('hashOf with different types', async () => {
   const t = async (v: ReadonlyJSONValue) =>
-    expect(isHash(await nativeHashOf(v))).to.be.true;
+    expect(isHash(await hashOf(v))).to.be.true;
 
   await t(1);
   await t(1.1);

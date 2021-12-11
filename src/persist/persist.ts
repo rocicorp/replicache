@@ -2,7 +2,7 @@ import {assert} from '../asserts';
 import type * as dag from '../dag/mod';
 import * as db from '../db/mod';
 import * as sync from '../sync/mod';
-import {Hash, nativeHashOf} from '../hash';
+import {Hash, hashOf} from '../hash';
 import type {ClientID} from '../sync/client-id';
 import {updateClients} from './clients';
 import {ComputeHashTransformer, FixedChunks} from './compute-hash-transformer';
@@ -52,7 +52,7 @@ async function computeHashes(
   gatheredChunks: ReadonlyMap<Hash, dag.Chunk<ReadonlyJSONValue>>,
   mainHeadTempHash: Hash,
 ): Promise<[FixedChunks, ReadonlyMap<Hash, Hash>, Hash]> {
-  const transformer = new ComputeHashTransformer(gatheredChunks, nativeHashOf);
+  const transformer = new ComputeHashTransformer(gatheredChunks, hashOf);
   const mainHeadHash = await transformer.transformCommit(mainHeadTempHash);
   const {fixedChunks, mappings} = transformer;
   return [fixedChunks, mappings, mainHeadHash];

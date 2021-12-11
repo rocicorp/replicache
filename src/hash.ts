@@ -33,7 +33,7 @@ const tempHashRe = /^t\/[0-9a-v]{30}$/;
 /**
  * Computes a SHA512 hash of the given data.
  */
-export async function nativeHashOf(value: ReadonlyJSONValue): Promise<Hash> {
+export async function hashOf(value: ReadonlyJSONValue): Promise<Hash> {
   const typedArray = utf8.encode(JSON.stringify(value));
   const buf = await crypto.subtle.digest('SHA-512', typedArray);
   const buf2 = new Uint8Array(buf, 0, BYTE_LENGTH);

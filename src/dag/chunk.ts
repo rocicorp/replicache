@@ -1,5 +1,5 @@
 import {assertString} from '../asserts';
-import {Hash, makeNewFakeHashFunction, nativeHashOf} from '../hash';
+import {Hash, makeNewFakeHashFunction, hashOf} from '../hash';
 import type {Value} from '../kv/store';
 
 type Refs = readonly Hash[];
@@ -56,7 +56,7 @@ export async function createChunkWithNativeHash<V extends Value>(
   data: V,
   refs: Refs,
 ): Promise<Chunk<V>> {
-  const hash = await nativeHashOf(data);
+  const hash = await hashOf(data);
   return createChunkWithHash(hash, data, refs);
 }
 

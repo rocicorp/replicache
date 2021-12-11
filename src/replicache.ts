@@ -330,9 +330,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const perKvStore = experimentalKVStore || new IDBStore(this.idbName);
     this._perdag = new dag.Store(
       perKvStore,
-      () => {
-        throw new Error('should not compute hash of');
-      },
+      dag.throwChunkHasher,
       assertNotTempHash,
     );
 

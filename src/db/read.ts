@@ -153,10 +153,9 @@ export async function readCommit(
   }
 
   const commit = await commitFromHash(hash, dagRead);
-  const map =
-    dagRead instanceof dag.Write
-      ? new BTreeWrite(dagRead, commit.valueHash)
-      : new BTreeRead(dagRead, commit.valueHash);
+  const map = dag.isWrite(dagRead)
+    ? new BTreeWrite(dagRead, commit.valueHash)
+    : new BTreeRead(dagRead, commit.valueHash);
   return [hash, commit, map];
 }
 

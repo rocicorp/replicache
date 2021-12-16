@@ -1,47 +1,37 @@
+import type {Chunk} from './chunk';
+import type {ReadonlyJSONValue} from '../mod';
 import type {Hash} from '../hash';
-import type * as kv from '../kv/mod';
-import type {ChunkHasher} from './chunk';
-import {Read} from './read';
-import {Write} from './write';
 
-export class Store {
-  private readonly _kv: kv.Store;
-  private readonly _chunkHasher: ChunkHasher;
-  private readonly _assertValidHash: (hash: Hash) => void;
+export interface Store {
+  read(): Promise<Read>;
+  withRead<R>(fn: (read: Read) => R | Promise<R>): Promise<R>;
+  write(): Promise<Write>;
+  withWrite<R>(fn: (Write: Write) => R | Promise<R>): Promise<R>;
+  close(): Promise<void>;
+}
 
-  constructor(
-    kv: kv.Store,
-    chunkHasher: ChunkHasher,
-    assertValidHash: (hash: Hash) => void,
-  ) {
-    this._kv = kv;
-    this._chunkHasher = chunkHasher;
-    this._assertValidHash = assertValidHash;
-  }
+export interface Read {
+  hasChunk(hash: Hash): Promise<boolean>;
+  getChunk(hash: Hash): Promise<Chunk | undefined>;
+  getHead(name: string): Promise<Hash | undefined>;
+  close(): void;
+  get closed(): boolean;
+}
 
-  async read(): Promise<Read> {
-    return new Read(await this._kv.read(), this._assertValidHash);
-  }
+export interface Write extends Read {
+  createChunk<V extends ReadonlyJSONValue>(
+    data: V,
+    refs: readonly Hash[],
+  ): Chunk<V>;
+  putChunk(c: Chunk): Promise<void>;
+  setHead(name: string, hash: Hash): Promise<void>;
+  removeHead(name: string): Promise<void>;
+  assertValidHash(hash: Hash): void;
+  commit(): Promise<void>;
+}
 
-  async withRead<R>(fn: (read: Read) => R | Promise<R>): Promise<R> {
-    return this._kv.withRead(kvr => fn(new Read(kvr, this._assertValidHash)));
-  }
-
-  async write(): Promise<Write> {
-    return new Write(
-      await this._kv.write(),
-      this._chunkHasher,
-      this._assertValidHash,
-    );
-  }
-
-  async withWrite<R>(fn: (Write: Write) => R | Promise<R>): Promise<R> {
-    return this._kv.withWrite(kvw =>
-      fn(new Write(kvw, this._chunkHasher, this._assertValidHash)),
-    );
-  }
-
-  async close(): Promise<void> {
-    await this._kv.close();
-  }
+// TODO: Ugly, this is used in db.Read, is there a refactor at that layer
+// that can get rid of this
+export function isWrite(readOrWrite: Read | Write): readOrWrite is Write {
+  return (readOrWrite as {createChunk: unknown}).createChunk !== undefined;
 }

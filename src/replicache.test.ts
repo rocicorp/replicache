@@ -1062,7 +1062,7 @@ test('pullInterval in constructor', async () => {
 });
 
 test('closeTransaction after rep.scan', async () => {
-  const readSpy = sinon.spy(dag.Store.prototype, 'read');
+  const readSpy = sinon.spy(dag.StoreImpl.prototype, 'read');
   const scanSpy = sinon.spy(db.Read.prototype, 'scan');
   const closeSpy = sinon.spy(db.Read.prototype, 'close');
 

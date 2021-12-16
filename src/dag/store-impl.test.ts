@@ -7,7 +7,6 @@ import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
 import type * as kv from '../kv/mod';
 import {
   assertNotTempHash,
-  fakeHash,
   Hash,
   hashOf,
   initHasher,
@@ -15,7 +14,6 @@ import {
   newTempHash,
 } from '../hash';
 import {assert} from '../asserts';
-import {TestStore} from './test-store';
 
 setup(async () => {
   await initHasher();

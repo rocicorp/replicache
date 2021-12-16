@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1639178525409,
+  "lastUpdate": 1639676027268,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -2777,6 +2777,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 25119,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7ca403125d598b8eb8d3671ea83c3c2b2855d2ff",
+          "message": "refactor: Extract interface for dag.Store,dag.Read, and dag.Write (#766)\n\nIn preparation for adding a dag.LazyStore implementation, extract an interface for the dag Store.  \r\n\r\nTowards #671",
+          "timestamp": "2021-12-16T09:32:38-08:00",
+          "tree_id": "6d10b94ba47235b41af5e19ba3998333e5b55e30",
+          "url": "https://github.com/rocicorp/replicache/commit/7ca403125d598b8eb8d3671ea83c3c2b2855d2ff"
+        },
+        "date": 1639676025164,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 164634,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 32977,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 164280,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 32809,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 89666,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 25250,
             "unit": "bytes"
           }
         ]

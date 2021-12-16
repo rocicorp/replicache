@@ -323,13 +323,13 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.pusher = pusher;
 
     this._memKVStore = new MemStore();
-    this._memdag = new dag.Store(
+    this._memdag = new dag.StoreImpl(
       this._memKVStore,
       this._memdagHashFunction(),
       assertHash,
     );
     const perKvStore = experimentalKVStore || new IDBStore(this.idbName);
-    this._perdag = new dag.Store(
+    this._perdag = new dag.StoreImpl(
       perKvStore,
       dag.defaultChunkHasher,
       assertNotTempHash,

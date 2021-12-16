@@ -1,17 +1,115 @@
 import type * as kv from '../kv/mod';
+import type {Store, Read, Write} from './store';
+import {
+  assertMeta,
+  Chunk,
+  createChunkWithHash,
+  createChunk,
+  ChunkHasher,
+} from './chunk';
 import {chunkDataKey, chunkMetaKey, headKey, chunkRefCountKey} from './key';
-import {Read} from './read';
-import {assertMeta, Chunk, ChunkHasher, createChunk} from './chunk';
+import {assertHash, Hash} from '../hash';
 import {assertNumber} from '../asserts';
-import type {Hash} from '../hash';
 import type {ReadonlyJSONValue} from '../json';
+
+export class StoreImpl implements Store {
+  private readonly _kv: kv.Store;
+  private readonly _chunkHasher: ChunkHasher;
+  private readonly _assertValidHash: (hash: Hash) => void;
+
+  constructor(
+    kv: kv.Store,
+    chunkHasher: ChunkHasher,
+    assertValidHash: (hash: Hash) => void,
+  ) {
+    this._kv = kv;
+    this._chunkHasher = chunkHasher;
+    this._assertValidHash = assertValidHash;
+  }
+
+  async read(): Promise<Read> {
+    return new ReadImpl(await this._kv.read(), this._assertValidHash);
+  }
+
+  async withRead<R>(fn: (read: Read) => R | Promise<R>): Promise<R> {
+    return this._kv.withRead(kvr =>
+      fn(new ReadImpl(kvr, this._assertValidHash)),
+    );
+  }
+
+  async write(): Promise<Write> {
+    return new WriteImpl(
+      await this._kv.write(),
+      this._chunkHasher,
+      this._assertValidHash,
+    );
+  }
+
+  async withWrite<R>(fn: (Write: Write) => R | Promise<R>): Promise<R> {
+    return this._kv.withWrite(kvw =>
+      fn(new WriteImpl(kvw, this._chunkHasher, this._assertValidHash)),
+    );
+  }
+
+  async close(): Promise<void> {
+    await this._kv.close();
+  }
+}
+
+export class ReadImpl {
+  protected readonly _tx: kv.Read;
+  readonly assertValidHash: (hash: Hash) => void;
+
+  constructor(kv: kv.Read, assertValidHash: (hash: Hash) => void) {
+    this._tx = kv;
+    this.assertValidHash = assertValidHash;
+  }
+
+  async hasChunk(hash: Hash): Promise<boolean> {
+    return await this._tx.has(chunkDataKey(hash));
+  }
+
+  async getChunk(hash: Hash): Promise<Chunk | undefined> {
+    const data = await this._tx.get(chunkDataKey(hash));
+    if (data === undefined) {
+      return undefined;
+    }
+
+    const refsVal = await this._tx.get(chunkMetaKey(hash));
+    let refs: readonly Hash[];
+    if (refsVal !== undefined) {
+      assertMeta(refsVal);
+      refs = refsVal;
+    } else {
+      refs = [];
+    }
+    return createChunkWithHash(hash, data, refs);
+  }
+
+  async getHead(name: string): Promise<Hash | undefined> {
+    const data = await this._tx.get(headKey(name));
+    if (data === undefined) {
+      return undefined;
+    }
+    assertHash(data);
+    return data;
+  }
+
+  close(): void {
+    this._tx.release();
+  }
+
+  get closed(): boolean {
+    return this._tx.closed;
+  }
+}
 
 type HeadChange = {
   new: Hash | undefined;
   old: Hash | undefined;
 };
 
-export class Write extends Read {
+export class WriteImpl extends ReadImpl implements Write {
   protected declare readonly _tx: kv.Write;
   private readonly _chunkHasher: ChunkHasher;
 

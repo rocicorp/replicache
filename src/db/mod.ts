@@ -3,6 +3,8 @@ export {
   Read,
   readIndexesForRead,
   readCommit,
+  readCommitForBTreeRead,
+  readCommitForBTreeWrite,
   whenceHead,
   whenceHash,
   fromWhence,

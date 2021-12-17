@@ -21,7 +21,7 @@ export interface GarbageCollectionDelegate {
  * @param putChunks Chunks that were put by the dag write.
  * @param delegate Delegate used for loading ref information from the dag store.
  * @returns Map from chunk Hash to new ref count.  Chunks with a new ref count of 0 should
- * be deleted.  All hashes in `putChunks` will have an entry (which may be zero if the
+ * be deleted.  All hashes in `putChunks` will have an entry (which will be zero if the
  * newly put chunk is not reachable from any head).
  */
 export async function computeRefCountUpdates(

@@ -1,4 +1,4 @@
-import {deepEqual, ReadonlyJSONValue} from '../json';
+import {deepEqual, getSizeOfValue, ReadonlyJSONValue} from '../json';
 import type * as dag from '../dag/mod';
 import type {ScanOptionsInternal} from '../db/scan';
 import {Hash, emptyHash} from '../hash';
@@ -17,7 +17,6 @@ import {
   NODE_LEVEL,
   NODE_ENTRIES,
 } from './node';
-import {getSizeOfValue, NODE_HEADER_SIZE} from './get-size-of-value';
 import {
   computeSplices,
   SPLICE_ADDED,
@@ -25,6 +24,14 @@ import {
   SPLICE_FROM,
   SPLICE_REMOVED,
 } from './splice';
+
+/**
+ * The size of the header of a node. (If we had compile time
+ * constants we would have used that).
+ *
+ * There is a test ensuring this is correct.
+ */
+export const NODE_HEADER_SIZE = 11;
 
 export class BTreeRead {
   rootHash: Hash;

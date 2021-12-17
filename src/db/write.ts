@@ -9,7 +9,12 @@ import {
   newLocal as commitNewLocal,
   newSnapshot as commitNewSnapshot,
 } from './commit';
-import {Read, readCommit, readIndexesForRead, Whence} from './read';
+import {
+  Read,
+  readCommitForBTreeWrite,
+  readIndexesForRead,
+  Whence,
+} from './read';
 import {IndexWrite, IndexOperation, indexValue, IndexRead} from './index';
 import type {LogContext} from '../logger';
 import {BTreeRead, BTreeWrite} from '../btree/mod';
@@ -74,12 +79,15 @@ export class Write extends Read {
     originalHash: Hash | null,
     dagWrite: dag.Write,
   ): Promise<Write> {
-    const [, basis, map] = await readCommit(whence, dagWrite);
+    const [, basis, bTreeWrite] = await readCommitForBTreeWrite(
+      whence,
+      dagWrite,
+    );
     const mutationID = basis.nextMutationID;
     const indexes = readIndexesForWrite(basis);
     return new Write(
       dagWrite,
-      map,
+      bTreeWrite,
       basis,
       {
         type: MetaType.Local,
@@ -99,10 +107,13 @@ export class Write extends Read {
     dagWrite: dag.Write,
     indexes: Map<string, IndexWrite>,
   ): Promise<Write> {
-    const [, basis, map] = await readCommit(whence, dagWrite);
+    const [, basis, bTreeWrite] = await readCommitForBTreeWrite(
+      whence,
+      dagWrite,
+    );
     return new Write(
       dagWrite,
-      map,
+      bTreeWrite,
       basis,
       {type: MetaType.Snapshot, lastMutationID: mutationID, cookie},
       indexes,
@@ -113,12 +124,15 @@ export class Write extends Read {
     whence: Whence,
     dagWrite: dag.Write,
   ): Promise<Write> {
-    const [, basis, map] = await readCommit(whence, dagWrite);
+    const [, basis, bTreeWrite] = await readCommitForBTreeWrite(
+      whence,
+      dagWrite,
+    );
     const lastMutationID = basis.mutationID;
     const indexes = readIndexesForWrite(basis);
     return new Write(
       dagWrite,
-      map,
+      bTreeWrite,
       basis,
       {type: MetaType.IndexChange, lastMutationID},
       indexes,

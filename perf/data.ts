@@ -1,4 +1,4 @@
-import {getSizeOfValue} from '../src/btree/get-size-of-value';
+import {getSizeOfValue} from '../src/json';
 
 export type RandomDataType = 'string' | 'object' | 'arraybuffer' | 'blob';
 export type RandomDatum = string | Record<string, string> | ArrayBuffer | Blob;

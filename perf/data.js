@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1639768552981,
+  "lastUpdate": 1639770083848,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -63937,6 +63937,142 @@ window.BENCHMARK_DATA = {
             "name": "create index 1024x5000",
             "value": 4.14,
             "range": "±71.2%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fae7daffaa5f5ce72b8062458dc433a9e770ef2e",
+          "message": "refactor: Extract ref count updating logic out of dag WriteImpl so it can be reused by lazy dag store. (#769)\n\nPulls Garbage Collection logic into its own module, so that it can be shared with the upcoming lazy dag store implementation for Simplified Dueling Dags.\r\n\r\nInterface:\r\n```ts\r\nexport type HeadChange = {\r\n  new: Hash | undefined;\r\n  old: Hash | undefined;\r\n};\r\n\r\nexport type RefCountUpdates = Map<Hash, number>;\r\n\r\nexport interface GarbageCollectionDelegate {\r\n  getRefCount: (hash: Hash) => Promise<number>;\r\n  getRefs: (hash: Hash) => Promise<readonly Hash[] | undefined>;\r\n}\r\n\r\n/**\r\n * Computes how ref counts should be updated when a dag write is commited.\r\n * Does not modify the dag store.\r\n * @param headChanges Heads that were changed by the dag write.\r\n * @param putChunks Chunks that were put by the dag write.\r\n * @param delegate Delegate used for loading ref information from the dag store.\r\n * @returns Map from chunk Hash to new ref count.  Chunks with a new ref count of 0 should\r\n * be deleted.  All hashes in `putChunks` will have an entry (which will be zero if a\r\n * newly put chunk is not reachable from any head).\r\n */\r\nexport async function computeRefCountUpdates(\r\n  headChanges: Iterable<HeadChange>,\r\n  putChunks: ReadonlySet<Hash>,\r\n  delegate: GarbageCollectionDelegate,\r\n): Promise<RefCountUpdates> \r\n```\r\n\r\nPart of #671",
+          "timestamp": "2021-12-17T11:39:13-08:00",
+          "tree_id": "54cdf820fe49a32f66bf97d9200d7901add7d24a",
+          "url": "https://github.com/rocicorp/replicache/commit/fae7daffaa5f5ce72b8062458dc433a9e770ef2e"
+        },
+        "date": 1639770083472,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 588.24,
+            "range": "±2.5%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 285.71,
+            "range": "±1.8%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 250,
+            "range": "±2.7%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 23.03,
+            "range": "±58.5%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 10.43,
+            "range": "±56.3%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 8.36,
+            "range": "±34.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 325.52,
+            "range": "±4.7%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 4.03,
+            "range": "±55.6%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 588.24,
+            "range": "±2.6%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 294.12,
+            "range": "±2.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 250,
+            "range": "±1.9%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 22.14,
+            "range": "±54.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 10.31,
+            "range": "±64.3%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 8.46,
+            "range": "±42.7%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 295.93,
+            "range": "±4.8%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 4.02,
+            "range": "±59.1%",
             "unit": "ops/sec",
             "extra": "7 samples"
           }

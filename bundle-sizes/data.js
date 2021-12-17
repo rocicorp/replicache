@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1639676027268,
+  "lastUpdate": 1639767750360,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -2831,6 +2831,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 25250,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c64a26a30accc9e1aac2b90f306d6edfdb728534",
+          "message": "refactor: move getSizeOfValue from src/btree/ to src/json.ts (#770)\n\n### Problem\r\n`getSizeOfValue` is needed by the upcoming Lazy DagStore for Simplified Dueling Dags.  It is needed for implementing LRU caching with a size limit.  However the dag/ directory should not depend on the btree/ directory, as dag is at a lower abstraction layer than btree.\r\n\r\n### Solution\r\nMove `getSizeOfValue` to src/json.ts.  This is a logic place of the function as it computes the size of a `ReadonlyJsonValue`.",
+          "timestamp": "2021-12-17T11:01:26-08:00",
+          "tree_id": "c310dedbfe7bda117d86d546c5814edd6a79ac13",
+          "url": "https://github.com/rocicorp/replicache/commit/c64a26a30accc9e1aac2b90f306d6edfdb728534"
+        },
+        "date": 1639767748345,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 164599,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 32909,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 164245,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 32828,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 89662,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 25153,
             "unit": "bytes"
           }
         ]

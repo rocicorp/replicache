@@ -15,7 +15,7 @@ import {
   newTempHash,
 } from '../hash';
 import {assert} from '../asserts';
-import { TestStore } from './test-store';
+import {TestStore} from './test-store';
 
 setup(async () => {
   await initHasher();
@@ -374,9 +374,9 @@ suite('write', () => {
     const dagStore = new TestStore();
 
     //    R
-    //  / | 
-    //  A B 
-    //  \ | 
+    //  / |
+    //  A B
+    //  \ |
     //    C
     //    |
     //    D
@@ -385,10 +385,7 @@ suite('write', () => {
     const c = createChunkWithHash(fakeHash('c'), 'c', [d.hash]);
     const a = createChunkWithHash(fakeHash('a'), 'a', [c.hash]);
     const b = createChunkWithHash(fakeHash('b'), 'b', [c.hash]);
-    const r = createChunkWithHash(fakeHash('r'), 'r', [
-      a.hash,
-      b.hash,
-    ]);
+    const r = createChunkWithHash(fakeHash('r'), 'r', [a.hash, b.hash]);
     await dagStore.withWrite(async dagWrite => {
       await Promise.all([
         dagWrite.setHead('test', r.hash),

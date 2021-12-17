@@ -2,15 +2,14 @@ import {expect} from '@esm-bundle/chai';
 import {fakeHash, Hash} from '../hash';
 import {computeRefCountUpdates, GarbageCollectionDelegate} from './gc';
 
-function createGraph(graph: Record<string, string[]>, root: string) {
+function createGraph(args: {
+  graph: Record<string, string[]>;
+  heads: string[];
+  allZeroRefCounts?: boolean;
+}) {
+  const {graph, heads, allZeroRefCounts} = args;
   const hashes = Object.fromEntries(
     Object.keys(graph).map(k => [k.toString(), fakeHash(k)]),
-  );
-  const refCount = (k: string) =>
-    Object.values(graph).filter(refs => refs.includes(k)).length +
-    (k === root ? 1 : 0);
-  const refCounts = Object.fromEntries(
-    Object.keys(graph).map(k => [hashes[k].toString(), refCount(k)]),
   );
   const refs = Object.fromEntries(
     Object.entries(graph).map(([k, refs]) => [
@@ -18,6 +17,19 @@ function createGraph(graph: Record<string, string[]>, root: string) {
       refs.map(v => hashes[v]),
     ]),
   );
+
+  const refCounts = Object.fromEntries(
+    Object.keys(graph).map(k => [hashes[k].toString(), 0]),
+  );
+
+  if (!allZeroRefCounts) {
+    const q = Array.from(new Set(heads));
+    for (const k of q) {
+      refCounts[hashes[k].toString()] = refCounts[hashes[k].toString()] + 1;
+      q.push(...graph[k]);
+    }
+  }
+
   const delegate: GarbageCollectionDelegate = {
     getRefCount: async hash => refCounts[hash.toString()] || 0,
     getRefs: async hash => refs[hash.toString()] || [],
@@ -41,6 +53,36 @@ function expectRefCountUpdates(
   expect(actual).to.deep.equal(expectedAsMap);
 }
 
+test('computeRefCountUpdates includes entry for every putChunk', async () => {
+  //   R    C
+  //  / \   |
+  // A   B  D
+  const {hashes, delegate} = createGraph({
+    graph: {
+      r: ['a', 'b'],
+      a: [],
+      b: [],
+      c: ['d'],
+      d: [],
+    },
+    heads: [],
+    allZeroRefCounts: true,
+  });
+
+  const refCountUpdates = await computeRefCountUpdates(
+    [{old: undefined, new: hashes['r']}],
+    new Set(Object.values(hashes)),
+    delegate,
+  );
+  expectRefCountUpdates(refCountUpdates, {
+    r: 1,
+    a: 1,
+    b: 1,
+    c: 0,
+    d: 0,
+  });
+});
+
 test('computeRefCountUpdates for basic diamond pattern', async () => {
   // If we have a diamond structure we update the refcount for C twice.
   //
@@ -50,15 +92,15 @@ test('computeRefCountUpdates for basic diamond pattern', async () => {
   //  \ /
   //   C
 
-  const {hashes, delegate} = createGraph(
-    {
+  const {hashes, delegate} = createGraph({
+    graph: {
       r: ['a', 'b'],
       a: ['c'],
       b: ['c'],
       c: [],
     },
-    'r',
-  );
+    heads: ['r'],
+  });
 
   const eHash = fakeHash('e');
   const refCountUpdates = await computeRefCountUpdates(
@@ -86,16 +128,16 @@ test('computeRefCountUpdates for a diamond pattern and a child', async () => {
   //   |
   //   D
 
-  const {hashes, delegate} = createGraph(
-    {
+  const {hashes, delegate} = createGraph({
+    graph: {
       r: ['a', 'b'],
       a: ['c'],
       b: ['c'],
       c: ['d'],
       d: [],
     },
-    'r',
-  );
+    heads: ['r'],
+  });
 
   // Move test head from R to A
   //  A
@@ -125,16 +167,16 @@ test('computeRefCountUpdates for 3 incoming refs', async () => {
   //  \ | /
   //    D
 
-  const {hashes, delegate} = createGraph(
-    {
+  const {hashes, delegate} = createGraph({
+    graph: {
       r: ['a', 'b', 'c'],
       a: ['d'],
       b: ['d'],
       c: ['d'],
       d: [],
     },
-    'r',
-  );
+    heads: ['r'],
+  });
 
   const eHash = fakeHash('e');
   const refCountUpdates = await computeRefCountUpdates(
@@ -159,15 +201,15 @@ test('computeRefCountUpdates for 3 incoming refs bypassing one level', async () 
   //  \ | /
   //    C
 
-  const {hashes, delegate} = createGraph(
-    {
+  const {hashes, delegate} = createGraph({
+    graph: {
       r: ['a', 'b', 'c'],
       a: ['c'],
       b: ['c'],
       c: [],
     },
-    'r',
-  );
+    heads: ['r'],
+  });
 
   const eHash = fakeHash('e');
   const refCountUpdates = await computeRefCountUpdates(

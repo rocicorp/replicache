@@ -29,8 +29,6 @@ export async function computeRefCountUpdates(
   putChunks: ReadonlySet<Hash>,
   delegate: GarbageCollectionDelegate,
 ): Promise<RefCountUpdates> {
-  // We increment all the ref counts before we do all the decrements. This
-  // is so that we do not remove an item that goes from 1 -> 0 -> 1
   const newHeads: Hash[] = [];
   const oldHeads: Hash[] = [];
   for (const changedHead of headChanges) {
@@ -63,7 +61,8 @@ export async function computeRefCountUpdates(
     );
   }
 
-  // Now we go through the new chunks to see if any of them are still orphaned.
+  // Now go through the put chunks to ensure each has an entry in refCountUpdates
+  // (zero for new chunks which are not reachable from newHeads).
   await Promise.all(
     Array.from(putChunks.values(), hash =>
       ensureRefCountLoaded(

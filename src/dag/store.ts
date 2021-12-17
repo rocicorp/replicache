@@ -29,9 +29,3 @@ export interface Write extends Read {
   assertValidHash(hash: Hash): void;
   commit(): Promise<void>;
 }
-
-// TODO: Ugly, this is used in db.Read, is there a refactor at that layer
-// that can get rid of this
-export function isWrite(readOrWrite: Read | Write): readOrWrite is Write {
-  return (readOrWrite as {createChunk: unknown}).createChunk !== undefined;
-}

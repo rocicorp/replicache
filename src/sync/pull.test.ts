@@ -466,11 +466,11 @@ test('begin try pull', async () => {
         expect(expSyncHead.lastMutationID).to.equal(gotLastMutationID);
         expect(expSyncHead.cookie).to.deep.equal(gotCookie);
         // Check the value is what's expected.
-        const [, , map] = await db.readCommit(
+        const [, , bTreeRead] = await db.readCommitForBTreeRead(
           db.whenceHash(syncHead.chunk.hash),
           read,
         );
-        const gotValueMap = await asyncIterableToArray(map.entries());
+        const gotValueMap = await asyncIterableToArray(bTreeRead.entries());
         gotValueMap.sort((a, b) => stringCompare(a[0], b[0]));
         const expValueMap = Array.from(expSyncHead.valueMap);
         expValueMap.sort((a, b) => stringCompare(a[0], b[0]));

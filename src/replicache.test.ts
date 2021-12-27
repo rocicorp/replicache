@@ -29,6 +29,7 @@ import {defaultPusher} from './pusher';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 import fetchMock from 'fetch-mock/esm/client';
+import type {Mutation} from './sync/push';
 
 const {fail} = assert;
 
@@ -405,8 +406,8 @@ test('push', async () => {
   expect(deleteCount).to.equal(2);
   const {mutations} = await fetchMock.lastCall().request.json();
   expect(mutations).to.deep.equal([
-    {id: 1, name: 'deleteTodo', args: {id: id1}},
-    {id: 2, name: 'deleteTodo', args: {id: id2}},
+    {id: 1, name: 'deleteTodo', args: {id: id1}, timestamp: 100},
+    {id: 2, name: 'deleteTodo', args: {id: id2}, timestamp: 100},
   ]);
 
   await createTodo({
@@ -425,9 +426,14 @@ test('push', async () => {
   {
     const {mutations} = await fetchMock.lastCall().request.json();
     expect(mutations).to.deep.equal([
-      {id: 1, name: 'deleteTodo', args: {id: id1}},
-      {id: 2, name: 'deleteTodo', args: {id: id2}},
-      {id: 3, name: 'createTodo', args: {id: id1, text: 'Test'}},
+      {id: 1, name: 'deleteTodo', args: {id: id1}, timestamp: 100},
+      {id: 2, name: 'deleteTodo', args: {id: id2}, timestamp: 100},
+      {
+        id: 3,
+        name: 'createTodo',
+        args: {id: id1, text: 'Test'},
+        timestamp: 200,
+      },
     ]);
   }
 
@@ -454,12 +460,22 @@ test('push', async () => {
   {
     const {mutations} = await fetchMock.lastCall().request.json();
     expect(mutations).to.deep.equal([
-      {id: 1, name: 'deleteTodo', args: {id: id1}},
-      {id: 2, name: 'deleteTodo', args: {id: id2}},
-      {id: 3, name: 'createTodo', args: {id: id1, text: 'Test'}},
-      {id: 4, name: 'createTodo', args: {id: id2, text: 'Test 2'}},
-      {id: 5, name: 'deleteTodo', args: {id: id1}},
-      {id: 6, name: 'deleteTodo', args: {id: id2}},
+      {id: 1, name: 'deleteTodo', args: {id: id1}, timestamp: 100},
+      {id: 2, name: 'deleteTodo', args: {id: id2}, timestamp: 100},
+      {
+        id: 3,
+        name: 'createTodo',
+        args: {id: id1, text: 'Test'},
+        timestamp: 200,
+      },
+      {
+        id: 4,
+        name: 'createTodo',
+        args: {id: id2, text: 'Test 2'},
+        timestamp: 300,
+      },
+      {id: 5, name: 'deleteTodo', args: {id: id1}, timestamp: 300},
+      {id: 6, name: 'deleteTodo', args: {id: id2}, timestamp: 300},
     ]);
   }
 
@@ -2071,4 +2087,70 @@ test('client ID is set correctly on transactions', async () => {
   });
 
   await rep.mutate.expectClientID(repClientID);
+});
+
+test('mutation timestamps are immutable', async () => {
+  let pending: Mutation[] = [];
+  const rep = await replicacheForTesting('mutation-timestamps-are-immutable', {
+    mutators: {
+      foo: async (tx, _: JSONValue) => {
+        await tx.put('foo', 'bar');
+      },
+    },
+    pusher: async (req: Request) => {
+      const parsed = await req.json();
+      pending = parsed.mutations as Mutation[];
+      return {
+        errorMessage: '',
+        httpStatusCode: 200,
+      };
+    },
+  });
+
+  // Create a mutation and verify it has been assigned current time.
+  await rep.mutate.foo(null);
+  await rep.invokePush(1);
+  expect(pending).deep.equal([
+    {
+      id: 1,
+      name: 'foo',
+      args: null,
+      timestamp: 100,
+    },
+  ]);
+
+  // Move clock forward, then cause a rebase, the pending mutation will
+  // replay internally.
+  pending = [];
+  await tickAFewTimes();
+
+  await rep.poke({
+    baseCookie: null,
+    pullResponse: {
+      lastMutationID: 0,
+      patch: [
+        {
+          op: 'put',
+          key: 'hot',
+          value: 'dog',
+        },
+      ],
+      cookie: 1,
+    },
+  });
+
+  // Verify rebase did occur by checking for the new value.
+  const val = await rep.query(async tx => await tx.get('hot'));
+  expect(val).equal('dog');
+
+  // Check that mutation timestamp did not change
+  await rep.invokePush(1);
+  expect(pending).deep.equal([
+    {
+      id: 1,
+      name: 'foo',
+      args: null,
+      timestamp: 100,
+    },
+  ]);
 });

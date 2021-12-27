@@ -52,6 +52,7 @@ export async function createLocal(
       [i],
       null,
       dagWrite,
+      42,
     );
     for (const [key, val] of entries) {
       await w.put(lc, key, val);

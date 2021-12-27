@@ -15,6 +15,7 @@ test('basics', async () => {
     JSON.stringify([]),
     null,
     await ds.write(),
+    42,
   );
   await w.put(lc, 'foo', 'bar');
   await w.commit(DEFAULT_HEAD_NAME);

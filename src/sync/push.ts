@@ -30,6 +30,7 @@ export type Mutation = {
   readonly id: number;
   readonly name: string;
   readonly args: ReadonlyJSONValue;
+  readonly timestamp: number;
 };
 
 export function convert(lm: db.LocalMeta): Mutation {
@@ -37,6 +38,7 @@ export function convert(lm: db.LocalMeta): Mutation {
     id: lm.mutationID,
     name: lm.mutatorName,
     args: lm.mutatorArgsJSON,
+    timestamp: lm.timestamp,
   };
 }
 

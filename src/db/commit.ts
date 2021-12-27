@@ -182,6 +182,7 @@ export type LocalMeta = BasisHash & {
   readonly mutatorName: string;
   readonly mutatorArgsJSON: ReadonlyJSONValue;
   readonly originalHash: Hash | null;
+  readonly timestamp: number;
 };
 
 function assertLocalMeta(v: Record<string, unknown>): asserts v is LocalMeta {
@@ -195,6 +196,7 @@ function assertLocalMeta(v: Record<string, unknown>): asserts v is LocalMeta {
   if (v.originalHash !== null) {
     assertHash(v.originalHash);
   }
+  assertNumber(v.timestamp);
 }
 
 export type SnapshotMeta = BasisHash & {
@@ -268,6 +270,7 @@ export function newLocal(
   originalHash: Hash | null,
   valueHash: Hash,
   indexes: readonly IndexRecord[],
+  timestamp: number,
 ): Commit<LocalMeta> {
   const meta: LocalMeta = {
     type: MetaTyped.Local,
@@ -276,6 +279,7 @@ export function newLocal(
     mutatorName,
     mutatorArgsJSON,
     originalHash,
+    timestamp,
   };
   return commitFromCommitData(createChunk, {meta, valueHash, indexes});
 }

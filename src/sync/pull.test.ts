@@ -634,6 +634,7 @@ test('maybe end try pull', async () => {
           mutatorArgs,
           original.chunk.hash,
           dagWrite,
+          original.meta.timestamp,
         );
         return await w.commit(SYNC_HEAD_NAME);
       });

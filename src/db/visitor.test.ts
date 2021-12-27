@@ -83,6 +83,7 @@ test('test that we get to the data nodes', async () => {
       fakeHash('none'),
       prevCommit.valueHash,
       prevCommit.indexes,
+      88,
     );
     await dagWrite.putChunk(localCommit.chunk);
     await dagWrite.setHead('test', localCommit.chunk.hash);
@@ -108,6 +109,7 @@ test('test that we get to the data nodes', async () => {
       localCommit.chunk.hash,
       prevCommit.valueHash,
       prevCommit.indexes,
+      88,
     );
     await dagWrite.putChunk(localCommit2.chunk);
     await dagWrite.setHead('test2', localCommit2.chunk.hash);

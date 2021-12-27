@@ -132,6 +132,7 @@ test('load roundtrip', async () => {
   const valueHash = fakeHash('value');
   const emptyStringHash = fakeHash('');
   const hashHash = fakeHash('hash');
+  const timestamp = 42;
 
   for (const basisHash of [null, emptyStringHash, hashHash]) {
     t(
@@ -143,6 +144,7 @@ test('load roundtrip', async () => {
           mutatorName: 'mutname',
           mutatorArgsJSON: 42,
           originalHash: original,
+          timestamp,
         },
         valueHash,
         basisHash === null ? [valueHash] : [valueHash, basisHash],
@@ -156,6 +158,7 @@ test('load roundtrip', async () => {
         original,
         valueHash,
         [],
+        timestamp,
       ),
     );
   }
@@ -169,6 +172,7 @@ test('load roundtrip', async () => {
         mutatorName: '',
         mutatorArgsJSON: 43,
         originalHash: emptyStringHash,
+        timestamp,
       },
       fakeHash('valuehash'),
       [fakeHash(''), fakeHash('')],
@@ -202,6 +206,7 @@ test('load roundtrip', async () => {
           mutatorName: 'mutname',
           mutatorArgsJSON: 44,
           originalHash: null,
+          timestamp,
         },
         fakeHash('vh'),
         basisHash === null ? [fakeHash('vh')] : [fakeHash('vh'), basisHash],
@@ -215,6 +220,7 @@ test('load roundtrip', async () => {
         null,
         fakeHash('vh'),
         [],
+        timestamp,
       ),
     );
   }
@@ -228,6 +234,7 @@ test('load roundtrip', async () => {
         mutatorName: 'mutname',
         mutatorArgsJSON: 45,
         originalHash: emptyStringHash,
+        timestamp,
       },
 
       //@ts-expect-error we are testing invalid types
@@ -286,6 +293,7 @@ test('accessors', async () => {
   const originalHash = fakeHash('originalhash');
   const basisHash = fakeHash('basishash');
   const valueHash = fakeHash('valuehash');
+  const timestamp = 42;
   const local = fromChunk(
     await makeCommit(
       {
@@ -295,6 +303,7 @@ test('accessors', async () => {
         mutatorName: 'foo_mutator',
         mutatorArgsJSON: 42,
         originalHash,
+        timestamp,
       },
       valueHash,
       [valueHash, basisHash],
@@ -306,6 +315,7 @@ test('accessors', async () => {
     expect(lm.mutatorName).to.equal('foo_mutator');
     expect(lm.mutatorArgsJSON).to.equal(42);
     expect(lm.originalHash).to.equal(originalHash);
+    expect(lm.timestamp).equal(timestamp);
   } else {
     throw new Error('unexpected type');
   }

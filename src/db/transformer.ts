@@ -201,6 +201,7 @@ export abstract class BaseTransformer {
       mutatorName: meta.mutatorName,
       mutatorArgsJSON: meta.mutatorArgsJSON,
       originalHash,
+      timestamp: meta.timestamp,
     };
   }
 

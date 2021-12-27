@@ -124,6 +124,8 @@ type MakeMutators<T extends MutatorDefs> = {
   readonly [P in keyof T]: MakeMutator<T[P]>;
 };
 
+type Now = () => number;
+
 /**
  * Base options for [[PullOptions]] and [[PushOptions]]
  */
@@ -224,6 +226,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
    * The function to use to push data to the server.
    */
   pusher: Pusher;
+
+  now: Now = () => performance.now();
 
   private readonly _memdag: dag.Store;
   private readonly _perdag: dag.Store;
@@ -679,6 +683,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         mutation.original,
         mutation.name,
         mutation.args,
+        mutation.timestamp,
       );
     }
 
@@ -690,6 +695,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     original: Hash,
     name: string,
     args: A,
+    timestamp: number,
   ): Promise<Hash> {
     let mutatorImpl = this._mutatorRegistry.get(name);
     if (!mutatorImpl) {
@@ -709,6 +715,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       name,
       mutatorImpl,
       args,
+      timestamp,
       {basis, original},
       true, // isReplay
     );
@@ -1156,6 +1163,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
           name,
           mutatorImpl,
           args,
+          performance.now(),
           undefined, // rebaseOpts
           false, // isReplay
         )
@@ -1179,6 +1187,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     name: string,
     mutatorImpl: (tx: WriteTransaction, args?: A) => MaybePromise<R>,
     args: A | undefined,
+    timestamp: number,
     rebaseOpts: sync.RebaseOpts | undefined,
     isReplay: boolean,
   ): Promise<{result: R; ref: Hash}> {
@@ -1207,6 +1216,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         deepClone(args ?? null),
         originalHash,
         dagWrite,
+        timestamp,
       );
 
       const tx = new WriteTransactionImpl(clientID, dbWrite, this._lc);

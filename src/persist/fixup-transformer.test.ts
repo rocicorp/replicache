@@ -90,6 +90,7 @@ test('fixup of a single snapshot commit with empty btree', async () => {
         null,
         fakeHash('value'),
         [],
+        88,
       );
       await dagWrite.putChunk(c.chunk);
       await dagWrite.setHead('test', c.chunk.hash);
@@ -124,6 +125,7 @@ test('fixup of a single snapshot commit with empty btree', async () => {
           },
           mutatorName: 'test',
           originalHash: null,
+          timestamp: 88,
           type: 2,
         },
         valueHash: 'fake00000000000000000000000value',
@@ -172,6 +174,7 @@ test('fixup of a single snapshot commit with empty btree', async () => {
           },
           mutatorName: 'test',
           originalHash: null,
+          timestamp: 88,
           type: 2,
         },
         valueHash: 'fake00000000000000000000000value',
@@ -219,6 +222,7 @@ test('fixup base snapshot when there is a local commit on top of it', async () =
         null,
         fakeHash('value'),
         [],
+        88,
       );
       await dagWrite.putChunk(localCommit.chunk);
 
@@ -256,6 +260,7 @@ test('fixup base snapshot when there is a local commit on top of it', async () =
         },
         mutatorName: 'test',
         originalHash: null,
+        timestamp: 88,
         type: 2,
       },
       valueHash: 'fake00000000000000000000000value',
@@ -316,6 +321,7 @@ test('fixup base snapshot when there is a local commit on top of it', async () =
         },
         mutatorName: 'test',
         originalHash: null,
+        timestamp: 88,
         type: 2,
       },
       valueHash: 'fake00000000000000000000000value',

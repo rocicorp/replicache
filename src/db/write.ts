@@ -33,6 +33,7 @@ type LocalMeta = {
   mutatorArgs: ReadonlyJSONValue;
   mutationID: number;
   originalHash: Hash | null;
+  timestamp: number;
 };
 
 type SnapshotMeta = {
@@ -78,6 +79,7 @@ export class Write extends Read {
     mutatorArgs: ReadonlyJSONValue,
     originalHash: Hash | null,
     dagWrite: dag.Write,
+    timestamp: number,
   ): Promise<Write> {
     const [, basis, bTreeWrite] = await readCommitForBTreeWrite(
       whence,
@@ -95,6 +97,7 @@ export class Write extends Read {
         mutatorArgs,
         mutationID,
         originalHash,
+        timestamp,
       },
       indexes,
     );
@@ -318,7 +321,8 @@ export class Write extends Read {
     const meta = this._meta;
     switch (meta.type) {
       case MetaType.Local: {
-        const {mutationID, mutatorName, mutatorArgs, originalHash} = meta;
+        const {mutationID, mutatorName, mutatorArgs, originalHash, timestamp} =
+          meta;
         commit = commitNewLocal(
           this._dagWrite.createChunk,
           basisHash,
@@ -328,6 +332,7 @@ export class Write extends Read {
           originalHash,
           valueHash,
           indexRecords,
+          timestamp,
         );
         break;
       }

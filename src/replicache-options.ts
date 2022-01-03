@@ -189,4 +189,6 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * in the future without following semver versioning. Please be cautious.
    */
   experimentalKVStore?: kv.Store;
+
+  lazyDag?: boolean;
 }

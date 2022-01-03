@@ -22,7 +22,7 @@ import {assert, assertNotUndefined} from '../asserts';
  * This store's heads are independent from the heads of source store, and are only
  * stored in memory.
  *
- * Chunks which are put with a temp hash (see #isTempHash) are assumed to not be
+ * Chunks which are put with a temp hash (see {@link #isTempHash}) are assumed to not be
  * persisted to the source store and thus are cached seperatly from the source store
  * chunks.  These temp chunks cannot be evicited, and their sizes are not counted
  * towards the source chunk cache size.  A temp chunk will be deleted if it is no longer

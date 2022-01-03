@@ -12,7 +12,7 @@ import type {ReadonlyJSONValue} from '../json';
 
 /**
  * Computes permanant hashes from all temp chunks in `memdag` and writes them
- * to `perdag`.  Replaces in `memdag` all temp chunks written with chunks with 
+ * to `perdag`.  Replaces in `memdag` all temp chunks written with chunks with
  * permanant hashes.
  *
  * @param clientID

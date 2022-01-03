@@ -199,7 +199,7 @@ export function benchmarkWriteSubRead(opts: {
             }
           },
         },
-        lazyDag: opts.useLazyDag
+        lazyDag: opts.useLazyDag,
       });
 
       await rep.mutate.init();
@@ -304,7 +304,7 @@ async function makeRepWithPopulate(useLazyDag: boolean) {
   };
   return makeRep({
     mutators,
-    lazyDag: useLazyDag
+    lazyDag: useLazyDag,
   });
 }
 
@@ -349,5 +349,5 @@ export function benchmarks(): Benchmark[] {
   // of the results.
   //
   // Run with both true and false. After a few runs we can remove the flag.
-  return [/*...bs(true),*/ ...bs(true)];
+  return [...bs(true), ...bs(false)];
 }

@@ -57,7 +57,7 @@ export class StoreImpl implements Store {
   }
 }
 
-export class ReadImpl {
+export class ReadImpl implements Read {
   protected readonly _tx: kv.Read;
   readonly assertValidHash: (hash: Hash) => void;
 

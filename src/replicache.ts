@@ -398,14 +398,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const [clientID, client] = await persist.initClient(this._perdag);
     resolveClientID(clientID);
 
-    if (lazyDag) { 
-      await this._memdag.withWrite(async (write) => {
+    if (lazyDag) {
+      await this._memdag.withWrite(async write => {
         await write.setHead('main', client.headHash);
         await write.commit();
       });
     } else {
       // Copy chunks from perdag to memdag.
-      (await persist.slurp(client.headHash, this._memdag, this._perdag));
+      await persist.slurp(client.headHash, this._memdag, this._perdag);
     }
     // Now we have both a clientID and DB!
     resolveReady();

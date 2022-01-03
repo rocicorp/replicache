@@ -344,6 +344,9 @@ export class LazyWrite
         this._heads.delete(name);
       }
     });
+    this._pendingChunks.clear();
+    this._pendingHeadChanges.clear();
+    this.close();
   }
 
   async getRefCount(hash: Hash): Promise<number | undefined> {

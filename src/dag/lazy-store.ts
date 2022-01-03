@@ -206,7 +206,7 @@ export class LazyRead implements Read {
   close(): void {
     if (!this._closed) {
       this._release();
-      this._sourceRead?.then(async read => await read.close());
+      void this._sourceRead?.then(read => read.close());
       this._closed = true;
     }
   }

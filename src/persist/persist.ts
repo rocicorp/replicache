@@ -11,14 +11,14 @@ import {FixupTransformer} from './fixup-transformer';
 import type {ReadonlyJSONValue} from '../json';
 
 /**
- * Computes permanant hashes from all temp chunks in `memdag` and writes them
+ * Computes permanent hashes from all temp chunks in `memdag` and writes them
  * to `perdag`.  Replaces in `memdag` all temp chunks written with chunks with
- * permanant hashes.
+ * permanent hashes.
  *
  * @param clientID
  * @param memdag Dag to gather temp chunks from.
  * @param perdag Dag to write gathered temp chunks to.
- * @returns A promise that is fulfilled when persist completes succesfully,
+ * @returns A promise that is fulfilled when persist completes successfully,
  * or is rejected if the persist fails.
  */
 export async function persist(

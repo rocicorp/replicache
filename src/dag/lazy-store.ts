@@ -23,13 +23,14 @@ import {assert, assertNotUndefined} from '../asserts';
  * stored in memory.
  *
  * Chunks which are put with a temp hash (see {@link #isTempHash}) are assumed to not be
- * persisted to the source store and thus are cached seperatly from the source store
- * chunks.  These temp chunks cannot be evicited, and their sizes are not counted
+ * persisted to the source store and thus are cached separately from the source store
+ * chunks.  These temp chunks cannot be evicted, and their sizes are not counted
  * towards the source chunk cache size.  A temp chunk will be deleted if it is no longer
  * reachable from one of this store's heads.
  *
  * Writes only manipulate the in memory state of this store and do not alter the source
- * store.  Thus values must be written to the source store through a separate process.
+ * store.  Thus values must be written to the source store through a separate process
+ * (see persist).
  *
  * Intended use:
  * 1. source store is the 'perdag', a slower persistent store (i.e. dag.StoreImpl using a kv.IDBStore)
@@ -37,7 +38,7 @@ import {assert, assertNotUndefined} from '../asserts';
  *    in the 'perdag'
  * 3. reads from this store lazily read chunks from the source store and cache them
  * 3. writes are initially made to this store using temp hashes (i.e. temp chunks)
- * 4. writes are asynchornously persisted to the perdag through a seperate process
+ * 4. writes are asynchronously persisted to the perdag through a separate process
  *    See {@link persist}}. This process gathers all temp chunks from this dag, computes
  *    real hashes for them and then writes them to the perdag.  It then replaces in this dag
  *    all the temp chunks written to the perdag with chunks with permanent hashes.  This
@@ -205,7 +206,7 @@ export class LazyRead implements Read {
   close(): void {
     if (!this._closed) {
       this._release();
-      this._sourceRead?.then(read => read.close());
+      this._sourceRead?.then(async read => await read.close());
       this._closed = true;
     }
   }

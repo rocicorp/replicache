@@ -708,10 +708,10 @@ test('temp chunks are not evicted when cache size is exceeded', async () => {
 
 // test that commit and Cache.put are not double incrementing ref counts
 
-test('isolation: multiple readers can read at the same time', () => {});
+// test('isolation: multiple readers can read at the same time', () => {});
 
-test('isolation: a write transaction must wait till all readers are done', () => {});
+// test('isolation: a write transaction must wait till all readers are done', () => {});
 
-test('isolation: only one write can write at a time', () => {});
+// test('isolation: only one write can write at a time', () => {});
 
-test('isolation: only one write can write at a time', () => {});
+// test('isolation: only one write can write at a time', () => {});

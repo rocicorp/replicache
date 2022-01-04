@@ -13,7 +13,7 @@ import {
 import {assert, assertNotUndefined} from '../asserts';
 
 /**
- * DAG Store which lazily loads values from a source store and then caches
+ * Dag Store which lazily loads values from a source store and then caches
  * them in an LRU cache.  The memory cache for chunks from the source store
  * size is limited to `sourceCacheSizeLimit` bytes, and values are evicted in an LRU
  * fashion.  The purpose of this store is to avoid holding the entire client view
@@ -39,17 +39,17 @@ import {assert, assertNotUndefined} from '../asserts';
  * 3. reads from this store lazily read chunks from the source store and cache them
  * 3. writes are initially made to this store using temp hashes (i.e. temp chunks)
  * 4. writes are asynchronously persisted to the perdag through a separate process
- *    See {@link persist}}. This process gathers all temp chunks from this dag, computes
+ *    See {@link persist}}. This process gathers all temp chunks from this store, computes
  *    real hashes for them and then writes them to the perdag.  It then replaces in this dag
  *    all the temp chunks written to the perdag with chunks with permanent hashes.  This
- *    results in the temp chunks being deleted from this dag and the chunks with permanent
- *    hashes being placed in this dag's LRU cache of source chunks.
+ *    results in the temp chunks being deleted from this store and the chunks with permanent
+ *    hashes being placed in this store's LRU cache of source chunks.
  *
  * @param sourceStore Store to lazy load and cache values from.
  * @param sourceCacheSizeLimit Size limit in bytes for cache of chunks loaded from `sourceStore`.
  * Size of values is determined using `getSizeOfValue`.  Keys do not count towards cache size.
  * Chunks with temp hashes do not count towards cache size.
- * @param getSizeOfValue Function for measure the size in bytes of a value
+ * @param getSizeOfValue Function for measuring the size in bytes of a value.
  */
 export class LazyStore implements Store {
   /**

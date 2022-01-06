@@ -19,51 +19,51 @@ import {assert, assertNotUndefined} from '../asserts';
  * LRU fashion.  The purpose of this store is to avoid holding the entire client
  * view (i.e. the source store's content) in each tab's JavaScript heap.
  *
- * This store's heads are independent from the heads of source store, and are 
+ * This store's heads are independent from the heads of source store, and are
  * only stored in memory.
  *
- * Chunks which are put with a temp hash (see {@linkcode isTempHash}) are assumed 
- * to not be persisted to the source store and thus are cached separately from 
- * the source store chunks.  These temp chunks will not be evicted, and their 
+ * Chunks which are put with a temp hash (see {@linkcode isTempHash}) are assumed
+ * to not be persisted to the source store and thus are cached separately from
+ * the source store chunks.  These temp chunks will not be evicted, and their
  * sizes are not counted towards the source chunk cache size.  A temp chunk will
  * be deleted if it is no longer reachable from one of this store's heads.
  *
  * Writes only manipulate the in memory state of this store and do not alter the
- * source store.  Thus values must be written to the source store through a 
+ * source store.  Thus values must be written to the source store through a
  * separate process (see {@linkcode persist}).
  *
  * Intended use:
- * 1. source store is the 'perdag', a slower persistent store (i.e. 
+ * 1. source store is the 'perdag', a slower persistent store (i.e.
  *    dag.StoreImpl using a kv.IDBStore)
  * 2. this store's 'main' head is initialized to the hash of a chunk containing
  *    a snapshot commit in the source store
  * 3. reads lazily read chunks from the source store and cache them
- * 3. writes are initially made to this store with temp hashes (i.e. temp 
+ * 3. writes are initially made to this store with temp hashes (i.e. temp
  *    chunks)
  * 4. writes are asynchronously persisted to the source store through a separate
- *    process (see {@link persist}}. This process gathers all temp chunks from 
- *    this store, computes real hashes for them and then writes them to the 
+ *    process (see {@link persist}}. This process gathers all temp chunks from
+ *    this store, computes real hashes for them and then writes them to the
  *    source store.  It then replaces in this dag all the temp chunks written to
- *    the source with chunks with permanent hashes and updates heads to 
+ *    the source with chunks with permanent hashes and updates heads to
  *    reference these permanent hashes instead of the temp hashes.  This results
- *    in the temp chunks being deleted from this store and the chunks with 
+ *    in the temp chunks being deleted from this store and the chunks with
  *    permanent hashes being placed in this store's LRU cache of source chunks.
  *
  * @param sourceStore Store to lazy load and cache values from.
- * @param sourceCacheSizeLimit Size limit in bytes for cache of chunks loaded 
- * from `sourceStore`.  This size of a value is determined using 
+ * @param sourceCacheSizeLimit Size limit in bytes for cache of chunks loaded
+ * from `sourceStore`.  This size of a value is determined using
  * `getSizeOfValue`.  Keys do not count towards cache size.  Chunks with temp
  * hashes do not count towards cache size.
  * @param getSizeOfValue Function for measuring the size in bytes of a value.
  */
 export class LazyStore implements Store {
   /**
-   * This lock is used to ensure correct isolation of Reads and Writes.  
-   * Multiple Reads are allowed in parallel but only a single Write.  Reads and 
-   * Writes see a isolated view of the store (corresponding to the Serializable 
+   * This lock is used to ensure correct isolation of Reads and Writes.
+   * Multiple Reads are allowed in parallel but only a single Write.  Reads and
+   * Writes see a isolated view of the store (corresponding to the Serializable
    * level of transaction isolation defined in the SQL standard).
    *
-   * To ensure these semantics the read lock must be acquired when a Read is 
+   * To ensure these semantics the read lock must be acquired when a Read is
    * created and held til it is closed, and a Write lock must be acquired when a
    * Write is created and held til it is committed.
    *
@@ -85,26 +85,26 @@ export class LazyStore implements Store {
   /**
    * These ref counts are independent from `this._sourceStore`'s ref counts.
    * These ref counts are based on reachability from `this._heads`.
-   * The ref count for a hash is the number of unique heads or chunks in 
+   * The ref count for a hash is the number of unique heads or chunks in
    * `this._tempChunks` or `this._sourceChunksCache` that reference this
    * hash.  That is, a chunk with a positive ref count is reachable from a head
-   * via traversing chunk refs of chunks in `this._tempChunks` or 
+   * via traversing chunk refs of chunks in `this._tempChunks` or
    * `this._sourceChunksCache` .
    *
-   * Invariant: all chunks in `this._tempChunks` or `this._sourceChunksCache` 
+   * Invariant: all chunks in `this._tempChunks` or `this._sourceChunksCache`
    * have a positive ref count.
    *
    * A hash's ref count can be changed in two ways:
-   * 1. A write commit updates a head (which can result in increasing or 
-   * decreasing ref count) or puts a chunk that references this hash (increasing 
+   * 1. A write commit updates a head (which can result in increasing or
+   * decreasing ref count) or puts a chunk that references this hash (increasing
    * ref count).
-   * 2. A chunk which references the hash is added to (increasing ref count) or 
+   * 2. A chunk which references the hash is added to (increasing ref count) or
    * evicted from (decreasing ref count) this `this._sourceChunksCache`.
    *
-   * Note: A chunk's hash may have an entry in `this._refCounts` without that 
-   * chunk being in `this._tempChunks` or `this._sourceChunksCache`.  This is 
-   * the case when a head or cached chunk references a chunk which is not 
-   * currently cached (either because it has not been read, or because it has 
+   * Note: A chunk's hash may have an entry in `this._refCounts` without that
+   * chunk being in `this._tempChunks` or `this._sourceChunksCache`.  This is
+   * the case when a head or cached chunk references a chunk which is not
+   * currently cached (either because it has not been read, or because it has
    * been evicted).
    */
   private readonly _refCounts = new Map<Hash, number>();
@@ -427,7 +427,7 @@ class ChunksCache {
 
   put(chunk: Chunk): void {
     const {hash} = chunk;
-    // If there is an existing cache entry then the cached value must be 
+    // If there is an existing cache entry then the cached value must be
     // equivalent.  Update order in map for LRU tracking and early return.
     const oldCacheEntry = this._cacheEntries.get(hash);
     if (oldCacheEntry) {
@@ -505,7 +505,7 @@ class ChunksCache {
       const {hash} = chunk;
       const oldCacheEntry = this._cacheEntries.get(hash);
       if (oldCacheEntry) {
-        // If there is an existing cache entry then the cached value must be 
+        // If there is an existing cache entry then the cached value must be
         // equivalent.  Update order in map for LRU tracking but avoid
         // recomputing size and creating a new cache entry.
         this._cacheEntries.delete(hash);

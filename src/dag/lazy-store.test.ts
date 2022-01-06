@@ -845,32 +845,37 @@ test('cache does not cache put chunks with size greater than cacheSizeLimit, and
     testValue3 = 'testValue3',
     testValue4 = {name: 'testValue4', size: 400},
     testValue5 = {name: 'testValue5', size: 400};
-  const {testValue1Chunk, testValue2Chunk, testValue3Chunk, testValue4Chunk, testValue5Chunk} =
-    await sourceStore.withWrite(async write => {
-      const testValue1Chunk = write.createChunk(testValue1, []);
-      await write.putChunk(testValue1Chunk);
-      await write.setHead('testHeadSource1', testValue1Chunk.hash);
-      const testValue2Chunk = write.createChunk(testValue2, []);
-      await write.putChunk(testValue2Chunk);
-      await write.setHead('testHeadSource2', testValue2Chunk.hash);
-      const testValue3Chunk = write.createChunk(testValue3, []);
-      await write.putChunk(testValue3Chunk);
-      await write.setHead('testHeadSource3', testValue3Chunk.hash);
-      const testValue4Chunk = write.createChunk(testValue4, []);
-      await write.putChunk(testValue4Chunk);
-      await write.setHead('testHeadSource4', testValue4Chunk.hash);
-      const testValue5Chunk = write.createChunk(testValue5, []);
-      await write.putChunk(testValue5Chunk);
-      await write.setHead('testHeadSource5', testValue5Chunk.hash);
-      await write.commit();
-      return {
-        testValue1Chunk,
-        testValue2Chunk,
-        testValue3Chunk,
-        testValue4Chunk,
-        testValue5Chunk
-      };
-    });
+  const {
+    testValue1Chunk,
+    testValue2Chunk,
+    testValue3Chunk,
+    testValue4Chunk,
+    testValue5Chunk,
+  } = await sourceStore.withWrite(async write => {
+    const testValue1Chunk = write.createChunk(testValue1, []);
+    await write.putChunk(testValue1Chunk);
+    await write.setHead('testHeadSource1', testValue1Chunk.hash);
+    const testValue2Chunk = write.createChunk(testValue2, []);
+    await write.putChunk(testValue2Chunk);
+    await write.setHead('testHeadSource2', testValue2Chunk.hash);
+    const testValue3Chunk = write.createChunk(testValue3, []);
+    await write.putChunk(testValue3Chunk);
+    await write.setHead('testHeadSource3', testValue3Chunk.hash);
+    const testValue4Chunk = write.createChunk(testValue4, []);
+    await write.putChunk(testValue4Chunk);
+    await write.setHead('testHeadSource4', testValue4Chunk.hash);
+    const testValue5Chunk = write.createChunk(testValue5, []);
+    await write.putChunk(testValue5Chunk);
+    await write.setHead('testHeadSource5', testValue5Chunk.hash);
+    await write.commit();
+    return {
+      testValue1Chunk,
+      testValue2Chunk,
+      testValue3Chunk,
+      testValue4Chunk,
+      testValue5Chunk,
+    };
+  });
 
   await lazyStore.withWrite(async write => {
     await write.setHead('testHeadLazy1', testValue1Chunk.hash);
@@ -891,7 +896,7 @@ test('cache does not cache put chunks with size greater than cacheSizeLimit, and
   });
 
   await lazyStore.withWrite(async write => {
-    // evicts testValue1Chunk 
+    // evicts testValue1Chunk
     await write.putChunk(testValue3Chunk);
     // testValue4Chunk and testValue5Chunk are not cached because each of
     // their sizes exceeds cache size limit. Other chunks are not evicted.

@@ -7,7 +7,6 @@ import {
   newTempHash,
 } from '../hash';
 import type {Value} from '../kv/mod';
-import {lazy} from '../lazy';
 import {makeTestChunkHasher} from './chunk';
 import {LazyStore} from './lazy-store';
 import {TestStore} from './test-store';

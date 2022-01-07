@@ -1014,4 +1014,261 @@ test('temp chunks are not evicted when cache size is exceeded', async () => {
   });
 });
 
-// test that commit and Cache.put are not double incrementing ref counts
+test('[all temp chunks] chunk ref counts are updated on commit and are deleted when their ref count goes to zero', async () => {
+  const {lazyStore} = createLazyStoreForTest();
+
+  //    R
+  //  / |
+  //  A B
+  //  \ |
+  //    C
+  //    |
+  //    D
+
+  const {r, a, b, c, d} = await lazyStore.withWrite(async write => {
+    const d = write.createChunk('d', []);
+    const c = write.createChunk('c', [d.hash]);
+    const b = write.createChunk('b', [c.hash]);
+    const a = write.createChunk('a', [c.hash]);
+    const r = write.createChunk('r', [a.hash, b.hash]);
+    await write.putChunk(r);
+    await write.putChunk(a);
+    await write.putChunk(b);
+    await write.putChunk(c);
+    await write.putChunk(d);
+    await write.setHead('test', r.hash);
+    await write.commit();
+    return {r, a, b, c, d};
+  });
+
+  expect(lazyStore.refCountsSnapshot).to.deep.equal(
+    new Map([
+      [r.hash, 1],
+      [a.hash, 1],
+      [b.hash, 1],
+      [c.hash, 2],
+      [d.hash, 1],
+    ]),
+  );
+
+  // E
+  // |
+  // D
+
+  const e = await lazyStore.withWrite(async write => {
+    const e = write.createChunk('e', [d.hash]);
+    await write.putChunk(e);
+    await write.setHead('test', e.hash);
+    await write.commit();
+    return e;
+  });
+
+  expect(lazyStore.refCountsSnapshot).to.deep.equal(
+    new Map([
+      [d.hash, 1],
+      [e.hash, 1],
+    ]),
+  );
+
+  await lazyStore.withRead(async read => {
+    expect(await read.getChunk(r.hash)).to.be.undefined;
+    expect(await read.getChunk(a.hash)).to.be.undefined;
+    expect(await read.getChunk(b.hash)).to.be.undefined;
+    expect(await read.getChunk(c.hash)).to.be.undefined;
+    expect(await read.getChunk(d.hash)).to.deep.equal(d);
+    expect(await read.getChunk(e.hash)).to.deep.equal(e);
+  });
+});
+
+test('[all cached chunks] ref counts are updated on commit and are deleted when their ref count goes to zero', async () => {
+  // Make cache size large enough that eviction does not occur
+  // during test
+  const {sourceStore, lazyStore} = createLazyStoreForTest({
+    cacheSizeLimit: 1000,
+  });
+
+  //    R
+  //  / |
+  //  A B
+  //  \ |
+  //    C
+  //    |
+  //    D
+
+  const {r, a, b, c, d} = await sourceStore.withWrite(async write => {
+    const d = write.createChunk('d', []);
+    const c = write.createChunk('c', [d.hash]);
+    const b = write.createChunk('b', [c.hash]);
+    const a = write.createChunk('a', [c.hash]);
+    const r = write.createChunk('r', [a.hash, b.hash]);
+    await write.putChunk(r);
+    await write.putChunk(a);
+    await write.putChunk(b);
+    await write.putChunk(c);
+    await write.putChunk(d);
+    await write.setHead('testSource', r.hash);
+    await write.commit();
+    return {r, a, b, c, d};
+  });
+
+  await lazyStore.withWrite(async write => {
+    await write.putChunk(r);
+    await write.putChunk(a);
+    await write.putChunk(b);
+    await write.putChunk(c);
+    await write.putChunk(d);
+    await write.setHead('testLazy', r.hash);
+    await write.commit();
+  });
+
+  expect(lazyStore.refCountsSnapshot).to.deep.equal(
+    new Map([
+      [r.hash, 1],
+      [a.hash, 1],
+      [b.hash, 1],
+      [c.hash, 2],
+      [d.hash, 1],
+    ]),
+  );
+
+  // E
+  // |
+  // D
+
+  const e = await sourceStore.withWrite(async write => {
+    const e = write.createChunk('e', [d.hash]);
+    await write.putChunk(e);
+    await write.setHead('testSource', e.hash);
+    await write.commit();
+    return e;
+  });
+
+  await lazyStore.withWrite(async write => {
+    await write.putChunk(e);
+    await write.setHead('testLazy', e.hash);
+    await write.commit();
+    return e;
+  });
+
+  expect(lazyStore.refCountsSnapshot).to.deep.equal(
+    new Map([
+      [d.hash, 1],
+      [e.hash, 1],
+    ]),
+  );
+
+  await lazyStore.withRead(async read => {
+    expect(await read.getChunk(r.hash)).to.be.undefined;
+    expect(await read.getChunk(a.hash)).to.be.undefined;
+    expect(await read.getChunk(b.hash)).to.be.undefined;
+    expect(await read.getChunk(c.hash)).to.be.undefined;
+    expect(await read.getChunk(d.hash)).to.deep.equal(d);
+    expect(await read.getChunk(e.hash)).to.deep.equal(e);
+  });
+});
+
+test('[mix of temp and cached chunks] ref counts are updated on commit and are deleted when their ref count goes to zero', async () => {
+  // Make cache size large enough that eviction does not occur
+  // during test
+  const {sourceStore, lazyStore} = createLazyStoreForTest({
+    cacheSizeLimit: 1000,
+  });
+
+  //    R
+  //  / |
+  //  A B
+  //  \ |
+  //    C
+  //    |
+  //    D
+
+  const {r, a, b, c, d} = await sourceStore.withWrite(async write => {
+    const d = write.createChunk('d', []);
+    const c = write.createChunk('c', [d.hash]);
+    const b = write.createChunk('b', [c.hash]);
+    const a = write.createChunk('a', [c.hash]);
+    const r = write.createChunk('r', [a.hash, b.hash]);
+    await write.putChunk(r);
+    await write.putChunk(a);
+    await write.putChunk(b);
+    await write.putChunk(c);
+    await write.putChunk(d);
+    await write.setHead('testSource', r.hash);
+    await write.commit();
+    return {r, a, b, c, d};
+  });
+
+  await lazyStore.withWrite(async write => {
+    await write.putChunk(r);
+    await write.putChunk(a);
+    await write.putChunk(b);
+    await write.putChunk(c);
+    await write.putChunk(d);
+    await write.setHead('testLazy', r.hash);
+    await write.commit();
+  });
+
+  expect(lazyStore.refCountsSnapshot).to.deep.equal(
+    new Map([
+      [r.hash, 1],
+      [a.hash, 1],
+      [b.hash, 1],
+      [c.hash, 2],
+      [d.hash, 1],
+    ]),
+  );
+
+  // tempE
+  // |
+  // D
+
+  const tempE = await lazyStore.withWrite(async write => {
+    const tempE = write.createChunk('e', [d.hash]);
+    await write.putChunk(tempE);
+    await write.setHead('testLazy', tempE.hash);
+    await write.commit();
+    return tempE;
+  });
+
+  expect(lazyStore.refCountsSnapshot).to.deep.equal(
+    new Map([
+      [d.hash, 1],
+      [tempE.hash, 1],
+    ]),
+  );
+
+  // E
+  // |
+  // D
+  const e = await sourceStore.withWrite(async write => {
+    const e = write.createChunk('e', [d.hash]);
+    await write.putChunk(e);
+    await write.setHead('testSource', e.hash);
+    await write.commit();
+    return e;
+  });
+
+  await lazyStore.withWrite(async write => {
+    await write.putChunk(e);
+    await write.setHead('testLazy', e.hash);
+    await write.commit();
+    return e;
+  });
+
+  expect(lazyStore.refCountsSnapshot).to.deep.equal(
+    new Map([
+      [d.hash, 1],
+      [e.hash, 1],
+    ]),
+  );
+
+  await lazyStore.withRead(async read => {
+    expect(await read.getChunk(r.hash)).to.be.undefined;
+    expect(await read.getChunk(a.hash)).to.be.undefined;
+    expect(await read.getChunk(b.hash)).to.be.undefined;
+    expect(await read.getChunk(c.hash)).to.be.undefined;
+    expect(await read.getChunk(tempE.hash)).to.be.undefined;
+    expect(await read.getChunk(d.hash)).to.deep.equal(d);
+    expect(await read.getChunk(e.hash)).to.deep.equal(e);
+  });
+});

@@ -175,6 +175,10 @@ export class LazyStore implements Store {
   async close(): Promise<void> {
     return;
   }
+
+  get refCountsSnapshot(): ReadonlyMap<Hash, number> {
+    return new Map(this._refCounts);
+  }
 }
 
 export class LazyRead implements Read {
@@ -338,6 +342,7 @@ export class LazyWrite
 
     refCountUpdates.forEach((count, hash) => {
       if (count === 0) {
+        this._refCounts.delete(hash);
         this._pendingChunks.delete(hash);
         if (isTempHash(hash)) {
           this._tempChunks.delete(hash);
@@ -379,6 +384,10 @@ export class LazyWrite
   }
 
   async getRefs(hash: Hash): Promise<readonly Hash[] | undefined> {
+    const pendingChunk = this._pendingChunks.get(hash);
+    if (pendingChunk) {
+      return pendingChunk.meta;
+    }
     if (isTempHash(hash)) {
       return this._tempChunks.get(hash)?.meta;
     }
@@ -494,10 +503,10 @@ class ChunksCache {
     chunksToPut: Iterable<Chunk>,
     hashesToDelete: Iterable<Hash>,
   ): void {
-    // Commit has already updated refCounts to reflect these puts and deletes.
-    // First we do all the puts and deletes to bring this._refCounts and
-    // this._cacheEntries into a consistent state. Then we ensure
-    // that the cache is below its size limit, using this.delete and
+    // Commit has already updated this._refCounts to reflect these puts and
+    // deletes.  First we do all the puts and deletes to bring this._refCounts
+    // and this._cacheEntries into a consistent state. Then we ensure that the
+    // cache is below its size limit, using this.delete and
     // this._ensureCacheSizeLimit, both of which require this._refCounts and
     // this._cacheEntries to be in a consistent state to work correctly.
     const cacheEntiresLargerThanLimit = [];

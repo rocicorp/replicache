@@ -17,16 +17,16 @@ export function benchmarkPopulate(opts: {
   numKeys: number;
   clean: boolean;
   indexes?: number;
-  useLazyDag: boolean;
+  useMemstore: boolean;
 }): Benchmark {
   return {
-    name: `${opts.useLazyDag ? '[LazyDag] ' : ''}populate ${valSize}x${
+    name: `${opts.useMemstore ? '[MemStore] ' : ''}populate ${valSize}x${
       opts.numKeys
     } (${opts.clean ? 'clean' : 'dirty'}, ${`indexes: ${opts.indexes || 0}`})`,
     group: 'replicache',
     byteSize: opts.numKeys * valSize,
     async run(bencher: Bencher) {
-      const rep = await makeRepWithPopulate(opts.useLazyDag);
+      const rep = await makeRepWithPopulate();
       if (!opts.clean) {
         await rep.mutate.populate({
           numKeys: opts.numKeys,
@@ -50,17 +50,17 @@ export function benchmarkPopulate(opts: {
 
 export function benchmarkReadTransaction(opts: {
   numKeys: number;
-  useLazyDag: boolean;
+  useMemstore: boolean;
 }): Benchmark {
   let rep: ReplicacheWithPopulate;
   return {
-    name: `${opts.useLazyDag ? '[LazyDag] ' : ''}read tx ${valSize}x${
+    name: `${opts.useMemstore ? '[MemStore] ' : ''}read tx ${valSize}x${
       opts.numKeys
     }`,
     group: 'replicache',
     byteSize: opts.numKeys * valSize,
     async setup() {
-      rep = await makeRepWithPopulate(opts.useLazyDag);
+      rep = await makeRepWithPopulate();
       await rep.mutate.populate({
         numKeys: opts.numKeys,
         randomValues: jsonArrayTestData(opts.numKeys, valSize),
@@ -87,18 +87,18 @@ export function benchmarkReadTransaction(opts: {
 
 export function benchmarkScan(opts: {
   numKeys: number;
-  useLazyDag: boolean;
+  useMemstore: boolean;
 }): Benchmark {
   let rep: ReplicacheWithPopulate;
   return {
-    name: `${opts.useLazyDag ? '[LazyDag] ' : ''}scan ${valSize}x${
+    name: `${opts.useMemstore ? '[MemStore] ' : ''}scan ${valSize}x${
       opts.numKeys
     }`,
     group: 'replicache',
     byteSize: opts.numKeys * valSize,
 
     async setup() {
-      rep = await makeRepWithPopulate(opts.useLazyDag);
+      rep = await makeRepWithPopulate();
       await rep.mutate.populate({
         numKeys: opts.numKeys,
         randomValues: jsonArrayTestData(opts.numKeys, valSize),
@@ -122,16 +122,16 @@ export function benchmarkScan(opts: {
 
 export function benchmarkCreateIndex(opts: {
   numKeys: number;
-  useLazyDag: boolean;
+  useMemstore: boolean;
 }): Benchmark {
   return {
-    name: `${opts.useLazyDag ? '[LazyDag] ' : ''}create index ${valSize}x${
+    name: `${opts.useMemstore ? '[MemStore] ' : ''}create index ${valSize}x${
       opts.numKeys
     }`,
     group: 'replicache',
 
     async run(bencher: Bencher) {
-      const rep = await makeRepWithPopulate(opts.useLazyDag);
+      const rep = await makeRepWithPopulate();
       await rep.mutate.populate({
         numKeys: opts.numKeys,
         randomValues: jsonArrayTestData(opts.numKeys, valSize),
@@ -160,7 +160,7 @@ export function benchmarkWriteSubRead(opts: {
   keysPerSub: number;
   keysWatchedPerSub: number;
   numSubsDirty: number;
-  useLazyDag: boolean;
+  useMemstore: boolean;
 }): Benchmark {
   const {valueSize, numSubsTotal, keysPerSub, keysWatchedPerSub, numSubsDirty} =
     opts;
@@ -172,7 +172,7 @@ export function benchmarkWriteSubRead(opts: {
 
   return {
     name: `${
-      opts.useLazyDag ? '[LazyDag] ' : ''
+      opts.useMemstore ? '[MemStore] ' : ''
     }writeSubRead ${cacheSizeMB}MB total, ${numSubsTotal} subs total, ${numSubsDirty} subs dirty, ${kbReadPerSub}kb read per sub`,
     group: 'replicache',
     async run(bencher: Bencher) {
@@ -199,7 +199,6 @@ export function benchmarkWriteSubRead(opts: {
             }
           },
         },
-        lazyDag: opts.useLazyDag,
       });
 
       await rep.mutate.init();
@@ -288,7 +287,7 @@ type ReplicacheWithPopulate = UnwrapPromise<
   ReturnType<typeof makeRepWithPopulate>
 >;
 
-async function makeRepWithPopulate(useLazyDag: boolean) {
+async function makeRepWithPopulate() {
   const mutators = {
     populate: async (
       tx: WriteTransaction,
@@ -304,12 +303,11 @@ async function makeRepWithPopulate(useLazyDag: boolean) {
   };
   return makeRep({
     mutators,
-    lazyDag: useLazyDag,
   });
 }
 
 export function benchmarks(): Benchmark[] {
-  const bs = (useLazyDag: boolean) => [
+  const bs = (useMemstore: boolean) => [
     // write/sub/read 1mb
     benchmarkWriteSubRead({
       valueSize: 1024,
@@ -317,7 +315,7 @@ export function benchmarks(): Benchmark[] {
       keysPerSub: 16,
       keysWatchedPerSub: 16,
       numSubsDirty: 5,
-      useLazyDag,
+      useMemstore,
     }),
     // write/sub/read 4mb
     benchmarkWriteSubRead({
@@ -326,7 +324,7 @@ export function benchmarks(): Benchmark[] {
       keysPerSub: 32,
       keysWatchedPerSub: 16,
       numSubsDirty: 5,
-      useLazyDag,
+      useMemstore,
     }),
     // write/sub/read 16mb
     benchmarkWriteSubRead({
@@ -335,16 +333,16 @@ export function benchmarks(): Benchmark[] {
       keysPerSub: 128,
       keysWatchedPerSub: 16,
       numSubsDirty: 5,
-      useLazyDag,
+      useMemstore,
     }),
     // 128 mb is unusable
-    benchmarkPopulate({numKeys: 1000, clean: true, useLazyDag}),
-    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1, useLazyDag}),
-    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 2, useLazyDag}),
-    benchmarkScan({numKeys: 1000, useLazyDag}),
-    benchmarkCreateIndex({numKeys: 5000, useLazyDag}),
+    benchmarkPopulate({numKeys: 1000, clean: true, useMemstore}),
+    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1, useMemstore}),
+    benchmarkPopulate({numKeys: 1000, clean: true, indexes: 2, useMemstore}),
+    benchmarkScan({numKeys: 1000, useMemstore}),
+    benchmarkCreateIndex({numKeys: 5000, useMemstore}),
   ];
-  // We do not support useLazyDag any more but we keep running the benchmark
+  // We do not support useMemstore any more but we keep running the benchmark
   // with the flag to preserve the benchmark name so it is easier to keep track
   // of the results.
   //

@@ -307,7 +307,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
       puller = defaultPuller,
       pusher = defaultPusher,
       experimentalKVStore,
-      lazyDag = false,
     } = options;
     this.auth = auth ?? pullAuth ?? pushAuth ?? '';
     this.pullURL = pullURL;
@@ -322,26 +321,18 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.puller = puller;
     this.pusher = pusher;
 
+    this._memKVStore = new MemStore();
+    this._memdag = new dag.StoreImpl(
+      this._memKVStore,
+      this._memdagHashFunction(),
+      assertHash,
+    );
     const perKvStore = experimentalKVStore || new IDBStore(this.idbName);
     this._perdag = new dag.StoreImpl(
       perKvStore,
       dag.throwChunkHasher,
       assertNotTempHash,
     );
-
-    this._memKVStore = new MemStore();
-    this._memdag = lazyDag
-      ? new dag.LazyStore(
-          this._perdag,
-          Math.pow(2, 20),
-          this._memdagHashFunction(),
-          assertHash,
-        )
-      : new dag.StoreImpl(
-          this._memKVStore,
-          this._memdagHashFunction(),
-          assertHash,
-        );
 
     // Use a promise-resolve pair so that we have a promise to use even before
     // we call the Open RPC.
@@ -377,7 +368,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const clientIDResolver = resolver<string>();
     this._clientIDPromise = clientIDResolver.promise;
 
-    void this._open(clientIDResolver.resolve, readyResolver.resolve, lazyDag);
+    void this._open(clientIDResolver.resolve, readyResolver.resolve);
   }
 
   protected _memdagHashFunction(): <V extends ReadonlyJSONValue>(
@@ -389,7 +380,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private async _open(
     resolveClientID: (clientID: string) => void,
     resolveReady: () => void,
-    lazyDag: boolean,
   ): Promise<void> {
     // If we are currently closing a Replicache instance with the same name,
     // wait for it to finish closing.
@@ -398,15 +388,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const [clientID, client] = await persist.initClient(this._perdag);
     resolveClientID(clientID);
 
-    if (lazyDag) {
-      await this._memdag.withWrite(async write => {
-        await write.setHead('main', client.headHash);
-        await write.commit();
-      });
-    } else {
-      // Copy chunks from perdag to memdag.
-      await persist.slurp(client.headHash, this._memdag, this._perdag);
-    }
+    // Copy chunks from perdag to memdag.
+    await persist.slurp(client.headHash, this._memdag, this._perdag);
+
     // Now we have both a clientID and DB!
     resolveReady();
 

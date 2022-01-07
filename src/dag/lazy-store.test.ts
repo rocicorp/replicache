@@ -928,6 +928,98 @@ test('cache does not cache put chunks with size greater than cacheSizeLimit, and
   });
 });
 
+test('cache eviction updates ref counts and removes cache chunks when their ref count goes to zero', async () => {
+  const {sourceStore, lazyStore} = createLazyStoreForTest({
+    cacheSizeLimit: 300,
+  });
+  const testValue1 = 'testValue1',
+    testValue2 = 'testValue2',
+    testValue3 = {name: 'testValue3', size: 200},
+    testValue4 = 'testValue4';
+  //    4
+  //  / |
+  //  3 2
+  //    |
+  //    1
+  const {testValue1Chunk, testValue2Chunk, testValue3Chunk, testValue4Chunk} =
+    await sourceStore.withWrite(async write => {
+      const testValue1Chunk = write.createChunk(testValue1, []);
+      await write.putChunk(testValue1Chunk);
+      const testValue2Chunk = write.createChunk(testValue2, [
+        testValue1Chunk.hash,
+      ]);
+      await write.putChunk(testValue2Chunk);
+      const testValue3Chunk = write.createChunk(testValue3, []);
+      await write.putChunk(testValue3Chunk);
+      const testValue4Chunk = write.createChunk(testValue4, [
+        testValue2Chunk.hash,
+        testValue3Chunk.hash,
+      ]);
+      await write.putChunk(testValue4Chunk);
+      await write.setHead('testHeadSource', testValue4Chunk.hash);
+      await write.commit();
+      return {
+        testValue1Chunk,
+        testValue2Chunk,
+        testValue3Chunk,
+        testValue4Chunk,
+      };
+    });
+
+  await lazyStore.withWrite(async write => {
+    await write.setHead('testHeadLazy', testValue4Chunk.hash);
+    await write.commit();
+  });
+
+  await lazyStore.withRead(async read => {
+    expect((await read.getChunk(testValue4Chunk.hash))?.data).to.equal(
+      testValue4,
+    );
+    expect((await read.getChunk(testValue2Chunk.hash))?.data).to.equal(
+      testValue2,
+    );
+    expect((await read.getChunk(testValue1Chunk.hash))?.data).to.equal(
+      testValue1,
+    );
+    // Current LRU order 4, 2, 1
+    // Update LRU order to 2, 4, 1
+    // 2, 1, 4
+    expect((await read.getChunk(testValue4Chunk.hash))?.data).to.equal(
+      testValue4,
+    );
+    // 2, 4, 1
+    expect((await read.getChunk(testValue1Chunk.hash))?.data).to.equal(
+      testValue1,
+    );
+    // To make room for 3 (of size 200), 2 chunks of size 100 need to be
+    // removed from cache.  2 and 4 are least recently used.  However,
+    // first 2 is evicted, lowering 1's ref count to zero and is removed.
+    // 4 is not removed since evicting 1 and processing gc from this eviction
+    // made enough room
+    expect((await read.getChunk(testValue3Chunk.hash))?.data).to.equal(
+      testValue3,
+    );
+  });
+
+  // gc chunks from base store
+  await sourceStore.withWrite(async write => {
+    await write.removeHead('testHeadSource');
+    await write.commit();
+  });
+
+  await lazyStore.withRead(async read => {
+    // testValue1Chunk and testValue2Chunk were evicted and are no longer available in base store
+    expect(await read.getChunk(testValue1Chunk.hash)).to.be.undefined;
+    expect(await read.getChunk(testValue2Chunk.hash)).to.be.undefined;
+    expect((await read.getChunk(testValue3Chunk.hash))?.data).to.equal(
+      testValue3,
+    );
+    expect((await read.getChunk(testValue4Chunk.hash))?.data).to.deep.equal(
+      testValue4,
+    );
+  });
+});
+
 test('temp chunks are not evicted when cache size is exceeded', async () => {
   const {sourceStore, lazyStore} = createLazyStoreForTest();
   const testValue1 = 'testValue1',
@@ -1079,7 +1171,7 @@ test('[all temp chunks] chunk ref counts are updated on commit and are deleted w
   });
 });
 
-test('[all cached chunks] ref counts are updated on commit and are deleted when their ref count goes to zero', async () => {
+test('[all cached chunks] chunk ref counts are updated on commit and are deleted when their ref count goes to zero', async () => {
   // Make cache size large enough that eviction does not occur
   // during test
   const {sourceStore, lazyStore} = createLazyStoreForTest({
@@ -1166,7 +1258,7 @@ test('[all cached chunks] ref counts are updated on commit and are deleted when 
   });
 });
 
-test('[mix of temp and cached chunks] ref counts are updated on commit and are deleted when their ref count goes to zero', async () => {
+test('[mix of temp and cached chunks] chunk ref counts are updated on commit and are deleted when their ref count goes to zero', async () => {
   // Make cache size large enough that eviction does not occur
   // during test
   const {sourceStore, lazyStore} = createLazyStoreForTest({

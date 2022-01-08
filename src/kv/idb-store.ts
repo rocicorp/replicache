@@ -164,6 +164,7 @@ function objectStore(tx: IDBTransaction): IDBObjectStore {
 }
 
 async function openDatabase(name: string): Promise<IDBDatabase> {
+  console.log('opening ' + name);
   const req = indexedDB.open(name);
   req.onupgradeneeded = () => {
     const db = req.result;

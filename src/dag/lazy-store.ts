@@ -122,6 +122,7 @@ export class LazyStore implements Store {
       sourceCacheSizeLimit,
       getSizeOfValue,
       this._refCounts,
+      this._tempChunks,
     );
     this._sourceStore = sourceStore;
     this._chunkHasher = chunkHasher;
@@ -408,16 +409,19 @@ class ChunksCache {
    * Iteration order is from least to most recently used.
    */
   private readonly _cacheEntries = new Map<Hash, CacheEntry>();
+  private readonly _tempChunks: Map<Hash, Chunk>;
   private _size = 0;
 
   constructor(
     cacheSizeLimit: number,
     getSizeOfValue: (v: kv.Value) => number,
     refCounts: Map<Hash, number>,
+    tempChunks: Map<Hash, Chunk>,
   ) {
     this._cacheSizeLimit = cacheSizeLimit;
     this._getSizeOfValue = getSizeOfValue;
     this._refCounts = refCounts;
+    this._tempChunks = tempChunks;
   }
 
   get(hash: Hash): Chunk | undefined {
@@ -474,6 +478,28 @@ class ChunksCache {
       if (this._size <= this._cacheSizeLimit) {
         break;
       }
+      const cacheRefs = new Set<Hash>();
+      for (const entry of this._cacheEntries) {
+        for (const ref of entry[1].chunk.meta) {
+          cacheRefs.add(ref);
+        }
+      }
+      // console.log(cacheRefs);
+      const tempRefs = new Set<Hash>();
+      for (const tempChunk of this._tempChunks.values()) {
+        for (const ref of tempChunk.meta) {
+          tempRefs.add(ref);
+        }
+      }
+      // console.log(tempRefs);
+      const refsTotal = new Set<Hash>();
+      for (const ref of cacheRefs) {
+        refsTotal.add(ref);
+      }
+      for (const ref of tempRefs) {
+        refsTotal.add(ref);
+      }
+      // console.log(refsTotal);
       this.delete(entry[1]);
     }
   }

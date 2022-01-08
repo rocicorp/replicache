@@ -488,7 +488,7 @@ class ChunksCache {
       assert(oldCount > 0);
       const newCount = oldCount - 1;
       if (newCount === 0) {
-        this._refCounts.delete(hash);
+        this._refCounts.delete(refHash);
         const refCacheEntry = this._cacheEntries.get(refHash);
         if (refCacheEntry) {
           this.delete(refCacheEntry);

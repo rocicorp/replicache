@@ -103,8 +103,8 @@ export class LazyStore implements Store {
    *
    * Note: A chunk's hash may have an entry in `this._refCounts` without that
    * chunk being in `this._tempChunks` or `this._sourceChunksCache`.  This is
-   * the case when a head or chunk in `this._tempChunks` or 
-   * `this._sourceChunksCache`references a chunk which is not currently cached 
+   * the case when a head or chunk in `this._tempChunks` or
+   * `this._sourceChunksCache`references a chunk which is not currently cached
    * (either because it has not been read, or because it has been evicted).
    */
   private readonly _refCounts = new Map<Hash, number>();

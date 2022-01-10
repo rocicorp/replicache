@@ -351,7 +351,7 @@ test('cache evicts in lru fashion, basic test of just reads', async () => {
   });
 });
 
-test('cache evicts in lru fashion, basic test of just reads', async () => {
+test('source store values are reloaded if evicted from cache', async () => {
   const {sourceStore, lazyStore} = createLazyStoreForTest();
   const testValue1 = 'testValue1',
     testValue2 = 'testValue2',

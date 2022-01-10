@@ -60,12 +60,12 @@ export class LazyStore implements Store {
   /**
    * This lock is used to ensure correct isolation of Reads and Writes.
    * Multiple Reads are allowed in parallel but only a single Write.  Reads and
-   * Writes see a isolated view of the store (corresponding to the Serializable
+   * Writes see an isolated view of the store (corresponding to the Serializable
    * level of transaction isolation defined in the SQL standard).
    *
    * To ensure these semantics the read lock must be acquired when a Read is
    * created and held til it is closed, and a Write lock must be acquired when a
-   * Write is created and held til it is committed.
+   * Write is created and held til it is committed or closed.
    *
    * Code must have a read or write lock to
    * - read `heads`
@@ -92,7 +92,7 @@ export class LazyStore implements Store {
    * `this._sourceChunksCache` .
    *
    * Invariant: all chunks in `this._tempChunks` or `this._sourceChunksCache`
-   * have a positive ref count.
+   * have a positive ref count in `this._refCounts`.
    *
    * A hash's ref count can be changed in two ways:
    * 1. A write commit updates a head (which can result in increasing or
@@ -103,9 +103,9 @@ export class LazyStore implements Store {
    *
    * Note: A chunk's hash may have an entry in `this._refCounts` without that
    * chunk being in `this._tempChunks` or `this._sourceChunksCache`.  This is
-   * the case when a head or cached chunk references a chunk which is not
-   * currently cached (either because it has not been read, or because it has
-   * been evicted).
+   * the case when a head or chunk in `this._tempChunks` or 
+   * `this._sourceChunksCache`references a chunk which is not currently cached 
+   * (either because it has not been read, or because it has been evicted).
    */
   private readonly _refCounts = new Map<Hash, number>();
   private readonly _chunkHasher: ChunkHasher;
@@ -315,7 +315,7 @@ export class LazyWrite
   }
 
   override async hasChunk(hash: Hash): Promise<boolean> {
-    return this._pendingChunks.get(hash) !== undefined || super.hasChunk(hash);
+    return this._pendingChunks.has(hash) || super.hasChunk(hash);
   }
 
   override async getChunk(hash: Hash): Promise<Chunk | undefined> {
@@ -509,7 +509,7 @@ class ChunksCache {
     // cache is below its size limit, using this.delete and
     // this._ensureCacheSizeLimit, both of which require this._refCounts and
     // this._cacheEntries to be in a consistent state to work correctly.
-    const cacheEntiresLargerThanLimit = [];
+    const cacheEntriesLargerThanLimit = [];
     for (const chunk of chunksToPut) {
       const {hash} = chunk;
       const oldCacheEntry = this._cacheEntries.get(hash);
@@ -525,7 +525,7 @@ class ChunksCache {
         const cacheEntry = {chunk, size: valueSize};
         this._cacheEntries.set(hash, cacheEntry);
         if (valueSize > this._cacheSizeLimit) {
-          cacheEntiresLargerThanLimit.push(cacheEntry);
+          cacheEntriesLargerThanLimit.push(cacheEntry);
         }
       }
     }
@@ -542,7 +542,7 @@ class ChunksCache {
     // exceeding the cache size limit.  This avoids this._ensureCacheSizeLimit
     // evicting entries trying to make room for these values which should not be
     // cached.
-    for (const cacheEntry of cacheEntiresLargerThanLimit) {
+    for (const cacheEntry of cacheEntriesLargerThanLimit) {
       this.delete(cacheEntry);
     }
 

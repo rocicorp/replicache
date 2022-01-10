@@ -2,7 +2,7 @@ import {expect} from '@esm-bundle/chai';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import * as dag from '../dag/mod';
 import {ClientMap, getClients, updateClients} from './clients';
-import {hashOf, initHasher} from '../hash';
+import {fakeHash} from '../hash';
 import {initClientGC, getLatestGCUpdate} from './client-gc';
 import {setClients} from './clients-test-helpers';
 import {assertNotUndefined} from '../asserts';
@@ -11,8 +11,7 @@ let clock: SinonFakeTimers;
 const START_TIME = 0;
 const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000;
 const FIVE_MINS_IN_MS = 5 * 60 * 1000;
-setup(async () => {
-  await initHasher();
+setup(() => {
   clock = useFakeTimers(0);
 });
 
@@ -30,19 +29,19 @@ test('initClientGC starts 5 min interval that collects clients that have been in
   const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: START_TIME,
-    headHash: hashOf('head of commit client1 is currently at'),
+    headHash: fakeHash('headclient1'),
   };
   const client2 = {
     heartbeatTimestampMs: START_TIME,
-    headHash: hashOf('head of commit client2 is currently at'),
+    headHash: fakeHash('headclient2'),
   };
   const client3 = {
     heartbeatTimestampMs: START_TIME + 60 * 1000,
-    headHash: hashOf('head of commit client3 is currently at'),
+    headHash: fakeHash('headclient3'),
   };
   const client4 = {
     heartbeatTimestampMs: START_TIME + 60 * 1000,
-    headHash: hashOf('head of commit client4 is currently at'),
+    headHash: fakeHash('headclient4'),
   };
   const clientMap = new Map(
     Object.entries({
@@ -133,15 +132,15 @@ test('calling function returned by initClientGC, stops Client GCs', async () => 
   const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: START_TIME,
-    headHash: hashOf('head of commit client1 is currently at'),
+    headHash: fakeHash('headclient1'),
   };
   const client2 = {
     heartbeatTimestampMs: START_TIME,
-    headHash: hashOf('head of commit client2 is currently at'),
+    headHash: fakeHash('headclient2'),
   };
   const client3 = {
     heartbeatTimestampMs: START_TIME + 60 * 1000,
-    headHash: hashOf('head of commit client3 is currently at'),
+    headHash: fakeHash('headclient3'),
   };
   const clientMap = new Map(
     Object.entries({

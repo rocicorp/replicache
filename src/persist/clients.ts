@@ -1,4 +1,4 @@
-import {assertHash, Hash, nativeHashOf} from '../hash';
+import {assertHash, Hash, hashOf} from '../hash';
 import * as btree from '../btree/mod';
 import * as dag from '../dag/mod';
 import * as db from '../db/mod';
@@ -159,7 +159,7 @@ export async function initClient(
 
 function nativeHashOfClients(clients: ClientMap): Promise<Hash> {
   const data = clientMapToChunkDataNoHashValidation(clients);
-  return nativeHashOf(data);
+  return hashOf(data);
 }
 
 export const noUpdates = Symbol();

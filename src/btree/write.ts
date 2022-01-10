@@ -265,6 +265,7 @@ export class BTreeWrite extends BTreeRead {
     });
   }
 }
+
 async function* runRead<T>(
   lock: RWLock,
   ai: AsyncIterableIterator<T>,

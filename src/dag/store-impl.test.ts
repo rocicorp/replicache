@@ -1,6 +1,6 @@
 import {expect} from '@esm-bundle/chai';
 import {MemStore} from '../kv/mod';
-import {defaultChunkHasher, createChunk, createChunkWithHash} from './chunk';
+import {createChunk, createChunkWithHash, makeTestChunkHasher} from './chunk';
 import {StoreImpl, ReadImpl, WriteImpl} from './store-impl';
 import type {Value} from '../kv/store';
 import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
@@ -9,22 +9,16 @@ import {
   assertNotTempHash,
   fakeHash,
   Hash,
-  hashOf,
-  initHasher,
   isTempHash,
   newTempHash,
 } from '../hash';
 import {assert} from '../asserts';
 import {TestStore} from './test-store';
 
-setup(async () => {
-  await initHasher();
-});
-
 suite('read', () => {
   test('has chunk', async () => {
     const t = async (hash: Hash, expectHas: boolean) => {
-      const h = hashOf('present');
+      const h = fakeHash('present');
       const kv = new MemStore();
       await kv.withWrite(async kvw => {
         await kvw.put(chunkDataKey(h), [0, 1]);
@@ -37,14 +31,15 @@ suite('read', () => {
       });
     };
 
-    await t(hashOf('present'), true);
-    await t(hashOf('no such hash'), false);
+    await t(fakeHash('present'), true);
+    await t(fakeHash('nosuchhash'), false);
   });
 
   test('get chunk', async () => {
+    const chunkHasher = makeTestChunkHasher('fake');
     const t = async (data: Value, refs: Hash[], getSameChunk: boolean) => {
       const kv = new MemStore();
-      const chunk = createChunk(data, refs, defaultChunkHasher);
+      const chunk = createChunk(data, refs, chunkHasher);
       await kv.withWrite(async kvw => {
         await kvw.put(chunkDataKey(chunk.hash), chunk.data);
         if (chunk.meta.length > 0) {
@@ -61,7 +56,7 @@ suite('read', () => {
           expected = chunk;
           chunkHash = expected.hash;
         } else {
-          chunkHash = hashOf('no such hash');
+          chunkHash = fakeHash('nosuchhash');
         }
         expect(await r.getChunk(chunkHash)).to.deep.equal(expected);
         if (expected) {
@@ -72,18 +67,19 @@ suite('read', () => {
       });
     };
 
-    await t('Hello', [hashOf('r1'), hashOf('r2')], true);
+    await t('Hello', [fakeHash('r1'), fakeHash('r2')], true);
     await t(42, [], true);
-    await t(null, [hashOf('r1'), hashOf('r2')], false);
+    await t(null, [fakeHash('r1'), fakeHash('r2')], false);
   });
 });
 
 suite('write', () => {
   test('put chunk', async () => {
+    const chunkHasher = makeTestChunkHasher('fake');
     const t = async (data: Value, refs: Hash[]) => {
       const kv = new MemStore();
       await kv.withWrite(async kvw => {
-        const w = new WriteImpl(kvw, defaultChunkHasher, assertNotTempHash);
+        const w = new WriteImpl(kvw, chunkHasher, assertNotTempHash);
         const c = w.createChunk(data, refs);
         await w.putChunk(c);
 
@@ -127,9 +123,10 @@ suite('write', () => {
   }
 
   test('set head', async () => {
+    const chunkHasher = makeTestChunkHasher('fake');
     const t = async (kv: kv.Store, name: string, hash: Hash | undefined) => {
       await kv.withWrite(async kvw => {
-        const w = new WriteImpl(kvw, defaultChunkHasher, assertNotTempHash);
+        const w = new WriteImpl(kvw, chunkHasher, assertNotTempHash);
         await (hash === undefined ? w.removeHead(name) : w.setHead(name, hash));
         if (hash !== undefined) {
           const h = await kvw.get(headKey(name));
@@ -143,13 +140,13 @@ suite('write', () => {
 
     const kv = new MemStore();
 
-    const h0 = hashOf('');
+    const h0 = fakeHash('');
     await t(kv, '', h0);
     await kv.withRead(async kvr => {
       await assertRefCount(kvr, h0, 1);
     });
 
-    const h1 = hashOf('h1');
+    const h1 = fakeHash('h1');
     await t(kv, '', h1);
     await kv.withRead(async kvr => {
       await assertRefCount(kvr, h1, 1);
@@ -187,16 +184,17 @@ suite('write', () => {
   });
 
   test('ref count invalid', async () => {
+    const chunkHasher = makeTestChunkHasher('fake');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const t = async (v: any, expectError?: string) => {
       const kv = new MemStore();
-      const h = hashOf('fakehash1');
+      const h = fakeHash('fakehash1');
       await kv.withWrite(async kvw => {
         await kvw.put(chunkRefCountKey(h), v);
         await kvw.commit();
       });
       await kv.withWrite(async kvw => {
-        const w = new WriteImpl(kvw, defaultChunkHasher, assertNotTempHash);
+        const w = new WriteImpl(kvw, chunkHasher, assertNotTempHash);
         let err;
         try {
           await w.setHead('fakehead', h);
@@ -237,11 +235,12 @@ suite('write', () => {
   });
 
   test('commit rollback', async () => {
+    const chunkHasher = makeTestChunkHasher('fake');
     const t = async (commit: boolean, setHead: boolean) => {
       let key: string;
       const kv = new MemStore();
       await kv.withWrite(async kvw => {
-        const w = new WriteImpl(kvw, defaultChunkHasher, assertNotTempHash);
+        const w = new WriteImpl(kvw, chunkHasher, assertNotTempHash);
         const c = w.createChunk([0, 1], []);
         await w.putChunk(c);
 
@@ -271,12 +270,13 @@ suite('write', () => {
   });
 
   test('roundtrip', async () => {
+    const chunkHasher = makeTestChunkHasher('fake');
     const t = async (name: string, data: Value, refs: Hash[]) => {
       const kv = new MemStore();
-      const hash = defaultChunkHasher(data);
+      const hash = chunkHasher(data);
       const c = createChunkWithHash(hash, data, refs);
       await kv.withWrite(async kvw => {
-        const w = new WriteImpl(kvw, defaultChunkHasher, assertNotTempHash);
+        const w = new WriteImpl(kvw, chunkHasher, assertNotTempHash);
         await w.putChunk(c);
         await w.setHead(name, c.hash);
 
@@ -299,8 +299,8 @@ suite('write', () => {
     };
 
     await t('', 0, []);
-    await t('n1', 1, [hashOf('r1')]);
-    await t('n2', 42, [hashOf('r1'), hashOf('r2')]);
+    await t('n1', 1, [fakeHash('r1')]);
+    await t('n2', 42, [fakeHash('r1'), fakeHash('r2')]);
 
     await t('', true, []);
     await t('', false, []);
@@ -312,6 +312,8 @@ suite('write', () => {
   });
 
   test('that we check if the hash is good when committing', async () => {
+    const chunkHasher = makeTestChunkHasher('fake');
+
     const t = async (
       chunkHasher: (v: Value) => Hash,
       assertValidHash: (h: Hash) => void,
@@ -347,7 +349,7 @@ suite('write', () => {
       };
 
       await t(hasher, testHash);
-      await t(defaultChunkHasher, assertNotTempHash);
+      await t(chunkHasher, assertNotTempHash);
       await t(newTempHash, (h: Hash) => {
         assert(isTempHash(h));
       });

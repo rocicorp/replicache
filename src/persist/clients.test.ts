@@ -3,7 +3,7 @@ import {assertNotUndefined} from '../asserts';
 import {BTreeRead} from '../btree/read';
 import * as dag from '../dag/mod';
 import {fromChunk, SnapshotMeta} from '../db/commit';
-import {assertHash, hashOf, initHasher, newTempHash} from '../hash';
+import {assertHash, fakeHash, newTempHash} from '../hash';
 import {
   ClientMap,
   getClient,
@@ -23,8 +23,7 @@ import {
 import {setClients} from './clients-test-helpers';
 
 let clock: SinonFakeTimers;
-setup(async () => {
-  await initHasher();
+setup(() => {
   clock = useFakeTimers(0);
 });
 
@@ -46,11 +45,11 @@ test('updateClients and getClients', async () => {
     Object.entries({
       client1: {
         heartbeatTimestampMs: 1000,
-        headHash: hashOf('head of commit client1 is currently at'),
+        headHash: fakeHash('headclient1'),
       },
       client2: {
         heartbeatTimestampMs: 3000,
-        headHash: hashOf('head of commit client2 is currently at'),
+        headHash: fakeHash('headclient2'),
       },
     }),
   );
@@ -68,11 +67,11 @@ test('updateClients and getClients sequence', async () => {
     Object.entries({
       client1: {
         heartbeatTimestampMs: 1000,
-        headHash: hashOf('head of commit client1 is currently at'),
+        headHash: fakeHash('headclient1'),
       },
       client2: {
         heartbeatTimestampMs: 3000,
-        headHash: hashOf('head of commit client2 is currently at'),
+        headHash: fakeHash('headclient2'),
       },
     }),
   );
@@ -81,7 +80,7 @@ test('updateClients and getClients sequence', async () => {
     Object.entries({
       client3: {
         heartbeatTimestampMs: 4000,
-        headHash: hashOf('head of commit client3 is currently at'),
+        headHash: fakeHash('headclient3'),
       },
     }),
   );
@@ -102,8 +101,8 @@ test('updateClients and getClients sequence', async () => {
 
 test('updateClients properly manages refs to client heads when clients are removed and added', async () => {
   const dagStore = new dag.TestStore();
-  const client1HeadHash = hashOf('head of commit client1 is currently at');
-  const client2HeadHash = hashOf('head of commit client2 is currently at');
+  const client1HeadHash = fakeHash('headclient1');
+  const client2HeadHash = fakeHash('headclient2');
 
   const clientMap1 = new Map(
     Object.entries({
@@ -118,7 +117,7 @@ test('updateClients properly manages refs to client heads when clients are remov
     }),
   );
 
-  const client3HeadHash = hashOf('head of commit client3 is currently at');
+  const client3HeadHash = fakeHash('headclient3');
   const clientMap2 = new Map(
     Object.entries({
       client3: {
@@ -150,11 +149,9 @@ test('updateClients properly manages refs to client heads when clients are remov
 
 test("updateClients properly manages refs to client heads when a client's head changes", async () => {
   const dagStore = new dag.TestStore();
-  const client1V1HeadHash = hashOf('head of commit client1 is currently at');
-  const client1V2HeadHash = hashOf(
-    'head of new commit client1 is currently at',
-  );
-  const client2HeadHash = hashOf('head of commit client2 is currently at');
+  const client1V1HeadHash = fakeHash('headclient1');
+  const client1V2HeadHash = fakeHash('headclient1v2');
+  const client2HeadHash = fakeHash('headclient2');
 
   const client1V1 = {
     heartbeatTimestampMs: 1000,
@@ -213,14 +210,14 @@ test('getClient', async () => {
   const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: 1000,
-    headHash: hashOf('head of commit client1 is currently at'),
+    headHash: fakeHash('headclient1'),
   };
   const clientMap = new Map(
     Object.entries({
       client1,
       client2: {
         heartbeatTimestampMs: 3000,
-        headHash: hashOf('head of commit client2 is currently at'),
+        headHash: fakeHash('headclient2'),
       },
     }),
   );
@@ -236,11 +233,11 @@ test('updateClients throws error if any client headHash is a temp hash', async (
   const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: 1000,
-    headHash: hashOf('head of commit client1 is currently at'),
+    headHash: fakeHash('headclient1'),
   };
   const client2 = {
     heartbeatTimestampMs: 3000,
-    headHash: hashOf('head of commit client2 is currently at'),
+    headHash: fakeHash('headclient2'),
   };
   const clientMap = new Map(
     Object.entries({
@@ -283,7 +280,7 @@ test('updateClients throws error if any client headHash is a temp hash', async (
 test('updateClients throws errors if clients head exist but the chunk it refrences does not', async () => {
   const dagStore = new dag.TestStore();
   await dagStore.withWrite(async (write: dag.Write) => {
-    await write.setHead('clients', hashOf('random stuff'));
+    await write.setHead('clients', fakeHash('randomstuff'));
     await write.commit();
   });
   await dagStore.withRead(async (read: dag.Read) => {
@@ -303,11 +300,11 @@ test('updateClients is a noop if noUpdates is returned from update', async () =>
     Object.entries({
       client1: {
         heartbeatTimestampMs: 1000,
-        headHash: hashOf('head of commit client1 is currently at'),
+        headHash: fakeHash('headclient1'),
       },
       client2: {
         heartbeatTimestampMs: 3000,
-        headHash: hashOf('head of commit client2 is currently at'),
+        headHash: fakeHash('headclient2'),
       },
     }),
   );
@@ -322,9 +319,9 @@ test('updateClients is a noop if noUpdates is returned from update', async () =>
 test('updateClients puts chunksToPut returned by update', async () => {
   const dagStore = new dag.TestStore();
   const chunksToPut = [
-    dag.createChunkWithHash(hashOf('chunkToPut1'), 'chunkToPut1', []),
-    dag.createChunkWithHash(hashOf('chunkToPut2'), 'chunkToPut2', [
-      hashOf('chunkToPut1'),
+    dag.createChunkWithHash(fakeHash('chunktoput1'), 'chunktoPut1', []),
+    dag.createChunkWithHash(fakeHash('chunktoput2'), 'chunkToPut2', [
+      fakeHash('chunktoput1'),
     ]),
   ];
   const clientMap = new Map(
@@ -358,11 +355,11 @@ test('updateClients with conflict during update (i.e. testing race case with ret
   const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: 1000,
-    headHash: hashOf('head of commit client1 is currently at'),
+    headHash: fakeHash('headclient1'),
   };
   const client2 = {
     heartbeatTimestampMs: 3000,
-    headHash: hashOf('head of commit client2 is currently at'),
+    headHash: fakeHash('headclient2'),
   };
   const clientMap = new Map(
     Object.entries({
@@ -373,16 +370,16 @@ test('updateClients with conflict during update (i.e. testing race case with ret
 
   const client3 = {
     heartbeatTimestampMs: 5000,
-    headHash: hashOf('head of commit client3 is currently at'),
+    headHash: fakeHash('headclient3'),
   };
   const clientMap2 = new Map(clientMap).set('client3', client3);
 
   await setClients(clientMap, dagStore);
 
   const chunksToPut = [
-    dag.createChunkWithHash(hashOf('chunkToPut1'), 'chunkToPut1', []),
-    dag.createChunkWithHash(hashOf('chunkToPut2'), 'chunkToPut2', [
-      hashOf('chunkToPut1'),
+    dag.createChunkWithHash(fakeHash('chunktoput1'), 'chunkToPut1', []),
+    dag.createChunkWithHash(fakeHash('chunktoput2'), 'chunkToPut2', [
+      fakeHash('chunktoput1'),
     ]),
   ];
   const client4 = {
@@ -438,11 +435,11 @@ test('updateClients where update return noUpdates after conflict during update',
   const dagStore = new dag.TestStore();
   const client1 = {
     heartbeatTimestampMs: 1000,
-    headHash: hashOf('head of commit client1 is currently at'),
+    headHash: fakeHash('headclient1'),
   };
   const client2 = {
     heartbeatTimestampMs: 3000,
-    headHash: hashOf('head of commit client2 is currently at'),
+    headHash: fakeHash('headclient2'),
   };
   const clientMap = new Map(
     Object.entries({
@@ -453,16 +450,16 @@ test('updateClients where update return noUpdates after conflict during update',
 
   const client3 = {
     heartbeatTimestampMs: 5000,
-    headHash: hashOf('head of commit client3 is currently at'),
+    headHash: fakeHash('headclient3'),
   };
   const clientMap2 = new Map(clientMap).set('client3', client3);
 
   await setClients(clientMap, dagStore);
 
   const chunksToPut = [
-    dag.createChunkWithHash(hashOf('chunkToPut1'), 'chunkToPut1', []),
-    dag.createChunkWithHash(hashOf('chunkToPut2'), 'chunkToPut2', [
-      hashOf('chunkToPut1'),
+    dag.createChunkWithHash(fakeHash('chunktoput1'), 'chunkToPut1', []),
+    dag.createChunkWithHash(fakeHash('chunktoput2'), 'chunkToPut2', [
+      fakeHash('chunktoput1'),
     ]),
   ];
   const client4 = {
@@ -510,7 +507,7 @@ test('updateClients where update return noUpdates after conflict during update',
 test('updateClients throws errors if chunk pointed to by clients head does not contain a valid ClientMap', async () => {
   const dagStore = new dag.TestStore();
   await dagStore.withWrite(async (write: dag.Write) => {
-    const headHash = hashOf('head of commit client1 is currently at');
+    const headHash = fakeHash('headclient1');
     const chunk = write.createChunk(
       {
         heartbeatTimestampMs: 'this should be a number',

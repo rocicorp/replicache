@@ -1,9 +1,9 @@
 export type {Chunk, CreateChunk} from './chunk';
 export {
   createChunk,
-  defaultChunkHasher,
   createChunkWithHash,
   createChunkWithNativeHash,
+  throwChunkHasher,
 } from './chunk';
 export type {Store, Read, Write} from './store';
 export {StoreImpl} from './store-impl';

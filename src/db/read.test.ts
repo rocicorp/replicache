@@ -1,14 +1,9 @@
 import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
-import {initHasher} from '../hash';
 import {LogContext} from '../logger';
 import {DEFAULT_HEAD_NAME} from './commit';
 import {fromWhence, whenceHead} from './read';
 import {initDB, Write} from './write';
-
-setup(async () => {
-  await initHasher();
-});
 
 test('basics', async () => {
   const ds = new dag.TestStore();

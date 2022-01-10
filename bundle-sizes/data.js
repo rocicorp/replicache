@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1639770017933,
+  "lastUpdate": 1641823835894,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -2993,6 +2993,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 25166,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a3887061c3dacf4f9803dc3c8d98d815b22bad88",
+          "message": "Remove wasm hash (#765)\n\nThis removes wasm hash\r\n\r\nWe no longer use sync hashing so we can use the local native hash functions.",
+          "timestamp": "2022-01-10T15:09:26+01:00",
+          "tree_id": "a59608e16bc306f0649bca1cb3a9b3f8914d75bc",
+          "url": "https://github.com/rocicorp/replicache/commit/a3887061c3dacf4f9803dc3c8d98d815b22bad88"
+        },
+        "date": 1641823834135,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 133286,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 24735,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 132934,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 24620,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 64677,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 17599,
             "unit": "bytes"
           }
         ]

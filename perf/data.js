@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1641824065875,
+  "lastUpdate": 1641848557494,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -64209,6 +64209,142 @@ window.BENCHMARK_DATA = {
             "name": "create index 1024x5000",
             "value": 3.81,
             "range": "±58.5%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7bc61066df2cb4402d5bb75895a4ab6691d1c564",
+          "message": "feat: Simplified Dueling Dags - Implement a dag.LazyStore for memdag (#771)\n\nImplements a DAG Store which lazily loads values from a source store and then caches \r\nthem in an LRU cache.  The memory cache for chunks from the source store\r\nsize is limited to `sourceCacheSizeLimit` bytes, and values are evicted in an LRU\r\nfashion.  **The purpose of this store is to avoid holding the entire client view\r\n(i.e. the source store's content) in each client tab's JavaScript heap.**\r\n\r\nThis store's heads are independent from the heads of source store, and are only\r\nstored in memory.\r\n\r\nChunks which are put with a temp hash (see `isTempHash`) are assumed to not be\r\npersisted to the source store and thus are cached separately from the source store\r\nchunks.  These temp chunks cannot be evicted, and their sizes are not counted\r\ntowards the source chunk cache size.  A temp chunk will be deleted if it is no longer\r\nreachable from one of this store's heads.\r\n\r\nWrites only manipulate the in memory state of this store and do not alter the source\r\nstore.  Thus values must be written to the source store through a separate process \r\n(see persist implemented in 7769f09).\r\n\r\nIntended use:\r\n\r\n1. source store is the 'perdag', a slower persistent store (i.e. dag.StoreImpl using a kv.IDBStore)\r\n2. this store's 'main' head is initialized to the hash of a chunk containing a snapshot \r\ncommit in the 'perdag'\r\n3. reads from this store lazily read chunks from the source store and cache them\r\n4. writes are initially made to this store using temp hashes (i.e. temp chunks)\r\n5. writes are asynchronously persisted to the perdag through a separate process.  \r\nSee persist implemented in 7769f09. This process gathers all temp chunks from this store, \r\ncomputes real hashes for them and then writes them to the perdag.  It then replaces in this \r\ndag all the temp chunks written to the source with chunks with permanent hashes and \r\nupdates heads to reference these permanent hashes instead of the temp hashes.  This \r\nresults  in the temp chunks being deleted from this store and the chunks with permanent \r\nhashes being placed in this store's LRU cache of source chunks.\r\n\r\n**Performance**\r\nOn our existing performance benchmarks outperforms the existing mem dag store \r\n( dag.StoreImpl on top of kv.MemStore).   The current benchmarks really only test \r\nperformance of the temp hashes cache though, since they don't use persist at all.  \r\nI believe this outperforms the existing mem dag store because the temp hashes cache\r\nis just a straightforward Map<Hash, Chunk>, and is thus a bit simpler than \r\ndag.StoreImpl on top of kv.MemStore which uses 3 keys per chunk.  A follow up is to \r\nadd some benchmarks that exercise persists and lazy loading.  \r\n\r\n```\r\n[greg replicache [grgbkr/ssd-lazy-dag-impl]$ npm run perf -- --format replicache\r\n\r\n> replicache@8.0.0 perf\r\n> node perf/runner.js \"--format\" \"replicache\"\r\n\r\n\r\nRunning 16 benchmarks on Chromium...\r\n[LazyDag] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=0.70/0.80/0.90/1.40 ms avg=0.73 ms (19 runs sampled)\r\n[LazyDag] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.00/1.00/1.90/3.90 ms avg=1.25 ms (17 runs sampled)\r\n[LazyDag] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/2.20/2.50/2.50 ms avg=1.97 ms (7 runs sampled)\r\n[LazyDag] populate 1024x1000 (clean, indexes: 0) 50/75/90/95%=16.40/20.60/28.70/39.00 ms avg=20.30 ms (19 runs sampled)\r\n[LazyDag] populate 1024x1000 (clean, indexes: 1) 50/75/90/95%=38.30/41.50/45.00/58.90 ms avg=43.28 ms (12 runs sampled)\r\n[LazyDag] populate 1024x1000 (clean, indexes: 2) 50/75/90/95%=47.30/48.50/71.30/71.30 ms avg=58.49 ms (9 runs sampled)\r\n[LazyDag] scan 1024x1000 50/75/90/95%=1.20/1.50/2.50/2.70 ms avg=1.49 ms (19 runs sampled)\r\n[LazyDag] create index 1024x5000 50/75/90/95%=105.80/124.90/130.50/130.50 ms avg=139.61 ms (7 runs sampled)\r\nwriteSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=0.70/0.90/1.00/1.60 ms avg=0.85 ms (19 runs sampled)\r\nwriteSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/1.60/2.50/4.70 ms avg=1.79 ms (16 runs sampled)\r\nwriteSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.20/2.30/2.40/2.40 ms avg=2.57 ms (7 runs sampled)\r\npopulate 1024x1000 (clean, indexes: 0) 50/75/90/95%=18.60/20.40/22.10/39.30 ms avg=21.08 ms (19 runs sampled)\r\npopulate 1024x1000 (clean, indexes: 1) 50/75/90/95%=38.00/45.00/50.20/59.70 ms avg=46.58 ms (11 runs sampled)\r\npopulate 1024x1000 (clean, indexes: 2) 50/75/90/95%=50.60/66.30/75.00/75.00 ms avg=63.77 ms (8 runs sampled)\r\nscan 1024x1000 50/75/90/95%=1.20/1.60/2.30/3.10 ms avg=1.53 ms (19 runs sampled)\r\ncreate index 1024x5000 50/75/90/95%=104.30/115.70/117.30/117.30 ms avg=137.03 ms (7 runs sampled)\r\nDone!\r\n```\r\n\r\nPart of #671",
+          "timestamp": "2022-01-10T13:00:14-08:00",
+          "tree_id": "d6d88c199e3a86698b56ca9eed390f4c34dd2e1f",
+          "url": "https://github.com/rocicorp/replicache/commit/7bc61066df2cb4402d5bb75895a4ab6691d1c564"
+        },
+        "date": 1641848557070,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 588.24,
+            "range": "±3.9%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 285.71,
+            "range": "±1.8%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 250,
+            "range": "±2.0%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 23.14,
+            "range": "±58.3%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 10.68,
+            "range": "±37.4%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 7.7,
+            "range": "±24.2%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 325.52,
+            "range": "±8.1%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 4.11,
+            "range": "±63.5%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 625,
+            "range": "±2.9%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 294.12,
+            "range": "±1.4%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 232.56,
+            "range": "±4.5%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 21.14,
+            "range": "±51.7%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 9.69,
+            "range": "±28.8%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 8.47,
+            "range": "±41.7%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 336.75,
+            "range": "±4.9%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 4.01,
+            "range": "±73.7%",
             "unit": "ops/sec",
             "extra": "7 samples"
           }

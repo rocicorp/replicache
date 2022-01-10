@@ -271,7 +271,7 @@ function deleteDatabase(name: string): Promise<unknown> {
 
 let counter = 0;
 async function makeRep<MD extends MutatorDefs>(
-  options: ReplicacheOptions<MD> = {},
+  options: Omit<ReplicacheOptions<MD>, 'name'> = {},
 ) {
   const name = `bench${counter++}`;
   await deleteDatabase(name);

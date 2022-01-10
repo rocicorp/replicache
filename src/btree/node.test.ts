@@ -2,7 +2,7 @@ import {expect, assert} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
 import type {ScanOptionsInternal} from '../db/scan';
 import {emptyHash, Hash} from '../hash';
-import type {ReadonlyJSONValue} from '../json';
+import {getSizeOfValue, ReadonlyJSONValue} from '../json';
 import {
   DataNode,
   findLeaf,
@@ -17,9 +17,8 @@ import {
   emptyDataNode,
 } from './node';
 import {BTreeWrite} from './write';
-import {BTreeRead} from './read';
-import {getSizeOfValue} from './get-size-of-value';
 import {makeTestChunkHasher} from '../dag/chunk';
+import {BTreeRead, NODE_HEADER_SIZE} from './read';
 
 test('findLeaf', async () => {
   const dagStore = new dag.TestStore();
@@ -1637,4 +1636,12 @@ test('diff', async () => {
       },
     ],
   );
+});
+
+test('chunk header size', () => {
+  // This just ensures that the constant is correct.
+  const chunkData: DataNode = [0, []];
+  const entriesSize = getSizeOfValue(chunkData[NODE_ENTRIES]);
+  const chunkSize = getSizeOfValue(chunkData);
+  expect(chunkSize - entriesSize).to.equal(NODE_HEADER_SIZE);
 });

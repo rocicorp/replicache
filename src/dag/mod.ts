@@ -1,5 +1,3 @@
-export {Read} from './read';
-export {Write} from './write';
 export type {Chunk, CreateChunk} from './chunk';
 export {
   createChunk,
@@ -7,6 +5,7 @@ export {
   createChunkWithNativeHash,
   throwChunkHasher,
 } from './chunk';
-export {Store} from './store';
+export type {Store, Read, Write} from './store';
+export {StoreImpl} from './store-impl';
 export {TestStore} from './test-store';
 export * from './key';

@@ -1,9 +1,9 @@
+import {StoreImpl} from './store-impl';
 import {
   assertNotTempHash,
   makeNewFakeHashFunction,
   parse as parseHash,
 } from '../hash';
-import {Store} from './store';
 import {Chunk, ChunkHasher, createChunkWithHash} from './chunk';
 import type {Hash} from '../hash';
 import {chunkMetaKey, parse as parseKey} from './key';
@@ -12,7 +12,7 @@ import {TestMemStore} from '../kv/test-mem-store';
 import {assertArray, assertString} from '../asserts';
 import {stringCompare} from '../string-compare';
 
-export class TestStore extends Store {
+export class TestStore extends StoreImpl {
   readonly kvStore: TestMemStore;
 
   constructor(

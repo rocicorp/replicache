@@ -1,5 +1,5 @@
 import {IndexRead} from './index';
-import * as dag from '../dag/mod';
+import type * as dag from '../dag/mod';
 import {convert, scan, ScanOptions, ScanOptionsInternal} from './scan';
 import {
   Commit,
@@ -120,23 +120,15 @@ export async function fromWhence(
   whence: Whence,
   dagRead: dag.Read,
 ): Promise<Read> {
-  const [, basis, map] = await readCommit(whence, dagRead);
+  const [, basis, map] = await readCommitForBTreeRead(whence, dagRead);
   const indexex = readIndexesForRead(basis);
   return new Read(dagRead, map, indexex);
 }
 
-export function readCommit(
-  whence: Whence,
-  dagRead: dag.Write,
-): Promise<[Hash, Commit<Meta>, BTreeWrite]>;
-export function readCommit(
-  whence: Whence,
-  dagRead: dag.Read,
-): Promise<[Hash, Commit<Meta>, BTreeRead]>;
 export async function readCommit(
   whence: Whence,
   dagRead: dag.Read,
-): Promise<[Hash, Commit<Meta>, BTreeRead]> {
+): Promise<[Hash, Commit<Meta>]> {
   let hash: Hash;
   switch (whence.type) {
     case WhenceType.Hash:
@@ -153,11 +145,23 @@ export async function readCommit(
   }
 
   const commit = await commitFromHash(hash, dagRead);
-  const map =
-    dagRead instanceof dag.Write
-      ? new BTreeWrite(dagRead, commit.valueHash)
-      : new BTreeRead(dagRead, commit.valueHash);
-  return [hash, commit, map];
+  return [hash, commit];
+}
+
+export async function readCommitForBTreeRead(
+  whence: Whence,
+  dagRead: dag.Read,
+): Promise<[Hash, Commit<Meta>, BTreeRead]> {
+  const [hash, commit] = await readCommit(whence, dagRead);
+  return [hash, commit, new BTreeRead(dagRead, commit.valueHash)];
+}
+
+export async function readCommitForBTreeWrite(
+  whence: Whence,
+  dagWrite: dag.Write,
+): Promise<[Hash, Commit<Meta>, BTreeWrite]> {
+  const [hash, commit] = await readCommit(whence, dagWrite);
+  return [hash, commit, new BTreeWrite(dagWrite, commit.valueHash)];
 }
 
 export function readIndexesForRead(

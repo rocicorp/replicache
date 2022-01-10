@@ -37,6 +37,7 @@ type RepUser = {
 };
 
 const rep = new Replicache({
+  name: 'user-id',
   mutators: {
     async setUserData(tx: WriteTransaction, user: RepUser) {
       await tx.put(`user/${user.id}`, user);
@@ -76,6 +77,7 @@ by doing something like.
 
 ```ts
 const rep = new Replicache({
+  name: 'user-id',
   mutators: {
     async setUserData(tx: WriteTransaction, user: RepUser) {
       const {id, name, picture} = user;
@@ -128,6 +130,7 @@ async function computeHash(data: Uint8Array): Promise<string> {
 }
 
 const rep = new Replicache({
+  name: 'user-id',
   mutators: {
     async setUserData(tx: WriteTransaction, user: RepUser) {
       const {id, name, picture, pictureHash} = user;
@@ -279,6 +282,7 @@ async function addBlobToCache(hash: string, data: Uint8Array) {
 }
 
 const rep = new Replicache({
+  name: 'user-id',
   mutators: {
     async addBlob(tx, {hash, uploaded}) {
       await tx.put(blobKey(hash), {uploaded});

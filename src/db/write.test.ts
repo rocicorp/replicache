@@ -2,7 +2,12 @@ import {expect} from '@esm-bundle/chai';
 import {assertNotUndefined} from '../asserts';
 import * as dag from '../dag/mod';
 import {DEFAULT_HEAD_NAME} from './commit';
-import {readCommit, readIndexesForRead, whenceHead} from './read';
+import {
+  readCommit,
+  readCommitForBTreeRead,
+  readIndexesForRead,
+  whenceHead,
+} from './read';
 import {initDB, Write} from './write';
 import {encodeIndexKey} from './index';
 import {LogContext} from '../logger';
@@ -164,9 +169,12 @@ test('clear', async () => {
   });
 
   await ds.withRead(async dagRead => {
-    const [, c, m] = await readCommit(whenceHead(DEFAULT_HEAD_NAME), dagRead);
+    const [, c, r] = await readCommitForBTreeRead(
+      whenceHead(DEFAULT_HEAD_NAME),
+      dagRead,
+    );
     const indexes = readIndexesForRead(c);
-    const keys = await asyncIterableToArray(m.keys());
+    const keys = await asyncIterableToArray(r.keys());
     expect(keys).to.have.lengthOf(0);
     const index = indexes.get('idx');
     assertNotUndefined(index);

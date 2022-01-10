@@ -152,6 +152,7 @@ values={[
 
 ```js
 const rep = new Replicache({
+  name: 'todo-user-id',
   mutators: {
     createTodo: async (tx, {id, text, complete}) => {
       await tx.put(`/todo/${id}`, { text, complete });

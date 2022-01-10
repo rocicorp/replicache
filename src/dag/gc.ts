@@ -10,7 +10,7 @@ export type RefCountUpdates = Map<Hash, number>;
 type LoadedRefCountPromises = Map<Hash, Promise<number>>;
 
 export interface GarbageCollectionDelegate {
-  getRefCount: (hash: Hash) => Promise<number>;
+  getRefCount: (hash: Hash) => Promise<number | undefined>;
   getRefs: (hash: Hash) => Promise<readonly Hash[] | undefined>;
 }
 
@@ -123,7 +123,7 @@ function ensureRefCountLoaded(
   let p = loadedRefCountPromises.get(hash);
   if (p === undefined) {
     p = (async () => {
-      const value = await delegate.getRefCount(hash);
+      const value = (await delegate.getRefCount(hash)) || 0;
       refCountUpdates.set(hash, value);
       return value;
     })();

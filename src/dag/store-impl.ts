@@ -57,7 +57,7 @@ export class StoreImpl implements Store {
   }
 }
 
-export class ReadImpl {
+export class ReadImpl implements Read {
   protected readonly _tx: kv.Read;
   readonly assertValidHash: (hash: Hash) => void;
 
@@ -193,10 +193,10 @@ export class WriteImpl extends ReadImpl implements Write {
     await this._tx.commit();
   }
 
-  async getRefCount(hash: Hash): Promise<number> {
+  async getRefCount(hash: Hash): Promise<number | undefined> {
     const value = await this._tx.get(chunkRefCountKey(hash));
     if (value === undefined) {
-      return 0;
+      return undefined;
     }
     assertNumber(value);
     if (value < 0 || value > 0xffff || value !== (value | 0)) {

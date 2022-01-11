@@ -157,7 +157,7 @@ export async function initClient(
   return [newClientID, newClient];
 }
 
-function nativeHashOfClients(clients: ClientMap): Promise<Hash> {
+function hashOfClients(clients: ClientMap): Promise<Hash> {
   const data = clientMapToChunkDataNoHashValidation(clients);
   return hashOf(data);
 }
@@ -194,7 +194,7 @@ async function updateClientsInternal(
     return clients;
   }
   const {clients: updatedClients, chunksToPut} = updateResults;
-  const updatedClientsHash = await nativeHashOfClients(updatedClients);
+  const updatedClientsHash = await hashOfClients(updatedClients);
   const result = await dagStore.withWrite(async dagWrite => {
     const currClientsHash = await dagWrite.getHead(CLIENTS_HEAD);
     if (currClientsHash !== clientsHash) {

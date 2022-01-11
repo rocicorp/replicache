@@ -755,7 +755,7 @@ export const testIndexDataV2 = {
   'c/9lrb08p9b7jqo8oad3aef60muj4td8ke/m': ['mdcncodijhl6jk2o8bb7m0hg15p3sf24'],
   'c/9lrb08p9b7jqo8oad3aef60muj4td8ke/r': 1,
   'c/b3863icha1gsbso9ffljo02ei3rre2o2/d': [0, [['local', '1']]],
-  'c/b3863icha1gsbso9ffljo02ei3rre2o2/r': 1,
+  'c/b3863icha1gsbso9ffljo02ei3rre2o2/r': 2,
   'c/bla65gnithpsbf9o3i3hfljbdvfseph8/d': [0, [['\u00001\u0000local', '1']]],
   'c/bla65gnithpsbf9o3i3hfljbdvfseph8/r': 1,
   'c/cb46475b4lgd84e763otcji59br5ndmo/d': [0, [['local', '3']]],

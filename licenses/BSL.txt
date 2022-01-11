@@ -4,7 +4,7 @@ Parameters
 
 Licensor:             Rocicorp, LLC
 
-Licensed Work:        Replicache 8.0.2
+Licensed Work:        Replicache 8.0.3
                       The Licensed Work is (c) 2020 Rocicorp, LLC.
 
 Additional Use Grant: You may make use of the Licensed Work, provided you

@@ -7,6 +7,7 @@ import type * as kv from '../kv/mod';
 import {Read} from './read';
 import {Hash, hashOf, initHasher} from '../hash';
 import type {Value} from '../kv/store';
+import {Store} from './store';
 
 setup(async () => {
   await initHasher();
@@ -132,7 +133,8 @@ test('ref count invalid', async () => {
       const w = new Write(kvw);
       let err;
       try {
-        await w.getRefCount(h);
+        await w.setHead('fakehead', h);
+        await w.commit();
       } catch (e) {
         err = e;
       }
@@ -240,4 +242,190 @@ test('roundtrip', async () => {
   await t('', null, []);
   await t('', [0], []);
   await t('', {a: true}, []);
+});
+
+test('that changeRefCount does not write stale value with a dimamond pattern', async () => {
+  const kvStore = new MemStore();
+  const dagStore = new Store(kvStore);
+
+  // If we have a diamond structure we update the refcount for C twice.
+  //
+  //   R
+  //  / \
+  //  A  B
+  //  \ /
+  //   C
+
+  const c = await dagStore.withWrite(async dagWrite => {
+    const c = Chunk.new('c', []);
+    const a = Chunk.new('a', [c.hash]);
+    const b = Chunk.new('b', [c.hash]);
+    const r = Chunk.new('r', [a.hash, b.hash]);
+    await Promise.all([
+      dagWrite.setHead('test', r.hash),
+      dagWrite.putChunk(a),
+      dagWrite.putChunk(b),
+      dagWrite.putChunk(c),
+      dagWrite.putChunk(r),
+    ]);
+    await dagWrite.commit();
+
+    return c;
+  });
+
+  await kvStore.withRead(async kvRead => {
+    expect(await kvRead.get(chunkRefCountKey(c.hash))).to.equal(2);
+  });
+
+  await dagStore.withWrite(async dagWrite => {
+    const e = Chunk.new('e', []);
+    await Promise.all([dagWrite.setHead('test', e.hash), dagWrite.putChunk(e)]);
+    await dagWrite.commit();
+  });
+
+  await kvStore.withRead(async kvRead => {
+    expect(await kvRead.has(chunkRefCountKey(c.hash))).to.equal(false);
+  });
+});
+
+test('that changeRefCount does not write stale value with a diamond pattern and a child', async () => {
+  const kvStore = new MemStore();
+  const dagStore = new Store(kvStore);
+
+  // If we have a diamond structure we update the refcount for C twice.
+  //
+  //   R
+  //  / \
+  //  A  B
+  //  \ /
+  //   C
+  //   |
+  //   D
+
+  const [a, d] = await dagStore.withWrite(async dagWrite => {
+    const d = Chunk.new('d', []);
+    const c = Chunk.new('c', [d.hash]);
+    const a = Chunk.new('a', [c.hash]);
+    const b = Chunk.new('b', [c.hash]);
+    const r = Chunk.new('r', [a.hash, b.hash]);
+    await Promise.all([
+      dagWrite.setHead('test', r.hash),
+      dagWrite.putChunk(a),
+      dagWrite.putChunk(b),
+      dagWrite.putChunk(c),
+      dagWrite.putChunk(r),
+    ]);
+    await dagWrite.commit();
+
+    return [a, d];
+  });
+
+  await kvStore.withRead(async kvRead => {
+    expect(await kvRead.get(chunkRefCountKey(d.hash))).to.equal(1);
+  });
+
+  //  A
+  //  \
+  //   C
+  //   |
+  //   D
+  await dagStore.withWrite(async dagWrite => {
+    await dagWrite.setHead('test', a.hash);
+    await dagWrite.commit();
+  });
+
+  await kvStore.withRead(async kvRead => {
+    expect(await kvRead.get(chunkRefCountKey(a.hash))).to.equal(1);
+    expect(await kvRead.get(chunkRefCountKey(d.hash))).to.equal(1);
+  });
+});
+
+test('that we changeRefCount does not write stale value with a 3 incoming refs', async () => {
+  const kvStore = new MemStore();
+  const dagStore = new Store(kvStore);
+
+  // If we have a diamond structure we update the refcount for D three times.
+  //
+  //    R
+  //  / | \
+  //  A B C
+  //  \ | /
+  //    D
+
+  const d = await dagStore.withWrite(async dagWrite => {
+    const d = Chunk.new('d', []);
+    const a = Chunk.new('a', [d.hash]);
+    const b = Chunk.new('b', [d.hash]);
+    const c = Chunk.new('c', [d.hash]);
+    const r = Chunk.new('r', [a.hash, b.hash, c.hash]);
+    await Promise.all([
+      dagWrite.setHead('test', r.hash),
+      dagWrite.putChunk(a),
+      dagWrite.putChunk(b),
+      dagWrite.putChunk(c),
+      dagWrite.putChunk(d),
+      dagWrite.putChunk(r),
+    ]);
+    await dagWrite.commit();
+
+    return d;
+  });
+
+  await kvStore.withRead(async kvRead => {
+    expect(await kvRead.get(chunkRefCountKey(d.hash))).to.equal(3);
+  });
+
+  await dagStore.withWrite(async dagWrite => {
+    const e = Chunk.new('e', []);
+    await Promise.all([dagWrite.setHead('test', e.hash), dagWrite.putChunk(e)]);
+    await dagWrite.commit();
+  });
+
+  await kvStore.withRead(async kvRead => {
+    expect(await kvRead.has(chunkRefCountKey(d.hash))).to.equal(false);
+  });
+});
+
+test('that we changeRefCount does not write stale value with a 3 incoming refs bypassing one level', async () => {
+  const kvStore = new MemStore();
+  const dagStore = new Store(kvStore);
+
+  // If we have a diamond structure we update the refcount for D three times.
+  //
+  //    R
+  //  / | \
+  //  A B  |
+  //  \ | /
+  //    D
+
+  const d = await dagStore.withWrite(async dagWrite => {
+    const d = Chunk.new('d', []);
+    const a = Chunk.new('a', [d.hash]);
+    const b = Chunk.new('b', [d.hash]);
+    const r = Chunk.new('r', [a.hash, b.hash, d.hash]);
+    await Promise.all([
+      dagWrite.setHead('test', r.hash),
+      dagWrite.putChunk(a),
+      dagWrite.putChunk(b),
+      dagWrite.putChunk(d),
+      dagWrite.putChunk(r),
+    ]);
+    await dagWrite.commit();
+
+    return d;
+  });
+
+  await kvStore.withRead(async kvRead => {
+    expect(await kvRead.get(chunkRefCountKey(d.hash))).to.equal(3);
+  });
+
+  await dagStore.withWrite(async dagWrite => {
+    const e = Chunk.new('e', []);
+    await Promise.all([dagWrite.setHead('test', e.hash), dagWrite.putChunk(e)]);
+    await dagWrite.commit();
+  });
+
+  await kvStore.withRead(async kvRead => {
+    expect(await kvRead.has(chunkRefCountKey(d.hash))).to.equal(false);
+  });
 });

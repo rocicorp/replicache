@@ -28,8 +28,7 @@ import {
   subscriptionsForChangedKeys,
   subscriptionsForIndexDefinitionChanged,
 } from './subscriptions';
-import {IDBStore, MemStore} from './kv/mod';
-import type * as kv from './kv/mod';
+import {IDBStore} from './kv/mod';
 import * as dag from './dag/mod';
 import * as db from './db/mod';
 import * as sync from './sync/mod';
@@ -58,6 +57,7 @@ export type Poke = {
 export const httpStatusUnauthorized = 401;
 
 const REPLICACHE_FORMAT_VERSION = 3;
+const LAZY_STORE_SOURCE_CHUNK_CACHE_SIZE_LIMIT = 100 * Math.pow(2, 20); // 100 MB
 
 export type MaybePromise<T> = T | Promise<T>;
 
@@ -225,7 +225,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
    */
   pusher: Pusher;
 
-  private readonly _memKVStore: kv.Store;
   private readonly _memdag: dag.Store;
   private readonly _perdag: dag.Store;
   private _hasPendingSubscriptionRuns = false;
@@ -321,17 +320,17 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.puller = puller;
     this.pusher = pusher;
 
-    this._memKVStore = new MemStore();
-    this._memdag = new dag.StoreImpl(
-      this._memKVStore,
-      this._memdagHashFunction(),
-      assertHash,
-    );
     const perKvStore = experimentalKVStore || new IDBStore(this.idbName);
     this._perdag = new dag.StoreImpl(
       perKvStore,
       dag.throwChunkHasher,
       assertNotTempHash,
+    );
+    this._memdag = new dag.LazyStore(
+      this._perdag,
+      LAZY_STORE_SOURCE_CHUNK_CACHE_SIZE_LIMIT,
+      this._memdagHashFunction(),
+      assertHash,
     );
 
     // Use a promise-resolve pair so that we have a promise to use even before
@@ -387,9 +386,10 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     const [clientID, client] = await persist.initClient(this._perdag);
     resolveClientID(clientID);
-
-    // Copy chunks from perdag to memdag.
-    await persist.slurp(client.headHash, this._memdag, this._perdag);
+    await this._memdag.withWrite(async write => {
+      await write.setHead(db.DEFAULT_HEAD_NAME, client.headHash);
+      await write.commit();
+    });
 
     // Now we have both a clientID and DB!
     resolveReady();

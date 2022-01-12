@@ -44,7 +44,7 @@ export class TestMemStore implements Store {
   get closed(): boolean {
     return this._closed;
   }
-  
+
   snapshot(): Record<string, Value> {
     const entries = [...this._map.entries()];
     entries.sort((a, b) => stringCompare(a[0], b[0]));

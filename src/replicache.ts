@@ -97,7 +97,7 @@ type StorageBroadcastData = Omit<BroadcastData, 'changedKeys'> & {
 };
 
 /**
- * The type used to describe the mutator definitions passed into [[Replicache]]
+ * The type used to describe the mutator definitions passed into [Replicache](classes/Replicache)
  * constructor as part of the [[ReplicacheOptions]].
  *
  * See [[ReplicacheOptions]] [[ReplicacheOptions.mutators|mutators]] for more

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1642092172487,
+  "lastUpdate": 1642092434679,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -3425,6 +3425,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 18184,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b770a25b38b5660978475c1c6180238c8f3b30fa",
+          "message": "refactor: Delete unused slurp and merge kv.MemStore into kv.TestMemStore (#778)\n\nWith the integration of dag.LazyStore slurp is no longer used, and kv.MemStore is only \r\nused via kv.TestMemStore in tests.",
+          "timestamp": "2022-01-13T16:46:23Z",
+          "tree_id": "ad9557b50cc861bb2572061f5ec2ca19242b6184",
+          "url": "https://github.com/rocicorp/replicache/commit/b770a25b38b5660978475c1c6180238c8f3b30fa"
+        },
+        "date": 1642092433294,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 141318,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 25855,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 140040,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 25479,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 67701,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18167,
             "unit": "bytes"
           }
         ]

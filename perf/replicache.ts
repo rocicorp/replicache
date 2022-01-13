@@ -74,6 +74,9 @@ async function setupPersistedData(
   }
 
   await deleteDatabase(makeIdbName(replicacheName));
+  // populate store using pull (as opposed to mutators)
+  // so that a snapshot commit is created, which new clients
+  // can use to bootstrap.
   const repForStore = new ReplicacheWithPersist({
     name: replicacheName,
     pullInterval: null,

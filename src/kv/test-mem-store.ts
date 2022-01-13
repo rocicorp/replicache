@@ -4,8 +4,7 @@ import type {Read, Store, Value, Write} from './store';
 import {deleteSentinel, WriteImplBase} from './write-impl-base';
 
 export class TestMemStore implements Store {
-  // protected to allow test sub class to use it.
-  protected readonly _map: Map<string, Value> = new Map();
+  private readonly _map: Map<string, Value> = new Map();
   private readonly _rwLock = new RWLock();
   private _closed = false;
 

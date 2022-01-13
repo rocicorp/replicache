@@ -57,7 +57,7 @@ export type Poke = {
 export const httpStatusUnauthorized = 401;
 
 const REPLICACHE_FORMAT_VERSION = 3;
-const LAZY_STORE_SOURCE_CHUNK_CACHE_SIZE_LIMIT = 100 * (2 ** 20); // 100 MB
+const LAZY_STORE_SOURCE_CHUNK_CACHE_SIZE_LIMIT = 100 * 2 ** 20; // 100 MB
 
 export type MaybePromise<T> = T | Promise<T>;
 

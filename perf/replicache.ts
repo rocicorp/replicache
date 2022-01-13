@@ -109,10 +109,7 @@ export function benchmarkStartupUsingBasicReadsFromPersistedData(opts: {
   numKeysToRead: number;
   useMemstore: boolean;
 }): Benchmark {
-  const repName =
-    'benchmarkStartupUsingBasicReadsFromPersistedData' +
-    opts.numKeysPersisted +
-    opts.useMemstore;
+  const repName = 'benchmarkStartupUsingBasicReadsFromPersistedData';
   return {
     name: `${opts.useMemstore ? '[MemStore] ' : ''}startup read ${valSize}x${
       opts.numKeysToRead
@@ -130,7 +127,7 @@ export function benchmarkStartupUsingBasicReadsFromPersistedData(opts: {
       bencher.reset();
       const rep = new Replicache({
         name: repName,
-        pullInterval: null
+        pullInterval: null,
       });
       let getCount = 0;
       await rep.query(async (tx: ReadTransaction) => {
@@ -153,10 +150,7 @@ export function benchmarkStartupUsingScanFromPersistedData(opts: {
   numKeysToRead: number;
   useMemstore: boolean;
 }): Benchmark {
-  const repName =
-    'benchmarkStartupUsingScanFromPersistedData' +
-    opts.numKeysPersisted +
-    opts.useMemstore;
+  const repName = 'benchmarkStartupUsingScanFromPersistedData';
   return {
     name: `${opts.useMemstore ? '[MemStore] ' : ''}startup scan ${valSize}x${
       opts.numKeysToRead

@@ -10,7 +10,7 @@ import type {ReadTransaction, WriteTransaction} from './mod';
 import type {JSONValue, ReadonlyJSONValue} from './json';
 import {expect} from '@esm-bundle/chai';
 import {sleep} from './sleep';
-import type * as kv from './kv/mod';
+import type * as dag from './dag/mod';
 import * as sinon from 'sinon';
 
 // fetch-mock has invalid d.ts file so we removed that on npm install.
@@ -821,7 +821,7 @@ test('subscription coalescing', async () => {
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const store = sinon.spy((rep as any)._memKVStore as kv.Store);
+  const store = sinon.spy((rep as any)._memdag as dag.Store);
   const resetCounters = () => {
     store.read.resetHistory();
     store.write.resetHistory();

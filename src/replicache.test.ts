@@ -1062,7 +1062,7 @@ test('pullInterval in constructor', async () => {
 });
 
 test('closeTransaction after rep.scan', async () => {
-  const readSpy = sinon.spy(dag.StoreImpl.prototype, 'read');
+  const readSpy = sinon.spy(dag.LazyStore.prototype, 'read');
   const scanSpy = sinon.spy(db.Read.prototype, 'scan');
   const closeSpy = sinon.spy(db.Read.prototype, 'close');
 
@@ -1072,7 +1072,6 @@ test('closeTransaction after rep.scan', async () => {
     'a/0': 0,
     'a/1': 1,
   });
-
   const log: ReadonlyJSONValue[] = [];
 
   function expectCalls(l: JSONValue[]) {
@@ -1087,6 +1086,10 @@ test('closeTransaction after rep.scan', async () => {
     closeSpy.resetHistory();
     log.length = 0;
   }
+
+  readSpy.resetHistory();
+  scanSpy.resetHistory();
+  closeSpy.resetHistory();
 
   const it = rep.scan();
 
@@ -1975,7 +1978,7 @@ test('experiment KV Store', async () => {
   const b = await rep.query(tx => tx.has('foo'));
   expect(b).to.be.false;
 
-  expect(store.readCount).to.equal(0, 'readCount');
+  expect(store.readCount).to.equal(1, 'readCount');
   expect(store.writeCount).to.equal(0, 'writeCount');
   expect(store.closeCount).to.equal(0, 'closeCount');
   store.resetCounters();

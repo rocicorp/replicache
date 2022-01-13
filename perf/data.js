@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1642080994391,
+  "lastUpdate": 1642092286515,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -65025,6 +65025,142 @@ window.BENCHMARK_DATA = {
             "name": "create index 1024x5000",
             "value": 4.03,
             "range": "±60.2%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c685a9a90ae87cafe3ee3c15b4e47f65978c5784",
+          "message": "feat: Simplified Dueling Dags - Integrate dag.LazyStore into Replicache (#777)\n\nUpdate Replicache to use new dag.LazyStore (implemented in 7bc6106) for the memdag.  \r\nReplace use of dag.StoreImpl on top of kv.MemStore.  Lazy loading is now used instead of\r\nslurp.\r\n\r\n**Performance**\r\nOutperforms dag.StoreImpl on top of kv.MemStore with slurp on all existing benchmarks.  \r\nAlso outperforms slurp on WIP benchmark for startup from persistent storage when the \r\namount of data stored is > ~4MB.\r\n\r\nIn the below output lines starting with `[LazyStore]` are with LazyStore and the other lines are with dag.StoreImpl on top of kv.MemStore using slurp (this was done with a small local patch for comparing).\r\n\r\n```\r\ngreg replicache [grgbkr/ssd-startup-benchmark-on-checked-in-code]$ npm run perf -- --format replicache\r\n\r\n> replicache@8.0.0 perf\r\n> node perf/runner.js \"--format\" \"replicache\"\r\n\r\nRunning 40 benchmarks on Chromium...\r\n[LazyStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=0.60/0.70/0.80/1.50 ms avg=0.69 ms (19 runs sampled)\r\n[LazyStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.00/1.20/1.30/1.60 ms avg=1.16 ms (11 runs sampled)\r\n[LazyStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/1.60/2.20/2.20 ms avg=1.76 ms (7 runs sampled)\r\n[LazyStore] populate 1024x1000 (clean, indexes: 0) 50/75/90/95%=83.60/86.10/137.30/137.30 ms avg=110.81 ms (7 runs sampled)\r\n[LazyStore] populate 1024x1000 (clean, indexes: 1) 50/75/90/95%=36.90/47.60/53.70/56.60 ms avg=44.20 ms (12 runs sampled)\r\n[LazyStore] populate 1024x1000 (clean, indexes: 2) 50/75/90/95%=45.30/51.20/67.70/67.70 ms avg=57.71 ms (9 runs sampled)\r\n[LazyStore] scan 1024x1000 50/75/90/95%=1.20/1.50/2.20/2.70 ms avg=1.43 ms (19 runs sampled)\r\n[LazyStore] create index 1024x5000 50/75/90/95%=95.00/101.50/106.50/106.50 ms avg=124.14 ms (7 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x100 stored 50/75/90/95%=9.50/10.20/10.50/10.60 ms avg=10.72 ms (19 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x1000 stored 50/75/90/95%=25.90/26.40/26.80/27.10 ms avg=28.57 ms (18 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x2000 stored 50/75/90/95%=27.10/28.30/32.90/84.10 ms avg=35.00 ms (15 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x3000 stored 50/75/90/95%=27.90/28.50/33.00/35.60 ms avg=31.82 ms (16 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x4000 stored 50/75/90/95%=27.90/34.40/46.10/61.50 ms avg=36.80 ms (14 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x5000 stored 50/75/90/95%=27.50/29.90/30.20/40.20 ms avg=31.90 ms (16 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x6000 stored 50/75/90/95%=31.20/56.90/63.60/77.90 ms avg=47.06 ms (11 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x7000 stored 50/75/90/95%=27.70/55.00/57.40/61.10 ms avg=42.12 ms (12 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x8000 stored 50/75/90/95%=30.10/42.70/77.90/78.80 ms avg=43.28 ms (12 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x9000 stored 50/75/90/95%=28.50/29.00/32.30/43.70 ms avg=33.43 ms (15 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x10000 stored 50/75/90/95%=28.30/28.70/29.20/36.10 ms avg=32.13 ms (16 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x100000 stored 50/75/90/95%=54.60/67.10/72.20/72.20 ms avg=73.43 ms (7 runs sampled)\r\nwriteSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=0.70/0.90/1.00/1.50 ms avg=0.83 ms (19 runs sampled)\r\nwriteSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/2.30/2.80/4.90 ms avg=2.12 ms (11 runs sampled)\r\nwriteSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.10/2.90/2.90/2.90 ms avg=2.60 ms (7 runs sampled)\r\npopulate 1024x1000 (clean, indexes: 0) 50/75/90/95%=70.60/90.90/112.40/112.40 ms avg=91.83 ms (7 runs sampled)\r\npopulate 1024x1000 (clean, indexes: 1) 50/75/90/95%=34.60/47.30/54.50/56.60 ms avg=43.95 ms (12 runs sampled)\r\npopulate 1024x1000 (clean, indexes: 2) 50/75/90/95%=47.50/48.70/67.40/67.40 ms avg=59.67 ms (9 runs sampled)\r\nscan 1024x1000 50/75/90/95%=1.20/1.50/2.20/2.80 ms avg=1.48 ms (19 runs sampled)\r\ncreate index 1024x5000 50/75/90/95%=99.60/106.30/109.60/109.60 ms avg=129.09 ms (7 runs sampled)\r\nstartup read 1024x100 from 1024x100 stored 50/75/90/95%=9.00/9.40/9.70/9.70 ms avg=9.91 ms (19 runs sampled)\r\nstartup read 1024x100 from 1024x1000 stored 50/75/90/95%=14.00/14.40/15.10/15.30 ms avg=15.51 ms (19 runs sampled)\r\nstartup read 1024x100 from 1024x2000 stored 50/75/90/95%=19.10/20.00/28.60/93.00 ms avg=25.45 ms (19 runs sampled)\r\nstartup read 1024x100 from 1024x3000 stored 50/75/90/95%=26.70/28.10/29.80/64.60 ms avg=31.74 ms (16 runs sampled)\r\nstartup read 1024x100 from 1024x4000 stored 50/75/90/95%=31.60/33.20/35.10/37.10 ms avg=36.14 ms (14 runs sampled)\r\nstartup read 1024x100 from 1024x5000 stored 50/75/90/95%=54.30/55.10/114.20/114.20 ms avg=73.50 ms (7 runs sampled)\r\nstartup read 1024x100 from 1024x6000 stored 50/75/90/95%=62.20/94.20/97.10/97.10 ms avg=82.19 ms (7 runs sampled)\r\nstartup read 1024x100 from 1024x7000 stored 50/75/90/95%=55.20/90.60/94.00/94.00 ms avg=77.96 ms (7 runs sampled)\r\nstartup read 1024x100 from 1024x8000 stored 50/75/90/95%=57.80/62.30/63.20/63.20 ms avg=69.91 ms (8 runs sampled)\r\nstartup read 1024x100 from 1024x9000 stored 50/75/90/95%=66.30/80.30/111.00/111.00 ms avg=89.51 ms (7 runs sampled)\r\nstartup read 1024x100 from 1024x10000 stored 50/75/90/95%=82.10/89.40/114.30/114.30 ms avg=101.73 ms (7 runs sampled)\r\nstartup read 1024x100 from 1024x100000 stored 50/75/90/95%=638.90/645.50/675.20/675.20 ms avg=805.41 ms (7 runs sampled)\r\n```\r\n\r\n\r\nPart of #671",
+          "timestamp": "2022-01-13T16:42:00Z",
+          "tree_id": "369435529f4fffdc3b64fefc2c95531892f6ad5c",
+          "url": "https://github.com/rocicorp/replicache/commit/c685a9a90ae87cafe3ee3c15b4e47f65978c5784"
+        },
+        "date": 1642092286128,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 769.23,
+            "range": "±2.8%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 400,
+            "range": "±1.6%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 322.58,
+            "range": "±1.4%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 22.87,
+            "range": "±42.8%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 10.14,
+            "range": "±15.8%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 8.23,
+            "range": "±45.3%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 348.77,
+            "range": "±5.4%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 4.27,
+            "range": "±73.2%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 714.29,
+            "range": "±2.7%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 357.14,
+            "range": "±3.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 344.83,
+            "range": "±1.4%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 21.56,
+            "range": "±43.3%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 10.71,
+            "range": "±28.3%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 8.21,
+            "range": "±38.5%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 375.6,
+            "range": "±5.7%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 4.31,
+            "range": "±79.4%",
             "unit": "ops/sec",
             "extra": "7 samples"
           }

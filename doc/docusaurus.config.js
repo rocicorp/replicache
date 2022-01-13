@@ -80,7 +80,8 @@ module.exports = {
       copyright: `Copyright © ${new Date().getFullYear()} Rocicorp, LLC.`,
     },
     algolia: {
-      apiKey: '34c403597e7dae56ae1dcb8946cc355c',
+      appId: 'Y3T1SV2WRD',
+      apiKey: 'b71db84abfaa5d2c764e0d523c383feb',
       indexName: 'replicache',
       contextualSearch: false,
     },

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1642080857948,
+  "lastUpdate": 1642092420661,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -15396,6 +15396,254 @@ window.BENCHMARK_DATA = {
             "unit": "p95 ms",
             "range": "±56.0%",
             "extra": "create index 1024x5000 50/75/90/95%=248.00/285.50/304.00/304.00 ms avg=328.39 ms (7 runs sampled)"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c685a9a90ae87cafe3ee3c15b4e47f65978c5784",
+          "message": "feat: Simplified Dueling Dags - Integrate dag.LazyStore into Replicache (#777)\n\nUpdate Replicache to use new dag.LazyStore (implemented in 7bc6106) for the memdag.  \r\nReplace use of dag.StoreImpl on top of kv.MemStore.  Lazy loading is now used instead of\r\nslurp.\r\n\r\n**Performance**\r\nOutperforms dag.StoreImpl on top of kv.MemStore with slurp on all existing benchmarks.  \r\nAlso outperforms slurp on WIP benchmark for startup from persistent storage when the \r\namount of data stored is > ~4MB.\r\n\r\nIn the below output lines starting with `[LazyStore]` are with LazyStore and the other lines are with dag.StoreImpl on top of kv.MemStore using slurp (this was done with a small local patch for comparing).\r\n\r\n```\r\ngreg replicache [grgbkr/ssd-startup-benchmark-on-checked-in-code]$ npm run perf -- --format replicache\r\n\r\n> replicache@8.0.0 perf\r\n> node perf/runner.js \"--format\" \"replicache\"\r\n\r\nRunning 40 benchmarks on Chromium...\r\n[LazyStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=0.60/0.70/0.80/1.50 ms avg=0.69 ms (19 runs sampled)\r\n[LazyStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.00/1.20/1.30/1.60 ms avg=1.16 ms (11 runs sampled)\r\n[LazyStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/1.60/2.20/2.20 ms avg=1.76 ms (7 runs sampled)\r\n[LazyStore] populate 1024x1000 (clean, indexes: 0) 50/75/90/95%=83.60/86.10/137.30/137.30 ms avg=110.81 ms (7 runs sampled)\r\n[LazyStore] populate 1024x1000 (clean, indexes: 1) 50/75/90/95%=36.90/47.60/53.70/56.60 ms avg=44.20 ms (12 runs sampled)\r\n[LazyStore] populate 1024x1000 (clean, indexes: 2) 50/75/90/95%=45.30/51.20/67.70/67.70 ms avg=57.71 ms (9 runs sampled)\r\n[LazyStore] scan 1024x1000 50/75/90/95%=1.20/1.50/2.20/2.70 ms avg=1.43 ms (19 runs sampled)\r\n[LazyStore] create index 1024x5000 50/75/90/95%=95.00/101.50/106.50/106.50 ms avg=124.14 ms (7 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x100 stored 50/75/90/95%=9.50/10.20/10.50/10.60 ms avg=10.72 ms (19 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x1000 stored 50/75/90/95%=25.90/26.40/26.80/27.10 ms avg=28.57 ms (18 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x2000 stored 50/75/90/95%=27.10/28.30/32.90/84.10 ms avg=35.00 ms (15 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x3000 stored 50/75/90/95%=27.90/28.50/33.00/35.60 ms avg=31.82 ms (16 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x4000 stored 50/75/90/95%=27.90/34.40/46.10/61.50 ms avg=36.80 ms (14 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x5000 stored 50/75/90/95%=27.50/29.90/30.20/40.20 ms avg=31.90 ms (16 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x6000 stored 50/75/90/95%=31.20/56.90/63.60/77.90 ms avg=47.06 ms (11 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x7000 stored 50/75/90/95%=27.70/55.00/57.40/61.10 ms avg=42.12 ms (12 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x8000 stored 50/75/90/95%=30.10/42.70/77.90/78.80 ms avg=43.28 ms (12 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x9000 stored 50/75/90/95%=28.50/29.00/32.30/43.70 ms avg=33.43 ms (15 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x10000 stored 50/75/90/95%=28.30/28.70/29.20/36.10 ms avg=32.13 ms (16 runs sampled)\r\n[LazyStore] startup read 1024x100 from 1024x100000 stored 50/75/90/95%=54.60/67.10/72.20/72.20 ms avg=73.43 ms (7 runs sampled)\r\nwriteSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=0.70/0.90/1.00/1.50 ms avg=0.83 ms (19 runs sampled)\r\nwriteSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/2.30/2.80/4.90 ms avg=2.12 ms (11 runs sampled)\r\nwriteSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.10/2.90/2.90/2.90 ms avg=2.60 ms (7 runs sampled)\r\npopulate 1024x1000 (clean, indexes: 0) 50/75/90/95%=70.60/90.90/112.40/112.40 ms avg=91.83 ms (7 runs sampled)\r\npopulate 1024x1000 (clean, indexes: 1) 50/75/90/95%=34.60/47.30/54.50/56.60 ms avg=43.95 ms (12 runs sampled)\r\npopulate 1024x1000 (clean, indexes: 2) 50/75/90/95%=47.50/48.70/67.40/67.40 ms avg=59.67 ms (9 runs sampled)\r\nscan 1024x1000 50/75/90/95%=1.20/1.50/2.20/2.80 ms avg=1.48 ms (19 runs sampled)\r\ncreate index 1024x5000 50/75/90/95%=99.60/106.30/109.60/109.60 ms avg=129.09 ms (7 runs sampled)\r\nstartup read 1024x100 from 1024x100 stored 50/75/90/95%=9.00/9.40/9.70/9.70 ms avg=9.91 ms (19 runs sampled)\r\nstartup read 1024x100 from 1024x1000 stored 50/75/90/95%=14.00/14.40/15.10/15.30 ms avg=15.51 ms (19 runs sampled)\r\nstartup read 1024x100 from 1024x2000 stored 50/75/90/95%=19.10/20.00/28.60/93.00 ms avg=25.45 ms (19 runs sampled)\r\nstartup read 1024x100 from 1024x3000 stored 50/75/90/95%=26.70/28.10/29.80/64.60 ms avg=31.74 ms (16 runs sampled)\r\nstartup read 1024x100 from 1024x4000 stored 50/75/90/95%=31.60/33.20/35.10/37.10 ms avg=36.14 ms (14 runs sampled)\r\nstartup read 1024x100 from 1024x5000 stored 50/75/90/95%=54.30/55.10/114.20/114.20 ms avg=73.50 ms (7 runs sampled)\r\nstartup read 1024x100 from 1024x6000 stored 50/75/90/95%=62.20/94.20/97.10/97.10 ms avg=82.19 ms (7 runs sampled)\r\nstartup read 1024x100 from 1024x7000 stored 50/75/90/95%=55.20/90.60/94.00/94.00 ms avg=77.96 ms (7 runs sampled)\r\nstartup read 1024x100 from 1024x8000 stored 50/75/90/95%=57.80/62.30/63.20/63.20 ms avg=69.91 ms (8 runs sampled)\r\nstartup read 1024x100 from 1024x9000 stored 50/75/90/95%=66.30/80.30/111.00/111.00 ms avg=89.51 ms (7 runs sampled)\r\nstartup read 1024x100 from 1024x10000 stored 50/75/90/95%=82.10/89.40/114.30/114.30 ms avg=101.73 ms (7 runs sampled)\r\nstartup read 1024x100 from 1024x100000 stored 50/75/90/95%=638.90/645.50/675.20/675.20 ms avg=805.41 ms (7 runs sampled)\r\n```\r\n\r\n\r\nPart of #671",
+          "timestamp": "2022-01-13T16:42:00Z",
+          "tree_id": "369435529f4fffdc3b64fefc2c95531892f6ad5c",
+          "url": "https://github.com/rocicorp/replicache/commit/c685a9a90ae87cafe3ee3c15b4e47f65978c5784"
+        },
+        "date": 1642092420348,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 1.3999996185302734,
+            "unit": "median ms",
+            "range": "±2.2%",
+            "extra": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/2.00/3.30/3.60 ms avg=1.83 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 3.6000003814697266,
+            "unit": "p95 ms",
+            "range": "±2.2%",
+            "extra": "[MemStore] writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/2.00/3.30/3.60 ms avg=1.83 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 2.3999996185302734,
+            "unit": "median ms",
+            "range": "±2.0%",
+            "extra": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.40/3.30/4.40/4.40 ms avg=3.19 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 4.399999618530273,
+            "unit": "p95 ms",
+            "range": "±2.0%",
+            "extra": "[MemStore] writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.40/3.30/4.40/4.40 ms avg=3.19 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 3.1000003814697266,
+            "unit": "median ms",
+            "range": "±1.0%",
+            "extra": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=3.10/3.70/4.10/4.10 ms avg=3.94 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 4.100000381469727,
+            "unit": "p95 ms",
+            "range": "±1.0%",
+            "extra": "[MemStore] writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=3.10/3.70/4.10/4.10 ms avg=3.94 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0)",
+            "value": 45.80000114440918,
+            "unit": "median ms",
+            "range": "±34.1%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 0) 50/75/90/95%=45.80/46.90/79.90/79.90 ms avg=55.98 ms (9 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 0) p95",
+            "value": 79.89999961853027,
+            "unit": "p95 ms",
+            "range": "±34.1%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 0) 50/75/90/95%=45.80/46.90/79.90/79.90 ms avg=55.98 ms (9 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1)",
+            "value": 92.70000076293945,
+            "unit": "median ms",
+            "range": "±20.3%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 1) 50/75/90/95%=92.70/97.70/113.00/113.00 ms avg=114.26 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 1) p95",
+            "value": 113,
+            "unit": "p95 ms",
+            "range": "±20.3%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 1) 50/75/90/95%=92.70/97.70/113.00/113.00 ms avg=114.26 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2)",
+            "value": 121,
+            "unit": "median ms",
+            "range": "±26.1%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 2) 50/75/90/95%=121.00/133.80/147.10/147.10 ms avg=151.49 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] populate 1024x1000 (clean, indexes: 2) p95",
+            "value": 147.0999984741211,
+            "unit": "p95 ms",
+            "range": "±26.1%",
+            "extra": "[MemStore] populate 1024x1000 (clean, indexes: 2) 50/75/90/95%=121.00/133.80/147.10/147.10 ms avg=151.49 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000",
+            "value": 2.799999237060547,
+            "unit": "median ms",
+            "range": "±8.2%",
+            "extra": "[MemStore] scan 1024x1000 50/75/90/95%=2.80/3.80/5.20/11.00 ms avg=3.75 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] scan 1024x1000 p95",
+            "value": 11,
+            "unit": "p95 ms",
+            "range": "±8.2%",
+            "extra": "[MemStore] scan 1024x1000 50/75/90/95%=2.80/3.80/5.20/11.00 ms avg=3.75 ms (19 runs sampled)"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000",
+            "value": 237.30000114440918,
+            "unit": "median ms",
+            "range": "±64.5%",
+            "extra": "[MemStore] create index 1024x5000 50/75/90/95%=237.30/269.80/301.80/301.80 ms avg=316.74 ms (7 runs sampled)"
+          },
+          {
+            "name": "[MemStore] create index 1024x5000 p95",
+            "value": 301.79999923706055,
+            "unit": "p95 ms",
+            "range": "±64.5%",
+            "extra": "[MemStore] create index 1024x5000 50/75/90/95%=237.30/269.80/301.80/301.80 ms avg=316.74 ms (7 runs sampled)"
+          },
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 1.3999996185302734,
+            "unit": "median ms",
+            "range": "±2.4%",
+            "extra": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/1.70/1.80/3.80 ms avg=1.61 ms (19 runs sampled)"
+          },
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 3.799999237060547,
+            "unit": "p95 ms",
+            "range": "±2.4%",
+            "extra": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.40/1.70/1.80/3.80 ms avg=1.61 ms (19 runs sampled)"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 2.3999996185302734,
+            "unit": "median ms",
+            "range": "±3.1%",
+            "extra": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.40/3.90/5.50/5.50 ms avg=3.63 ms (7 runs sampled)"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 5.5,
+            "unit": "p95 ms",
+            "range": "±3.1%",
+            "extra": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.40/3.90/5.50/5.50 ms avg=3.63 ms (7 runs sampled)"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 2.8000011444091797,
+            "unit": "median ms",
+            "range": "±1.5%",
+            "extra": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.80/3.30/4.30/4.30 ms avg=3.84 ms (7 runs sampled)"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 4.30000114440918,
+            "unit": "p95 ms",
+            "range": "±1.5%",
+            "extra": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=2.80/3.30/4.30/4.30 ms avg=3.84 ms (7 runs sampled)"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 41.5,
+            "unit": "median ms",
+            "range": "±59.7%",
+            "extra": "populate 1024x1000 (clean, indexes: 0) 50/75/90/95%=41.50/49.80/101.20/101.20 ms avg=57.69 ms (9 runs sampled)"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0) p95",
+            "value": 101.20000076293945,
+            "unit": "p95 ms",
+            "range": "±59.7%",
+            "extra": "populate 1024x1000 (clean, indexes: 0) 50/75/90/95%=41.50/49.80/101.20/101.20 ms avg=57.69 ms (9 runs sampled)"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 88.29999923706055,
+            "unit": "median ms",
+            "range": "±71.9%",
+            "extra": "populate 1024x1000 (clean, indexes: 1) 50/75/90/95%=88.30/107.40/160.20/160.20 ms avg=122.64 ms (7 runs sampled)"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1) p95",
+            "value": 160.20000076293945,
+            "unit": "p95 ms",
+            "range": "±71.9%",
+            "extra": "populate 1024x1000 (clean, indexes: 1) 50/75/90/95%=88.30/107.40/160.20/160.20 ms avg=122.64 ms (7 runs sampled)"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 122.20000076293945,
+            "unit": "median ms",
+            "range": "±24.6%",
+            "extra": "populate 1024x1000 (clean, indexes: 2) 50/75/90/95%=122.20/128.30/146.80/146.80 ms avg=150.44 ms (7 runs sampled)"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2) p95",
+            "value": 146.79999923706055,
+            "unit": "p95 ms",
+            "range": "±24.6%",
+            "extra": "populate 1024x1000 (clean, indexes: 2) 50/75/90/95%=122.20/128.30/146.80/146.80 ms avg=150.44 ms (7 runs sampled)"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 2.700000762939453,
+            "unit": "median ms",
+            "range": "±5.3%",
+            "extra": "scan 1024x1000 50/75/90/95%=2.70/3.70/6.60/8.00 ms avg=3.68 ms (19 runs sampled)"
+          },
+          {
+            "name": "scan 1024x1000 p95",
+            "value": 8,
+            "unit": "p95 ms",
+            "range": "±5.3%",
+            "extra": "scan 1024x1000 50/75/90/95%=2.70/3.70/6.60/8.00 ms avg=3.68 ms (19 runs sampled)"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 233.70000076293945,
+            "unit": "median ms",
+            "range": "±72.1%",
+            "extra": "create index 1024x5000 50/75/90/95%=233.70/278.60/305.80/305.80 ms avg=318.89 ms (7 runs sampled)"
+          },
+          {
+            "name": "create index 1024x5000 p95",
+            "value": 305.79999923706055,
+            "unit": "p95 ms",
+            "range": "±72.1%",
+            "extra": "create index 1024x5000 50/75/90/95%=233.70/278.60/305.80/305.80 ms avg=318.89 ms (7 runs sampled)"
           }
         ]
       }

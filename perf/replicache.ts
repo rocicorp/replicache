@@ -161,10 +161,16 @@ export function benchmarkStartupUsingScanFromPersistedData(opts: {
       await setupPersistedData(repName, opts.numKeysPersisted);
     },
     async run(bencher: Bencher) {
-      bencher.reset();
-      const randomStartKey = `key${Math.floor(
+      const randomIndex = Math.floor(
         Math.random() * (opts.numKeysPersisted - opts.numKeysToRead),
-      )}`;
+      );
+      const keys = Array.from(
+        {length: opts.numKeysPersisted - opts.numKeysToRead},
+        (_, index) => `key${index}`,
+      );
+      const sortedKeys = keys.sort();
+      const randomStartKey = sortedKeys[randomIndex];
+      bencher.reset();
       const rep = new Replicache({
         name: repName,
         pullInterval: null,

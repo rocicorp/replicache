@@ -124,8 +124,6 @@ type MakeMutators<T extends MutatorDefs> = {
   readonly [P in keyof T]: MakeMutator<T[P]>;
 };
 
-type Now = () => number;
-
 /**
  * Base options for [[PullOptions]] and [[PushOptions]]
  */
@@ -226,8 +224,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
    * The function to use to push data to the server.
    */
   pusher: Pusher;
-
-  now: Now = () => performance.now();
 
   private readonly _memdag: dag.Store;
   private readonly _perdag: dag.Store;

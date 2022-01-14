@@ -14,6 +14,7 @@ import {jsonArrayTestData, TestDataObject, jsonObjectTestData} from './data';
 import type {Bencher, Benchmark} from './perf';
 import {range, sampleSize} from 'lodash-es';
 import {makeIdbName} from '../src/replicache';
+import {resolver} from '../src/resolver';
 
 export function benchmarkPopulate(opts: {
   numKeys: number;
@@ -77,7 +78,7 @@ async function setupPersistedData(
   // populate store using pull (as opposed to mutators)
   // so that a snapshot commit is created, which new clients
   // can use to bootstrap.
-  const repForStore = new ReplicacheWithPersist({
+  const rep = new ReplicacheWithPersist({
     name: replicacheName,
     pullInterval: null,
     puller: async (_: Request) => {
@@ -94,29 +95,23 @@ async function setupPersistedData(
     },
   });
 
-  let initialPullComplete = false;
-  while (!initialPullComplete) {
-    await sleep(10);
-    initialPullComplete = await repForStore.query(
-      async (tx: ReadTransaction) => {
-        return (await tx.get('key0')) !== undefined;
-      },
-    );
-  }
-  await repForStore.persist();
-  await repForStore.close();
+  const initialPullCompleteResolver = resolver<void>();
+  rep.subscribe(tx => tx.get('key0'), {
+    onData: r => r && initialPullCompleteResolver.resolve(),
+  });
+  await initialPullCompleteResolver.promise;
+
+  await rep.persist();
+  await rep.close();
 }
 
 export function benchmarkStartupUsingBasicReadsFromPersistedData(opts: {
   numKeysPersisted: number;
   numKeysToRead: number;
-  useMemstore: boolean;
 }): Benchmark {
   const repName = 'benchmarkStartupUsingBasicReadsFromPersistedData';
   return {
-    name: `${opts.useMemstore ? '[MemStore] ' : ''}startup read ${valSize}x${
-      opts.numKeysToRead
-    } from ${valSize}x${opts.numKeysPersisted} stored`,
+    name: `startup read ${valSize}x${opts.numKeysToRead} from ${valSize}x${opts.numKeysPersisted} stored`,
     group: 'replicache',
     byteSize: opts.numKeysToRead * valSize,
     async setup() {
@@ -151,13 +146,10 @@ export function benchmarkStartupUsingBasicReadsFromPersistedData(opts: {
 export function benchmarkStartupUsingScanFromPersistedData(opts: {
   numKeysPersisted: number;
   numKeysToRead: number;
-  useMemstore: boolean;
 }): Benchmark {
   const repName = 'benchmarkStartupUsingScanFromPersistedData';
   return {
-    name: `${opts.useMemstore ? '[MemStore] ' : ''}startup scan ${valSize}x${
-      opts.numKeysToRead
-    } from ${valSize}x${opts.numKeysPersisted} stored`,
+    name: `startup scan ${valSize}x${opts.numKeysToRead} from ${valSize}x${opts.numKeysPersisted} stored`,
     group: 'replicache',
     byteSize: opts.numKeysToRead * valSize,
     async setup() {
@@ -436,11 +428,8 @@ type ReplicacheWithPopulate = UnwrapPromise<
   ReturnType<typeof makeRepWithPopulate>
 >;
 
-async function makeRepWithPopulate<MD extends MutatorDefs>(
-  options: Omit<ReplicacheOptions<MD>, 'name'> = {},
-) {
+async function makeRepWithPopulate() {
   const mutators = {
-    ...(options.mutators ? options.mutators : {}),
     populate: async (
       tx: WriteTransaction,
       {
@@ -454,7 +443,6 @@ async function makeRepWithPopulate<MD extends MutatorDefs>(
     },
   };
   return makeRep({
-    ...options,
     mutators,
   });
 }
@@ -494,21 +482,22 @@ export function benchmarks(): Benchmark[] {
     benchmarkPopulate({numKeys: 1000, clean: true, indexes: 2, useMemstore}),
     benchmarkScan({numKeys: 1000, useMemstore}),
     benchmarkCreateIndex({numKeys: 5000, useMemstore}),
-    benchmarkStartupUsingBasicReadsFromPersistedData({
-      numKeysPersisted: 100000,
-      numKeysToRead: 100,
-      useMemstore,
-    }),
-    benchmarkStartupUsingScanFromPersistedData({
-      numKeysPersisted: 100000,
-      numKeysToRead: 100,
-      useMemstore,
-    }),
   ];
   // We do not support useMemstore any more but we keep running the benchmark
   // with the flag to preserve the benchmark name so it is easier to keep track
   // of the results.
   //
   // Run with both true and false. After a few runs we can remove the flag.
-  return [...bs(true), ...bs(false)];
+  return [
+    ...bs(true),
+    ...bs(false),
+    benchmarkStartupUsingBasicReadsFromPersistedData({
+      numKeysPersisted: 100000,
+      numKeysToRead: 100,
+    }),
+    benchmarkStartupUsingScanFromPersistedData({
+      numKeysPersisted: 100000,
+      numKeysToRead: 100,
+    }),
+  ];
 }

@@ -1,5 +1,5 @@
 import {expect} from '@esm-bundle/chai';
-import {convert, scan, ScanItem, ScanOptions} from './scan';
+import {convert, ScanItem, ScanOptions} from './scan';
 import * as dag from '../dag/mod';
 import {decodeIndexKey, encodeIndexKey} from './index';
 import {BTreeWrite} from '../btree/mod';
@@ -23,7 +23,7 @@ test('scan', async () => {
       await map.put('baz', 'baz');
       const optsInternal = convert(opts);
       const actual = [];
-      for await (const key of scan(map, optsInternal, entry => entry[0])) {
+      for await (const key of map.scan(optsInternal, entry => entry[0])) {
         actual.push(key);
       }
       const expected2 = expected;
@@ -340,7 +340,7 @@ test('exclusive regular map', async () => {
       const convertedOpts = convert(opts);
       const got = [];
 
-      for await (const key of scan(map, convertedOpts, entry => entry[0])) {
+      for await (const key of map.scan(convertedOpts, entry => entry[0])) {
         got.push(key);
       }
       expect(got).to.deep.equal(expected, testDesc);
@@ -379,7 +379,7 @@ test('exclusive index map', async () => {
         indexName: 'index',
       };
       const got = [];
-      for await (const key of scan(map, convert(opts), entry => entry[0])) {
+      for await (const key of map.scan(convert(opts), entry => entry[0])) {
         const [secondary, primary] = decodeIndexKey(key);
         got.push([secondary, primary]);
       }
@@ -622,8 +622,7 @@ test('scan index startKey', async () => {
       const testDesc = `opts: ${opts}, expected: ${expected}`;
 
       const actual: ScanItem[] = [];
-      for await (const item of scan(
-        map,
+      for await (const item of map.scan(
         convert(opts),
         opts.indexName ? convertEntryIndexScan : convertEntry,
       )) {

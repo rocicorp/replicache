@@ -101,6 +101,10 @@ export class BTreeRead {
     return node.entries.length === 0;
   }
 
+  // We don't do any encoding of the key in the map, so we have no way of
+  // determining from an entry.key alone whether it is a regular key or an
+  // encoded IndexKey in an index map. Without encoding regular map keys we need
+  // to rely on the options to tell us what we expect.
   async *scan<R>(
     options: ScanOptionsInternal,
     convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,

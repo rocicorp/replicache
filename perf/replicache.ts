@@ -4,6 +4,7 @@ import {deepEqual} from '../src/json';
 import {assert} from '../src/asserts';
 import {
   MutatorDefs,
+  PatchOperation,
   ReadTransaction,
   Replicache,
   ReplicacheOptions,
@@ -12,6 +13,8 @@ import {
 import {jsonArrayTestData, TestDataObject, jsonObjectTestData} from './data';
 import type {Bencher, Benchmark} from './perf';
 import {range, sampleSize} from 'lodash-es';
+import {makeIdbName} from '../src/replicache';
+import {resolver} from '../src/resolver';
 
 export function benchmarkPopulate(opts: {
   numKeys: number;
@@ -48,6 +51,142 @@ export function benchmarkPopulate(opts: {
   };
 }
 
+class ReplicacheWithPersist<MD extends MutatorDefs> extends Replicache {
+  constructor(options: ReplicacheOptions<MD>) {
+    super(options);
+  }
+  async persist(): Promise<void> {
+    return this._persist();
+  }
+}
+
+async function setupPersistedData(
+  replicacheName: string,
+  numKeys: number,
+): Promise<void> {
+  const randomValues = jsonArrayTestData(numKeys, valSize);
+  const patch: PatchOperation[] = [];
+  for (let i = 0; i < numKeys; i++) {
+    patch.push({
+      op: 'put',
+      key: `key${i}`,
+      value: randomValues[i],
+    });
+  }
+
+  await deleteDatabase(makeIdbName(replicacheName));
+  // populate store using pull (as opposed to mutators)
+  // so that a snapshot commit is created, which new clients
+  // can use to bootstrap.
+  const rep = new ReplicacheWithPersist({
+    name: replicacheName,
+    pullInterval: null,
+    puller: async (_: Request) => {
+      return {
+        response: {
+          lastMutationID: 0,
+          patch,
+        },
+        httpRequestInfo: {
+          httpStatusCode: 200,
+          errorMessage: '',
+        },
+      };
+    },
+  });
+
+  const initialPullResolver = resolver<void>();
+  rep.subscribe(tx => tx.get('key0'), {
+    onData: r => r && initialPullResolver.resolve(),
+  });
+  await initialPullResolver.promise;
+
+  await rep.persist();
+  await rep.close();
+}
+
+export function benchmarkStartupUsingBasicReadsFromPersistedData(opts: {
+  numKeysPersisted: number;
+  numKeysToRead: number;
+}): Benchmark {
+  const repName = 'benchmarkStartupUsingBasicReadsFromPersistedData';
+  return {
+    name: `startup read ${valSize}x${opts.numKeysToRead} from ${valSize}x${opts.numKeysPersisted} stored`,
+    group: 'replicache',
+    byteSize: opts.numKeysToRead * valSize,
+    async setup() {
+      await setupPersistedData(repName, opts.numKeysPersisted);
+    },
+    async run(bencher: Bencher) {
+      const randomKeysToRead = sampleSize(
+        range(opts.numKeysPersisted),
+        opts.numKeysToRead,
+      ).map(i => `key${i}`);
+      bencher.reset();
+      const rep = new Replicache({
+        name: repName,
+        pullInterval: null,
+      });
+      let getCount = 0;
+      await rep.query(async (tx: ReadTransaction) => {
+        for (const randomKey of randomKeysToRead) {
+          // use the values to be confident we're not optimizing away.
+          getCount += Object.keys(
+            (await tx.get(randomKey)) as TestDataObject,
+          ).length;
+        }
+      });
+      bencher.stop();
+      console.log(getCount);
+      await rep.close();
+    },
+  };
+}
+
+export function benchmarkStartupUsingScanFromPersistedData(opts: {
+  numKeysPersisted: number;
+  numKeysToRead: number;
+}): Benchmark {
+  const repName = 'benchmarkStartupUsingScanFromPersistedData';
+  return {
+    name: `startup scan ${valSize}x${opts.numKeysToRead} from ${valSize}x${opts.numKeysPersisted} stored`,
+    group: 'replicache',
+    byteSize: opts.numKeysToRead * valSize,
+    async setup() {
+      await setupPersistedData(repName, opts.numKeysPersisted);
+    },
+    async run(bencher: Bencher) {
+      const randomIndex = Math.floor(
+        Math.random() * (opts.numKeysPersisted - opts.numKeysToRead),
+      );
+      const keys = Array.from(
+        {length: opts.numKeysPersisted - opts.numKeysToRead},
+        (_, index) => `key${index}`,
+      );
+      const sortedKeys = keys.sort();
+      const randomStartKey = sortedKeys[randomIndex];
+      bencher.reset();
+      const rep = new Replicache({
+        name: repName,
+        pullInterval: null,
+      });
+      await rep.query(async (tx: ReadTransaction) => {
+        let count = 0;
+        for await (const value of tx.scan({
+          start: {key: randomStartKey},
+          limit: 100,
+        })) {
+          // use the value to be confident we're not optimizing away.
+          count += Object.keys(value as TestDataObject).length;
+        }
+        console.log(count);
+      });
+      bencher.stop();
+      await rep.close();
+    },
+  };
+}
+
 export function benchmarkReadTransaction(opts: {
   numKeys: number;
   useMemstore: boolean;
@@ -75,7 +214,9 @@ export function benchmarkReadTransaction(opts: {
       await rep.query(async (tx: ReadTransaction) => {
         for (let i = 0; i < opts.numKeys; i++) {
           // use the values to be confident we're not optimizing away.
-          getCount += ((await tx.get(`key${i}`)) as ArrayLike<unknown>).length;
+          getCount += Object.keys(
+            (await tx.get(`keys${i}`)) as TestDataObject,
+          ).length;
           hasCount += (await tx.has(`key${i}`)) === true ? 1 : 0;
         }
       });
@@ -263,7 +404,7 @@ export function benchmarkWriteSubRead(opts: {
 
 function deleteDatabase(name: string): Promise<unknown> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.deleteDatabase(name);
+    const req = indexedDB.deleteDatabase(makeIdbName(name));
     req.onsuccess = resolve;
     req.onerror = req.onblocked = req.onupgradeneeded = reject;
   });
@@ -347,5 +488,16 @@ export function benchmarks(): Benchmark[] {
   // of the results.
   //
   // Run with both true and false. After a few runs we can remove the flag.
-  return [...bs(true), ...bs(false)];
+  return [
+    ...bs(true),
+    ...bs(false),
+    benchmarkStartupUsingBasicReadsFromPersistedData({
+      numKeysPersisted: 100000,
+      numKeysToRead: 100,
+    }),
+    benchmarkStartupUsingScanFromPersistedData({
+      numKeysPersisted: 100000,
+      numKeysToRead: 100,
+    }),
+  ];
 }

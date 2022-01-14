@@ -66,6 +66,11 @@ type ToPromise<P> = P extends Promise<unknown> ? P : Promise<P>;
 /** The key name to use in localStorage when synchronizing changes. */
 const storageKeyName = (name: string) => `/replicache/root/${name}`;
 
+export function makeIdbName(name: string, schemaVersion?: string): string {
+  const n = `${name}:${REPLICACHE_FORMAT_VERSION}`;
+  return schemaVersion ? `${n}:${schemaVersion}` : n;
+}
+
 /**
  * The maximum number of time to call out to getDataLayerAuth before giving up
  * and throwing an error.
@@ -165,8 +170,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
    * stored.
    */
   get idbName(): string {
-    const n = `${this.name}:${REPLICACHE_FORMAT_VERSION}`;
-    return this.schemaVersion ? `${n}:${this.schemaVersion}` : n;
+    return makeIdbName(this.name, this.schemaVersion);
   }
 
   /** The schema version of the data understood by this application. */

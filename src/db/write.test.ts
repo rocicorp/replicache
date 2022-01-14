@@ -27,7 +27,7 @@ test('basics', async () => {
       JSON.stringify([]),
       null,
       dagWrite,
-      88,
+      42,
     );
     await w.put(lc, 'foo', 'bar');
     // Assert we can read the same value from within this transaction.;
@@ -44,7 +44,7 @@ test('basics', async () => {
       JSON.stringify(null),
       null,
       dagWrite,
-      88,
+      42,
     );
     const val = await w.get('foo');
     expect(val).to.deep.equal('bar');
@@ -58,7 +58,7 @@ test('basics', async () => {
       JSON.stringify([]),
       null,
       dagWrite,
-      88,
+      42,
     );
     await w.del(lc, 'foo');
     // Assert it is gone while still within this transaction.
@@ -75,7 +75,7 @@ test('basics', async () => {
       JSON.stringify(null),
       null,
       dagWrite,
-      88,
+      42,
     );
     const val = await w.get(`foo`);
     expect(val).to.be.undefined;
@@ -94,7 +94,7 @@ test('index commit type constraints', async () => {
     JSON.stringify([]),
     null,
     await ds.write(),
-    88,
+    42,
   );
 
   let err;
@@ -127,7 +127,7 @@ test('clear', async () => {
       JSON.stringify([]),
       null,
       dagWrite,
-      88,
+      42,
     );
     await w.put(lc, 'foo', 'bar');
     await w.commit(DEFAULT_HEAD_NAME);
@@ -149,7 +149,7 @@ test('clear', async () => {
       JSON.stringify([]),
       null,
       dagWrite,
-      88,
+      42,
     );
     await w.put(lc, 'hot', 'dog');
 
@@ -206,7 +206,7 @@ test('create and drop index', async () => {
           JSON.stringify([]),
           null,
           dagWrite,
-          88,
+          42,
         );
         for (let i = 0; i < 3; i++) {
           await w.put(lc, `k${i}`, {s: `s${i}`});
@@ -233,7 +233,7 @@ test('create and drop index', async () => {
           JSON.stringify([]),
           null,
           dagWrite,
-          88,
+          42,
         );
         for (let i = 0; i < 3; i++) {
           await w.put(lc, `k${i}`, {s: `s${i}`});

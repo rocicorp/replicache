@@ -60,7 +60,6 @@ export class Read {
       );
     }
     return this.map.scan(optsInternal, convertEntry, onLimitKey);
-    // return scan(this.map, optsInternal, convertEntry, onLimitKey);
   }
 
   get closed(): boolean {

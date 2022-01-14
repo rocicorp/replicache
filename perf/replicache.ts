@@ -95,11 +95,11 @@ async function setupPersistedData(
     },
   });
 
-  const initialPullCompleteResolver = resolver<void>();
+  const initialPullResolver = resolver<void>();
   rep.subscribe(tx => tx.get('key0'), {
-    onData: r => r && initialPullCompleteResolver.resolve(),
+    onData: r => r && initialPullResolver.resolve(),
   });
-  await initialPullCompleteResolver.promise;
+  await initialPullResolver.promise;
 
   await rep.persist();
   await rep.close();

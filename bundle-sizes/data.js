@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1642092434679,
+  "lastUpdate": 1642122968037,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -3479,6 +3479,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 18167,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "b328e1b9dc1dd5c9a9772a1c54be386f43facde6",
+          "message": "Adds a timestamp field to mutations.\n\nNote: Format change. Not changing REPLICACHE_FORMAT_VERSION constant\nbecause we should only do so once per release by policy, so that\nshould be something we do during release.",
+          "timestamp": "2022-01-13T15:14:57-10:00",
+          "tree_id": "fbcc9161c769af14eb09bbd0e143e1aac9ec66aa",
+          "url": "https://github.com/rocicorp/replicache/commit/b328e1b9dc1dd5c9a9772a1c54be386f43facde6"
+        },
+        "date": 1642122965733,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 141688,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 25914,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 140410,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 25559,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 67903,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18257,
             "unit": "bytes"
           }
         ]

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1642173256954,
+  "lastUpdate": 1642185822195,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -3587,6 +3587,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 18226,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ce2baacce6723f0323a6016d30c383caf6bdaa1b",
+          "message": "feat: Add benchmarks for startup from persisted state  (#780)\n\nAdd two benchmarks for startup from persisted state based on the Replicache performance envelope (#595).\r\n\r\n1. Init replicache and read 100 KB of data from 100 MB of persisted state using `get`s of random keys.\r\n2. Init replicache and read 100 KB of data from 100 MB of persisted state using `scan` starting at a random key.",
+          "timestamp": "2022-01-14T18:42:39Z",
+          "tree_id": "8b5dd619bc07989b24c6aac25d82a4f7d8318423",
+          "url": "https://github.com/rocicorp/replicache/commit/ce2baacce6723f0323a6016d30c383caf6bdaa1b"
+        },
+        "date": 1642185819999,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 141662,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 25929,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 140384,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 25554,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 67884,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18229,
             "unit": "bytes"
           }
         ]

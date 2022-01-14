@@ -222,6 +222,7 @@ export type ReplayMutation = {
   name: string;
   args: JSONValue;
   original: Hash;
+  timestamp: number;
 };
 
 // The changed keys in different indexes. The key of the map is the index name.
@@ -286,10 +287,12 @@ export async function maybeEndPull(
       for (const c of pending) {
         let name: string;
         let args: ReadonlyJSONValue;
+        let timestamp: number;
         if (c.isLocal()) {
           const lm = c.meta;
           name = lm.mutatorName;
           args = lm.mutatorArgsJSON;
+          timestamp = lm.timestamp;
         } else {
           throw new Error('pending mutation is not local');
         }
@@ -298,6 +301,7 @@ export async function maybeEndPull(
           name,
           args: deepClone(args),
           original: c.chunk.hash,
+          timestamp,
         });
       }
       return {

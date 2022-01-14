@@ -105,6 +105,7 @@ test('dag with some permanent hashes and some temp hashes on top', async () => {
             mutatorArgsJSON: [2],
             mutatorName: 'mutator_name_2',
             originalHash: null,
+            timestamp: 42,
             type: 2,
           },
           valueHash: 't/000000000000000000000000000000',

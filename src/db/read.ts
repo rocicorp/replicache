@@ -1,6 +1,6 @@
 import {IndexRead} from './index';
 import type * as dag from '../dag/mod';
-import {convert, scan, ScanOptions, ScanOptionsInternal} from './scan';
+import {convert, ScanOptions, ScanOptionsInternal} from './scan';
 import {
   Commit,
   DEFAULT_HEAD_NAME,
@@ -59,7 +59,8 @@ export class Read {
         onLimitKey,
       );
     }
-    return scan(this.map, optsInternal, convertEntry, onLimitKey);
+    return this.map.scan(optsInternal, convertEntry, onLimitKey);
+    // return scan(this.map, optsInternal, convertEntry, onLimitKey);
   }
 
   get closed(): boolean {
@@ -79,7 +80,7 @@ async function* scanIndexMap<R>(
   onLimitKey?: (inclusiveLimitKey: string) => void,
 ): AsyncIterableIterator<R> {
   yield* await idx.withMap(dagRead, map =>
-    scan(map, optsInternal, convertEntry, onLimitKey),
+    map.scan(optsInternal, convertEntry, onLimitKey),
   );
 }
 

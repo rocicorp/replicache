@@ -1,6 +1,5 @@
 import {encodeIndexScanKey} from '.';
 import type {ReadonlyJSONValue} from '../json';
-import type {BTreeRead, Entry} from '../btree/mod';
 
 // TODO(arv): Unify with src/scan-options.ts
 
@@ -62,20 +61,6 @@ export type ScanItem = {
   secondaryKey: string;
   val: ReadonlyJSONValue;
 };
-
-export function scan<R>(
-  map: BTreeRead,
-  opts: ScanOptionsInternal,
-  convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
-  onLimitKey?: (inclusiveLimitKey: string) => void,
-): AsyncIterableIterator<R> {
-  // We don't do any encoding of the key in regular prolly maps, so we have no
-  // way of determining from an entry.key alone whether it is a regular prolly
-  // map key or an encoded IndexKey in an index map. Without encoding regular
-  // prolly map keys we need to rely on the opts to tell us what we expect.
-
-  return map.scan(opts, convertEntry, onLimitKey);
-}
 
 export function convert(source: ScanOptions): ScanOptionsInternal {
   // If the scan is using an index then we need to generate the scan keys.

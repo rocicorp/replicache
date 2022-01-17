@@ -2060,7 +2060,8 @@ test('mutate args in mutation', async () => {
 
   await rep.mutate.mutArgs({v: 1});
 
-  await clock.tickAsync(200);
+  // Safari does not have requestIdleTimeout so it waits for a second.
+  await clock.tickAsync(1000);
 
   const o = findPropertyValue(store.map(), 'mutatorName', 'mutArgs');
   expect((o as {mutatorArgsJSON?: unknown}).mutatorArgsJSON).to.deep.equal({

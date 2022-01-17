@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1642428310530,
+  "lastUpdate": 1642430514359,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -3719,6 +3719,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/392daf1054735a3e92bcb1aa3e5f7df8f0f649d7"
         },
         "date": 1642428308737,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 141622,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 25888,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 140344,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 25551,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 67853,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18221,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "25925524c1ed8ef02d1f918f09f38f0d9d18426c",
+          "message": "chore: remove useMemstore from perf (#787)\n\nI printed MemStore so we would have some overlap in the perf graphs",
+          "timestamp": "2022-01-17T15:40:45+01:00",
+          "tree_id": "5f6d3bbbd8747c4ccb5838b49f448319408f6d1d",
+          "url": "https://github.com/rocicorp/replicache/commit/25925524c1ed8ef02d1f918f09f38f0d9d18426c"
+        },
+        "date": 1642430507232,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

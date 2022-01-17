@@ -35,7 +35,9 @@ test('basic persist & slurp', async () => {
     ],
   });
   rep.pull();
-  await tickAFewTimes();
+
+  // At least PERSIST_TIMEOUT should have passed.
+  await tickAFewTimes(10, 100);
 
   await rep.query(async tx => {
     expect(await tx.get('a')).to.equal(1);

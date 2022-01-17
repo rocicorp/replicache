@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1642189429072,
+  "lastUpdate": 1642428310530,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -3665,6 +3665,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/6389906ff304c1df117d6c8df64168f3ace49433"
         },
         "date": 1642189427604,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 141622,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 25888,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 140344,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 25551,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 67853,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18221,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "392daf1054735a3e92bcb1aa3e5f7df8f0f649d7",
+          "message": "chore: Reenable testing in WebKit (#786)\n\nWith updated deps the test runner works again",
+          "timestamp": "2022-01-17T14:04:10Z",
+          "tree_id": "b03fa1b4476a482f3db2810c0911a3cf31a39db2",
+          "url": "https://github.com/rocicorp/replicache/commit/392daf1054735a3e92bcb1aa3e5f7df8f0f649d7"
+        },
+        "date": 1642428308737,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

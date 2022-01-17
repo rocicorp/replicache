@@ -52,19 +52,7 @@ export async function push(
   pushAuth: string,
   schemaVersion: string,
 ): Promise<HTTPRequestInfo | undefined> {
-  // Find pending commits between the base snapshot and the main head and push
-  // them to the data layer.
-  const pending = await store.withRead(async dagRead => {
-    const mainHeadHash = await dagRead.getHead(db.DEFAULT_HEAD_NAME);
-    if (!mainHeadHash) {
-      throw new Error('Internal no main head');
-    }
-    return await db.localMutations(mainHeadHash, dagRead);
-    // Important! Don't hold the lock through an HTTP request!
-  });
-  // Commit.pending gave us commits in head-first order; the bindings
-  // want tail first (in mutation id order).
-  pending.reverse();
+  const pending = await pendingCommits(store);
 
   let httpRequestInfo: HTTPRequestInfo | undefined = undefined;
   if (pending.length > 0) {
@@ -95,6 +83,27 @@ export async function push(
   }
 
   return httpRequestInfo;
+}
+
+/**
+ * Find pending commits between the base snapshot and the main head. The order
+ * of that array is oldest mutation first.
+ */
+export async function pendingCommits(
+  store: dag.Store,
+): Promise<db.Commit<db.LocalMeta>[]> {
+  const pending = await store.withRead(async dagRead => {
+    const mainHeadHash = await dagRead.getHead(db.DEFAULT_HEAD_NAME);
+    if (!mainHeadHash) {
+      throw new Error('Internal no main head');
+    }
+    return await db.localMutations(mainHeadHash, dagRead);
+  });
+
+  // Commit.pending gave us commits in head-first order; the bindings
+  // want tail first (in mutation id order).
+  pending.reverse();
+  return pending;
 }
 
 async function callPusher(

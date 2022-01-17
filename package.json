@@ -17,7 +17,8 @@
     "build": "rm -rf out && npm run build-dts && npm run build-mjs && npm run build-cjs && npm run build-min-mjs",
     "prepack": "npm run lint && npm run test && npm run build",
     "prepare": "rm -f node_modules/fetch-mock/esm/client.d.ts",
-    "perf": "node perf/runner.js"
+    "perf": "node perf/runner.js",
+    "test-unload": "tsc --watch & web-dev-server --node-resolve"
   },
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4",

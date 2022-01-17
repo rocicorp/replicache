@@ -785,6 +785,10 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
   }
 
+  async pendingCommits() {
+    return sync.pendingCommits(this._memdag);
+  }
+
   protected async _invokePush(maxAuthTries: number): Promise<boolean> {
     if (this.pushURL === '' && this.pusher === defaultPusher) {
       return true;

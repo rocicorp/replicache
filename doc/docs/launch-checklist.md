@@ -7,13 +7,32 @@ Before you launch with Replicache in your product, it's a good idea to double-ch
 
 ## JS SDK
 
-- If you wish to change the type of a mutator (eg, the number or type of its arguments) you must choose a new name; Replicache does not handle mutator versioning.
-- At some point you will almost certainly wish to change the schema of mutations included in the `PushRequest` and the `clientView` returned in the `PullResponse`. The `ReplicacheOptions.schemaVersion` exists to facilitate this; it can be set by your app and is passed in both the `PushRequest` and `PullRequest`. Consider setting the `schemaVersion` from the start so that you don't later have to special case the "no schemaVersion" case.
+- If you wish to change the type of a mutator (eg, the number or type of its
+  arguments) you must choose a new name; Replicache does not handle mutator
+  versioning.
+- At some point you will almost certainly wish to change the schema of mutations
+  included in the `PushRequest` and the client view returned in the
+  `PullResponse`. The `ReplicacheOptions.schemaVersion` exists to facilitate
+  this; it can be set by your app and is passed in both the `PushRequest` and
+  `PullRequest`. Consider setting the `schemaVersion` from the start so that you
+  don't later have to special case the "no schemaVersion" case.
 - If a user's auth token can expire during a session, causing your endpoints to
   return a 401, be sure that re-auth is handled for **Push** and **Pull** via
   `getAuth`.
-- If you wish to store per-client state, be sure to key it by `clientID`, and not, for example, by user id which can be common to more than one client.
-- Be sure to use the "name" parameter to the Replicache constructor to differentiate Replicache instances for different users; otherwise Replicache may try to fork state from a different user at startup.
+- `clientID` is ephemeral and changes for every instance of the `Replicache`
+  constructor. If you close the browser tab and then open the application again
+  you are goint to get a new `clientID`. Also, if you have multiple browser tabs
+  open with the same application, all of these will have unique `clientID`s.
+  Make sure you do not depend on it in any way across application loads.
+- The client view should not be a function of the `clientID`. Do not use the
+  `clientID` as part of the key or value when calling `WriteTransaction.put`.
+  The reason is that when Replicache starts it may fork an existing client view
+  but assign a new `clientID`.
+- If you wish to communicate per-client state, be sure to key it by `clientID`,
+  and not, for example, by user id which can be common to more than one client.
+- The `name` property of `ReplicacheOptions` is required to differentiate
+  Replicache instances for different users; otherwise Replicache may try to fork
+  state from a different user at startup.
 
 ## All endpoints
 

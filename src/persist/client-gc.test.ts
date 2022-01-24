@@ -4,7 +4,7 @@ import * as dag from '../dag/mod';
 import {ClientMap, getClients, updateClients} from './clients';
 import {fakeHash} from '../hash';
 import {initClientGC, getLatestGCUpdate} from './client-gc';
-import {setClients} from './clients-test-helpers';
+import {makeClient, setClients} from './clients-test-helpers';
 import {assertNotUndefined} from '../asserts';
 
 let clock: SinonFakeTimers;
@@ -27,22 +27,24 @@ function awaitLatestGCUpdate(): Promise<ClientMap> {
 
 test('initClientGC starts 5 min interval that collects clients that have been inactive for > 7 days', async () => {
   const dagStore = new dag.TestStore();
-  const client1 = {
+  const client1 = makeClient({
     heartbeatTimestampMs: START_TIME,
     headHash: fakeHash('headclient1'),
-  };
-  const client2 = {
+    mutationID: 100,
+    lastServerAckdMutationID: 90,
+  });
+  const client2 = makeClient({
     heartbeatTimestampMs: START_TIME,
     headHash: fakeHash('headclient2'),
-  };
-  const client3 = {
+  });
+  const client3 = makeClient({
     heartbeatTimestampMs: START_TIME + 60 * 1000,
     headHash: fakeHash('headclient3'),
-  };
-  const client4 = {
+  });
+  const client4 = makeClient({
     heartbeatTimestampMs: START_TIME + 60 * 1000,
     headHash: fakeHash('headclient4'),
-  };
+  });
   const clientMap = new Map(
     Object.entries({
       client1,
@@ -130,18 +132,18 @@ test('initClientGC starts 5 min interval that collects clients that have been in
 
 test('calling function returned by initClientGC, stops Client GCs', async () => {
   const dagStore = new dag.TestStore();
-  const client1 = {
+  const client1 = makeClient({
     heartbeatTimestampMs: START_TIME,
     headHash: fakeHash('headclient1'),
-  };
-  const client2 = {
+  });
+  const client2 = makeClient({
     heartbeatTimestampMs: START_TIME,
     headHash: fakeHash('headclient2'),
-  };
-  const client3 = {
+  });
+  const client3 = makeClient({
     heartbeatTimestampMs: START_TIME + 60 * 1000,
     headHash: fakeHash('headclient3'),
-  };
+  });
   const clientMap = new Map(
     Object.entries({
       client1,

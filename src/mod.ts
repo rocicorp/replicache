@@ -1,6 +1,7 @@
 export {Replicache} from './replicache';
 export {TransactionClosedError} from './transaction-closed-error';
 
+export type {Hash} from './hash';
 export type {
   MaybePromise,
   MutatorDefs,

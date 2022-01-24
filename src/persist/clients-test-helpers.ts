@@ -1,5 +1,6 @@
-import {ClientMap, updateClients} from './clients';
+import {Client, ClientMap, updateClients} from './clients';
 import type * as dag from '../dag/mod';
+import type {Hash} from '../mod';
 
 export function setClients(
   clients: ClientMap,
@@ -10,4 +11,17 @@ export function setClients(
       clients,
     });
   }, dagStore);
+}
+
+export function makeClient(partialClient: {
+  heartbeatTimestampMs: number;
+  headHash: Hash;
+  mutationID?: number;
+  lastServerAckdMutationID?: number;
+}): Client {
+  return {
+    mutationID: 0,
+    lastServerAckdMutationID: 0,
+    ...partialClient,
+  };
 }

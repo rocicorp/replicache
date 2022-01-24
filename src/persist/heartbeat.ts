@@ -34,6 +34,8 @@ export async function writeHeartbeat(
       clients: new Map(clients).set(clientID, {
         heartbeatTimestampMs: Date.now(),
         headHash: client.headHash,
+        mutationID: client.mutationID,
+        lastServerAckdMutationID: client.lastServerAckdMutationID,
       }),
     };
   }, dagStore);

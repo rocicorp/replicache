@@ -27,7 +27,7 @@ export async function persist(
   perdag: dag.Store,
 ): Promise<void> {
   // 1. Gather all temp chunks from main head on the memdag.
-  const [gatheredChunks, mainHeadTempHash, mutationIDs] =
+  const [gatheredChunks, mainHeadTempHash, mutationID, lastMutationID] =
     await gatherTempChunks(memdag);
 
   if (gatheredChunks.size === 0) {
@@ -47,7 +47,8 @@ export async function persist(
     fixedChunks,
     mainHeadHash,
     clientID,
-    mutationIDs,
+    mutationID,
+    lastMutationID,
   );
 
   // 4. fixup the memdag with the new hashes.
@@ -58,9 +59,10 @@ async function gatherTempChunks(
   memdag: dag.Store,
 ): Promise<
   [
-    ReadonlyMap<Hash, dag.Chunk>,
-    Hash,
-    {mutationID: number; lastMutationID: number},
+    map: ReadonlyMap<Hash, dag.Chunk>,
+    hash: Hash,
+    mutationID: number,
+    lastMutationID: number,
   ]
 > {
   return await memdag.withRead(async dagRead => {
@@ -73,10 +75,8 @@ async function gatherTempChunks(
     return [
       visitor.gatheredChunks,
       mainHeadHash,
-      {
-        mutationID: headCommit.mutationID,
-        lastMutationID: baseSnapshotCommit.meta.lastMutationID,
-      },
+      headCommit.mutationID,
+      baseSnapshotCommit.meta.lastMutationID,
     ];
   });
 }
@@ -118,7 +118,8 @@ async function writeFixedChunks(
   fixedChunks: FixedChunks,
   mainHeadHash: Hash,
   clientID: string,
-  mutationIDs: {mutationID: number; lastMutationID: number},
+  mutationID: number,
+  lastMutationID: number,
 ) {
   const chunksToPut = fixedChunks.values();
   await updateClients(clients => {
@@ -126,8 +127,8 @@ async function writeFixedChunks(
       clients: new Map(clients).set(clientID, {
         heartbeatTimestampMs: Date.now(),
         headHash: mainHeadHash,
-        mutationID: mutationIDs.mutationID,
-        lastServerAckdMutationID: mutationIDs.lastMutationID,
+        mutationID,
+        lastServerAckdMutationID: lastMutationID,
       }),
       chunksToPut,
     };

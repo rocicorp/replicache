@@ -1,6 +1,6 @@
 import {Client, ClientMap, updateClients} from './clients';
 import type * as dag from '../dag/mod';
-import type {Hash} from '../mod';
+import type {Hash} from '../hash';
 
 export function setClients(
   clients: ClientMap,

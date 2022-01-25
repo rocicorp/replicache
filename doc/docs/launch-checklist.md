@@ -7,13 +7,37 @@ Before you launch with Replicache in your product, it's a good idea to double-ch
 
 ## JS SDK
 
-- If you wish to change the type of a mutator (eg, the number or type of its arguments) you must choose a new name; Replicache does not handle mutator versioning.
-- At some point you will almost certainly wish to change the schema of mutations included in the `PushRequest` and the `clientView` returned in the `PullResponse`. The `ReplicacheOptions.schemaVersion` exists to facilitate this; it can be set by your app and is passed in both the `PushRequest` and `PullRequest`. Consider setting the `schemaVersion` from the start so that you don't later have to special case the "no schemaVersion" case.
+- If you wish to change the signature of a mutator (eg, the number or type of
+  its arguments) you must choose a new name; Replicache does not handle mutator
+  versioning.
+- At some point you will almost certainly wish to change the schema of mutations
+  included in the `PushRequest` and the client view returned in the
+  `PullResponse`. The `ReplicacheOptions.schemaVersion` exists to facilitate
+  this; it can be set by your app and is passed in both the `PushRequest` and
+  `PullRequest`. Consider setting the `schemaVersion` from the start so that you
+  don't later have to special case the "no schemaVersion" case.
 - If a user's auth token can expire during a session, causing your endpoints to
   return a 401, be sure that re-auth is handled for **Push** and **Pull** via
   `getAuth`.
-- If you wish to store per-client state, be sure to key it by `clientID`, and not, for example, by user id which can be common to more than one client.
-- Be sure to use the "name" parameter to the Replicache constructor to differentiate Replicache instances for different users; otherwise Replicache may try to fork state from a different user at startup.
+- Ensure your use of `clientID` is correct. A `clientID` represents a unique
+  running instance of the `Replicache` class. Typically in applications, each
+  tab _load_ gets a unique `clientID`. Do not use the `clientID` as a stable
+  identifier for a user, machine, or browser profile. **Note:** In multiplayer
+  applications, a common and correct application of the `clientID` is to
+  represent a running session (e.g., a mouse cursor), because in most
+  multiplayer applications the design goal is that two tabs from the same user
+  should show up as two separate cursors to other users.
+- Do not use the `clientID` to look up what information was last sent to a
+  client when computing the `PullResponse`. Since a `clientID` represents a
+  unique running instance of `Replicache`, that design would result in each new
+  tab pulling down a fresh snapshot. Instead, use the `cookie` feature of
+  `PullResponse` to assign a unique ID to each returned pull. Replicache
+  internally forks the cache when creating a new client and will reuse these
+  cookie values across clients, resulting in new clients being able to startup
+  from previous clients' state with minimal download at startup.
+- The `name` property of `ReplicacheOptions` is required to differentiate
+  Replicache instances for different users; otherwise Replicache may try to fork
+  state from a different user at startup.
 
 ## All endpoints
 

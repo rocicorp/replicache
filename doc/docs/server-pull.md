@@ -184,5 +184,9 @@ This is useful in case the request cookie is invalid or not known to the server,
 - If there is a problem with the `cookie` (e.g., it is unusable) return all
   data. This is done by first sending a [`clear`](#clear) op followed by
   multiple [`put`](#put) ops.
+- Make sure that the client view is not a function of the client ID. When
+  starting up Replicache, Replicache will fork the state of an existing client
+  (client view and cookie) and create a new client (client view, client ID and
+  cookie).
 - Ignore all pull requests with an unexpected
   [`pullVersion`](server-pull#pullversion).

@@ -26,8 +26,8 @@ export type Client = {
    */
   readonly headHash: Hash;
   /**
-   * The mutationID of commit at headHash (mutationID if it is a
-   * local commit, lastMutationID if a index change or snapshot commit).
+   * The mutationID of the commit at headHash (mutationID if it is a
+   * local commit, lastMutationID if it is an index change or snapshot commit).
    * Should only be updated by the client represented by this structure.
    * Read by other clients to determine if there are unacknowledged pending
    * mutations for them to push on behalf of the client represented by this
@@ -42,17 +42,17 @@ export type Client = {
    *
    * Should be updated by the client represented by this structure whenever
    * it persists its state to the perdag.
-   * Read by other clients to determine if there are un-acknowledge pending
+   * Read by other clients to determine if there are unacknowledged pending
    * mutations for them to push on behalf of the client represented by this
-   * structure, and *updated* by other client's upon successfully pushing
-   * pending mutation to avoid redundant pushes of pending mutations.
+   * structure, and *updated* by other clients upon successfully pushing
+   * pending mutations to avoid redundant pushes of those mutations.
    *
    * Note: This will be the same as the lastMutationID of the base snapshot of
    * the commit graph at headHash when written by the client represented by this
    * structure.  However, when written by another client pushing pending
-   * mutations on this client's behalf it will be different, because the other
-   * client does not update the commit graph (it is unsafe to update another
-   * client's commit graph).
+   * mutations on this client's behalf it will be different.  This is because
+   * the other client does not update the commit graph (it is unsafe to update
+   * another client's commit graph).
    */
   readonly lastServerAckdMutationID: number;
 };

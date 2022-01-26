@@ -20,7 +20,7 @@ import {
   addSnapshot,
   Chain,
 } from '../db/test-helpers';
-import {setClients} from './clients-test-helpers';
+import {makeClient, setClients} from './clients-test-helpers';
 
 let clock: SinonFakeTimers;
 setup(() => {
@@ -43,14 +43,14 @@ test('updateClients and getClients', async () => {
   const dagStore = new dag.TestStore();
   const clientMap = new Map(
     Object.entries({
-      client1: {
+      client1: makeClient({
         heartbeatTimestampMs: 1000,
         headHash: fakeHash('headclient1'),
-      },
-      client2: {
+      }),
+      client2: makeClient({
         heartbeatTimestampMs: 3000,
         headHash: fakeHash('headclient2'),
-      },
+      }),
     }),
   );
   await setClients(clientMap, dagStore);
@@ -65,23 +65,23 @@ test('updateClients and getClients sequence', async () => {
   const dagStore = new dag.TestStore();
   const clientMap1 = new Map(
     Object.entries({
-      client1: {
+      client1: makeClient({
         heartbeatTimestampMs: 1000,
         headHash: fakeHash('headclient1'),
-      },
-      client2: {
+      }),
+      client2: makeClient({
         heartbeatTimestampMs: 3000,
         headHash: fakeHash('headclient2'),
-      },
+      }),
     }),
   );
 
   const clientMap2 = new Map(
     Object.entries({
-      client3: {
+      client3: makeClient({
         heartbeatTimestampMs: 4000,
         headHash: fakeHash('headclient3'),
-      },
+      }),
     }),
   );
   await setClients(clientMap1, dagStore);
@@ -106,24 +106,24 @@ test('updateClients properly manages refs to client heads when clients are remov
 
   const clientMap1 = new Map(
     Object.entries({
-      client1: {
+      client1: makeClient({
         heartbeatTimestampMs: 1000,
         headHash: client1HeadHash,
-      },
-      client2: {
+      }),
+      client2: makeClient({
         heartbeatTimestampMs: 3000,
         headHash: client2HeadHash,
-      },
+      }),
     }),
   );
 
   const client3HeadHash = fakeHash('headclient3');
   const clientMap2 = new Map(
     Object.entries({
-      client3: {
+      client3: makeClient({
         heartbeatTimestampMs: 4000,
         headHash: client3HeadHash,
-      },
+      }),
     }),
   );
   await setClients(clientMap1, dagStore);
@@ -153,18 +153,18 @@ test("updateClients properly manages refs to client heads when a client's head c
   const client1V2HeadHash = fakeHash('headclient1v2');
   const client2HeadHash = fakeHash('headclient2');
 
-  const client1V1 = {
+  const client1V1 = makeClient({
     heartbeatTimestampMs: 1000,
     headHash: client1V1HeadHash,
-  };
-  const client1V2 = {
+  });
+  const client1V2 = makeClient({
     heartbeatTimestampMs: 2000,
     headHash: client1V2HeadHash,
-  };
-  const client2 = {
+  });
+  const client2 = makeClient({
     heartbeatTimestampMs: 3000,
     headHash: client2HeadHash,
-  };
+  });
 
   const clientMap1 = new Map(
     Object.entries({
@@ -208,17 +208,17 @@ test("updateClients properly manages refs to client heads when a client's head c
 
 test('getClient', async () => {
   const dagStore = new dag.TestStore();
-  const client1 = {
+  const client1 = makeClient({
     heartbeatTimestampMs: 1000,
     headHash: fakeHash('headclient1'),
-  };
+  });
   const clientMap = new Map(
     Object.entries({
       client1,
-      client2: {
+      client2: makeClient({
         heartbeatTimestampMs: 3000,
         headHash: fakeHash('headclient2'),
-      },
+      }),
     }),
   );
   await setClients(clientMap, dagStore);
@@ -231,14 +231,14 @@ test('getClient', async () => {
 
 test('updateClients throws error if any client headHash is a temp hash', async () => {
   const dagStore = new dag.TestStore();
-  const client1 = {
+  const client1 = makeClient({
     heartbeatTimestampMs: 1000,
     headHash: fakeHash('headclient1'),
-  };
-  const client2 = {
+  });
+  const client2 = makeClient({
     heartbeatTimestampMs: 3000,
     headHash: fakeHash('headclient2'),
-  };
+  });
   const clientMap = new Map(
     Object.entries({
       client1,
@@ -256,10 +256,10 @@ test('updateClients throws error if any client headHash is a temp hash', async (
   const clientMapWTempHash = new Map(
     Object.entries({
       client1,
-      client2: {
+      client2: makeClient({
         heartbeatTimestampMs: 3000,
         headHash: newTempHash(),
-      },
+      }),
     }),
   );
 
@@ -298,14 +298,14 @@ test('updateClients is a noop if noUpdates is returned from update', async () =>
   const dagStore = new dag.TestStore();
   const clientMap = new Map(
     Object.entries({
-      client1: {
+      client1: makeClient({
         heartbeatTimestampMs: 1000,
         headHash: fakeHash('headclient1'),
-      },
-      client2: {
+      }),
+      client2: makeClient({
         heartbeatTimestampMs: 3000,
         headHash: fakeHash('headclient2'),
-      },
+      }),
     }),
   );
   await setClients(clientMap, dagStore);
@@ -326,10 +326,10 @@ test('updateClients puts chunksToPut returned by update', async () => {
   ];
   const clientMap = new Map(
     Object.entries({
-      client1: {
+      client1: makeClient({
         heartbeatTimestampMs: 1000,
         headHash: chunksToPut[1].hash,
-      },
+      }),
     }),
   );
   const update = async (_: ClientMap) => {
@@ -353,14 +353,14 @@ test('updateClients puts chunksToPut returned by update', async () => {
 
 test('updateClients with conflict during update (i.e. testing race case with retry)', async () => {
   const dagStore = new dag.TestStore();
-  const client1 = {
+  const client1 = makeClient({
     heartbeatTimestampMs: 1000,
     headHash: fakeHash('headclient1'),
-  };
-  const client2 = {
+  });
+  const client2 = makeClient({
     heartbeatTimestampMs: 3000,
     headHash: fakeHash('headclient2'),
-  };
+  });
   const clientMap = new Map(
     Object.entries({
       client1,
@@ -368,10 +368,10 @@ test('updateClients with conflict during update (i.e. testing race case with ret
     }),
   );
 
-  const client3 = {
+  const client3 = makeClient({
     heartbeatTimestampMs: 5000,
     headHash: fakeHash('headclient3'),
-  };
+  });
   const clientMap2 = new Map(clientMap).set('client3', client3);
 
   await setClients(clientMap, dagStore);
@@ -382,10 +382,10 @@ test('updateClients with conflict during update (i.e. testing race case with ret
       fakeHash('chunktoput1'),
     ]),
   ];
-  const client4 = {
+  const client4 = makeClient({
     heartbeatTimestampMs: 7000,
     headHash: chunksToPut[1].hash,
-  };
+  });
 
   let updateCallCount = 0;
   const update = async (clients: ClientMap) => {
@@ -433,14 +433,14 @@ test('updateClients with conflict during update (i.e. testing race case with ret
 
 test('updateClients where update return noUpdates after conflict during update', async () => {
   const dagStore = new dag.TestStore();
-  const client1 = {
+  const client1 = makeClient({
     heartbeatTimestampMs: 1000,
     headHash: fakeHash('headclient1'),
-  };
-  const client2 = {
+  });
+  const client2 = makeClient({
     heartbeatTimestampMs: 3000,
     headHash: fakeHash('headclient2'),
-  };
+  });
   const clientMap = new Map(
     Object.entries({
       client1,
@@ -448,10 +448,10 @@ test('updateClients where update return noUpdates after conflict during update',
     }),
   );
 
-  const client3 = {
+  const client3 = makeClient({
     heartbeatTimestampMs: 5000,
     headHash: fakeHash('headclient3'),
-  };
+  });
   const clientMap2 = new Map(clientMap).set('client3', client3);
 
   await setClients(clientMap, dagStore);
@@ -462,10 +462,10 @@ test('updateClients where update return noUpdates after conflict during update',
       fakeHash('chunktoput1'),
     ]),
   ];
-  const client4 = {
+  const client4 = makeClient({
     heartbeatTimestampMs: 7000,
     headHash: chunksToPut[1].hash,
-  };
+  });
 
   let updateCallCount = 0;
   const update = async (clients: ClientMap) => {
@@ -542,6 +542,8 @@ test('initClient creates new empty snapshot when no existing snapshot to bootstr
     // New client was added to the client map.
     expect(await getClient(clientId, read)).to.deep.equal(client);
     expect(client.heartbeatTimestampMs).to.equal(clock.now);
+    expect(client.mutationID).to.equal(0);
+    expect(client.lastServerAckdMutationID).to.equal(0);
 
     // New client's head hash points to an empty snapshot with an empty btree.
     const headChunk = await read.getChunk(client.headHash);
@@ -574,14 +576,14 @@ test('initClient bootstraps from base snapshot of client with highest heartbeat'
 
   const clientMap = new Map(
     Object.entries({
-      client1: {
+      client1: makeClient({
         heartbeatTimestampMs: 1000,
         headHash: client1HeadCommit.chunk.hash,
-      },
-      client2: {
+      }),
+      client2: makeClient({
         heartbeatTimestampMs: 3000,
         headHash: client2HeadCommit.chunk.hash,
-      },
+      }),
     }),
   );
   await setClients(clientMap, dagStore);
@@ -593,6 +595,8 @@ test('initClient bootstraps from base snapshot of client with highest heartbeat'
     // New client was added to the client map.
     expect(await getClient(clientId, read)).to.deep.equal(client);
     expect(client.heartbeatTimestampMs).to.equal(clock.now);
+    expect(client.mutationID).to.equal(0);
+    expect(client.lastServerAckdMutationID).to.equal(0);
 
     // New client's head hash points to a commit that matches client2BaseSnapshoCommit
     // but with a local mutation id of 0.

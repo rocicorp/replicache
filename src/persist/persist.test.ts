@@ -57,6 +57,22 @@ async function assertSameDagData(
 
   expect(memSnapshot).to.deep.equal(perSnapshot);
 }
+async function assertClientMutationIDsCorrect(
+  clientID: ClientID,
+  perdag: dag.TestStore,
+): Promise<void> {
+  await perdag.withRead(async dagRead => {
+    const client = await getClient(clientID, dagRead);
+    assert(client);
+    const headCommit = await db.commitFromHash(client.headHash, dagRead);
+    const baseSnapshotCommit = await db.baseSnapshot(client.headHash, dagRead);
+    expect(client.mutationID).to.equal(headCommit.mutationID);
+    expect(client.lastServerAckdMutationID).to.equal(
+      baseSnapshotCommit.meta.lastMutationID,
+    );
+  });
+}
+
 class ChunkSnapshotVisitor extends db.Visitor {
   snapshot: Record<string, Value> = {};
 
@@ -102,6 +118,7 @@ suite('persist on top of different kinds of commits', () => {
   const testPersist = async () => {
     await persist(clientID, memdag, perdag);
     await assertSameDagData(clientID, memdag, perdag);
+    await assertClientMutationIDsCorrect(clientID, perdag);
   };
 
   setup(async () => {

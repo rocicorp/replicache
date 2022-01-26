@@ -27,7 +27,8 @@ export async function persist(
   perdag: dag.Store,
 ): Promise<void> {
   // 1. Gather all temp chunks from main head on the memdag.
-  const [gatheredChunks, mainHeadTempHash] = await gatherTempChunks(memdag);
+  const [gatheredChunks, mainHeadTempHash, mutationID, lastMutationID] =
+    await gatherTempChunks(memdag);
 
   if (gatheredChunks.size === 0) {
     // Nothing to persist
@@ -41,7 +42,14 @@ export async function persist(
   );
 
   // 3. write chunks to perdag.
-  await writeFixedChunks(perdag, fixedChunks, mainHeadHash, clientID);
+  await writeFixedChunks(
+    perdag,
+    fixedChunks,
+    mainHeadHash,
+    clientID,
+    mutationID,
+    lastMutationID,
+  );
 
   // 4. fixup the memdag with the new hashes.
   await fixupMemdagWithNewHashes(memdag, mappings);
@@ -49,13 +57,27 @@ export async function persist(
 
 async function gatherTempChunks(
   memdag: dag.Store,
-): Promise<[ReadonlyMap<Hash, dag.Chunk>, Hash]> {
+): Promise<
+  [
+    map: ReadonlyMap<Hash, dag.Chunk>,
+    hash: Hash,
+    mutationID: number,
+    lastMutationID: number,
+  ]
+> {
   return await memdag.withRead(async dagRead => {
     const mainHeadHash = await dagRead.getHead(db.DEFAULT_HEAD_NAME);
     assert(mainHeadHash);
     const visitor = new GatherVisitor(dagRead);
     await visitor.visitCommit(mainHeadHash);
-    return [visitor.gatheredChunks, mainHeadHash];
+    const headCommit = await db.commitFromHash(mainHeadHash, dagRead);
+    const baseSnapshotCommit = await db.baseSnapshot(mainHeadHash, dagRead);
+    return [
+      visitor.gatheredChunks,
+      mainHeadHash,
+      headCommit.mutationID,
+      baseSnapshotCommit.meta.lastMutationID,
+    ];
   });
 }
 
@@ -96,6 +118,8 @@ async function writeFixedChunks(
   fixedChunks: FixedChunks,
   mainHeadHash: Hash,
   clientID: string,
+  mutationID: number,
+  lastMutationID: number,
 ) {
   const chunksToPut = fixedChunks.values();
   await updateClients(clients => {
@@ -103,6 +127,8 @@ async function writeFixedChunks(
       clients: new Map(clients).set(clientID, {
         heartbeatTimestampMs: Date.now(),
         headHash: mainHeadHash,
+        mutationID,
+        lastServerAckdMutationID: lastMutationID,
       }),
       chunksToPut,
     };

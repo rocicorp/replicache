@@ -17,10 +17,44 @@ export type Client = {
    * A UNIX timestamp in milliseconds updated by the client once a minute
    * while it is active and everytime the client persists its state to
    * the perdag.
+   * Should only be updated by the client represented by this structure.
    */
   readonly heartbeatTimestampMs: number;
-  /** The hash of the commit this session is currently at. */
+  /**
+   * The hash of the commit in the perdag this client last persisted.
+   * Should only be updated by the client represented by this structure.
+   */
   readonly headHash: Hash;
+  /**
+   * The mutationID of the commit at headHash (mutationID if it is a
+   * local commit, lastMutationID if it is an index change or snapshot commit).
+   * Should only be updated by the client represented by this structure.
+   * Read by other clients to determine if there are unacknowledged pending
+   * mutations for them to push on behalf of the client represented by this
+   * structure.
+   * This is redundant with information in the commit graph at headHash,
+   * but allows other clients to determine if there are unacknowledged pending
+   * mutations without having to load the commit graph at headHash.
+   */
+  readonly mutationID: number;
+  /**
+   * The highest lastMutationID received from the server for this client.
+   *
+   * Should be updated by the client represented by this structure whenever
+   * it persists its state to the perdag.
+   * Read by other clients to determine if there are unacknowledged pending
+   * mutations for them to push on behalf of the client represented by this
+   * structure, and *updated* by other clients upon successfully pushing
+   * pending mutations to avoid redundant pushes of those mutations.
+   *
+   * Note: This will be the same as the lastMutationID of the base snapshot of
+   * the commit graph at headHash when written by the client represented by this
+   * structure.  However, when written by another client pushing pending
+   * mutations on this client's behalf it will be different.  This is because
+   * the other client does not update the commit graph (it is unsafe to update
+   * another client's commit graph).
+   */
+  readonly lastServerAckdMutationID: number;
 };
 const CLIENTS_HEAD = 'clients';
 
@@ -148,6 +182,8 @@ export async function initClient(
       clients: new Map(clients).set(newClientID, {
         heartbeatTimestampMs: Date.now(),
         headHash: newClientCommitChunk.hash,
+        mutationID: 0,
+        lastServerAckdMutationID: 0,
       }),
       chunksToPut,
     };

@@ -8,7 +8,7 @@ import {
 } from './heartbeat';
 import {ClientMap, getClients} from './clients';
 import {fakeHash} from '../hash';
-import {setClients} from './clients-test-helpers';
+import {makeClient, setClients} from './clients-test-helpers';
 import {assertNotUndefined} from '../asserts';
 
 let clock: SinonFakeTimers;
@@ -33,10 +33,14 @@ test('startHeartbeats starts interval that writes heartbeat each minute', async 
   const client1 = {
     heartbeatTimestampMs: 1000,
     headHash: fakeHash('headclient1'),
+    mutationID: 10,
+    lastServerAckdMutationID: 10,
   };
   const client2 = {
     heartbeatTimestampMs: 3000,
     headHash: fakeHash('headclient2'),
+    mutationID: 100,
+    lastServerAckdMutationID: 90,
   };
   const clientMap = new Map(
     Object.entries({
@@ -92,14 +96,14 @@ test('startHeartbeats starts interval that writes heartbeat each minute', async 
 
 test('calling function returned by startHeartbeats, stops heartbeats', async () => {
   const dagStore = new dag.TestStore();
-  const client1 = {
+  const client1 = makeClient({
     heartbeatTimestampMs: 1000,
     headHash: fakeHash('headclient1'),
-  };
-  const client2 = {
+  });
+  const client2 = makeClient({
     heartbeatTimestampMs: 3000,
     headHash: fakeHash('headclient2'),
-  };
+  });
   const clientMap = new Map(
     Object.entries({
       client1,
@@ -159,10 +163,14 @@ test('writeHeartbeat writes heartbeat', async () => {
   const client1 = {
     heartbeatTimestampMs: 1000,
     headHash: fakeHash('headclient1'),
+    mutationID: 10,
+    lastServerAckdMutationID: 10,
   };
   const client2 = {
     heartbeatTimestampMs: 3000,
     headHash: fakeHash('headclient2'),
+    mutationID: 100,
+    lastServerAckdMutationID: 90,
   };
   const clientMap = new Map(
     Object.entries({

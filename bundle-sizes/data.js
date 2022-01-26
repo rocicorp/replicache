@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643169657769,
+  "lastUpdate": 1643221020088,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -3965,6 +3965,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 18221,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "931c9bb00d2667a0ea2ab98ce5fd22d4a775a85e",
+          "message": "feat: Simplified Dueling Dags - Mutation Recover - Add mutationID and  lastServerAckdMutationID to Client. (#792)\n\nAdd `mutationID` and  `lastServerAckdMutationID` to `Client` and update `initClient` and `persist` to\r\nwrite them appropriately.  These new fields will be used by other clients to determine if a client has \r\npending mutations (persisted local mutations unacknowledged by the server) that it can push on the \r\nother client's behalf.  We will refer to this process as “mutation recovery”, as one client is recovering the\r\n mutations of another client, by reading them from the other client’s perdag stage and pushing on the \r\nother client’s behalf. \r\n\r\nSee [Mutation Recovery design](https://www.notion.so/Mutation-Recovery-Avoiding-Mutation-Loss-using-PerDag-state-f54025b52cbc435692abca3307947d15). \r\n\r\nPart of #671",
+          "timestamp": "2022-01-26T10:16:01-08:00",
+          "tree_id": "a651b0b7764a81fc88b50a42970476f92f615103",
+          "url": "https://github.com/rocicorp/replicache/commit/931c9bb00d2667a0ea2ab98ce5fd22d4a775a85e"
+        },
+        "date": 1643221018431,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 142171,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 25975,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 140893,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 25638,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 68089,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18286,
             "unit": "bytes"
           }
         ]

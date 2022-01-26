@@ -266,27 +266,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   /**
    * This gets called when we get an HTTP unauthorized (401) response from the
-   * pull endpoint. Set this to a function that will ask your user to
-   * reauthenticate.
-   * @deprecated Use [[getAuth]] instead.
-   */
-  getPullAuth:
-    | (() => MaybePromise<string | null | undefined>)
-    | null
-    | undefined = null;
-
-  /**
-   * This gets called when we get an HTTP unauthorized (401) response from the push
-   * endpoint. Set this to a function that will ask your user to reauthenticate.
-   * @deprecated Use [[getAuth]] instead.
-   */
-  getPushAuth:
-    | (() => MaybePromise<string | null | undefined>)
-    | null
-    | undefined = null;
-
-  /**
-   * This gets called when we get an HTTP unauthorized (401) response from the
    * push or pull endpoint. Set this to a function that will ask your user to
    * reauthenticate.
    */
@@ -826,15 +805,12 @@ export class Replicache<MD extends MutatorDefs = {}> {
         // TODO: Add back support for mutationInfos? We used to log all the errors
         // here.
 
-        if (reauth && (this.getAuth || this.getPushAuth)) {
+        if (reauth && this.getAuth) {
           if (maxAuthTries === 0) {
             this._logger.info?.('Tried to reauthenticate too many times');
             return false;
           }
-          const auth = await (this.getAuth
-            ? this.getAuth()
-            : // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              this.getPushAuth!());
+          const auth = await this.getAuth();
           if (auth !== null && auth !== undefined) {
             this.auth = auth;
             // Try again now instead of waiting for next push.
@@ -942,7 +918,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       this.pullURL,
       this._logger,
     );
-    if (reauth && (this.getAuth || this.getPullAuth)) {
+    if (reauth && this.getAuth) {
       if (maxAuthTries === 0) {
         this._logger.info?.('Tried to reauthenticate too many times');
         return {requestID, syncHead: emptyHash, ok: false};
@@ -952,8 +928,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       try {
         // Don't want to say we are syncing when we are waiting for auth
         this._changeSyncCounters(0, -1);
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        auth = await (this.getAuth ? this.getAuth() : this.getPullAuth!());
+        auth = await this.getAuth();
       } finally {
         this._changeSyncCounters(0, 1);
       }

@@ -860,15 +860,15 @@ test('reauth push', async () => {
   });
 
   const consoleErrorStub = sinon.stub(console, 'error');
-  const getPushAuthFake = sinon.fake.returns(null);
-  rep.getPushAuth = getPushAuthFake;
+  const getAuthFake = sinon.fake.returns(null);
+  rep.getAuth = getAuthFake;
 
   await tickAFewTimes();
 
   fetchMock.post(pushURL, {body: 'xxx', status: httpStatusUnauthorized});
 
   await rep.mutate.noop();
-  await tickUntil(() => getPushAuthFake.callCount > 0, 1);
+  await tickUntil(() => getAuthFake.callCount > 0, 1);
 
   expect(consoleErrorStub.firstCall.args[0]).to.equal(
     'Got error response from server (https://diff.com/push) doing push: 401: xxx',
@@ -878,8 +878,8 @@ test('reauth push', async () => {
     await tickAFewTimes();
 
     const consoleInfoStub = sinon.stub(console, 'info');
-    const getPushAuthFake = sinon.fake(() => 'boo');
-    rep.getPushAuth = getPushAuthFake;
+    const getAuthFake = sinon.fake(() => 'boo');
+    rep.getAuth = getAuthFake;
 
     await rep.mutate.noop();
     await tickUntil(() => consoleInfoStub.callCount > 0, 1);

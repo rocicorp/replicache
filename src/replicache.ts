@@ -42,6 +42,7 @@ import {
 import {Lock} from './rw-lock';
 import * as persist from './persist/mod';
 import {requestIdle} from './request-idle';
+import type {HTTPRequestInfo} from './http-request-info';
 
 export type BeginPullResult = {
   requestID: string;
@@ -72,7 +73,7 @@ export function makeIdbName(name: string, schemaVersion?: string): string {
 }
 
 /**
- * The maximum number of time to call out to getDataLayerAuth before giving up
+ * The maximum number of time to call out to getAuth before giving up
  * and throwing an error.
  */
 export const MAX_REAUTH_TRIES = 8;
@@ -334,7 +335,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this._pushConnectionLoop = new ConnectionLoop(
       new PushDelegate(
         this,
-        () => this._invokePush(MAX_REAUTH_TRIES),
+        () => this._invokePush(),
         getLogger(['PUSH'], logLevel),
       ),
     );
@@ -707,7 +708,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     return await this._wrapInOnlineCheck(async () => {
       try {
         this._changeSyncCounters(0, 1);
-        const beginPullResult = await this._beginPull(MAX_REAUTH_TRIES);
+        const beginPullResult = await this._beginPull();
         if (!beginPullResult.ok) {
           return false;
         }
@@ -762,66 +763,110 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
   }
 
-  protected async _invokePush(maxAuthTries: number): Promise<boolean> {
+  private async _wrapInReauthRetries<R>(
+    f: () => Promise<{
+      httpRequestInfo: HTTPRequestInfo | undefined;
+      result: R;
+    }>,
+    verb: string,
+    serverURL: string,
+    preAuth: () => MaybePromise<void> = noop,
+    postAuth: () => MaybePromise<void> = noop,
+  ): Promise<{
+    result: R;
+    authFailure: boolean;
+  }> {
+    let reauthAttempts = 0;
+    let lastResult;
+    do {
+      const {httpRequestInfo, result} = await f();
+      lastResult = result;
+      if (!httpRequestInfo) {
+        return {
+          result,
+          authFailure: false,
+        };
+      }
+      const {errorMessage, httpStatusCode} = httpRequestInfo;
+
+      if (errorMessage || httpStatusCode >= 400) {
+        // TODO(arv): Maybe we should not log the server URL when the error comes
+        // from a Pusher/Puller?
+        this._logger.error?.(
+          `Got error response from server (${serverURL}) doing ${verb}: ${httpStatusCode}` +
+            (errorMessage ? `: ${errorMessage}` : ''),
+        );
+      }
+      if (httpStatusCode !== httpStatusUnauthorized) {
+        return {
+          result,
+          authFailure: false,
+        };
+      }
+      if (!this.getAuth) {
+        return {
+          result,
+          authFailure: true,
+        };
+      }
+      let auth;
+      try {
+        await preAuth();
+        auth = await this.getAuth();
+      } finally {
+        await postAuth();
+      }
+      if (auth === null || auth === undefined) {
+        return {
+          result,
+          authFailure: true,
+        };
+      }
+      this.auth = auth;
+      reauthAttempts++;
+    } while (reauthAttempts < MAX_REAUTH_TRIES);
+    this._logger.info?.('Tried to reauthenticate too many times');
+    return {
+      result: lastResult,
+      authFailure: true,
+    };
+  }
+
+  protected async _invokePush(): Promise<boolean> {
     if (this.pushURL === '' && this.pusher === defaultPusher) {
       return true;
     }
-    return await this._wrapInOnlineCheck(async () => {
-      let pushResponse;
-      try {
-        this._changeSyncCounters(1, 0);
-        await this._ready;
-        const clientID = await this._clientIDPromise;
-        const requestID = sync.newRequestID(clientID);
-        const lc = this._lc
-          .addContext('rpc', 'push')
-          .addContext('request_id', requestID);
-        pushResponse = await sync.push(
-          requestID,
-          this._memdag,
-          lc,
-          clientID,
-          this.pusher,
-          this.pushURL,
-          this.auth,
-          this.schemaVersion,
-        );
-      } finally {
-        this._changeSyncCounters(-1, 0);
-      }
 
-      const httpRequestInfo = pushResponse;
-
-      if (httpRequestInfo) {
-        const reauth = checkStatus(
-          httpRequestInfo,
-          'push',
-          this.pushURL,
-          this._logger,
-        );
-
-        // TODO: Add back support for mutationInfos? We used to log all the errors
-        // here.
-
-        if (reauth && this.getAuth) {
-          if (maxAuthTries === 0) {
-            this._logger.info?.('Tried to reauthenticate too many times');
-            return false;
+    return this._wrapInOnlineCheck(async () => {
+      const {result: pushResponse} = await this._wrapInReauthRetries(
+        async () => {
+          await this._ready;
+          const clientID = await this._clientIDPromise;
+          const requestID = sync.newRequestID(clientID);
+          const lc = this._lc
+            .addContext('rpc', 'push')
+            .addContext('request_id', requestID);
+          try {
+            this._changeSyncCounters(1, 0);
+            const pushResponse = await sync.push(
+              requestID,
+              this._memdag,
+              lc,
+              clientID,
+              this.pusher,
+              this.pushURL,
+              this.auth,
+              this.schemaVersion,
+            );
+            return {result: pushResponse, httpRequestInfo: pushResponse};
+          } finally {
+            this._changeSyncCounters(-1, 0);
           }
-          const auth = await this.getAuth();
-          if (auth !== null && auth !== undefined) {
-            this.auth = auth;
-            // Try again now instead of waiting for next push.
-            return await this._invokePush(maxAuthTries - 1);
-          }
-        }
-
-        return httpRequestInfo.httpStatusCode === 200;
-      }
-
-      // No httpRequestInfo means we didn't do a push because there were no
-      // pending mutations.
-      return true;
+        },
+        'push',
+        this.pushURL,
+      );
+      return pushResponse === undefined || pushResponse.httpStatusCode === 200;
     }, 'Push');
   }
 
@@ -885,58 +930,43 @@ export class Replicache<MD extends MutatorDefs = {}> {
     });
   }
 
-  protected async _beginPull(maxAuthTries: number): Promise<BeginPullResult> {
-    await this._ready;
-    const clientID = await this._clientIDPromise;
+  protected async _beginPull(): Promise<BeginPullResult> {
+    const {
+      result: {beginPullResponse, requestID},
+    } = await this._wrapInReauthRetries(
+      async () => {
+        await this._ready;
+        const clientID = await this._clientIDPromise;
 
-    const requestID = sync.newRequestID(clientID);
-    const lc = this._lc
-      .addContext('rpc', 'beginPull')
-      .addContext('request_id', requestID);
-    const req = {
-      pullAuth: this.auth,
-      pullURL: this.pullURL,
-      schemaVersion: this.schemaVersion,
-      puller: this.puller,
-    };
-    const beginPullResponse = await sync.beginPull(
-      clientID,
-      req,
-      req.puller,
-      requestID,
-      this._memdag,
-      lc,
-    );
-
-    const {httpRequestInfo, syncHead} = beginPullResponse;
-
-    const reauth = checkStatus(
-      httpRequestInfo,
+        const requestID = sync.newRequestID(clientID);
+        const lc = this._lc
+          .addContext('rpc', 'beginPull')
+          .addContext('request_id', requestID);
+        const req = {
+          pullAuth: this.auth,
+          pullURL: this.pullURL,
+          schemaVersion: this.schemaVersion,
+          puller: this.puller,
+        };
+        const beginPullResponse = await sync.beginPull(
+          clientID,
+          req,
+          req.puller,
+          requestID,
+          this._memdag,
+          lc,
+        );
+        return {
+          result: {beginPullResponse, requestID},
+          httpRequestInfo: beginPullResponse.httpRequestInfo,
+        };
+      },
       'pull',
       this.pullURL,
-      this._logger,
+      () => this._changeSyncCounters(0, -1),
+      () => this._changeSyncCounters(0, 1),
     );
-    if (reauth && this.getAuth) {
-      if (maxAuthTries === 0) {
-        this._logger.info?.('Tried to reauthenticate too many times');
-        return {requestID, syncHead: emptyHash, ok: false};
-      }
-
-      let auth;
-      try {
-        // Don't want to say we are syncing when we are waiting for auth
-        this._changeSyncCounters(0, -1);
-        auth = await this.getAuth();
-      } finally {
-        this._changeSyncCounters(0, 1);
-      }
-      if (auth !== null && auth !== undefined) {
-        this.auth = auth;
-        // Try again now instead of waiting for next pull.
-        return await this._beginPull(maxAuthTries - 1);
-      }
-    }
-
+    const {syncHead, httpRequestInfo} = beginPullResponse;
     return {requestID, syncHead, ok: httpRequestInfo.httpStatusCode === 200};
   }
 
@@ -1205,24 +1235,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
       return {result, ref};
     });
   }
-}
-
-function checkStatus(
-  data: {httpStatusCode: number; errorMessage: string},
-  verb: string,
-  serverURL: string,
-  logger: Logger,
-): boolean {
-  const {httpStatusCode, errorMessage} = data;
-  if (errorMessage || httpStatusCode >= 400) {
-    // TODO(arv): Maybe we should not log the server URL when the error comes
-    // from a Pusher/Puller?
-    logger.error?.(
-      `Got error response from server (${serverURL}) doing ${verb}: ${httpStatusCode}` +
-        (errorMessage ? `: ${errorMessage}` : ''),
-    );
-  }
-  return httpStatusCode === httpStatusUnauthorized;
 }
 
 const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';

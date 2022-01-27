@@ -524,8 +524,9 @@ test('begin try pull', async () => {
       } else {
         const gotHead = await read.getHead(SYNC_HEAD_NAME);
         expect(gotHead).to.be.undefined;
-        // When  nop sync we except Beginpull to succeed but sync_head will
-        // be empty.
+        // When createSyncBranch is false or sync is a noop (empty patch,
+        // same last mutation id, same cookie) we except Beginpull to succeed
+        // but sync_head will be empty.
         if (typeof c.expBeginPullResult !== 'string') {
           assertObject(result);
           expect(result.syncHead).to.be.equal(emptyHash);

@@ -44,11 +44,6 @@ export type BeginPullRequest = {
   puller: Puller;
 };
 
-export type BeginPullResponse = {
-  httpRequestInfo: HTTPRequestInfo;
-  syncHead: Hash;
-};
-
 export async function beginPull(
   clientID: string,
   beginPullReq: BeginPullRequest,
@@ -56,7 +51,7 @@ export async function beginPull(
   requestID: string,
   store: dag.Store,
   lc: LogContext,
-): Promise<BeginPullResponse> {
+): Promise<PullerResult> {
   const {pullURL, pullAuth, schemaVersion} = beginPullReq;
 
   const baseSnapshot = await store.withRead(async dagRead => {
@@ -78,7 +73,7 @@ export async function beginPull(
   };
   lc.debug?.('Starting pull...');
   const pullStart = Date.now();
-  const {response, httpRequestInfo} = await callPuller(
+  const pullerResult = await callPuller(
     puller,
     pullURL,
     pullReq,
@@ -87,28 +82,12 @@ export async function beginPull(
   );
 
   lc.debug?.(
-    `...Pull ${response ? 'complete' : 'failed'} in `,
+    `...Pull ${pullerResult.response ? 'complete' : 'failed'} in `,
     Date.now() - pullStart,
     'ms',
   );
 
-  // If Puller did not get a pull response we still want to return the HTTP
-  // request info to the JS SDK.
-  if (!response) {
-    return {
-      httpRequestInfo,
-      syncHead: emptyHash,
-    };
-  }
-
-  const syncHead = await handlePullResponse(lc, store, baseCookie, response);
-  if (syncHead === null) {
-    throw new Error('Overlapping sync JsLogInfo');
-  }
-  return {
-    httpRequestInfo,
-    syncHead,
-  };
+  return pullerResult;
 }
 
 // Returns new sync head, or null if response did not apply due to mismatched cookie.

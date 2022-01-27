@@ -54,6 +54,13 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
   schemaVersion?: string;
 
   /**
+   * Previous schema versions of this application's data. This enables recovery
+   * of pending mutations from and garbage collection of data persisted
+   * with one of these schema versions.
+   */
+  previousSchemaVersions?: string[];
+
+  /**
    * The duration between each [[pull]]. Set this to `null` to prevent pulling
    * in the background.
    */

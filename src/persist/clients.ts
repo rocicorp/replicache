@@ -2,15 +2,15 @@ import {assertHash, Hash, hashOf} from '../hash';
 import * as btree from '../btree/mod';
 import * as dag from '../dag/mod';
 import * as db from '../db/mod';
+import type * as sync from '../sync/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {assertNotUndefined, assertNumber, assertObject} from '../asserts';
 import {hasOwn} from '../has-own';
-import type {ClientID} from '../sync/client-id';
 import {uuid as makeUuid} from '../sync/uuid';
 import {getRefs, newSnapshotCommitData} from '../db/commit';
 import type {MaybePromise} from '../mod';
 
-export type ClientMap = ReadonlyMap<ClientID, Client>;
+export type ClientMap = ReadonlyMap<sync.ClientID, Client>;
 
 export type Client = {
   /**
@@ -113,7 +113,7 @@ async function getClientsAtHash(
 }
 
 export async function getClient(
-  id: ClientID,
+  id: sync.ClientID,
   dagRead: dag.Read,
 ): Promise<Client | undefined> {
   const clients = await getClients(dagRead);
@@ -122,7 +122,7 @@ export async function getClient(
 
 export async function initClient(
   dagStore: dag.Store,
-): Promise<[ClientID, Client]> {
+): Promise<[sync.ClientID, Client]> {
   const newClientID = makeUuid();
   const updatedClients = await updateClients(async clients => {
     let bootstrapClient: Client | undefined;

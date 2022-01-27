@@ -76,7 +76,7 @@ export function makeIdbName(name: string, schemaVersion?: string): string {
  * The maximum number of time to call out to getAuth before giving up
  * and throwing an error.
  */
-export const MAX_REAUTH_TRIES = 8;
+const MAX_REAUTH_TRIES = 8;
 
 const PERSIST_TIMEOUT = 1000;
 

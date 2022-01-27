@@ -1,9 +1,4 @@
-import {
-  MutatorDefs,
-  Replicache,
-  BeginPullResult,
-  MAX_REAUTH_TRIES,
-} from './replicache';
+import {MutatorDefs, Replicache, BeginPullResult} from './replicache';
 import type {ReplicacheOptions} from './replicache-options';
 import * as kv from './kv/mod';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
@@ -20,17 +15,17 @@ export class ReplicacheTest<
   // eslint-disable-next-line @typescript-eslint/ban-types
   MD extends MutatorDefs = {},
 > extends Replicache<MD> {
-  beginPull(maxAuthTries = MAX_REAUTH_TRIES): Promise<BeginPullResult> {
-    return super._beginPull(maxAuthTries);
+  beginPull(): Promise<BeginPullResult> {
+    return super._beginPull();
   }
 
   maybeEndPull(beginPullResult: BeginPullResult): Promise<void> {
     return super._maybeEndPull(beginPullResult);
   }
 
-  invokePush(maxAuthTries: number): Promise<boolean> {
+  invokePush(): Promise<boolean> {
     // indirection to allow test to spy on it.
-    return super._invokePush(maxAuthTries);
+    return super._invokePush();
   }
 
   protected override _memdagHashFunction(): <V extends ReadonlyJSONValue>(
@@ -39,14 +34,12 @@ export class ReplicacheTest<
     return makeNewTempHashFunction();
   }
 
-  protected override _invokePush(maxAuthTries: number): Promise<boolean> {
-    return this.invokePush(maxAuthTries);
+  protected override _invokePush(): Promise<boolean> {
+    return this.invokePush();
   }
 
-  protected override _beginPull(
-    maxAuthTries: number,
-  ): Promise<BeginPullResult> {
-    return this.beginPull(maxAuthTries);
+  protected override _beginPull(): Promise<BeginPullResult> {
+    return this.beginPull();
   }
 
   persist() {

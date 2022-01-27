@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643300537885,
+  "lastUpdate": 1643305603788,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -66679,6 +66679,100 @@ window.BENCHMARK_DATA = {
             "range": "±6.6%",
             "unit": "MB/s",
             "extra": "17 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "09be25008105ff50a3fb8b97effa99c0a2c65d00",
+          "message": "feat: Simplified Dueling Dags - Mutation Recovery - Add an optional parameter to beingPull for disabling the creation of a sync branch from the pull response (#798)\n\nFor Mutation Recover we need to be able to pull to confirm mutations have been applied on the server by \r\nlooking at the responses `lastMutationID`, but we do not want to apply the response to the DAG.  Add an \r\noption to beginPull to not create a sync branch from the pull response.\r\n\r\nAlso add the `PullResponse` to `BeginPullResponse`, as it will be need by Mutation Recovery to get the \r\n`lastMutationID`. \r\n\r\nPart of #671",
+          "timestamp": "2022-01-27T09:41:37-08:00",
+          "tree_id": "e3ddf924293db282515f45b49ec9bcd548e15df3",
+          "url": "https://github.com/rocicorp/replicache/commit/09be25008105ff50a3fb8b97effa99c0a2c65d00"
+        },
+        "date": 1643305603481,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 666.67,
+            "range": "±2.1%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 370.37,
+            "range": "±2.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 312.5,
+            "range": "±2.2%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 19.38,
+            "range": "±38.0%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 9.83,
+            "range": "±27.7%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 7.42,
+            "range": "±26.6%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 336.75,
+            "range": "±6.0%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 3.82,
+            "range": "±80.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.75,
+            "range": "±171.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 3.33,
+            "range": "±4.5%",
+            "unit": "MB/s",
+            "extra": "16 samples"
           }
         ]
       }

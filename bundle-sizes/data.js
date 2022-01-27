@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643299469414,
+  "lastUpdate": 1643300439978,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -4073,6 +4073,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 18218,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c36f0d53f711f31a095aea4a1e9b5b53b7227426",
+          "message": "refactor: Extract reauth retry logic from push and pull into shared method. (#797)\n\nExtract reauth retry logic from push and pull into shared method.  This reduces duplication and also will allow for reuse of this logic for mutation recovery.",
+          "timestamp": "2022-01-27T08:19:43-08:00",
+          "tree_id": "1f46e28ce4482de6a95f7a34917e30afa834ba3b",
+          "url": "https://github.com/rocicorp/replicache/commit/c36f0d53f711f31a095aea4a1e9b5b53b7227426"
+        },
+        "date": 1643300438484,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 142199,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 26030,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 140921,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 25684,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 68081,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18288,
             "unit": "bytes"
           }
         ]

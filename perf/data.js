@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643221297575,
+  "lastUpdate": 1643299715643,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -66491,6 +66491,100 @@ window.BENCHMARK_DATA = {
             "range": "±28.3%",
             "unit": "MB/s",
             "extra": "13 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "60391d56ba0a4ffb1b37764a18e04033203f84ce",
+          "message": "refactor!: Remove deprecated pushAuth/getPushAuth and pullAuth/getPullAuth (#796)\n\nRemoves `Replicache.getPushAuth` and `Replicache.getPullAuth` which were deprecated and replaced by `Replicache.getAuth`.\r\nRemoves `ReplicacheOptions.pushAuth` and `ReplicacheOptions.pullAuth` which were deprecated and replaced by `ReplicacheOptions.auth`. \r\n\r\nThese fields were deprecated by 9c3a49bc4b16924a3d8e0af5bbd4208156d20174, and have been deprecated since release [v6.4.0](https://github.com/rocicorp/replicache/releases/tag/v6.4.0).  \r\n \r\nThis will make some work on mutation recovery cleaner.\r\n\r\nBREAKING CHANGE: Removes `Replicache#getPushAuth` and `Replicache#getPullAuth`.  Usages should be updated to use `Replicache#getAuth`. Removes `ReplicacheOptions.pushAuth` and `ReplicacheOptions.pullAuth`.  Usages should be updated to use `ReplicacheOptions.auth`.",
+          "timestamp": "2022-01-27T08:03:24-08:00",
+          "tree_id": "9a04c9e9ff9b5dd5ae43a0df023b927ac4e36977",
+          "url": "https://github.com/rocicorp/replicache/commit/60391d56ba0a4ffb1b37764a18e04033203f84ce"
+        },
+        "date": 1643299715333,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 714.29,
+            "range": "±2.4%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 384.62,
+            "range": "±2.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 333.33,
+            "range": "±1.6%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 18.67,
+            "range": "±43.9%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 9.11,
+            "range": "±51.9%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 7.41,
+            "range": "±34.2%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 315.02,
+            "range": "±4.8%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 3.71,
+            "range": "±71.5%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.73,
+            "range": "±177.1%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 3.67,
+            "range": "±6.3%",
+            "unit": "MB/s",
+            "extra": "17 samples"
           }
         ]
       }

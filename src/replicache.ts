@@ -866,6 +866,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
         'push',
         this.pushURL,
       );
+      // No pushResponse means we didn't do a push because there were no
+      // pending mutations.
       return pushResponse === undefined || pushResponse.httpStatusCode === 200;
     }, 'Push');
   }

@@ -19,7 +19,7 @@ type FakePusherArgs = {
   expPush: boolean;
   expPushReq?: PushRequest;
   expPushURL: string;
-  expPushAuth: string;
+  expAuth: string;
   expRequestID: string;
   err?: string;
 };
@@ -35,7 +35,7 @@ function makeFakePusher(options: FakePusherArgs): Pusher {
       expect(new URL(options.expPushURL, location.href).toString()).to.equal(
         req.url,
       );
-      expect(options.expPushAuth).to.equal(req.headers.get('Authorization'));
+      expect(options.expAuth).to.equal(req.headers.get('Authorization'));
       expect(options.expRequestID).to.equal(
         req.headers.get('X-Replicache-RequestID'),
       );
@@ -71,7 +71,7 @@ test('try push', async () => {
 
   const requestID = 'request_id';
   const clientID = 'test_client_id';
-  const pushAuth = 'push_auth';
+  const auth = 'auth';
 
   // Push
   const pushURL = 'push_url';
@@ -229,7 +229,7 @@ test('try push', async () => {
       expPush,
       expPushReq: c.expPushReq,
       expPushURL: pushURL,
-      expPushAuth: pushAuth,
+      expAuth: auth,
       expRequestID: requestID,
       err: pushErr,
     });
@@ -242,7 +242,7 @@ test('try push', async () => {
       clientID,
       pusher,
       pushURL,
-      pushAuth,
+      auth,
       pushSchemaVersion,
     );
 

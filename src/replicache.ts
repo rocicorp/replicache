@@ -276,9 +276,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const {
       name,
       logLevel = 'info',
-      pullAuth,
       pullURL = '',
-      pushAuth,
       auth,
       pushDelay = 10,
       pushURL = '',
@@ -290,7 +288,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       pusher = defaultPusher,
       experimentalKVStore,
     } = options;
-    this.auth = auth ?? pullAuth ?? pushAuth ?? '';
+    this.auth = auth ?? '';
     this.pullURL = pullURL;
     this.pushURL = pushURL;
     if (name === '') {

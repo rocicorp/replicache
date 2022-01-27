@@ -49,7 +49,7 @@ export async function push(
   clientID: string,
   pusher: Pusher,
   pushURL: string,
-  pushAuth: string,
+  auth: string,
   schemaVersion: string,
 ): Promise<HTTPRequestInfo | undefined> {
   // Find pending commits between the base snapshot and the main head and push
@@ -88,7 +88,7 @@ export async function push(
       pusher,
       pushURL,
       pushReq,
-      pushAuth,
+      auth,
       requestID,
     );
     lc.debug?.('...Push complete in ', Date.now() - pushStart, 'ms');

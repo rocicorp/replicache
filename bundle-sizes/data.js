@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643221020088,
+  "lastUpdate": 1643299469414,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -4019,6 +4019,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 18286,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "60391d56ba0a4ffb1b37764a18e04033203f84ce",
+          "message": "refactor!: Remove deprecated pushAuth/getPushAuth and pullAuth/getPullAuth (#796)\n\nRemoves `Replicache.getPushAuth` and `Replicache.getPullAuth` which were deprecated and replaced by `Replicache.getAuth`.\r\nRemoves `ReplicacheOptions.pushAuth` and `ReplicacheOptions.pullAuth` which were deprecated and replaced by `ReplicacheOptions.auth`. \r\n\r\nThese fields were deprecated by 9c3a49bc4b16924a3d8e0af5bbd4208156d20174, and have been deprecated since release [v6.4.0](https://github.com/rocicorp/replicache/releases/tag/v6.4.0).  \r\n \r\nThis will make some work on mutation recovery cleaner.\r\n\r\nBREAKING CHANGE: Removes `Replicache#getPushAuth` and `Replicache#getPullAuth`.  Usages should be updated to use `Replicache#getAuth`. Removes `ReplicacheOptions.pushAuth` and `ReplicacheOptions.pullAuth`.  Usages should be updated to use `ReplicacheOptions.auth`.",
+          "timestamp": "2022-01-27T08:03:24-08:00",
+          "tree_id": "9a04c9e9ff9b5dd5ae43a0df023b927ac4e36977",
+          "url": "https://github.com/rocicorp/replicache/commit/60391d56ba0a4ffb1b37764a18e04033203f84ce"
+        },
+        "date": 1643299467192,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 141875,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 25915,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 140597,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 25582,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 67873,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18218,
             "unit": "bytes"
           }
         ]

@@ -89,6 +89,7 @@ test('begin try pull', async () => {
 
   type Case = {
     name: string;
+    createSyncBranch?: boolean;
     numPendingMutations: number;
     pullResult: PullResponse | string;
     // BeginPull expectations.
@@ -115,6 +116,17 @@ test('begin try pull', async () => {
         valueMap: goodPullRespValueMap,
         indexes: ['2'],
       },
+      expBeginPullResult: {
+        httpRequestInfo: goodHttpRequestInfo,
+        syncHead: emptyHash,
+      },
+    },
+    {
+      name: '0 pending, createSyncBranch false, pulls new state -> beginpull succeeds w/no synchead',
+      createSyncBranch: false,
+      numPendingMutations: 0,
+      pullResult: goodPullResp,
+      expNewSyncHead: undefined,
       expBeginPullResult: {
         httpRequestInfo: goodHttpRequestInfo,
         syncHead: emptyHash,
@@ -442,6 +454,7 @@ test('begin try pull', async () => {
         requestID,
         store,
         new LogContext(),
+        c.createSyncBranch,
       );
     } catch (e) {
       result = (e as Error).message;
@@ -511,7 +524,7 @@ test('begin try pull', async () => {
       } else {
         const gotHead = await read.getHead(SYNC_HEAD_NAME);
         expect(gotHead).to.be.undefined;
-        // In a nop sync we except Beginpull to succeed but sync_head will
+        // When  nop sync we except Beginpull to succeed but sync_head will
         // be empty.
         if (typeof c.expBeginPullResult !== 'string') {
           assertObject(result);
@@ -525,6 +538,11 @@ test('begin try pull', async () => {
         expect(result.httpRequestInfo).to.deep.equal(
           c.expBeginPullResult.httpRequestInfo,
         );
+        if (typeof c.pullResult === 'object') {
+          expect(result.pullResponse).to.deep.equal(c.pullResult);
+        } else {
+          expect(result.pullResponse).to.be.undefined;
+        }
       } else {
         // use to_debug since some errors cannot be made PartialEq
         expect(result).to.equal(c.expBeginPullResult);

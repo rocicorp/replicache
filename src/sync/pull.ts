@@ -44,6 +44,12 @@ export type BeginPullRequest = {
   puller: Puller;
 };
 
+export type BeginPullResponse = {
+  httpRequestInfo: HTTPRequestInfo;
+  pullResponse?: PullResponse;
+  syncHead: Hash;
+};
+
 export async function beginPull(
   clientID: string,
   beginPullReq: BeginPullRequest,
@@ -51,7 +57,8 @@ export async function beginPull(
   requestID: string,
   store: dag.Store,
   lc: LogContext,
-): Promise<PullerResult> {
+  createSyncBranch = true,
+): Promise<BeginPullResponse> {
   const {pullURL, pullAuth, schemaVersion} = beginPullReq;
 
   const baseSnapshot = await store.withRead(async dagRead => {
@@ -73,7 +80,7 @@ export async function beginPull(
   };
   lc.debug?.('Starting pull...');
   const pullStart = Date.now();
-  const pullerResult = await callPuller(
+  const {response, httpRequestInfo} = await callPuller(
     puller,
     pullURL,
     pullReq,
@@ -82,12 +89,37 @@ export async function beginPull(
   );
 
   lc.debug?.(
-    `...Pull ${pullerResult.response ? 'complete' : 'failed'} in `,
+    `...Pull ${response ? 'complete' : 'failed'} in `,
     Date.now() - pullStart,
     'ms',
   );
 
-  return pullerResult;
+  // If Puller did not get a pull response we still want to return the HTTP
+  // request info to the JS SDK.
+  if (!response) {
+    return {
+      httpRequestInfo,
+      syncHead: emptyHash,
+    };
+  }
+
+  if (!createSyncBranch) {
+    return {
+      httpRequestInfo,
+      pullResponse: response,
+      syncHead: emptyHash,
+    };
+  }
+
+  const syncHead = await handlePullResponse(lc, store, baseCookie, response);
+  if (syncHead === null) {
+    throw new Error('Overlapping sync JsLogInfo');
+  }
+  return {
+    httpRequestInfo,
+    pullResponse: response,
+    syncHead,
+  };
 }
 
 // Returns new sync head, or null if response did not apply due to mismatched cookie.

@@ -850,7 +850,6 @@ test('reauth push', async () => {
 
   const rep = await replicacheForTesting('reauth', {
     pushURL,
-    pushAuth: 'wrong',
     pushDelay: 0,
     mutators: {
       noop() {

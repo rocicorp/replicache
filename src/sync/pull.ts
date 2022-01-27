@@ -46,6 +46,7 @@ export type BeginPullRequest = {
 
 export type BeginPullResponse = {
   httpRequestInfo: HTTPRequestInfo;
+  pullResponse?: PullResponse;
   syncHead: Hash;
 };
 
@@ -56,6 +57,7 @@ export async function beginPull(
   requestID: string,
   store: dag.Store,
   lc: LogContext,
+  createSyncBranch = true,
 ): Promise<BeginPullResponse> {
   const {pullURL, pullAuth, schemaVersion} = beginPullReq;
 
@@ -101,12 +103,21 @@ export async function beginPull(
     };
   }
 
+  if (!createSyncBranch) {
+    return {
+      httpRequestInfo,
+      pullResponse: response,
+      syncHead: emptyHash,
+    };
+  }
+
   const syncHead = await handlePullResponse(lc, store, baseCookie, response);
   if (syncHead === null) {
     throw new Error('Overlapping sync JsLogInfo');
   }
   return {
     httpRequestInfo,
+    pullResponse: response,
     syncHead,
   };
 }

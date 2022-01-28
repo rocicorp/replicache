@@ -1,8 +1,6 @@
 export {persist} from './persist';
 export {startHeartbeats} from './heartbeat';
 export {
-  Client,
-  ClientMap,
   initClient,
   getClients,
   updateClients,
@@ -10,3 +8,5 @@ export {
 } from './clients';
 export {initClientGC} from './client-gc';
 export {IDBDatabasesStore} from './idb-databases-store';
+
+export type {Client, ClientMap} from './clients';

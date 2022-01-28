@@ -56,7 +56,7 @@ export type Poke = {
   pullResponse: PullResponse;
 };
 
-enum MutationRecoveryStatus {
+const enum MutationRecoveryStatus {
   NO_MUTATIONS_TO_RECOVER,
   SUCCESS,
   ERROR,
@@ -295,7 +295,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
     this.name = name;
     this.schemaVersion = schemaVersion;
-    this.previousSchemaVersions = previousSchemaVersions;
+    this._previousSchemaVersions = previousSchemaVersions;
     this.pullInterval = pullInterval;
     this.pushDelay = pushDelay;
     this.puller = puller;
@@ -1185,7 +1185,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         this.schemaVersion,
       );
       if (ok) {
-        for (const schemaVersion of this.previousSchemaVersions) {
+        for (const schemaVersion of this._previousSchemaVersions) {
           const perKvStore = new IDBStore(
             makeIdbName(this.name, this.schemaVersion),
           );

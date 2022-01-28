@@ -43,11 +43,12 @@ export class IDBDatabasesStore {
     this._kvStore = createKVStore(IDB_NAME);
   }
 
-  async addDatabase(db: IndexedDBDatabase): Promise<IndexedDBDatabaseRecord> {
+  async putDatabase(db: IndexedDBDatabase): Promise<IndexedDBDatabaseRecord> {
     return this._kvStore.withWrite(async write => {
       const dbRecord = await this._getDatabases(write);
       dbRecord[db.name] = db;
       await write.put(KEY, dbRecord);
+      await write.commit();
       return dbRecord;
     });
   }

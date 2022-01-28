@@ -387,6 +387,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     this._endHearbeats = persist.startHeartbeats(clientID, this._perdag);
     this._endClientsGC = persist.initClientGC(clientID, this._perdag);
+    void this._recoverMutations();
   }
 
   /**
@@ -1185,6 +1186,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
         this.schemaVersion,
       );
       if (ok) {
+        // TODO: Also check old REPLICACHE_FORMAT_VERSIONs.
+        // Should handle REPLICACHE_FORMAT_VERSIONs > 4 and < current
         for (const schemaVersion of this._previousSchemaVersions) {
           const perKvStore = new IDBStore(
             makeIdbName(this.name, this.schemaVersion),
@@ -1212,17 +1215,17 @@ export class Replicache<MD extends MutatorDefs = {}> {
     perdag: dag.Store,
     schemaVersion: string,
   ): Promise<boolean> {
-    let clientMap: persist.ClientMap = await perdag.withRead(async read => {
-      return await persist.getClients(read);
-    });
-    const clientIdsVisited = new Set<sync.ClientID>();
+    let clientMap: persist.ClientMap = await perdag.withRead(read =>
+      persist.getClients(read),
+    );
+    const clientIDsVisited = new Set<sync.ClientID>();
     let done = false;
     let connectivityError = false;
     while (!done) {
       let newClientMap: persist.ClientMap | undefined;
       for (const [clientID, client] of clientMap) {
-        if (!clientIdsVisited.has(clientID)) {
-          clientIdsVisited.add(clientID);
+        if (!clientIDsVisited.has(clientID)) {
+          clientIDsVisited.add(clientID);
           const result = await this._recoverMutationsOfClient(
             client,
             clientID,
@@ -1230,7 +1233,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
             schemaVersion,
           );
           if (result.status === MutationRecoveryStatus.SUCCESS) {
-            newClientMap = result.newClientMap;
+            ({newClientMap} = result);
             break;
           }
           if (result.status === MutationRecoveryStatus.ERROR && !this.online) {
@@ -1238,11 +1241,15 @@ export class Replicache<MD extends MutatorDefs = {}> {
             break;
           }
         }
-        if (newClientMap) {
-          clientMap = newClientMap;
-        } else {
-          done = true;
-        }
+      }
+      if (newClientMap) {
+        clientMap = newClientMap;
+      } else {
+        // Two cases for done.
+        // 1. Current clientMap was fully iterated without successfully updating
+        //    any clients and obtaining a newClientMap.
+        // 2. A connectivityError was encountered.
+        done = true;
       }
     }
     return !connectivityError;

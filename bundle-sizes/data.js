@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643402091714,
+  "lastUpdate": 1643404489526,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -4289,6 +4289,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 18008,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d939623e76df90efdbfd0116a20201fb0d428aed",
+          "message": "feat: Track Replicache IndexedDB databases in another IndexedDB database for mutation recovery and db gc. (#802)\n\n### Problem\r\nWe need to be able to find old Replicache IndexedDB databases (i.e. databases with previous schema \r\nversions or replicache format versions), so that we can recover mutations from them and also GC them.\r\n\r\n### Solution\r\nKeep track of Replicache IndexedDB databases in a IndexedDB database. \r\n\r\nUnfortunately Firefox does not implement [IDBFactory.databases](https://developer.mozilla.org/en-US/docs/Web/API/IDBFactory/databases), or we would use that api.\r\n\r\nIndexedDB is used over LocalStorage because LocalStorage's lack of concurrency control makes\r\nit very difficult to avoid write clobbering when updating a list or map.",
+          "timestamp": "2022-01-28T13:13:52-08:00",
+          "tree_id": "8ac31a2e70bf642e8b7aff4160a946d19abd7ada",
+          "url": "https://github.com/rocicorp/replicache/commit/d939623e76df90efdbfd0116a20201fb0d428aed"
+        },
+        "date": 1643404487939,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 141850,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 26009,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 140572,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 25649,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 67764,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18219,
             "unit": "bytes"
           }
         ]

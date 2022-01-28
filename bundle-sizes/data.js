@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643389329361,
+  "lastUpdate": 1643402091714,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -4235,6 +4235,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 18302,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8ba35ffca743d3121557939a220b31d597300c4c",
+          "message": "chore: Delete change broadcast code (#801)\n\nIn the new unified storage model of simplified dueling dags changes are shared between \r\ntabs via syncing with the server.   This code is no longer needed, possibly impacting\r\nperformance and causing spurious firing of subscriptions.",
+          "timestamp": "2022-01-28T12:33:57-08:00",
+          "tree_id": "54b8f4d0cf89ee91da25553e5e71fcd3430e2a62",
+          "url": "https://github.com/rocicorp/replicache/commit/8ba35ffca743d3121557939a220b31d597300c4c"
+        },
+        "date": 1643402089455,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 140371,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 25721,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 139093,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 25368,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 67023,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18008,
             "unit": "bytes"
           }
         ]

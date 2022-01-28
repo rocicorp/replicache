@@ -417,7 +417,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this._endClientsGC();
 
     await this._ready;
-    const closingPromises = [this._memdag.close(), this._perdag.close()];
+    const closingPromises = [
+      this._memdag.close(),
+      this._perdag.close(),
+      this._idbDatabases.close(),
+    ];
 
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();

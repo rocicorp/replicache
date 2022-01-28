@@ -52,3 +52,11 @@ test('putDatabase sequence', async () => {
     testName2: testDB2,
   });
 });
+
+test('close closes kv store', async () => {
+  const memstore = new TestMemStore();
+  const store = new IDBDatabasesStore(_ => memstore);
+  expect(memstore.closed).to.be.false;
+  await store.close();
+  expect(memstore.closed).to.be.true;
+});

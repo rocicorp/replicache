@@ -43,7 +43,7 @@ export class IDBDatabasesStore {
     this._kvStore = createKVStore(IDB_NAME);
   }
 
-  async putDatabase(db: IndexedDBDatabase): Promise<IndexedDBDatabaseRecord> {
+  putDatabase(db: IndexedDBDatabase): Promise<IndexedDBDatabaseRecord> {
     return this._kvStore.withWrite(async write => {
       const dbRecord = await this._getDatabases(write);
       dbRecord[db.name] = db;
@@ -57,6 +57,10 @@ export class IDBDatabasesStore {
     return this._kvStore.withRead(async read => {
       return this._getDatabases(read);
     });
+  }
+
+  close(): Promise<void> {
+    return this._kvStore.close();
   }
 
   private async _getDatabases(read: kv.Read): Promise<IndexedDBDatabaseRecord> {

@@ -209,6 +209,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   private readonly _memdag: dag.Store;
   private readonly _perdag: dag.Store;
+  private readonly _idbDatabases: persist.IDBDatabasesStore;
   private _hasPendingSubscriptionRuns = false;
   private readonly _lc: LogContext;
 
@@ -291,6 +292,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       this._memdagHashFunction(),
       assertHash,
     );
+    this._idbDatabases = new persist.IDBDatabasesStore();
 
     // Use a promise-resolve pair so that we have a promise to use even before
     // we call the Open RPC.
@@ -342,7 +344,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
     // If we are currently closing a Replicache instance with the same name,
     // wait for it to finish closing.
     await closingInstances.get(this.name);
-
+    await this._idbDatabases.putDatabase({
+      name: this.idbName,
+      replicacheFormatVersion: REPLICACHE_FORMAT_VERSION,
+      schemaVersion: this.schemaVersion,
+    });
     const [clientID, client] = await persist.initClient(this._perdag);
     resolveClientID(clientID);
     await this._memdag.withWrite(async write => {

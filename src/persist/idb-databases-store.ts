@@ -13,6 +13,8 @@ export type IndexedDBDatabase = {
   schemaVersion: string;
 };
 
+export type IndexedDBDatabaseRecord = Record<IndexDBName, IndexedDBDatabase>;
+
 function assertIndexedDBDatabaseRecord(
   value: unknown,
 ): asserts value is IndexedDBDatabaseRecord {
@@ -31,8 +33,6 @@ function assertIndexedDBDatabase(
   assertNumber(value.replicacheFormatVersion);
   assertString(value.schemaVersion);
 }
-
-export type IndexedDBDatabaseRecord = Record<IndexDBName, IndexedDBDatabase>;
 
 export class IDBDatabasesStore {
   private readonly _kvStore: kv.Store;

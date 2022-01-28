@@ -68,8 +68,8 @@ type ToPromise<P> = P extends Promise<unknown> ? P : Promise<P>;
 
 export function makeIdbName(
   name: string,
-  replicacheFormatVersion: number,
   schemaVersion?: string,
+  replicacheFormatVersion: number = REPLICACHE_FORMAT_VERSION,
 ): string {
   const n = `${name}:${replicacheFormatVersion}`;
   return schemaVersion ? `${n}:${schemaVersion}` : n;
@@ -156,11 +156,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
    * stored.
    */
   get idbName(): string {
-    return makeIdbName(
-      this.name,
-      REPLICACHE_FORMAT_VERSION,
-      this.schemaVersion,
-    );
+    return makeIdbName(this.name, this.schemaVersion);
   }
 
   /** The schema version of the data understood by this application. */
@@ -1190,8 +1186,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
         const perKvStore = new IDBStore(
           makeIdbName(
             database.name,
-            database.replicacheFormatVersion,
             database.schemaVersion,
+            database.replicacheFormatVersion,
           ),
         );
         const perdag = new dag.StoreImpl(

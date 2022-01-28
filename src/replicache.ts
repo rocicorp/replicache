@@ -64,9 +64,6 @@ export type MaybePromise<T> = T | Promise<T>;
 
 type ToPromise<P> = P extends Promise<unknown> ? P : Promise<P>;
 
-/** The key name to use in localStorage when synchronizing changes. */
-const storageKeyName = (name: string) => `/replicache/root/${name}`;
-
 export function makeIdbName(name: string, schemaVersion?: string): string {
   const n = `${name}:${REPLICACHE_FORMAT_VERSION}`;
   return schemaVersion ? `${n}:${schemaVersion}` : n;
@@ -82,24 +79,6 @@ const PERSIST_TIMEOUT = 1000;
 
 const noop = () => {
   // noop
-};
-
-/**
- * This type describes the data we send on the BroadcastChannel when things
- * change.
- */
-type BroadcastData = {
-  root?: string;
-  changedKeys: sync.ChangedKeysMap;
-  index?: string;
-};
-
-/**
- * When using localStorage instead of BroadcastChannel we need to use a JSON
- * string.
- */
-type StorageBroadcastData = Omit<BroadcastData, 'changedKeys'> & {
-  changedKeys: [string, string[]][];
 };
 
 /**
@@ -199,8 +178,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   private _pullConnectionLoop: ConnectionLoop;
   private _pushConnectionLoop: ConnectionLoop;
-
-  private _broadcastChannel?: BroadcastChannel = undefined;
 
   private readonly _subscriptions: SubscriptionSet = new Set();
   private readonly _pendingSubscriptions: SubscriptionSet = new Set();
@@ -376,13 +353,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
     // Now we have both a clientID and DB!
     resolveReady();
 
-    if (hasBroadcastChannel) {
-      this._broadcastChannel = new BroadcastChannel(storageKeyName(this.name));
-      this._broadcastChannel.onmessage = (e: MessageEvent<BroadcastData>) =>
-        this._onBroadcastMessage(e.data);
-    } else {
-      window.addEventListener('storage', this._onStorage);
-    }
     this._root = this._getRoot();
     await this._root;
 
@@ -446,13 +416,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this._pullConnectionLoop.close();
     this._pushConnectionLoop.close();
 
-    if (this._broadcastChannel) {
-      this._broadcastChannel.close();
-      this._broadcastChannel = undefined;
-    } else {
-      window.removeEventListener('storage', this._onStorage);
-    }
-
     // Clear subscriptions
     for (const subscription of this._subscriptions) {
       subscription.onDone?.();
@@ -472,64 +435,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
     return await db.getRoot(this._memdag, db.DEFAULT_HEAD_NAME);
   }
 
-  private _onStorage = (e: StorageEvent) => {
-    const {key, newValue} = e;
-    if (newValue && key === storageKeyName(this.name)) {
-      const {root, changedKeys, index} = JSON.parse(
-        newValue,
-      ) as StorageBroadcastData;
-
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this._onBroadcastMessage({
-        root,
-        changedKeys: new Map(changedKeys),
-        index,
-      });
-    }
-  };
-
-  // Callback for when a different tab changes the db.
-  private async _onBroadcastMessage(data: BroadcastData) {
-    // Cannot just use the root value from the other tab, because it can be behind us.
-    // Also, in the case of memstore, it will have a totally different, unrelated
-    // hash chain.
-    const {changedKeys, index} = data;
-
-    const changedKeysSubs = subscriptionsForChangedKeys(
-      this._subscriptions,
-      changedKeys,
-    );
-
-    const indexSubs = index
-      ? subscriptionsForIndexDefinitionChanged(this._subscriptions, index)
-      : [];
-
-    const subscriptions: Set<Subscription<JSONValue | undefined, unknown>> =
-      new Set();
-    for (const s of changedKeysSubs) {
-      subscriptions.add(s);
-    }
-    for (const s of indexSubs) {
-      subscriptions.add(s);
-    }
-    await this._fireSubscriptions(subscriptions, false);
-  }
-
-  private _broadcastChange(
-    root: Hash | undefined,
-    changedKeys: sync.ChangedKeysMap,
-    index: string | undefined,
-  ) {
-    if (this._broadcastChannel) {
-      const data = {root, changedKeys, index};
-      this._broadcastChannel.postMessage(data);
-    } else {
-      // local storage needs a string...
-      const data = {root, changedKeys: [...changedKeys.entries()], index};
-      localStorage[storageKeyName(this.name)] = JSON.stringify(data);
-    }
-  }
-
   private async _checkChange(
     root: Hash | undefined,
     changedKeys: sync.ChangedKeysMap,
@@ -537,7 +442,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const currentRoot = await this._root; // instantaneous except maybe first time
     if (root !== undefined && root !== currentRoot) {
       this._root = Promise.resolve(root);
-      this._broadcastChange(root, changedKeys, undefined);
       await this._fireOnChange(changedKeys);
     }
   }
@@ -1026,7 +930,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
       name,
     );
     await this._fireSubscriptions(subscriptions, false);
-    this._broadcastChange(await this._root, new Map(), name);
   }
 
   private async _fireSubscriptions(
@@ -1238,8 +1141,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
     });
   }
 }
-
-const hasBroadcastChannel = typeof BroadcastChannel !== 'undefined';
 
 // This map is used to keep track of closing instances of Replicache. When an
 // instance is opening we wait for any currently closing instances.

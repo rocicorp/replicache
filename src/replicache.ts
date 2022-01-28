@@ -175,7 +175,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
 
   /** The schema version of the data understood by this application. */
-  schemaVersion: string;
+  readonly schemaVersion: string;
 
   private _closed = false;
   private _online = true;

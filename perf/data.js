@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643402342217,
+  "lastUpdate": 1643404586303,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -66961,6 +66961,100 @@ window.BENCHMARK_DATA = {
             "range": "±3.3%",
             "unit": "MB/s",
             "extra": "18 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d939623e76df90efdbfd0116a20201fb0d428aed",
+          "message": "feat: Track Replicache IndexedDB databases in another IndexedDB database for mutation recovery and db gc. (#802)\n\n### Problem\r\nWe need to be able to find old Replicache IndexedDB databases (i.e. databases with previous schema \r\nversions or replicache format versions), so that we can recover mutations from them and also GC them.\r\n\r\n### Solution\r\nKeep track of Replicache IndexedDB databases in a IndexedDB database. \r\n\r\nUnfortunately Firefox does not implement [IDBFactory.databases](https://developer.mozilla.org/en-US/docs/Web/API/IDBFactory/databases), or we would use that api.\r\n\r\nIndexedDB is used over LocalStorage because LocalStorage's lack of concurrency control makes\r\nit very difficult to avoid write clobbering when updating a list or map.",
+          "timestamp": "2022-01-28T13:13:52-08:00",
+          "tree_id": "8ac31a2e70bf642e8b7aff4160a946d19abd7ada",
+          "url": "https://github.com/rocicorp/replicache/commit/d939623e76df90efdbfd0116a20201fb0d428aed"
+        },
+        "date": 1643404585871,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 769.23,
+            "range": "±2.4%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 400,
+            "range": "±2.0%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 333.33,
+            "range": "±2.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 17.89,
+            "range": "±40.3%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 9.99,
+            "range": "±33.2%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 7.54,
+            "range": "±33.2%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 348.77,
+            "range": "±6.4%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 3.84,
+            "range": "±88.5%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.75,
+            "range": "±174.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 3.36,
+            "range": "±8.9%",
+            "unit": "MB/s",
+            "extra": "16 samples"
           }
         ]
       }

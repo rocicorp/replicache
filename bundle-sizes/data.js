@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643305378489,
+  "lastUpdate": 1643389329361,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -4151,6 +4151,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/09be25008105ff50a3fb8b97effa99c0a2c65d00"
         },
         "date": 1643305376380,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 142382,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 26067,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 141104,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 25702,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 68159,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18302,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "39007eaf0f075ef6535072d2cc12e16fa7386b92",
+          "message": "refactor!: Update Replicache.schemaVersion to readonly. (#800)\n\nThis should always have been readonly, the schema version of a Replicache instance should be constant through out its life.   Previously modifying this had no effect.\r\n\r\nBREAKING CHANGE:  Code modifying Replicache.schemaVersion must be removed (to resolve TypeScript errors).",
+          "timestamp": "2022-01-28T17:01:02Z",
+          "tree_id": "4dffed004fa86f3e015f8d9d4886944fcb16d584",
+          "url": "https://github.com/rocicorp/replicache/commit/39007eaf0f075ef6535072d2cc12e16fa7386b92"
+        },
+        "date": 1643389326986,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

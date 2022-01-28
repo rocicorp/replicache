@@ -1,4 +1,4 @@
-import {assertNumber, assertObject, assertString} from '../asserts';
+import {assert, assertNumber, assertObject, assertString} from '../asserts';
 import * as kv from '../kv/mod';
 
 const IDB_NAME = 'replicache-dbs';
@@ -22,6 +22,7 @@ function assertIndexedDBDatabaseRecord(
   for (const [name, db] of Object.entries(value)) {
     assertString(name);
     assertIndexedDBDatabase(db);
+    assert(name === db.name);
   }
 }
 

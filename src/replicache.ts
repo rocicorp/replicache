@@ -56,21 +56,6 @@ export type Poke = {
   pullResponse: PullResponse;
 };
 
-const enum MutationRecoveryStatus {
-  NO_MUTATIONS_TO_RECOVER,
-  SUCCESS,
-  ERROR,
-}
-
-type MutationRecoveryResult = {
-  status: MutationRecoveryStatus;
-  /**
-   * When `status` is `SUCCESS`, the new `ClientMap` state, otherwise
-   * `undefined`.
-   */
-  newClientMap?: persist.ClientMap;
-};
-
 export const httpStatusUnauthorized = 401;
 
 const REPLICACHE_FORMAT_VERSION = 3;
@@ -81,8 +66,12 @@ export type MaybePromise<T> = T | Promise<T>;
 
 type ToPromise<P> = P extends Promise<unknown> ? P : Promise<P>;
 
-export function makeIdbName(name: string, schemaVersion?: string): string {
-  const n = `${name}:${REPLICACHE_FORMAT_VERSION}`;
+export function makeIdbName(
+  name: string,
+  replicacheFormatVersion: number,
+  schemaVersion?: string,
+): string {
+  const n = `${name}:${replicacheFormatVersion}`;
   return schemaVersion ? `${n}:${schemaVersion}` : n;
 }
 
@@ -167,7 +156,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
    * stored.
    */
   get idbName(): string {
-    return makeIdbName(this.name, this.schemaVersion);
+    return makeIdbName(
+      this.name,
+      REPLICACHE_FORMAT_VERSION,
+      this.schemaVersion,
+    );
   }
 
   /** The schema version of the data understood by this application. */
@@ -237,6 +230,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private readonly _persistLock = new Lock();
   private _persistIsScheduled = false;
   private _recoveringMutations = false;
+  private _recoveringMutationsPending = false;
 
   /**
    * The options used to control the [[pull]] and push request behavior. This
@@ -279,7 +273,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
       pushDelay = 10,
       pushURL = '',
       schemaVersion = '',
-      previousSchemaVersions = [],
       pullInterval = 60_000,
       mutators = {} as MD,
       requestOptions = {},
@@ -295,7 +288,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
     this.name = name;
     this.schemaVersion = schemaVersion;
-    this._previousSchemaVersions = previousSchemaVersions;
     this.pullInterval = pullInterval;
     this.pushDelay = pushDelay;
     this.puller = puller;
@@ -1174,6 +1166,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   private async _recoverMutations(): Promise<void> {
     if (this._recoveringMutations) {
+      this._recoveringMutationsPending = true;
       return;
     }
     if (!this.online) {
@@ -1181,92 +1174,88 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
     try {
       this._recoveringMutations = true;
-      const ok = await this._recoverMutationsFromPerdag(
-        this._perdag,
-        this.schemaVersion,
-      );
-      if (ok) {
-        // TODO: Also check old REPLICACHE_FORMAT_VERSIONs.
-        // Should handle REPLICACHE_FORMAT_VERSIONs > 4 and < current
-        for (const schemaVersion of this._previousSchemaVersions) {
-          const perKvStore = new IDBStore(
-            makeIdbName(this.name, this.schemaVersion),
-          );
-          const perdag = new dag.StoreImpl(
-            perKvStore,
-            dag.throwChunkHasher,
-            assertNotTempHash,
-          );
-          const ok = await this._recoverMutationsFromPerdag(
-            perdag,
-            schemaVersion,
-          );
-          if (!ok) {
-            break;
-          }
+      await this._ready;
+      await this._recoverMutationsFromPerdag(this._perdag, this.schemaVersion);
+      for (const database of Object.values(
+        await this._idbDatabases.getDatabases(),
+      )) {
+        if (database.name === this.idbName) {
+          continue;
         }
+        if (database.replicacheFormatVersion !== REPLICACHE_FORMAT_VERSION) {
+          // TODO: when REPLICACHE_FORMAT_VERSION is updated
+          // need to also handle previous REPLICACHE_FORMAT_VERSIONs
+          continue;
+        }
+        const perKvStore = new IDBStore(
+          makeIdbName(
+            database.name,
+            database.replicacheFormatVersion,
+            database.schemaVersion,
+          ),
+        );
+        const perdag = new dag.StoreImpl(
+          perKvStore,
+          dag.throwChunkHasher,
+          assertNotTempHash,
+        );
+        await this._recoverMutationsFromPerdag(perdag, database.schemaVersion);
       }
     } finally {
       this._recoveringMutations = false;
+      if (this._recoveringMutationsPending) {
+        this._recoveringMutationsPending = false;
+        void this._recoverMutations();
+      }
     }
   }
 
   private async _recoverMutationsFromPerdag(
     perdag: dag.Store,
     schemaVersion: string,
-  ): Promise<boolean> {
-    let clientMap: persist.ClientMap = await perdag.withRead(read =>
+  ): Promise<void> {
+    let clientMap: persist.ClientMap | undefined = await perdag.withRead(read =>
       persist.getClients(read),
     );
     const clientIDsVisited = new Set<sync.ClientID>();
-    let done = false;
-    let connectivityError = false;
-    while (!done) {
+    while (clientMap) {
       let newClientMap: persist.ClientMap | undefined;
       for (const [clientID, client] of clientMap) {
         if (!clientIDsVisited.has(clientID)) {
           clientIDsVisited.add(clientID);
-          const result = await this._recoverMutationsOfClient(
+          newClientMap = await this._recoverMutationsOfClient(
             client,
             clientID,
             perdag,
             schemaVersion,
           );
-          if (result.status === MutationRecoveryStatus.SUCCESS) {
-            ({newClientMap} = result);
-            break;
-          }
-          if (result.status === MutationRecoveryStatus.ERROR && !this.online) {
-            connectivityError = true;
+          if (newClientMap) {
             break;
           }
         }
       }
-      if (newClientMap) {
-        clientMap = newClientMap;
-      } else {
-        // Two cases for done.
-        // 1. Current clientMap was fully iterated without successfully updating
-        //    any clients and obtaining a newClientMap.
-        // 2. A connectivityError was encountered.
-        done = true;
-      }
+      clientMap = newClientMap;
     }
-    return !connectivityError;
   }
 
+  /**
+   * @returns When mutations are recovered the resulting updated client map.
+   *   Otherwise undefined, which can be because there were no mutations to
+   *   recover, or because an error occurred when trying to recover the
+   *   mutations.
+   */
   private async _recoverMutationsOfClient(
     client: persist.Client,
     clientID: sync.ClientID,
     perdag: dag.Store,
     schemaVersion: string,
-  ): Promise<MutationRecoveryResult> {
-    await this._ready;
-    if ((await this._clientIDPromise) === clientID) {
-      return {status: MutationRecoveryStatus.NO_MUTATIONS_TO_RECOVER};
+  ): Promise<persist.ClientMap | undefined> {
+    const selfClientID = await this._clientIDPromise;
+    if (selfClientID === clientID) {
+      return undefined;
     }
     if (client.lastServerAckdMutationID >= client.mutationID) {
-      return {status: MutationRecoveryStatus.NO_MUTATIONS_TO_RECOVER};
+      return undefined;
     }
     const dagForOtherClient = new dag.LazyStore(
       perdag,
@@ -1304,9 +1293,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
       );
       return !!pushResponse && pushResponse.httpStatusCode === 200;
     }, pushDescription);
-
     if (!pushSucceeded) {
-      return {status: MutationRecoveryStatus.ERROR};
+      return undefined;
     }
 
     const requestID = sync.newRequestID(clientID);
@@ -1321,7 +1309,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
       puller: this.puller,
     };
     let pullResponse: PullResponse | undefined;
-
     const pullSucceeded = this._wrapInOnlineCheck(async () => {
       const {result: beginPullResponse} = await this._wrapInReauthRetries(
         async () => {
@@ -1347,10 +1334,19 @@ export class Replicache<MD extends MutatorDefs = {}> {
         beginPullResponse.httpRequestInfo.httpStatusCode === 200
       );
     }, pullDescription);
-
     if (!pullSucceeded) {
-      return {status: MutationRecoveryStatus.ERROR};
+      return undefined;
     }
+
+    this._lc.debug?.(
+      `Client ${selfClientID} recovered mutations for client ` +
+        `${clientID}.  Details`,
+      {
+        mutationID: client.mutationID,
+        lastServerAckdMutationID: client.lastServerAckdMutationID,
+        lastMutationID: pullResponse?.lastMutationID,
+      },
+    );
     const newClientMap = await persist.updateClients(
       (clients: persist.ClientMap) => {
         assertNotUndefined(pullResponse);
@@ -1370,7 +1366,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       },
       perdag,
     );
-    return {status: MutationRecoveryStatus.SUCCESS, newClientMap};
+    return newClientMap;
   }
 }
 

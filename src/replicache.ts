@@ -209,7 +209,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   private readonly _memdag: dag.Store;
   private readonly _perdag: dag.Store;
-  private readonly _idbDatabases: persist.IDBDatabasesStore;
+  private readonly _idbDatabases: persist.IDBDatabasesStore =
+    new persist.IDBDatabasesStore();
   private _hasPendingSubscriptionRuns = false;
   private readonly _lc: LogContext;
 
@@ -292,7 +293,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
       this._memdagHashFunction(),
       assertHash,
     );
-    this._idbDatabases = new persist.IDBDatabasesStore();
 
     // Use a promise-resolve pair so that we have a promise to use even before
     // we call the Open RPC.

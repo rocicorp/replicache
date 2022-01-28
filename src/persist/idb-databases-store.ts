@@ -5,15 +5,15 @@ const IDB_NAME = 'replicache-dbs';
 const KEY = 'dbs';
 
 // TODO: make an opaque type
-export type IndexDBName = string;
+export type IndexedDBName = string;
 
 export type IndexedDBDatabase = {
-  name: IndexDBName;
+  name: IndexedDBName;
   replicacheFormatVersion: number;
   schemaVersion: string;
 };
 
-export type IndexedDBDatabaseRecord = Record<IndexDBName, IndexedDBDatabase>;
+export type IndexedDBDatabaseRecord = Record<IndexedDBName, IndexedDBDatabase>;
 
 function assertIndexedDBDatabaseRecord(
   value: unknown,
@@ -54,9 +54,7 @@ export class IDBDatabasesStore {
   }
 
   getDatabases(): Promise<IndexedDBDatabaseRecord> {
-    return this._kvStore.withRead(async read => {
-      return this._getDatabases(read);
-    });
+    return this._kvStore.withRead(async read => this._getDatabases(read));
   }
 
   close(): Promise<void> {

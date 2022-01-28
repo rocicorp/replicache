@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643305603788,
+  "lastUpdate": 1643389573942,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -66773,6 +66773,100 @@ window.BENCHMARK_DATA = {
             "range": "±4.5%",
             "unit": "MB/s",
             "extra": "16 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "39007eaf0f075ef6535072d2cc12e16fa7386b92",
+          "message": "refactor!: Update Replicache.schemaVersion to readonly. (#800)\n\nThis should always have been readonly, the schema version of a Replicache instance should be constant through out its life.   Previously modifying this had no effect.\r\n\r\nBREAKING CHANGE:  Code modifying Replicache.schemaVersion must be removed (to resolve TypeScript errors).",
+          "timestamp": "2022-01-28T17:01:02Z",
+          "tree_id": "4dffed004fa86f3e015f8d9d4886944fcb16d584",
+          "url": "https://github.com/rocicorp/replicache/commit/39007eaf0f075ef6535072d2cc12e16fa7386b92"
+        },
+        "date": 1643389573656,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 714.29,
+            "range": "±2.6%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 400,
+            "range": "±1.9%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 322.58,
+            "range": "±1.5%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 19.85,
+            "range": "±96.5%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 9.37,
+            "range": "±18.3%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 7.83,
+            "range": "±42.2%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 361.69,
+            "range": "±4.4%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 3.76,
+            "range": "±72.8%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.7,
+            "range": "±155.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 3.71,
+            "range": "±7.8%",
+            "unit": "MB/s",
+            "extra": "17 samples"
           }
         ]
       }

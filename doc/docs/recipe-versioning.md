@@ -75,9 +75,20 @@ Replicacha uses a unique IndexedDB store for each
 [schemaVersion](/api/interfaces/ReplicacheOptions#schemaversion) and _Replicache
 format version_ tuple. This ensures that the data is not shared between
 differently named Replicache instances as well as that the data in the persisted
-storage can be read by Replicache and the client's Javascript code. It is
-important to remember that if any of these 3 things change then Replicache
-creates a new IndexedDB store.
+storage can be read by Replicache and the client's Javascript code.
 
-If there is an old store with unsynced mutations we will try to push these with
-the versions that the store was created with.
+## Migrating Old Data
+
+It is important to remember that if any of these 3 versions change then
+Replicache will create a new empty IndexedDB store. To prevent data loss,
+Replicache will look for old stores and for every old store Replicache finds it
+will check if there are any pending changes. If there are, then Replicache will
+push and pull with the versions these stores were created with. Once succesfully
+synchronized, Replicache can safely remove them. If Replicache fails to sync
+these stores for an extended period of time then these old stores will be
+removed.
+
+In practice this means that your client code only has to deal with the latest
+format but your server should be able to handle push and pull of older versions.
+How many such old versions dependes on how far back you want to support old
+clients.

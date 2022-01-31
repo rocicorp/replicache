@@ -19,6 +19,7 @@ export type Puller = (request: Request) => Promise<PullerResult>;
  * the JSON you should return from your pull server endpoint.
  */
 export type PullResponse = {
+  // IMPORTANT! If this changes you must bump the PULL_VERSION.
   cookie?: ReadonlyJSONValue;
   lastMutationID: number;
   patch: PatchOperation[];
@@ -41,6 +42,7 @@ export function assertPullResponse(v: unknown): asserts v is PullResponse {
  * to describe how to update the Replicache key-value store.
  */
 export type PatchOperation =
+  // IMPORTANT! If this changes you must bump the PULL_VERSION.
   | {
       op: 'put';
       key: string;

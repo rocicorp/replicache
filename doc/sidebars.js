@@ -31,7 +31,7 @@ module.exports = {
       ],
     },
     {
-      Recipes: ['recipe-blobs'],
+      Recipes: ['recipe-blobs', 'recipe-versioning'],
     },
     {
       Samples: ['sample-chat', 'sample-replidraw'],

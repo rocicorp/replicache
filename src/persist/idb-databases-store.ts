@@ -54,6 +54,13 @@ export class IDBDatabasesStore {
     });
   }
 
+  clear(): Promise<void> {
+    return this._kvStore.withWrite(async write => {
+      await write.del(KEY);
+      await write.commit();
+    });
+  }
+
   getDatabases(): Promise<IndexedDBDatabaseRecord> {
     return this._kvStore.withRead(async read => this._getDatabases(read));
   }

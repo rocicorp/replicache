@@ -265,7 +265,7 @@ test('successfully recovering mutations of multiple clients with mix of schema v
   fetchMock.post(pushURL, 'ok');
   fetchMock.post(
     pullURL,
-    async (url: string, options: RequestInit, request: Request) => {
+    async (_url: string, _options: RequestInit, request: Request) => {
       const requestJson = await request.json();
       assertJSONObject(requestJson);
       pullRequestJsonBodies.push(requestJson);

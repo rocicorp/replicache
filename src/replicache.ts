@@ -58,7 +58,7 @@ export type Poke = {
 
 export const httpStatusUnauthorized = 401;
 
-const REPLICACHE_FORMAT_VERSION = 3;
+export const REPLICACHE_FORMAT_VERSION = 3;
 const LAZY_STORE_SOURCE_CHUNK_CACHE_SIZE_LIMIT = 100 * 2 ** 20; // 100 MB
 const MUTATION_RECOVERY_LAZY_STORE_SOURCE_CHUNK_CACHE_SIZE_LIMIT = 10 * 2 ** 20; // 10 MB
 
@@ -66,12 +66,8 @@ export type MaybePromise<T> = T | Promise<T>;
 
 type ToPromise<P> = P extends Promise<unknown> ? P : Promise<P>;
 
-export function makeIdbName(
-  name: string,
-  schemaVersion?: string,
-  replicacheFormatVersion: number = REPLICACHE_FORMAT_VERSION,
-): string {
-  const n = `${name}:${replicacheFormatVersion}`;
+export function makeIdbName(name: string, schemaVersion?: string): string {
+  const n = `${name}:${REPLICACHE_FORMAT_VERSION}`;
   return schemaVersion ? `${n}:${schemaVersion}` : n;
 }
 
@@ -375,7 +371,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     this._endHearbeats = persist.startHeartbeats(clientID, this._perdag);
     this._endClientsGC = persist.initClientGC(clientID, this._perdag);
-    void this._recoverMutations();
+    await this._recoverMutations();
   }
 
   /**
@@ -1160,7 +1156,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     });
   }
 
-  private async _recoverMutations(): Promise<void> {
+  protected async _recoverMutations(): Promise<void> {
     if (this._recoveringMutations) {
       this._recoveringMutationsPending = true;
       return;
@@ -1183,13 +1179,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
           // need to also handle previous REPLICACHE_FORMAT_VERSIONs
           continue;
         }
-        const perKvStore = new IDBStore(
-          makeIdbName(
-            database.name,
-            database.schemaVersion,
-            database.replicacheFormatVersion,
-          ),
-        );
+        const perKvStore = new IDBStore(database.name);
         const perdag = new dag.StoreImpl(
           perKvStore,
           dag.throwChunkHasher,
@@ -1259,110 +1249,124 @@ export class Replicache<MD extends MutatorDefs = {}> {
       dag.throwChunkHasher,
       assertHash,
     );
-    await dagForOtherClient.withWrite(async write => {
-      await write.setHead(db.DEFAULT_HEAD_NAME, client.headHash);
-      await write.commit();
-    });
+    try {
+      await dagForOtherClient.withWrite(async write => {
+        await write.setHead(db.DEFAULT_HEAD_NAME, client.headHash);
+        await write.commit();
+      });
 
-    const pushRequestID = sync.newRequestID(clientID);
-    const pushDescription = 'recoveringMutationsPush';
-    const pushLC = this._lc
-      .addContext('rpc', pushDescription)
-      .addContext('request_id', pushRequestID);
-    const pushSucceeded = this._wrapInOnlineCheck(async () => {
-      const {result: pushResponse} = await this._wrapInReauthRetries(
-        async () => {
-          const pushResponse = await sync.push(
-            pushRequestID,
-            dagForOtherClient,
-            pushLC,
-            clientID,
-            this.pusher,
-            this.pushURL,
-            this.auth,
-            schemaVersion,
-          );
-          return {result: pushResponse, httpRequestInfo: pushResponse};
+      const pushRequestID = sync.newRequestID(clientID);
+      const pushDescription = 'recoveringMutationsPush';
+      const pushLC = this._lc
+        .addContext('rpc', pushDescription)
+        .addContext('request_id', pushRequestID);
+      const pushSucceeded = await this._wrapInOnlineCheck(async () => {
+        const {result: pushResponse} = await this._wrapInReauthRetries(
+          async () => {
+            const pushResponse = await sync.push(
+              pushRequestID,
+              dagForOtherClient,
+              pushLC,
+              clientID,
+              this.pusher,
+              this.pushURL,
+              this.auth,
+              schemaVersion,
+            );
+            return {result: pushResponse, httpRequestInfo: pushResponse};
+          },
+          pushDescription,
+          this.pushURL,
+        );
+        return !!pushResponse && pushResponse.httpStatusCode === 200;
+      }, pushDescription);
+      if (!pushSucceeded) {
+        this._lc.debug?.(
+          `Client ${selfClientID} failed to recover mutations for client ` +
+            `${clientID} due to a push error.`,
+        );
+        return undefined;
+      }
+
+      const requestID = sync.newRequestID(clientID);
+      const pullDescription = 'recoveringMutationsPull';
+      const pullLC = this._lc
+        .addContext('rpc', pullDescription)
+        .addContext('request_id', requestID);
+      const beginPullRequest = {
+        pullAuth: this.auth,
+        pullURL: this.pullURL,
+        schemaVersion,
+        puller: this.puller,
+      };
+      let pullResponse: PullResponse | undefined;
+      const pullSucceeded = await this._wrapInOnlineCheck(async () => {
+        const {result: beginPullResponse} = await this._wrapInReauthRetries(
+          async () => {
+            const beginPullResponse = await sync.beginPull(
+              clientID,
+              beginPullRequest,
+              beginPullRequest.puller,
+              requestID,
+              dagForOtherClient,
+              pullLC,
+              false,
+            );
+            return {
+              result: beginPullResponse,
+              httpRequestInfo: beginPullResponse.httpRequestInfo,
+            };
+          },
+          pullDescription,
+          this.pullURL,
+        );
+        pullResponse = beginPullResponse.pullResponse;
+        return (
+          !!pullResponse &&
+          beginPullResponse.httpRequestInfo.httpStatusCode === 200
+        );
+      }, pullDescription);
+      if (!pullSucceeded) {
+        this._lc.debug?.(
+          `Client ${selfClientID} failed to recover mutations for client ` +
+            `${clientID} due to a pull error.`,
+        );
+        return undefined;
+      }
+
+      this._lc.debug?.(
+        `Client ${selfClientID} recovered mutations for client ` +
+          `${clientID}.  Details`,
+        {
+          mutationID: client.mutationID,
+          lastServerAckdMutationID: client.lastServerAckdMutationID,
+          lastMutationID: pullResponse?.lastMutationID,
         },
-        pushDescription,
-        this.pushURL,
       );
-      return !!pushResponse && pushResponse.httpStatusCode === 200;
-    }, pushDescription);
-    if (!pushSucceeded) {
-      return undefined;
-    }
-
-    const requestID = sync.newRequestID(clientID);
-    const pullDescription = 'recoveringMutationsPull';
-    const pullLC = this._lc
-      .addContext('rpc', pullDescription)
-      .addContext('request_id', requestID);
-    const beginPullRequest = {
-      pullAuth: this.auth,
-      pullURL: this.pullURL,
-      schemaVersion,
-      puller: this.puller,
-    };
-    let pullResponse: PullResponse | undefined;
-    const pullSucceeded = this._wrapInOnlineCheck(async () => {
-      const {result: beginPullResponse} = await this._wrapInReauthRetries(
-        async () => {
-          const beginPullResponse = await sync.beginPull(
-            clientID,
-            beginPullRequest,
-            beginPullRequest.puller,
-            requestID,
-            dagForOtherClient,
-            pullLC,
-          );
+      const newClientMap = await persist.updateClients(
+        (clients: persist.ClientMap) => {
+          assertNotUndefined(pullResponse);
+          const clientToUpdate = clients.get(clientID);
+          if (
+            !clientToUpdate ||
+            clientToUpdate.lastServerAckdMutationID >=
+              pullResponse.lastMutationID
+          ) {
+            return persist.noClientUpdates;
+          }
           return {
-            result: beginPullResponse,
-            httpRequestInfo: beginPullResponse.httpRequestInfo,
+            clients: new Map(clients).set(clientID, {
+              ...clientToUpdate,
+              lastServerAckdMutationID: pullResponse.lastMutationID,
+            }),
           };
         },
-        pullDescription,
-        this.pullURL,
+        perdag,
       );
-      pullResponse = beginPullResponse.pullResponse;
-      return (
-        !!pullResponse &&
-        beginPullResponse.httpRequestInfo.httpStatusCode === 200
-      );
-    }, pullDescription);
-    if (!pullSucceeded) {
-      return undefined;
+      return newClientMap;
+    } finally {
+      await dagForOtherClient.close();
     }
-
-    this._lc.debug?.(
-      `Client ${selfClientID} recovered mutations for client ` +
-        `${clientID}.  Details`,
-      {
-        mutationID: client.mutationID,
-        lastServerAckdMutationID: client.lastServerAckdMutationID,
-        lastMutationID: pullResponse?.lastMutationID,
-      },
-    );
-    const newClientMap = await persist.updateClients(
-      (clients: persist.ClientMap) => {
-        assertNotUndefined(pullResponse);
-        const clientToUpdate = clients.get(clientID);
-        if (
-          !clientToUpdate ||
-          clientToUpdate.lastServerAckdMutationID >= pullResponse.lastMutationID
-        ) {
-          return persist.noClientUpdates;
-        }
-        return {
-          clients: new Map(clients).set(clientID, {
-            ...clientToUpdate,
-            lastServerAckdMutationID: pullResponse.lastMutationID,
-          }),
-        };
-      },
-      perdag,
-    );
-    return newClientMap;
   }
 }
 

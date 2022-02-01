@@ -1985,7 +1985,7 @@ test('experiment KV Store', async () => {
     mutators: {addData},
   });
 
-  expect(store.readCount).to.equal(2, 'readCount');
+  expect(store.readCount).to.equal(3, 'readCount');
   expect(store.writeCount).to.equal(1, 'writeCount');
   expect(store.closeCount).to.equal(0, 'closeCount');
   store.resetCounters();

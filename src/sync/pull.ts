@@ -80,6 +80,8 @@ export async function beginPull(
   };
   lc.debug?.('Starting pull...');
   const pullStart = Date.now();
+  console.log('pull');
+  console.log(JSON.stringify(pullReq));
   const {response, httpRequestInfo} = await callPuller(
     puller,
     pullURL,
@@ -87,7 +89,7 @@ export async function beginPull(
     pullAuth,
     requestID,
   );
-
+  console.log(JSON.stringify(response));
   lc.debug?.(
     `...Pull ${response ? 'complete' : 'failed'} in `,
     Date.now() - pullStart,

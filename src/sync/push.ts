@@ -76,6 +76,8 @@ export async function push(
         throw new Error('Internal non local pending commit');
       }
     }
+    console.log('pushMutations');
+    console.log(JSON.stringify(pushMutations));
     const pushReq = {
       clientID,
       mutations: pushMutations,

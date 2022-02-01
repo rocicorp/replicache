@@ -1,7 +1,7 @@
 import {assert, assertNumber, assertObject, assertString} from '../asserts';
 import * as kv from '../kv/mod';
 
-const IDB_NAME = 'replicache-dbs';
+export const IDB_DATABASES_DB_NAME = 'replicache-dbs';
 const KEY = 'dbs';
 
 // TODO: make an opaque type
@@ -41,7 +41,7 @@ export class IDBDatabasesStore {
   constructor(
     createKVStore: (name: string) => kv.Store = name => new kv.IDBStore(name),
   ) {
-    this._kvStore = createKVStore(IDB_NAME);
+    this._kvStore = createKVStore(IDB_DATABASES_DB_NAME);
   }
 
   putDatabase(db: IndexedDBDatabase): Promise<IndexedDBDatabaseRecord> {

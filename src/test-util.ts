@@ -5,6 +5,7 @@ import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import * as sinon from 'sinon';
 import type {ReadonlyJSONValue} from './json';
 import {Hash, makeNewTempHashFunction} from './hash';
+import {IDB_DATABASES_DB_NAME} from './persist/mod';
 
 // fetch-mock has invalid d.ts file so we removed that on npm install.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -44,6 +45,10 @@ export class ReplicacheTest<
 
   persist() {
     return super._persist();
+  }
+
+  recoverMutations(): Promise<void> {
+    return super._recoverMutations();
   }
 }
 
@@ -101,6 +106,7 @@ export async function replicacheForTestingNoDefaultURLs<
     ...rest,
   });
   dbsToDrop.add(rep.idbName);
+  dbsToDrop.add(IDB_DATABASES_DB_NAME);
   reps.add(rep);
   // Wait for open to be done.
   await rep.clientID;

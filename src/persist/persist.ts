@@ -29,6 +29,7 @@ export async function persist(
   // 1. Gather all temp chunks from main head on the memdag.
   const [gatheredChunks, mainHeadTempHash, mutationID, lastMutationID] =
     await gatherTempChunks(memdag);
+  console.log(gatheredChunks, mainHeadTempHash, mutationID, lastMutationID);
 
   if (gatheredChunks.size === 0) {
     // Nothing to persist

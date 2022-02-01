@@ -20,6 +20,7 @@ import {uuid} from './sync/uuid';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 import fetchMock from 'fetch-mock/esm/client';
+import {assertJSONObject, JSONObject} from './json';
 
 initReplicacheTesting();
 
@@ -122,18 +123,11 @@ async function testRecoveringMutationsOfClient(schemaVersions: {
 
   fetchMock.reset();
   fetchMock.post(pushURL, 'ok');
-  fetchMock.post(
-    {
-      url: pullURL,
-      body: {clientID: client1ID},
-      matchPartialBody: true,
-    },
-    {
-      cookie: 'cookie1',
-      lastMutationID: client1.mutationID,
-      patch: [],
-    },
-  );
+  fetchMock.post(pullURL, {
+    cookie: 'pull_cookie_1',
+    lastMutationID: client1.mutationID,
+    patch: [],
+  });
 
   await rep.recoverMutations();
 
@@ -157,6 +151,16 @@ async function testRecoveringMutationsOfClient(schemaVersions: {
     ],
     pushVersion: 0,
     schemaVersion: schemaVersionOfClientWPendingMutations,
+  });
+
+  const pullCalls = fetchMock.calls(pullURL);
+  expect(pullCalls.length).to.equal(1);
+  expect(await pullCalls[0].request.json()).to.deep.equal({
+    clientID: client1ID,
+    schemaVersion: schemaVersionOfClientWPendingMutations,
+    cookie: 'cookie_1',
+    lastMutationID: client1.lastServerAckdMutationID,
+    pullVersion: 0,
   });
 
   const updatedClient1 = await testPerdag.withRead(read =>
@@ -256,49 +260,43 @@ test('successfully recovering mutations of multiple clients with mix of schema v
   );
   assertNotUndefined(client4);
 
+  const pullRequestJsonBodies: JSONObject[] = [];
   fetchMock.reset();
   fetchMock.post(pushURL, 'ok');
   fetchMock.post(
-    {
-      url: pullURL,
-      body: {clientID: client1ID},
-      matchPartialBody: true,
-      name: 'pullClient1',
-    },
-    {
-      cookie: 'cookie1',
-      lastMutationID: client1.mutationID,
-      patch: [],
-    },
-  );
-  fetchMock.post(
-    {
-      url: pullURL,
-      body: {clientID: client3ID},
-      matchPartialBody: true,
-      name: 'pullClient3',
-    },
-    {
-      cookie: 'cookie3',
-      lastMutationID: client3.mutationID,
-      patch: [],
-    },
-  );
-  fetchMock.post(
-    {
-      url: pullURL,
-      body: {clientID: client4ID},
-      matchPartialBody: true,
-      name: 'pullClient4',
-    },
-    {
-      cookie: 'cookie4',
-      lastMutationID: client4.mutationID,
-      patch: [],
+    pullURL,
+    async (url: string, options: RequestInit, request: Request) => {
+      const requestJson = await request.json();
+      assertJSONObject(requestJson);
+      pullRequestJsonBodies.push(requestJson);
+      const {clientID} = requestJson;
+      switch (clientID) {
+        case client1ID:
+          return {
+            cookie: 'pull_cookie_1',
+            lastMutationID: client1.mutationID,
+            patch: [],
+          };
+        case client3ID:
+          return {
+            cookie: 'pull_cookie_2',
+            lastMutationID: client3.mutationID,
+            patch: [],
+          };
+        case client4ID:
+          return {
+            cookie: 'pull_cookie_3',
+            lastMutationID: client4.mutationID,
+            patch: [],
+          };
+        default:
+          throw new Error(`Unexpected pull ${requestJson}`);
+      }
     },
   );
 
   await rep.recoverMutations();
+
   const pushCalls = fetchMock.calls(pushURL);
   expect(pushCalls.length).to.equal(3);
   expect(await pushCalls[0].request.json()).to.deep.equal({
@@ -351,6 +349,29 @@ test('successfully recovering mutations of multiple clients with mix of schema v
     ],
     pushVersion: 0,
     schemaVersion: schemaVersionOfClient4,
+  });
+
+  expect(pullRequestJsonBodies.length).to.equal(3);
+  expect(pullRequestJsonBodies[0]).to.deep.equal({
+    clientID: client1ID,
+    schemaVersion: schemaVersionOfClients1Thru3AndClientRecoveringMutations,
+    cookie: 'cookie_1',
+    lastMutationID: client1.lastServerAckdMutationID,
+    pullVersion: 0,
+  });
+  expect(pullRequestJsonBodies[1]).to.deep.equal({
+    clientID: client3ID,
+    schemaVersion: schemaVersionOfClients1Thru3AndClientRecoveringMutations,
+    cookie: 'cookie_1',
+    lastMutationID: client3.lastServerAckdMutationID,
+    pullVersion: 0,
+  });
+  expect(pullRequestJsonBodies[2]).to.deep.equal({
+    clientID: client4ID,
+    schemaVersion: schemaVersionOfClient4,
+    cookie: 'cookie_1',
+    lastMutationID: client4.lastServerAckdMutationID,
+    pullVersion: 0,
   });
 
   const updateClients1Thru3 = await testPerdagForClients1Thru3.withRead(read =>

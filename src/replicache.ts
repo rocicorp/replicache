@@ -1161,7 +1161,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       this._recoveringMutationsPending = true;
       return;
     }
-    if (!this.online) {
+    if (!this.online || this.closed) {
       return;
     }
     try {

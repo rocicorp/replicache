@@ -371,7 +371,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     this._endHearbeats = persist.startHeartbeats(clientID, this._perdag);
     this._endClientsGC = persist.initClientGC(clientID, this._perdag);
-    await this._recoverMutations();
+    //await this._recoverMutations();
   }
 
   /**

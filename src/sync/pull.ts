@@ -87,6 +87,7 @@ export async function beginPull(
     pullAuth,
     requestID,
   );
+
   lc.debug?.(
     `...Pull ${response ? 'complete' : 'failed'} in `,
     Date.now() - pullStart,

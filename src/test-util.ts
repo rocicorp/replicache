@@ -24,7 +24,6 @@ export class ReplicacheTest<
   }
 
   invokePush(): Promise<boolean> {
-    // indirection to allow test to spy on it.
     return super._invokePush();
   }
 
@@ -35,6 +34,7 @@ export class ReplicacheTest<
   }
 
   protected override _invokePush(): Promise<boolean> {
+    // indirection to allow test to spy on it.
     return this.invokePush();
   }
 
@@ -44,6 +44,17 @@ export class ReplicacheTest<
 
   persist() {
     return super._persist();
+  }
+
+  recoverMutationsSpy = sinon.spy(this, 'recoverMutations');
+
+  recoverMutations(): Promise<boolean> {
+    return super._recoverMutations();
+  }
+
+  protected override _recoverMutations(): Promise<boolean> {
+    // indirection to allow test to spy on it.
+    return this.recoverMutations();
   }
 }
 
@@ -60,7 +71,7 @@ export async function closeAllReps(): Promise<void> {
 
 export const dbsToDrop: Set<string> = new Set();
 
-export function deletaAllDatabases(): void {
+export function deleteAllDatabases(): void {
   for (const name of dbsToDrop) {
     indexedDB.deleteDatabase(name);
   }
@@ -125,7 +136,7 @@ export function initReplicacheTesting() {
     sinon.restore();
 
     await closeAllReps();
-    deletaAllDatabases();
+    deleteAllDatabases();
   });
 }
 

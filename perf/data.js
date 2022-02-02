@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643404586303,
+  "lastUpdate": 1643782851890,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -67055,6 +67055,58 @@ window.BENCHMARK_DATA = {
             "range": "±8.9%",
             "unit": "MB/s",
             "extra": "16 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1538c424e2369c36c5a41c7876f0dad338e59768",
+          "message": "feat: Simplified Dueling Dag - Mutation Recovery - Implement the mutation recovery process. (#799)\n\n### Problem \r\nWith Simplified Dueling Dags mutations that have not been synced to the server when a tab is \r\nunloaded (or frozen and never unfrozen) are lost.  This can occur in common user flows, and \r\nwill result in unexpected data loss.  The impact is worst when the user has been offline or has \r\na flakey connection as there will be more local mutations that have not been synced.   Cases \r\nwhere this will occur:\r\n\r\n- Refresh before changes have been pushed\r\n- Close before changes have been pushed\r\n- Navigate away before changes have been pushed\r\n- Tab backgrounded and frozen before changes have been pushed (seems unlikely) and tab is not revisited before client is gc’d\r\n- Tab crash before changes have been pushed\r\n\r\n### Solution\r\nReplicache clients will try to recover mutations from other Replicache client's perdag state.   \r\nA Replicache client can recover another Replicache client's mutations if the other clients has \r\nthe same name (and thus can share auth), the same domain, and a Replicache format and \r\nschema version understood by the client.   A Replicache client will try to recover other\r\nclients' mutation at startup, reconnection and on a 5 minute interval\r\n\r\nSee full design at https://www.notion.so/replicache/Mutation-Recovery-Avoiding-Mutation-Loss-using-PerDag-state-f54025b52cbc435692abca3307947d15",
+          "timestamp": "2022-02-01T22:16:09-08:00",
+          "tree_id": "079a53d5ca1a2250cd9d0382fbf519a24247084f",
+          "url": "https://github.com/rocicorp/replicache/commit/1538c424e2369c36c5a41c7876f0dad338e59768"
+        },
+        "date": 1643782851606,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 714.29,
+            "range": "±2.4%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 315.02,
+            "range": "±4.7%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.63,
+            "range": "±173.9%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 1.85,
+            "range": "±4.2%",
+            "unit": "MB/s",
+            "extra": "8 samples"
           }
         ]
       }

@@ -1195,8 +1195,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
     } catch (e) {
       if (this.closed) {
         this._lc.debug?.('Mutation recovery did not complete due to close.', e);
+      } else {
+        throw e;
       }
-      throw e;
     } finally {
       this._recoveringMutations = false;
     }

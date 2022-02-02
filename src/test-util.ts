@@ -24,7 +24,6 @@ export class ReplicacheTest<
   }
 
   invokePush(): Promise<boolean> {
-    // indirection to allow test to spy on it.
     return super._invokePush();
   }
 
@@ -35,6 +34,7 @@ export class ReplicacheTest<
   }
 
   protected override _invokePush(): Promise<boolean> {
+    // indirection to allow test to spy on it.
     return this.invokePush();
   }
 
@@ -46,8 +46,15 @@ export class ReplicacheTest<
     return super._persist();
   }
 
+  recoverMutationsSpy = sinon.spy(this, 'recoverMutations');
+
   recoverMutations(): Promise<boolean> {
     return super._recoverMutations();
+  }
+
+  protected override _recoverMutations(): Promise<boolean> {
+    // indirection to allow test to spy on it.
+    return this.recoverMutations();
   }
 }
 

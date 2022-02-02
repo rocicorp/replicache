@@ -3,6 +3,7 @@ import {
   replicacheForTesting,
   tickAFewTimes,
   dbsToDrop,
+  clock,
 } from './test-util';
 import {makeIdbName, REPLICACHE_FORMAT_VERSION} from './replicache';
 import {addGenesis, addLocal, addSnapshot, Chain} from './db/test-helpers';
@@ -15,12 +16,12 @@ import {assertHash, assertNotTempHash, makeNewTempHashFunction} from './hash';
 import {assertNotUndefined} from './asserts';
 import {expect} from '@esm-bundle/chai';
 import {uuid} from './sync/uuid';
+import {assertJSONObject, JSONObject} from './json';
 
 // fetch-mock has invalid d.ts file so we removed that on npm install.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 import fetchMock from 'fetch-mock/esm/client';
-import {assertJSONObject, JSONObject} from './json';
 
 initReplicacheTesting();
 
@@ -84,14 +85,19 @@ async function createAndPersistClientWithPendingLocal(
   return localMetas;
 }
 
-async function testRecoveringMutationsOfClient(schemaVersions: {
+async function testRecoveringMutationsOfClient(args: {
   schemaVersionOfClientWPendingMutations: string;
   schemaVersionOfClientRecoveringMutations: string;
+  numMutationsNotAcknowledgedByPull?: number;
 }) {
   const {
     schemaVersionOfClientWPendingMutations,
     schemaVersionOfClientRecoveringMutations,
-  } = schemaVersions;
+    numMutationsNotAcknowledgedByPull,
+  } = {
+    numMutationsNotAcknowledgedByPull: 0,
+    ...args,
+  };
   const client1ID = 'client1';
   const repName = `recoverMutations${schemaVersionOfClientRecoveringMutations}recovering${schemaVersionOfClientWPendingMutations}`;
   const auth = '1';
@@ -123,9 +129,11 @@ async function testRecoveringMutationsOfClient(schemaVersions: {
 
   fetchMock.reset();
   fetchMock.post(pushURL, 'ok');
+  const pullLastMutationID =
+    client1.mutationID - numMutationsNotAcknowledgedByPull;
   fetchMock.post(pullURL, {
     cookie: 'pull_cookie_1',
-    lastMutationID: client1.mutationID,
+    lastMutationID: pullLastMutationID,
     patch: [],
   });
 
@@ -168,9 +176,7 @@ async function testRecoveringMutationsOfClient(schemaVersions: {
   );
   assertNotUndefined(updatedClient1);
   expect(updatedClient1.mutationID).to.equal(client1.mutationID);
-  // lastServerAckdMutationID is updated to high mutationID as mutations
-  // were recovered
-  expect(updatedClient1.lastServerAckdMutationID).to.equal(client1.mutationID);
+  expect(updatedClient1.lastServerAckdMutationID).to.equal(pullLastMutationID);
   expect(updatedClient1.headHash).to.equal(client1.headHash);
 }
 
@@ -185,6 +191,14 @@ test('successfully recovering mutations of client with different schema version 
   await testRecoveringMutationsOfClient({
     schemaVersionOfClientWPendingMutations: 'testSchema1',
     schemaVersionOfClientRecoveringMutations: 'testSchema2',
+  });
+});
+
+test('successfully recovering some but not all mutations of another client (pull does not acknowledge all)', async () => {
+  await testRecoveringMutationsOfClient({
+    schemaVersionOfClientWPendingMutations: 'testSchema1',
+    schemaVersionOfClientRecoveringMutations: 'testSchema1',
+    numMutationsNotAcknowledgedByPull: 1,
   });
 });
 
@@ -412,4 +426,99 @@ test('successfully recovering mutations of multiple clients with mix of schema v
   // were recovered
   expect(updatedClient4.lastServerAckdMutationID).to.equal(client4.mutationID);
   expect(updatedClient4.headHash).to.equal(client4.headHash);
+});
+
+test('mutation recovery is invoked at startup', async () => {
+  const rep = await replicacheForTesting('mutation-recovery-startup');
+  expect(rep.recoverMutationsSpy.callCount).to.equal(1);
+});
+
+test('mutation recovery is invoked on change from offline to online', async () => {
+  const repName = 'mutation-recovery-online';
+  const pullURL = 'https://test.replicache.dev/pull';
+  const rep = await replicacheForTesting(repName, {
+    pullURL,
+  });
+  expect(rep.recoverMutationsSpy.callCount).to.equal(1);
+  expect(rep.online).to.equal(true);
+
+  fetchMock.post(pullURL, async () => {
+    return {throws: new Error('Simulate fetch error in push')};
+  });
+
+  rep.pull();
+
+  await tickAFewTimes();
+  expect(rep.online).to.equal(false);
+  expect(rep.recoverMutationsSpy.callCount).to.equal(1);
+
+  fetchMock.reset();
+  fetchMock.post(pullURL, {
+    cookie: 'test_cookie',
+    lastMutationID: 2,
+    patch: [],
+  });
+
+  rep.pull();
+  expect(rep.recoverMutationsSpy.callCount).to.equal(1);
+  while (!rep.online) {
+    await tickAFewTimes();
+  }
+  expect(rep.recoverMutationsSpy.callCount).to.equal(2);
+});
+
+test('mutation recovery is invoked on 5 minute interval', async () => {
+  const rep = await replicacheForTesting('mutation-recovery-startup');
+  expect(rep.recoverMutationsSpy.callCount).to.equal(1);
+  await clock.tickAsync(5 * 60 * 1000);
+  expect(rep.recoverMutationsSpy.callCount).to.equal(2);
+  await clock.tickAsync(5 * 60 * 1000);
+  expect(rep.recoverMutationsSpy.callCount).to.equal(3);
+});
+
+test('mutation recovery interrupted by close does no throw an error', async () => {
+  const schemaVersion = 'test_schema';
+  const client1ID = 'client1';
+  const repName = `recoverMutations${schemaVersion}recovering${schemaVersion}`;
+  const auth = '1';
+  const pushURL = 'https://test.replicache.dev/push';
+  const pullURL = 'https://test.replicache.dev/pull';
+  const rep = await replicacheForTesting(repName, {
+    auth,
+    schemaVersion,
+    pushURL,
+    pullURL,
+  });
+
+  await tickAFewTimes();
+
+  const testPerdag = await createPerdag({
+    repName,
+    schemaVersion,
+  });
+
+  await createAndPersistClientWithPendingLocal(client1ID, testPerdag, 2);
+  const client1 = await testPerdag.withRead(read =>
+    persist.getClient(client1ID, read),
+  );
+  assertNotUndefined(client1);
+
+  fetchMock.reset();
+  fetchMock.post(pushURL, () => {
+    void rep.close();
+    return 'ok';
+  });
+  fetchMock.post(pullURL, {
+    cookie: 'pull_cookie_1',
+    lastMutationID: client1.mutationID,
+    patch: [],
+  });
+
+  await rep.recoverMutations();
+
+  const updatedClient1 = await testPerdag.withRead(read =>
+    persist.getClient(client1ID, read),
+  );
+  // not changed because interrupted by close
+  expect(updatedClient1).to.deep.equal(client1);
 });

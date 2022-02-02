@@ -105,7 +105,6 @@ export async function replicacheForTestingNoDefaultURLs<
     ...rest,
   });
   dbsToDrop.add(rep.idbName);
-  //dbsToDrop.add(IDB_DATABASES_DB_NAME);
   reps.add(rep);
   // Wait for open to be done.
   await rep.clientID;

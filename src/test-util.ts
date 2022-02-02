@@ -46,7 +46,7 @@ export class ReplicacheTest<
     return super._persist();
   }
 
-  recoverMutations(): Promise<void> {
+  recoverMutations(): Promise<boolean> {
     return super._recoverMutations();
   }
 }

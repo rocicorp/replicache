@@ -61,6 +61,7 @@ export const httpStatusUnauthorized = 401;
 export const REPLICACHE_FORMAT_VERSION = 3;
 const LAZY_STORE_SOURCE_CHUNK_CACHE_SIZE_LIMIT = 100 * 2 ** 20; // 100 MB
 const MUTATION_RECOVERY_LAZY_STORE_SOURCE_CHUNK_CACHE_SIZE_LIMIT = 10 * 2 ** 20; // 10 MB
+const RECOVER_MUTATIONS_INTERVAL_MS = 5 * 60 * 1000; // 5 mins
 
 export type MaybePromise<T> = T | Promise<T>;
 
@@ -218,11 +219,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   private _endHearbeats = noop;
   private _endClientsGC = noop;
+  private _recoverMutationsIntervalID: number | undefined = undefined;
 
   private readonly _persistLock = new Lock();
   private _persistIsScheduled = false;
   private _recoveringMutations = false;
-  private _recoveringMutationsPending = false;
 
   /**
    * The options used to control the [[pull]] and push request behavior. This
@@ -371,7 +372,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     this._endHearbeats = persist.startHeartbeats(clientID, this._perdag);
     this._endClientsGC = persist.initClientGC(clientID, this._perdag);
-    await this._recoverMutations();
+    this._recoverMutationsIntervalID = window.setInterval(
+      () => this._recoverMutations(),
+      RECOVER_MUTATIONS_INTERVAL_MS,
+    );
+    void this._recoverMutations();
   }
 
   /**
@@ -420,6 +425,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     this._endHearbeats();
     this._endClientsGC();
+    window.clearInterval(this._recoverMutationsIntervalID);
 
     await this._ready;
     const closingPromises = [
@@ -678,6 +684,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
       if (this._online !== online) {
         this._online = online;
         this.onOnlineChange?.(online);
+        if (online) {
+          void this._recoverMutations();
+        }
       }
     }
   }
@@ -1156,13 +1165,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
     });
   }
 
-  protected async _recoverMutations(): Promise<void> {
-    if (this._recoveringMutations) {
-      this._recoveringMutationsPending = true;
-      return;
-    }
-    if (!this.online || this.closed) {
-      return;
+  protected async _recoverMutations(): Promise<boolean> {
+    if (this._recoveringMutations || !this.online || this.closed) {
+      return false;
     }
     try {
       this._recoveringMutations = true;
@@ -1187,13 +1192,15 @@ export class Replicache<MD extends MutatorDefs = {}> {
         );
         await this._recoverMutationsFromPerdag(perdag, database.schemaVersion);
       }
+    } catch (e) {
+      if (this.closed) {
+        this._lc.debug?.('Mutation recovery did not complete due to close.', e);
+      }
+      throw e;
     } finally {
       this._recoveringMutations = false;
-      if (this._recoveringMutationsPending) {
-        this._recoveringMutationsPending = false;
-        void this._recoverMutations();
-      }
     }
+    return true;
   }
 
   private async _recoverMutationsFromPerdag(

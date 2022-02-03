@@ -1,10 +1,10 @@
 import {expect} from '@esm-bundle/chai';
 import {sleep} from '../sleep';
-import {closeAllReps, dbsToDrop, deletaAllDatabases} from '../test-util';
+import {closeAllReps, dbsToDrop, deleteAllDatabases} from '../test-util';
 
 teardown(async () => {
   await closeAllReps();
-  deletaAllDatabases();
+  deleteAllDatabases();
 });
 
 // This started failing on github only with https://github.com/rocicorp/replicache/pull/479.

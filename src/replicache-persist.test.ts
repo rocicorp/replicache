@@ -12,7 +12,7 @@ import fetchMock from 'fetch-mock/esm/client';
 
 initReplicacheTesting();
 
-test('basic persist & slurp', async () => {
+test('basic persist & load', async () => {
   const pullURL = 'https://diff.com/pull';
   const rep = await replicacheForTesting('persist-test', {
     pullURL,
@@ -44,7 +44,7 @@ test('basic persist & slurp', async () => {
     expect(await tx.get('b')).to.equal(2);
   });
 
-  // If we create another instance it will slurp all the data from IDB
+  // If we create another instance it will lazy load the data from IDB
   const rep2 = await replicacheForTesting('persist-test', {
     pullURL,
   });

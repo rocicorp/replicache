@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643782725177,
+  "lastUpdate": 1643916973907,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -19100,6 +19100,86 @@ window.BENCHMARK_DATA = {
             "unit": "p95 ms",
             "range": "±6.5%",
             "extra": "startup scan 1024x100 from 1024x100000 stored 50/75/90/95%=51.30/51.50/52.90/52.90 ms avg=59.52 ms (9 runs sampled)"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arv@roci.dev",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "eab7fb6ffa9276450dd185cbbd43adc0f05b7c83",
+          "message": "chore: Use esbuild mangle-props (#805)\n\nFor even smaller minimized output",
+          "timestamp": "2022-02-03T19:32:01Z",
+          "tree_id": "aa42e322ed574d072fc61e3c228a151ae56d4953",
+          "url": "https://github.com/rocicorp/replicache/commit/eab7fb6ffa9276450dd185cbbd43adc0f05b7c83"
+        },
+        "date": 1643916973629,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 1.2999992370605469,
+            "unit": "median ms",
+            "range": "±2.3%",
+            "extra": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.30/1.60/3.60/3.60 ms avg=1.69 ms (19 runs sampled)"
+          },
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub p95",
+            "value": 3.6000003814697266,
+            "unit": "p95 ms",
+            "range": "±2.3%",
+            "extra": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub 50/75/90/95%=1.30/1.60/3.60/3.60 ms avg=1.69 ms (19 runs sampled)"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 3.1000003814697266,
+            "unit": "median ms",
+            "range": "±11.1%",
+            "extra": "scan 1024x1000 50/75/90/95%=3.10/4.60/7.30/14.20 ms avg=4.24 ms (19 runs sampled)"
+          },
+          {
+            "name": "scan 1024x1000 p95",
+            "value": 14.200000762939453,
+            "unit": "p95 ms",
+            "range": "±11.1%",
+            "extra": "scan 1024x1000 50/75/90/95%=3.10/4.60/7.30/14.20 ms avg=4.24 ms (19 runs sampled)"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 140.79999923706055,
+            "unit": "median ms",
+            "range": "±195.9%",
+            "extra": "startup read 1024x100 from 1024x100000 stored 50/75/90/95%=140.80/166.10/336.70/336.70 ms avg=208.19 ms (7 runs sampled)"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored p95",
+            "value": 336.6999988555908,
+            "unit": "p95 ms",
+            "range": "±195.9%",
+            "extra": "startup read 1024x100 from 1024x100000 stored 50/75/90/95%=140.80/166.10/336.70/336.70 ms avg=208.19 ms (7 runs sampled)"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 56.20000076293945,
+            "unit": "median ms",
+            "range": "±7.0%",
+            "extra": "startup scan 1024x100 from 1024x100000 stored 50/75/90/95%=56.20/56.70/57.30/57.30 ms avg=66.31 ms (8 runs sampled)"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored p95",
+            "value": 57.29999923706055,
+            "unit": "p95 ms",
+            "range": "±7.0%",
+            "extra": "startup scan 1024x100 from 1024x100000 stored 50/75/90/95%=56.20/56.70/57.30/57.30 ms avg=66.31 ms (8 runs sampled)"
           }
         ]
       }

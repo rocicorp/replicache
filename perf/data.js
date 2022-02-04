@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643996638636,
+  "lastUpdate": 1643997243923,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -67253,6 +67253,100 @@ window.BENCHMARK_DATA = {
             "range": "±3.3%",
             "unit": "MB/s",
             "extra": "15 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b980904005580a5817719681526191cf1f4a6598",
+          "message": "fix: remove debugging console.log from benchmarks (#809)\n\nRemove debugging console.log from benchmarks.\r\n\r\nAccidentally check in here ac33faf50ceb379998ad1697305c29d19f32644a.",
+          "timestamp": "2022-02-04T17:48:53Z",
+          "tree_id": "a522d5c2f6e79528a5c1a0933d75a22b036797f5",
+          "url": "https://github.com/rocicorp/replicache/commit/b980904005580a5817719681526191cf1f4a6598"
+        },
+        "date": 1643997243616,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 769.23,
+            "range": "±2.7%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 357.14,
+            "range": "±1.7%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 303.03,
+            "range": "±1.9%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 17.6,
+            "range": "±94.6%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 9.32,
+            "range": "±14.7%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 7.88,
+            "range": "±146.3%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 348.77,
+            "range": "±5.4%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 3.67,
+            "range": "±71.7%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.66,
+            "range": "±176.1%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 2.81,
+            "range": "±5.5%",
+            "unit": "MB/s",
+            "extra": "14 samples"
           }
         ]
       }

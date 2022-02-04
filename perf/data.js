@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643916853870,
+  "lastUpdate": 1643996638636,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -67159,6 +67159,100 @@ window.BENCHMARK_DATA = {
             "range": "±5.9%",
             "unit": "MB/s",
             "extra": "8 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ac33faf50ceb379998ad1697305c29d19f32644a",
+          "message": "fix: fix benchmarks broken by mutation recovery change (#808)\n\nThese were broken by 1538c424e2369c36c5a41c7876f0dad338e59768. \r\n\r\nthree fixes.\r\n1. close other indexeddbs we try to recover\r\n2. delete IDBDatabasesStore indexeddb db after each benchmark.  this way mutationRecovery is not try to recover a ton of dbs during benchmarks. \r\n3. make the indexeddb deletion code in perf tests more robost.  There is no way to wait for an indexeddb close to complete (the api is silently async).  If you call delete when a close is in process, it fails with a onblocked event.  Add code that will delay 100ms and then retry delete after a onblocked event (up to 10 retries).",
+          "timestamp": "2022-02-04T09:38:42-08:00",
+          "tree_id": "cc81b015c7757441e11493bb603a6ccb7ac5d27e",
+          "url": "https://github.com/rocicorp/replicache/commit/ac33faf50ceb379998ad1697305c29d19f32644a"
+        },
+        "date": 1643996638344,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 769.23,
+            "range": "±2.5%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 370.37,
+            "range": "±7.0%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 344.83,
+            "range": "±2.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 16.69,
+            "range": "±39.1%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 9.54,
+            "range": "±17.9%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 7.39,
+            "range": "±30.4%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 325.52,
+            "range": "±5.9%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 3.86,
+            "range": "±43.2%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.67,
+            "range": "±172.4%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 3.21,
+            "range": "±3.3%",
+            "unit": "MB/s",
+            "extra": "15 samples"
           }
         ]
       }

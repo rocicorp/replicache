@@ -189,7 +189,7 @@ export async function runBenchmarkByNameAndGroup(
           : formatAsBenchmarkJS(result),
     };
   } catch (e) {
-    return {error: `${b.name} had an error: ${e}`};
+    return {error: `${b.name} had an error: ${e}:${e.stack}`};
   }
 }
 

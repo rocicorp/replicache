@@ -15,6 +15,7 @@ import type {Bencher, Benchmark} from './perf';
 import {range, sampleSize} from 'lodash-es';
 import {makeIdbName} from '../src/replicache';
 import {resolver} from '../src/resolver';
+import {IDB_DATABASES_DB_NAME} from '../src/persist/idb-databases-store';
 
 export function benchmarkPopulate(opts: {
   numKeys: number;
@@ -74,6 +75,7 @@ async function setupPersistedData(
   }
 
   await deleteDatabase(makeIdbName(replicacheName));
+  await deleteDatabase(IDB_DATABASES_DB_NAME);
   // populate store using pull (as opposed to mutators)
   // so that a snapshot commit is created, which new clients
   // can use to bootstrap.
@@ -121,6 +123,7 @@ export function benchmarkStartupUsingBasicReadsFromPersistedData(opts: {
         range(opts.numKeysPersisted),
         opts.numKeysToRead,
       ).map(i => `key${i}`);
+      await deleteDatabase(IDB_DATABASES_DB_NAME);
       bencher.reset();
       const rep = new Replicache({
         name: repName,
@@ -389,10 +392,26 @@ export function benchmarkWriteSubRead(opts: {
 }
 
 function deleteDatabase(name: string): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.deleteDatabase(makeIdbName(name));
+  const maxBlockedRetry = 10;
+  const retryDelayMs = 100;
+  let retryBlockCount = 0;
+  function delDB(resolve: (_: unknown) => void, reject: (_: unknown) => void) {
+    console.log(name);
+    const req = indexedDB.deleteDatabase(name);
     req.onsuccess = resolve;
-    req.onerror = req.onblocked = req.onupgradeneeded = reject;
+    req.onerror = req.onupgradeneeded = reject;
+    req.onblocked = async event => {
+      retryBlockCount++;
+      if (retryBlockCount > maxBlockedRetry) {
+        reject(event);
+      } else {
+        await sleep(retryDelayMs);
+        await delDB(resolve, reject);
+      }
+    };
+  }
+  return new Promise((resolve, reject) => {
+    delDB(resolve, reject);
   });
 }
 
@@ -401,7 +420,8 @@ async function makeRep<MD extends MutatorDefs>(
   options: Omit<ReplicacheOptions<MD>, 'name'> = {},
 ) {
   const name = `bench${counter++}`;
-  await deleteDatabase(name);
+  await deleteDatabase(makeIdbName(name));
+  await deleteDatabase(IDB_DATABASES_DB_NAME);
   return new Replicache<MD>({
     name,
     pullInterval: null,

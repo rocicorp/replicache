@@ -351,6 +351,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     await closingInstances.get(this.name);
     await this._idbDatabases.putDatabase({
       name: this.idbName,
+      replicacheName: this.name,
       replicacheFormatVersion: REPLICACHE_FORMAT_VERSION,
       schemaVersion: this.schemaVersion,
     });
@@ -1176,12 +1177,13 @@ export class Replicache<MD extends MutatorDefs = {}> {
       for (const database of Object.values(
         await this._idbDatabases.getDatabases(),
       )) {
-        if (database.name === this.idbName) {
-          continue;
-        }
-        if (database.replicacheFormatVersion !== REPLICACHE_FORMAT_VERSION) {
-          // TODO: when REPLICACHE_FORMAT_VERSION is updated
+        if (
+          database.name === this.idbName ||
+          database.replicacheName !== this.name ||
+          // TODO: when REPLICACHE_FORMAT_VERSION is update
           // need to also handle previous REPLICACHE_FORMAT_VERSIONs
+          database.replicacheFormatVersion !== REPLICACHE_FORMAT_VERSION
+        ) {
           continue;
         }
         const perKvStore = new IDBStore(database.name);

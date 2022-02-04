@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643997243923,
+  "lastUpdate": 1644002195889,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -67347,6 +67347,100 @@ window.BENCHMARK_DATA = {
             "range": "±5.5%",
             "unit": "MB/s",
             "extra": "14 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f988f1c1db5ec5b9dd43020c64625508f26100d4",
+          "message": "fix: Simplified Dueling Dags - Mutation Recovery - Do not recover mutation from clients with a different Replicache name (#810)\n\nProblem\r\n======\r\nA client _**MUST NOT**_ recover mutations from a client with a different Replicache name.  This is because a client uses its auth to push the mutations.  This is safe for client's with the same name as they are for the same user.  However, pushing on behalf of a client with a different name is very bad, as it will apply the mutations for a different user.\r\n\r\nSolution\r\n======\r\nAdd Replicache name to the IndexedDBDatabase records, and only recover mutations for clients with the same Repliache name.  Add a test for this behavior.\r\n\r\nAlso adds versioning to IDBDatabasesStore for easing handling of future format changes of  IndexedDBDatabase records.",
+          "timestamp": "2022-02-04T11:13:49-08:00",
+          "tree_id": "39fda2b737e9e2f1c8850b4befe56dcda321ebd3",
+          "url": "https://github.com/rocicorp/replicache/commit/f988f1c1db5ec5b9dd43020c64625508f26100d4"
+        },
+        "date": 1644002195331,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 769.23,
+            "range": "±2.4%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 370.37,
+            "range": "±1.5%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 333.33,
+            "range": "±2.2%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 18.25,
+            "range": "±100.9%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 8.9,
+            "range": "±23.9%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 7.78,
+            "range": "±38.7%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 336.75,
+            "range": "±5.2%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 3.75,
+            "range": "±40.2%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.64,
+            "range": "±175.7%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 3.33,
+            "range": "±7.1%",
+            "unit": "MB/s",
+            "extra": "15 samples"
           }
         ]
       }

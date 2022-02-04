@@ -1190,7 +1190,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
           dag.throwChunkHasher,
           assertNotTempHash,
         );
-        await this._recoverMutationsFromPerdag(perdag, database.schemaVersion);
+        try {
+          await this._recoverMutationsFromPerdag(
+            perdag,
+            database.schemaVersion,
+          );
+        } finally {
+          await perdag.close();
+        }
       }
     } catch (e) {
       if (this.closed) {

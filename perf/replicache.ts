@@ -396,7 +396,6 @@ function deleteDatabase(name: string): Promise<unknown> {
   const retryDelayMs = 100;
   let retryBlockCount = 0;
   function delDB(resolve: (_: unknown) => void, reject: (_: unknown) => void) {
-    console.log(name);
     const req = indexedDB.deleteDatabase(name);
     req.onsuccess = resolve;
     req.onerror = req.onupgradeneeded = reject;

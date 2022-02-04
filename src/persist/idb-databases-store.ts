@@ -1,7 +1,8 @@
 import {assert, assertNumber, assertObject, assertString} from '../asserts';
 import * as kv from '../kv/mod';
 
-export const IDB_DATABASES_DB_NAME = 'replicache-dbs';
+export const IDB_DATABASES_VERSION = 0;
+export const IDB_DATABASES_DB_NAME = 'replicache-dbs-v' + IDB_DATABASES_VERSION;
 const KEY = 'dbs';
 
 // TODO: make an opaque type
@@ -9,6 +10,7 @@ export type IndexedDBName = string;
 
 export type IndexedDBDatabase = {
   name: IndexedDBName;
+  replicacheName: string;
   replicacheFormatVersion: number;
   schemaVersion: string;
 };
@@ -31,6 +33,7 @@ function assertIndexedDBDatabase(
 ): asserts value is IndexedDBDatabase {
   assertObject(value);
   assertString(value.name);
+  assertString(value.replicacheName);
   assertNumber(value.replicacheFormatVersion);
   assertString(value.schemaVersion);
 }

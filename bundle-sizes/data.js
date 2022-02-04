@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643996996840,
+  "lastUpdate": 1644002095361,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -4559,6 +4559,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 18129,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f988f1c1db5ec5b9dd43020c64625508f26100d4",
+          "message": "fix: Simplified Dueling Dags - Mutation Recovery - Do not recover mutation from clients with a different Replicache name (#810)\n\nProblem\r\n======\r\nA client _**MUST NOT**_ recover mutations from a client with a different Replicache name.  This is because a client uses its auth to push the mutations.  This is safe for client's with the same name as they are for the same user.  However, pushing on behalf of a client with a different name is very bad, as it will apply the mutations for a different user.\r\n\r\nSolution\r\n======\r\nAdd Replicache name to the IndexedDBDatabase records, and only recover mutations for clients with the same Repliache name.  Add a test for this behavior.\r\n\r\nAlso adds versioning to IDBDatabasesStore for easing handling of future format changes of  IndexedDBDatabase records.",
+          "timestamp": "2022-02-04T11:13:49-08:00",
+          "tree_id": "39fda2b737e9e2f1c8850b4befe56dcda321ebd3",
+          "url": "https://github.com/rocicorp/replicache/commit/f988f1c1db5ec5b9dd43020c64625508f26100d4"
+        },
+        "date": 1644002092868,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 148400,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 26901,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 147122,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 26549,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 63875,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18151,
             "unit": "bytes"
           }
         ]

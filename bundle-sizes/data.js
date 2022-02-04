@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1643916822245,
+  "lastUpdate": 1643996391724,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -4451,6 +4451,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 18131,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ac33faf50ceb379998ad1697305c29d19f32644a",
+          "message": "fix: fix benchmarks broken by mutation recovery change (#808)\n\nThese were broken by 1538c424e2369c36c5a41c7876f0dad338e59768. \r\n\r\nthree fixes.\r\n1. close other indexeddbs we try to recover\r\n2. delete IDBDatabasesStore indexeddb db after each benchmark.  this way mutationRecovery is not try to recover a ton of dbs during benchmarks. \r\n3. make the indexeddb deletion code in perf tests more robost.  There is no way to wait for an indexeddb close to complete (the api is silently async).  If you call delete when a close is in process, it fails with a onblocked event.  Add code that will delay 100ms and then retry delete after a onblocked event (up to 10 retries).",
+          "timestamp": "2022-02-04T09:38:42-08:00",
+          "tree_id": "cc81b015c7757441e11493bb603a6ccb7ac5d27e",
+          "url": "https://github.com/rocicorp/replicache/commit/ac33faf50ceb379998ad1697305c29d19f32644a"
+        },
+        "date": 1643996389954,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 148273,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 26845,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 146995,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 26515,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 63790,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18129,
             "unit": "bytes"
           }
         ]

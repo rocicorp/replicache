@@ -13,7 +13,12 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: 16.x
-      - run: npm install
+      - name: configure npm auth token
+        run: npm config set '//registry.npmjs.org/:_authToken' "${NPM_TOKEN}"
+        env:
+          NPM_TOKEN: ${{secrets.NPM_TOKEN}}
+      - name: npm install
+        run: npm install
       - run: npm run build
       - run: brotli ./out/*
 

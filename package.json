@@ -63,5 +63,8 @@
     "out/replicache.mjs",
     "out/replicache.wasm",
     "out/replicache.dev.wasm"
-  ]
+  ],
+  "dependencies": {
+    "@rocicorp/replicache-licensing-client": "^1.0.4"
+  }
 }

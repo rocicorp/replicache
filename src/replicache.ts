@@ -44,6 +44,7 @@ import * as persist from './persist/mod';
 import {requestIdle} from './request-idle';
 import type {HTTPRequestInfo} from './http-request-info';
 import {assertNotUndefined} from './asserts';
+import * as licensing from '@phritz/licensing/src/client';
 
 export type BeginPullResult = {
   requestID: string;
@@ -210,6 +211,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
    */
   pusher: Pusher;
 
+  private readonly _licenseKey: string | undefined;
+
   private readonly _memdag: dag.Store;
   private readonly _perdag: dag.Store;
   private readonly _idbDatabases: persist.IDBDatabasesStore =
@@ -272,6 +275,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       puller = defaultPuller,
       pusher = defaultPusher,
       experimentalKVStore,
+      experimentalLicenseKey,
     } = options;
     this.auth = auth ?? '';
     this.pullURL = pullURL;
@@ -285,6 +289,19 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.pushDelay = pushDelay;
     this.puller = puller;
     this.pusher = pusher;
+
+    this._logger = getLogger([], logLevel);
+    this._lc = new LogContext(logLevel).addContext('db', name);
+
+    this._licenseKey = experimentalLicenseKey;
+    // This is a silly check, it's just temporary to show that we can use
+    // the licensing client.
+    if (
+      this._licenseKey !== undefined &&
+      this._licenseKey !== licensing.TEST_LICENSE_KEY
+    ) {
+      this._logger.info?.(`Licensing enabled. Key: ${this._licenseKey}`);
+    }
 
     const perKvStore = experimentalKVStore || new IDBStore(this.idbName);
     this._perdag = new dag.StoreImpl(
@@ -324,11 +341,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       ),
     );
 
-    this._logger = getLogger([], logLevel);
-
     this.mutate = this._registerMutators(mutators);
-
-    this._lc = new LogContext(logLevel).addContext('db', name);
 
     const clientIDResolver = resolver<string>();
     this._clientIDPromise = clientIDResolver.promise;

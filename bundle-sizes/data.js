@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1644259906528,
+  "lastUpdate": 1644261114810,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -4775,6 +4775,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 18394,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ab8990ae58853906ae0b6c465354a88f73d01d64",
+          "message": "feat: Simplified Dueling Dags - Mutation Recovery - Optimize mutation recovery at startup by reusing client map read by client init. (#821)\n\n**Problem**\r\nMutation recovery regressed our median startup scan benchmark by ~20% (25 ms to 30 ms).\r\n\r\n**Solution**\r\nTry to mitigate by reusing the client map read by `persist.initClient`, rather than reading it in a new IndexedDB transaction.",
+          "timestamp": "2022-02-07T19:11:00Z",
+          "tree_id": "2b2db7a63b0903d8350230c5f486b3d3f34bfe61",
+          "url": "https://github.com/rocicorp/replicache/commit/ab8990ae58853906ae0b6c465354a88f73d01d64"
+        },
+        "date": 1644261112829,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 150437,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 27174,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 149159,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 26829,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 64782,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18390,
             "unit": "bytes"
           }
         ]

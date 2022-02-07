@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1644233187101,
+  "lastUpdate": 1644260160400,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -67627,6 +67627,100 @@ window.BENCHMARK_DATA = {
             "name": "startup scan 1024x100 from 1024x100000 stored",
             "value": 3.34,
             "range": "±10.4%",
+            "unit": "MB/s",
+            "extra": "15 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ef25543da8c82f8f445a4a325e275fdd2c2eebf5",
+          "message": "feat: Simplified Dueling Dags - Mutation Recovery - Make recovery robust to errors and exit early on close. (#820)\n\n**Problem**\r\nIf the Mutation Recovery process stops on the first error encountered.  This means a single problematic db or client can prevent recovery of all other clients.  \r\n\r\n**Solution**\r\nUpdates Mutation Recovery logic to be more robust against errors.  If an error occurs recovering a particular \r\nclient or db, the logic will now log that error, and continue trying to recover other clients/dbs. \r\n\r\nAdding the above robustness requires the process to handle the Replicache instance being closed more explicitly.  Previously the process would stop on the first error encountered due to the Replicache intance being closed. \r\nThis change updates the logic to check if this Replicache instance is closed before processing each db, and \r\neach client inside each db, and exits early if this Replicache instance is closed.",
+          "timestamp": "2022-02-07T10:50:38-08:00",
+          "tree_id": "5e435a973dfba442a47b8c253a19db93f0de9913",
+          "url": "https://github.com/rocicorp/replicache/commit/ef25543da8c82f8f445a4a325e275fdd2c2eebf5"
+        },
+        "date": 1644260160108,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 769.23,
+            "range": "±2.7%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 434.78,
+            "range": "±2.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 333.33,
+            "range": "±1.6%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 17.69,
+            "range": "±107.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 8.55,
+            "range": "±26.5%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 7.89,
+            "range": "±46.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 361.69,
+            "range": "±5.7%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 3.8,
+            "range": "±44.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.69,
+            "range": "±187.9%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 3.24,
+            "range": "±7.6%",
             "unit": "MB/s",
             "extra": "15 samples"
           }

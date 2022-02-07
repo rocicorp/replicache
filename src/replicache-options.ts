@@ -173,13 +173,4 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * in the future without following semver versioning. Please be cautious.
    */
   experimentalKVStore?: kv.Store;
-
-  /**
-   * When defined, activates Replicache's experimental license key support. You
-   * don't want to use this option unless you are a Replicache developer.
-   *
-   * @experimental This option is experimental and might be removed or changed
-   * in the future without following semver versioning. Please be cautious.
-   */
-  experimentalLicenseKey?: string;
 }

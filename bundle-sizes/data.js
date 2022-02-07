@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1644233087354,
+  "lastUpdate": 1644259906528,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -4721,6 +4721,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 18163,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ef25543da8c82f8f445a4a325e275fdd2c2eebf5",
+          "message": "feat: Simplified Dueling Dags - Mutation Recovery - Make recovery robust to errors and exit early on close. (#820)\n\n**Problem**\r\nIf the Mutation Recovery process stops on the first error encountered.  This means a single problematic db or client can prevent recovery of all other clients.  \r\n\r\n**Solution**\r\nUpdates Mutation Recovery logic to be more robust against errors.  If an error occurs recovering a particular \r\nclient or db, the logic will now log that error, and continue trying to recover other clients/dbs. \r\n\r\nAdding the above robustness requires the process to handle the Replicache instance being closed more explicitly.  Previously the process would stop on the first error encountered due to the Replicache intance being closed. \r\nThis change updates the logic to check if this Replicache instance is closed before processing each db, and \r\neach client inside each db, and exits early if this Replicache instance is closed.",
+          "timestamp": "2022-02-07T10:50:38-08:00",
+          "tree_id": "5e435a973dfba442a47b8c253a19db93f0de9913",
+          "url": "https://github.com/rocicorp/replicache/commit/ef25543da8c82f8f445a4a325e275fdd2c2eebf5"
+        },
+        "date": 1644259904149,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 150333,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 27122,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 149055,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 26799,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 64767,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18394,
             "unit": "bytes"
           }
         ]

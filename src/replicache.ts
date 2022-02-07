@@ -358,7 +358,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     // wait for it to finish closing.
     await closingInstances.get(this.name);
     await this._idbDatabases.putDatabase(this._idbDatabase);
-    const [clientID, client] = await persist.initClient(this._perdag);
+    const [clientID, client, clients] = await persist.initClient(this._perdag);
     resolveClientID(clientID);
     await this._memdag.withWrite(async write => {
       await write.setHead(db.DEFAULT_HEAD_NAME, client.headHash);
@@ -380,7 +380,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       () => this._recoverMutations(),
       RECOVER_MUTATIONS_INTERVAL_MS,
     );
-    void this._recoverMutations();
+    void this._recoverMutations(clients);
   }
 
   /**
@@ -1169,7 +1169,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
     });
   }
 
-  protected async _recoverMutations(): Promise<boolean> {
+  protected async _recoverMutations(
+    preReadClientMap?: persist.ClientMap,
+  ): Promise<boolean> {
     if (this._recoveringMutations || !this.online || this.closed) {
       return false;
     }
@@ -1178,7 +1180,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
     try {
       this._recoveringMutations = true;
       await this._ready;
-      await this._recoverMutationsFromPerdag(this._idbDatabase, this._perdag);
+      await this._recoverMutationsFromPerdag(
+        this._idbDatabase,
+        this._perdag,
+        preReadClientMap,
+      );
       for (const database of Object.values(
         await this._idbDatabases.getDatabases(),
       )) {
@@ -1209,6 +1215,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private async _recoverMutationsFromPerdag(
     database: persist.IndexedDBDatabase,
     perdag?: dag.Store,
+    preReadClientMap?: persist.ClientMap,
   ): Promise<void> {
     const stepDescription = `Recovering mutations from db ${database.name}.`;
     this._lc.debug?.('Start:', stepDescription);
@@ -1222,9 +1229,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
           assertNotTempHash,
         );
       }
-      let clientMap: persist.ClientMap | undefined = await perdag.withRead(
-        read => persist.getClients(read),
-      );
+      let clientMap: persist.ClientMap | undefined =
+        preReadClientMap ||
+        (await perdag.withRead(read => persist.getClients(read)));
       const clientIDsVisited = new Set<sync.ClientID>();
       while (clientMap) {
         let newClientMap: persist.ClientMap | undefined;

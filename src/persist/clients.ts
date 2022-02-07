@@ -122,7 +122,7 @@ export async function getClient(
 
 export async function initClient(
   dagStore: dag.Store,
-): Promise<[sync.ClientID, Client]> {
+): Promise<[sync.ClientID, Client, ClientMap]> {
   const newClientID = makeUuid();
   const updatedClients = await updateClients(async clients => {
     let bootstrapClient: Client | undefined;
@@ -190,7 +190,7 @@ export async function initClient(
   }, dagStore);
   const newClient = updatedClients.get(newClientID);
   assertNotUndefined(newClient);
-  return [newClientID, newClient];
+  return [newClientID, newClient, updatedClients];
 }
 
 function hashOfClients(clients: ClientMap): Promise<Hash> {

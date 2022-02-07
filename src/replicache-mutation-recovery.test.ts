@@ -11,6 +11,7 @@ import type * as db from './db/mod';
 import * as dag from './dag/mod';
 import * as persist from './persist/mod';
 import * as kv from './kv/mod';
+import type * as sync from './sync/mod';
 import {assertHash, assertNotTempHash, makeNewTempHashFunction} from './hash';
 import {assertNotUndefined} from './asserts';
 import {expect} from '@esm-bundle/chai';
@@ -38,7 +39,7 @@ teardown(async () => {
   }
   dagsToClose.length = 0;
   await idbDatabases.close();
-  //sinon.restore();
+  sinon.restore();
 });
 
 async function createPerdag(args: {

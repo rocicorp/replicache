@@ -41,15 +41,16 @@ teardown(async () => {
 });
 
 async function createPerdag(args: {
-  repName: string;
+  replicacheName: string;
   schemaVersion: string;
 }): Promise<dag.Store> {
-  const {repName, schemaVersion} = args;
-  const idbName = makeIdbName(repName, schemaVersion);
+  const {replicacheName, schemaVersion} = args;
+  const idbName = makeIdbName(replicacheName, schemaVersion);
   dbsToDrop.add(idbName);
   const idb = new kv.IDBStore(idbName);
   await idbDatabases.putDatabase({
     name: idbName,
+    replicacheName,
     schemaVersion,
     replicacheFormatVersion: REPLICACHE_FORMAT_VERSION,
   });
@@ -99,11 +100,11 @@ async function testRecoveringMutationsOfClient(args: {
     ...args,
   };
   const client1ID = 'client1';
-  const repName = `recoverMutations${schemaVersionOfClientRecoveringMutations}recovering${schemaVersionOfClientWPendingMutations}`;
+  const replicacheName = `recoverMutations${schemaVersionOfClientRecoveringMutations}recovering${schemaVersionOfClientWPendingMutations}`;
   const auth = '1';
   const pushURL = 'https://test.replicache.dev/push';
   const pullURL = 'https://test.replicache.dev/pull';
-  const rep = await replicacheForTesting(repName, {
+  const rep = await replicacheForTesting(replicacheName, {
     auth,
     schemaVersion: schemaVersionOfClientRecoveringMutations,
     pushURL,
@@ -113,7 +114,7 @@ async function testRecoveringMutationsOfClient(args: {
   await tickAFewTimes();
 
   const testPerdag = await createPerdag({
-    repName,
+    replicacheName,
     schemaVersion: schemaVersionOfClientWPendingMutations,
   });
 
@@ -202,6 +203,57 @@ test('successfully recovering some but not all mutations of another client (pull
   });
 });
 
+test('client does not attempt to recover mutations from IndexedDB with different replicache name', async () => {
+  const clientWPendingMutationsID = 'client1';
+  const schemaVersion = 'testSchema';
+  const replicacheNameOfClientWPendingMutations = 'diffName-pendingClient';
+  const replicacheNameOfClientRecoveringMutations = 'diffName-recoveringClient';
+
+  const auth = '1';
+  const pushURL = 'https://test.replicache.dev/push';
+  const pullURL = 'https://test.replicache.dev/pull';
+  const rep = await replicacheForTesting(
+    replicacheNameOfClientRecoveringMutations,
+    {
+      auth,
+      schemaVersion,
+      pushURL,
+      pullURL,
+    },
+  );
+
+  await tickAFewTimes();
+
+  const testPerdag = await createPerdag({
+    replicacheName: replicacheNameOfClientWPendingMutations,
+    schemaVersion,
+  });
+
+  await createAndPersistClientWithPendingLocal(
+    clientWPendingMutationsID,
+    testPerdag,
+    2,
+  );
+  const clientWPendingMutations = await testPerdag.withRead(read =>
+    persist.getClient(clientWPendingMutationsID, read),
+  );
+  assertNotUndefined(clientWPendingMutations);
+
+  fetchMock.reset();
+  fetchMock.post(pushURL, 'ok');
+  fetchMock.post(pullURL, {
+    cookie: 'pull_cookie_1',
+    lastMutationID: clientWPendingMutations.mutationID,
+    patch: [],
+  });
+
+  await rep.recoverMutations();
+
+  //
+  expect(fetchMock.calls(pushURL).length).to.equal(0);
+  expect(fetchMock.calls(pullURL).length).to.equal(0);
+});
+
 test('successfully recovering mutations of multiple clients with mix of schema versions and same replicache format version', async () => {
   const schemaVersionOfClients1Thru3AndClientRecoveringMutations =
     'testSchema1';
@@ -214,11 +266,11 @@ test('successfully recovering mutations of multiple clients with mix of schema v
   const client3ID = 'client3';
   // client4 has different schema version than recovering client and 2 mutations to recover
   const client4ID = 'client4';
-  const repName = 'recoverMutationsMix';
+  const replicacheName = 'recoverMutationsMix';
   const auth = '1';
   const pushURL = 'https://test.replicache.dev/push';
   const pullURL = 'https://test.replicache.dev/pull';
-  const rep = await replicacheForTesting(repName, {
+  const rep = await replicacheForTesting(replicacheName, {
     auth,
     schemaVersion: schemaVersionOfClients1Thru3AndClientRecoveringMutations,
     pushURL,
@@ -228,7 +280,7 @@ test('successfully recovering mutations of multiple clients with mix of schema v
   await tickAFewTimes();
 
   const testPerdagForClients1Thru3 = await createPerdag({
-    repName,
+    replicacheName,
     schemaVersion: schemaVersionOfClients1Thru3AndClientRecoveringMutations,
   });
 
@@ -250,7 +302,7 @@ test('successfully recovering mutations of multiple clients with mix of schema v
   );
 
   const testPerdagForClient4 = await createPerdag({
-    repName,
+    replicacheName,
     schemaVersion: schemaVersionOfClient4,
   });
   const client4PendingLocalMetas = await createAndPersistClientWithPendingLocal(
@@ -434,9 +486,9 @@ test('mutation recovery is invoked at startup', async () => {
 });
 
 test('mutation recovery is invoked on change from offline to online', async () => {
-  const repName = 'mutation-recovery-online';
+  const replicacheName = 'mutation-recovery-online';
   const pullURL = 'https://test.replicache.dev/pull';
-  const rep = await replicacheForTesting(repName, {
+  const rep = await replicacheForTesting(replicacheName, {
     pullURL,
   });
   expect(rep.recoverMutationsSpy.callCount).to.equal(1);
@@ -479,11 +531,11 @@ test('mutation recovery is invoked on 5 minute interval', async () => {
 test('mutation recovery interrupted by close does no throw an error', async () => {
   const schemaVersion = 'test_schema';
   const client1ID = 'client1';
-  const repName = `recoverMutations${schemaVersion}recovering${schemaVersion}`;
+  const replicacheName = `recoverMutations${schemaVersion}recovering${schemaVersion}`;
   const auth = '1';
   const pushURL = 'https://test.replicache.dev/push';
   const pullURL = 'https://test.replicache.dev/pull';
-  const rep = await replicacheForTesting(repName, {
+  const rep = await replicacheForTesting(replicacheName, {
     auth,
     schemaVersion,
     pushURL,
@@ -493,7 +545,7 @@ test('mutation recovery interrupted by close does no throw an error', async () =
   await tickAFewTimes();
 
   const testPerdag = await createPerdag({
-    repName,
+    replicacheName,
     schemaVersion,
   });
 

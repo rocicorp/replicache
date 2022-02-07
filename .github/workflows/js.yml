@@ -16,6 +16,8 @@ jobs:
         with:
           node-version: 16.x
           cache: 'npm'
+      - name: Setup npmrc
+        run: echo "@phritz://registry.npmjs.org/:_authToken=${{secrets.LICENSING_PACKAGE_ACCESS_TOKEN}}" > .npmrc
       - run: npm install
       - run: npm run check-format
       - run: npm run lint
@@ -29,6 +31,8 @@ jobs:
         with:
           node-version: 14.x
           cache: 'npm'
+      - name: Setup npmrc
+        run: echo "@phritz://registry.npmjs.org/:_authToken=${{secrets.LICENSING_PACKAGE_ACCESS_TOKEN}}" > .npmrc
       - run: npm install
       - run: npm run build
 
@@ -41,6 +45,8 @@ jobs:
         with:
           node-version: 14.x
           cache: 'npm'
+      - name: Setup npmrc
+        run: echo "@phritz://registry.npmjs.org/:_authToken=${{secrets.LICENSING_PACKAGE_ACCESS_TOKEN}}" > .npmrc
       - run: npm install
       - run: npx playwright install-deps
       - run: npm test

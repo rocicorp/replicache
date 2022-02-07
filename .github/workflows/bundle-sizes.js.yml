@@ -13,7 +13,12 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: 16.x
+      - name: Setup npmrc
+        run: echo "@phritz://registry.npmjs.org/:_authToken=${{secrets.LICENSING_PACKAGE_ACCESS_TOKEN}}" > .npmrc
       - run: npm install
+        with:
+          env:
+            LICENSING_PACKAGE_ACCESS_TOKEN: ${{ secrets.LICENSING_PACKAGE_ACCESS_TOKEN }}
       - run: npm run build
       - run: brotli ./out/*
 

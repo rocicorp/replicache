@@ -44,6 +44,7 @@ import * as persist from './persist/mod';
 import {requestIdle} from './request-idle';
 import type {HTTPRequestInfo} from './http-request-info';
 import {assertNotUndefined} from './asserts';
+import * as licensing from '@phritz/licensing/src/client';
 
 export type BeginPullResult = {
   requestID: string;
@@ -210,6 +211,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
    */
   pusher: Pusher;
 
+  private readonly _licenseKey: string | undefined;
+
   private readonly _memdag: dag.Store;
   private readonly _perdag: dag.Store;
   private readonly _idbDatabases: persist.IDBDatabasesStore =
@@ -272,12 +275,13 @@ export class Replicache<MD extends MutatorDefs = {}> {
       puller = defaultPuller,
       pusher = defaultPusher,
       experimentalKVStore,
+      experimentalLicenseKey,
     } = options;
     this.auth = auth ?? '';
     this.pullURL = pullURL;
     this.pushURL = pushURL;
-    if (name === '') {
-      throw new Error('name must be non-empty');
+    if (name === undefined || name === '') {
+      throw new Error('name is required and must be non-empty');
     }
     this.name = name;
     this.schemaVersion = schemaVersion;
@@ -285,6 +289,19 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.pushDelay = pushDelay;
     this.puller = puller;
     this.pusher = pusher;
+
+    this._logger = getLogger([], logLevel);
+    this._lc = new LogContext(logLevel).addContext('db', name);
+
+    this._licenseKey = experimentalLicenseKey;
+    // This is a silly check, it's just temporary to show that we can use
+    // the licensing client.
+    if (
+      this._licenseKey !== undefined &&
+      this._licenseKey !== licensing.TEST_LICENSE_KEY
+    ) {
+      this._logger.info?.(`Licensing enabled. Key: ${this._licenseKey}`);
+    }
 
     const perKvStore = experimentalKVStore || new IDBStore(this.idbName);
     this._perdag = new dag.StoreImpl(
@@ -324,11 +341,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       ),
     );
 
-    this._logger = getLogger([], logLevel);
-
     this.mutate = this._registerMutators(mutators);
-
-    this._lc = new LogContext(logLevel).addContext('db', name);
 
     const clientIDResolver = resolver<string>();
     this._clientIDPromise = clientIDResolver.promise;
@@ -351,6 +364,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     await closingInstances.get(this.name);
     await this._idbDatabases.putDatabase({
       name: this.idbName,
+      replicacheName: this.name,
       replicacheFormatVersion: REPLICACHE_FORMAT_VERSION,
       schemaVersion: this.schemaVersion,
     });
@@ -1176,12 +1190,13 @@ export class Replicache<MD extends MutatorDefs = {}> {
       for (const database of Object.values(
         await this._idbDatabases.getDatabases(),
       )) {
-        if (database.name === this.idbName) {
-          continue;
-        }
-        if (database.replicacheFormatVersion !== REPLICACHE_FORMAT_VERSION) {
-          // TODO: when REPLICACHE_FORMAT_VERSION is updated
+        if (
+          database.name === this.idbName ||
+          database.replicacheName !== this.name ||
+          // TODO: when REPLICACHE_FORMAT_VERSION is update
           // need to also handle previous REPLICACHE_FORMAT_VERSIONs
+          database.replicacheFormatVersion !== REPLICACHE_FORMAT_VERSION
+        ) {
           continue;
         }
         const perKvStore = new IDBStore(database.name);
@@ -1190,7 +1205,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
           dag.throwChunkHasher,
           assertNotTempHash,
         );
-        await this._recoverMutationsFromPerdag(perdag, database.schemaVersion);
+        try {
+          await this._recoverMutationsFromPerdag(
+            perdag,
+            database.schemaVersion,
+          );
+        } finally {
+          await perdag.close();
+        }
       }
     } catch (e) {
       if (this.closed) {

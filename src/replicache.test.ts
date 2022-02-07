@@ -30,6 +30,7 @@ import {defaultPusher} from './pusher';
 // @ts-expect-error
 import fetchMock from 'fetch-mock/esm/client';
 import type {Mutation} from './sync/push';
+import type {ReplicacheOptions} from './replicache-options';
 
 const {fail} = assert;
 
@@ -54,6 +55,16 @@ async function expectPromiseToReject(p: unknown): Promise<Chai.Assertion> {
 async function expectAsyncFuncToThrow(f: () => unknown, c: unknown) {
   (await expectPromiseToReject(f())).to.be.instanceof(c);
 }
+
+test('name is required', () => {
+  expect(
+    () => new Replicache({} as ReplicacheOptions<Record<string, never>>),
+  ).to.throw(/name.*required/);
+});
+
+test('name cannot be empty', () => {
+  expect(() => new Replicache({name: ''})).to.throw(/name.*must be non-empty/);
+});
 
 test('get, has, scan on empty db', async () => {
   const rep = await replicacheForTesting('test2');

@@ -6,7 +6,7 @@ import type * as sync from '../sync/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {assertNotUndefined, assertNumber, assertObject} from '../asserts';
 import {hasOwn} from '../has-own';
-import {uuid as makeUuid} from '../sync/uuid';
+import {uuid as makeUuid} from '../uuid';
 import {getRefs, newSnapshotCommitData} from '../db/commit';
 import type {MaybePromise} from '../mod';
 

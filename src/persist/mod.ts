@@ -8,7 +8,12 @@ export {
   noUpdates as noClientUpdates,
 } from './clients';
 export {initClientGC} from './client-gc';
-export {IDB_DATABASES_DB_NAME, IDBDatabasesStore} from './idb-databases-store';
+export {
+  getIDBDatabasesDBName,
+  IDBDatabasesStore,
+  setupForTest as setupIDBDatabasesStoreForTest,
+  restoreForTest as restoreIDBDatabasesStoreForTest,
+} from './idb-databases-store';
 
 export type {Client, ClientMap} from './clients';
 export type {

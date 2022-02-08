@@ -168,9 +168,12 @@ async function openDatabase(name: string): Promise<IDBDatabase> {
   req.onupgradeneeded = () => {
     const db = req.result;
     db.createObjectStore(OBJECT_STORE);
-    db.onversionchange = () => db.close();
   };
-  return wrap(req);
+  const wrapped = wrap(req);
+  void wrapped.then(db => {
+    db.onversionchange = () => db.close();
+  });
+  return wrapped;
 }
 
 function wrap<T>(req: IDBRequest<T>): Promise<T> {

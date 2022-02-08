@@ -1,6 +1,7 @@
 import {MutatorDefs, Replicache, BeginPullResult} from './replicache';
 import type {ReplicacheOptions} from './replicache-options';
 import * as kv from './kv/mod';
+import * as persist from './persist/mod';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import * as sinon from 'sinon';
 import type {ReadonlyJSONValue} from './json';
@@ -10,6 +11,7 @@ import {Hash, makeNewTempHashFunction} from './hash';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 import fetchMock from 'fetch-mock/esm/client';
+import {uuid} from './uuid';
 
 export class ReplicacheTest<
   // eslint-disable-next-line @typescript-eslint/ban-types
@@ -71,25 +73,40 @@ export async function closeAllReps(): Promise<void> {
 
 export const dbsToDrop: Set<string> = new Set();
 
-export function deleteAllDatabases(): void {
+export async function deleteAllDatabases(): Promise<void> {
   for (const name of dbsToDrop) {
-    indexedDB.deleteDatabase(name);
+    await kv.dropIDBStore(name);
   }
   dbsToDrop.clear();
 }
 
+const partialNamesToRepliacheNames: Map<string, string> = new Map();
+/** Namespace replicache names to isolate tests' indexeddb state. */
+export function createReplicacheNameForTest(partialName: string): string {
+  let replicacheName = partialNamesToRepliacheNames.get(partialName);
+  if (!replicacheName) {
+    const namespaceForTest = uuid();
+    replicacheName = `${namespaceForTest}:${partialName}`;
+    partialNamesToRepliacheNames.set(partialName, replicacheName);
+  }
+  return replicacheName;
+}
+
 // eslint-disable-next-line @typescript-eslint/ban-types
 export async function replicacheForTesting<MD extends MutatorDefs = {}>(
-  name: string,
+  partialName: string,
   options: Omit<ReplicacheOptions<MD>, 'name'> = {},
 ): Promise<ReplicacheTest<MD>> {
-  const pullURL = 'https://pull.com/?name=' + name;
-  const pushURL = 'https://push.com/?name=' + name;
-  return replicacheForTestingNoDefaultURLs(name, {
-    pullURL,
-    pushURL,
-    ...options,
-  });
+  const pullURL = 'https://pull.com/?name=' + partialName;
+  const pushURL = 'https://push.com/?name=' + partialName;
+  return replicacheForTestingNoDefaultURLs(
+    createReplicacheNameForTest(partialName),
+    {
+      pullURL,
+      pushURL,
+      ...options,
+    },
+  );
 }
 
 export async function replicacheForTestingNoDefaultURLs<
@@ -112,6 +129,7 @@ export async function replicacheForTestingNoDefaultURLs<
     ...rest,
   });
   dbsToDrop.add(rep.idbName);
+  dbsToDrop.add(persist.getIDBDatabasesDBName());
   reps.add(rep);
   // Wait for open to be done.
   await rep.clientID;
@@ -123,20 +141,22 @@ export async function replicacheForTestingNoDefaultURLs<
 
 export let clock: SinonFakeTimers;
 
-export function initReplicacheTesting() {
+export function initReplicacheTesting(): void {
   fetchMock.config.overwriteRoutes = true;
 
   setup(() => {
     clock = useFakeTimers(0);
+    persist.setupIDBDatabasesStoreForTest();
   });
 
   teardown(async () => {
     clock.restore();
     fetchMock.restore();
     sinon.restore();
-
+    persist.restoreIDBDatabasesStoreForTest();
+    partialNamesToRepliacheNames.clear();
     await closeAllReps();
-    deleteAllDatabases();
+    await deleteAllDatabases();
   });
 }
 

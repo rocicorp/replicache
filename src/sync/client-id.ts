@@ -1,5 +1,5 @@
 import type * as kv from '../kv/mod';
-import {uuid as makeUuid} from './uuid';
+import {uuid as makeUuid} from '../uuid';
 import {assertString} from '../asserts';
 
 // TODO: Make ClientID an opaque type

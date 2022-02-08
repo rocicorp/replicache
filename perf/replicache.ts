@@ -18,7 +18,7 @@ import {resolver} from '../src/resolver';
 import {
   getIDBDatabasesDBName,
   setupIDBDatabasesStoreForTest,
-  restoreIDBDatabasesStoreForTest,
+  teardownIDBDatabasesStoreForTest,
 } from '../src/persist/mod';
 import {uuid} from '../src/uuid';
 
@@ -38,7 +38,7 @@ export function benchmarkPopulate(opts: {
       setupIDBDatabasesStoreForTest();
     },
     async teardownEach() {
-      restoreIDBDatabasesStoreForTest();
+      await teardownIDBDatabasesStoreForTest();
       await closeAndCleanupRep(repToClose);
     },
     async run(bencher: Bencher) {
@@ -116,9 +116,8 @@ async function setupPersistedData(
 
     await rep.persist();
   } finally {
-    restoreIDBDatabasesStoreForTest();
+    await teardownIDBDatabasesStoreForTest();
     await repToClose?.close();
-    await kv.dropIDBStore(getIDBDatabasesDBName());
   }
 }
 
@@ -139,8 +138,7 @@ export function benchmarkStartupUsingBasicReadsFromPersistedData(opts: {
       setupIDBDatabasesStoreForTest();
     },
     async teardownEach() {
-      restoreIDBDatabasesStoreForTest();
-      await kv.dropIDBStore(getIDBDatabasesDBName());
+      await teardownIDBDatabasesStoreForTest();
       await repToClose?.close();
     },
     async teardown() {
@@ -188,8 +186,7 @@ export function benchmarkStartupUsingScanFromPersistedData(opts: {
       setupIDBDatabasesStoreForTest();
     },
     async teardownEach() {
-      restoreIDBDatabasesStoreForTest();
-      await kv.dropIDBStore(getIDBDatabasesDBName());
+      await teardownIDBDatabasesStoreForTest();
       await repToClose?.close();
     },
     async teardown() {
@@ -246,7 +243,7 @@ export function benchmarkReadTransaction(opts: {
       });
     },
     async teardown() {
-      restoreIDBDatabasesStoreForTest();
+      await teardownIDBDatabasesStoreForTest();
       await closeAndCleanupRep(rep);
     },
     async run(bench: Bencher) {
@@ -283,7 +280,7 @@ export function benchmarkScan(opts: {numKeys: number}): Benchmark {
       });
     },
     async teardown() {
-      restoreIDBDatabasesStoreForTest();
+      await teardownIDBDatabasesStoreForTest();
       await closeAndCleanupRep(rep);
     },
     async run() {
@@ -308,7 +305,7 @@ export function benchmarkCreateIndex(opts: {numKeys: number}): Benchmark {
       setupIDBDatabasesStoreForTest();
     },
     async teardownEach() {
-      restoreIDBDatabasesStoreForTest();
+      await teardownIDBDatabasesStoreForTest();
       await closeAndCleanupRep(repToClose);
     },
     async run(bencher: Bencher) {
@@ -357,7 +354,7 @@ export function benchmarkWriteSubRead(opts: {
       setupIDBDatabasesStoreForTest();
     },
     async teardownEach() {
-      restoreIDBDatabasesStoreForTest();
+      await teardownIDBDatabasesStoreForTest();
       await closeAndCleanupRep(repToClose);
     },
     async run(bencher: Bencher) {
@@ -489,7 +486,6 @@ async function closeAndCleanupRep(rep: Replicache | undefined): Promise<void> {
     await rep.close();
     await kv.dropIDBStore(rep.idbName);
   }
-  await kv.dropIDBStore(getIDBDatabasesDBName());
 }
 
 export function benchmarks(): Benchmark[] {

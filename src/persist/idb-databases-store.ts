@@ -8,15 +8,17 @@ const KEY = 'dbs';
 
 let testNamespace = '';
 /** Namespace db name in test to isolate tests' indexeddb state. */
-export function setupForTest() {
+export function setupForTest(): void {
   testNamespace = uuid();
 }
 
-export function restoreForTest() {
+export function teardownForTest(): Promise<void> {
+  const idbDatabasesDBName = getIDBDatabasesDBName();
   testNamespace = '';
+  return kv.dropIDBStore(idbDatabasesDBName);
 }
 
-export function getIDBDatabasesDBName() {
+export function getIDBDatabasesDBName(): string {
   return testNamespace + IDB_DATABASES_DB_NAME;
 }
 

@@ -12,7 +12,7 @@ export {
   getIDBDatabasesDBName,
   IDBDatabasesStore,
   setupForTest as setupIDBDatabasesStoreForTest,
-  restoreForTest as restoreIDBDatabasesStoreForTest,
+  teardownForTest as teardownIDBDatabasesStoreForTest,
 } from './idb-databases-store';
 
 export type {Client, ClientMap} from './clients';

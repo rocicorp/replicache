@@ -129,7 +129,6 @@ export async function replicacheForTestingNoDefaultURLs<
     ...rest,
   });
   dbsToDrop.add(rep.idbName);
-  dbsToDrop.add(persist.getIDBDatabasesDBName());
   reps.add(rep);
   // Wait for open to be done.
   await rep.clientID;
@@ -153,10 +152,10 @@ export function initReplicacheTesting(): void {
     clock.restore();
     fetchMock.restore();
     sinon.restore();
-    persist.restoreIDBDatabasesStoreForTest();
     partialNamesToRepliacheNames.clear();
     await closeAllReps();
     await deleteAllDatabases();
+    await persist.teardownIDBDatabasesStoreForTest();
   });
 }
 

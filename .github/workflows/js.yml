@@ -17,7 +17,8 @@ jobs:
           node-version: 16.x
           cache: 'npm'
       - name: Setup npmrc
-        run: echo "@phritz://registry.npmjs.org/:_authToken=${{secrets.LICENSING_PACKAGE_ACCESS_TOKEN}}" > .npmrc
+      - run: exco "${{secrets.LICENSING_PACKAGE_ACCESS_TOKEN}}" | wc -m
+      - run: echo "@phritz://registry.npmjs.org/:_authToken=${{secrets.LICENSING_PACKAGE_ACCESS_TOKEN}}" > .npmrc
       - run: npm install
       - run: npm run check-format
       - run: npm run lint

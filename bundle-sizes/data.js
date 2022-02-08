@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1644313728579,
+  "lastUpdate": 1644338487062,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -4937,6 +4937,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 18390,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "29bdaea299cfe232146d43257b8de433cf620b53",
+          "message": "fix: Improve isolation of tests' and benchmarks' indexeddb state to reduce flakiness (#822)\n\nIn tests add a uuid to indexeddb database names (Replicache name and IDBDatbasesStore DB) \r\nto isolate tests' indexed db state.\r\n \r\nAlso fixes a bug in kv.IDBStore which was blocking IndexedDB opened by these stores from being \r\ndeleted.   In order to not block deletion of the db, the connection needs to be closed on \r\n`onversionchange`.  Previously the code was only setting up \r\n`db.onversionchange = () => db.close()` in `onupgradeneeded` which only fires if the db didnt \r\nalready exist.  Code is updated to always setup `db.onversionchange = () => db.close()`. \r\n\r\nWhile this fix allows the IndexedDB databases to be reliably deleted, it did not prevent races \r\naround deletion.  Before isolating with uuid, I was observing that after one test's teardown \r\nawait the deletion of a database with name X, if the next test opened the database with name \r\nX, the test would _sometimes_ get an error that its connection to X was closed, suggestion some \r\nrace where the deletion is not truly complete when the success callback for the deletion is invoked.\r\n\r\nFixes #819",
+          "timestamp": "2022-02-08T08:38:33-08:00",
+          "tree_id": "eff3bafc09cfe2daf99c93c9a90b75c61d174f10",
+          "url": "https://github.com/rocicorp/replicache/commit/29bdaea299cfe232146d43257b8de433cf620b53"
+        },
+        "date": 1644338484568,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 150495,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 27179,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 149217,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 26830,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 64795,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18461,
             "unit": "bytes"
           }
         ]

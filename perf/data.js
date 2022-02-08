@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1644339844291,
+  "lastUpdate": 1644360560573,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -68193,6 +68193,100 @@ window.BENCHMARK_DATA = {
             "range": "±6.0%",
             "unit": "MB/s",
             "extra": "15 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "206685bc9a816076212b730fd7cfcdfbc30fb346",
+          "message": "fix: Fix flakiness of replicache-persist.test.ts on Webkit (#828)\n\n**Problem**\r\nreplicache-persist.test is flacky on webkit because the persist process does not always complete before we \r\ncreate a new replicache and try to read the persisted data.  This happens more on webkit because it uses a \r\ntimeout rather than request idle callback to start persist.\r\n\r\n**Solution**\r\nWait for persist to complete (detected by polling the ClientMap) before creating a new Replicache and verifying\r\nit bootstraps from the persisted data.",
+          "timestamp": "2022-02-08T14:46:30-08:00",
+          "tree_id": "f9ce8fb2628921e04181765d799e989bdf6ae24d",
+          "url": "https://github.com/rocicorp/replicache/commit/206685bc9a816076212b730fd7cfcdfbc30fb346"
+        },
+        "date": 1644360559798,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 769.23,
+            "range": "±2.3%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 434.78,
+            "range": "±2.3%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 322.58,
+            "range": "±2.4%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 19.65,
+            "range": "±104.6%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 9.9,
+            "range": "±63.3%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 7.95,
+            "range": "±96.2%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 361.69,
+            "range": "±11.5%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 3.79,
+            "range": "±49.2%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.65,
+            "range": "±174.5%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 2.95,
+            "range": "±4.9%",
+            "unit": "MB/s",
+            "extra": "14 samples"
           }
         ]
       }

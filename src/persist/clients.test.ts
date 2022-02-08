@@ -536,7 +536,15 @@ test('updateClients throws errors if chunk pointed to by clients head does not c
 test('initClient creates new empty snapshot when no existing snapshot to bootstrap from', async () => {
   const dagStore = new dag.TestStore();
   clock.tick(4000);
-  const [clientId, client] = await initClient(dagStore);
+  const [clientId, client, clients] = await initClient(dagStore);
+
+  expect(clients).to.deep.equal(
+    new Map(
+      Object.entries({
+        [clientId]: client,
+      }),
+    ),
+  );
 
   await dagStore.withRead(async (read: dag.Read) => {
     // New client was added to the client map.
@@ -589,7 +597,9 @@ test('initClient bootstraps from base snapshot of client with highest heartbeat'
   await setClients(clientMap, dagStore);
 
   clock.tick(4000);
-  const [clientId, client] = await initClient(dagStore);
+  const [clientId, client, clients] = await initClient(dagStore);
+
+  expect(clients).to.deep.equal(new Map(clientMap).set(clientId, client));
 
   await dagStore.withRead(async (read: dag.Read) => {
     // New client was added to the client map.

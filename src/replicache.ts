@@ -159,6 +159,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
   /** The schema version of the data understood by this application. */
   readonly schemaVersion: string;
 
+  private get _idbDatabase(): persist.IndexedDBDatabase {
+    return {
+      name: this.idbName,
+      replicacheName: this.name,
+      replicacheFormatVersion: REPLICACHE_FORMAT_VERSION,
+      schemaVersion: this.schemaVersion,
+    };
+  }
   private _closed = false;
   private _online = true;
   private readonly _logger: Logger;
@@ -349,13 +357,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
     // If we are currently closing a Replicache instance with the same name,
     // wait for it to finish closing.
     await closingInstances.get(this.name);
-    await this._idbDatabases.putDatabase({
-      name: this.idbName,
-      replicacheName: this.name,
-      replicacheFormatVersion: REPLICACHE_FORMAT_VERSION,
-      schemaVersion: this.schemaVersion,
-    });
-    const [clientID, client] = await persist.initClient(this._perdag);
+    await this._idbDatabases.putDatabase(this._idbDatabase);
+    const [clientID, client, clients] = await persist.initClient(this._perdag);
     resolveClientID(clientID);
     await this._memdag.withWrite(async write => {
       await write.setHead(db.DEFAULT_HEAD_NAME, client.headHash);
@@ -377,7 +380,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       () => this._recoverMutations(),
       RECOVER_MUTATIONS_INTERVAL_MS,
     );
-    void this._recoverMutations();
+    void this._recoverMutations(clients);
   }
 
   /**
@@ -1166,17 +1169,29 @@ export class Replicache<MD extends MutatorDefs = {}> {
     });
   }
 
-  protected async _recoverMutations(): Promise<boolean> {
+  protected async _recoverMutations(
+    preReadClientMap?: persist.ClientMap,
+  ): Promise<boolean> {
     if (this._recoveringMutations || !this.online || this.closed) {
       return false;
     }
+    const stepDescription = 'Recovering mutations.';
+    this._lc.debug?.('Start:', stepDescription);
     try {
       this._recoveringMutations = true;
       await this._ready;
-      await this._recoverMutationsFromPerdag(this._perdag, this.schemaVersion);
+      await this._recoverMutationsFromPerdag(
+        this._idbDatabase,
+        this._perdag,
+        preReadClientMap,
+      );
       for (const database of Object.values(
         await this._idbDatabases.getDatabases(),
       )) {
+        if (this.closed) {
+          this._lc.debug?.('Exiting early due to close:', stepDescription);
+          return true;
+        }
         if (
           database.name === this.idbName ||
           database.replicacheName !== this.name ||
@@ -1186,58 +1201,65 @@ export class Replicache<MD extends MutatorDefs = {}> {
         ) {
           continue;
         }
-        const perKvStore = new IDBStore(database.name);
-        const perdag = new dag.StoreImpl(
-          perKvStore,
-          dag.throwChunkHasher,
-          assertNotTempHash,
-        );
-        try {
-          await this._recoverMutationsFromPerdag(
-            perdag,
-            database.schemaVersion,
-          );
-        } finally {
-          await perdag.close();
-        }
+        await this._recoverMutationsFromPerdag(database);
       }
     } catch (e) {
-      if (this.closed) {
-        this._lc.debug?.('Mutation recovery did not complete due to close.', e);
-      } else {
-        throw e;
-      }
+      this._logMutationRecoveryError(e, stepDescription);
     } finally {
+      this._lc.debug?.('End:', stepDescription);
       this._recoveringMutations = false;
     }
     return true;
   }
 
   private async _recoverMutationsFromPerdag(
-    perdag: dag.Store,
-    schemaVersion: string,
+    database: persist.IndexedDBDatabase,
+    perdag?: dag.Store,
+    preReadClientMap?: persist.ClientMap,
   ): Promise<void> {
-    let clientMap: persist.ClientMap | undefined = await perdag.withRead(read =>
-      persist.getClients(read),
-    );
-    const clientIDsVisited = new Set<sync.ClientID>();
-    while (clientMap) {
-      let newClientMap: persist.ClientMap | undefined;
-      for (const [clientID, client] of clientMap) {
-        if (!clientIDsVisited.has(clientID)) {
-          clientIDsVisited.add(clientID);
-          newClientMap = await this._recoverMutationsOfClient(
-            client,
-            clientID,
-            perdag,
-            schemaVersion,
-          );
-          if (newClientMap) {
-            break;
+    const stepDescription = `Recovering mutations from db ${database.name}.`;
+    this._lc.debug?.('Start:', stepDescription);
+    let perDagToClose: dag.Store | undefined = undefined;
+    try {
+      if (!perdag) {
+        const perKvStore = new IDBStore(database.name);
+        perdag = perDagToClose = new dag.StoreImpl(
+          perKvStore,
+          dag.throwChunkHasher,
+          assertNotTempHash,
+        );
+      }
+      let clientMap: persist.ClientMap | undefined =
+        preReadClientMap ||
+        (await perdag.withRead(read => persist.getClients(read)));
+      const clientIDsVisited = new Set<sync.ClientID>();
+      while (clientMap) {
+        let newClientMap: persist.ClientMap | undefined;
+        for (const [clientID, client] of clientMap) {
+          if (this.closed) {
+            this._lc.debug?.('Exiting early due to close:', stepDescription);
+            return;
+          }
+          if (!clientIDsVisited.has(clientID)) {
+            clientIDsVisited.add(clientID);
+            newClientMap = await this._recoverMutationsOfClient(
+              client,
+              clientID,
+              perdag,
+              database,
+            );
+            if (newClientMap) {
+              break;
+            }
           }
         }
+        clientMap = newClientMap;
       }
-      clientMap = newClientMap;
+    } catch (e) {
+      this._logMutationRecoveryError(e, stepDescription);
+    } finally {
+      await perDagToClose?.close();
+      this._lc.debug?.('End:', stepDescription);
     }
   }
 
@@ -1251,7 +1273,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     client: persist.Client,
     clientID: sync.ClientID,
     perdag: dag.Store,
-    schemaVersion: string,
+    database: persist.IndexedDBDatabase,
   ): Promise<persist.ClientMap | undefined> {
     const selfClientID = await this._clientIDPromise;
     if (selfClientID === clientID) {
@@ -1260,13 +1282,17 @@ export class Replicache<MD extends MutatorDefs = {}> {
     if (client.lastServerAckdMutationID >= client.mutationID) {
       return undefined;
     }
-    const dagForOtherClient = new dag.LazyStore(
-      perdag,
-      MUTATION_RECOVERY_LAZY_STORE_SOURCE_CHUNK_CACHE_SIZE_LIMIT,
-      dag.throwChunkHasher,
-      assertHash,
-    );
+    const stepDescription = `Recovering mutations for ${clientID}.`;
+    this._lc.debug?.('Start:', stepDescription);
+    let dagForOtherClientToClose: dag.LazyStore | undefined;
     try {
+      const dagForOtherClient = (dagForOtherClientToClose = new dag.LazyStore(
+        perdag,
+        MUTATION_RECOVERY_LAZY_STORE_SOURCE_CHUNK_CACHE_SIZE_LIMIT,
+        dag.throwChunkHasher,
+        assertHash,
+      ));
+
       await dagForOtherClient.withWrite(async write => {
         await write.setHead(db.DEFAULT_HEAD_NAME, client.headHash);
         await write.commit();
@@ -1280,6 +1306,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       const pushSucceeded = await this._wrapInOnlineCheck(async () => {
         const {result: pushResponse} = await this._wrapInReauthRetries(
           async () => {
+            assertNotUndefined(dagForOtherClient);
             const pushResponse = await sync.push(
               pushRequestID,
               dagForOtherClient,
@@ -1288,7 +1315,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
               this.pusher,
               this.pushURL,
               this.auth,
-              schemaVersion,
+              database.schemaVersion,
             );
             return {result: pushResponse, httpRequestInfo: pushResponse};
           },
@@ -1299,10 +1326,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
       }, pushDescription);
       if (!pushSucceeded) {
         this._lc.debug?.(
-          `Client ${selfClientID} failed to recover mutations for client ` +
-            `${clientID} due to a push error.`,
+          `Failed to recover mutations for client ${clientID} due to a push error.`,
         );
-        return undefined;
+        return;
       }
 
       const requestID = sync.newRequestID(clientID);
@@ -1313,7 +1339,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       const beginPullRequest = {
         pullAuth: this.auth,
         pullURL: this.pullURL,
-        schemaVersion,
+        schemaVersion: database.schemaVersion,
         puller: this.puller,
       };
       let pullResponse: PullResponse | undefined;
@@ -1345,10 +1371,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
       }, pullDescription);
       if (!pullSucceeded) {
         this._lc.debug?.(
-          `Client ${selfClientID} failed to recover mutations for client ` +
-            `${clientID} due to a pull error.`,
+          `Failed to recover mutations for client ${clientID} due to a pull error.`,
         );
-        return undefined;
+        return;
       }
 
       this._lc.debug?.(
@@ -1381,8 +1406,25 @@ export class Replicache<MD extends MutatorDefs = {}> {
         perdag,
       );
       return newClientMap;
+    } catch (e) {
+      this._logMutationRecoveryError(e, stepDescription);
+      return;
     } finally {
-      await dagForOtherClient.close();
+      await dagForOtherClientToClose?.close();
+      this._lc.debug?.('End:', stepDescription);
+    }
+  }
+  private _logMutationRecoveryError(e: unknown, stepDescription: string) {
+    if (this.closed) {
+      this._lc.debug?.(
+        `Mutation recovery error likely due to close during:\n${stepDescription}\nError:\n`,
+        e,
+      );
+    } else {
+      this._lc.error?.(
+        `Mutation recovery error during:\n${stepDescription}\nError:\n`,
+        e,
+      );
     }
   }
 }

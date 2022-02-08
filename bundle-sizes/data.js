@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1644338487062,
+  "lastUpdate": 1644339588861,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -4961,6 +4961,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/29bdaea299cfe232146d43257b8de433cf620b53"
         },
         "date": 1644338484568,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 150495,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 27179,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 149217,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 26830,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 64795,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18461,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f28980eefa4f3a207bf0fba9a951d4897e10434b",
+          "message": "chore: improve createPushBody arg name and type in replicache-mutation-recovery.test (#825)",
+          "timestamp": "2022-02-08T16:58:41Z",
+          "tree_id": "0bca3f8cbaaee4977ae459e03d40e2a957fbbae2",
+          "url": "https://github.com/rocicorp/replicache/commit/f28980eefa4f3a207bf0fba9a951d4897e10434b"
+        },
+        "date": 1644339586403,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

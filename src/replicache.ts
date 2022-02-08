@@ -58,7 +58,7 @@ export type Poke = {
 
 export const httpStatusUnauthorized = 401;
 
-export const REPLICACHE_FORMAT_VERSION = 3;
+export const REPLICACHE_FORMAT_VERSION = 4;
 const LAZY_STORE_SOURCE_CHUNK_CACHE_SIZE_LIMIT = 100 * 2 ** 20; // 100 MB
 const MUTATION_RECOVERY_LAZY_STORE_SOURCE_CHUNK_CACHE_SIZE_LIMIT = 10 * 2 ** 20; // 10 MB
 const RECOVER_MUTATIONS_INTERVAL_MS = 5 * 60 * 1000; // 5 mins

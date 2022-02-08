@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1644313993233,
+  "lastUpdate": 1644338660523,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -68003,6 +68003,100 @@ window.BENCHMARK_DATA = {
             "name": "startup scan 1024x100 from 1024x100000 stored",
             "value": 3.27,
             "range": "±7.6%",
+            "unit": "MB/s",
+            "extra": "15 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "29bdaea299cfe232146d43257b8de433cf620b53",
+          "message": "fix: Improve isolation of tests' and benchmarks' indexeddb state to reduce flakiness (#822)\n\nIn tests add a uuid to indexeddb database names (Replicache name and IDBDatbasesStore DB) \r\nto isolate tests' indexed db state.\r\n \r\nAlso fixes a bug in kv.IDBStore which was blocking IndexedDB opened by these stores from being \r\ndeleted.   In order to not block deletion of the db, the connection needs to be closed on \r\n`onversionchange`.  Previously the code was only setting up \r\n`db.onversionchange = () => db.close()` in `onupgradeneeded` which only fires if the db didnt \r\nalready exist.  Code is updated to always setup `db.onversionchange = () => db.close()`. \r\n\r\nWhile this fix allows the IndexedDB databases to be reliably deleted, it did not prevent races \r\naround deletion.  Before isolating with uuid, I was observing that after one test's teardown \r\nawait the deletion of a database with name X, if the next test opened the database with name \r\nX, the test would _sometimes_ get an error that its connection to X was closed, suggestion some \r\nrace where the deletion is not truly complete when the success callback for the deletion is invoked.\r\n\r\nFixes #819",
+          "timestamp": "2022-02-08T08:38:33-08:00",
+          "tree_id": "eff3bafc09cfe2daf99c93c9a90b75c61d174f10",
+          "url": "https://github.com/rocicorp/replicache/commit/29bdaea299cfe232146d43257b8de433cf620b53"
+        },
+        "date": 1644338660221,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 769.23,
+            "range": "±2.3%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 400,
+            "range": "±1.7%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 322.58,
+            "range": "±1.7%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 19.15,
+            "range": "±55.2%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 10.53,
+            "range": "±32.6%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 7.69,
+            "range": "±37.2%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 348.77,
+            "range": "±6.8%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 3.78,
+            "range": "±48.5%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.65,
+            "range": "±162.2%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 3.18,
+            "range": "±3.3%",
             "unit": "MB/s",
             "extra": "15 samples"
           }

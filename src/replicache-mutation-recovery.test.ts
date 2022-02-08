@@ -90,12 +90,12 @@ async function createAndPersistClientWithPendingLocal(
 }
 
 function createPushBody(
-  client1ID: string,
+  clientID: sync.ClientID,
   localMetas: db.LocalMeta[],
   schemaVersion: string,
 ): ReadonlyJSONObject {
   return {
-    clientID: client1ID,
+    clientID,
     mutations: localMetas.map(localMeta => ({
       id: localMeta.mutationID,
       name: localMeta.mutatorName,

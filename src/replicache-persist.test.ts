@@ -9,14 +9,36 @@ import {expect} from '@esm-bundle/chai';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 import fetchMock from 'fetch-mock/esm/client';
+import * as kv from './kv/mod';
+import * as dag from './dag/mod';
+import * as persist from './persist/mod';
+import {assertNotTempHash} from './hash';
+import {assertNotUndefined} from './asserts';
 
 initReplicacheTesting();
+
+let perdag: dag.Store | undefined;
+teardown(async () => {
+  await perdag?.close();
+});
 
 test('basic persist & load', async () => {
   const pullURL = 'https://diff.com/pull';
   const rep = await replicacheForTesting('persist-test', {
     pullURL,
   });
+  const clientID = await rep.clientID;
+
+  perdag = new dag.StoreImpl(
+    new kv.IDBStore(rep.idbName),
+    dag.throwChunkHasher,
+    assertNotTempHash,
+  );
+
+  const clientBeforePull = await perdag.withRead(read =>
+    persist.getClient(clientID, read),
+  );
+  assertNotUndefined(clientBeforePull);
 
   fetchMock.postOnce(pullURL, {
     cookie: '',
@@ -34,10 +56,31 @@ test('basic persist & load', async () => {
       },
     ],
   });
+
   rep.pull();
 
-  // At least PERSIST_TIMEOUT should have passed.
-  await tickAFewTimes(10, 100);
+  // maxWaitAttempts * waitMs should be at least PERSIST_TIMEOUT
+  // plus some buffer for the persist process to complete
+  const maxWaitAttempts = 20;
+  const waitMs = 100;
+  let waitAttempt = 0;
+  const run = true;
+  while (run) {
+    if (waitAttempt++ > maxWaitAttempts) {
+      throw new Error(
+        `Persist did not complete in ${maxWaitAttempts * waitMs} ms`,
+      );
+    }
+    await tickAFewTimes(waitMs);
+    const client: persist.Client | undefined = await perdag.withRead(read =>
+      persist.getClient(clientID, read),
+    );
+    assertNotUndefined(client);
+    if (clientBeforePull.headHash !== client.headHash) {
+      // persist has completed
+      break;
+    }
+  }
 
   await rep.query(async tx => {
     expect(await tx.get('a')).to.equal(1);

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1644339588861,
+  "lastUpdate": 1644360450251,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -5015,6 +5015,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/f28980eefa4f3a207bf0fba9a951d4897e10434b"
         },
         "date": 1644339586403,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 150495,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 27179,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 149217,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 26830,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 64795,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18461,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "206685bc9a816076212b730fd7cfcdfbc30fb346",
+          "message": "fix: Fix flakiness of replicache-persist.test.ts on Webkit (#828)\n\n**Problem**\r\nreplicache-persist.test is flacky on webkit because the persist process does not always complete before we \r\ncreate a new replicache and try to read the persisted data.  This happens more on webkit because it uses a \r\ntimeout rather than request idle callback to start persist.\r\n\r\n**Solution**\r\nWait for persist to complete (detected by polling the ClientMap) before creating a new Replicache and verifying\r\nit bootstraps from the persisted data.",
+          "timestamp": "2022-02-08T14:46:30-08:00",
+          "tree_id": "f9ce8fb2628921e04181765d799e989bdf6ae24d",
+          "url": "https://github.com/rocicorp/replicache/commit/206685bc9a816076212b730fd7cfcdfbc30fb346"
+        },
+        "date": 1644360447725,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

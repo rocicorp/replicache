@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1644261114810,
+  "lastUpdate": 1644313416099,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -4799,6 +4799,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/ab8990ae58853906ae0b6c465354a88f73d01d64"
         },
         "date": 1644261112829,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 150437,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 27174,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 149159,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 26829,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 64782,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18390,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "83e15f22b04332eea9d3261a7c925633ca8f61c8",
+          "message": "chore(deps): bump shelljs from 0.8.4 to 0.8.5 in /doc (#807)\n\nBumps [shelljs](https://github.com/shelljs/shelljs) from 0.8.4 to 0.8.5.\r\n- [Release notes](https://github.com/shelljs/shelljs/releases)\r\n- [Changelog](https://github.com/shelljs/shelljs/blob/master/CHANGELOG.md)\r\n- [Commits](https://github.com/shelljs/shelljs/compare/v0.8.4...v0.8.5)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: shelljs\r\n  dependency-type: indirect\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Erik Arvidsson <erik.arvidsson@gmail.com>",
+          "timestamp": "2022-02-08T09:42:32Z",
+          "tree_id": "ed93870c93382e0dd1f45d97516fa53ad6c068c3",
+          "url": "https://github.com/rocicorp/replicache/commit/83e15f22b04332eea9d3261a7c925633ca8f61c8"
+        },
+        "date": 1644313413822,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

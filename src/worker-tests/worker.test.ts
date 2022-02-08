@@ -4,7 +4,7 @@ import {closeAllReps, dbsToDrop, deleteAllDatabases} from '../test-util';
 
 teardown(async () => {
   await closeAllReps();
-  deleteAllDatabases();
+  await deleteAllDatabases();
 });
 
 // This started failing on github only with https://github.com/rocicorp/replicache/pull/479.

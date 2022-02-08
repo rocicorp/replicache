@@ -1,4 +1,4 @@
-import {uuid} from '../src/sync/uuid';
+import {uuid} from '../src/uuid';
 import {randomString} from './data';
 import type {Benchmark} from './perf';
 

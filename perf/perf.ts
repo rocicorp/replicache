@@ -15,7 +15,9 @@ export type Benchmark = {
   byteSize?: number;
   skip?: () => Promise<boolean> | boolean;
   setup?: () => Promise<void> | void;
+  setupEach?: () => Promise<void> | void;
   teardown?: () => Promise<void> | void;
+  teardownEach?: () => Promise<void> | void;
   run: (b: Bencher, i: number) => Promise<void> | void;
 };
 
@@ -55,45 +57,49 @@ async function runBenchmark(
     return;
   }
 
-  if (benchmark.setup) {
-    await benchmark.setup();
-  }
+  try {
+    await benchmark.setup?.();
 
-  const totalTimeStart = performance.now();
-  for (let i = 0; (i < minRuns || sum < minTime) && i < maxRuns; i++) {
-    if (i >= minRuns && performance.now() - totalTimeStart > maxTotalTime) {
-      break;
+    const totalTimeStart = performance.now();
+    for (let i = 0; (i < minRuns || sum < minTime) && i < maxRuns; i++) {
+      if (i >= minRuns && performance.now() - totalTimeStart > maxTotalTime) {
+        break;
+      }
+
+      try {
+        await benchmark.setupEach?.();
+
+        let t0 = 0;
+        let t1 = 0;
+        const reset = () => {
+          performance.mark('mark-' + i);
+          t0 = performance.now();
+        };
+        const stop = () => {
+          t1 = performance.now();
+          performance.measure(benchmark.name, 'mark-' + i);
+        };
+        reset();
+
+        await benchmark.run(
+          {
+            reset,
+            stop,
+          },
+          i,
+        );
+        if (t1 === 0) {
+          stop();
+        }
+        const dur = t1 - t0;
+        times.push(dur);
+        sum += dur;
+      } finally {
+        await benchmark.teardownEach?.();
+      }
     }
-
-    let t0 = 0;
-    let t1 = 0;
-    const reset = () => {
-      performance.mark('mark-' + i);
-      t0 = performance.now();
-    };
-    const stop = () => {
-      t1 = performance.now();
-      performance.measure(benchmark.name, 'mark-' + i);
-    };
-    reset();
-
-    await benchmark.run(
-      {
-        reset,
-        stop,
-      },
-      i,
-    );
-    if (t1 === 0) {
-      stop();
-    }
-    const dur = t1 - t0;
-    times.push(dur);
-    sum += dur;
-  }
-
-  if (benchmark.teardown) {
-    await benchmark.teardown();
+  } finally {
+    await benchmark.teardown?.();
   }
 
   times.sort((a, b) => a - b);

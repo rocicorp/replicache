@@ -4,6 +4,7 @@ import {
   tickAFewTimes,
   dbsToDrop,
   clock,
+  createReplicacheNameForTest,
 } from './test-util';
 import {makeIdbName, REPLICACHE_FORMAT_VERSION} from './replicache';
 import {addGenesis, addLocal, addSnapshot, Chain} from './db/test-helpers';
@@ -15,7 +16,7 @@ import type * as sync from './sync/mod';
 import {assertHash, assertNotTempHash, makeNewTempHashFunction} from './hash';
 import {assertNotUndefined} from './asserts';
 import {expect} from '@esm-bundle/chai';
-import {uuid} from './sync/uuid';
+import {uuid} from './uuid';
 import {assertJSONObject, JSONObject, ReadonlyJSONObject} from './json';
 import sinon from 'sinon';
 
@@ -27,18 +28,12 @@ import fetchMock from 'fetch-mock/esm/client';
 initReplicacheTesting();
 
 const dagsToClose: dag.Store[] = [];
-let idbDatabases: persist.IDBDatabasesStore;
-setup(async () => {
-  idbDatabases = new persist.IDBDatabasesStore();
-  await idbDatabases.clear();
-});
 
 teardown(async () => {
   for (const dagToClose of dagsToClose) {
     await dagToClose.close();
   }
   dagsToClose.length = 0;
-  await idbDatabases.close();
   sinon.restore();
 });
 
@@ -50,12 +45,18 @@ async function createPerdag(args: {
   const idbName = makeIdbName(replicacheName, schemaVersion);
   dbsToDrop.add(idbName);
   const idb = new kv.IDBStore(idbName);
-  await idbDatabases.putDatabase({
-    name: idbName,
-    replicacheName,
-    schemaVersion,
-    replicacheFormatVersion: REPLICACHE_FORMAT_VERSION,
-  });
+
+  const idbDatabases = new persist.IDBDatabasesStore();
+  try {
+    await idbDatabases.putDatabase({
+      name: idbName,
+      replicacheName,
+      schemaVersion,
+      replicacheFormatVersion: REPLICACHE_FORMAT_VERSION,
+    });
+  } finally {
+    await idbDatabases.close();
+  }
   const perdag = new dag.StoreImpl(
     idb,
     dag.throwChunkHasher,
@@ -120,21 +121,23 @@ async function testRecoveringMutationsOfClient(args: {
     ...args,
   };
   const client1ID = 'client1';
-  const replicacheName = `recoverMutations${schemaVersionOfClientRecoveringMutations}recovering${schemaVersionOfClientWPendingMutations}`;
   const auth = '1';
   const pushURL = 'https://test.replicache.dev/push';
   const pullURL = 'https://test.replicache.dev/pull';
-  const rep = await replicacheForTesting(replicacheName, {
-    auth,
-    schemaVersion: schemaVersionOfClientRecoveringMutations,
-    pushURL,
-    pullURL,
-  });
+  const rep = await replicacheForTesting(
+    `recoverMutations${schemaVersionOfClientRecoveringMutations}recovering${schemaVersionOfClientWPendingMutations}`,
+    {
+      auth,
+      schemaVersion: schemaVersionOfClientRecoveringMutations,
+      pushURL,
+      pullURL,
+    },
+  );
 
   await tickAFewTimes();
 
   const testPerdag = await createPerdag({
-    replicacheName,
+    replicacheName: rep.name,
     schemaVersion: schemaVersionOfClientWPendingMutations,
   });
 
@@ -226,14 +229,16 @@ test('successfully recovering some but not all mutations of another client (pull
 test('client does not attempt to recover mutations from IndexedDB with different replicache name', async () => {
   const clientWPendingMutationsID = 'client1';
   const schemaVersion = 'testSchema';
-  const replicacheNameOfClientWPendingMutations = 'diffName-pendingClient';
-  const replicacheNameOfClientRecoveringMutations = 'diffName-recoveringClient';
+  const replicachePartialNameOfClientWPendingMutations =
+    'diffName-pendingClient';
+  const replicachePartialNameOfClientRecoveringMutations =
+    'diffName-recoveringClient';
 
   const auth = '1';
   const pushURL = 'https://test.replicache.dev/push';
   const pullURL = 'https://test.replicache.dev/pull';
   const rep = await replicacheForTesting(
-    replicacheNameOfClientRecoveringMutations,
+    replicachePartialNameOfClientRecoveringMutations,
     {
       auth,
       schemaVersion,
@@ -245,7 +250,9 @@ test('client does not attempt to recover mutations from IndexedDB with different
   await tickAFewTimes();
 
   const testPerdag = await createPerdag({
-    replicacheName: replicacheNameOfClientWPendingMutations,
+    replicacheName: createReplicacheNameForTest(
+      replicachePartialNameOfClientWPendingMutations,
+    ),
     schemaVersion,
   });
 
@@ -286,11 +293,11 @@ test('successfully recovering mutations of multiple clients with mix of schema v
   const client3ID = 'client3';
   // client4 has different schema version than recovering client and 2 mutations to recover
   const client4ID = 'client4';
-  const replicacheName = 'recoverMutationsMix';
+  const replicachePartialName = 'recoverMutationsMix';
   const auth = '1';
   const pushURL = 'https://test.replicache.dev/push';
   const pullURL = 'https://test.replicache.dev/pull';
-  const rep = await replicacheForTesting(replicacheName, {
+  const rep = await replicacheForTesting(replicachePartialName, {
     auth,
     schemaVersion: schemaVersionOfClients1Thru3AndClientRecoveringMutations,
     pushURL,
@@ -300,7 +307,7 @@ test('successfully recovering mutations of multiple clients with mix of schema v
   await tickAFewTimes();
 
   const testPerdagForClients1Thru3 = await createPerdag({
-    replicacheName,
+    replicacheName: rep.name,
     schemaVersion: schemaVersionOfClients1Thru3AndClientRecoveringMutations,
   });
 
@@ -322,7 +329,7 @@ test('successfully recovering mutations of multiple clients with mix of schema v
   );
 
   const testPerdagForClient4 = await createPerdag({
-    replicacheName,
+    replicacheName: rep.name,
     schemaVersion: schemaVersionOfClient4,
   });
   const client4PendingLocalMetas = await createAndPersistClientWithPendingLocal(
@@ -474,11 +481,11 @@ test('if a push error occurs, continues to try to recover other clients', async 
   const client2ID = 'client2';
   // client3 has same schema version as recovering client and 1 mutation to recover
   const client3ID = 'client3';
-  const replicacheName = 'recoverMutationsRobustToPushError';
+  const replicachePartialName = 'recoverMutationsRobustToPushError';
   const auth = '1';
   const pushURL = 'https://test.replicache.dev/push';
   const pullURL = 'https://test.replicache.dev/pull';
-  const rep = await replicacheForTesting(replicacheName, {
+  const rep = await replicacheForTesting(replicachePartialName, {
     auth,
     schemaVersion,
     pushURL,
@@ -488,7 +495,7 @@ test('if a push error occurs, continues to try to recover other clients', async 
   await tickAFewTimes();
 
   const testPerdag = await createPerdag({
-    replicacheName,
+    replicacheName: rep.name,
     schemaVersion,
   });
 
@@ -626,11 +633,11 @@ test('if an error occurs recovering one client, continues to try to recover othe
   const client2ID = 'client2';
   // client3 has same schema version as recovering client and 1 mutation to recover
   const client3ID = 'client3';
-  const replicacheName = 'recoverMutationsRobustToClientError';
+  const replicachePartialName = 'recoverMutationsRobustToClientError';
   const auth = '1';
   const pushURL = 'https://test.replicache.dev/push';
   const pullURL = 'https://test.replicache.dev/pull';
-  const rep = await replicacheForTesting(replicacheName, {
+  const rep = await replicacheForTesting(replicachePartialName, {
     auth,
     schemaVersion,
     pushURL,
@@ -640,7 +647,7 @@ test('if an error occurs recovering one client, continues to try to recover othe
   await tickAFewTimes();
 
   const testPerdag = await createPerdag({
-    replicacheName,
+    replicacheName: rep.name,
     schemaVersion,
   });
 
@@ -766,11 +773,11 @@ test('if an error occurs recovering one db, continues to try to recover clients 
   const schemaVersionOfRecoveringClient = 'testSchemaOfRecovering';
   const client1ID = 'client1';
   const client2ID = 'client2';
-  const replicacheName = 'recoverMutationsRobustToDBError';
+  const replicachePartialName = 'recoverMutationsRobustToDBError';
   const auth = '1';
   const pushURL = 'https://test.replicache.dev/push';
   const pullURL = 'https://test.replicache.dev/pull';
-  const rep = await replicacheForTesting(replicacheName, {
+  const rep = await replicacheForTesting(replicachePartialName, {
     auth,
     schemaVersion: schemaVersionOfRecoveringClient,
     pushURL,
@@ -780,7 +787,7 @@ test('if an error occurs recovering one db, continues to try to recover clients 
   await tickAFewTimes();
 
   const testPerdagForClient1 = await createPerdag({
-    replicacheName,
+    replicacheName: rep.name,
     schemaVersion: schemaVersionOfClient1,
   });
   await createAndPersistClientWithPendingLocal(
@@ -790,7 +797,7 @@ test('if an error occurs recovering one db, continues to try to recover clients 
   );
 
   const testPerdagForClient2 = await createPerdag({
-    replicacheName,
+    replicacheName: rep.name,
     schemaVersion: schemaVersionOfClient2,
   });
   const client2PendingLocalMetas = await createAndPersistClientWithPendingLocal(
@@ -888,11 +895,11 @@ test('mutation recovery exits early if Replicache is closed', async () => {
   const schemaVersion = 'testSchema1';
   const client1ID = 'client1';
   const client2ID = 'client2';
-  const replicacheName = 'recoverMutationsRobustToClientError';
+  const replicachePartialName = 'recoverMutationsRobustToClientError';
   const auth = '1';
   const pushURL = 'https://test.replicache.dev/push';
   const pullURL = 'https://test.replicache.dev/pull';
-  const rep = await replicacheForTesting(replicacheName, {
+  const rep = await replicacheForTesting(replicachePartialName, {
     auth,
     schemaVersion,
     pushURL,
@@ -902,7 +909,7 @@ test('mutation recovery exits early if Replicache is closed', async () => {
   await tickAFewTimes();
 
   const testPerdag = await createPerdag({
-    replicacheName,
+    replicacheName: rep.name,
     schemaVersion,
   });
 
@@ -994,9 +1001,8 @@ test('mutation recovery is invoked at startup', async () => {
 });
 
 test('mutation recovery is invoked on change from offline to online', async () => {
-  const replicacheName = 'mutation-recovery-online';
   const pullURL = 'https://test.replicache.dev/pull';
-  const rep = await replicacheForTesting(replicacheName, {
+  const rep = await replicacheForTesting('mutation-recovery-online', {
     pullURL,
   });
   expect(rep.recoverMutationsSpy.callCount).to.equal(1);

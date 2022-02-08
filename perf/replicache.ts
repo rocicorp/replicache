@@ -13,23 +13,35 @@ import {
 import {jsonArrayTestData, TestDataObject, jsonObjectTestData} from './data';
 import type {Bencher, Benchmark} from './perf';
 import {range, sampleSize} from 'lodash-es';
-import {makeIdbName} from '../src/replicache';
+import * as kv from '../src/kv/mod';
 import {resolver} from '../src/resolver';
-import {IDB_DATABASES_DB_NAME} from '../src/persist/idb-databases-store';
+import {
+  setupIDBDatabasesStoreForTest,
+  teardownIDBDatabasesStoreForTest,
+} from '../src/persist/mod';
+import {uuid} from '../src/uuid';
 
 export function benchmarkPopulate(opts: {
   numKeys: number;
   clean: boolean;
   indexes?: number;
 }): Benchmark {
+  let repToClose: Replicache | undefined;
   return {
     name: `populate ${valSize}x${opts.numKeys} (${
       opts.clean ? 'clean' : 'dirty'
     }, ${`indexes: ${opts.indexes || 0}`})`,
     group: 'replicache',
     byteSize: opts.numKeys * valSize,
+    async setupEach() {
+      setupIDBDatabasesStoreForTest();
+    },
+    async teardownEach() {
+      await teardownIDBDatabasesStoreForTest();
+      await closeAndCleanupRep(repToClose);
+    },
     async run(bencher: Bencher) {
-      const rep = await makeRepWithPopulate();
+      const rep = (repToClose = makeRepWithPopulate());
       if (!opts.clean) {
         await rep.mutate.populate({
           numKeys: opts.numKeys,
@@ -46,7 +58,6 @@ export function benchmarkPopulate(opts: {
       bencher.reset();
       await rep.mutate.populate({numKeys: opts.numKeys, randomValues});
       bencher.stop();
-      await rep.close();
     },
   };
 }
@@ -74,43 +85,47 @@ async function setupPersistedData(
     });
   }
 
-  await deleteDatabase(makeIdbName(replicacheName));
-  await deleteDatabase(IDB_DATABASES_DB_NAME);
-  // populate store using pull (as opposed to mutators)
-  // so that a snapshot commit is created, which new clients
-  // can use to bootstrap.
-  const rep = new ReplicacheWithPersist({
-    name: replicacheName,
-    pullInterval: null,
-    puller: async (_: Request) => {
-      return {
-        response: {
-          lastMutationID: 0,
-          patch,
-        },
-        httpRequestInfo: {
-          httpStatusCode: 200,
-          errorMessage: '',
-        },
-      };
-    },
-  });
+  setupIDBDatabasesStoreForTest();
+  let repToClose;
+  try {
+    // populate store using pull (as opposed to mutators)
+    // so that a snapshot commit is created, which new clients
+    // can use to bootstrap.
+    const rep = (repToClose = new ReplicacheWithPersist({
+      name: replicacheName,
+      pullInterval: null,
+      puller: async (_: Request) => {
+        return {
+          response: {
+            lastMutationID: 0,
+            patch,
+          },
+          httpRequestInfo: {
+            httpStatusCode: 200,
+            errorMessage: '',
+          },
+        };
+      },
+    }));
+    const initialPullResolver = resolver<void>();
+    rep.subscribe(tx => tx.get('key0'), {
+      onData: r => r && initialPullResolver.resolve(),
+    });
+    await initialPullResolver.promise;
 
-  const initialPullResolver = resolver<void>();
-  rep.subscribe(tx => tx.get('key0'), {
-    onData: r => r && initialPullResolver.resolve(),
-  });
-  await initialPullResolver.promise;
-
-  await rep.persist();
-  await rep.close();
+    await rep.persist();
+  } finally {
+    await teardownIDBDatabasesStoreForTest();
+    await repToClose?.close();
+  }
 }
 
 export function benchmarkStartupUsingBasicReadsFromPersistedData(opts: {
   numKeysPersisted: number;
   numKeysToRead: number;
 }): Benchmark {
-  const repName = 'benchmarkStartupUsingBasicReadsFromPersistedData';
+  const repName = makeRepName();
+  let repToClose: Replicache | undefined;
   return {
     name: `startup read ${valSize}x${opts.numKeysToRead} from ${valSize}x${opts.numKeysPersisted} stored`,
     group: 'replicache',
@@ -118,17 +133,26 @@ export function benchmarkStartupUsingBasicReadsFromPersistedData(opts: {
     async setup() {
       await setupPersistedData(repName, opts.numKeysPersisted);
     },
+    async setupEach() {
+      setupIDBDatabasesStoreForTest();
+    },
+    async teardownEach() {
+      await teardownIDBDatabasesStoreForTest();
+      await repToClose?.close();
+    },
+    async teardown() {
+      await closeAndCleanupRep(repToClose);
+    },
     async run(bencher: Bencher) {
       const randomKeysToRead = sampleSize(
         range(opts.numKeysPersisted),
         opts.numKeysToRead,
       ).map(i => `key${i}`);
-      await deleteDatabase(IDB_DATABASES_DB_NAME);
       bencher.reset();
-      const rep = new Replicache({
+      const rep = (repToClose = new Replicache({
         name: repName,
         pullInterval: null,
-      });
+      }));
       let getCount = 0;
       await rep.query(async (tx: ReadTransaction) => {
         for (const randomKey of randomKeysToRead) {
@@ -140,7 +164,6 @@ export function benchmarkStartupUsingBasicReadsFromPersistedData(opts: {
       });
       bencher.stop();
       console.log(getCount);
-      await rep.close();
     },
   };
 }
@@ -149,13 +172,24 @@ export function benchmarkStartupUsingScanFromPersistedData(opts: {
   numKeysPersisted: number;
   numKeysToRead: number;
 }): Benchmark {
-  const repName = 'benchmarkStartupUsingScanFromPersistedData';
+  const repName = makeRepName();
+  let repToClose: Replicache | undefined;
   return {
     name: `startup scan ${valSize}x${opts.numKeysToRead} from ${valSize}x${opts.numKeysPersisted} stored`,
     group: 'replicache',
     byteSize: opts.numKeysToRead * valSize,
     async setup() {
       await setupPersistedData(repName, opts.numKeysPersisted);
+    },
+    async setupEach() {
+      setupIDBDatabasesStoreForTest();
+    },
+    async teardownEach() {
+      await teardownIDBDatabasesStoreForTest();
+      await repToClose?.close();
+    },
+    async teardown() {
+      await closeAndCleanupRep(repToClose);
     },
     async run(bencher: Bencher) {
       const randomIndex = Math.floor(
@@ -168,10 +202,10 @@ export function benchmarkStartupUsingScanFromPersistedData(opts: {
       const sortedKeys = keys.sort();
       const randomStartKey = sortedKeys[randomIndex];
       bencher.reset();
-      const rep = new Replicache({
+      const rep = (repToClose = new Replicache({
         name: repName,
         pullInterval: null,
-      });
+      }));
       await rep.query(async (tx: ReadTransaction) => {
         let count = 0;
         for await (const value of tx.scan({
@@ -184,7 +218,6 @@ export function benchmarkStartupUsingScanFromPersistedData(opts: {
         console.log(count);
       });
       bencher.stop();
-      await rep.close();
     },
   };
 }
@@ -201,14 +234,16 @@ export function benchmarkReadTransaction(opts: {
     group: 'replicache',
     byteSize: opts.numKeys * valSize,
     async setup() {
-      rep = await makeRepWithPopulate();
+      setupIDBDatabasesStoreForTest();
+      rep = makeRepWithPopulate();
       await rep.mutate.populate({
         numKeys: opts.numKeys,
         randomValues: jsonArrayTestData(opts.numKeys, valSize),
       });
     },
     async teardown() {
-      await rep.close();
+      await teardownIDBDatabasesStoreForTest();
+      await closeAndCleanupRep(rep);
     },
     async run(bench: Bencher) {
       let getCount = 0;
@@ -236,14 +271,16 @@ export function benchmarkScan(opts: {numKeys: number}): Benchmark {
     byteSize: opts.numKeys * valSize,
 
     async setup() {
-      rep = await makeRepWithPopulate();
+      setupIDBDatabasesStoreForTest();
+      rep = makeRepWithPopulate();
       await rep.mutate.populate({
         numKeys: opts.numKeys,
         randomValues: jsonArrayTestData(opts.numKeys, valSize),
       });
     },
     async teardown() {
-      await rep.close();
+      await teardownIDBDatabasesStoreForTest();
+      await closeAndCleanupRep(rep);
     },
     async run() {
       await rep.query(async (tx: ReadTransaction) => {
@@ -259,12 +296,19 @@ export function benchmarkScan(opts: {numKeys: number}): Benchmark {
 }
 
 export function benchmarkCreateIndex(opts: {numKeys: number}): Benchmark {
+  let repToClose: Replicache | undefined;
   return {
     name: `create index ${valSize}x${opts.numKeys}`,
     group: 'replicache',
-
+    async setupEach() {
+      setupIDBDatabasesStoreForTest();
+    },
+    async teardownEach() {
+      await teardownIDBDatabasesStoreForTest();
+      await closeAndCleanupRep(repToClose);
+    },
     async run(bencher: Bencher) {
-      const rep = await makeRepWithPopulate();
+      const rep = (repToClose = makeRepWithPopulate());
       await rep.mutate.populate({
         numKeys: opts.numKeys,
         randomValues: jsonArrayTestData(opts.numKeys, valSize),
@@ -275,7 +319,6 @@ export function benchmarkCreateIndex(opts: {numKeys: number}): Benchmark {
         jsonPointer: '/ascii',
       });
       bencher.stop();
-      await rep.close();
     },
   };
 }
@@ -302,9 +345,17 @@ export function benchmarkWriteSubRead(opts: {
   const kbReadPerSub = (keysWatchedPerSub * valueSize) / 1024;
   const makeKey = (index: number) => `key${index}`;
 
+  let repToClose: Replicache | undefined;
   return {
     name: `writeSubRead ${cacheSizeMB}MB total, ${numSubsTotal} subs total, ${numSubsDirty} subs dirty, ${kbReadPerSub}kb read per sub`,
     group: 'replicache',
+    async setupEach() {
+      setupIDBDatabasesStoreForTest();
+    },
+    async teardownEach() {
+      await teardownIDBDatabasesStoreForTest();
+      await closeAndCleanupRep(repToClose);
+    },
     async run(bencher: Bencher) {
       const keys = Array.from({length: numKeys}, (_, index) => makeKey(index));
       const sortedKeys = keys.sort();
@@ -312,7 +363,7 @@ export function benchmarkWriteSubRead(opts: {
         keys.map(key => [key, jsonObjectTestData(valueSize)]),
       );
 
-      const rep = await makeRep({
+      const rep = (repToClose = makeRep({
         mutators: {
           // Create `numKeys` key/value pairs, each holding `valueSize` data
           async init(tx: WriteTransaction) {
@@ -329,7 +380,7 @@ export function benchmarkWriteSubRead(opts: {
             }
           },
         },
-      });
+      }));
 
       await rep.mutate.init();
       let onDataCallCount = 0;
@@ -386,41 +437,18 @@ export function benchmarkWriteSubRead(opts: {
       for (const [changeKey, changeValue] of changes) {
         assert(deepEqual(changeValue, data.get(changeKey)));
       }
-      await rep.close();
     },
   };
 }
 
-function deleteDatabase(name: string): Promise<unknown> {
-  const maxBlockedRetry = 10;
-  const retryDelayMs = 100;
-  let retryBlockCount = 0;
-  function delDB(resolve: (_: unknown) => void, reject: (_: unknown) => void) {
-    const req = indexedDB.deleteDatabase(name);
-    req.onsuccess = resolve;
-    req.onerror = req.onupgradeneeded = reject;
-    req.onblocked = async event => {
-      retryBlockCount++;
-      if (retryBlockCount > maxBlockedRetry) {
-        reject(event);
-      } else {
-        await sleep(retryDelayMs);
-        await delDB(resolve, reject);
-      }
-    };
-  }
-  return new Promise((resolve, reject) => {
-    delDB(resolve, reject);
-  });
+function makeRepName(): string {
+  return `bench${uuid()}`;
 }
 
-let counter = 0;
-async function makeRep<MD extends MutatorDefs>(
+function makeRep<MD extends MutatorDefs>(
   options: Omit<ReplicacheOptions<MD>, 'name'> = {},
 ) {
-  const name = `bench${counter++}`;
-  await deleteDatabase(makeIdbName(name));
-  await deleteDatabase(IDB_DATABASES_DB_NAME);
+  const name = makeRepName();
   return new Replicache<MD>({
     name,
     pullInterval: null,
@@ -433,7 +461,7 @@ type ReplicacheWithPopulate = UnwrapPromise<
   ReturnType<typeof makeRepWithPopulate>
 >;
 
-async function makeRepWithPopulate() {
+function makeRepWithPopulate() {
   const mutators = {
     populate: async (
       tx: WriteTransaction,
@@ -450,6 +478,13 @@ async function makeRepWithPopulate() {
   return makeRep({
     mutators,
   });
+}
+
+async function closeAndCleanupRep(rep: Replicache | undefined): Promise<void> {
+  if (rep) {
+    await rep.close();
+    await kv.dropIDBStore(rep.idbName);
+  }
 }
 
 export function benchmarks(): Benchmark[] {

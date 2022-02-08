@@ -9,7 +9,6 @@ export {
 } from './clients';
 export {initClientGC} from './client-gc';
 export {
-  getIDBDatabasesDBName,
   IDBDatabasesStore,
   setupForTest as setupIDBDatabasesStoreForTest,
   teardownForTest as teardownIDBDatabasesStoreForTest,

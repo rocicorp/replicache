@@ -16,7 +16,6 @@ import {range, sampleSize} from 'lodash-es';
 import * as kv from '../src/kv/mod';
 import {resolver} from '../src/resolver';
 import {
-  getIDBDatabasesDBName,
   setupIDBDatabasesStoreForTest,
   teardownIDBDatabasesStoreForTest,
 } from '../src/persist/mod';

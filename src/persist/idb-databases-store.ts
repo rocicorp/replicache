@@ -18,7 +18,7 @@ export function teardownForTest(): Promise<void> {
   return kv.dropIDBStore(idbDatabasesDBName);
 }
 
-export function getIDBDatabasesDBName(): string {
+function getIDBDatabasesDBName(): string {
   return testNamespace + IDB_DATABASES_DB_NAME;
 }
 

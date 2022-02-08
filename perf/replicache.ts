@@ -489,7 +489,7 @@ async function closeAndCleanupRep(rep: Replicache | undefined): Promise<void> {
 
 export function benchmarks(): Benchmark[] {
   return [
-    // // write/sub/read 1mb
+    // write/sub/read 1mb
     benchmarkWriteSubRead({
       valueSize: 1024,
       numSubsTotal: 64,

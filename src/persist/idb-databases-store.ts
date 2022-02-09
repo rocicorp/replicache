@@ -27,7 +27,7 @@ export type IndexedDBName = string;
 
 export type IndexedDBDatabase = {
   name: IndexedDBName;
-  replicacheName: string;
+  userID: string;
   replicacheFormatVersion: number;
   schemaVersion: string;
 };
@@ -50,7 +50,7 @@ function assertIndexedDBDatabase(
 ): asserts value is IndexedDBDatabase {
   assertObject(value);
   assertString(value.name);
-  assertString(value.replicacheName);
+  assertString(value.userID);
   assertNumber(value.replicacheFormatVersion);
   assertString(value.schemaVersion);
 }

@@ -56,14 +56,16 @@ async function expectAsyncFuncToThrow(f: () => unknown, c: unknown) {
   (await expectPromiseToReject(f())).to.be.instanceof(c);
 }
 
-test('name is required', () => {
+test('userID is required', () => {
   expect(
     () => new Replicache({} as ReplicacheOptions<Record<string, never>>),
-  ).to.throw(/name.*required/);
+  ).to.throw(/userID.*required/);
 });
 
-test('name cannot be empty', () => {
-  expect(() => new Replicache({name: ''})).to.throw(/name.*must be non-empty/);
+test('userID cannot be empty', () => {
+  expect(() => new Replicache({userID: ''})).to.throw(
+    /userID.*must be non-empty/,
+  );
 });
 
 test('get, has, scan on empty db', async () => {
@@ -281,7 +283,7 @@ test('scan', async () => {
   );
 });
 
-test('name', async () => {
+test('userID', async () => {
   const repA = await replicacheForTesting('a', {mutators: {addData}});
   const repB = await replicacheForTesting('b', {mutators: {addData}});
 
@@ -1440,7 +1442,7 @@ test('logLevel', async () => {
   expect(
     debug
       .getCalls()
-      .some(call => (call.firstArg + '').startsWith(`db=${rep.name}`)),
+      .some(call => (call.firstArg + '').startsWith(`db=${rep.idbName}`)),
   ).to.equal(true);
   expect(
     debug.getCalls().some(call => call.firstArg.startsWith('PULL')),
@@ -1759,23 +1761,23 @@ test('clientID', async () => {
   const re =
     /^[0-9:A-z]{8}-[0-9:A-z]{4}-4[0-9:A-z]{3}-[0-9:A-z]{4}-[0-9:A-z]{12}$/;
 
-  let rep = await replicacheForTesting('clientID');
+  let rep = await replicacheForTesting('userID');
   const clientID = await rep.clientID;
   expect(clientID).to.match(re);
   await rep.close();
 
-  const rep2 = await replicacheForTesting('clientID2');
+  const rep2 = await replicacheForTesting('userID2');
   const clientID2 = await rep2.clientID;
   expect(clientID2).to.match(re);
   expect(clientID2).to.not.equal(clientID);
 
-  rep = await replicacheForTesting('clientID');
+  rep = await replicacheForTesting('userID3');
   const clientID3 = await rep.clientID;
   expect(clientID3).to.match(re);
   // With SDD we never reuse client IDs.
   expect(clientID3).to.not.equal(clientID);
 
-  const rep4 = new Replicache({name: 'clientID4', pullInterval: null});
+  const rep4 = new Replicache({userID: 'userID4', pullInterval: null});
   const clientID4 = await rep4.clientID;
   expect(clientID4).to.match(re);
   await rep4.close();
@@ -1962,15 +1964,15 @@ test('online', async () => {
 
 test('overlapping open/close', async () => {
   const pullInterval = 60_000;
-  const name = 'overlapping-open-close';
+  const userID = 'overlapping-open-close';
 
-  const rep = new Replicache({name, pullInterval});
+  const rep = new Replicache({userID, pullInterval});
   const p = rep.close();
 
-  const rep2 = new Replicache({name, pullInterval});
+  const rep2 = new Replicache({userID, pullInterval});
   const p2 = rep2.close();
 
-  const rep3 = new Replicache({name, pullInterval});
+  const rep3 = new Replicache({userID, pullInterval});
   const p3 = rep3.close();
 
   await p;
@@ -1978,10 +1980,10 @@ test('overlapping open/close', async () => {
   await p3;
 
   {
-    const rep = new Replicache({name, pullInterval});
+    const rep = new Replicache({userID, pullInterval});
     await rep.clientID;
     const p = rep.close();
-    const rep2 = new Replicache({name, pullInterval});
+    const rep2 = new Replicache({userID, pullInterval});
     await rep2.clientID;
     const p2 = rep2.close();
     await p;

@@ -4,7 +4,7 @@ import type {WriteTransaction} from './transactions';
 // Only used for type checking
 test.skip('mutator optional args [type checking only]', async () => {
   const rep = new Replicache({
-    name: 'test-types',
+    userID: 'test-types',
     mutators: {
       mut: async (tx: WriteTransaction, x: number) => {
         console.log(tx);
@@ -45,7 +45,7 @@ test.skip('mutator optional args [type checking only]', async () => {
   console.log(res4);
 
   // This should be an error!
-  // new Replicache({name: 'test-types-2', {
+  // new Replicache({userID: 'test-types-2', {
   //   mutators: {
   //     // @ts-expect-error symbol is not a JSONValue
   //     mut5: (tx: WriteTransaction, x: symbol) => {
@@ -59,7 +59,7 @@ test.skip('mutator optional args [type checking only]', async () => {
 // Only used for type checking
 test.skip('Test partial JSONObject [type checking only]', async () => {
   const rep = new Replicache({
-    name: 'test-types',
+    userID: 'test-types',
     mutators: {
       mut: async (tx: WriteTransaction, todo: Partial<Todo>) => {
         console.log(tx);
@@ -84,7 +84,7 @@ test.skip('Test partial JSONObject [type checking only]', async () => {
 // Only used for type checking
 test.skip('Test register param [type checking only]', async () => {
   const rep = new Replicache({
-    name: 'test-types',
+    userID: 'test-types',
     mutators: {
       mut: async (tx: WriteTransaction) => {
         console.log(tx);
@@ -119,7 +119,7 @@ test.skip('Test register param [type checking only]', async () => {
   /* eslint-enable prefer-destructuring */
 
   new Replicache({
-    name: 'test-types',
+    userID: 'test-types',
     mutators: {
       // @ts-expect-error Type '(tx: WriteTransaction, a: string, b: number) =>
       //   Promise<void>' is not assignable to type '(tx: WriteTransaction,
@@ -133,7 +133,7 @@ test.skip('Test register param [type checking only]', async () => {
 
 // Only used for type checking
 test.skip('Key type for scans [type checking only]', async () => {
-  const rep = new Replicache({name: 'test-types'});
+  const rep = new Replicache({userID: 'test-types'});
 
   for await (const k of rep.scan({indexName: 'n'}).keys()) {
     // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
@@ -183,7 +183,7 @@ test.skip('mut [type checking only]', async () => {
   type ToRecord<T> = {[P in keyof T]: T[P]};
 
   const rep = new Replicache({
-    name: 'type-checking-only',
+    userID: 'type-checking-only',
     mutators: {
       a: (tx: WriteTransaction) => {
         console.log(tx);
@@ -292,19 +292,19 @@ test.skip('mut [type checking only]', async () => {
   await rep.mutate.h(null);
 
   {
-    const rep = new Replicache({name: 'type-checking-only', mutators: {}});
+    const rep = new Replicache({userID: 'type-checking-only', mutators: {}});
     // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
     rep.mutate.abc(43);
   }
 
   {
-    const rep = new Replicache({name: 'type-checking-only'});
+    const rep = new Replicache({userID: 'type-checking-only'});
     // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
     rep.mutate.abc(1, 2, 3);
   }
 
   {
-    const rep = new Replicache({name: 'type-checking-only'});
+    const rep = new Replicache({userID: 'type-checking-only'});
     // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
     rep.mutate.abc(1, 2, 3);
   }
@@ -312,7 +312,7 @@ test.skip('mut [type checking only]', async () => {
 
 // Only used for type checking
 test.skip('scan with index [type checking only]', async () => {
-  const rep = new Replicache({name: 'scan-with-index'});
+  const rep = new Replicache({userID: 'scan-with-index'});
 
   (await rep.scan({indexName: 'a'}).keys().toArray()) as [
     secondary: string,

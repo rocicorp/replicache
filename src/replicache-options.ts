@@ -37,14 +37,20 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
   pullURL?: string;
 
   /**
-   * The name of the Replicache database.
+   * A unique identifier for the user authenticated by
+   * [[ReplicacheOptions.auth]]. Must be non-empty.
    *
-   * It is important to use user specific names so that if there are multiple
-   * tabs open for different distinct users the data is kept seperate.
+   * This is used to keep different user's state separate.
    *
-   * You can use multiple Replicache instances as long as the names are unique.
+   * For efficiency, a new Replicache instance will initialize its state from
+   * the persisted state of an existing Replicache instance with the same
+   * `userID`, domain and browser profile.
+   *
+   * Mutations from one Replicache instance may be pushed using the
+   * [[ReplicacheOptions.auth]] of another Replicache instance with the same
+   * `userID`, domain and browser profile.
    */
-  name: string;
+  userID: string;
 
   /**
    * The schema version of the data understood by this application. This enables

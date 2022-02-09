@@ -72,7 +72,7 @@ class ReplicacheWithPersist<MD extends MutatorDefs> extends Replicache {
 }
 
 async function setupPersistedData(
-  replicacheName: string,
+  userID: string,
   numKeys: number,
 ): Promise<void> {
   const randomValues = jsonArrayTestData(numKeys, valSize);
@@ -92,7 +92,7 @@ async function setupPersistedData(
     // so that a snapshot commit is created, which new clients
     // can use to bootstrap.
     const rep = (repToClose = new ReplicacheWithPersist({
-      name: replicacheName,
+      userID,
       pullInterval: null,
       puller: async (_: Request) => {
         return {
@@ -124,14 +124,14 @@ export function benchmarkStartupUsingBasicReadsFromPersistedData(opts: {
   numKeysPersisted: number;
   numKeysToRead: number;
 }): Benchmark {
-  const repName = makeRepName();
+  const userID = makeUserID();
   let repToClose: Replicache | undefined;
   return {
     name: `startup read ${valSize}x${opts.numKeysToRead} from ${valSize}x${opts.numKeysPersisted} stored`,
     group: 'replicache',
     byteSize: opts.numKeysToRead * valSize,
     async setup() {
-      await setupPersistedData(repName, opts.numKeysPersisted);
+      await setupPersistedData(userID, opts.numKeysPersisted);
     },
     async setupEach() {
       setupIDBDatabasesStoreForTest();
@@ -150,7 +150,7 @@ export function benchmarkStartupUsingBasicReadsFromPersistedData(opts: {
       ).map(i => `key${i}`);
       bencher.reset();
       const rep = (repToClose = new Replicache({
-        name: repName,
+        userID,
         pullInterval: null,
       }));
       let getCount = 0;
@@ -172,14 +172,14 @@ export function benchmarkStartupUsingScanFromPersistedData(opts: {
   numKeysPersisted: number;
   numKeysToRead: number;
 }): Benchmark {
-  const repName = makeRepName();
+  const userID = makeUserID();
   let repToClose: Replicache | undefined;
   return {
     name: `startup scan ${valSize}x${opts.numKeysToRead} from ${valSize}x${opts.numKeysPersisted} stored`,
     group: 'replicache',
     byteSize: opts.numKeysToRead * valSize,
     async setup() {
-      await setupPersistedData(repName, opts.numKeysPersisted);
+      await setupPersistedData(userID, opts.numKeysPersisted);
     },
     async setupEach() {
       setupIDBDatabasesStoreForTest();
@@ -203,7 +203,7 @@ export function benchmarkStartupUsingScanFromPersistedData(opts: {
       const randomStartKey = sortedKeys[randomIndex];
       bencher.reset();
       const rep = (repToClose = new Replicache({
-        name: repName,
+        userID,
         pullInterval: null,
       }));
       await rep.query(async (tx: ReadTransaction) => {
@@ -441,16 +441,16 @@ export function benchmarkWriteSubRead(opts: {
   };
 }
 
-function makeRepName(): string {
-  return `bench${uuid()}`;
+function makeUserID(): string {
+  return `user-${uuid()}`;
 }
 
 function makeRep<MD extends MutatorDefs>(
-  options: Omit<ReplicacheOptions<MD>, 'name'> = {},
+  options: Omit<ReplicacheOptions<MD>, 'userID'> = {},
 ) {
-  const name = makeRepName();
+  const userID = makeUserID();
   return new Replicache<MD>({
-    name,
+    userID,
     pullInterval: null,
     ...options,
   });

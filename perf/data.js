@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1644517332584,
+  "lastUpdate": 1644523440721,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -68945,6 +68945,100 @@ window.BENCHMARK_DATA = {
             "range": "±3.7%",
             "unit": "MB/s",
             "extra": "15 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "e4c67f42481f9025f633e4cdc7dd9a5ff9089b40",
+          "message": "Update package-lock.json",
+          "timestamp": "2022-02-10T09:58:21-10:00",
+          "tree_id": "eeb1e3a80ad7d59f6aa308ab13c6827b6387c236",
+          "url": "https://github.com/rocicorp/replicache/commit/e4c67f42481f9025f633e4cdc7dd9a5ff9089b40"
+        },
+        "date": 1644523440386,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 344.83,
+            "range": "±1.4%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 400,
+            "range": "±2.3%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 344.83,
+            "range": "±62.4%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 18.93,
+            "range": "±111.1%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 9.69,
+            "range": "±46.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 7.62,
+            "range": "±36.9%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 336.75,
+            "range": "±5.0%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 3.71,
+            "range": "±34.5%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.71,
+            "range": "±193.1%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 2.97,
+            "range": "±6.6%",
+            "unit": "MB/s",
+            "extra": "14 samples"
           }
         ]
       }

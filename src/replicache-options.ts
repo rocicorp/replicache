@@ -42,7 +42,18 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * It is important to use user specific names so that if there are multiple
    * tabs open for different distinct users the data is kept seperate.
    *
-   * You can use multiple Replicache instances as long as the names are unique.
+   * For efficiency, a new [[Replicache]] instance will initialize its state
+   * from the persisted state of an existing [[Replicache]] instance with the
+   * same `name`, domain and browser profile.
+   *
+   * Mutations from one [[Replicache]] instance may be pushed using the
+   * [[ReplicacheOptions.auth]], [[ReplicacheOptions.pushURL]],
+   * [[ReplicacheOptions.pullURL]], [[ReplicacheOptions.pusher]], and
+   * [[ReplicacheOptions.puller]]  of another Replicache instance with the same
+   * `name`, domain and browser profile.
+   *
+   * You can use multiple Replicache instances for the same user as long as the
+   * names are unique.  e.g. `name: `$userID:$roomID`
    */
   name: string;
 

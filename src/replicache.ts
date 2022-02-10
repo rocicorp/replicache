@@ -68,8 +68,8 @@ export type MaybePromise<T> = T | Promise<T>;
 
 type ToPromise<P> = P extends Promise<unknown> ? P : Promise<P>;
 
-export function makeIdbName(userID: string, schemaVersion?: string): string {
-  const n = `${userID}:${REPLICACHE_FORMAT_VERSION}`;
+export function makeIdbName(name: string, schemaVersion?: string): string {
+  const n = `${name}:${REPLICACHE_FORMAT_VERSION}`;
   return schemaVersion ? `${n}:${schemaVersion}` : n;
 }
 
@@ -146,21 +146,15 @@ export class Replicache<MD extends MutatorDefs = {}> {
   /** The authorization token used when doing a push request. */
   auth: string;
 
-  /** A unique identifier for the user authenticated by [[auth]]. */
-  readonly userID: string;
-
-  /**
-   * The name of the Replicache database.
-   * @deprecated Replaced by [[userID]].
-   */
-  readonly name?: string;
+  /** The name of the Replicache database. */
+  readonly name: string;
 
   /**
    * This is the name Replicache uses for the IndexedDB database where data is
    * stored.
    */
   get idbName(): string {
-    return makeIdbName(this.userID, this.schemaVersion);
+    return makeIdbName(this.name, this.schemaVersion);
   }
 
   /** The schema version of the data understood by this application. */
@@ -169,7 +163,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private get _idbDatabase(): persist.IndexedDBDatabase {
     return {
       name: this.idbName,
-      userID: this.userID,
+      replicacheName: this.name,
       replicacheFormatVersion: REPLICACHE_FORMAT_VERSION,
       schemaVersion: this.schemaVersion,
     };
@@ -276,7 +270,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   constructor(options: ReplicacheOptions<MD>) {
     const {
-      userID,
+      name,
       logLevel = 'info',
       pullURL = '',
       auth,
@@ -294,10 +288,10 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.auth = auth ?? '';
     this.pullURL = pullURL;
     this.pushURL = pushURL;
-    if (userID === undefined || userID === '') {
-      throw new Error('userID is required and must be non-empty');
+    if (name === undefined || name === '') {
+      throw new Error('name is required and must be non-empty');
     }
-    this.userID = this.name = userID;
+    this.name = name;
     this.schemaVersion = schemaVersion;
     this.pullInterval = pullInterval;
     this.pushDelay = pushDelay;
@@ -357,8 +351,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     this.mutate = this._registerMutators(mutators);
 
-    this._lc = new LogContext(logLevel).addContext('db', this.idbName);
-
     const clientIDResolver = resolver<string>();
     this._clientIDPromise = clientIDResolver.promise;
 
@@ -375,9 +367,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
     resolveClientID: (clientID: string) => void,
     resolveReady: () => void,
   ): Promise<void> {
-    // If we are currently closing a Replicache instance with the same db,
+    // If we are currently closing a Replicache instance with the same name,
     // wait for it to finish closing.
-    await closingInstances.get(this.idbName);
+    await closingInstances.get(this.name);
     await this._idbDatabases.putDatabase(this._idbDatabase);
     const [clientID, client, clients] = await persist.initClient(this._perdag);
     resolveClientID(clientID);
@@ -446,7 +438,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   async close(): Promise<void> {
     this._closed = true;
     const {promise, resolve} = resolver();
-    closingInstances.set(this.idbName, promise);
+    closingInstances.set(this.name, promise);
 
     this._endHearbeats();
     this._endClientsGC();
@@ -469,7 +461,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this._subscriptions.clear();
 
     await Promise.all(closingPromises);
-    closingInstances.delete(this.idbName);
+    closingInstances.delete(this.name);
     resolve();
   }
 
@@ -1215,7 +1207,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         }
         if (
           database.name === this.idbName ||
-          database.userID !== this.userID ||
+          database.replicacheName !== this.name ||
           // TODO: when REPLICACHE_FORMAT_VERSION is update
           // need to also handle previous REPLICACHE_FORMAT_VERSIONs
           database.replicacheFormatVersion !== REPLICACHE_FORMAT_VERSION

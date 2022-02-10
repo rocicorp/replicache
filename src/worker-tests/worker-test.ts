@@ -8,9 +8,9 @@ import type {JSONValue} from '../json';
 import {closeAllReps, reps} from '../test-util';
 
 onmessage = async (e: MessageEvent) => {
-  const {userID} = e.data;
+  const {name} = e.data;
   try {
-    await testGetHasScanOnEmptyDB(userID);
+    await testGetHasScanOnEmptyDB(name);
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore TypeScripts type defs are incorrect.
     postMessage(undefined);
@@ -23,10 +23,10 @@ onmessage = async (e: MessageEvent) => {
   }
 };
 
-async function testGetHasScanOnEmptyDB(userID: string) {
+async function testGetHasScanOnEmptyDB(name: string) {
   const rep = new ReplicacheTest({
     pushDelay: 60_000, // Large to prevent interferin;,
-    userID,
+    name,
     mutators: {
       testMut: async (
         tx: WriteTransaction,

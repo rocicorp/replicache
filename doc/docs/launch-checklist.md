@@ -36,8 +36,16 @@ Before you launch with Replicache in your product, it's a good idea to double-ch
   cookie values across clients, resulting in new clients being able to startup
   from previous clients' state with minimal download at startup.
 - The `name` property of `ReplicacheOptions` is required to differentiate
-  Replicache instances for different users; otherwise Replicache may try to fork
-  state from a different user at startup.
+  Replicache instances for different users. This is important for the following
+  reasons:
+  - For efficiency and performance, a new [[Replicache]] instance will
+    initialize its state from the persisted state of an existing [[Replicache]]
+    instance with the same `name`, domain and browser profile.
+  - Mutations from one [[Replicache]] instance may be pushed using the
+    [[ReplicacheOptions.auth]], [[ReplicacheOptions.pushURL]],
+    [[ReplicacheOptions.pullURL]], [[ReplicacheOptions.pusher]], and
+    [[ReplicacheOptions.puller]] of another Replicache instance with the same
+    `name`, domain and browser profile.
 
 ## All endpoints
 

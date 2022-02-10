@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1644477723514,
+  "lastUpdate": 1644517058767,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -5531,6 +5531,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 18597,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b40de269b9e8e178f11b098f6eb3112e4c5d53d6",
+          "message": "refactor: Rename ReplicacheOptions.userID and Replicache.userID back to name. (#835)\n\nThis reverts commit d95d8bf18d84dc465f2cbe58069668fc86a2a6cd.\r\n\r\nWe realized we will need both a userID, and another identifier to support multiple Replicache instance for the same user (e.g. roomID).  We will do this api change in v10 rather than v9.  \r\n\r\nAdded details to documentation for `name` around Replicache bootsrapping and mutation recovery.",
+          "timestamp": "2022-02-10T10:16:34-08:00",
+          "tree_id": "1a01a62b035c7dd373dc90ab77b43deed02fb261",
+          "url": "https://github.com/rocicorp/replicache/commit/b40de269b9e8e178f11b098f6eb3112e4c5d53d6"
+        },
+        "date": 1644517056804,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 151000,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 27331,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 149722,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 27012,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 65053,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18536,
             "unit": "bytes"
           }
         ]

@@ -11,7 +11,7 @@ test('putDatabase with no existing record in db', async () => {
   const store = new IDBDatabasesStore(_ => new TestMemStore());
   const testDB = {
     name: 'testName',
-    userID: 'testUserID',
+    replicacheName: 'testReplicacheName',
     replicacheFormatVersion: 1,
     schemaVersion: 'testSchemaVersion',
   };
@@ -27,7 +27,7 @@ test('putDatabase sequence', async () => {
   const store = new IDBDatabasesStore(_ => new TestMemStore());
   const testDB1 = {
     name: 'testName1',
-    userID: 'testUserID1',
+    replicacheName: 'testReplicacheName1',
     replicacheFormatVersion: 1,
     schemaVersion: 'testSchemaVersion1',
   };
@@ -41,7 +41,7 @@ test('putDatabase sequence', async () => {
 
   const testDB2 = {
     name: 'testName2',
-    userID: 'testUserID2',
+    replicacheName: 'testReplicacheName2',
     replicacheFormatVersion: 2,
     schemaVersion: 'testSchemaVersion2',
   };
@@ -68,7 +68,7 @@ test('clear', async () => {
   const store = new IDBDatabasesStore(_ => new TestMemStore());
   const testDB1 = {
     name: 'testName1',
-    userID: 'testUserID1',
+    replicacheName: 'testReplicacheName1',
     replicacheFormatVersion: 1,
     schemaVersion: 'testSchemaVersion1',
   };
@@ -86,7 +86,7 @@ test('clear', async () => {
 
   const testDB2 = {
     name: 'testName2',
-    userID: 'testUserID2',
+    replicacheName: 'testReplicacheName2',
     replicacheFormatVersion: 2,
     schemaVersion: 'testSchemaVersion2',
   };

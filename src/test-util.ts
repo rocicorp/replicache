@@ -80,49 +80,52 @@ export async function deleteAllDatabases(): Promise<void> {
   dbsToDrop.clear();
 }
 
-const partialUserIDsToUserIDs: Map<string, string> = new Map();
-/** Namespace userIDS with uuid to isolate tests' indexeddb state. */
-export function createUserIDForTest(partialUserID: string): string {
-  let userID = partialUserIDsToUserIDs.get(partialUserID);
-  if (!userID) {
+const partialNamesToRepliacheNames: Map<string, string> = new Map();
+/** Namespace replicache names to isolate tests' indexeddb state. */
+export function createReplicacheNameForTest(partialName: string): string {
+  let replicacheName = partialNamesToRepliacheNames.get(partialName);
+  if (!replicacheName) {
     const namespaceForTest = uuid();
-    userID = `${namespaceForTest}:${partialUserID}`;
-    partialUserIDsToUserIDs.set(partialUserID, userID);
+    replicacheName = `${namespaceForTest}:${partialName}`;
+    partialNamesToRepliacheNames.set(partialName, replicacheName);
   }
-  return userID;
+  return replicacheName;
 }
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export async function replicacheForTesting<MD extends MutatorDefs = {}>(
-  partialUserID: string,
-  options: Omit<ReplicacheOptions<MD>, 'userID'> = {},
+  partialName: string,
+  options: Omit<ReplicacheOptions<MD>, 'name'> = {},
 ): Promise<ReplicacheTest<MD>> {
-  const pullURL = 'https://pull.com/?userID=' + partialUserID;
-  const pushURL = 'https://push.com/?userID=' + partialUserID;
-  return replicacheForTestingNoDefaultURLs(createUserIDForTest(partialUserID), {
-    pullURL,
-    pushURL,
-    ...options,
-  });
+  const pullURL = 'https://pull.com/?name=' + partialName;
+  const pushURL = 'https://push.com/?name=' + partialName;
+  return replicacheForTestingNoDefaultURLs(
+    createReplicacheNameForTest(partialName),
+    {
+      pullURL,
+      pushURL,
+      ...options,
+    },
+  );
 }
 
 export async function replicacheForTestingNoDefaultURLs<
   // eslint-disable-next-line @typescript-eslint/ban-types
   MD extends MutatorDefs = {},
 >(
-  userID: string,
+  name: string,
   {
     pullURL,
     pushDelay = 60_000, // Large to prevent interfering
     pushURL,
     ...rest
-  }: Omit<ReplicacheOptions<MD>, 'userID'> = {},
+  }: Omit<ReplicacheOptions<MD>, 'name'> = {},
 ): Promise<ReplicacheTest<MD>> {
   const rep = new ReplicacheTest<MD>({
     pullURL,
     pushDelay,
     pushURL,
-    userID,
+    name,
     ...rest,
   });
   dbsToDrop.add(rep.idbName);
@@ -149,7 +152,7 @@ export function initReplicacheTesting(): void {
     clock.restore();
     fetchMock.restore();
     sinon.restore();
-    partialUserIDsToUserIDs.clear();
+    partialNamesToRepliacheNames.clear();
     await closeAllReps();
     await deleteAllDatabases();
     await persist.teardownIDBDatabasesStoreForTest();

@@ -4,7 +4,7 @@ import {
   tickAFewTimes,
   dbsToDrop,
   clock,
-  createReplicacheNameForTest,
+  createUserIDForTest,
 } from './test-util';
 import {makeIdbName, REPLICACHE_FORMAT_VERSION} from './replicache';
 import {addGenesis, addLocal, addSnapshot, Chain} from './db/test-helpers';
@@ -38,11 +38,11 @@ teardown(async () => {
 });
 
 async function createPerdag(args: {
-  replicacheName: string;
+  userID: string;
   schemaVersion: string;
 }): Promise<dag.Store> {
-  const {replicacheName, schemaVersion} = args;
-  const idbName = makeIdbName(replicacheName, schemaVersion);
+  const {userID, schemaVersion} = args;
+  const idbName = makeIdbName(userID, schemaVersion);
   dbsToDrop.add(idbName);
   const idb = new kv.IDBStore(idbName);
 
@@ -50,7 +50,7 @@ async function createPerdag(args: {
   try {
     await idbDatabases.putDatabase({
       name: idbName,
-      replicacheName,
+      userID,
       schemaVersion,
       replicacheFormatVersion: REPLICACHE_FORMAT_VERSION,
     });
@@ -137,7 +137,7 @@ async function testRecoveringMutationsOfClient(args: {
   await tickAFewTimes();
 
   const testPerdag = await createPerdag({
-    replicacheName: rep.name,
+    userID: rep.userID,
     schemaVersion: schemaVersionOfClientWPendingMutations,
   });
 
@@ -250,9 +250,7 @@ test('client does not attempt to recover mutations from IndexedDB with different
   await tickAFewTimes();
 
   const testPerdag = await createPerdag({
-    replicacheName: createReplicacheNameForTest(
-      replicachePartialNameOfClientWPendingMutations,
-    ),
+    userID: createUserIDForTest(replicachePartialNameOfClientWPendingMutations),
     schemaVersion,
   });
 
@@ -307,7 +305,7 @@ test('successfully recovering mutations of multiple clients with mix of schema v
   await tickAFewTimes();
 
   const testPerdagForClients1Thru3 = await createPerdag({
-    replicacheName: rep.name,
+    userID: rep.userID,
     schemaVersion: schemaVersionOfClients1Thru3AndClientRecoveringMutations,
   });
 
@@ -329,7 +327,7 @@ test('successfully recovering mutations of multiple clients with mix of schema v
   );
 
   const testPerdagForClient4 = await createPerdag({
-    replicacheName: rep.name,
+    userID: rep.userID,
     schemaVersion: schemaVersionOfClient4,
   });
   const client4PendingLocalMetas = await createAndPersistClientWithPendingLocal(
@@ -495,7 +493,7 @@ test('if a push error occurs, continues to try to recover other clients', async 
   await tickAFewTimes();
 
   const testPerdag = await createPerdag({
-    replicacheName: rep.name,
+    userID: rep.userID,
     schemaVersion,
   });
 
@@ -647,7 +645,7 @@ test('if an error occurs recovering one client, continues to try to recover othe
   await tickAFewTimes();
 
   const testPerdag = await createPerdag({
-    replicacheName: rep.name,
+    userID: rep.userID,
     schemaVersion,
   });
 
@@ -787,7 +785,7 @@ test('if an error occurs recovering one db, continues to try to recover clients 
   await tickAFewTimes();
 
   const testPerdagForClient1 = await createPerdag({
-    replicacheName: rep.name,
+    userID: rep.userID,
     schemaVersion: schemaVersionOfClient1,
   });
   await createAndPersistClientWithPendingLocal(
@@ -797,7 +795,7 @@ test('if an error occurs recovering one db, continues to try to recover clients 
   );
 
   const testPerdagForClient2 = await createPerdag({
-    replicacheName: rep.name,
+    userID: rep.userID,
     schemaVersion: schemaVersionOfClient2,
   });
   const client2PendingLocalMetas = await createAndPersistClientWithPendingLocal(
@@ -909,7 +907,7 @@ test('mutation recovery exits early if Replicache is closed', async () => {
   await tickAFewTimes();
 
   const testPerdag = await createPerdag({
-    replicacheName: rep.name,
+    userID: rep.userID,
     schemaVersion,
   });
 

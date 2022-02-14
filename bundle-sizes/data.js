@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1644523160488,
+  "lastUpdate": 1644849480284,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -5609,6 +5609,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/e4c67f42481f9025f633e4cdc7dd9a5ff9089b40"
         },
         "date": 1644523158801,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 151000,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 27331,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 149722,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 27012,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 65053,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 18536,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5c76f54b247e4412c7db6fc46601d034e76f736e",
+          "message": "chore(deps): bump follow-redirects from 1.14.7 to 1.14.8 in /doc (#840)\n\nBumps [follow-redirects](https://github.com/follow-redirects/follow-redirects) from 1.14.7 to 1.14.8.\r\n- [Release notes](https://github.com/follow-redirects/follow-redirects/releases)\r\n- [Commits](https://github.com/follow-redirects/follow-redirects/compare/v1.14.7...v1.14.8)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: follow-redirects\r\n  dependency-type: indirect\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-02-14T15:36:49+01:00",
+          "tree_id": "8e9d6faf0f16a1611482d62c7028d321cd27f1fc",
+          "url": "https://github.com/rocicorp/replicache/commit/5c76f54b247e4412c7db6fc46601d034e76f736e"
+        },
+        "date": 1644849477866,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

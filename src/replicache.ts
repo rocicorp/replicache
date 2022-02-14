@@ -69,7 +69,7 @@ export type MaybePromise<T> = T | Promise<T>;
 type ToPromise<P> = P extends Promise<unknown> ? P : Promise<P>;
 
 export function makeIdbName(name: string, schemaVersion?: string): string {
-  const n = `${name}:${REPLICACHE_FORMAT_VERSION}`;
+  const n = `rep:${name}:${REPLICACHE_FORMAT_VERSION}`;
   return schemaVersion ? `${n}:${schemaVersion}` : n;
 }
 

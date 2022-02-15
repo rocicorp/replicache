@@ -230,7 +230,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   private _endHearbeats = noop;
   private _endClientsGC = noop;
-  private _recoverMutationsIntervalID: number | undefined = undefined;
+  private _recoverMutationsIntervalID: ReturnType<typeof setInterval> | 0 = 0;
 
   private readonly _persistLock = new Lock();
   private _persistIsScheduled = false;
@@ -389,7 +389,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     this._endHearbeats = persist.startHeartbeats(clientID, this._perdag);
     this._endClientsGC = persist.initClientGC(clientID, this._perdag);
-    this._recoverMutationsIntervalID = window.setInterval(
+    this._recoverMutationsIntervalID = setInterval(
       () => this._recoverMutations(),
       RECOVER_MUTATIONS_INTERVAL_MS,
     );
@@ -442,7 +442,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     this._endHearbeats();
     this._endClientsGC();
-    window.clearInterval(this._recoverMutationsIntervalID);
+    if (this._recoverMutationsIntervalID) {
+      clearInterval(this._recoverMutationsIntervalID);
+    }
 
     await this._ready;
     const closingPromises = [

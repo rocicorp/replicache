@@ -13,11 +13,11 @@ export function startHeartbeats(
   clientID: ClientID,
   dagStore: dag.Store,
 ): () => void {
-  const intervalID = window.setInterval(() => {
+  const intervalID = setInterval(() => {
     latestHeartbeatUpdate = writeHeartbeat(clientID, dagStore);
   }, HEARTBEAT_INTERVAL_MS);
   return () => {
-    window.clearInterval(intervalID);
+    clearInterval(intervalID);
   };
 }
 

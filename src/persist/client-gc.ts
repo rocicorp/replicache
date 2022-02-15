@@ -14,7 +14,7 @@ export function initClientGC(
   clientID: ClientID,
   dagStore: dag.Store,
 ): () => void {
-  const intervalID = window.setInterval(() => {
+  const intervalID = setInterval(() => {
     latestGCUpdate = updateClients(clients => {
       const now = Date.now();
       const clientsAfterGC = Array.from(clients).filter(
@@ -31,6 +31,6 @@ export function initClientGC(
     }, dagStore);
   }, GC_INTERVAL_MS);
   return () => {
-    window.clearInterval(intervalID);
+    clearInterval(intervalID);
   };
 }

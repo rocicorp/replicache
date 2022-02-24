@@ -228,8 +228,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private _hasPendingSubscriptionRuns = false;
   private readonly _lc: LogContext;
 
-  private _endHearbeats = noop;
-  private _endClientsGC = noop;
+  private _stopHeartbeats = noop;
+  private _stopClientsGC = noop;
   private _recoverMutationsIntervalID: ReturnType<typeof setInterval> | 0 = 0;
 
   private readonly _persistLock = new Lock();
@@ -387,8 +387,16 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.pull();
     this._push();
 
-    this._endHearbeats = persist.startHeartbeats(clientID, this._perdag);
-    this._endClientsGC = persist.initClientGC(clientID, this._perdag);
+    this._stopHeartbeats = persist.startHeartbeats(
+      clientID,
+      this._perdag,
+      this._lc,
+    );
+    this._stopClientsGC = persist.initClientGC(
+      clientID,
+      this._perdag,
+      this._lc,
+    );
     this._recoverMutationsIntervalID = setInterval(
       () => this._recoverMutations(),
       RECOVER_MUTATIONS_INTERVAL_MS,
@@ -440,8 +448,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const {promise, resolve} = resolver();
     closingInstances.set(this.name, promise);
 
-    this._endHearbeats();
-    this._endClientsGC();
+    this._stopHeartbeats();
+    this._stopClientsGC();
     if (this._recoverMutationsIntervalID) {
       clearInterval(this._recoverMutationsIntervalID);
     }

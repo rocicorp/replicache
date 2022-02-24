@@ -47,13 +47,13 @@ export class LogContext implements Logger {
   readonly info?: (...args: unknown[]) => void = undefined;
   readonly error?: (...args: unknown[]) => void = undefined;
 
-  constructor(level: LogLevel = 'info', s = '') {
+  constructor(level: LogLevel = 'info', s = '', c = console) {
     this._s = s;
 
     const impl =
       (name: LogLevel) =>
       (...args: unknown[]) =>
-        console[name](this._s, ...args);
+        c[name](this._s, ...args);
 
     /* eslint-disable no-fallthrough , @typescript-eslint/ban-ts-comment */
     switch (level) {

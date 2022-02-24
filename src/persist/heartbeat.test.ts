@@ -10,6 +10,7 @@ import {ClientMap, getClients} from './clients';
 import {fakeHash} from '../hash';
 import {makeClient, setClients} from './clients-test-helpers';
 import {assertNotUndefined} from '../asserts';
+import {LogContext} from '../logger';
 
 let clock: SinonFakeTimers;
 const START_TIME = 100000;
@@ -50,7 +51,7 @@ test('startHeartbeats starts interval that writes heartbeat each minute', async 
   );
   await setClients(clientMap, dagStore);
 
-  startHeartbeats('client1', dagStore);
+  startHeartbeats('client1', dagStore, new LogContext());
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
@@ -112,7 +113,7 @@ test('calling function returned by startHeartbeats, stops heartbeats', async () 
   );
   await setClients(clientMap, dagStore);
 
-  const stopHeartbeats = startHeartbeats('client1', dagStore);
+  const stopHeartbeats = startHeartbeats('client1', dagStore, new LogContext());
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);

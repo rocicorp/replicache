@@ -1,6 +1,8 @@
 import type {ClientID} from '../sync/client-id';
 import type * as dag from '../dag/mod';
 import {ClientMap, noUpdates, updateClients} from './clients';
+import type {LogContext} from '../logger';
+import {initBgIntervalProcess} from './bg-interval';
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000;
 
@@ -8,17 +10,20 @@ let latestHeartbeatUpdate: Promise<ClientMap> | undefined;
 export function getLatestHeartbeatUpdate(): Promise<ClientMap> | undefined {
   return latestHeartbeatUpdate;
 }
-
 export function startHeartbeats(
   clientID: ClientID,
   dagStore: dag.Store,
+  lc: LogContext,
 ): () => void {
-  const intervalID = setInterval(() => {
-    latestHeartbeatUpdate = writeHeartbeat(clientID, dagStore);
-  }, HEARTBEAT_INTERVAL_MS);
-  return () => {
-    clearInterval(intervalID);
-  };
+  return initBgIntervalProcess(
+    'Heartbeat',
+    () => {
+      latestHeartbeatUpdate = writeHeartbeat(clientID, dagStore);
+      return latestHeartbeatUpdate;
+    },
+    HEARTBEAT_INTERVAL_MS,
+    lc,
+  );
 }
 
 export async function writeHeartbeat(

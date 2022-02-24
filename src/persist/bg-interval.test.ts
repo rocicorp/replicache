@@ -54,19 +54,19 @@ test('calling function returned by initBgIntervalProcess, stops interval', async
   expect(processCallCount).to.equal(1);
 });
 
-test('logs error thrown during process before stop is called to error', async () => {
+test('error thrown during process (before stop is called) is logged to error', async () => {
   const lc = new LogContext();
   const errorStub = sinon.stub(console, 'error');
   const process = () => {
-    return Promise.reject('TestError');
+    return Promise.reject('TestErrorBeforeStop');
   };
   initBgIntervalProcess('testProcess', process, 100, lc);
   await clock.tickAsync(100);
   expect(errorStub.callCount).to.equal(1);
-  expect(errorStub.getCall(0).args.join(' ')).to.contain('TestError');
+  expect(errorStub.getCall(0).args.join(' ')).to.contain('TestErrorBeforeStop');
 });
 
-test('logs error thrown during process after stop is called to debug', async () => {
+test('error thrown during process (after stop is called) is logged to debug', async () => {
   const lc = new LogContext('debug');
   const errorStub = sinon.stub(console, 'error');
   const debugStub = sinon.stub(console, 'debug');

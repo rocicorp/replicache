@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1644917790673,
+  "lastUpdate": 1645739619769,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -69319,6 +69319,100 @@ window.BENCHMARK_DATA = {
             "name": "startup scan 1024x100 from 1024x100000 stored",
             "value": 3.26,
             "range": "±3.7%",
+            "unit": "MB/s",
+            "extra": "15 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4c2001ad37721e7f148ccaa52803bb242ca1d467",
+          "message": "fix: Catch errors in background interval processes and log appropriatly. (#846)\n\nProblem\r\n=======\r\nWe have a report of the following exception being thrown from `heartbeat.ts` after a Replicache instance is closed and a new one created as part of a development setup using Replicache, Reach hooks, and Next with HMR.\r\n\r\n```\r\nDOMException: Failed to execute 'transaction' on 'IDBDatabase': The database connection is closing.\r\n```\r\n\r\nWe do stop the heartbeat interval when a Replicache instance is closed, however there is a race that can lead to the above exception: if the Replicache instance is closed while the hearbeat update is running.  \r\n\r\nThis is a fairly narrow race, so I'm still uncertain if this is what the issue reporter is hitting. \r\n\r\nSolution\r\n=======\r\nCatch errors in interval based background processes and log them to 'debug' if the error occurred after the Replicache instance was closed (as this is an expected error), and to 'error' otherwise.  Applied this to the \"heartbeat\" and \"ClientGC\" processes.  The \"mutation recovery\" process already does this.\r\n\r\nAlso added so additional debug logging to aid in further debugging if this does not fix the issue for the reporter.\r\n\r\n\r\nFixes #843",
+          "timestamp": "2022-02-24T13:50:42-08:00",
+          "tree_id": "016622276cf1e1891a63442d984787a4b6a7cd30",
+          "url": "https://github.com/rocicorp/replicache/commit/4c2001ad37721e7f148ccaa52803bb242ca1d467"
+        },
+        "date": 1645739618697,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 769.23,
+            "range": "±2.4%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 357.14,
+            "range": "±3.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 322.58,
+            "range": "±2.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 17.63,
+            "range": "±96.8%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 9.98,
+            "range": "±28.4%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 8.3,
+            "range": "±99.2%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 361.69,
+            "range": "±5.5%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 3.78,
+            "range": "±49.5%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.69,
+            "range": "±164.6%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 3.23,
+            "range": "±4.9%",
             "unit": "MB/s",
             "extra": "15 samples"
           }

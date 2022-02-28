@@ -24,6 +24,7 @@ import {WriteTransactionImpl} from './transactions';
 import {emptyHash, Hash} from './hash';
 import {defaultPuller} from './puller';
 import {defaultPusher} from './pusher';
+import * as licensing from '@rocicorp/licensing/src/client';
 
 // fetch-mock has invalid d.ts file so we removed that on npm install.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -1958,6 +1959,98 @@ test('online', async () => {
   expect(consoleInfoStub.callCount).to.equal(0);
   expect(rep.online).to.equal(true);
   expect(log).to.deep.equal([false, true]);
+});
+
+type LicenseKeyCheckTestCase = {
+  licenseKey: string | undefined;
+  mockFetchParams: object | undefined;
+  expectValid: boolean;
+  expectFetchCalled: boolean;
+};
+
+async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
+  const name = 'license-key-test';
+  fetchMock.reset();
+  // TODO(phritz) export this url from the licensing client.
+  const urlMatcher = new RegExp(
+    `${licensing.PROD_LICENSE_SERVER_URL}license/status`,
+  );
+  if (tc.expectFetchCalled) {
+    fetchMock.postOnce(urlMatcher, tc.mockFetchParams);
+  }
+  const rep = new Replicache({
+    name,
+    experimentalLicenseKey: tc.licenseKey,
+  });
+  expect(await rep.licenseValid).to.equal(tc.expectValid);
+  expect(fetchMock.called(urlMatcher)).to.equal(tc.expectFetchCalled);
+  await rep.close();
+}
+
+test('no licensing key is valid and does not send status check', async () => {
+  await licenseKeyCheckTest({
+    licenseKey: undefined,
+    mockFetchParams: undefined,
+    expectValid: true,
+    expectFetchCalled: false,
+  });
+});
+
+test('test licensing key is valid and does not send status check', async () => {
+  await licenseKeyCheckTest({
+    licenseKey: licensing.TEST_LICENSE_KEY,
+    mockFetchParams: undefined,
+    expectValid: true,
+    expectFetchCalled: false,
+  });
+});
+
+test('licensing key is valid if check returns valid', async () => {
+  await licenseKeyCheckTest({
+    licenseKey: 'valid-license-key',
+    mockFetchParams: {
+      body: {
+        status: licensing.LicenseStatus.Valid,
+      },
+    },
+    expectValid: true,
+    expectFetchCalled: true,
+  });
+});
+
+test('licensing key is not valid if check returns invalid', async () => {
+  await licenseKeyCheckTest({
+    licenseKey: 'invalid-license-key',
+    mockFetchParams: {
+      body: {
+        status: licensing.LicenseStatus.Invalid,
+      },
+    },
+    expectValid: false,
+    expectFetchCalled: true,
+  });
+});
+
+test('licensing key is valid if check throws', async () => {
+  await licenseKeyCheckTest({
+    licenseKey: 'throwing-license-key',
+    mockFetchParams: {
+      throw: new Error('kaboom'),
+    },
+    expectValid: true,
+    expectFetchCalled: true,
+  });
+});
+
+test('licensing key is valid if check returns non-200', async () => {
+  await licenseKeyCheckTest({
+    licenseKey: '500ing-license-key',
+    mockFetchParams: {
+      status: 500,
+    },
+    expectValid: true,
+    expectFetchCalled: true,
+  });
 });
 
 test('overlapping open/close', async () => {

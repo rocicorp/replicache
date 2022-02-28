@@ -45,6 +45,7 @@ import {requestIdle} from './request-idle';
 import type {HTTPRequestInfo} from './http-request-info';
 import {assertNotUndefined} from './asserts';
 import * as licensing from '@rocicorp/licensing/src/client';
+import {browserSimpleFetch} from './simple-fetch';
 
 export type BeginPullResult = {
   requestID: string;
@@ -173,6 +174,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private readonly _logger: Logger;
   private readonly _ready: Promise<void>;
   private readonly _clientIDPromise: Promise<string>;
+  private readonly _licenseCheckPromise: Promise<boolean>;
   private _root: Promise<Hash | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
@@ -301,16 +303,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this._logger = getLogger([], logLevel);
     this._lc = new LogContext(logLevel).addContext('db', name);
 
-    this._licenseKey = experimentalLicenseKey;
-    // This is a silly check, it's just temporary to show that we can use
-    // the licensing client.
-    if (
-      this._licenseKey !== undefined &&
-      this._licenseKey !== licensing.TEST_LICENSE_KEY
-    ) {
-      this._logger.info?.(`Licensing enabled. Key: ${this._licenseKey}`);
-    }
-
     const perKvStore = experimentalKVStore || new IDBStore(this.idbName);
     this._perdag = new dag.StoreImpl(
       perKvStore,
@@ -328,6 +320,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
     // we call the Open RPC.
     const readyResolver = resolver<void>();
     this._ready = readyResolver.promise;
+
+    this._licenseKey = experimentalLicenseKey;
+    this._licenseCheckPromise = this._licenseCheck();
 
     const {minDelayMs = MIN_DELAY_MS, maxDelayMs = MAX_DELAY_MS} =
       requestOptions;
@@ -404,6 +399,41 @@ export class Replicache<MD extends MutatorDefs = {}> {
     void this._recoverMutations(clients);
   }
 
+  private async _licenseCheck(): Promise<boolean> {
+    // Licensing is experimental, so if a key is not set don't do anything.
+    if (this._licenseKey === undefined) {
+      return true;
+    }
+    this._logger.info?.(`Licensing enabled. Key: ${this._licenseKey}`);
+    if (this._licenseKey === licensing.TEST_LICENSE_KEY) {
+      this._logger.info?.(
+        `Skipping license check for TEST_LICENSE_KEY. ` +
+          `You may ONLY use this key for automated (e.g., unit/CI) testing. ` +
+          // TODO(phritz) maybe use a more specific URL
+          `See https://replicache.dev for more information.`,
+      );
+      return true;
+    }
+    try {
+      const status = await licensing.GetLicenseStatus(
+        browserSimpleFetch,
+        licensing.PROD_LICENSE_SERVER_URL,
+        this._licenseKey,
+      );
+      if (status === licensing.LicenseStatus.Valid) {
+        this._logger.info?.(`License is valid.`);
+      } else {
+        this._logger.error?.(`License is not valid; status: ${status}`);
+        // TODO(phritz) kill switch
+        return false;
+      }
+    } catch (err) {
+      this._logger.info?.(`Error checking license: ${err}`);
+      // Note: on error we fall through to assuming the license is valid.
+    }
+    return true;
+  }
+
   /**
    * The client ID for this instance of Replicache. Each instance of Replicache
    * gets a unique client ID.
@@ -473,6 +503,15 @@ export class Replicache<MD extends MutatorDefs = {}> {
     await Promise.all(closingPromises);
     closingInstances.delete(this.name);
     resolve();
+  }
+
+  /**
+   * Indicates whether the license passed to Replicache is valid. The
+   * TEST_LICENSE_KEY is always valid, but may only be used for automated
+   * testing.
+   */
+  get licenseValid(): Promise<boolean> {
+    return this._licenseCheckPromise;
   }
 
   private async _getRoot(): Promise<Hash | undefined> {

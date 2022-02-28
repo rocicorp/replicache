@@ -45,6 +45,7 @@ import {requestIdle} from './request-idle';
 import type {HTTPRequestInfo} from './http-request-info';
 import {assertNotUndefined} from './asserts';
 import * as licensing from '@rocicorp/licensing/src/client';
+import {fetchWrapper} from './fetch-wrapper';
 
 export type BeginPullResult = {
   requestID: string;
@@ -302,13 +303,34 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this._lc = new LogContext(logLevel).addContext('db', name);
 
     this._licenseKey = experimentalLicenseKey;
-    // This is a silly check, it's just temporary to show that we can use
-    // the licensing client.
     if (
       this._licenseKey !== undefined &&
       this._licenseKey !== licensing.TEST_LICENSE_KEY
     ) {
       this._logger.info?.(`Licensing enabled. Key: ${this._licenseKey}`);
+      licensing
+        .GetLicenseStatus(
+          fetchWrapper,
+          licensing.PROD_LICENSE_SERVER_URL,
+          this._licenseKey,
+        )
+        // TODO I don't think I'm supposed to be using then() for async calls
+        // but we definitely don't want to block Replicache startup here. I
+        // think using await would do that. Is there a more idiomatic
+        // way to schedule this call -- I think perhaps nextTick or similar?
+        .then(
+          status => {
+            if (status === licensing.LicenseStatus.Valid) {
+              this._logger.info?.(`License is valid.`);
+            } else {
+              this._logger.error?.(`License is not valid; status: ${status}`);
+              // TODO kill switch
+            }
+          },
+          err => {
+            this._logger.info?.(`Error checking license: ${err}`);
+          },
+        );
     }
 
     const perKvStore = experimentalKVStore || new IDBStore(this.idbName);

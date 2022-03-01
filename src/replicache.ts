@@ -322,7 +322,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this._ready = readyResolver.promise;
 
     this._licenseKey = experimentalLicenseKey;
-    this._licenseCheckPromise = this._licenseCheck();
+    const licenseCheckResolver = resolver<boolean>();
+    this._licenseCheckPromise = licenseCheckResolver.promise;
 
     const {minDelayMs = MIN_DELAY_MS, maxDelayMs = MAX_DELAY_MS} =
       requestOptions;
@@ -349,7 +350,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const clientIDResolver = resolver<string>();
     this._clientIDPromise = clientIDResolver.promise;
 
-    void this._open(clientIDResolver.resolve, readyResolver.resolve);
+    void this._open(
+      clientIDResolver.resolve,
+      readyResolver.resolve,
+      licenseCheckResolver.resolve,
+    );
   }
 
   protected _memdagHashFunction(): <V extends ReadonlyJSONValue>(
@@ -361,6 +366,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private async _open(
     resolveClientID: (clientID: string) => void,
     resolveReady: () => void,
+    resolveLicenseCheck: (valid: boolean) => void,
   ): Promise<void> {
     // If we are currently closing a Replicache instance with the same name,
     // wait for it to finish closing.
@@ -378,6 +384,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     this._root = this._getRoot();
     await this._root;
+
+    await this._licenseCheck(resolveLicenseCheck);
 
     this.pull();
     this._push();
@@ -399,10 +407,13 @@ export class Replicache<MD extends MutatorDefs = {}> {
     void this._recoverMutations(clients);
   }
 
-  private async _licenseCheck(): Promise<boolean> {
+  private async _licenseCheck(
+    resolveLicenseCheck: (valid: boolean) => void,
+  ): Promise<void> {
     // Licensing is experimental, so if a key is not set don't do anything.
     if (this._licenseKey === undefined) {
-      return true;
+      resolveLicenseCheck(true);
+      return;
     }
     this._logger.info?.(`Licensing enabled. Key: ${this._licenseKey}`);
     if (this._licenseKey === licensing.TEST_LICENSE_KEY) {
@@ -412,7 +423,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
           // TODO(phritz) maybe use a more specific URL
           `See https://replicache.dev for more information.`,
       );
-      return true;
+      resolveLicenseCheck(true);
+      return;
     }
     try {
       const status = await licensing.GetLicenseStatus(
@@ -425,13 +437,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
       } else {
         this._logger.error?.(`License is not valid; status: ${status}`);
         // TODO(phritz) kill switch
-        return false;
+        resolveLicenseCheck(false);
+        return;
       }
     } catch (err) {
       this._logger.info?.(`Error checking license: ${err}`);
       // Note: on error we fall through to assuming the license is valid.
     }
-    return true;
+    resolveLicenseCheck(true);
   }
 
   /**

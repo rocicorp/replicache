@@ -44,8 +44,15 @@ import * as persist from './persist/mod';
 import {requestIdle} from './request-idle';
 import type {HTTPRequestInfo} from './http-request-info';
 import {assertNotUndefined} from './asserts';
-import * as licensing from '@rocicorp/licensing/src/client';
+import {
+  getLicenseStatus,
+  licenseActive,
+  PROD_LICENSE_SERVER_URL,
+  TEST_LICENSE_KEY,
+  LicenseStatus,
+} from '@rocicorp/licensing/src/client';
 import {browserSimpleFetch} from './simple-fetch';
+import {initBgIntervalProcess} from './persist/bg-interval';
 
 export type BeginPullResult = {
   requestID: string;
@@ -64,6 +71,7 @@ export const REPLICACHE_FORMAT_VERSION = 4;
 const LAZY_STORE_SOURCE_CHUNK_CACHE_SIZE_LIMIT = 100 * 2 ** 20; // 100 MB
 const MUTATION_RECOVERY_LAZY_STORE_SOURCE_CHUNK_CACHE_SIZE_LIMIT = 10 * 2 ** 20; // 10 MB
 const RECOVER_MUTATIONS_INTERVAL_MS = 5 * 60 * 1000; // 5 mins
+const LICENSE_ACTIVE_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export type MaybePromise<T> = T | Promise<T>;
 
@@ -175,6 +183,13 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private readonly _ready: Promise<void>;
   private readonly _clientIDPromise: Promise<string>;
   private readonly _licenseCheckPromise: Promise<boolean>;
+
+  /* The license is active if we have sent at least one license active ping
+   * (and we will continue to). We do not send license active pings when
+   * licensing is disabled (license key is undefined) or for the TEST_LICENSE_KEY.
+   */
+  protected _licenseActivePromise: Promise<boolean>;
+  private _stopLicenseActive = noop;
   private _root: Promise<Hash | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
@@ -324,6 +339,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this._licenseKey = experimentalLicenseKey;
     const licenseCheckResolver = resolver<boolean>();
     this._licenseCheckPromise = licenseCheckResolver.promise;
+    const licenseActiveResolver = resolver<boolean>();
+    this._licenseActivePromise = licenseActiveResolver.promise;
 
     const {minDelayMs = MIN_DELAY_MS, maxDelayMs = MAX_DELAY_MS} =
       requestOptions;
@@ -354,6 +371,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       clientIDResolver.resolve,
       readyResolver.resolve,
       licenseCheckResolver.resolve,
+      licenseActiveResolver.resolve,
     );
   }
 
@@ -367,6 +385,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     resolveClientID: (clientID: string) => void,
     resolveReady: () => void,
     resolveLicenseCheck: (valid: boolean) => void,
+    resolveLicenseActive: (active: boolean) => void,
   ): Promise<void> {
     // If we are currently closing a Replicache instance with the same name,
     // wait for it to finish closing.
@@ -405,6 +424,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
       RECOVER_MUTATIONS_INTERVAL_MS,
     );
     void this._recoverMutations(clients);
+
+    this._stopLicenseActive = await this._startLicenseActive(
+      resolveLicenseActive,
+      this._lc,
+    );
   }
 
   private async _licenseCheck(
@@ -416,7 +440,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       return;
     }
     this._logger.info?.(`Licensing enabled. Key: ${this._licenseKey}`);
-    if (this._licenseKey === licensing.TEST_LICENSE_KEY) {
+    if (this._licenseKey === TEST_LICENSE_KEY) {
       this._logger.info?.(
         `Skipping license check for TEST_LICENSE_KEY. ` +
           `You may ONLY use this key for automated (e.g., unit/CI) testing. ` +
@@ -427,12 +451,12 @@ export class Replicache<MD extends MutatorDefs = {}> {
       return;
     }
     try {
-      const status = await licensing.GetLicenseStatus(
+      const status = await getLicenseStatus(
         browserSimpleFetch,
-        licensing.PROD_LICENSE_SERVER_URL,
+        PROD_LICENSE_SERVER_URL,
         this._licenseKey,
       );
-      if (status === licensing.LicenseStatus.Valid) {
+      if (status === LicenseStatus.Valid) {
         this._logger.info?.(`License is valid.`);
       } else {
         this._logger.error?.(`License is not valid; status: ${status}`);
@@ -445,6 +469,42 @@ export class Replicache<MD extends MutatorDefs = {}> {
       // Note: on error we fall through to assuming the license is valid.
     }
     resolveLicenseCheck(true);
+  }
+
+  private async _startLicenseActive(
+    resolveLicenseActive: (valid: boolean) => void,
+    lc: LogContext,
+  ): Promise<() => void> {
+    if (
+      this._licenseKey === undefined ||
+      this._licenseKey === TEST_LICENSE_KEY
+    ) {
+      resolveLicenseActive(false);
+      return noop;
+    }
+
+    const markActive = async () => {
+      try {
+        // TODO(phritz) add browser profile
+        await licenseActive(
+          browserSimpleFetch,
+          PROD_LICENSE_SERVER_URL,
+          this._licenseKey as string,
+          'TODO-BROWSER-PROFILE-ID',
+        );
+      } catch (err) {
+        this._logger.info?.(`Error sending license active ping: ${err}`);
+      }
+    };
+    await markActive();
+    resolveLicenseActive(true);
+
+    return initBgIntervalProcess(
+      'LicenseActive',
+      markActive,
+      LICENSE_ACTIVE_INTERVAL_MS,
+      lc,
+    );
   }
 
   /**
@@ -491,6 +551,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const {promise, resolve} = resolver();
     closingInstances.set(this.name, promise);
 
+    this._stopLicenseActive();
     this._stopHeartbeats();
     this._stopClientsGC();
     if (this._recoverMutationsIntervalID) {

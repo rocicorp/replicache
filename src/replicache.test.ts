@@ -9,7 +9,6 @@ import {
   tickUntil,
 } from './test-util';
 import {PatchOperation, Replicache, TransactionClosedError} from './mod';
-
 import type {ReadTransaction, WriteTransaction} from './mod';
 import type {JSONValue, ReadonlyJSONValue} from './json';
 import {assert, expect} from '@esm-bundle/chai';
@@ -24,7 +23,11 @@ import {WriteTransactionImpl} from './transactions';
 import {emptyHash, Hash} from './hash';
 import {defaultPuller} from './puller';
 import {defaultPusher} from './pusher';
-import * as licensing from '@rocicorp/licensing/src/client';
+import {
+  PROD_LICENSE_SERVER_URL,
+  TEST_LICENSE_KEY,
+  LicenseStatus,
+} from '@rocicorp/licensing/src/client';
 
 // fetch-mock has invalid d.ts file so we removed that on npm install.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -1968,22 +1971,23 @@ type LicenseKeyCheckTestCase = {
   expectFetchCalled: boolean;
 };
 
+// TODO(phritz) export these urls from the licensing client.
+const statusUrlMatcher = new RegExp(`${PROD_LICENSE_SERVER_URL}license/status`);
+const activeUrlMatcher = new RegExp(`${PROD_LICENSE_SERVER_URL}license/active`);
+
 async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
   const name = 'license-key-test';
   fetchMock.reset();
-  // TODO(phritz) export this url from the licensing client.
-  const urlMatcher = new RegExp(
-    `${licensing.PROD_LICENSE_SERVER_URL}license/status`,
-  );
+  fetchMock.post(activeUrlMatcher, 200);
   if (tc.expectFetchCalled) {
-    fetchMock.postOnce(urlMatcher, tc.mockFetchParams);
+    fetchMock.postOnce(statusUrlMatcher, tc.mockFetchParams);
   }
   const rep = new Replicache({
     name,
     experimentalLicenseKey: tc.licenseKey,
   });
   expect(await rep.licenseValid).to.equal(tc.expectValid);
-  expect(fetchMock.called(urlMatcher)).to.equal(tc.expectFetchCalled);
+  expect(fetchMock.called(statusUrlMatcher)).to.equal(tc.expectFetchCalled);
   await rep.close();
 }
 
@@ -1998,7 +2002,7 @@ test('no licensing key is valid and does not send status check', async () => {
 
 test('test licensing key is valid and does not send status check', async () => {
   await licenseKeyCheckTest({
-    licenseKey: licensing.TEST_LICENSE_KEY,
+    licenseKey: TEST_LICENSE_KEY,
     mockFetchParams: undefined,
     expectValid: true,
     expectFetchCalled: false,
@@ -2010,7 +2014,7 @@ test('licensing key is valid if check returns valid', async () => {
     licenseKey: 'valid-license-key',
     mockFetchParams: {
       body: {
-        status: licensing.LicenseStatus.Valid,
+        status: LicenseStatus.Valid,
       },
     },
     expectValid: true,
@@ -2023,7 +2027,7 @@ test('licensing key is not valid if check returns invalid', async () => {
     licenseKey: 'invalid-license-key',
     mockFetchParams: {
       body: {
-        status: licensing.LicenseStatus.Invalid,
+        status: LicenseStatus.Invalid,
       },
     },
     expectValid: false,
@@ -2049,6 +2053,58 @@ test('licensing key is valid if check returns non-200', async () => {
       status: 500,
     },
     expectValid: true,
+    expectFetchCalled: true,
+  });
+});
+
+type LicenseActiveTestCase = {
+  licenseKey: string | undefined;
+  mockFetchParams: object | undefined;
+  expectActive: boolean;
+  expectFetchCalled: boolean;
+};
+
+async function licenseActiveTest(tc: LicenseActiveTestCase) {
+  fetchMock.reset();
+  fetchMock.post(statusUrlMatcher, 200);
+  if (tc.expectFetchCalled) {
+    fetchMock.postOnce(activeUrlMatcher, tc.mockFetchParams);
+  }
+  const rep = await replicacheForTesting('license-active-test', {
+    experimentalLicenseKey: tc.licenseKey,
+  });
+  const licenseActive = await rep.licenseActive();
+  expect(licenseActive).to.equal(tc.expectActive);
+  expect(fetchMock.called(activeUrlMatcher)).to.equal(tc.expectFetchCalled);
+  // TODO(phritz) Should we test that it gets called repeatedly?
+  await rep.close();
+}
+
+test('no licensing key is not active and does not send active pings', async () => {
+  await licenseActiveTest({
+    licenseKey: undefined,
+    mockFetchParams: undefined,
+    expectActive: false,
+    expectFetchCalled: false,
+  });
+});
+
+test('test licensing key is not active and does not send active pings', async () => {
+  await licenseActiveTest({
+    licenseKey: TEST_LICENSE_KEY,
+    mockFetchParams: undefined,
+    expectActive: false,
+    expectFetchCalled: false,
+  });
+});
+
+test('a non-empty, non-test licensing key is active and does send active pings', async () => {
+  await licenseActiveTest({
+    licenseKey: 'some-valid-key',
+    mockFetchParams: {
+      body: {},
+    },
+    expectActive: true,
     expectFetchCalled: true,
   });
 });

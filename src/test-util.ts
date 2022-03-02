@@ -58,6 +58,10 @@ export class ReplicacheTest<
     // indirection to allow test to spy on it.
     return this.recoverMutations();
   }
+
+  licenseActive(): Promise<boolean> {
+    return this._licenseActivePromise;
+  }
 }
 
 export const reps: Set<ReplicacheTest> = new Set();

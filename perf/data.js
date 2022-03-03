@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1646294161508,
+  "lastUpdate": 1646294514292,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -69883,6 +69883,100 @@ window.BENCHMARK_DATA = {
             "name": "startup scan 1024x100 from 1024x100000 stored",
             "value": 3.21,
             "range": "±6.0%",
+            "unit": "MB/s",
+            "extra": "15 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dda2cb70ea1a1b42e060bb2a87c225dcc976de60",
+          "message": "Update HACKING.md",
+          "timestamp": "2022-03-02T21:59:08-10:00",
+          "tree_id": "24954f807b5dbb38a309ad675ea5727f1960a729",
+          "url": "https://github.com/rocicorp/replicache/commit/dda2cb70ea1a1b42e060bb2a87c225dcc976de60"
+        },
+        "date": 1646294513016,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 357.14,
+            "range": "±1.0%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 370.37,
+            "range": "±9.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 312.5,
+            "range": "±3.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 19.38,
+            "range": "±94.5%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 10.08,
+            "range": "±34.8%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 7.77,
+            "range": "±39.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 361.69,
+            "range": "±5.7%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 3.79,
+            "range": "±45.6%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.68,
+            "range": "±165.6%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 3.21,
+            "range": "±5.8%",
             "unit": "MB/s",
             "extra": "15 samples"
           }

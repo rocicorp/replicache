@@ -50,13 +50,15 @@ export function randomASCIIString(len: number): string {
   return randomStringInternal(len, 128);
 }
 
+// Shared array buffer to reduce allocations.
+const codes: number[] = [];
 function randomStringInternal(len: number, max: number): string {
-  let s = '';
   for (let i = 0; i < len; i++) {
     // We use random strings for index map keys and those cannot contain \0.
-    s += String.fromCharCode(((Math.random() * (max - 1)) | 0) + 1);
+    codes[i] = ((Math.random() * (max - 1)) | 0) + 1;
   }
-  return s;
+  codes.length = len;
+  return String.fromCharCode(...codes);
 }
 
 function randomBlob(len: number): Blob {

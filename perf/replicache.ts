@@ -359,16 +359,15 @@ export function benchmarkWriteSubRead(opts: {
     async run(bencher: Bencher) {
       const keys = Array.from({length: numKeys}, (_, index) => makeKey(index));
       const sortedKeys = keys.sort();
-      const data: Map<string, TestDataObject> = new Map(
-        keys.map(key => [key, jsonObjectTestData(valueSize)]),
-      );
+      const data: Map<string, TestDataObject> = new Map();
 
+      const t0 = Date.now();
       const rep = (repToClose = makeRep({
         mutators: {
           // Create `numKeys` key/value pairs, each holding `valueSize` data
           async init(tx: WriteTransaction) {
-            for (const [key, value] of data) {
-              await tx.put(key, value);
+            for (const key of keys) {
+              await tx.put(key, jsonObjectTestData(valueSize));
             }
           },
           async invalidate(

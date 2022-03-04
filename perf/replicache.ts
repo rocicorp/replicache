@@ -513,6 +513,14 @@ export function benchmarks(): Benchmark[] {
       keysWatchedPerSub: 16,
       numSubsDirty: 5,
     }),
+    // write/sub/read 64mb
+    benchmarkWriteSubRead({
+      valueSize: 1024,
+      numSubsTotal: 128,
+      keysPerSub: 512,
+      keysWatchedPerSub: 16,
+      numSubsDirty: 5,
+    }),
     // 128 mb is unusable
     benchmarkPopulate({numKeys: 1000, clean: true}),
     benchmarkPopulate({numKeys: 1000, clean: true, indexes: 1}),

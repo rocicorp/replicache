@@ -124,7 +124,9 @@ npm publish
 
 ## Check for API Changes
 
-If there are any API changes, ensure they have been discussed before release.
+We need to be very careful about public API changes as we then have to maintain them.
+
+Check whether there are any public API changes by diffing replicache.d.ts between the previous released version and the new candidate. Make sure all new API has been discussed and agreed to by the team.
 
 ## Release docs
 

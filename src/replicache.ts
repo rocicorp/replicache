@@ -1137,7 +1137,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
           s.onData(value);
         }
       } else {
-        s.onError?.(result.error);
+        if (s.onError) {
+          s.onError(result.error);
+        } else {
+          this._logger.error?.(result.error);
+        }
       }
     }
   }
@@ -1176,8 +1180,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     } as unknown as UnknownSubscription;
     this._subscriptions.add(s);
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this._scheduleInitialSubscriptionRun(s);
+    void this._scheduleInitialSubscriptionRun(s);
 
     return (): void => {
       this._subscriptions.delete(s);

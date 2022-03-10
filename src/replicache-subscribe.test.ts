@@ -104,8 +104,11 @@ test('subscribe with index', async () => {
     prefix: 'a',
   });
 
+  const onErrorFake = sinon.fake();
+
   let queryCallCount = 0;
   let onDataCallCount = 0;
+
   const cancel = rep.subscribe(
     async (tx: ReadTransaction) => {
       queryCallCount++;
@@ -118,12 +121,16 @@ test('subscribe with index', async () => {
           log.push(entry);
         }
       },
+      onError: onErrorFake,
     },
   );
 
   expect(log).to.have.length(0);
   expect(queryCallCount).to.equal(0);
   expect(onDataCallCount).to.equal(0);
+  expect(onErrorFake.callCount).to.equal(0);
+
+  await tickUntil(() => queryCallCount > 0);
 
   await rep.mutate.addData({
     a1: {id: 'a-1', x: 1},
@@ -149,12 +156,14 @@ test('subscribe with index', async () => {
   ]);
   expect(queryCallCount).to.equal(2); // One for initial subscribe and one for the add.
   expect(onDataCallCount).to.equal(2);
+  expect(onErrorFake.callCount).to.equal(0);
 
   log.length = 0;
   await rep.mutate.addData({a3: {id: 'a-3', x: 3}});
 
   expect(queryCallCount).to.equal(3);
   expect(onDataCallCount).to.equal(3);
+  expect(onErrorFake.callCount).to.equal(0);
   expect(log).to.deep.equal([
     [
       ['a-1', 'a1'],
@@ -182,6 +191,10 @@ test('subscribe with index', async () => {
   await rep.dropIndex('i1');
   expect(queryCallCount).to.equal(4);
   expect(onDataCallCount).to.equal(3); // scan({indexName: 'i1'}) fails since we do not have that index any more.
+  expect(onErrorFake.callCount).to.equal(1);
+  expect(onErrorFake.getCall(0).args[0])
+    .to.be.instanceOf(Error)
+    .with.property('message', 'Unknown index name: i1');
 
   log.length = 0;
   await rep.createIndex({
@@ -1003,4 +1016,48 @@ test('subscription with error in body', async () => {
 
   await rep.mutate.addData({c: 3});
   expect(bodyCallCounter).to.equal(4);
+});
+
+test('Errors in subscriptions are logged if no onError', async () => {
+  const t = async (
+    onError?: (err: Error) => void,
+    err: unknown = new Error(),
+  ) => {
+    const consoleErrorStub = sinon.stub(console, 'error');
+
+    let called = false;
+    const rep = await replicacheForTesting('subscrition-with-exception');
+
+    rep.subscribe(
+      async () => {
+        called = true;
+        throw err;
+      },
+      {
+        onData: () => {
+          throw new Error('Should not be called');
+        },
+        onError,
+      },
+    );
+
+    await tickUntil(() => called);
+    if (onError) {
+      expect(consoleErrorStub.callCount).to.equal(0);
+    } else {
+      expect(consoleErrorStub.callCount).to.equal(1);
+      expect(consoleErrorStub.calledWith(err)).to.be.true;
+    }
+
+    consoleErrorStub.restore();
+    await rep.close();
+  };
+
+  await t();
+
+  const f = sinon.fake();
+  const err = new Error();
+  await t(f, err);
+  expect(f.callCount).to.equal(1);
+  expect(f.calledWith(err)).to.be.true;
 });

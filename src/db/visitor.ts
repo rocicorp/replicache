@@ -1,4 +1,3 @@
-import {assert} from '../asserts';
 import {assertBTreeNode} from '../btree/mod';
 import {
   assertCommitData,
@@ -14,6 +13,7 @@ import type * as dag from '../dag/mod';
 import {emptyHash, Hash} from '../hash';
 import {InternalNode, isInternalNode, Node} from '../btree/node';
 import {HashRefType} from './hash-ref-type';
+import {MissingChunkError} from '../dag/store.js';
 
 export class Visitor {
   readonly dagRead: dag.Read;
@@ -37,7 +37,7 @@ export class Visitor {
       if (hashRefType === HashRefType.AllowWeak) {
         return;
       }
-      throw new Error(`Chunk ${h} not found`);
+      throw new MissingChunkError(h);
     }
 
     const {data} = chunk;
@@ -107,8 +107,7 @@ export class Visitor {
     }
     this._visitedHashes.add(h);
 
-    const chunk = await this.dagRead.getChunk(h);
-    assert(chunk);
+    const chunk = await this.dagRead.mustGetChunk(h);
     const {data} = chunk;
     assertBTreeNode(data);
 

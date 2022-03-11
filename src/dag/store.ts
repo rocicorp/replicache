@@ -13,6 +13,7 @@ export interface Store {
 export interface Read {
   hasChunk(hash: Hash): Promise<boolean>;
   getChunk(hash: Hash): Promise<Chunk | undefined>;
+  mustGetChunk(hash: Hash): Promise<Chunk>;
   getHead(name: string): Promise<Hash | undefined>;
   close(): void;
   get closed(): boolean;
@@ -28,4 +29,13 @@ export interface Write extends Read {
   removeHead(name: string): Promise<void>;
   assertValidHash(hash: Hash): void;
   commit(): Promise<void>;
+}
+
+export class MissingChunkError extends Error {
+  name = 'MissingChunkError';
+  readonly hash: Hash;
+  constructor(hash: Hash) {
+    super(`Missing chunk ${hash}`);
+    this.hash = hash;
+  }
 }

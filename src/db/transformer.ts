@@ -1,4 +1,3 @@
-import {assert} from '../asserts';
 import {assertBTreeNode, isInternalNode} from '../btree/node';
 import * as btree from '../btree/mod';
 import {
@@ -17,6 +16,7 @@ import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {HashRefType} from './hash-ref-type';
 import type {Value} from '../kv/store';
+import {MissingChunkError} from '../dag/store.js';
 
 type OldHash = Hash;
 type NewHash = Hash;
@@ -94,6 +94,14 @@ export abstract class BaseTransformer {
   }
 
   protected abstract getChunk(oldHash: OldHash): Promise<dag.Chunk | undefined>;
+
+  protected async mustGetChunk(oldHash: OldHash): Promise<dag.Chunk> {
+    const chunk = await this.getChunk(oldHash);
+    if (chunk) {
+      return chunk;
+    }
+    throw new MissingChunkError(oldHash);
+  }
 
   private async _maybeWriteChunk<D extends Value>(
     oldHash: OldHash,
@@ -235,9 +243,7 @@ export abstract class BaseTransformer {
       return oldHash;
     }
 
-    const chunk = await this.getChunk(oldHash);
-    assert(chunk, `Missing chunk: ${oldHash}`);
-    const {data} = chunk;
+    const {data} = await this.mustGetChunk(oldHash);
     assertBTreeNode(data);
 
     const newData = await this.transformBTreeNodeData(data);

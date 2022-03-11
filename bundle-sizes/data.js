@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1646916018542,
+  "lastUpdate": 1647009435495,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -6557,6 +6557,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 19255,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "97d56722c35cabd0b351270b6882ed176b0aa59c",
+          "message": "chore: Add a mustGetChunk that throws if missing (#866)\n\nNow, all code paths that gets a required chunk uses `mustGetChunk`. When\r\nthe chunk is missing this throws a `MissingChunkError`.\r\n\r\nThe idea is that the caller will detect these errors and see if the\r\nclient might have been GC'd.\r\n\r\nTowards #784",
+          "timestamp": "2022-03-11T15:36:22+01:00",
+          "tree_id": "00a630d694322f53471681e582e4e3e67f34f5c2",
+          "url": "https://github.com/rocicorp/replicache/commit/97d56722c35cabd0b351270b6882ed176b0aa59c"
+        },
+        "date": 1647009433549,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 157644,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 28463,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 156366,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 28094,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 68101,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 19336,
             "unit": "bytes"
           }
         ]

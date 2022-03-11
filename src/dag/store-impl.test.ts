@@ -6,6 +6,7 @@ import type {Value} from '../kv/store';
 import {chunkDataKey, chunkMetaKey, chunkRefCountKey, headKey} from './key';
 import type * as kv from '../kv/mod';
 import {
+  assertHash,
   assertNotTempHash,
   fakeHash,
   Hash,
@@ -14,6 +15,7 @@ import {
 } from '../hash';
 import {assert} from '../asserts';
 import {TestStore} from './test-store';
+import {MissingChunkError} from './store.js';
 
 suite('read', () => {
   test('has chunk', async () => {
@@ -70,6 +72,10 @@ suite('read', () => {
     await t('Hello', [fakeHash('r1'), fakeHash('r2')], true);
     await t(42, [], true);
     await t(null, [fakeHash('r1'), fakeHash('r2')], false);
+  });
+
+  test('must get chunk missing chunks', async () => {
+    await testMissingChunkError('withRead');
   });
 });
 
@@ -432,4 +438,38 @@ suite('write', () => {
       expect(await kvRead.get(chunkDataKey(e.hash))).to.equal('e');
     });
   });
+
+  test('must get chunk missing chunks', async () => {
+    await testMissingChunkError('withWrite');
+  });
 });
+
+async function testMissingChunkError(methodName: 'withRead' | 'withWrite') {
+  const chunkHasher = makeTestChunkHasher('fake');
+  const store = new StoreImpl(new MemStore(), chunkHasher, assertHash);
+
+  const data = 42;
+
+  const h = await store.withWrite(async dagWrite => {
+    const c = dagWrite.createChunk(data, []);
+    await dagWrite.putChunk(c);
+    await dagWrite.setHead('test', c.hash);
+    await dagWrite.commit();
+    return c.hash;
+  });
+
+  await store[methodName](async r => {
+    const chunk = await r.mustGetChunk(h);
+    expect(chunk.data).to.deep.equal(data);
+
+    let err;
+    try {
+      await r.mustGetChunk(fakeHash('nosuchhash'));
+    } catch (e) {
+      err = e;
+    }
+    expect(err)
+      .to.be.instanceof(MissingChunkError)
+      .with.property('hash', fakeHash('nosuchhash'));
+  });
+}

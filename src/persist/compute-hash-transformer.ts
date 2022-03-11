@@ -46,9 +46,7 @@ export class ComputeHashTransformer extends db.BaseTransformer {
     return this._gatheredChunks.has(oldHash);
   }
 
-  protected override async getChunk(
-    hash: Hash,
-  ): Promise<dag.Chunk | undefined> {
+  override async getChunk(hash: Hash): Promise<dag.Chunk | undefined> {
     const gatheredChunk = this._gatheredChunks.get(hash);
     // We cannot get here if we did not gather a chunk for this hash.
     assert(gatheredChunk !== undefined);

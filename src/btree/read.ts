@@ -64,11 +64,7 @@ export class BTreeRead {
       return cached;
     }
 
-    const chunk = await this._dagRead.getChunk(hash);
-    if (chunk === undefined) {
-      throw new Error(`Missing chunk for ${hash}`);
-    }
-    const {data} = chunk;
+    const {data} = await this._dagRead.mustGetChunk(hash);
     assertBTreeNode(data);
     const impl = newNodeImpl(
       // We enforce that we do not mutate this at runtime by first checking the

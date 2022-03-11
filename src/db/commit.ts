@@ -139,8 +139,7 @@ export async function fromHash(
   hash: Hash,
   dagRead: dag.Read,
 ): Promise<Commit<Meta>> {
-  const chunk = await dagRead.getChunk(hash);
-  assert(chunk, `Missing commit for ${hash}`);
+  const chunk = await dagRead.mustGetChunk(hash);
   return fromChunk(chunk);
 }
 

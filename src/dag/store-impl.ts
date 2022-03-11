@@ -1,5 +1,5 @@
 import type * as kv from '../kv/mod';
-import {Store, Read, Write, MissingChunkError, mustGetChunk} from './store';
+import {Store, Read, Write, mustGetChunk} from './store';
 import {
   assertMeta,
   Chunk,

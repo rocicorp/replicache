@@ -2,7 +2,7 @@ import {Hash, isTempHash} from '../hash';
 import type * as kv from '../kv/mod';
 import {RWLock} from '../rw-lock';
 import {Chunk, ChunkHasher, createChunk} from './chunk';
-import {Store, Read, Write, MissingChunkError, mustGetChunk} from './store';
+import {Store, Read, Write, mustGetChunk} from './store';
 import {getSizeOfValue as defaultGetSizeOfValue} from '../json';
 import type {ReadonlyJSONValue} from '../mod';
 import {

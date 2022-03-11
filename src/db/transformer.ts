@@ -16,7 +16,7 @@ import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {HashRefType} from './hash-ref-type';
 import type {Value} from '../kv/store';
-import {MissingChunkError, mustGetChunk} from '../dag/store.js';
+import {mustGetChunk} from '../dag/store.js';
 
 type OldHash = Hash;
 type NewHash = Hash;
@@ -336,9 +336,7 @@ export class Transformer extends BaseTransformer {
     this.dagWrite = dagWrite;
   }
 
-  protected override getChunk(
-    oldHash: OldHash,
-  ): Promise<dag.Chunk | undefined> {
+  override getChunk(oldHash: OldHash): Promise<dag.Chunk | undefined> {
     return this.dagWrite.getChunk(oldHash);
   }
 

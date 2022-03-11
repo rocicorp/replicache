@@ -4,7 +4,7 @@ import * as db from '../db/mod';
 import * as sync from '../sync/mod';
 import {Hash, hashOf} from '../hash';
 import type {ClientID} from '../sync/client-id';
-import {updateClients} from './clients';
+import {assertclientExists, updateClients} from './clients';
 import {ComputeHashTransformer, FixedChunks} from './compute-hash-transformer';
 import {GatherVisitor} from './gather-visitor';
 import {FixupTransformer} from './fixup-transformer';
@@ -25,21 +25,29 @@ export async function persist(
   clientID: ClientID,
   memdag: dag.Store,
   perdag: dag.Store,
+  skipClientExists?: 'skip',
 ): Promise<void> {
+  // Start checking if client exists while we do other async work
+  const clientExistsCheckP =
+    !skipClientExists &&
+    perdag.withRead(read => assertclientExists(clientID, read));
+
   // 1. Gather all temp chunks from main head on the memdag.
   const [gatheredChunks, mainHeadTempHash, mutationID, lastMutationID] =
     await gatherTempChunks(memdag);
 
   if (gatheredChunks.size === 0) {
     // Nothing to persist
+    await clientExistsCheckP;
     return;
   }
 
   // 2. Compute the hashes for these gathered chunks.
-  const [fixedChunks, mappings, mainHeadHash] = await computeHashes(
-    gatheredChunks,
-    mainHeadTempHash,
-  );
+  const computeHashesP = computeHashes(gatheredChunks, mainHeadTempHash);
+
+  await clientExistsCheckP;
+
+  const [fixedChunks, mappings, mainHeadHash] = await computeHashesP;
 
   // 3. write chunks to perdag.
   await writeFixedChunks(

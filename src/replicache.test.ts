@@ -2165,7 +2165,7 @@ test('experiment KV Store', async () => {
   store.resetCounters();
 
   await rep.persist();
-  expect(store.readCount).to.equal(1, 'readCount');
+  expect(store.readCount).to.equal(2, 'readCount');
   expect(store.writeCount).to.equal(1, 'writeCount');
   expect(store.closeCount).to.equal(0, 'closeCount');
   store.resetCounters();

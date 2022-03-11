@@ -21,9 +21,10 @@ import {
 } from '../hash';
 import type {Value} from '../kv/store';
 import type {ClientID} from '../sync/client-id';
-import {getClient} from './clients';
+import {getClient, MissingClientError} from './clients';
 import {addSyncSnapshot} from '../sync/test-helpers';
 import {persist} from './persist';
+import {gcClients} from './client-gc.js';
 
 let clock: SinonFakeTimers;
 setup(() => {
@@ -101,25 +102,7 @@ async function getChunkSnapshot(
 }
 
 suite('persist on top of different kinds of commits', () => {
-  const memdag = new dag.TestStore(
-    undefined,
-    makeNewFakeHashFunction('t/memdag'),
-    assertHash,
-  );
-  const perdag = new dag.TestStore(
-    undefined,
-    makeNewFakeHashFunction('perdag'),
-    assertNotTempHash,
-  );
-
-  const clientID = 'client-id';
-  const chain: Chain = [];
-
-  const testPersist = async () => {
-    await persist(clientID, memdag, perdag);
-    await assertSameDagData(clientID, memdag, perdag);
-    await assertClientMutationIDsCorrect(clientID, perdag);
-  };
+  const {memdag, perdag, chain, testPersist} = setupPersistTest();
 
   setup(async () => {
     memdag.clear();
@@ -224,3 +207,49 @@ suite('persist on top of different kinds of commits', () => {
     await addIndexChange(chain, memdag);
   });
 });
+
+test('We get a MissingClientException during persist if client is missing', async () => {
+  const {memdag, perdag, chain, testPersist, clientID} = setupPersistTest();
+
+  await addGenesis(chain, memdag);
+  await addLocal(chain, memdag);
+  await testPersist();
+
+  await addLocal(chain, memdag);
+
+  await clock.tickAsync(14 * 24 * 60 * 60 * 1000);
+
+  // Remove the client from the clients map.
+  await gcClients('dummy', perdag);
+
+  let err;
+  try {
+    await persist(clientID, memdag, perdag);
+  } catch (e) {
+    err = e;
+  }
+  expect(err).to.be.an.instanceof(MissingClientError).property('id', clientID);
+});
+
+function setupPersistTest() {
+  const memdag = new dag.TestStore(
+    undefined,
+    makeNewFakeHashFunction('t/memdag'),
+    assertHash,
+  );
+  const perdag = new dag.TestStore(
+    undefined,
+    makeNewFakeHashFunction('perdag'),
+    assertNotTempHash,
+  );
+
+  const clientID = 'client-id';
+  const chain: Chain = [];
+
+  const testPersist = async () => {
+    await persist(clientID, memdag, perdag, 'skip');
+    await assertSameDagData(clientID, memdag, perdag);
+    await assertClientMutationIDsCorrect(clientID, perdag);
+  };
+  return {memdag, perdag, chain, testPersist, clientID};
+}

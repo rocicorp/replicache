@@ -2,7 +2,7 @@ import {Hash, isTempHash} from '../hash';
 import type * as kv from '../kv/mod';
 import {RWLock} from '../rw-lock';
 import {Chunk, ChunkHasher, createChunk} from './chunk';
-import {Store, Read, Write, MissingChunkError} from './store';
+import {Store, Read, Write, MissingChunkError, mustGetChunk} from './store';
 import {getSizeOfValue as defaultGetSizeOfValue} from '../json';
 import type {ReadonlyJSONValue} from '../mod';
 import {
@@ -226,11 +226,7 @@ export class LazyRead implements Read {
   }
 
   async mustGetChunk(hash: Hash): Promise<Chunk> {
-    const chunk = await this.getChunk(hash);
-    if (chunk) {
-      return chunk;
-    }
-    throw new MissingChunkError(hash);
+    return mustGetChunk(this, hash);
   }
 
   async getHead(name: string): Promise<Hash | undefined> {

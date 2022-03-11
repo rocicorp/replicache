@@ -16,7 +16,7 @@ import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {HashRefType} from './hash-ref-type';
 import type {Value} from '../kv/store';
-import {MissingChunkError} from '../dag/store.js';
+import {MissingChunkError, mustGetChunk} from '../dag/store.js';
 
 type OldHash = Hash;
 type NewHash = Hash;
@@ -93,14 +93,10 @@ export abstract class BaseTransformer {
     return false;
   }
 
-  protected abstract getChunk(oldHash: OldHash): Promise<dag.Chunk | undefined>;
+  abstract getChunk(oldHash: OldHash): Promise<dag.Chunk | undefined>;
 
-  protected async mustGetChunk(oldHash: OldHash): Promise<dag.Chunk> {
-    const chunk = await this.getChunk(oldHash);
-    if (chunk) {
-      return chunk;
-    }
-    throw new MissingChunkError(oldHash);
+  async mustGetChunk(oldHash: OldHash): Promise<dag.Chunk> {
+    return mustGetChunk(this, oldHash);
   }
 
   private async _maybeWriteChunk<D extends Value>(

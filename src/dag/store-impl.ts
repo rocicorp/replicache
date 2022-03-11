@@ -1,5 +1,5 @@
 import type * as kv from '../kv/mod';
-import {Store, Read, Write, MissingChunkError} from './store';
+import {Store, Read, Write, MissingChunkError, mustGetChunk} from './store';
 import {
   assertMeta,
   Chunk,
@@ -88,11 +88,7 @@ export class ReadImpl implements Read {
   }
 
   async mustGetChunk(hash: Hash): Promise<Chunk> {
-    const chunk = await this.getChunk(hash);
-    if (chunk) {
-      return chunk;
-    }
-    throw new MissingChunkError(hash);
+    return mustGetChunk(this, hash);
   }
 
   async getHead(name: string): Promise<Hash | undefined> {

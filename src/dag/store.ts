@@ -10,9 +10,12 @@ export interface Store {
   close(): Promise<void>;
 }
 
-export interface Read {
-  hasChunk(hash: Hash): Promise<boolean>;
+interface GetChunk {
   getChunk(hash: Hash): Promise<Chunk | undefined>;
+}
+
+export interface Read extends GetChunk {
+  hasChunk(hash: Hash): Promise<boolean>;
   mustGetChunk(hash: Hash): Promise<Chunk>;
   getHead(name: string): Promise<Hash | undefined>;
   close(): void;
@@ -38,4 +41,15 @@ export class MissingChunkError extends Error {
     super(`Missing chunk ${hash}`);
     this.hash = hash;
   }
+}
+
+export async function mustGetChunk(
+  store: GetChunk,
+  hash: Hash,
+): Promise<Chunk> {
+  const chunk = await store.getChunk(hash);
+  if (chunk) {
+    return chunk;
+  }
+  throw new MissingChunkError(hash);
 }

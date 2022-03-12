@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1647009435495,
+  "lastUpdate": 1647098375750,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -6611,6 +6611,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 19336,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2cbbf982f0c932e5d99e3e5a02bbfd78be38991d",
+          "message": "feat: Check if client exists in persist (#867)\n\nWe now check if the client ID exists in the client map when we do a\r\n`persist`. If it doesn't we throw a `MissingClientError`.\r\n\r\nFor testing purpose we can skip this check.\r\n\r\nThe intended use is to handle clients that are missing and raise an\r\n\"event\" on the Replicache instance when this happens.\r\n\r\nTowards #784",
+          "timestamp": "2022-03-12T15:18:34Z",
+          "tree_id": "77cebeb2bca9496c2f4744b4acd5824c8e87eba7",
+          "url": "https://github.com/rocicorp/replicache/commit/2cbbf982f0c932e5d99e3e5a02bbfd78be38991d"
+        },
+        "date": 1647098373171,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 158309,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 28582,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 157031,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 28225,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 68379,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 19430,
             "unit": "bytes"
           }
         ]

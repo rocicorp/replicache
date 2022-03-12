@@ -112,6 +112,31 @@ async function getClientsAtHash(
   return chunkDataToClientMap(chunk?.data);
 }
 
+/**
+ * Used to signal that a client does not exist. Maybe it was garbage collected?
+ */
+export class MissingClientError extends Error {
+  name = 'MissingClientError';
+  readonly id: string;
+  constructor(id: sync.ClientID) {
+    super(`Missing client ${id}`);
+    this.id = id;
+  }
+}
+
+/**
+ * Throws a `MissingClientError` if the client does not exist.
+ */
+export async function assertClientExists(
+  id: sync.ClientID,
+  dagRead: dag.Read,
+): Promise<void> {
+  const client = await getClient(id, dagRead);
+  if (!client) {
+    throw new MissingClientError(id);
+  }
+}
+
 export async function getClient(
   id: sync.ClientID,
   dagRead: dag.Read,

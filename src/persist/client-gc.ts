@@ -28,7 +28,7 @@ export function initClientGC(
   );
 }
 
-async function gcClients(
+export async function gcClients(
   clientID: ClientID,
   dagStore: dag.Store,
 ): Promise<ClientMap> {

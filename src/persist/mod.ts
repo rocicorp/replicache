@@ -6,6 +6,9 @@ export {
   getClients,
   updateClients,
   noUpdates as noClientUpdates,
+  isClientMissing,
+  assertClientExists,
+  MissingClientError,
 } from './clients';
 export {initClientGC} from './client-gc';
 export {

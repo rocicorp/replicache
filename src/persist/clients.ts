@@ -131,10 +131,13 @@ export async function assertClientExists(
   id: sync.ClientID,
   dagRead: dag.Read,
 ): Promise<void> {
-  const client = await getClient(id, dagRead);
-  if (!client) {
+  if (await isClientMissing(id, dagRead)) {
     throw new MissingClientError(id);
   }
+}
+
+export async function isClientMissing(id: sync.ClientID, dagRead: dag.Read) {
+  return !(await getClient(id, dagRead));
 }
 
 export async function getClient(

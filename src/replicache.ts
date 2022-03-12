@@ -278,6 +278,15 @@ export class Replicache<MD extends MutatorDefs = {}> {
   onSync: ((syncing: boolean) => void) | null = null;
 
   /**
+   * `onClientMissing` is called when the persistent client has been garbage
+   * collected. This happens when the client has not been used for over a week.
+   *
+   * The default behavior is to reload the page (using `location.reload()`). Set
+   * this to `null` to prevent the page from reloading automatically.
+   */
+  onClientMissing: (() => void) | null = reload;
+
+  /**
    * This gets called when we get an HTTP unauthorized (401) response from the
    * push or pull endpoint. Set this to a function that will ask your user to
    * reauthenticate.
@@ -429,6 +438,30 @@ export class Replicache<MD extends MutatorDefs = {}> {
       resolveLicenseActive,
       this._lc,
     );
+
+    self.addEventListener('visibilitychange', this._onVisibilityChange);
+  }
+
+  private _onVisibilityChange = async () => {
+    if (
+      typeof document === undefined ||
+      document.visibilityState !== 'visible'
+    ) {
+      // In case of running in a worker, we don't have a document.
+      return;
+    }
+
+    await this._checkForMissingClient();
+  };
+
+  private async _checkForMissingClient() {
+    const clientID = await this._clientIDPromise;
+    const missing = await this._perdag.withRead(read =>
+      persist.isClientMissing(clientID, read),
+    );
+    if (missing) {
+      this._onClientMissing();
+    }
   }
 
   private async _licenseCheck(
@@ -573,6 +606,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
       subscription.onDone?.();
     }
     this._subscriptions.clear();
+
+    self.removeEventListener('visibilitychange', this._onVisibilityChange);
 
     await Promise.all(closingPromises);
     closingInstances.delete(this.name);
@@ -1046,9 +1081,21 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
     await this._ready;
     const clientID = await this.clientID;
-    return this._persistLock.withLock(() =>
-      persist.persist(clientID, this._memdag, this._perdag),
-    );
+    try {
+      return this._persistLock.withLock(() =>
+        persist.persist(clientID, this._memdag, this._perdag),
+      );
+    } catch (e) {
+      if (e instanceof persist.MissingClientError) {
+        this._onClientMissing();
+      } else {
+        throw e;
+      }
+    }
+  }
+  private _onClientMissing() {
+    this._logger.error?.('Client is missing');
+    this.onClientMissing?.();
   }
 
   private _schedulePersist(): void {
@@ -1571,3 +1618,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
 // This map is used to keep track of closing instances of Replicache. When an
 // instance is opening we wait for any currently closing instances.
 const closingInstances: Map<string, Promise<unknown>> = new Map();
+
+function reload(): void {
+  if (typeof location !== 'undefined') {
+    location.reload();
+  }
+}

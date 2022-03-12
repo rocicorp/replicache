@@ -127,7 +127,7 @@ export class MissingClientError extends Error {
 /**
  * Throws a `MissingClientError` if the client does not exist.
  */
-export async function assertclientExists(
+export async function assertClientExists(
   id: sync.ClientID,
   dagRead: dag.Read,
 ): Promise<void> {

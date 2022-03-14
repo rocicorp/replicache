@@ -279,10 +279,12 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   /**
    * `onClientMissing` is called when the persistent client has been garbage
-   * collected. This happens when the client has not been used for over a week.
+   * collected. This can  happen if the client has not been used for over a
+   * week.
    *
    * The default behavior is to reload the page (using `location.reload()`). Set
-   * this to `null` to prevent the page from reloading automatically.
+   * this to `null` or provide your own function to prevent the page from
+   * reloading automatically.
    */
   onClientMissing: (() => void) | null = reload;
 
@@ -439,29 +441,30 @@ export class Replicache<MD extends MutatorDefs = {}> {
       this._lc,
     );
 
-    self.addEventListener('visibilitychange', this._onVisibilityChange);
+    getDocument()?.addEventListener(
+      'visibilitychange',
+      this._onVisibilityChange,
+    );
   }
 
   private _onVisibilityChange = async () => {
-    if (
-      typeof document === undefined ||
-      document.visibilityState !== 'visible'
-    ) {
-      // In case of running in a worker, we don't have a document.
+    // In case of running in a worker, we don't have a document.
+    if (getDocument()?.visibilityState !== 'visible') {
       return;
     }
 
-    await this._checkForMissingClient();
+    await this._checkForMissingClientAndCallHandler();
   };
 
-  private async _checkForMissingClient() {
+  private async _checkForMissingClientAndCallHandler(): Promise<boolean> {
     const clientID = await this._clientIDPromise;
     const missing = await this._perdag.withRead(read =>
       persist.isClientMissing(clientID, read),
     );
     if (missing) {
-      this._onClientMissing();
+      this._fireOnClientMissing();
     }
+    return missing;
   }
 
   private async _licenseCheck(
@@ -607,7 +610,10 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
     this._subscriptions.clear();
 
-    self.removeEventListener('visibilitychange', this._onVisibilityChange);
+    getDocument()?.removeEventListener(
+      'visibilitychange',
+      this._onVisibilityChange,
+    );
 
     await Promise.all(closingPromises);
     closingInstances.delete(this.name);
@@ -1082,18 +1088,18 @@ export class Replicache<MD extends MutatorDefs = {}> {
     await this._ready;
     const clientID = await this.clientID;
     try {
-      return this._persistLock.withLock(() =>
+      await this._persistLock.withLock(() =>
         persist.persist(clientID, this._memdag, this._perdag),
       );
     } catch (e) {
       if (e instanceof persist.MissingClientError) {
-        this._onClientMissing();
+        this._fireOnClientMissing();
       } else {
         throw e;
       }
     }
   }
-  private _onClientMissing() {
+  private _fireOnClientMissing() {
     this._logger.error?.('Client is missing');
     this.onClientMissing?.();
   }
@@ -1260,10 +1266,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
   ): Promise<R> {
     await this._ready;
     const clientID = await this._clientIDPromise;
-    return await this._memdag.withRead(async dagRead => {
+    return this._memdag.withRead(async dagRead => {
       const dbRead = await db.readFromDefaultHead(dagRead);
       const tx = new ReadTransactionImpl(clientID, dbRead, this._lc);
-      return await body(tx);
+      try {
+        return await body(tx);
+      } catch (ex) {
+        throw await this._convertToMissingClientError(ex);
+      }
     });
   }
 
@@ -1342,17 +1352,32 @@ export class Replicache<MD extends MutatorDefs = {}> {
       );
 
       const tx = new WriteTransactionImpl(clientID, dbWrite, this._lc);
-      const result: R = await mutatorImpl(tx, args);
+      try {
+        const result: R = await mutatorImpl(tx, args);
 
-      const [ref, changedKeys] = await tx.commit(!isReplay);
-      if (!isReplay) {
-        this._pushConnectionLoop.send();
-        await this._checkChange(ref, changedKeys);
-        this._schedulePersist();
+        const [ref, changedKeys] = await tx.commit(!isReplay);
+        if (!isReplay) {
+          this._pushConnectionLoop.send();
+          await this._checkChange(ref, changedKeys);
+          this._schedulePersist();
+        }
+
+        return {result, ref};
+      } catch (ex) {
+        throw await this._convertToMissingClientError(ex);
       }
-
-      return {result, ref};
     });
+  }
+
+  private async _convertToMissingClientError(ex: unknown): Promise<unknown> {
+    if (
+      ex instanceof dag.MissingChunkError &&
+      (await this._checkForMissingClientAndCallHandler())
+    ) {
+      return new persist.MissingClientError(await this._clientIDPromise);
+    }
+
+    return ex;
   }
 
   protected async _recoverMutations(
@@ -1618,6 +1643,15 @@ export class Replicache<MD extends MutatorDefs = {}> {
 // This map is used to keep track of closing instances of Replicache. When an
 // instance is opening we wait for any currently closing instances.
 const closingInstances: Map<string, Promise<unknown>> = new Map();
+
+/**
+ * Returns the document object. This is wrapped in a function because Replicache
+ * runs in environments that do not have a document (such as Web Workers, Deno
+ * etc)
+ */
+function getDocument(): Document | undefined {
+  return typeof document !== 'undefined' ? document : undefined;
+}
 
 function reload(): void {
   if (typeof location !== 'undefined') {

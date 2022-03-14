@@ -4,7 +4,7 @@ import * as kv from './kv/mod';
 import * as persist from './persist/mod';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import * as sinon from 'sinon';
-import type {ReadonlyJSONValue} from './json';
+import type {JSONValue, ReadonlyJSONValue} from './json';
 import {Hash, makeNewTempHashFunction} from './hash';
 
 // fetch-mock has invalid d.ts file so we removed that on npm install.
@@ -12,6 +12,7 @@ import {Hash, makeNewTempHashFunction} from './hash';
 // @ts-expect-error
 import fetchMock from 'fetch-mock/esm/client';
 import {uuid} from './uuid';
+import type {WriteTransaction} from './transactions.js';
 
 export class ReplicacheTest<
   // eslint-disable-next-line @typescript-eslint/ban-types
@@ -61,6 +62,11 @@ export class ReplicacheTest<
 
   licenseActive(): Promise<boolean> {
     return this._licenseActivePromise;
+  }
+
+  get perdag() {
+    // @ts-expect-error Property '_perdag' is private
+    return this._perdag;
   }
 }
 
@@ -214,5 +220,14 @@ export class MemStoreWithCounters implements kv.Store {
 
   get closed(): boolean {
     return this.store.closed;
+  }
+}
+
+export async function addData(
+  tx: WriteTransaction,
+  data: {[key: string]: JSONValue},
+) {
+  for (const [key, value] of Object.entries(data)) {
+    await tx.put(key, value);
   }
 }

@@ -10,7 +10,7 @@ export {
   assertClientExists,
   MissingClientError,
 } from './clients';
-export {initClientGC} from './client-gc';
+export {initClientGC, deleteClientForTesting} from './client-gc';
 export {
   IDBDatabasesStore,
   setupForTest as setupIDBDatabasesStoreForTest,

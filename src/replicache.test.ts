@@ -1,5 +1,6 @@
 import {httpStatusUnauthorized} from './replicache';
 import {
+  addData,
   clock,
   initReplicacheTesting,
   MemStoreWithCounters,
@@ -39,12 +40,6 @@ import type {ReplicacheOptions} from './replicache-options';
 const {fail} = assert;
 
 initReplicacheTesting();
-
-async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
-  for (const [key, value] of Object.entries(data)) {
-    await tx.put(key, value);
-  }
-}
 
 async function expectPromiseToReject(p: unknown): Promise<Chai.Assertion> {
   let e;

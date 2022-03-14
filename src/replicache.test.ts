@@ -19,6 +19,7 @@ import {asyncIterableToArray} from './async-iterable-to-array';
 import {sleep} from './sleep';
 import * as db from './db/mod';
 import * as dag from './dag/mod';
+import * as persist from './persist/mod.js';
 import {TestMemStore} from './kv/test-mem-store';
 import {WriteTransactionImpl} from './transactions';
 import {emptyHash, Hash} from './hash';
@@ -2308,4 +2309,39 @@ test('mutation timestamps are immutable', async () => {
       timestamp: 100,
     },
   ]);
+});
+
+suite('check for missing client in visibilitychange', () => {
+  const t = (visibilityState: VisibilityState, called: boolean) => {
+    test('visibilityState: ' + visibilityState, async () => {
+      const consoleErrorStub = sinon.stub(console, 'error');
+      sinon.stub(document, 'visibilityState').get(() => visibilityState);
+
+      const rep = await replicacheForTesting(
+        `check-for-missing-client-in-visibilitychange-${visibilityState}`,
+      );
+
+      const onClientMissing = sinon.fake();
+      rep.onClientMissing = onClientMissing;
+
+      const clientID = await rep.clientID;
+      await persist.deleteClientForTesting(clientID, rep.perdag);
+
+      consoleErrorStub.resetHistory();
+
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      await tickAFewTimes();
+
+      expect(onClientMissing.called).to.equal(called);
+      if (called) {
+        expect(consoleErrorStub.calledOnceWith('Client is missing')).to.be.true;
+      }
+
+      await rep.close();
+    });
+  };
+
+  t('hidden', false);
+  t('visible', true);
 });

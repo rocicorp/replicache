@@ -448,6 +448,10 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
 
   private _onVisibilityChange = async () => {
+    if (this._closed) {
+      return;
+    }
+
     // In case of running in a worker, we don't have a document.
     if (getDocument()?.visibilityState !== 'visible') {
       return;
@@ -594,6 +598,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
       clearInterval(this._recoverMutationsIntervalID);
     }
 
+    getDocument()?.removeEventListener(
+      'visibilitychange',
+      this._onVisibilityChange,
+    );
+
     await this._ready;
     const closingPromises = [
       this._memdag.close(),
@@ -609,11 +618,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
       subscription.onDone?.();
     }
     this._subscriptions.clear();
-
-    getDocument()?.removeEventListener(
-      'visibilitychange',
-      this._onVisibilityChange,
-    );
 
     await Promise.all(closingPromises);
     closingInstances.delete(this.name);

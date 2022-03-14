@@ -279,8 +279,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   /**
    * `onClientMissing` is called when the persistent client has been garbage
-   * collected. This can  happen if the client has not been used for over a
-   * week.
+   * collected. This can happen if the client has not been used for over a week.
    *
    * The default behavior is to reload the page (using `location.reload()`). Set
    * this to `null` or provide your own function to prevent the page from
@@ -1373,6 +1372,10 @@ export class Replicache<MD extends MutatorDefs = {}> {
     });
   }
 
+  /**
+   * In the case we get a MissingChunkError we check if the client got garbage
+   * collected and if so change the error to a MissingClientError instead
+   */
   private async _convertToMissingClientError(ex: unknown): Promise<unknown> {
     if (
       ex instanceof dag.MissingChunkError &&

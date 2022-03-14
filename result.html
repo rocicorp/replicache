@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, minimum-scale=1.0, initial-scale=1, user-scalable=yes"
+    />
+    <style>
+      html {
+        font-family: BlinkMacSystemFont, -apple-system, 'Segoe UI', Roboto,
+          Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+          Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        background-color: #fff;
+        font-size: 16px;
+      }
+      body {
+        color: #4a4a4a;
+        margin: 8px;
+        font-size: 1em;
+        font-weight: 400;
+      }
+      header {
+        margin-bottom: 8px;
+        display: flex;
+        flex-direction: column;
+      }
+      main {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+      a {
+        color: #3273dc;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      a:hover {
+        color: #000;
+      }
+      button {
+        color: #fff;
+        background-color: #3298dc;
+        border-color: transparent;
+        cursor: pointer;
+        text-align: center;
+      }
+      button:hover {
+        background-color: #2793da;
+        flex: none;
+      }
+      .spacer {
+        flex: auto;
+      }
+      .small {
+        font-size: 0.75rem;
+      }
+      footer {
+        margin-top: 16px;
+        display: flex;
+        align-items: center;
+      }
+      .header-label {
+        margin-right: 4px;
+      }
+      .benchmark-set {
+        margin: 8px 0;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+      .benchmark-title {
+        font-size: 3rem;
+        font-weight: 600;
+        word-break: break-word;
+        text-align: center;
+      }
+      .benchmark-graphs {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-around;
+        align-items: center;
+        flex-wrap: wrap;
+        width: 100%;
+      }
+      .benchmark-chart {
+        max-width: 1000px;
+      }
+    </style>
+    <title>Benchmarks</title>
+  </head>
+
+  <body>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.2/dist/Chart.min.js"></script>
+    <script type="module">
+      import jsonData from './perf-results.js';
+
+      function pickMin(runs) {
+        const rv = {};
+        for (const run of runs) {
+          for (const x of run) {
+            const {name, value} = x;
+            if (!rv[name]) {
+              rv[name] = value;
+            } else if (rv[name] > value) {
+              rv[name] = value;
+            }
+          }
+        }
+        return rv;
+      }
+
+      function removeP95(jsonData) {
+        for (const [k, run] of Object.entries(jsonData)) {
+          jsonData[k] = run.filter(x => !x.name.endsWith('p95'));
+        }
+      }
+
+      removeP95(jsonData);
+
+      const macpro_min_8kb_max_16kb = pickMin([
+        jsonData.macpro_min_8kb_max_16kb_run1,
+        jsonData.macpro_min_8kb_max_16kb_run2,
+        jsonData.macpro_min_8kb_max_16kb_run3,
+      ]);
+      const macpro_min_4kb_max_8kb = pickMin([
+        jsonData.macpro_min_4kb_max_8kb_run1,
+        jsonData.macpro_min_4kb_max_8kb_run2,
+        jsonData.macpro_min_4kb_max_8kb_run3,
+      ]);
+      const m1_min_8kb_max_16kb = pickMin([
+        jsonData.m1_min_8kb_max_16kb_run1,
+        jsonData.m1_min_8kb_max_16kb_run2,
+        jsonData.m1_min_8kb_max_16kb_run3,
+      ]);
+      const m1_min_4kb_max_8kb = pickMin([
+        jsonData.m1_min_4kb_max_8kb_run1,
+        jsonData.m1_min_4kb_max_8kb_run2,
+        jsonData.m1_min_4kb_max_8kb_run3,
+      ]);
+
+      const first = Object.values(jsonData)[0];
+
+      const labels = first.map(d => d.name);
+
+      function makeDataset(runName) {
+        const name = jsonData[runName].name;
+        return {
+          label: runName,
+          data: jsonData[runName].map(d => d.value),
+        };
+      }
+
+      // const labels = Object.keys(jsonData);
+
+      const datasets = Object.values(jsonData).ma;
+
+      const colors = ['red', 'blue', 'green', 'orange'];
+
+      const ctx = document.getElementById('myChart');
+      const myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: Object.entries({
+            macpro_min_8kb_max_16kb,
+            macpro_min_4kb_max_8kb,
+            m1_min_8kb_max_16kb,
+            m1_min_4kb_max_8kb,
+          }).map(([name, runs], i) => {
+            return {
+              label: name,
+              data: Object.values(runs),
+              backgroundColor: colors[i],
+            };
+          }),
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true,
+            },
+          },
+        },
+      });
+    </script>
+    <canvas id="myChart" width="200" height="200"></canvas>
+  </body>
+</html>

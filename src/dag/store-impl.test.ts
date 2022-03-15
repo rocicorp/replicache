@@ -15,7 +15,7 @@ import {
 } from '../hash';
 import {assert} from '../asserts';
 import {TestStore} from './test-store';
-import {MissingChunkError} from './store.js';
+import {ChunkNotFoundError} from './store.js';
 
 suite('read', () => {
   test('has chunk', async () => {
@@ -75,7 +75,7 @@ suite('read', () => {
   });
 
   test('must get chunk missing chunks', async () => {
-    await testMissingChunkError('withRead');
+    await testChunkNotFoundError('withRead');
   });
 });
 
@@ -440,11 +440,11 @@ suite('write', () => {
   });
 
   test('must get chunk missing chunks', async () => {
-    await testMissingChunkError('withWrite');
+    await testChunkNotFoundError('withWrite');
   });
 });
 
-async function testMissingChunkError(methodName: 'withRead' | 'withWrite') {
+async function testChunkNotFoundError(methodName: 'withRead' | 'withWrite') {
   const chunkHasher = makeTestChunkHasher('fake');
   const store = new StoreImpl(new MemStore(), chunkHasher, assertHash);
 
@@ -469,7 +469,7 @@ async function testMissingChunkError(methodName: 'withRead' | 'withWrite') {
       err = e;
     }
     expect(err)
-      .to.be.instanceof(MissingChunkError)
+      .to.be.instanceof(ChunkNotFoundError)
       .with.property('hash', fakeHash('nosuchhash'));
   });
 }

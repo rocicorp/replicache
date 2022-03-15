@@ -5,7 +5,7 @@ export {
   createChunkWithNativeHash,
   throwChunkHasher,
 } from './chunk';
-export {MissingChunkError} from './store';
+export {ChunkNotFoundError} from './store';
 export type {Store, Read, Write} from './store';
 export {StoreImpl} from './store-impl';
 export {LazyStore} from './lazy-store';

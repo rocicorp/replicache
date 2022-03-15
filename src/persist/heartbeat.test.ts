@@ -3,7 +3,7 @@ import * as sinon from 'sinon';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import * as dag from '../dag/mod';
 import {
-  getLatestHeartbeatUpdate,
+  latestHeartbeatUpdate,
   startHeartbeats,
   writeHeartbeat,
 } from './heartbeat';
@@ -25,7 +25,7 @@ teardown(() => {
 });
 
 function awaitLatestHeartbeatUpdate(): Promise<ClientMap> {
-  const latest = getLatestHeartbeatUpdate();
+  const latest = latestHeartbeatUpdate;
   assertNotUndefined(latest);
   return latest;
 }

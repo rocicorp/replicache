@@ -11,11 +11,7 @@ import {initBgIntervalProcess} from './bg-interval';
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000;
 
-let latestHeartbeatUpdate: Promise<ClientMap> | undefined;
-
-export function getLatestHeartbeatUpdate(): Promise<ClientMap> | undefined {
-  return latestHeartbeatUpdate;
-}
+export let latestHeartbeatUpdate: Promise<ClientMap> | undefined;
 
 export function startHeartbeats(
   clientID: ClientID,

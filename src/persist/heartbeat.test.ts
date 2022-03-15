@@ -1,12 +1,13 @@
 import {expect} from '@esm-bundle/chai';
+import * as sinon from 'sinon';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import * as dag from '../dag/mod';
 import {
-  getLatestHeartbeatUpdate,
+  latestHeartbeatUpdate,
   startHeartbeats,
   writeHeartbeat,
 } from './heartbeat';
-import {ClientMap, getClients} from './clients';
+import {ClientMap, ClientStateNotFoundError, getClients} from './clients';
 import {fakeHash} from '../hash';
 import {makeClient, setClients} from './clients-test-helpers';
 import {assertNotUndefined} from '../asserts';
@@ -24,7 +25,7 @@ teardown(() => {
 });
 
 function awaitLatestHeartbeatUpdate(): Promise<ClientMap> {
-  const latest = getLatestHeartbeatUpdate();
+  const latest = latestHeartbeatUpdate;
   assertNotUndefined(latest);
   return latest;
 }
@@ -51,14 +52,14 @@ test('startHeartbeats starts interval that writes heartbeat each minute', async 
   );
   await setClients(clientMap, dagStore);
 
-  startHeartbeats('client1', dagStore, new LogContext());
+  startHeartbeats('client1', dagStore, () => undefined, new LogContext());
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
     expect(readClientMap).to.deep.equal(clientMap);
   });
 
-  clock.tick(ONE_MIN_IN_MS);
+  await clock.tickAsync(ONE_MIN_IN_MS);
   await awaitLatestHeartbeatUpdate();
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -113,29 +114,30 @@ test('calling function returned by startHeartbeats, stops heartbeats', async () 
   );
   await setClients(clientMap, dagStore);
 
-  const stopHeartbeats = startHeartbeats('client1', dagStore, new LogContext());
+  const stopHeartbeats = startHeartbeats(
+    'client1',
+    dagStore,
+    () => undefined,
+    new LogContext(),
+  );
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
     expect(readClientMap).to.deep.equal(clientMap);
   });
 
-  clock.tick(ONE_MIN_IN_MS);
+  await clock.tickAsync(ONE_MIN_IN_MS);
   await awaitLatestHeartbeatUpdate();
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
-    expect(readClientMap).to.deep.equal(
-      new Map(
-        Object.entries({
-          client1: {
-            ...client1,
-            heartbeatTimestampMs: START_TIME + ONE_MIN_IN_MS,
-          },
-          client2,
-        }),
-      ),
-    );
+    expect(Object.fromEntries(readClientMap)).to.deep.equal({
+      client1: {
+        ...client1,
+        heartbeatTimestampMs: START_TIME + ONE_MIN_IN_MS,
+      },
+      client2,
+    });
   });
 
   stopHeartbeats();
@@ -210,5 +212,21 @@ test('writeHeartbeat throws Error if no Client is found for clientID', async () 
   } catch (ex) {
     e = ex;
   }
-  expect(e).to.be.instanceOf(Error);
+  expect(e)
+    .to.be.instanceOf(ClientStateNotFoundError)
+    .property('id', 'client1');
+});
+
+test('heartbeat with missing client calls callback', async () => {
+  const dagStore = new dag.TestStore();
+  const onClientStateNotFound = sinon.fake();
+  const stop = startHeartbeats(
+    'client1',
+    dagStore,
+    onClientStateNotFound,
+    new LogContext(),
+  );
+  await clock.tickAsync(ONE_MIN_IN_MS);
+  expect(onClientStateNotFound.callCount).to.equal(1);
+  stop();
 });

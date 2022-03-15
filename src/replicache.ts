@@ -278,6 +278,17 @@ export class Replicache<MD extends MutatorDefs = {}> {
   onSync: ((syncing: boolean) => void) | null = null;
 
   /**
+   * `onClientStateNotFound` is called when the persistent client has been
+   * garbage collected. This can happen if the client has not been used for over
+   * a week.
+   *
+   * The default behavior is to reload the page (using `location.reload()`). Set
+   * this to `null` or provide your own function to prevent the page from
+   * reloading automatically.
+   */
+  onClientStateNotFound: (() => void) | null = reload;
+
+  /**
    * This gets called when we get an HTTP unauthorized (401) response from the
    * push or pull endpoint. Set this to a function that will ask your user to
    * reauthenticate.
@@ -412,6 +423,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this._stopHeartbeats = persist.startHeartbeats(
       clientID,
       this._perdag,
+      () => {
+        this._fireOnClientStateNotFound(clientID);
+      },
       this._lc,
     );
     this._stopClientsGC = persist.initClientGC(
@@ -429,6 +443,35 @@ export class Replicache<MD extends MutatorDefs = {}> {
       resolveLicenseActive,
       this._lc,
     );
+
+    getDocument()?.addEventListener(
+      'visibilitychange',
+      this._onVisibilityChange,
+    );
+  }
+
+  private _onVisibilityChange = async () => {
+    if (this._closed) {
+      return;
+    }
+
+    // In case of running in a worker, we don't have a document.
+    if (getDocument()?.visibilityState !== 'visible') {
+      return;
+    }
+
+    await this._checkForClientStateNotFoundAndCallHandler();
+  };
+
+  private async _checkForClientStateNotFoundAndCallHandler(): Promise<boolean> {
+    const clientID = await this._clientIDPromise;
+    const hasClientState = await this._perdag.withRead(read =>
+      persist.hasClientState(clientID, read),
+    );
+    if (!hasClientState) {
+      this._fireOnClientStateNotFound(clientID);
+    }
+    return !hasClientState;
   }
 
   private async _licenseCheck(
@@ -557,6 +600,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
     if (this._recoverMutationsIntervalID) {
       clearInterval(this._recoverMutationsIntervalID);
     }
+
+    getDocument()?.removeEventListener(
+      'visibilitychange',
+      this._onVisibilityChange,
+    );
 
     await this._ready;
     const closingPromises = [
@@ -1046,9 +1094,21 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
     await this._ready;
     const clientID = await this.clientID;
-    return this._persistLock.withLock(() =>
-      persist.persist(clientID, this._memdag, this._perdag),
-    );
+    try {
+      await this._persistLock.withLock(() =>
+        persist.persist(clientID, this._memdag, this._perdag),
+      );
+    } catch (e) {
+      if (e instanceof persist.ClientStateNotFoundError) {
+        this._fireOnClientStateNotFound(clientID);
+      } else {
+        throw e;
+      }
+    }
+  }
+  private _fireOnClientStateNotFound(clientID: sync.ClientID) {
+    this._logger.error?.(`Client state not found, clientID: ${clientID}`);
+    this.onClientStateNotFound?.();
   }
 
   private _schedulePersist(): void {
@@ -1213,10 +1273,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
   ): Promise<R> {
     await this._ready;
     const clientID = await this._clientIDPromise;
-    return await this._memdag.withRead(async dagRead => {
+    return this._memdag.withRead(async dagRead => {
       const dbRead = await db.readFromDefaultHead(dagRead);
       const tx = new ReadTransactionImpl(clientID, dbRead, this._lc);
-      return await body(tx);
+      try {
+        return await body(tx);
+      } catch (ex) {
+        throw await this._convertToClientStateNotFoundError(ex);
+      }
     });
   }
 
@@ -1295,17 +1359,38 @@ export class Replicache<MD extends MutatorDefs = {}> {
       );
 
       const tx = new WriteTransactionImpl(clientID, dbWrite, this._lc);
-      const result: R = await mutatorImpl(tx, args);
+      try {
+        const result: R = await mutatorImpl(tx, args);
 
-      const [ref, changedKeys] = await tx.commit(!isReplay);
-      if (!isReplay) {
-        this._pushConnectionLoop.send();
-        await this._checkChange(ref, changedKeys);
-        this._schedulePersist();
+        const [ref, changedKeys] = await tx.commit(!isReplay);
+        if (!isReplay) {
+          this._pushConnectionLoop.send();
+          await this._checkChange(ref, changedKeys);
+          this._schedulePersist();
+        }
+
+        return {result, ref};
+      } catch (ex) {
+        throw await this._convertToClientStateNotFoundError(ex);
       }
-
-      return {result, ref};
     });
+  }
+
+  /**
+   * In the case we get a MissingChunkError we check if the client got garbage
+   * collected and if so change the error to a ClientNotFoundError instead
+   */
+  private async _convertToClientStateNotFoundError(
+    ex: unknown,
+  ): Promise<unknown> {
+    if (
+      ex instanceof dag.MissingChunkError &&
+      (await this._checkForClientStateNotFoundAndCallHandler())
+    ) {
+      return new persist.ClientStateNotFoundError(await this._clientIDPromise);
+    }
+
+    return ex;
   }
 
   protected async _recoverMutations(
@@ -1571,3 +1656,18 @@ export class Replicache<MD extends MutatorDefs = {}> {
 // This map is used to keep track of closing instances of Replicache. When an
 // instance is opening we wait for any currently closing instances.
 const closingInstances: Map<string, Promise<unknown>> = new Map();
+
+/**
+ * Returns the document object. This is wrapped in a function because Replicache
+ * runs in environments that do not have a document (such as Web Workers, Deno
+ * etc)
+ */
+function getDocument(): Document | undefined {
+  return typeof document !== 'undefined' ? document : undefined;
+}
+
+function reload(): void {
+  if (typeof location !== 'undefined') {
+    location.reload();
+  }
+}

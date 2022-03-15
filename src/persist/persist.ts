@@ -4,7 +4,7 @@ import * as db from '../db/mod';
 import * as sync from '../sync/mod';
 import {Hash, hashOf} from '../hash';
 import type {ClientID} from '../sync/client-id';
-import {assertClientExists, updateClients} from './clients';
+import {assertHasClientState, updateClients} from './clients';
 import {ComputeHashTransformer, FixedChunks} from './compute-hash-transformer';
 import {GatherVisitor} from './gather-visitor';
 import {FixupTransformer} from './fixup-transformer';
@@ -30,7 +30,7 @@ export async function persist(
   // Start checking if client exists while we do other async work
   const clientExistsCheckP =
     !skipClientExists &&
-    perdag.withRead(read => assertClientExists(clientID, read));
+    perdag.withRead(read => assertHasClientState(clientID, read));
 
   // 1. Gather all temp chunks from main head on the memdag.
   const [gatheredChunks, mainHeadTempHash, mutationID, lastMutationID] =

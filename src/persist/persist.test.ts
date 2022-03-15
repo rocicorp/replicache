@@ -21,7 +21,7 @@ import {
 } from '../hash';
 import type {Value} from '../kv/store';
 import type {ClientID} from '../sync/client-id';
-import {getClient, MissingClientError} from './clients';
+import {getClient, ClientStateNotFoundError} from './clients';
 import {addSyncSnapshot} from '../sync/test-helpers';
 import {persist} from './persist';
 import {gcClients} from './client-gc.js';
@@ -228,7 +228,9 @@ test('We get a MissingClientException during persist if client is missing', asyn
   } catch (e) {
     err = e;
   }
-  expect(err).to.be.an.instanceof(MissingClientError).property('id', clientID);
+  expect(err)
+    .to.be.an.instanceof(ClientStateNotFoundError)
+    .property('id', clientID);
 });
 
 function setupPersistTest() {

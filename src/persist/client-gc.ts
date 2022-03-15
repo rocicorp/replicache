@@ -47,16 +47,3 @@ export async function gcClients(
     };
   }, dagStore);
 }
-
-export async function deleteClientForTesting(
-  clientID: ClientID,
-  dagStore: dag.Store,
-): Promise<void> {
-  await updateClients(clients => {
-    const clientsAfterGC = new Map(clients);
-    clientsAfterGC.delete(clientID);
-    return {
-      clients: new Map(clientsAfterGC),
-    };
-  }, dagStore);
-}

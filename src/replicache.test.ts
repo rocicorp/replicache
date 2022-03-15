@@ -19,7 +19,6 @@ import {asyncIterableToArray} from './async-iterable-to-array';
 import {sleep} from './sleep';
 import * as db from './db/mod';
 import * as dag from './dag/mod';
-import * as persist from './persist/mod.js';
 import {TestMemStore} from './kv/test-mem-store';
 import {WriteTransactionImpl} from './transactions';
 import {emptyHash, Hash} from './hash';
@@ -37,6 +36,7 @@ import {
 import fetchMock from 'fetch-mock/esm/client';
 import type {Mutation} from './sync/push';
 import type {ReplicacheOptions} from './replicache-options';
+import {deleteClientForTesting} from './persist/clients-test-helpers.js';
 
 const {fail} = assert;
 
@@ -2311,21 +2311,21 @@ test('mutation timestamps are immutable', async () => {
   ]);
 });
 
-suite('check for missing client in visibilitychange', () => {
+suite('check for client not found in visibilitychange', () => {
   const t = (visibilityState: VisibilityState, called: boolean) => {
     test('visibilityState: ' + visibilityState, async () => {
       const consoleErrorStub = sinon.stub(console, 'error');
       sinon.stub(document, 'visibilityState').get(() => visibilityState);
 
       const rep = await replicacheForTesting(
-        `check-for-missing-client-in-visibilitychange-${visibilityState}`,
+        `check-for-client-not-found-in-visibilitychange-${visibilityState}`,
       );
 
-      const onClientMissing = sinon.fake();
-      rep.onClientMissing = onClientMissing;
+      const onClientStateNotFound = sinon.fake();
+      rep.onClientStateNotFound = onClientStateNotFound;
 
       const clientID = await rep.clientID;
-      await persist.deleteClientForTesting(clientID, rep.perdag);
+      await deleteClientForTesting(clientID, rep.perdag);
 
       consoleErrorStub.resetHistory();
 
@@ -2333,9 +2333,12 @@ suite('check for missing client in visibilitychange', () => {
 
       await tickAFewTimes();
 
-      expect(onClientMissing.called).to.equal(called);
+      expect(onClientStateNotFound.called).to.equal(called);
       if (called) {
-        expect(consoleErrorStub.calledOnceWith('Client is missing')).to.be.true;
+        expect(consoleErrorStub.callCount).to.equal(1);
+        expect(consoleErrorStub.getCall(0).args[0]).to.equal(
+          `Client state not found, clientID: ${clientID}`,
+        );
       }
 
       await rep.close();

@@ -16,6 +16,8 @@ import * as dag from './dag/mod';
 import * as persist from './persist/mod';
 import {assertNotTempHash} from './hash';
 import {assertNotUndefined} from './asserts';
+import {deleteClientForTesting} from './persist/clients-test-helpers.js';
+import type {ClientID} from './sync/client-id.js';
 
 initReplicacheTesting();
 
@@ -101,7 +103,17 @@ test('basic persist & load', async () => {
   expect(await rep.clientID).to.not.equal(await rep2.clientID);
 });
 
-suite('onClientMissing', () => {
+suite('onClientStateNotFound', () => {
+  function checkConsoleErrorStub(
+    consoleErrorStub: sinon.SinonStub,
+    clientID: ClientID,
+  ) {
+    expect(consoleErrorStub.callCount).to.equal(1);
+    expect(consoleErrorStub.getCall(0).args[0]).to.equal(
+      `Client state not found, clientID: ${clientID}`,
+    );
+  }
+
   test('Called in persist if collected', async () => {
     const consoleErrorStub = sinon.stub(console, 'error');
 
@@ -113,14 +125,14 @@ suite('onClientMissing', () => {
     await rep.persist();
 
     const clientID = await rep.clientID;
-    await persist.deleteClientForTesting(clientID, rep.perdag);
+    await deleteClientForTesting(clientID, rep.perdag);
 
-    const onClientMissing = sinon.fake();
-    rep.onClientMissing = onClientMissing;
+    const onClientStateNotFound = sinon.fake();
+    rep.onClientStateNotFound = onClientStateNotFound;
     await rep.persist();
 
-    expect(onClientMissing.callCount).to.equal(1);
-    expect(consoleErrorStub.calledOnceWith('Client is missing')).to.be.true;
+    expect(onClientStateNotFound.callCount).to.equal(1);
+    checkConsoleErrorStub(consoleErrorStub, clientID);
   });
 
   test('Called in query if collected', async () => {
@@ -133,7 +145,7 @@ suite('onClientMissing', () => {
     await rep.mutate.addData({foo: 'bar'});
     await rep.persist();
     const clientID = await rep.clientID;
-    await persist.deleteClientForTesting(clientID, rep.perdag);
+    await deleteClientForTesting(clientID, rep.perdag);
     await rep.close();
 
     const rep2 = await replicacheForTesting('called-in-query', {
@@ -141,10 +153,10 @@ suite('onClientMissing', () => {
     });
 
     const clientID2 = await rep2.clientID;
-    await persist.deleteClientForTesting(clientID2, rep2.perdag);
+    await deleteClientForTesting(clientID2, rep2.perdag);
 
-    const onClientMissing = sinon.fake();
-    rep2.onClientMissing = onClientMissing;
+    const onClientStateNotFound = sinon.fake();
+    rep2.onClientStateNotFound = onClientStateNotFound;
 
     let e: unknown;
     try {
@@ -154,8 +166,8 @@ suite('onClientMissing', () => {
     } catch (err) {
       e = err;
     }
-    expect(e).to.be.instanceOf(persist.MissingClientError);
-    expect(consoleErrorStub.calledOnceWith('Client is missing')).to.be.true;
+    expect(e).to.be.instanceOf(persist.ClientStateNotFoundError);
+    checkConsoleErrorStub(consoleErrorStub, clientID2);
   });
 
   test('Called in mutate if collected', async () => {
@@ -173,7 +185,7 @@ suite('onClientMissing', () => {
     await rep.mutate.addData({foo: 'bar'});
     await rep.persist();
     const clientID = await rep.clientID;
-    await persist.deleteClientForTesting(clientID, rep.perdag);
+    await deleteClientForTesting(clientID, rep.perdag);
     await rep.close();
 
     const rep2 = await replicacheForTesting('called-in-query', {
@@ -185,10 +197,10 @@ suite('onClientMissing', () => {
     });
 
     const clientID2 = await rep2.clientID;
-    await persist.deleteClientForTesting(clientID2, rep2.perdag);
+    await deleteClientForTesting(clientID2, rep2.perdag);
 
-    const onClientMissing = sinon.fake();
-    rep2.onClientMissing = onClientMissing;
+    const onClientStateNotFound = sinon.fake();
+    rep2.onClientStateNotFound = onClientStateNotFound;
 
     let e: unknown;
     try {
@@ -198,7 +210,7 @@ suite('onClientMissing', () => {
       e = err;
     }
 
-    expect(e).to.be.instanceOf(persist.MissingClientError);
-    expect(consoleErrorStub.calledOnceWith('Client is missing')).to.be.true;
+    expect(e).to.be.instanceOf(persist.ClientStateNotFoundError);
+    checkConsoleErrorStub(consoleErrorStub, clientID2);
   });
 });

@@ -278,14 +278,15 @@ export class Replicache<MD extends MutatorDefs = {}> {
   onSync: ((syncing: boolean) => void) | null = null;
 
   /**
-   * `onClientMissing` is called when the persistent client has been garbage
-   * collected. This can happen if the client has not been used for over a week.
+   * `onClientStateNotFound` is called when the persistent client has been
+   * garbage collected. This can happen if the client has not been used for over
+   * a week.
    *
    * The default behavior is to reload the page (using `location.reload()`). Set
    * this to `null` or provide your own function to prevent the page from
    * reloading automatically.
    */
-  onClientMissing: (() => void) | null = reload;
+  onClientStateNotFound: (() => void) | null = reload;
 
   /**
    * This gets called when we get an HTTP unauthorized (401) response from the
@@ -422,6 +423,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this._stopHeartbeats = persist.startHeartbeats(
       clientID,
       this._perdag,
+      () => {
+        this._fireOnClientStateNotFound(clientID);
+      },
       this._lc,
     );
     this._stopClientsGC = persist.initClientGC(
@@ -456,18 +460,18 @@ export class Replicache<MD extends MutatorDefs = {}> {
       return;
     }
 
-    await this._checkForMissingClientAndCallHandler();
+    await this._checkForClientStateNotFoundAndCallHandler();
   };
 
-  private async _checkForMissingClientAndCallHandler(): Promise<boolean> {
+  private async _checkForClientStateNotFoundAndCallHandler(): Promise<boolean> {
     const clientID = await this._clientIDPromise;
-    const missing = await this._perdag.withRead(read =>
-      persist.isClientMissing(clientID, read),
+    const hasClientState = await this._perdag.withRead(read =>
+      persist.hasClientState(clientID, read),
     );
-    if (missing) {
-      this._fireOnClientMissing();
+    if (!hasClientState) {
+      this._fireOnClientStateNotFound(clientID);
     }
-    return missing;
+    return !hasClientState;
   }
 
   private async _licenseCheck(
@@ -1095,16 +1099,16 @@ export class Replicache<MD extends MutatorDefs = {}> {
         persist.persist(clientID, this._memdag, this._perdag),
       );
     } catch (e) {
-      if (e instanceof persist.MissingClientError) {
-        this._fireOnClientMissing();
+      if (e instanceof persist.ClientStateNotFoundError) {
+        this._fireOnClientStateNotFound(clientID);
       } else {
         throw e;
       }
     }
   }
-  private _fireOnClientMissing() {
-    this._logger.error?.('Client is missing');
-    this.onClientMissing?.();
+  private _fireOnClientStateNotFound(clientID: sync.ClientID) {
+    this._logger.error?.(`Client state not found, clientID: ${clientID}`);
+    this.onClientStateNotFound?.();
   }
 
   private _schedulePersist(): void {
@@ -1275,7 +1279,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       try {
         return await body(tx);
       } catch (ex) {
-        throw await this._convertToMissingClientError(ex);
+        throw await this._convertToClientStateNotFoundError(ex);
       }
     });
   }
@@ -1367,21 +1371,23 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
         return {result, ref};
       } catch (ex) {
-        throw await this._convertToMissingClientError(ex);
+        throw await this._convertToClientStateNotFoundError(ex);
       }
     });
   }
 
   /**
    * In the case we get a MissingChunkError we check if the client got garbage
-   * collected and if so change the error to a MissingClientError instead
+   * collected and if so change the error to a ClientNotFoundError instead
    */
-  private async _convertToMissingClientError(ex: unknown): Promise<unknown> {
+  private async _convertToClientStateNotFoundError(
+    ex: unknown,
+  ): Promise<unknown> {
     if (
       ex instanceof dag.MissingChunkError &&
-      (await this._checkForMissingClientAndCallHandler())
+      (await this._checkForClientStateNotFoundAndCallHandler())
     ) {
-      return new persist.MissingClientError(await this._clientIDPromise);
+      return new persist.ClientStateNotFoundError(await this._clientIDPromise);
     }
 
     return ex;

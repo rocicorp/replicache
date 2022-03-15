@@ -6,11 +6,11 @@ export {
   getClients,
   updateClients,
   noUpdates as noClientUpdates,
-  isClientMissing,
-  assertClientExists,
-  MissingClientError,
+  hasClientState,
+  assertHasClientState,
+  ClientStateNotFoundError,
 } from './clients';
-export {initClientGC, deleteClientForTesting} from './client-gc';
+export {initClientGC} from './client-gc';
 export {
   IDBDatabasesStore,
   setupForTest as setupIDBDatabasesStoreForTest,

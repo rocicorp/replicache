@@ -1,3 +1,4 @@
+import {LogContext} from '@rocicorp/logger';
 import {expect} from '@esm-bundle/chai';
 import type {JSONValue} from '../json';
 import {stringCompare} from '../string-compare';
@@ -16,7 +17,6 @@ import {
 } from './index';
 import {BTreeWrite} from '../btree/mod';
 import {asyncIterableToArray} from '../async-iterable-to-array';
-import {LogContext} from '../logger';
 
 test('test index key', () => {
   const testValid = (secondary: string, primary: string) => {

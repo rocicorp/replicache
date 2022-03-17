@@ -1,7 +1,7 @@
+import type {LogContext} from '@rocicorp/logger';
 import type {ClientID} from '../sync/client-id';
 import type * as dag from '../dag/mod';
 import {ClientMap, noUpdates, updateClients} from './clients';
-import type {LogContext} from '../logger';
 import {initBgIntervalProcess} from './bg-interval';
 
 const CLIENT_MAX_INACTIVE_IN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days

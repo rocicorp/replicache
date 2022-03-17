@@ -1,3 +1,4 @@
+import type {LogContext} from '@rocicorp/logger';
 import {deepClone, JSONValue, ReadonlyJSONValue} from './json';
 import {
   KeyTypeForScanOptions,
@@ -8,7 +9,6 @@ import {ScanResult} from './scan-iterator';
 import {throwIfClosed} from './transaction-closed-error';
 import * as db from './db/mod';
 import * as sync from './sync/mod';
-import type {LogContext} from './logger';
 import type {Hash} from './hash';
 import type {ScanSubscriptionInfo} from './subscriptions';
 

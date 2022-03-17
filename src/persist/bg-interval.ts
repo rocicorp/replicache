@@ -1,4 +1,4 @@
-import type {LogContext} from '../logger';
+import type {LogContext} from '@rocicorp/logger';
 
 export function initBgIntervalProcess(
   processName: string,

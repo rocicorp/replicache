@@ -1,3 +1,4 @@
+import {LogContext} from '@rocicorp/logger';
 import {expect} from '@esm-bundle/chai';
 import {assertNotUndefined} from '../asserts';
 import {assertObject, assertString} from '../asserts';
@@ -31,7 +32,6 @@ import {
   PullRequest,
   PULL_VERSION,
 } from './pull';
-import {LogContext} from '../logger';
 import {emptyHash} from '../hash';
 import {stringCompare} from '../string-compare';
 import {asyncIterableToArray} from '../async-iterable-to-array';

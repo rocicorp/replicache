@@ -57,7 +57,7 @@ test('initClientGC starts 5 min interval that collects clients that have been in
 
   await setClients(clientMap, dagStore);
 
-  initClientGC('client1', dagStore, new LogContext('info'));
+  initClientGC('client1', dagStore, new LogContext());
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
@@ -155,11 +155,7 @@ test('calling function returned by initClientGC, stops Client GCs', async () => 
 
   await setClients(clientMap, dagStore);
 
-  const stopClientGC = initClientGC(
-    'client1',
-    dagStore,
-    new LogContext('info'),
-  );
+  const stopClientGC = initClientGC('client1', dagStore, new LogContext());
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);

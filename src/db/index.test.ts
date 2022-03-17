@@ -200,14 +200,7 @@ test('index value', async () => {
       await index.put(encodeIndexKey(['s2', '2']), 'v2');
 
       if (Array.isArray(expected)) {
-        await indexValue(
-          new LogContext('info'),
-          index,
-          op,
-          key,
-          value,
-          jsonPointer,
-        );
+        await indexValue(new LogContext(), index, op, key, value, jsonPointer);
 
         const actualVal = await asyncIterableToArray(index.entries());
         expect(expected.length).to.equal(actualVal.length);
@@ -221,14 +214,7 @@ test('index value', async () => {
         }
       } else {
         expect(() =>
-          indexValue(
-            new LogContext('info'),
-            index,
-            op,
-            key,
-            value,
-            jsonPointer,
-          ),
+          indexValue(new LogContext(), index, op, key, value, jsonPointer),
         ).to.throw(expected);
       }
     });

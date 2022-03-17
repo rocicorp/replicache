@@ -7,7 +7,7 @@ import {initDB, Write} from './write';
 
 test('basics', async () => {
   const ds = new dag.TestStore();
-  const lc = new LogContext('info');
+  const lc = new LogContext();
   await initDB(await ds.write(), DEFAULT_HEAD_NAME);
   const w = await Write.newLocal(
     whenceHead(DEFAULT_HEAD_NAME),

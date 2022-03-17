@@ -9,7 +9,7 @@ import {assertPatchOperations} from '../puller';
 
 test('patch', async () => {
   const store = new dag.TestStore();
-  const lc = new LogContext('info');
+  const lc = new LogContext();
 
   type Case = {
     name: string;

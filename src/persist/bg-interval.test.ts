@@ -20,7 +20,7 @@ test('initBgIntervalProcess starts interval that executed process every interval
     processCallCount++;
     return Promise.resolve();
   };
-  initBgIntervalProcess('testProcess', process, 100, new LogContext('info'));
+  initBgIntervalProcess('testProcess', process, 100, new LogContext());
 
   expect(processCallCount).to.equal(0);
   await clock.tickAsync(100);
@@ -41,7 +41,7 @@ test('calling function returned by initBgIntervalProcess, stops interval', async
     'testProcess',
     process,
     100,
-    new LogContext('info'),
+    new LogContext(),
   );
 
   expect(processCallCount).to.equal(0);
@@ -55,7 +55,7 @@ test('calling function returned by initBgIntervalProcess, stops interval', async
 });
 
 test('error thrown during process (before stop is called) is logged to error', async () => {
-  const lc = new LogContext('info');
+  const lc = new LogContext();
   const errorStub = sinon.stub(console, 'error');
   const process = () => {
     return Promise.reject('TestErrorBeforeStop');

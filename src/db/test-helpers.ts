@@ -44,7 +44,7 @@ export async function createLocal(
   store: dag.Store,
   i: number,
 ): Promise<Commit<Meta>> {
-  const lc = new LogContext('info');
+  const lc = new LogContext();
   await store.withWrite(async dagWrite => {
     const w = await Write.newLocal(
       whenceHead(DEFAULT_HEAD_NAME),
@@ -82,7 +82,7 @@ export async function createIndex(
   jsonPointer: string,
   store: dag.Store,
 ): Promise<Commit<Meta>> {
-  const lc = new LogContext('info');
+  const lc = new LogContext();
   await store.withWrite(async dagWrite => {
     const w = await Write.newIndexChange(
       whenceHead(DEFAULT_HEAD_NAME),
@@ -107,7 +107,7 @@ export async function addSnapshot(
   map: [string, JSONValue][] | undefined,
 ): Promise<Chain> {
   expect(chain).to.have.length.greaterThan(0);
-  const lc = new LogContext('info');
+  const lc = new LogContext();
   const cookie = `cookie_${chain.length}`;
   await store.withWrite(async dagWrite => {
     const w = await Write.newSnapshot(

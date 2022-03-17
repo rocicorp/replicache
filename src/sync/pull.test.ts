@@ -453,7 +453,7 @@ test('begin try pull', async () => {
         fakePuller,
         requestID,
         store,
-        new LogContext('info'),
+        new LogContext(),
         c.createSyncBranch,
       );
     } catch (e) {
@@ -605,7 +605,7 @@ test('maybe end try pull', async () => {
 
   for (const [i, c] of cases.entries()) {
     const store = new dag.TestStore();
-    const lc = new LogContext('info');
+    const lc = new LogContext();
     const chain: Chain = [];
     await addGenesis(chain, store);
     // Add pending commits to the main chain.
@@ -767,7 +767,7 @@ test('changed keys', async () => {
     expectedChangedKeysMap: sync.ChangedKeysMap,
   ) => {
     const store = new dag.TestStore();
-    const lc = new LogContext('info');
+    const lc = new LogContext();
     const chain: Chain = [];
     await addGenesis(chain, store);
 
@@ -832,7 +832,7 @@ test('changed keys', async () => {
       fakePuller,
       requestID,
       store,
-      new LogContext('info'),
+      new LogContext(),
     );
 
     const result = await maybeEndPull(store, lc, pullResult.syncHead);

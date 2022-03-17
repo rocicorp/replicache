@@ -52,7 +52,7 @@ test('startHeartbeats starts interval that writes heartbeat each minute', async 
   );
   await setClients(clientMap, dagStore);
 
-  startHeartbeats('client1', dagStore, () => undefined, new LogContext('info'));
+  startHeartbeats('client1', dagStore, () => undefined, new LogContext());
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
@@ -118,7 +118,7 @@ test('calling function returned by startHeartbeats, stops heartbeats', async () 
     'client1',
     dagStore,
     () => undefined,
-    new LogContext('info'),
+    new LogContext(),
   );
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -224,7 +224,7 @@ test('heartbeat with missing client calls callback', async () => {
     'client1',
     dagStore,
     onClientStateNotFound,
-    new LogContext('info'),
+    new LogContext(),
   );
   await clock.tickAsync(ONE_MIN_IN_MS);
   expect(onClientStateNotFound.callCount).to.equal(1);

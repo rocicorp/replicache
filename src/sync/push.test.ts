@@ -61,7 +61,7 @@ function makeFakePusher(options: FakePusherArgs): Pusher {
 
 test('try push', async () => {
   const store = new dag.TestStore();
-  const lc = new LogContext('info');
+  const lc = new LogContext();
   const chain: Chain = [];
   await addGenesis(chain, store);
   await addSnapshot(chain, store, [['foo', 'bar']]);

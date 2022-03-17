@@ -16,7 +16,7 @@ import {BTreeRead} from '../btree/mod';
 
 test('basics', async () => {
   const ds = new dag.TestStore();
-  const lc = new LogContext('info');
+  const lc = new LogContext();
   await initDB(await ds.write(), DEFAULT_HEAD_NAME);
 
   // Put.
@@ -84,7 +84,7 @@ test('basics', async () => {
 
 test('index commit type constraints', async () => {
   const ds = new dag.TestStore();
-  const lc = new LogContext('info');
+  const lc = new LogContext();
   await initDB(await ds.write(), DEFAULT_HEAD_NAME);
 
   // Test that local changes cannot create or drop an index.
@@ -118,7 +118,7 @@ test('index commit type constraints', async () => {
 
 test('clear', async () => {
   const ds = new dag.TestStore();
-  const lc = new LogContext('info');
+  const lc = new LogContext();
   await ds.withWrite(dagWrite => initDB(dagWrite, DEFAULT_HEAD_NAME));
   await ds.withWrite(async dagWrite => {
     const w = await Write.newLocal(
@@ -195,7 +195,7 @@ test('clear', async () => {
 test('create and drop index', async () => {
   const t = async (writeBeforeIndexing: boolean) => {
     const ds = new dag.TestStore();
-    const lc = new LogContext('info');
+    const lc = new LogContext();
     await ds.withWrite(dagWrite => initDB(dagWrite, DEFAULT_HEAD_NAME));
 
     if (writeBeforeIndexing) {

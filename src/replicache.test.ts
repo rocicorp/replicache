@@ -1408,7 +1408,7 @@ test('index scan start', async () => {
   await rep.dropIndex('bIndex');
 });
 
-test.only('logLevel', async () => {
+test('logLevel', async () => {
   const info = sinon.stub(console, 'info');
   const debug = sinon.stub(console, 'debug');
 

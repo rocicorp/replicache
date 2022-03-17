@@ -1,17 +1,17 @@
 import type {ConnectionLoopDelegate} from './connection-loop';
-import type {Logger} from './logger';
+import type {OptionalLogger} from '@rocicorp/logger';
 import type {Replicache} from './replicache';
 
-export class ConnectionLoopDelegateImpl implements Logger {
+export class ConnectionLoopDelegateImpl implements OptionalLogger {
   readonly rep: Replicache;
   readonly invokeSend: () => Promise<boolean>;
-  readonly logger: Logger;
+  readonly logger: OptionalLogger;
   readonly maxConnections = 1;
 
   constructor(
     rep: Replicache,
     invokeSend: () => Promise<boolean>,
-    logger: Logger,
+    logger: OptionalLogger,
   ) {
     this.rep = rep;
     this.invokeSend = invokeSend;

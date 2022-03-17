@@ -1,3 +1,4 @@
+import {LogContext} from '@rocicorp/logger';
 import {expect} from '@esm-bundle/chai';
 import * as sinon from 'sinon';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
@@ -11,7 +12,6 @@ import {ClientMap, ClientStateNotFoundError, getClients} from './clients';
 import {fakeHash} from '../hash';
 import {makeClient, setClients} from './clients-test-helpers';
 import {assertNotUndefined} from '../asserts';
-import {LogContext} from '../logger';
 
 let clock: SinonFakeTimers;
 const START_TIME = 100000;
@@ -52,7 +52,7 @@ test('startHeartbeats starts interval that writes heartbeat each minute', async 
   );
   await setClients(clientMap, dagStore);
 
-  startHeartbeats('client1', dagStore, () => undefined, new LogContext());
+  startHeartbeats('client1', dagStore, () => undefined, new LogContext('info'));
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
@@ -118,7 +118,7 @@ test('calling function returned by startHeartbeats, stops heartbeats', async () 
     'client1',
     dagStore,
     () => undefined,
-    new LogContext(),
+    new LogContext('info'),
   );
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -224,7 +224,7 @@ test('heartbeat with missing client calls callback', async () => {
     'client1',
     dagStore,
     onClientStateNotFound,
-    new LogContext(),
+    new LogContext('info'),
   );
   await clock.tickAsync(ONE_MIN_IN_MS);
   expect(onClientStateNotFound.callCount).to.equal(1);

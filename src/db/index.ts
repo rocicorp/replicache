@@ -1,9 +1,9 @@
+import type {LogContext} from '@rocicorp/logger';
 import {RWLock} from '../deps';
 import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue, ReadonlyJSONObject} from '../json';
 import type {IndexRecord} from './commit';
 import {BTreeRead, BTreeWrite} from '../btree/mod';
-import type {LogContext} from '../logger';
 import type {Hash} from '../hash';
 
 abstract class Index<DagReadWrite, BTree> {

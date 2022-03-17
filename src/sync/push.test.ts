@@ -1,3 +1,4 @@
+import {LogContext} from '@rocicorp/logger';
 import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
 import {DEFAULT_HEAD_NAME} from '../db/commit';
@@ -12,7 +13,6 @@ import {
 import type {HTTPRequestInfo} from '../http-request-info';
 import {SYNC_HEAD_NAME} from './sync-head-name';
 import {push, PushRequest, PUSH_VERSION} from './push';
-import {LogContext} from '../logger';
 import type {Pusher} from '../pusher';
 
 type FakePusherArgs = {
@@ -61,7 +61,7 @@ function makeFakePusher(options: FakePusherArgs): Pusher {
 
 test('try push', async () => {
   const store = new dag.TestStore();
-  const lc = new LogContext();
+  const lc = new LogContext('info');
   const chain: Chain = [];
   await addGenesis(chain, store);
   await addSnapshot(chain, store, [['foo', 'bar']]);

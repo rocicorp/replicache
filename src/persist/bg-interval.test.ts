@@ -1,7 +1,7 @@
+import {LogContext} from '@rocicorp/logger';
 import {expect} from '@esm-bundle/chai';
 import {resolver} from '../deps';
 import sinon, {SinonFakeTimers, useFakeTimers} from 'sinon';
-import {LogContext} from '../logger';
 import {initBgIntervalProcess} from './bg-interval';
 
 let clock: SinonFakeTimers;
@@ -20,7 +20,7 @@ test('initBgIntervalProcess starts interval that executed process every interval
     processCallCount++;
     return Promise.resolve();
   };
-  initBgIntervalProcess('testProcess', process, 100, new LogContext());
+  initBgIntervalProcess('testProcess', process, 100, new LogContext('info'));
 
   expect(processCallCount).to.equal(0);
   await clock.tickAsync(100);
@@ -41,7 +41,7 @@ test('calling function returned by initBgIntervalProcess, stops interval', async
     'testProcess',
     process,
     100,
-    new LogContext(),
+    new LogContext('info'),
   );
 
   expect(processCallCount).to.equal(0);
@@ -55,7 +55,7 @@ test('calling function returned by initBgIntervalProcess, stops interval', async
 });
 
 test('error thrown during process (before stop is called) is logged to error', async () => {
-  const lc = new LogContext();
+  const lc = new LogContext('info');
   const errorStub = sinon.stub(console, 'error');
   const process = () => {
     return Promise.reject('TestErrorBeforeStop');

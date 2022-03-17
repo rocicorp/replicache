@@ -1,3 +1,4 @@
+import type {LogContext} from '@rocicorp/logger';
 import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {
@@ -16,7 +17,6 @@ import {
   Whence,
 } from './read';
 import {IndexWrite, IndexOperation, indexValue, IndexRead} from './index';
-import type {LogContext} from '../logger';
 import {BTreeRead, BTreeWrite} from '../btree/mod';
 import {asyncIterableToArray} from '../async-iterable-to-array';
 import {lazy} from '../lazy';

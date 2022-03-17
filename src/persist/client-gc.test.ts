@@ -1,3 +1,4 @@
+import {LogContext} from '@rocicorp/logger';
 import {expect} from '@esm-bundle/chai';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import * as dag from '../dag/mod';
@@ -6,7 +7,6 @@ import {fakeHash} from '../hash';
 import {initClientGC, getLatestGCUpdate} from './client-gc';
 import {makeClient, setClients} from './clients-test-helpers';
 import {assertNotUndefined} from '../asserts';
-import {LogContext} from '../logger';
 
 let clock: SinonFakeTimers;
 const START_TIME = 0;
@@ -57,7 +57,7 @@ test('initClientGC starts 5 min interval that collects clients that have been in
 
   await setClients(clientMap, dagStore);
 
-  initClientGC('client1', dagStore, new LogContext());
+  initClientGC('client1', dagStore, new LogContext('info'));
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
@@ -155,7 +155,11 @@ test('calling function returned by initClientGC, stops Client GCs', async () => 
 
   await setClients(clientMap, dagStore);
 
-  const stopClientGC = initClientGC('client1', dagStore, new LogContext());
+  const stopClientGC = initClientGC(
+    'client1',
+    dagStore,
+    new LogContext('info'),
+  );
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);

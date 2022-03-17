@@ -1,3 +1,4 @@
+import {LogContext, OptionalLogger} from '@rocicorp/logger';
 import {resolver, Lock} from './deps';
 import {deepClone, deepEqual, ReadonlyJSONValue} from './json';
 import type {JSONValue} from './json';
@@ -17,8 +18,6 @@ import type {
 } from './transactions';
 import {ScanResult} from './scan-iterator';
 import {ConnectionLoop, MAX_DELAY_MS, MIN_DELAY_MS} from './connection-loop';
-import {getLogger, LogContext} from './logger';
-import type {Logger} from './logger';
 import {defaultPuller} from './puller';
 import {defaultPusher} from './pusher';
 import type {ReplicacheOptions} from './replicache-options';
@@ -178,7 +177,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
   private _closed = false;
   private _online = true;
-  private readonly _logger: Logger;
+  private readonly _logger: OptionalLogger;
   private readonly _ready: Promise<void>;
   private readonly _clientIDPromise: Promise<string>;
   private readonly _licenseCheckPromise: Promise<boolean>;
@@ -325,7 +324,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.puller = puller;
     this.pusher = pusher;
 
-    this._logger = getLogger([], logLevel);
+    this._logger = new LogContext(logLevel);
     this._lc = new LogContext(logLevel).addContext('db', name);
 
     const perKvStore = experimentalKVStore || new IDBStore(this.idbName);
@@ -360,7 +359,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       new PullDelegate(
         this,
         () => this._invokePull(),
-        getLogger(['PULL'], logLevel),
+        this._lc.addContext('PULL'),
       ),
     );
 
@@ -368,7 +367,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       new PushDelegate(
         this,
         () => this._invokePush(),
-        getLogger(['PUSH'], logLevel),
+        this._lc.addContext('PUSH'),
       ),
     );
 

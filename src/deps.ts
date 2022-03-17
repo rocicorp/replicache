@@ -1,2 +1,2 @@
-export {Lock, RWLock} from '@rocicorp/lock';
-export {resolver} from '@rocicorp/resolver';
+export * from '@rocicorp/lock';
+export * from '@rocicorp/resolver';

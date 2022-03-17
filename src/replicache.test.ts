@@ -1408,7 +1408,7 @@ test('index scan start', async () => {
   await rep.dropIndex('bIndex');
 });
 
-test('logLevel', async () => {
+test.only('logLevel', async () => {
   const info = sinon.stub(console, 'info');
   const debug = sinon.stub(console, 'debug');
 
@@ -1438,15 +1438,13 @@ test('logLevel', async () => {
   expect(debug.callCount).to.be.greaterThan(0);
 
   expect(
-    debug
-      .getCalls()
-      .some(call => (call.firstArg + '').startsWith(`db=${rep.name}`)),
+    debug.getCalls().some(call => call.firstArg.startsWith(`db=${rep.name}`)),
   ).to.equal(true);
   expect(
-    debug.getCalls().some(call => call.firstArg.startsWith('PULL')),
+    debug.getCalls().some(call => call.firstArg.endsWith('PULL')),
   ).to.equal(true);
   expect(
-    debug.getCalls().some(call => call.firstArg.startsWith('PUSH')),
+    debug.getCalls().some(call => call.firstArg.endsWith('PUSH')),
   ).to.equal(true);
 
   await rep.close();

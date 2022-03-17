@@ -1,3 +1,4 @@
+import {LogContext} from '@rocicorp/logger';
 import {expect} from '@esm-bundle/chai';
 import {assertNotUndefined} from '../asserts';
 import {assertObject, assertString} from '../asserts';
@@ -31,7 +32,6 @@ import {
   PullRequest,
   PULL_VERSION,
 } from './pull';
-import {LogContext} from '../logger';
 import {emptyHash} from '../hash';
 import {stringCompare} from '../string-compare';
 import {asyncIterableToArray} from '../async-iterable-to-array';
@@ -453,7 +453,7 @@ test('begin try pull', async () => {
         fakePuller,
         requestID,
         store,
-        new LogContext(),
+        new LogContext('info'),
         c.createSyncBranch,
       );
     } catch (e) {
@@ -605,7 +605,7 @@ test('maybe end try pull', async () => {
 
   for (const [i, c] of cases.entries()) {
     const store = new dag.TestStore();
-    const lc = new LogContext();
+    const lc = new LogContext('info');
     const chain: Chain = [];
     await addGenesis(chain, store);
     // Add pending commits to the main chain.
@@ -767,7 +767,7 @@ test('changed keys', async () => {
     expectedChangedKeysMap: sync.ChangedKeysMap,
   ) => {
     const store = new dag.TestStore();
-    const lc = new LogContext();
+    const lc = new LogContext('info');
     const chain: Chain = [];
     await addGenesis(chain, store);
 
@@ -832,7 +832,7 @@ test('changed keys', async () => {
       fakePuller,
       requestID,
       store,
-      new LogContext(),
+      new LogContext('info'),
     );
 
     const result = await maybeEndPull(store, lc, pullResult.syncHead);

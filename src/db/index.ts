@@ -1,6 +1,6 @@
+import {RWLock} from '../deps';
 import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue, ReadonlyJSONObject} from '../json';
-import {RWLock} from '../rw-lock';
 import type {IndexRecord} from './commit';
 import {BTreeRead, BTreeWrite} from '../btree/mod';
 import type {LogContext} from '../logger';

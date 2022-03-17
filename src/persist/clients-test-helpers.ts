@@ -1,4 +1,4 @@
-import {Client, ClientMap, updateClients} from './clients';
+import {Client, ClientMap, initClient, updateClients} from './clients';
 import type * as dag from '../dag/mod';
 import type * as sync from '../sync/mod';
 import type {Hash} from '../hash';
@@ -38,4 +38,15 @@ export async function deleteClientForTesting(
       clients: new Map(clientsAfterGC),
     };
   }, dagStore);
+}
+
+export async function initClientWithClientID(
+  clientID: sync.ClientID,
+  dagStore: dag.Store,
+): Promise<void> {
+  const [generatedClientID, client, clientMap] = await initClient(dagStore);
+  const newMap = new Map(clientMap);
+  newMap.delete(generatedClientID);
+  newMap.set(clientID, client);
+  await setClients(newMap, dagStore);
 }

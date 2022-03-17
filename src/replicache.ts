@@ -1,3 +1,4 @@
+import {Lock} from './deps';
 import {deepClone, deepEqual, ReadonlyJSONValue} from './json';
 import type {JSONValue} from './json';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options';
@@ -39,7 +40,6 @@ import {
   Hash,
   newTempHash,
 } from './hash';
-import {Lock} from './rw-lock';
 import * as persist from './persist/mod';
 import {requestIdle} from './request-idle';
 import type {HTTPRequestInfo} from './http-request-info';

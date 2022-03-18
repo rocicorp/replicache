@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1647552877849,
+  "lastUpdate": 1647612589930,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -7097,6 +7097,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 19746,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6811fc73abb2865a681f7709db4cfbd8f90721d2",
+          "message": "fix: Use json deepEqual in splice computation (#881)\n\nThis could potentionally lead to a subscription firing when the value\r\ndidn't change.\r\n\r\nFixes #841",
+          "timestamp": "2022-03-18T15:08:40+01:00",
+          "tree_id": "fd906a5a0d92049b124ca2801da43350074a312b",
+          "url": "https://github.com/rocicorp/replicache/commit/6811fc73abb2865a681f7709db4cfbd8f90721d2"
+        },
+        "date": 1647612587026,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 161060,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 29052,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 159782,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 28718,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 69440,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 19757,
             "unit": "bytes"
           }
         ]

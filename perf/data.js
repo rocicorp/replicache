@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1647612928932,
+  "lastUpdate": 1647618071469,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -72159,6 +72159,128 @@ window.BENCHMARK_DATA = {
             "name": "startup read 1024x100 from 1024x100000 stored",
             "value": 0.72,
             "range": "±7.4%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b7e18a7dd53fd4d59ef73179b111422c8f61217f",
+          "message": "chore: Increase timeout for startup (#882)\n\nUse default value of 30s",
+          "timestamp": "2022-03-18T15:33:58Z",
+          "tree_id": "6c2d9ee2995d0df9942fb522eac3b4f3b6d3bfa5",
+          "url": "https://github.com/rocicorp/replicache/commit/b7e18a7dd53fd4d59ef73179b111422c8f61217f"
+        },
+        "date": 1647618069835,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 714.29,
+            "range": "±3.1%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 476.19,
+            "range": "±4.5%",
+            "unit": "ops/sec",
+            "extra": "13 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 322.58,
+            "range": "±2.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 64MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 322.58,
+            "range": "±21.2%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 24.11,
+            "range": "±125.1%",
+            "unit": "MB/s",
+            "extra": "8 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 16.55,
+            "range": "±35.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 11.11,
+            "range": "±40.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x10000 (clean, indexes: 0)",
+            "value": 29.91,
+            "range": "±118.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x10000 (clean, indexes: 1)",
+            "value": 13.11,
+            "range": "±106.5%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x10000 (clean, indexes: 2)",
+            "value": 8.94,
+            "range": "±86.7%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 325.52,
+            "range": "±5.1%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "scan 1024x10000",
+            "value": 345.08,
+            "range": "±24.5%",
+            "unit": "MB/s",
+            "extra": "15 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 7.16,
+            "range": "±39.7%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.7,
+            "range": "±8.6%",
             "unit": "MB/s",
             "extra": "7 samples"
           }

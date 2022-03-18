@@ -4,10 +4,12 @@ import * as db from '../db/mod';
 import {deepClone, deepEqual, JSONValue, ReadonlyJSONValue} from '../json';
 import {
   assertPullResponse,
+  isClientStateNotFoundResponse,
   Puller,
   PullerResult,
   PullError,
   PullResponse,
+  PullResponseOK,
 } from '../puller';
 import {assertHTTPRequestInfo, HTTPRequestInfo} from '../http-request-info';
 import {callJSRequest} from './js-request';
@@ -106,7 +108,7 @@ export async function beginPull(
     };
   }
 
-  if (!createSyncBranch) {
+  if (!createSyncBranch || isClientStateNotFoundResponse(response)) {
     return {
       httpRequestInfo,
       pullResponse: response,
@@ -130,7 +132,7 @@ export async function handlePullResponse(
   lc: LogContext,
   store: dag.Store,
   expectedBaseCookie: ReadonlyJSONValue,
-  response: PullResponse,
+  response: PullResponseOK,
 ): Promise<Hash | null> {
   // It is possible that another sync completed while we were pulling. Ensure
   // that is not the case by re-checking the base snapshot.

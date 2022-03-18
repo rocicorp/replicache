@@ -36,6 +36,8 @@ export type {
   PatchOperation,
   Puller,
   PullResponse,
+  PullResponseOK,
+  ClientStateNotFoundResponse,
   PullerResult,
   PullError,
 } from './puller';

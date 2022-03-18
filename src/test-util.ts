@@ -110,7 +110,9 @@ export function createReplicacheNameForTest(partialName: string): string {
 // eslint-disable-next-line @typescript-eslint/ban-types
 export async function replicacheForTesting<MD extends MutatorDefs = {}>(
   partialName: string,
-  options: Omit<ReplicacheOptions<MD>, 'name'> = {},
+  options: Omit<ReplicacheOptions<MD>, 'name'> & {
+    onClientStateNotFound?: (() => void) | null;
+  } = {},
 ): Promise<ReplicacheTest<MD>> {
   const pullURL = 'https://pull.com/?name=' + partialName;
   const pushURL = 'https://push.com/?name=' + partialName;
@@ -133,8 +135,15 @@ export async function replicacheForTestingNoDefaultURLs<
     pullURL,
     pushDelay = 60_000, // Large to prevent interfering
     pushURL,
+    onClientStateNotFound = () => {
+      throw new Error(
+        'Unexpected call to onClientStateNotFound. Did you forget to pass it as an option?',
+      );
+    },
     ...rest
-  }: Omit<ReplicacheOptions<MD>, 'name'> = {},
+  }: Omit<ReplicacheOptions<MD>, 'name'> & {
+    onClientStateNotFound?: (() => void) | null;
+  } = {},
 ): Promise<ReplicacheTest<MD>> {
   const rep = new ReplicacheTest<MD>({
     experimentalLicenseKey: TEST_LICENSE_KEY,
@@ -146,6 +155,9 @@ export async function replicacheForTestingNoDefaultURLs<
   });
   dbsToDrop.add(rep.idbName);
   reps.add(rep);
+
+  rep.onClientStateNotFound = onClientStateNotFound;
+
   // Wait for open to be done.
   await rep.clientID;
   fetchMock.post(pullURL, {lastMutationID: 0, patch: []});

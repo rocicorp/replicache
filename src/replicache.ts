@@ -4,7 +4,13 @@ import {Lock} from '@rocicorp/lock';
 import {deepClone, deepEqual, ReadonlyJSONValue} from './json';
 import type {JSONValue} from './json';
 import {Pusher, PushError} from './pusher';
-import {Puller, PullError, PullResponse} from './puller';
+import {
+  isClientStateNotFoundResponse,
+  Puller,
+  PullError,
+  PullResponse,
+  PullResponseOK,
+} from './puller';
 import {
   SubscriptionTransactionWrapper,
   IndexTransactionImpl,
@@ -988,6 +994,12 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const lc = this._lc
       .addContext('handlePullResponse')
       .addContext('request_id', requestID);
+
+    if (isClientStateNotFoundResponse(poke.pullResponse)) {
+      this._fireOnClientStateNotFound(clientID);
+      return;
+    }
+
     const syncHead = await sync.handlePullResponse(
       lc,
       this._memdag,
@@ -1045,6 +1057,12 @@ export class Replicache<MD extends MutatorDefs = {}> {
       () => this._changeSyncCounters(0, -1),
       () => this._changeSyncCounters(0, 1),
     );
+
+    if (isClientStateNotFoundResponse(beginPullResponse.pullResponse)) {
+      const clientID = await this._clientIDPromise;
+      this._fireOnClientStateNotFound(clientID);
+    }
+
     const {syncHead, httpRequestInfo} = beginPullResponse;
     return {requestID, syncHead, ok: httpRequestInfo.httpStatusCode === 200};
   }
@@ -1563,30 +1581,49 @@ export class Replicache<MD extends MutatorDefs = {}> {
         return;
       }
 
-      this._lc.debug?.(
-        `Client ${selfClientID} recovered mutations for client ` +
-          `${clientID}.  Details`,
-        {
-          mutationID: client.mutationID,
-          lastServerAckdMutationID: client.lastServerAckdMutationID,
-          lastMutationID: pullResponse?.lastMutationID,
-        },
-      );
+      if (pullResponse && isClientStateNotFoundResponse(pullResponse)) {
+        this._lc.debug?.(
+          `Client ${selfClientID} cannot recover mutations for client ` +
+            `${clientID}. The client no longer exists on the server.`,
+        );
+      } else {
+        this._lc.debug?.(
+          `Client ${selfClientID} recovered mutations for client ` +
+            `${clientID}.  Details`,
+          {
+            mutationID: client.mutationID,
+            lastServerAckdMutationID: client.lastServerAckdMutationID,
+            lastMutationID: pullResponse?.lastMutationID,
+          },
+        );
+      }
       const newClientMap = await persist.updateClients(
         (clients: persist.ClientMap) => {
           assertNotUndefined(pullResponse);
+
           const clientToUpdate = clients.get(clientID);
+          if (isClientStateNotFoundResponse(pullResponse)) {
+            if (!clientToUpdate) {
+              return persist.noClientUpdates;
+            }
+
+            const newClients = new Map(clients);
+            newClients.delete(clientID);
+            return {clients: newClients};
+          }
+
           if (
             !clientToUpdate ||
             clientToUpdate.lastServerAckdMutationID >=
-              pullResponse.lastMutationID
+              (pullResponse as PullResponseOK).lastMutationID
           ) {
             return persist.noClientUpdates;
           }
           return {
             clients: new Map(clients).set(clientID, {
               ...clientToUpdate,
-              lastServerAckdMutationID: pullResponse.lastMutationID,
+              lastServerAckdMutationID: (pullResponse as PullResponseOK)
+                .lastMutationID,
             }),
           };
         },

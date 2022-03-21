@@ -182,7 +182,10 @@ async function main() {
 
 async function runInBrowser(browser, page, options) {
   async function waitForBenchmarks() {
-    await page.waitForFunction('typeof benchmarks !==  "undefined"');
+    await page.waitForFunction('typeof benchmarks !==  "undefined"', null, {
+      // No need to wait 30s if failing to load
+      timeout: 10000,
+    });
   }
 
   await waitForBenchmarks();

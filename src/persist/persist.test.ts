@@ -25,7 +25,6 @@ import {getClient, ClientStateNotFoundError} from './clients';
 import {addSyncSnapshot} from '../sync/test-helpers';
 import {persist} from './persist';
 import {gcClients} from './client-gc.js';
-import {initClientWithClientID} from './clients-test-helpers.js';
 
 let clock: SinonFakeTimers;
 setup(() => {
@@ -103,13 +102,12 @@ async function getChunkSnapshot(
 }
 
 suite('persist on top of different kinds of commits', () => {
-  const {memdag, perdag, chain, testPersist, clientID} = setupPersistTest();
+  const {memdag, perdag, chain, testPersist} = setupPersistTest();
 
   setup(async () => {
     memdag.clear();
     perdag.clear();
     chain.length = 0;
-    await initClientWithClientID(clientID, perdag);
     await addGenesis(chain, memdag);
   });
 
@@ -212,7 +210,6 @@ suite('persist on top of different kinds of commits', () => {
 
 test('We get a MissingClientException during persist if client is missing', async () => {
   const {memdag, perdag, chain, testPersist, clientID} = setupPersistTest();
-  await initClientWithClientID(clientID, perdag);
 
   await addGenesis(chain, memdag);
   await addLocal(chain, memdag);
@@ -252,7 +249,7 @@ function setupPersistTest() {
   const chain: Chain = [];
 
   const testPersist = async () => {
-    await persist(clientID, memdag, perdag);
+    await persist(clientID, memdag, perdag, 'skip');
     await assertSameDagData(clientID, memdag, perdag);
     await assertClientMutationIDsCorrect(clientID, perdag);
   };

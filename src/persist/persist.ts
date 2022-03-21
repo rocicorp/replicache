@@ -25,11 +25,12 @@ export async function persist(
   clientID: ClientID,
   memdag: dag.Store,
   perdag: dag.Store,
+  skipClientExists?: 'skip',
 ): Promise<void> {
   // Start checking if client exists while we do other async work
-  const clientExistsCheckP = perdag.withRead(read =>
-    assertHasClientState(clientID, read),
-  );
+  const clientExistsCheckP =
+    !skipClientExists &&
+    perdag.withRead(read => assertHasClientState(clientID, read));
 
   // 1. Gather all temp chunks from main head on the memdag.
   const [gatheredChunks, mainHeadTempHash, mutationID, lastMutationID] =

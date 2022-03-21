@@ -24,7 +24,6 @@ import sinon from 'sinon';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 import fetchMock from 'fetch-mock/esm/client';
-import {initClientWithClientID} from './persist/clients-test-helpers.js';
 
 initReplicacheTesting();
 
@@ -81,14 +80,12 @@ async function createAndPersistClientWithPendingLocal(
   await addGenesis(chain, testMemdag);
   await addSnapshot(chain, testMemdag, [['unique', uuid()]]);
 
-  await initClientWithClientID(clientID, perdag);
-
   const localMetas: db.LocalMeta[] = [];
   for (let i = 0; i < numLocal; i++) {
     await addLocal(chain, testMemdag);
     localMetas.push(chain[chain.length - 1].meta as db.LocalMeta);
   }
-  await persist.persist(clientID, testMemdag, perdag);
+  await persist.persist(clientID, testMemdag, perdag, 'skip');
   return localMetas;
 }
 

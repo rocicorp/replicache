@@ -529,7 +529,6 @@ export function benchmarks(): Benchmark[] {
     benchmarkPopulate({numKeys: 10000, clean: true, indexes: 1}),
     benchmarkPopulate({numKeys: 10000, clean: true, indexes: 2}),
     benchmarkScan({numKeys: 1000}),
-    benchmarkScan({numKeys: 10_000}),
     benchmarkCreateIndex({numKeys: 5000}),
     benchmarkStartupUsingBasicReadsFromPersistedData({
       numKeysPersisted: 100000,

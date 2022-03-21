@@ -34,11 +34,11 @@ export interface Write extends Read {
   commit(): Promise<void>;
 }
 
-export class ChunkNotFoundError extends Error {
-  name = 'ChunkNotFoundError';
+export class MissingChunkError extends Error {
+  name = 'MissingChunkError';
   readonly hash: Hash;
   constructor(hash: Hash) {
-    super(`Chunk not found ${hash}`);
+    super(`Missing chunk ${hash}`);
     this.hash = hash;
   }
 }
@@ -51,5 +51,5 @@ export async function mustGetChunk(
   if (chunk) {
     return chunk;
   }
-  throw new ChunkNotFoundError(hash);
+  throw new MissingChunkError(hash);
 }

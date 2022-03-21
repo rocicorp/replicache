@@ -1377,14 +1377,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
 
   /**
-   * In the case we get a ChunkNotFoundError we check if the client got garbage
+   * In the case we get a MissingChunkError we check if the client got garbage
    * collected and if so change the error to a ClientNotFoundError instead
    */
   private async _convertToClientStateNotFoundError(
     ex: unknown,
   ): Promise<unknown> {
     if (
-      ex instanceof dag.ChunkNotFoundError &&
+      ex instanceof dag.MissingChunkError &&
       (await this._checkForClientStateNotFoundAndCallHandler())
     ) {
       return new persist.ClientStateNotFoundError(await this._clientIDPromise);

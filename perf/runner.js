@@ -128,6 +128,7 @@ async function main() {
   }
 
   const port = await getPort();
+  console.log('Starting server');
   const server = await startDevServer({
     config: {
       nodeResolve: true,
@@ -144,6 +145,7 @@ async function main() {
   const userDataDir = await fs.mkdtemp(
     path.join(os.tmpdir(), 'replicache-playwright-'),
   );
+  console.log('userDataDir', userDataDir);
   let first = true;
   for (const browser of options.browsers) {
     if (!first) {
@@ -156,6 +158,18 @@ async function main() {
     );
     const page = await context.newPage();
     await page.goto(`http://127.0.0.1:${port}/perf/index.html`);
+
+    // page.on('pageerror', err => {
+    //   console.error('Page error', err);
+    //   process.exit(1);
+    // });
+    page.on('console', async msg => {
+      const values = [];
+      for (const arg of msg.args()) {
+        values.push(await arg.jsonValue());
+      }
+      console[msg.type()]('FROM PAGE', ...values);
+    });
 
     await runInBrowser(browser, page, options);
 
@@ -181,11 +195,18 @@ async function main() {
 }
 
 async function runInBrowser(browser, page, options) {
+  console.log('runInBrowser', browser);
+
   async function waitForBenchmarks() {
-    await page.waitForFunction('typeof benchmarks !==  "undefined"');
+    await page.waitForFunction('typeof benchmarks !==  "undefined"', null, {
+      timeout: 1000,
+    });
   }
 
+  const start = Date.now();
+  console.log('Waiting for benchmarks...');
   await waitForBenchmarks();
+  console.log('Done after', Date.now() - start, 'ms');
 
   /** @type {{name: string, group: string}[]} */
   let benchmarks = await page.evaluate('benchmarks');
@@ -222,6 +243,7 @@ async function runInBrowser(browser, page, options) {
     options,
   );
   for (const benchmark of benchmarks) {
+    console.log(`Running ${benchmark.group} / ${benchmark.name}`);
     const result = await page.evaluate(
       ({name, group, format}) =>
         // eslint-disable-next-line no-undef
@@ -236,8 +258,13 @@ async function runInBrowser(browser, page, options) {
         logLine(result.text, options);
       }
     }
+    console.log('reloading page');
     await page.reload();
+
+    const start = Date.now();
+    console.log('Waiting for benchmarks...');
     await waitForBenchmarks();
+    console.log('Done after', Date.now() - start, 'ms');
   }
   if (options.format === 'json') {
     process.stdout.write(JSON.stringify(jsonEntries, undefined, 2) + '\n');

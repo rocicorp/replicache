@@ -81,6 +81,7 @@ async function runBenchmark(
         };
         reset();
 
+        console.log('benchmark.run');
         await benchmark.run(
           {
             reset,
@@ -88,6 +89,7 @@ async function runBenchmark(
           },
           i,
         );
+        console.log('benchmark.run done');
         if (t1 === 0) {
           stop();
         }
@@ -95,7 +97,9 @@ async function runBenchmark(
         times.push(dur);
         sum += dur;
       } finally {
+        console.log('benchmark.teardownEach');
         await benchmark.teardownEach?.();
+        console.log('benchmark.teardownEach done');
       }
     }
   } finally {

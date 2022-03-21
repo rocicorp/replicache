@@ -1110,7 +1110,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
 
   private _schedulePersist(): void {
-    if (this._persistIsScheduled) {
+    if (this._closed || this._persistIsScheduled) {
       return;
     }
     this._persistIsScheduled = true;

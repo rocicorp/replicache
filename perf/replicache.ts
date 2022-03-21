@@ -350,13 +350,18 @@ export function benchmarkWriteSubRead(opts: {
     name: `writeSubRead ${cacheSizeMB}MB total, ${numSubsTotal} subs total, ${numSubsDirty} subs dirty, ${kbReadPerSub}kb read per sub`,
     group: 'replicache',
     async setupEach() {
+      console.log('setupEach');
       setupIDBDatabasesStoreForTest();
     },
     async teardownEach() {
+      console.log('XXX 1');
       await teardownIDBDatabasesStoreForTest();
+      console.log('XXX 2');
       await closeAndCleanupRep(repToClose);
+      console.log('XXX 3');
     },
     async run(bencher: Bencher) {
+      console.log('run');
       const keys = Array.from({length: numKeys}, (_, index) => makeKey(index));
       const sortedKeys = keys.sort();
       const data: Map<string, TestDataObject> = new Map(
@@ -437,6 +442,8 @@ export function benchmarkWriteSubRead(opts: {
       for (const [changeKey, changeValue] of changes) {
         assert(deepEqual(changeValue, data.get(changeKey)));
       }
+
+      console.log('run DONE');
     },
   };
 }
@@ -482,8 +489,11 @@ function makeRepWithPopulate() {
 
 async function closeAndCleanupRep(rep: Replicache | undefined): Promise<void> {
   if (rep) {
+    console.log('xxx a');
     await rep.close();
+    console.log('xxx b');
     await kv.dropIDBStore(rep.idbName);
+    console.log('xxx c');
   }
 }
 

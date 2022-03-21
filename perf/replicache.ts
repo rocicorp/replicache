@@ -14,7 +14,7 @@ import {jsonArrayTestData, TestDataObject, jsonObjectTestData} from './data';
 import type {Bencher, Benchmark} from './perf';
 import {range, sampleSize} from 'lodash-es';
 import * as kv from '../src/kv/mod';
-import {resolver} from '../src/deps';
+import {resolver} from '../src/resolver';
 import {
   setupIDBDatabasesStoreForTest,
   teardownIDBDatabasesStoreForTest,

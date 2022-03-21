@@ -1,5 +1,5 @@
 import type {Logger} from './logger';
-import {resolver} from './deps';
+import {resolver} from './resolver';
 import {sleep} from './sleep';
 
 export const DEBOUNCE_DELAY_MS = 10;

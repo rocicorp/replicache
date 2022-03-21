@@ -1,4 +1,4 @@
-import {resolver, Lock} from './deps';
+import {Lock} from './deps';
 import {deepClone, deepEqual, ReadonlyJSONValue} from './json';
 import type {JSONValue} from './json';
 import type {KeyTypeForScanOptions, ScanOptions} from './scan-options';
@@ -21,6 +21,7 @@ import {getLogger, LogContext} from './logger';
 import type {Logger} from './logger';
 import {defaultPuller} from './puller';
 import {defaultPusher} from './pusher';
+import {resolver} from './resolver';
 import type {ReplicacheOptions} from './replicache-options';
 import {PullDelegate, PushDelegate} from './connection-loop-delegates';
 import type {Subscription} from './subscriptions';

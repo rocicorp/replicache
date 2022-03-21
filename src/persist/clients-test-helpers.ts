@@ -1,6 +1,5 @@
 import {Client, ClientMap, updateClients} from './clients';
 import type * as dag from '../dag/mod';
-import type * as sync from '../sync/mod';
 import type {Hash} from '../hash';
 
 export function setClients(
@@ -25,17 +24,4 @@ export function makeClient(partialClient: {
     lastServerAckdMutationID: 0,
     ...partialClient,
   };
-}
-
-export async function deleteClientForTesting(
-  clientID: sync.ClientID,
-  dagStore: dag.Store,
-): Promise<void> {
-  await updateClients(clients => {
-    const clientsAfterGC = new Map(clients);
-    clientsAfterGC.delete(clientID);
-    return {
-      clients: new Map(clientsAfterGC),
-    };
-  }, dagStore);
 }

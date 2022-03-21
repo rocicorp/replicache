@@ -115,32 +115,26 @@ async function getClientsAtHash(
 /**
  * Used to signal that a client does not exist. Maybe it was garbage collected?
  */
-export class ClientStateNotFoundError extends Error {
-  name = 'ClientStateNotFoundError';
+export class MissingClientError extends Error {
+  name = 'MissingClientError';
   readonly id: string;
   constructor(id: sync.ClientID) {
-    super(`Client state not found, id: ${id}`);
+    super(`Missing client ${id}`);
     this.id = id;
   }
 }
 
 /**
- * Throws a `ClientStateNotFoundError` if the client does not exist.
+ * Throws a `MissingClientError` if the client does not exist.
  */
-export async function assertHasClientState(
+export async function assertClientExists(
   id: sync.ClientID,
   dagRead: dag.Read,
 ): Promise<void> {
-  if (!(await hasClientState(id, dagRead))) {
-    throw new ClientStateNotFoundError(id);
+  const client = await getClient(id, dagRead);
+  if (!client) {
+    throw new MissingClientError(id);
   }
-}
-
-export async function hasClientState(
-  id: sync.ClientID,
-  dagRead: dag.Read,
-): Promise<boolean> {
-  return !!(await getClient(id, dagRead));
 }
 
 export async function getClient(

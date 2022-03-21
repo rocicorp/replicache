@@ -1,11 +1,9 @@
 import {
-  addData,
   initReplicacheTesting,
   replicacheForTesting,
   tickAFewTimes,
 } from './test-util';
 import {expect} from '@esm-bundle/chai';
-import * as sinon from 'sinon';
 
 // fetch-mock has invalid d.ts file so we removed that on npm install.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -16,8 +14,6 @@ import * as dag from './dag/mod';
 import * as persist from './persist/mod';
 import {assertNotTempHash} from './hash';
 import {assertNotUndefined} from './asserts';
-import {deleteClientForTesting} from './persist/clients-test-helpers.js';
-import type {ClientID} from './sync/client-id.js';
 
 initReplicacheTesting();
 
@@ -101,116 +97,4 @@ test('basic persist & load', async () => {
   });
 
   expect(await rep.clientID).to.not.equal(await rep2.clientID);
-});
-
-suite('onClientStateNotFound', () => {
-  function checkConsoleErrorStub(
-    consoleErrorStub: sinon.SinonStub,
-    clientID: ClientID,
-  ) {
-    expect(consoleErrorStub.callCount).to.equal(1);
-    expect(consoleErrorStub.getCall(0).args[0]).to.equal(
-      `Client state not found, clientID: ${clientID}`,
-    );
-  }
-
-  test('Called in persist if collected', async () => {
-    const consoleErrorStub = sinon.stub(console, 'error');
-
-    const rep = await replicacheForTesting('called-in-persist', {
-      mutators: {addData},
-    });
-
-    await rep.mutate.addData({foo: 'bar'});
-    await rep.persist();
-
-    const clientID = await rep.clientID;
-    await deleteClientForTesting(clientID, rep.perdag);
-
-    const onClientStateNotFound = sinon.fake();
-    rep.onClientStateNotFound = onClientStateNotFound;
-    await rep.persist();
-
-    expect(onClientStateNotFound.callCount).to.equal(1);
-    checkConsoleErrorStub(consoleErrorStub, clientID);
-  });
-
-  test('Called in query if collected', async () => {
-    const consoleErrorStub = sinon.stub(console, 'error');
-
-    const rep = await replicacheForTesting('called-in-query', {
-      mutators: {addData},
-    });
-
-    await rep.mutate.addData({foo: 'bar'});
-    await rep.persist();
-    const clientID = await rep.clientID;
-    await deleteClientForTesting(clientID, rep.perdag);
-    await rep.close();
-
-    const rep2 = await replicacheForTesting('called-in-query', {
-      mutators: {addData},
-    });
-
-    const clientID2 = await rep2.clientID;
-    await deleteClientForTesting(clientID2, rep2.perdag);
-
-    const onClientStateNotFound = sinon.fake();
-    rep2.onClientStateNotFound = onClientStateNotFound;
-
-    let e: unknown;
-    try {
-      await rep2.query(async tx => {
-        await tx.get('foo');
-      });
-    } catch (err) {
-      e = err;
-    }
-    expect(e).to.be.instanceOf(persist.ClientStateNotFoundError);
-    checkConsoleErrorStub(consoleErrorStub, clientID2);
-  });
-
-  test('Called in mutate if collected', async () => {
-    const consoleErrorStub = sinon.stub(console, 'error');
-
-    const rep = await replicacheForTesting('called-in-mutate', {
-      mutators: {
-        addData,
-        async check(tx, key) {
-          await tx.has(key);
-        },
-      },
-    });
-
-    await rep.mutate.addData({foo: 'bar'});
-    await rep.persist();
-    const clientID = await rep.clientID;
-    await deleteClientForTesting(clientID, rep.perdag);
-    await rep.close();
-
-    const rep2 = await replicacheForTesting('called-in-query', {
-      mutators: {
-        async check(tx, key) {
-          await tx.has(key);
-        },
-      },
-    });
-
-    const clientID2 = await rep2.clientID;
-    await deleteClientForTesting(clientID2, rep2.perdag);
-
-    const onClientStateNotFound = sinon.fake();
-    rep2.onClientStateNotFound = onClientStateNotFound;
-
-    let e: unknown;
-    try {
-      // Another mutate will trigger
-      await rep2.mutate.check('x');
-    } catch (err) {
-      e = err;
-    }
-
-    expect(e).to.be.instanceOf(persist.ClientStateNotFoundError);
-    checkConsoleErrorStub(consoleErrorStub, clientID2);
-  });
 });

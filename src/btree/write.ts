@@ -1,4 +1,3 @@
-import {RWLock} from '../deps';
 import type {ReadonlyJSONValue} from '../json';
 import type * as dag from '../dag/mod';
 import {Hash, emptyHash, newTempHash} from '../hash';
@@ -13,6 +12,7 @@ import {
   DiffResult,
   emptyDataNode,
 } from './node';
+import {RWLock} from '../rw-lock';
 import type {ScanOptionsInternal} from '../db/scan';
 import type {CreateChunk} from '../dag/chunk';
 import {assert} from '../asserts';

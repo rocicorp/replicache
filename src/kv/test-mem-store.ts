@@ -1,5 +1,5 @@
-import {RWLock} from '../deps';
 import {stringCompare} from '../string-compare';
+import {RWLock} from '../rw-lock';
 import type {Read, Store, Value, Write} from './store';
 import {deleteSentinel, WriteImplBase} from './write-impl-base';
 

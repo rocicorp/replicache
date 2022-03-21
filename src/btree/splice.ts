@@ -1,4 +1,3 @@
-import {deepEqual} from '../json.js';
 import type {ReadonlyEntry} from './node';
 
 export type Splice = [at: number, removed: number, added: number, from: number];
@@ -32,9 +31,7 @@ export function* computeSplices<T>(
 
   while (previousIndex < previous.length && currentIndex < current.length) {
     if (previous[previousIndex][KEY] === current[currentIndex][KEY]) {
-      if (
-        deepEqual(previous[previousIndex][VALUE], current[currentIndex][VALUE])
-      ) {
+      if (previous[previousIndex][VALUE] === current[currentIndex][VALUE]) {
         if (splice) {
           ensureAssigned(splice, 0);
           yield splice;

@@ -223,24 +223,6 @@ test('splice', () => {
     ],
     [[0, 3, 2, 0]],
   );
-
-  // Test with objects to ensure deep equality is used.
-  t(
-    [
-      ['a', {x: 0}],
-      ['b', {x: 1}],
-      ['c', {x: 2}],
-    ],
-    [
-      ['b', {x: 1}],
-      ['d', {x: 3}],
-      ['e', {x: 4}],
-    ],
-    [
-      [0, 1, 0, 0],
-      [2, 1, 2, 1],
-    ],
-  );
 });
 
 test('splice roundtrip', () => {

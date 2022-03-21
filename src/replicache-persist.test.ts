@@ -109,9 +109,9 @@ suite('onClientStateNotFound', () => {
     clientID: ClientID,
   ) {
     expect(consoleErrorStub.callCount).to.equal(1);
-    expect(consoleErrorStub.getCall(0).args).to.deep.equal([
+    expect(consoleErrorStub.getCall(0).args[0]).to.equal(
       `Client state not found, clientID: ${clientID}`,
-    ]);
+    );
   }
 
   test('Called in persist if collected', async () => {

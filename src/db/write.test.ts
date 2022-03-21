@@ -1,4 +1,3 @@
-import {LogContext} from '@rocicorp/logger';
 import {expect} from '@esm-bundle/chai';
 import {assertNotUndefined} from '../asserts';
 import * as dag from '../dag/mod';
@@ -11,6 +10,7 @@ import {
 } from './read';
 import {initDB, Write} from './write';
 import {encodeIndexKey} from './index';
+import {LogContext} from '../logger';
 import {asyncIterableToArray} from '../async-iterable-to-array';
 import {BTreeRead} from '../btree/mod';
 

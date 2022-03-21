@@ -1,4 +1,3 @@
-import {LogContext} from '@rocicorp/logger';
 import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
 import {DEFAULT_HEAD_NAME} from '../db/commit';
@@ -13,6 +12,7 @@ import {
 import type {HTTPRequestInfo} from '../http-request-info';
 import {SYNC_HEAD_NAME} from './sync-head-name';
 import {push, PushRequest, PUSH_VERSION} from './push';
+import {LogContext} from '../logger';
 import type {Pusher} from '../pusher';
 
 type FakePusherArgs = {

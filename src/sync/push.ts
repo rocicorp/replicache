@@ -1,10 +1,10 @@
-import type {LogContext} from '@rocicorp/logger';
 import type {ReadonlyJSONValue} from '../json';
 import * as db from '../db/mod';
 import type * as dag from '../dag/mod';
 import {assertHTTPRequestInfo, HTTPRequestInfo} from '../http-request-info';
 import {Pusher, PushError} from '../pusher';
 import {callJSRequest} from './js-request';
+import type {LogContext} from '../logger';
 import {toError} from '../to-error';
 
 export const PUSH_VERSION = 0;

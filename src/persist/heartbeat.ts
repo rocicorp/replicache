@@ -1,4 +1,3 @@
-import type {LogContext} from '@rocicorp/logger';
 import type {ClientID} from '../sync/client-id';
 import type * as dag from '../dag/mod';
 import {
@@ -7,6 +6,7 @@ import {
   noUpdates,
   updateClients,
 } from './clients';
+import type {LogContext} from '../logger';
 import {initBgIntervalProcess} from './bg-interval';
 
 const HEARTBEAT_INTERVAL_MS = 60 * 1000;

@@ -1438,13 +1438,15 @@ test('logLevel', async () => {
   expect(debug.callCount).to.be.greaterThan(0);
 
   expect(
-    debug.getCalls().some(call => call.firstArg.startsWith(`db=${rep.name}`)),
+    debug
+      .getCalls()
+      .some(call => (call.firstArg + '').startsWith(`db=${rep.name}`)),
   ).to.equal(true);
   expect(
-    debug.getCalls().some(call => call.firstArg.endsWith('PULL')),
+    debug.getCalls().some(call => call.firstArg.startsWith('PULL')),
   ).to.equal(true);
   expect(
-    debug.getCalls().some(call => call.firstArg.endsWith('PUSH')),
+    debug.getCalls().some(call => call.firstArg.startsWith('PUSH')),
   ).to.equal(true);
 
   await rep.close();

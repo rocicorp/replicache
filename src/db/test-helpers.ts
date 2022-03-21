@@ -1,9 +1,9 @@
-import {LogContext} from '@rocicorp/logger';
 import {expect} from '@esm-bundle/chai';
 import type * as dag from '../dag/mod';
 import {Commit, DEFAULT_HEAD_NAME, Meta} from './commit';
 import {readCommit, whenceHead} from './read';
 import {initDB, Write, readIndexesForWrite} from './write';
+import {LogContext} from '../logger';
 import type {JSONValue} from '../json';
 
 export type Chain = Commit<Meta>[];

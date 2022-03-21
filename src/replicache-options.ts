@@ -1,6 +1,6 @@
-import type {LogLevel} from '@rocicorp/logger';
 import type {Pusher} from './pusher';
 import type {Puller} from './puller';
+import type {LogLevel} from './logger';
 import type {MutatorDefs, RequestOptions} from './replicache';
 import type * as kv from './kv/mod';
 

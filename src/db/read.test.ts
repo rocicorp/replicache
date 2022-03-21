@@ -1,6 +1,6 @@
-import {LogContext} from '@rocicorp/logger';
 import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
+import {LogContext} from '../logger';
 import {DEFAULT_HEAD_NAME} from './commit';
 import {fromWhence, whenceHead} from './read';
 import {initDB, Write} from './write';

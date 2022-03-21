@@ -17,7 +17,6 @@ export type {
   ScanResult,
   AsyncIterableIteratorToArrayWrapper,
 } from './scan-iterator';
-export type {LogLevel} from '@rocicorp/logger';
 export type {
   JSONObject,
   JSONValue,
@@ -32,6 +31,7 @@ export type {
   ScanOptions,
 } from './scan-options';
 export type {HTTPRequestInfo} from './http-request-info';
+export type {LogLevel} from './logger';
 export type {
   PatchOperation,
   Puller,

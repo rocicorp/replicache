@@ -1,4 +1,3 @@
-import {LogContext} from '@rocicorp/logger';
 import {expect} from '@esm-bundle/chai';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import * as dag from '../dag/mod';
@@ -7,6 +6,7 @@ import {fakeHash} from '../hash';
 import {initClientGC, getLatestGCUpdate} from './client-gc';
 import {makeClient, setClients} from './clients-test-helpers';
 import {assertNotUndefined} from '../asserts';
+import {LogContext} from '../logger';
 
 let clock: SinonFakeTimers;
 const START_TIME = 0;

@@ -1,4 +1,3 @@
-import {LogContext} from '@rocicorp/logger';
 import {expect} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
 import * as db from '../db/mod';
@@ -6,6 +5,7 @@ import type {JSONValue} from '../json';
 import {addGenesis, Chain} from '../db/test-helpers';
 import {apply} from './patch';
 import {assertPatchOperations} from '../puller';
+import {LogContext} from '../logger';
 
 test('patch', async () => {
   const store = new dag.TestStore();

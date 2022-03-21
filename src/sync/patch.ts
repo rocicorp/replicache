@@ -1,6 +1,6 @@
-import type {LogContext} from '@rocicorp/logger';
 import type * as db from '../db/mod';
 import type {PatchOperation} from '../puller';
+import type {LogContext} from '../logger';
 
 export async function apply(
   lc: LogContext,

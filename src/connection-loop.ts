@@ -1,4 +1,4 @@
-import type {OptionalLogger} from '@rocicorp/logger';
+import type {Logger} from './logger';
 import {resolver} from './deps';
 import {sleep} from './sleep';
 
@@ -9,7 +9,7 @@ export const MAX_DELAY_MS = 60_000;
 
 type SendRecord = {duration: number; ok: boolean};
 
-export interface ConnectionLoopDelegate extends OptionalLogger {
+export interface ConnectionLoopDelegate extends Logger {
   invokeSend(): Promise<boolean>;
   debounceDelay: number;
   // If null, no watchdog timer is used.

@@ -1,4 +1,3 @@
-import {LogContext} from '@rocicorp/logger';
 import {expect} from '@esm-bundle/chai';
 import * as sinon from 'sinon';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
@@ -12,6 +11,7 @@ import {ClientMap, ClientStateNotFoundError, getClients} from './clients';
 import {fakeHash} from '../hash';
 import {makeClient, setClients} from './clients-test-helpers';
 import {assertNotUndefined} from '../asserts';
+import {LogContext} from '../logger';
 
 let clock: SinonFakeTimers;
 const START_TIME = 100000;

@@ -1,4 +1,3 @@
-import type {LogContext} from '@rocicorp/logger';
 import type * as dag from '../dag/mod';
 import * as db from '../db/mod';
 import {deepClone, deepEqual, JSONValue, ReadonlyJSONValue} from '../json';
@@ -13,6 +12,7 @@ import {assertHTTPRequestInfo, HTTPRequestInfo} from '../http-request-info';
 import {callJSRequest} from './js-request';
 import {SYNC_HEAD_NAME} from './sync-head-name';
 import * as patch from './patch';
+import type {LogContext} from '../logger';
 import {toError} from '../to-error';
 import * as btree from '../btree/mod';
 import {BTreeRead} from '../btree/mod';

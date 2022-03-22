@@ -82,7 +82,7 @@ export class ReadTransactionImpl<
     this.clientID = clientID;
     this._dbtx = dbRead;
     this._lc = lc
-      .addContext('rpc', rpcName)
+      .addContext(rpcName)
       .addContext('txid', transactionIDCounter++);
   }
 

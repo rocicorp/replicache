@@ -1,4 +1,4 @@
-import {LogContext, OptionalLogger} from '@rocicorp/logger';
+import {LogContext} from '@rocicorp/logger';
 import {resolver} from '@rocicorp/resolver';
 import {Lock} from '@rocicorp/lock';
 import {deepClone, deepEqual, ReadonlyJSONValue} from './json';
@@ -182,7 +182,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
   private _closed = false;
   private _online = true;
-  private readonly _logger: OptionalLogger;
   private readonly _ready: Promise<void>;
   private readonly _profileIDPromise: Promise<string>;
   private readonly _clientIDPromise: Promise<string>;
@@ -330,8 +329,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.puller = puller;
     this.pusher = pusher;
 
-    this._logger = new LogContext(logLevel);
-    this._lc = new LogContext(logLevel).addContext('db', name);
+    this._lc = new LogContext(logLevel).addContext('name', name);
 
     const perKvStore = experimentalKVStore || new IDBStore(this.idbName);
     this._perdag = new dag.StoreImpl(
@@ -491,9 +489,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
       resolveLicenseCheck(true);
       return;
     }
-    this._logger.info?.(`Licensing enabled. Key: ${this._licenseKey}`);
+    this._lc.info?.(`Licensing enabled. Key: ${this._licenseKey}`);
     if (this._licenseKey === TEST_LICENSE_KEY) {
-      this._logger.info?.(
+      this._lc.info?.(
         `Skipping license check for TEST_LICENSE_KEY. ` +
           `You may ONLY use this key for automated (e.g., unit/CI) testing. ` +
           // TODO(phritz) maybe use a more specific URL
@@ -511,9 +509,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
         this._lc,
       );
       if (status === LicenseStatus.Valid) {
-        this._logger.info?.(`License is valid.`);
+        this._lc.info?.(`License is valid.`);
       } else {
-        this._logger.error?.(
+        this._lc.error?.(
           `** REPLICACHE DISABLED ** Replicache license key '${this._licenseKey}' is not valid (status: ${status}). ` +
             `Please run 'npx get-license' to get a license key or contact licensing@replicache.dev for help.`,
         );
@@ -522,7 +520,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         return;
       }
     } catch (err) {
-      this._logger.error?.(`Error checking license: ${err}`);
+      this._lc.error?.(`Error checking license: ${err}`);
       // Note: on error we fall through to assuming the license is valid.
     }
     resolveLicenseCheck(true);
@@ -550,7 +548,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
           lc,
         );
       } catch (err) {
-        this._logger.info?.(`Error sending license active ping: ${err}`);
+        this._lc.info?.(`Error sending license active ping: ${err}`);
       }
     };
     await markActive();
@@ -716,7 +714,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     await this._ready;
     const lc = this._lc
-      .addContext('rpc', 'maybeEndPull')
+      .addContext('maybeEndPull')
       .addContext('request_id', requestID);
     const {replayMutations, changedKeys} = await sync.maybeEndPull(
       this._memdag,
@@ -761,7 +759,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       // least sync can move forward. Note that the server-side mutation will
       // still get sent. This doesn't remove the queued local mutation, it just
       // removes its visible effects.
-      this._logger.error?.(`Unknown mutator ${name}`);
+      this._lc.error?.(`Unknown mutator ${name}`);
       mutatorImpl = async () => {
         // no op
       };
@@ -822,14 +820,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
       if (e instanceof PushError || e instanceof PullError) {
         online = false;
-        this._logger.info?.(
-          `${name} threw:\n`,
-          e,
-          '\nwith cause:\n',
-          e.causedBy,
-        );
+        this._lc.info?.(`${name} threw:\n`, e, '\nwith cause:\n', e.causedBy);
       } else {
-        this._logger.info?.(`${name} threw:\n`, e);
+        this._lc.info?.(`${name} threw:\n`, e);
       }
       return false;
     } finally {
@@ -872,7 +865,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       if (errorMessage || httpStatusCode >= 400) {
         // TODO(arv): Maybe we should not log the server URL when the error comes
         // from a Pusher/Puller?
-        this._logger.error?.(
+        this._lc.error?.(
           `Got error response from server (${serverURL}) doing ${verb}: ${httpStatusCode}` +
             (errorMessage ? `: ${errorMessage}` : ''),
         );
@@ -905,7 +898,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       this.auth = auth;
       reauthAttempts++;
     } while (reauthAttempts < MAX_REAUTH_TRIES);
-    this._logger.info?.('Tried to reauthenticate too many times');
+    this._lc.info?.('Tried to reauthenticate too many times');
     return {
       result: lastResult,
       authFailure: true,
@@ -925,7 +918,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
           const clientID = await this._clientIDPromise;
           const requestID = sync.newRequestID(clientID);
           const lc = this._lc
-            .addContext('rpc', 'push')
+            .addContext('push')
             .addContext('request_id', requestID);
           try {
             this._changeSyncCounters(1, 0);
@@ -993,7 +986,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const clientID = await this._clientIDPromise;
     const requestID = sync.newRequestID(clientID);
     const lc = this._lc
-      .addContext('rpc', 'handlePullResponse')
+      .addContext('handlePullResponse')
       .addContext('request_id', requestID);
     const syncHead = await sync.handlePullResponse(
       lc,
@@ -1025,7 +1018,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
         const requestID = sync.newRequestID(clientID);
         const lc = this._lc
-          .addContext('rpc', 'beginPull')
+          .addContext('beginPull')
           .addContext('request_id', requestID);
         const req = {
           pullAuth: this.auth,
@@ -1075,7 +1068,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
   }
   private _fireOnClientStateNotFound(clientID: sync.ClientID) {
-    this._logger.error?.(`Client state not found, clientID: ${clientID}`);
+    this._lc.error?.(`Client state not found, clientID: ${clientID}`);
     this.onClientStateNotFound?.();
   }
 
@@ -1148,7 +1141,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         } finally {
           // We need to keep track of the subscription keys even if there was an
           // exception because changes to the keys can make the subscription
-          // body succeeed.
+          // body succeed.
           s.keys = stx.keys;
           s.scans = stx.scans;
         }
@@ -1168,7 +1161,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         if (s.onError) {
           s.onError(result.error);
         } else {
-          this._logger.error?.(result.error);
+          this._lc.error?.(result.error);
         }
       }
     }
@@ -1493,7 +1486,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       const pushRequestID = sync.newRequestID(clientID);
       const pushDescription = 'recoveringMutationsPush';
       const pushLC = this._lc
-        .addContext('rpc', pushDescription)
+        .addContext(pushDescription)
         .addContext('request_id', pushRequestID);
       const pushSucceeded = await this._wrapInOnlineCheck(async () => {
         const {result: pushResponse} = await this._wrapInReauthRetries(
@@ -1527,7 +1520,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       const requestID = sync.newRequestID(clientID);
       const pullDescription = 'recoveringMutationsPull';
       const pullLC = this._lc
-        .addContext('rpc', pullDescription)
+        .addContext(pullDescription)
         .addContext('request_id', requestID);
       const beginPullRequest = {
         pullAuth: this.auth,

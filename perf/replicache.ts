@@ -1,5 +1,5 @@
-const valSize = 1024;
-
+import {resolver} from '@rocicorp/resolver';
+import {range, sampleSize} from 'lodash-es';
 import {deepEqual} from '../src/json';
 import {assert} from '../src/asserts';
 import {
@@ -12,14 +12,14 @@ import {
 } from '../src/mod';
 import {jsonArrayTestData, TestDataObject, jsonObjectTestData} from './data';
 import type {Bencher, Benchmark} from './perf';
-import {range, sampleSize} from 'lodash-es';
 import * as kv from '../src/kv/mod';
-import {resolver} from '../src/deps';
 import {
   setupIDBDatabasesStoreForTest,
   teardownIDBDatabasesStoreForTest,
 } from '../src/persist/mod';
 import {uuid} from '../src/uuid';
+
+const valSize = 1024;
 
 export function benchmarkPopulate(opts: {
   numKeys: number;

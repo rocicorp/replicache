@@ -2,7 +2,6 @@ import {LogContext, OptionalLogger} from '@rocicorp/logger';
 import {resolver, Lock} from './deps';
 import {deepClone, deepEqual, ReadonlyJSONValue} from './json';
 import type {JSONValue} from './json';
-import type {KeyTypeForScanOptions, ScanOptions} from './scan-options';
 import {Pusher, PushError} from './pusher';
 import {Puller, PullError, PullResponse} from './puller';
 import {
@@ -16,7 +15,6 @@ import type {
   ReadTransaction,
   WriteTransaction,
 } from './transactions';
-import {ScanResult} from './scan-iterator';
 import {ConnectionLoop, MAX_DELAY_MS, MIN_DELAY_MS} from './connection-loop';
 import {defaultPuller} from './puller';
 import {defaultPusher} from './pusher';
@@ -651,55 +649,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
       this._root = Promise.resolve(root);
       await this._fireOnChange(changedKeys);
     }
-  }
-
-  /**
-   * Get a single value from the database.
-   * @deprecated Use [[query]] instead.
-   */
-  get(key: string): Promise<ReadonlyJSONValue | undefined> {
-    return this.query(tx => tx.get(key));
-  }
-
-  /**
-   * Determines if a single `key` is present in the database.
-   * @deprecated Use [[query]] instead.
-   */
-  has(key: string): Promise<boolean> {
-    return this.query(tx => tx.has(key));
-  }
-
-  /**
-   * Whether the database is empty.
-   * @deprecated Use [[query]] instead.
-   */
-  isEmpty(): Promise<boolean> {
-    return this.query(tx => tx.isEmpty());
-  }
-
-  /**
-   * Gets many values from the database. This returns a `ScanResult` which
-   * implements `AsyncIterable`. It also has methods to iterate over the `keys`
-   * and `entries`.
-   *
-   * If `options` has an `indexName`, then this does a scan over an index with
-   * that name. A scan over an index uses a tuple for the key consisting of
-   * `[secondary: string, primary: string]`.
-   * @deprecated Use [[query]] instead.
-   */
-  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
-    options?: Options,
-  ): ScanResult<Key, ReadonlyJSONValue> {
-    return new ScanResult<Key>(
-      options,
-      async () => {
-        await this._ready;
-        const dagRead = await this._memdag.read();
-        return db.readFromDefaultHead(dagRead);
-      },
-      true, // shouldCloseTransaction
-      false, // shouldClone
-    );
   }
 
   /**

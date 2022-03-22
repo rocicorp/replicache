@@ -1,4 +1,5 @@
 import {assertObject, throwInvalidType} from './asserts';
+import {skipAssertJSONValue} from './config.js';
 import {hasOwn} from './has-own';
 
 /** The values that can be represented in JSON */
@@ -238,6 +239,9 @@ function isSmi(value: number): boolean {
 }
 
 export function assertJSONValue(v: unknown): asserts v is JSONValue {
+  if (skipAssertJSONValue) {
+    return;
+  }
   switch (typeof v) {
     case 'boolean':
     case 'number':

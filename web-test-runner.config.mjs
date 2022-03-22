@@ -8,7 +8,13 @@ const firefox = playwrightLauncher({product: 'firefox'});
 export default {
   concurrentBrowsers: 3,
   nodeResolve: true,
-  plugins: [esbuildPlugin({ts: true, target: 'esnext'})],
+  plugins: [
+    esbuildPlugin({
+      ts: true,
+      target: 'esnext',
+      define: {'process.env.NODE_ENV': '"development"'},
+    }),
+  ],
   staticLogging: !!process.env.CI,
   testFramework: {
     config: {

@@ -3,6 +3,7 @@ import {assert, assertArray, assertNumber, assertString} from '../asserts';
 import {Hash, emptyHash, newTempHash} from '../hash';
 import type {BTreeRead} from './read';
 import type {BTreeWrite} from './write';
+import {skipBTreeNodeAsserts} from '../config.js';
 
 export type Entry<V> = [key: string, value: V];
 export type ReadonlyEntry<V> = readonly [key: string, value: V];
@@ -119,6 +120,9 @@ export function binarySearch<V>(
 export function assertBTreeNode(
   v: unknown,
 ): asserts v is InternalNode | DataNode {
+  if (skipBTreeNodeAsserts) {
+    return;
+  }
   assertArray(v);
 
   function assertEntry(

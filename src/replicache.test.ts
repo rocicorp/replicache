@@ -11,14 +11,13 @@ import {
 } from './test-util';
 import {PatchOperation, Replicache, TransactionClosedError} from './mod';
 import type {ReadTransaction, WriteTransaction} from './mod';
-import type {JSONValue, ReadonlyJSONValue} from './json';
+import type {JSONValue} from './json';
 import {assert, expect} from '@esm-bundle/chai';
 import * as sinon from 'sinon';
 import type {ScanOptions} from './scan-options';
 import {asyncIterableToArray} from './async-iterable-to-array';
 import {sleep} from './sleep';
 import * as db from './db/mod';
-import * as dag from './dag/mod';
 import {TestMemStore} from './kv/test-mem-store';
 import {WriteTransactionImpl} from './transactions';
 import {emptyHash, Hash} from './hash';
@@ -291,8 +290,8 @@ test('name', async () => {
   await addA({key: 'A'});
   await addB({key: 'B'});
 
-  expect(await repA.get('key')).to.equal('A');
-  expect(await repB.get('key')).to.equal('B');
+  expect(await repA.query(tx => tx.get('key'))).to.equal('A');
+  expect(await repB.query(tx => tx.get('key'))).to.equal('B');
 
   await repA.close();
   await repB.close();
@@ -426,9 +425,9 @@ test('push', async () => {
     text: 'Test',
   });
   expect(createCount).to.equal(1);
-  expect(((await rep?.get(`/todo/${id1}`)) as {text: string}).text).to.equal(
-    'Test',
-  );
+  expect(
+    ((await rep?.query(tx => tx.get(`/todo/${id1}`))) as {text: string}).text,
+  ).to.equal('Test');
 
   fetchMock.postOnce(pushURL, {
     mutationInfos: [{id: 3, error: 'mutation has already been processed'}],
@@ -453,9 +452,9 @@ test('push', async () => {
     text: 'Test 2',
   });
   expect(createCount).to.equal(2);
-  expect(((await rep?.get(`/todo/${id2}`)) as {text: string}).text).to.equal(
-    'Test 2',
-  );
+  expect(
+    ((await rep?.query(tx => tx.get(`/todo/${id2}`))) as {text: string}).text,
+  ).to.equal('Test 2');
 
   // Clean up
   await deleteTodo({id: id1});
@@ -686,9 +685,9 @@ test('pull', async () => {
     text: 'Test',
   });
   expect(createCount).to.equal(1);
-  expect(((await rep?.get(`/todo/${id1}`)) as {text: string}).text).to.equal(
-    'Test',
-  );
+  expect(
+    ((await rep?.query(tx => tx.get(`/todo/${id1}`))) as {text: string}).text,
+  ).to.equal('Test');
 
   fetchMock.postOnce(pullURL, {
     cookie: '',
@@ -710,9 +709,9 @@ test('pull', async () => {
     text: 'Test 2',
   });
   expect(createCount).to.equal(2);
-  expect(((await rep?.get(`/todo/${id2}`)) as {text: string}).text).to.equal(
-    'Test 2',
-  );
+  expect(
+    ((await rep?.query(tx => tx.get(`/todo/${id2}`))) as {text: string}).text,
+  ).to.equal('Test 2');
 
   fetchMock.postOnce(pullURL, {
     cookie: '',
@@ -1000,7 +999,7 @@ test('poke', async () => {
   const text = 'yo';
 
   await setTodo({id, text});
-  expect(await rep.has(key)).true;
+  expect(await rep.query(tx => tx.has(key))).true;
 
   // cookie *does* apply
   await rep.poke({
@@ -1011,7 +1010,7 @@ test('poke', async () => {
       patch: [{op: 'del', key}],
     },
   });
-  expect(await rep.has(key)).false;
+  expect(await rep.query(tx => tx.has(key))).false;
 
   // cookie does not apply
   await setTodo({id, text});
@@ -1029,7 +1028,7 @@ test('poke', async () => {
     error = String(e);
   }
   expect(error).contains('unexpected base cookie for poke');
-  expect(await rep.has(key)).true;
+  expect(await rep.query(tx => tx.has(key))).true;
 
   // cookie applies, but lmid goes backward - should be an error.
   await setTodo({id, text});
@@ -1087,102 +1086,6 @@ test('pullInterval in constructor', async () => {
   await rep.close();
 });
 
-test('closeTransaction after rep.scan', async () => {
-  const readSpy = sinon.spy(dag.LazyStore.prototype, 'read');
-  const scanSpy = sinon.spy(db.Read.prototype, 'scan');
-  const closeSpy = sinon.spy(db.Read.prototype, 'close');
-
-  const rep = await replicacheForTesting('test5', {mutators: {addData}});
-  const add = rep.mutate.addData;
-  await add({
-    'a/0': 0,
-    'a/1': 1,
-  });
-  const log: ReadonlyJSONValue[] = [];
-
-  function expectCalls(l: JSONValue[]) {
-    expect(l).to.deep.equal(log);
-
-    expect(readSpy.callCount).to.equal(1);
-    expect(scanSpy.callCount).to.equal(1);
-    expect(closeSpy.callCount).to.equal(1);
-
-    readSpy.resetHistory();
-    scanSpy.resetHistory();
-    closeSpy.resetHistory();
-    log.length = 0;
-  }
-
-  readSpy.resetHistory();
-  scanSpy.resetHistory();
-  closeSpy.resetHistory();
-
-  const it = rep.scan();
-
-  for await (const v of it) {
-    log.push(v);
-  }
-  expectCalls([0, 1]);
-
-  // One more time with return in loop...
-  await (async () => {
-    if (!rep) {
-      fail();
-    }
-    const it = rep.scan();
-    for await (const v of it) {
-      log.push(v);
-      return;
-    }
-  })();
-  expectCalls([0]);
-
-  // ... and with a break.
-  {
-    const it = rep.scan();
-    for await (const v of it) {
-      log.push(v);
-      break;
-    }
-  }
-  expectCalls([0]);
-
-  // ... and with a throw.
-  (
-    await expectPromiseToReject(
-      (async () => {
-        if (!rep) {
-          fail();
-        }
-        const it = rep.scan();
-        for await (const v of it) {
-          log.push(v);
-          throw 'hi!';
-        }
-      })(),
-    )
-  ).to.equal('hi!');
-
-  expectCalls([0]);
-
-  // ... and with a throw.
-  (
-    await expectPromiseToReject(
-      (async () => {
-        if (!rep) {
-          fail();
-        }
-        const it = rep.scan();
-        for await (const v of it) {
-          log.push(v);
-          throw 'hi!';
-        }
-      })(),
-    )
-  ).to.equal('hi!');
-  expectCalls([0]);
-});
-
 test('index', async () => {
   const rep = await replicacheForTesting('test-index', {mutators: {addData}});
 
@@ -1209,10 +1112,13 @@ test('index', async () => {
     [['4', 'a/4'], {a: '4'}],
   ]);
   await rep.dropIndex('aIndex');
-  const x = rep.scan({indexName: 'aIndex'});
-  (await expectPromiseToReject(x.values().next())).to.be
-    .instanceOf(Error)
-    .with.property('message', 'Unknown index name: aIndex');
+  await rep.query(async tx => {
+    const x = tx.scan({indexName: 'aIndex'});
+    (await expectPromiseToReject(x.values().next())).to.be
+      .instanceOf(Error)
+      .with.property('message', 'Unknown index name: aIndex');
+    return x;
+  });
 
   await rep.createIndex({name: 'aIndex', jsonPointer: '/a'});
   await testScanResult(rep, {indexName: 'aIndex'}, [
@@ -1223,7 +1129,11 @@ test('index', async () => {
     [['4', 'a/4'], {a: '4'}],
   ]);
   await rep.dropIndex('aIndex');
-  (await expectPromiseToReject(rep.scan({indexName: 'aIndex'}).toArray())).to.be
+  (
+    await expectPromiseToReject(
+      rep.query(tx => tx.scan({indexName: 'aIndex'}).toArray()),
+    )
+  ).to.be
     .instanceOf(Error)
     .with.property('message', 'Unknown index name: aIndex');
 
@@ -1487,7 +1397,6 @@ test('isEmpty', async () => {
 
   async function t(expected: boolean) {
     expect(await rep?.query(tx => tx.isEmpty())).to.equal(expected);
-    expect(await rep?.isEmpty()).to.equal(expected);
   }
 
   await t(true);
@@ -1806,7 +1715,9 @@ test('pull and index update', async () => {
     await tickUntil(() => pullDone);
     await tickAFewTimes();
 
-    const actualResult = await rep.scan({indexName}).entries().toArray();
+    const actualResult = await rep.query(tx =>
+      tx.scan({indexName}).entries().toArray(),
+    );
     expect(actualResult).to.deep.equal(opt.expectedResult);
   }
 

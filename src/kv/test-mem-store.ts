@@ -1,4 +1,4 @@
-import {RWLock} from '../deps';
+import {RWLock} from '@rocicorp/lock';
 import {stringCompare} from '../string-compare';
 import type {Read, Store, Value, Write} from './store';
 import {deleteSentinel, WriteImplBase} from './write-impl-base';

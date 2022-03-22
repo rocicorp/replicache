@@ -1,4 +1,4 @@
-import {RWLock} from '../deps';
+import {RWLock} from '@rocicorp/lock';
 import type {ReadonlyJSONValue} from '../json';
 import type * as dag from '../dag/mod';
 import {Hash, emptyHash, newTempHash} from '../hash';

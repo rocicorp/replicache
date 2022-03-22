@@ -135,37 +135,39 @@ test.skip('Test register param [type checking only]', async () => {
 test.skip('Key type for scans [type checking only]', async () => {
   const rep = new Replicache({name: 'test-types'});
 
-  for await (const k of rep.scan({indexName: 'n'}).keys()) {
-    // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
-    const k2: string = k;
-    console.log(k2);
-  }
+  await rep.query(async tx => {
+    for await (const k of tx.scan({indexName: 'n'}).keys()) {
+      // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
+      const k2: string = k;
+      console.log(k2);
+    }
 
-  for await (const k of rep.scan({indexName: 'n', start: {key: 's'}}).keys()) {
-    // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
-    const k2: string = k;
-    console.log(k2);
-  }
+    for await (const k of tx.scan({indexName: 'n', start: {key: 's'}}).keys()) {
+      // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
+      const k2: string = k;
+      console.log(k2);
+    }
 
-  for await (const k of rep
-    .scan({indexName: 'n', start: {key: ['s']}})
-    .keys()) {
-    // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
-    const k2: string = k;
-    console.log(k2);
-  }
+    for await (const k of tx
+      .scan({indexName: 'n', start: {key: ['s']}})
+      .keys()) {
+      // @ts-expect-error Type '[secondary: string, primary?: string | undefined]' is not assignable to type 'string'.ts(2322)
+      const k2: string = k;
+      console.log(k2);
+    }
 
-  for await (const k of rep.scan({start: {key: 'p'}}).keys()) {
-    // @ts-expect-error Type 'string' is not assignable to type '[string]'.ts(2322)
-    const k2: [string] = k;
-    console.log(k2);
-  }
+    for await (const k of tx.scan({start: {key: 'p'}}).keys()) {
+      // @ts-expect-error Type 'string' is not assignable to type '[string]'.ts(2322)
+      const k2: [string] = k;
+      console.log(k2);
+    }
 
-  // @ts-expect-error Type 'number' is not assignable to type 'string | undefined'.ts(2322)
-  rep.scan({indexName: 'n', start: {key: ['s', 42]}});
+    // @ts-expect-error Type 'number' is not assignable to type 'string | undefined'.ts(2322)
+    tx.scan({indexName: 'n', start: {key: ['s', 42]}});
 
-  // @ts-expect-error Type '[string]' is not assignable to type 'string'.ts(2322)
-  rep.scan({start: {key: ['s']}});
+    // @ts-expect-error Type '[string]' is not assignable to type 'string'.ts(2322)
+    tx.scan({start: {key: ['s']}});
+  });
 });
 
 // Only used for type checking
@@ -313,14 +315,6 @@ test.skip('mut [type checking only]', async () => {
 // Only used for type checking
 test.skip('scan with index [type checking only]', async () => {
   const rep = new Replicache({name: 'scan-with-index'});
-
-  (await rep.scan({indexName: 'a'}).keys().toArray()) as [
-    secondary: string,
-    primary: string,
-  ][];
-
-  (await rep.scan({}).keys().toArray()) as string[];
-  (await rep.scan().keys().toArray()) as string[];
 
   await rep.query(async tx => {
     (await tx.scan({indexName: 'a'}).keys().toArray()) as [

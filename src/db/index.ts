@@ -1,5 +1,5 @@
 import type {LogContext} from '@rocicorp/logger';
-import {RWLock} from '../deps';
+import {RWLock} from '@rocicorp/lock';
 import type * as dag from '../dag/mod';
 import type {ReadonlyJSONValue, ReadonlyJSONObject} from '../json';
 import type {IndexRecord} from './commit';

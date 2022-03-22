@@ -1,5 +1,6 @@
 import {LogContext, OptionalLogger} from '@rocicorp/logger';
-import {resolver, Lock} from './deps';
+import {resolver} from '@rocicorp/resolver';
+import {Lock} from '@rocicorp/lock';
 import {deepClone, deepEqual, ReadonlyJSONValue} from './json';
 import type {JSONValue} from './json';
 import {Pusher, PushError} from './pusher';

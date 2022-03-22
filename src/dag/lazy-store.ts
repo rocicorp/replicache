@@ -1,4 +1,4 @@
-import {RWLock} from '../deps';
+import {RWLock} from '@rocicorp/lock';
 import {Hash, isTempHash} from '../hash';
 import type * as kv from '../kv/mod';
 import {Chunk, ChunkHasher, createChunk} from './chunk';

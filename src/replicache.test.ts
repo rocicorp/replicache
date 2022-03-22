@@ -2357,10 +2357,6 @@ suite('check for client not found in visibilitychange', () => {
         expect(args[1]).to.equal(
           `Client state not found, clientID: ${clientID}`,
         );
-
-        //   expect(consoleErrorStub.getCall(0).args[0]).to.equal(
-        //     `Client state not found, clientID: ${clientID}`,
-        //   );
       }
 
       await rep.close();

@@ -74,7 +74,13 @@ export type MaybePromise<T> = T | Promise<T>;
 
 type ToPromise<P> = P extends Promise<unknown> ? P : Promise<P>;
 
-export function makeIdbName(name: string, schemaVersion?: string): string {
+/**
+ * Returns the name of the IDB database that will be used for a particular Replicache instance.
+ * @param name The name of the Replicache instance (i.e., the `name` field of `ReplicacheOptions`).
+ * @param schemaVersion The schema version of the database (i.e., the `schemaVersion` field of `ReplicacheOptions`).
+ * @returns
+ */
+export function makeIDBName(name: string, schemaVersion?: string): string {
   const n = `rep:${name}:${REPLICACHE_FORMAT_VERSION}`;
   return schemaVersion ? `${n}:${schemaVersion}` : n;
 }
@@ -160,7 +166,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
    * stored.
    */
   get idbName(): string {
-    return makeIdbName(this.name, this.schemaVersion);
+    return makeIDBName(this.name, this.schemaVersion);
   }
 
   /** The schema version of the data understood by this application. */

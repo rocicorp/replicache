@@ -1,4 +1,4 @@
-export {Replicache, makeIdbName} from './replicache';
+export {Replicache, makeIDBName} from './replicache';
 export {TransactionClosedError} from './transaction-closed-error';
 
 export type {

@@ -6,7 +6,7 @@ import {
   clock,
   createReplicacheNameForTest,
 } from './test-util';
-import {makeIdbName, REPLICACHE_FORMAT_VERSION} from './replicache';
+import {makeIDBName, REPLICACHE_FORMAT_VERSION} from './replicache';
 import {addGenesis, addLocal, addSnapshot, Chain} from './db/test-helpers';
 import type * as db from './db/mod';
 import * as dag from './dag/mod';
@@ -43,7 +43,7 @@ async function createPerdag(args: {
   schemaVersion: string;
 }): Promise<dag.Store> {
   const {replicacheName, schemaVersion} = args;
-  const idbName = makeIdbName(replicacheName, schemaVersion);
+  const idbName = makeIDBName(replicacheName, schemaVersion);
   dbsToDrop.add(idbName);
   const idb = new kv.IDBStore(idbName);
 

@@ -1,5 +1,5 @@
 import type {OptionalLogger} from '@rocicorp/logger';
-import {resolver} from './deps';
+import {resolver} from '@rocicorp/resolver';
 import {sleep} from './sleep';
 
 export const DEBOUNCE_DELAY_MS = 10;

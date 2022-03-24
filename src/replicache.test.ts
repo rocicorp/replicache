@@ -1343,6 +1343,7 @@ test('logLevel', async () => {
   await tickAFewTimes(10, 100);
 
   rep = await replicacheForTesting('log-level', {logLevel: 'debug'});
+
   await rep.query(() => 42);
   expect(info.callCount).to.equal(0);
   expect(debug.callCount).to.be.greaterThan(0);
@@ -1351,10 +1352,14 @@ test('logLevel', async () => {
     debug.getCalls().some(call => call.firstArg.startsWith(`db=${rep.name}`)),
   ).to.equal(true);
   expect(
-    debug.getCalls().some(call => call.firstArg.endsWith('PULL')),
+    debug
+      .getCalls()
+      .some(call => call.args.length > 0 && call.args[1].endsWith('PULL')),
   ).to.equal(true);
   expect(
-    debug.getCalls().some(call => call.firstArg.endsWith('PUSH')),
+    debug
+      .getCalls()
+      .some(call => call.args.length > 0 && call.args[1].endsWith('PUSH')),
   ).to.equal(true);
 
   await rep.close();

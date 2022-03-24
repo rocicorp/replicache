@@ -501,6 +501,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         browserSimpleFetch,
         PROD_LICENSE_SERVER_URL,
         this._licenseKey,
+        this._lc,
       );
       if (status === LicenseStatus.Valid) {
         this._logger.info?.(`License is valid.`);
@@ -537,6 +538,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
           PROD_LICENSE_SERVER_URL,
           this._licenseKey as string,
           'TODO-BROWSER-PROFILE-ID',
+          lc,
         );
       } catch (err) {
         this._logger.info?.(`Error sending license active ping: ${err}`);

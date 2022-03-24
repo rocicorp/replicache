@@ -57,12 +57,17 @@ async function expectAsyncFuncToThrow(f: () => unknown, c: unknown) {
 
 test('name is required', () => {
   expect(
-    () => new Replicache({} as ReplicacheOptions<Record<string, never>>),
+    () =>
+      new Replicache({
+        experimentalLicenseKey: TEST_LICENSE_KEY,
+      } as ReplicacheOptions<Record<string, never>>),
   ).to.throw(/name.*required/);
 });
 
 test('name cannot be empty', () => {
-  expect(() => new Replicache({name: ''})).to.throw(/name.*must be non-empty/);
+  expect(
+    () => new Replicache({experimentalLicenseKey: TEST_LICENSE_KEY, name: ''}),
+  ).to.throw(/name.*must be non-empty/);
 });
 
 test('get, has, scan on empty db', async () => {
@@ -1334,7 +1339,7 @@ test('logLevel', async () => {
 
   rep = await replicacheForTesting('log-level', {logLevel: 'info'});
   await rep.query(() => 42);
-  expect(info.callCount).to.equal(0);
+  expect(info.callCount).to.equal(2 /* licensing log lines */);
   expect(debug.callCount).to.equal(0);
   await rep.close();
 
@@ -1345,7 +1350,7 @@ test('logLevel', async () => {
   rep = await replicacheForTesting('log-level', {logLevel: 'debug'});
 
   await rep.query(() => 42);
-  expect(info.callCount).to.equal(0);
+  expect(info.callCount).to.equal(2 /* licensing log lines */);
   expect(debug.callCount).to.be.greaterThan(0);
 
   expect(
@@ -1687,7 +1692,11 @@ test('clientID', async () => {
   // With SDD we never reuse client IDs.
   expect(clientID3).to.not.equal(clientID);
 
-  const rep4 = new Replicache({name: 'clientID4', pullInterval: null});
+  const rep4 = new Replicache({
+    experimentalLicenseKey: TEST_LICENSE_KEY,
+    name: 'clientID4',
+    pullInterval: null,
+  });
   const clientID4 = await rep4.clientID;
   expect(clientID4).to.match(re);
   await rep4.close();
@@ -2023,13 +2032,25 @@ test('overlapping open/close', async () => {
   const pullInterval = 60_000;
   const name = 'overlapping-open-close';
 
-  const rep = new Replicache({name, pullInterval});
+  const rep = new Replicache({
+    experimentalLicenseKey: TEST_LICENSE_KEY,
+    name,
+    pullInterval,
+  });
   const p = rep.close();
 
-  const rep2 = new Replicache({name, pullInterval});
+  const rep2 = new Replicache({
+    experimentalLicenseKey: TEST_LICENSE_KEY,
+    name,
+    pullInterval,
+  });
   const p2 = rep2.close();
 
-  const rep3 = new Replicache({name, pullInterval});
+  const rep3 = new Replicache({
+    experimentalLicenseKey: TEST_LICENSE_KEY,
+    name,
+    pullInterval,
+  });
   const p3 = rep3.close();
 
   await p;
@@ -2037,10 +2058,18 @@ test('overlapping open/close', async () => {
   await p3;
 
   {
-    const rep = new Replicache({name, pullInterval});
+    const rep = new Replicache({
+      experimentalLicenseKey: TEST_LICENSE_KEY,
+      name,
+      pullInterval,
+    });
     await rep.clientID;
     const p = rep.close();
-    const rep2 = new Replicache({name, pullInterval});
+    const rep2 = new Replicache({
+      experimentalLicenseKey: TEST_LICENSE_KEY,
+      name,
+      pullInterval,
+    });
     await rep2.clientID;
     const p2 = rep2.close();
     await p;

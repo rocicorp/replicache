@@ -13,6 +13,7 @@ import {Hash, makeNewTempHashFunction} from './hash';
 import fetchMock from 'fetch-mock/esm/client';
 import {uuid} from './uuid';
 import type {WriteTransaction} from './transactions.js';
+import {TEST_LICENSE_KEY} from '@rocicorp/licensing/src/client';
 
 export class ReplicacheTest<
   // eslint-disable-next-line @typescript-eslint/ban-types
@@ -132,6 +133,7 @@ export async function replicacheForTestingNoDefaultURLs<
   }: Omit<ReplicacheOptions<MD>, 'name'> = {},
 ): Promise<ReplicacheTest<MD>> {
   const rep = new ReplicacheTest<MD>({
+    experimentalLicenseKey: TEST_LICENSE_KEY,
     pullURL,
     pushDelay,
     pushURL,

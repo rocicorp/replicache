@@ -185,7 +185,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private readonly _logger: OptionalLogger;
   private readonly _ready: Promise<void>;
   private readonly _clientIDPromise: Promise<string>;
-  private readonly _licenseCheckPromise: Promise<boolean>;
+  protected readonly _licenseCheckPromise: Promise<boolean>;
 
   /* The license is active if we have sent at least one license active ping
    * (and we will continue to). We do not send license active pings when
@@ -634,15 +634,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
     await Promise.all(closingPromises);
     closingInstances.delete(this.name);
     resolve();
-  }
-
-  /**
-   * Indicates whether the license passed to Replicache is valid. The
-   * TEST_LICENSE_KEY is always valid, but may only be used for automated
-   * testing.
-   */
-  get licenseValid(): Promise<boolean> {
-    return this._licenseCheckPromise;
   }
 
   private async _getRoot(): Promise<Hash | undefined> {

@@ -65,6 +65,10 @@ export class ReplicacheTest<
     return this._licenseActivePromise;
   }
 
+  licenseValid(): Promise<boolean> {
+    return this._licenseCheckPromise;
+  }
+
   get perdag() {
     // @ts-expect-error Property '_perdag' is private
     return this._perdag;

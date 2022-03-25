@@ -542,12 +542,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     const markActive = async () => {
       try {
-        // TODO(phritz) add browser profile
         await licenseActive(
           mustSimpleFetch,
           PROD_LICENSE_SERVER_URL,
           this._licenseKey as string,
-          'TODO-BROWSER-PROFILE-ID',
+          await this.profileID,
           lc,
         );
       } catch (err) {

@@ -1046,7 +1046,10 @@ test('Errors in subscriptions are logged if no onError', async () => {
       expect(consoleErrorStub.callCount).to.equal(0);
     } else {
       expect(consoleErrorStub.callCount).to.equal(1);
-      expect(consoleErrorStub.calledWith(err)).to.be.true;
+      const {args} = consoleErrorStub.lastCall;
+      expect(args).to.have.length(2);
+      expect(args[0]).to.equal(`name=${rep.name}`);
+      expect(args[1]).to.equal(err);
     }
 
     consoleErrorStub.restore();

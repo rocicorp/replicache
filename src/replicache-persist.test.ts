@@ -105,13 +105,15 @@ test('basic persist & load', async () => {
 
 suite('onClientStateNotFound', () => {
   function checkConsoleErrorStub(
+    name: string,
     consoleErrorStub: sinon.SinonStub,
     clientID: ClientID,
   ) {
     expect(consoleErrorStub.callCount).to.equal(1);
-    expect(consoleErrorStub.getCall(0).args).to.deep.equal([
-      `Client state not found, clientID: ${clientID}`,
-    ]);
+    const {args} = consoleErrorStub.lastCall;
+    expect(args).to.have.length(2);
+    expect(args[0]).to.equal(`name=${name}`);
+    expect(args[1]).to.equal(`Client state not found, clientID: ${clientID}`);
   }
 
   test('Called in persist if collected', async () => {
@@ -132,7 +134,7 @@ suite('onClientStateNotFound', () => {
     await rep.persist();
 
     expect(onClientStateNotFound.callCount).to.equal(1);
-    checkConsoleErrorStub(consoleErrorStub, clientID);
+    checkConsoleErrorStub(rep.name, consoleErrorStub, clientID);
   });
 
   test('Called in query if collected', async () => {
@@ -167,7 +169,7 @@ suite('onClientStateNotFound', () => {
       e = err;
     }
     expect(e).to.be.instanceOf(persist.ClientStateNotFoundError);
-    checkConsoleErrorStub(consoleErrorStub, clientID2);
+    checkConsoleErrorStub(rep2.name, consoleErrorStub, clientID2);
   });
 
   test('Called in mutate if collected', async () => {
@@ -211,6 +213,6 @@ suite('onClientStateNotFound', () => {
     }
 
     expect(e).to.be.instanceOf(persist.ClientStateNotFoundError);
-    checkConsoleErrorStub(consoleErrorStub, clientID2);
+    checkConsoleErrorStub(rep2.name, consoleErrorStub, clientID2);
   });
 });

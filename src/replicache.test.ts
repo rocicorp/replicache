@@ -1901,11 +1901,11 @@ async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
   if (tc.expectFetchCalled) {
     fetchMock.postOnce(statusUrlMatcher, tc.mockFetchParams);
   }
-  const rep = new Replicache({
-    name,
+  const rep = await replicacheForTesting(name, {
     experimentalLicenseKey: tc.licenseKey,
   });
-  expect(await rep.licenseValid).to.equal(tc.expectValid);
+
+  expect(await rep.licenseValid()).to.equal(tc.expectValid);
   if (!tc.expectValid) {
     expect(rep.closed).to.be.true;
   }

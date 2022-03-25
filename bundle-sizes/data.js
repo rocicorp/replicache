@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1648204168489,
+  "lastUpdate": 1648208267747,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -7583,6 +7583,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 19887,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e2eb9382477a36e7f8f73ee4197b1e7aac01c468",
+          "message": "feat: Disable a bunch of assertions in prod (#891)\n\nWhen `process.env.NODE_ENV === 'production'` we skip validating the\r\nshape of the chunks (is it a Commit? is it a B+Tree?) as well as\r\nskipping validating that the JSONValue is really a JSONValue.\r\n\r\nFixes #876",
+          "timestamp": "2022-03-25T12:36:40+01:00",
+          "tree_id": "76884438356588dba9be9a34760f82528785ac86",
+          "url": "https://github.com/rocicorp/replicache/commit/e2eb9382477a36e7f8f73ee4197b1e7aac01c468"
+        },
+        "date": 1648208264589,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 161880,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 29221,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 160583,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 28867,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 69673,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 19875,
             "unit": "bytes"
           }
         ]

@@ -15,20 +15,47 @@ export type PullerResult = {
 export type Puller = (request: Request) => Promise<PullerResult>;
 
 /**
- * PullResponse defines the shape and type of the response of a pull. This is
- * the JSON you should return from your pull server endpoint.
+ * The shape of a pull response under normal circumstances.
  */
-export type PullResponse = {
+export type PullResponseOK = {
   cookie?: ReadonlyJSONValue;
   lastMutationID: number;
   patch: PatchOperation[];
 };
 
+/**
+ * In certain scenarios the server can signal that it does not know about the
+ * client. For example, the server might have deleted the client.
+ */
+export type ClientStateNotFoundResponse = {
+  error: 'ClientStateNotFound';
+};
+
+/**
+ * PullResponse defines the shape and type of the response of a pull. This is
+ * the JSON you should return from your pull server endpoint.
+ */
+export type PullResponse = PullResponseOK | ClientStateNotFoundResponse;
+
+export function isClientStateNotFoundResponse(
+  result: unknown,
+): result is ClientStateNotFoundResponse {
+  return (
+    typeof result === 'object' &&
+    result !== null &&
+    (result as Partial<ClientStateNotFoundResponse>).error ===
+      'ClientStateNotFound'
+  );
+}
+
 export function assertPullResponse(v: unknown): asserts v is PullResponse {
   if (typeof v !== 'object' || v === null) {
     throw new Error('PullResponse must be an object');
   }
-  const v2 = v as Partial<PullResponse>;
+  if (isClientStateNotFoundResponse(v)) {
+    return;
+  }
+  const v2 = v as Partial<PullResponseOK>;
   if (v2.cookie !== undefined) {
     assertJSONValue(v2.cookie);
   }

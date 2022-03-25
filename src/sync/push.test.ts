@@ -70,7 +70,9 @@ test('try push', async () => {
   const startingNumCommits = chain.length;
 
   const requestID = 'request_id';
+  const profileID = 'test_profile_id';
   const clientID = 'test_client_id';
+
   const auth = 'auth';
 
   // Push
@@ -98,6 +100,7 @@ test('try push', async () => {
       name: '1 pending',
       numPendingMutations: 1,
       expPushReq: {
+        profileID,
         clientID,
         mutations: [
           {
@@ -120,6 +123,7 @@ test('try push', async () => {
       name: '2 pending',
       numPendingMutations: 2,
       expPushReq: {
+        profileID,
         clientID,
         mutations: [
           // These mutations aren't actually added to the chain until the test
@@ -151,6 +155,7 @@ test('try push', async () => {
       name: '2 mutations to push, push errors',
       numPendingMutations: 2,
       expPushReq: {
+        profileID,
         clientID,
         mutations: [
           // These mutations aren't actually added to the chain until the test
@@ -239,6 +244,7 @@ test('try push', async () => {
       requestID,
       store,
       lc,
+      profileID,
       clientID,
       pusher,
       pushURL,

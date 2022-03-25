@@ -27,6 +27,7 @@ export const PULL_VERSION = 0;
  * endpoint](/server-pull).
  */
 export type PullRequest = {
+  profileID: string;
   clientID: string;
   cookie: ReadonlyJSONValue;
   lastMutationID: number;
@@ -51,6 +52,7 @@ export type BeginPullResponse = {
 };
 
 export async function beginPull(
+  profileID: string,
   clientID: string,
   beginPullReq: BeginPullRequest,
   puller: Puller,
@@ -72,6 +74,7 @@ export async function beginPull(
   const [, baseCookie] = db.snapshotMetaParts(baseSnapshot);
 
   const pullReq = {
+    profileID,
     clientID,
     cookie: baseCookie,
     lastMutationID: baseSnapshot.mutationID,

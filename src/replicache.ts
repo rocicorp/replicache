@@ -48,7 +48,7 @@ import {
   TEST_LICENSE_KEY,
   LicenseStatus,
 } from '@rocicorp/licensing/src/client';
-import {browserSimpleFetch} from './simple-fetch';
+import {mustSimpleFetch} from './simple-fetch';
 import {initBgIntervalProcess} from './persist/bg-interval';
 
 export type BeginPullResult = {
@@ -499,7 +499,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
     try {
       const status = await getLicenseStatus(
-        browserSimpleFetch,
+        mustSimpleFetch,
         PROD_LICENSE_SERVER_URL,
         this._licenseKey,
         this._lc,
@@ -538,7 +538,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       try {
         // TODO(phritz) add browser profile
         await licenseActive(
-          browserSimpleFetch,
+          mustSimpleFetch,
           PROD_LICENSE_SERVER_URL,
           this._licenseKey as string,
           'TODO-BROWSER-PROFILE-ID',

@@ -746,6 +746,17 @@ test('pull', async () => {
   expect(createCount).to.equal(3);
 });
 
+function expectConsoleLogContextStub(
+  name: string,
+  call: sinon.SinonSpyCall,
+  expectedMessage: string,
+) {
+  const {args} = call;
+  expect(args).to.have.length(2);
+  expect(args[0]).to.equal(`name=${name}`);
+  expect(args[1]).to.equal(expectedMessage);
+}
+
 test('reauth pull', async () => {
   const pullURL = 'https://diff.com/pull';
 
@@ -764,7 +775,10 @@ test('reauth pull', async () => {
   await rep.beginPull();
 
   expect(getAuthFake.callCount).to.equal(1);
-  expect(consoleErrorStub.firstCall.args[0]).to.equal(
+  expect(consoleErrorStub.callCount).to.equal(1);
+  expectConsoleLogContextStub(
+    rep.name,
+    consoleErrorStub.lastCall,
     'Got error response from server (https://diff.com/pull) doing pull: 401: xxx',
   );
 
@@ -776,7 +790,10 @@ test('reauth pull', async () => {
     expect((await rep.beginPull()).syncHead).to.equal(emptyHash);
 
     expect(getAuthFake.callCount).to.equal(8);
-    expect(consoleInfoStub.firstCall.args[0]).to.equal(
+    expect(consoleErrorStub.callCount).to.equal(9);
+    expectConsoleLogContextStub(
+      rep.name,
+      consoleInfoStub.lastCall,
       'Tried to reauthenticate too many times',
     );
   }
@@ -841,7 +858,9 @@ test('pull request is only sent when pullURL or non-default puller are set', asy
   expect(fetchMock.calls()).to.have.length(0);
   expect(pullerCallCount).to.be.greaterThan(0);
 
-  expect(consoleErrorStub.firstCall.args[0]).to.equal(
+  expectConsoleLogContextStub(
+    rep.name,
+    consoleErrorStub.firstCall,
     'Got error response from server () doing pull: 500: Test failure',
   );
   consoleErrorStub.restore();
@@ -884,7 +903,9 @@ test('reauth push', async () => {
   await rep.mutate.noop();
   await tickUntil(() => getAuthFake.callCount > 0, 1);
 
-  expect(consoleErrorStub.firstCall.args[0]).to.equal(
+  expectConsoleLogContextStub(
+    rep.name,
+    consoleErrorStub.firstCall,
     'Got error response from server (https://diff.com/push) doing push: 401: xxx',
   );
 
@@ -898,7 +919,9 @@ test('reauth push', async () => {
     await rep.mutate.noop();
     await tickUntil(() => consoleInfoStub.callCount > 0, 1);
 
-    expect(consoleInfoStub.firstCall.args[0]).to.equal(
+    expectConsoleLogContextStub(
+      rep.name,
+      consoleInfoStub.firstCall,
       'Tried to reauthenticate too many times',
     );
   }
@@ -931,10 +954,17 @@ test('HTTP status pull', async () => {
 
   await tickAFewTimes(20, 10);
 
-  expect(consoleErrorStub.getCalls().map(o => o.args[0])).to.deep.equal([
+  expect(consoleErrorStub.callCount).to.equal(2);
+  expectConsoleLogContextStub(
+    rep.name,
+    consoleErrorStub.firstCall,
     'Got error response from server (https://diff.com/pull) doing pull: 500: internal error',
+  );
+  expectConsoleLogContextStub(
+    rep.name,
+    consoleErrorStub.lastCall,
     'Got error response from server (https://diff.com/pull) doing pull: 404: not found',
-  ]);
+  );
 
   expect(okCalled).to.equal(true);
 });
@@ -971,10 +1001,17 @@ test('HTTP status push', async () => {
 
   await tickAFewTimes(20, 10);
 
-  expect(consoleErrorStub.getCalls().map(o => o.args[0])).to.deep.equal([
+  expect(consoleErrorStub.callCount).to.equal(2);
+  expectConsoleLogContextStub(
+    rep.name,
+    consoleErrorStub.firstCall,
     'Got error response from server (https://diff.com/push) doing push: 500: internal error',
+  );
+  expectConsoleLogContextStub(
+    rep.name,
+    consoleErrorStub.lastCall,
     'Got error response from server (https://diff.com/push) doing push: 404: not found',
-  ]);
+  );
 
   expect(okCalled).to.equal(true);
 });
@@ -1354,7 +1391,7 @@ test('logLevel', async () => {
   expect(debug.callCount).to.be.greaterThan(0);
 
   expect(
-    debug.getCalls().some(call => call.firstArg.startsWith(`db=${rep.name}`)),
+    debug.getCalls().some(call => call.firstArg.startsWith(`name=${rep.name}`)),
   ).to.equal(true);
   expect(
     debug
@@ -1486,7 +1523,9 @@ test('onSync', async () => {
 
     await tickUntil(() => onSync.callCount >= 4);
 
-    expect(consoleErrorStub.firstCall.args[0]).to.equal(
+    expectConsoleLogContextStub(
+      rep.name,
+      consoleErrorStub.firstCall,
       'Got error response from server (https://push.com/push) doing push: 401: xxx',
     );
 
@@ -2312,7 +2351,10 @@ suite('check for client not found in visibilitychange', () => {
       expect(onClientStateNotFound.called).to.equal(called);
       if (called) {
         expect(consoleErrorStub.callCount).to.equal(1);
-        expect(consoleErrorStub.getCall(0).args[0]).to.equal(
+        const {args} = consoleErrorStub.lastCall;
+        expect(args).to.have.length(2);
+        expect(args[0]).to.match(/^name=/);
+        expect(args[1]).to.equal(
           `Client state not found, clientID: ${clientID}`,
         );
       }

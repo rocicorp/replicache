@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1648208614041,
+  "lastUpdate": 1648220255130,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -73315,6 +73315,135 @@ window.BENCHMARK_DATA = {
             "range": "±6.0%",
             "unit": "MB/s",
             "extra": "14 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "212797317a92afe88c5215fb42a03204232dcb7b",
+          "message": "feat: New Phone, Who Dis? (#880)\n\nThe server can now tell the client that it does not know about a client.\r\nWhen this happens the client calls `onClientStateNotFound`.\r\n\r\nThe server can return:\r\n\r\n```json\r\n{\"error\": \"ClientStateNotFound\"}\r\n```\r\n\r\nFixes #335",
+          "timestamp": "2022-03-25T15:50:43+01:00",
+          "tree_id": "0218084ca8e5fe753868c1ae9130d2cffe8f37dc",
+          "url": "https://github.com/rocicorp/replicache/commit/212797317a92afe88c5215fb42a03204232dcb7b"
+        },
+        "date": 1648220254810,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 769.23,
+            "range": "±2.3%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 526.32,
+            "range": "±4.6%",
+            "unit": "ops/sec",
+            "extra": "13 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 312.5,
+            "range": "±4.4%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 64MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 303.03,
+            "range": "±20.6%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 19.73,
+            "range": "±103.8%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 15.63,
+            "range": "±27.0%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 11.57,
+            "range": "±42.2%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x10000 (clean, indexes: 0)",
+            "value": 31.25,
+            "range": "±116.5%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x10000 (clean, indexes: 1)",
+            "value": 13.37,
+            "range": "±154.4%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x10000 (clean, indexes: 2)",
+            "value": 9.36,
+            "range": "±93.9%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 443.89,
+            "range": "±4.4%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "scan 1024x10000",
+            "value": 481.07,
+            "range": "±7.4%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 7.61,
+            "range": "±41.5%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.75,
+            "range": "±9.6%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 2.91,
+            "range": "±18.7%",
+            "unit": "MB/s",
+            "extra": "13 samples"
           }
         ]
       }

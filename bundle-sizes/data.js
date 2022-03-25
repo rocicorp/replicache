@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1648208267747,
+  "lastUpdate": 1648219909981,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -7637,6 +7637,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 19875,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "212797317a92afe88c5215fb42a03204232dcb7b",
+          "message": "feat: New Phone, Who Dis? (#880)\n\nThe server can now tell the client that it does not know about a client.\r\nWhen this happens the client calls `onClientStateNotFound`.\r\n\r\nThe server can return:\r\n\r\n```json\r\n{\"error\": \"ClientStateNotFound\"}\r\n```\r\n\r\nFixes #335",
+          "timestamp": "2022-03-25T15:50:43+01:00",
+          "tree_id": "0218084ca8e5fe753868c1ae9130d2cffe8f37dc",
+          "url": "https://github.com/rocicorp/replicache/commit/212797317a92afe88c5215fb42a03204232dcb7b"
+        },
+        "date": 1648219906617,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 163175,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 29416,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 161878,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 29059,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 70188,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 20022,
             "unit": "bytes"
           }
         ]

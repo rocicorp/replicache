@@ -4,7 +4,8 @@ import {uuid} from '../uuid';
 
 const IDB_DATABASES_VERSION = 0;
 const IDB_DATABASES_DB_NAME = 'replicache-dbs-v' + IDB_DATABASES_VERSION;
-const KEY = 'dbs';
+const DBS_KEY = 'dbs';
+const PROFILE_ID_KEY = 'profileId';
 
 let testNamespace = '';
 /** Namespace db name in test to isolate tests' indexeddb state. */
@@ -68,15 +69,15 @@ export class IDBDatabasesStore {
     return this._kvStore.withWrite(async write => {
       const dbRecord = await this._getDatabases(write);
       dbRecord[db.name] = db;
-      await write.put(KEY, dbRecord);
+      await write.put(DBS_KEY, dbRecord);
       await write.commit();
       return dbRecord;
     });
   }
 
-  clear(): Promise<void> {
+  clearDatabases(): Promise<void> {
     return this._kvStore.withWrite(async write => {
-      await write.del(KEY);
+      await write.del(DBS_KEY);
       await write.commit();
     });
   }
@@ -90,11 +91,24 @@ export class IDBDatabasesStore {
   }
 
   private async _getDatabases(read: kv.Read): Promise<IndexedDBDatabaseRecord> {
-    let dbRecord = await read.get(KEY);
+    let dbRecord = await read.get(DBS_KEY);
     if (!dbRecord) {
       dbRecord = {};
     }
     assertIndexedDBDatabaseRecord(dbRecord);
     return dbRecord;
+  }
+
+  async getProfileID(): Promise<string> {
+    return this._kvStore.withWrite(async write => {
+      let profileId = await write.get(PROFILE_ID_KEY);
+      if (profileId === undefined) {
+        profileId = `p-${uuid()}`;
+        await write.put(PROFILE_ID_KEY, profileId);
+        await write.commit();
+      }
+      assertString(profileId);
+      return profileId;
+    });
   }
 }

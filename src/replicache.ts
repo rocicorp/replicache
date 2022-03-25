@@ -184,6 +184,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private _online = true;
   private readonly _logger: OptionalLogger;
   private readonly _ready: Promise<void>;
+  private readonly _profileIDPromise: Promise<string>;
   private readonly _clientIDPromise: Promise<string>;
   protected readonly _licenseCheckPromise: Promise<boolean>;
 
@@ -378,10 +379,13 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     this.mutate = this._registerMutators(mutators);
 
+    const profileIDResolver = resolver<string>();
+    this._profileIDPromise = profileIDResolver.promise;
     const clientIDResolver = resolver<string>();
     this._clientIDPromise = clientIDResolver.promise;
 
     void this._open(
+      profileIDResolver.resolve,
       clientIDResolver.resolve,
       readyResolver.resolve,
       licenseCheckResolver.resolve,
@@ -396,6 +400,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
 
   private async _open(
+    profileIDResolver: (profileID: string) => void,
     resolveClientID: (clientID: string) => void,
     resolveReady: () => void,
     resolveLicenseCheck: (valid: boolean) => void,
@@ -404,6 +409,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     // If we are currently closing a Replicache instance with the same name,
     // wait for it to finish closing.
     await closingInstances.get(this.name);
+    await this._idbDatabases.getProfileID().then(profileIDResolver);
     await this._idbDatabases.putDatabase(this._idbDatabase);
     const [clientID, client, clients] = await persist.initClient(this._perdag);
     resolveClientID(clientID);
@@ -412,7 +418,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       await write.commit();
     });
 
-    // Now we have both a clientID and DB!
+    // Now we have a profileID, a clientID, and DB!
     resolveReady();
 
     this._root = this._getRoot();
@@ -536,12 +542,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     const markActive = async () => {
       try {
-        // TODO(phritz) add browser profile
         await licenseActive(
           mustSimpleFetch,
           PROD_LICENSE_SERVER_URL,
           this._licenseKey as string,
-          'TODO-BROWSER-PROFILE-ID',
+          await this.profileID,
           lc,
         );
       } catch (err) {
@@ -557,6 +562,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
       LICENSE_ACTIVE_INTERVAL_MS,
       lc,
     );
+  }
+
+  /**
+   * The browser profile ID for this browser profile. Every instance of Replicache
+   * browser-profile-wide shares the same profile ID.
+   */
+  get profileID(): Promise<string> {
+    return this._profileIDPromise;
   }
 
   /**
@@ -908,6 +921,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       const {result: pushResponse} = await this._wrapInReauthRetries(
         async () => {
           await this._ready;
+          const profileID = await this._profileIDPromise;
           const clientID = await this._clientIDPromise;
           const requestID = sync.newRequestID(clientID);
           const lc = this._lc
@@ -919,6 +933,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
               requestID,
               this._memdag,
               lc,
+              profileID,
               clientID,
               this.pusher,
               this.pushURL,
@@ -1005,6 +1020,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     } = await this._wrapInReauthRetries(
       async () => {
         await this._ready;
+        const profileID = await this.profileID;
         const clientID = await this._clientIDPromise;
 
         const requestID = sync.newRequestID(clientID);
@@ -1018,6 +1034,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
           puller: this.puller,
         };
         const beginPullResponse = await sync.beginPull(
+          profileID,
           clientID,
           req,
           req.puller,
@@ -1486,6 +1503,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
               pushRequestID,
               dagForOtherClient,
               pushLC,
+              await this.profileID,
               clientID,
               this.pusher,
               this.pushURL,
@@ -1522,6 +1540,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         const {result: beginPullResponse} = await this._wrapInReauthRetries(
           async () => {
             const beginPullResponse = await sync.beginPull(
+              await this.profileID,
               clientID,
               beginPullRequest,
               beginPullRequest.puller,

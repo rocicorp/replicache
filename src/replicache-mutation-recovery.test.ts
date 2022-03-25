@@ -93,11 +93,13 @@ async function createAndPersistClientWithPendingLocal(
 }
 
 function createPushBody(
+  profileID: string,
   clientID: sync.ClientID,
   localMetas: db.LocalMeta[],
   schemaVersion: string,
 ): ReadonlyJSONObject {
   return {
+    profileID,
     clientID,
     mutations: localMetas.map(localMeta => ({
       id: localMeta.mutationID,
@@ -136,6 +138,7 @@ async function testRecoveringMutationsOfClient(args: {
       pullURL,
     },
   );
+  const profileID = await rep.profileID;
 
   await tickAFewTimes();
 
@@ -169,6 +172,7 @@ async function testRecoveringMutationsOfClient(args: {
   const pushCalls = fetchMock.calls(pushURL);
   expect(pushCalls.length).to.equal(1);
   expect(await pushCalls[0].request.json()).to.deep.equal({
+    profileID,
     clientID: client1ID,
     mutations: [
       {
@@ -191,6 +195,7 @@ async function testRecoveringMutationsOfClient(args: {
   const pullCalls = fetchMock.calls(pullURL);
   expect(pullCalls.length).to.equal(1);
   expect(await pullCalls[0].request.json()).to.deep.equal({
+    profileID,
     clientID: client1ID,
     schemaVersion: schemaVersionOfClientWPendingMutations,
     cookie: 'cookie_1',
@@ -306,6 +311,7 @@ test('successfully recovering mutations of multiple clients with mix of schema v
     pushURL,
     pullURL,
   });
+  const profileID = await rep.profileID;
 
   await tickAFewTimes();
 
@@ -397,6 +403,7 @@ test('successfully recovering mutations of multiple clients with mix of schema v
   expect(pushCalls.length).to.equal(3);
   expect(await pushCalls[0].request.json()).to.deep.equal(
     createPushBody(
+      profileID,
       client1ID,
       client1PendingLocalMetas,
       schemaVersionOfClients1Thru3AndClientRecoveringMutations,
@@ -404,17 +411,24 @@ test('successfully recovering mutations of multiple clients with mix of schema v
   );
   expect(await pushCalls[1].request.json()).to.deep.equal(
     createPushBody(
+      profileID,
       client3ID,
       client3PendingLocalMetas,
       schemaVersionOfClients1Thru3AndClientRecoveringMutations,
     ),
   );
   expect(await pushCalls[2].request.json()).to.deep.equal(
-    createPushBody(client4ID, client4PendingLocalMetas, schemaVersionOfClient4),
+    createPushBody(
+      profileID,
+      client4ID,
+      client4PendingLocalMetas,
+      schemaVersionOfClient4,
+    ),
   );
 
   expect(pullRequestJsonBodies.length).to.equal(3);
   expect(pullRequestJsonBodies[0]).to.deep.equal({
+    profileID,
     clientID: client1ID,
     schemaVersion: schemaVersionOfClients1Thru3AndClientRecoveringMutations,
     cookie: 'cookie_1',
@@ -422,6 +436,7 @@ test('successfully recovering mutations of multiple clients with mix of schema v
     pullVersion: 0,
   });
   expect(pullRequestJsonBodies[1]).to.deep.equal({
+    profileID,
     clientID: client3ID,
     schemaVersion: schemaVersionOfClients1Thru3AndClientRecoveringMutations,
     cookie: 'cookie_1',
@@ -429,6 +444,7 @@ test('successfully recovering mutations of multiple clients with mix of schema v
     pullVersion: 0,
   });
   expect(pullRequestJsonBodies[2]).to.deep.equal({
+    profileID,
     clientID: client4ID,
     schemaVersion: schemaVersionOfClient4,
     cookie: 'cookie_1',
@@ -494,6 +510,7 @@ test('if a push error occurs, continues to try to recover other clients', async 
     pushURL,
     pullURL,
   });
+  const profileID = await rep.profileID;
 
   await tickAFewTimes();
 
@@ -573,17 +590,33 @@ test('if a push error occurs, continues to try to recover other clients', async 
 
   expect(pushRequestJsonBodies.length).to.equal(3);
   expect(await pushRequestJsonBodies[0]).to.deep.equal(
-    createPushBody(client1ID, client1PendingLocalMetas, schemaVersion),
+    createPushBody(
+      profileID,
+      client1ID,
+      client1PendingLocalMetas,
+      schemaVersion,
+    ),
   );
   expect(await pushRequestJsonBodies[1]).to.deep.equal(
-    createPushBody(client2ID, client2PendingLocalMetas, schemaVersion),
+    createPushBody(
+      profileID,
+      client2ID,
+      client2PendingLocalMetas,
+      schemaVersion,
+    ),
   );
   expect(await pushRequestJsonBodies[2]).to.deep.equal(
-    createPushBody(client3ID, client3PendingLocalMetas, schemaVersion),
+    createPushBody(
+      profileID,
+      client3ID,
+      client3PendingLocalMetas,
+      schemaVersion,
+    ),
   );
 
   expect(pullRequestJsonBodies.length).to.equal(2);
   expect(pullRequestJsonBodies[0]).to.deep.equal({
+    profileID,
     clientID: client1ID,
     schemaVersion,
     cookie: 'cookie_1',
@@ -591,6 +624,7 @@ test('if a push error occurs, continues to try to recover other clients', async 
     pullVersion: 0,
   });
   expect(pullRequestJsonBodies[1]).to.deep.equal({
+    profileID,
     clientID: client3ID,
     schemaVersion,
     cookie: 'cookie_1',
@@ -646,6 +680,7 @@ test('if an error occurs recovering one client, continues to try to recover othe
     pushURL,
     pullURL,
   });
+  const profileID = await rep.profileID;
 
   await tickAFewTimes();
 
@@ -718,14 +753,25 @@ test('if an error occurs recovering one client, continues to try to recover othe
   const pushCalls = fetchMock.calls(pushURL);
   expect(pushCalls.length).to.equal(2);
   expect(await pushCalls[0].request.json()).to.deep.equal(
-    createPushBody(client1ID, client1PendingLocalMetas, schemaVersion),
+    createPushBody(
+      profileID,
+      client1ID,
+      client1PendingLocalMetas,
+      schemaVersion,
+    ),
   );
   expect(await pushCalls[1].request.json()).to.deep.equal(
-    createPushBody(client3ID, client3PendingLocalMetas, schemaVersion),
+    createPushBody(
+      profileID,
+      client3ID,
+      client3PendingLocalMetas,
+      schemaVersion,
+    ),
   );
 
   expect(pullRequestJsonBodies.length).to.equal(2);
   expect(pullRequestJsonBodies[0]).to.deep.equal({
+    profileID,
     clientID: client1ID,
     schemaVersion,
     cookie: 'cookie_1',
@@ -733,6 +779,7 @@ test('if an error occurs recovering one client, continues to try to recover othe
     pullVersion: 0,
   });
   expect(pullRequestJsonBodies[1]).to.deep.equal({
+    profileID,
     clientID: client3ID,
     schemaVersion,
     cookie: 'cookie_1',
@@ -786,6 +833,7 @@ test('if an error occurs recovering one db, continues to try to recover clients 
     pushURL,
     pullURL,
   });
+  const profileID = await rep.profileID;
 
   await tickAFewTimes();
 
@@ -857,11 +905,17 @@ test('if an error occurs recovering one db, continues to try to recover clients 
   const pushCalls = fetchMock.calls(pushURL);
   expect(pushCalls.length).to.equal(1);
   expect(await pushCalls[0].request.json()).to.deep.equal(
-    createPushBody(client2ID, client2PendingLocalMetas, schemaVersionOfClient2),
+    createPushBody(
+      profileID,
+      client2ID,
+      client2PendingLocalMetas,
+      schemaVersionOfClient2,
+    ),
   );
 
   expect(pullRequestJsonBodies.length).to.equal(1);
   expect(pullRequestJsonBodies[0]).to.deep.equal({
+    profileID,
     clientID: client2ID,
     schemaVersion: schemaVersionOfClient2,
     cookie: 'cookie_1',
@@ -908,6 +962,7 @@ test('mutation recovery exits early if Replicache is closed', async () => {
     pushURL,
     pullURL,
   });
+  const profileID = await rep.profileID;
 
   await tickAFewTimes();
 
@@ -964,11 +1019,17 @@ test('mutation recovery exits early if Replicache is closed', async () => {
   const pushCalls = fetchMock.calls(pushURL);
   expect(pushCalls.length).to.equal(1);
   expect(await pushCalls[0].request.json()).to.deep.equal(
-    createPushBody(client1ID, client1PendingLocalMetas, schemaVersion),
+    createPushBody(
+      profileID,
+      client1ID,
+      client1PendingLocalMetas,
+      schemaVersion,
+    ),
   );
 
   expect(pullRequestJsonBodies.length).to.equal(1);
   expect(pullRequestJsonBodies[0]).to.deep.equal({
+    profileID,
     clientID: client1ID,
     schemaVersion,
     cookie: 'cookie_1',

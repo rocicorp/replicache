@@ -1,9 +1,8 @@
 import {deepClone, JSONValue, ReadonlyJSONValue} from './json';
 import {throwIfClosed} from './transaction-closed-error';
-import {ScanOptions, toDbScanOptions} from './scan-options';
+import {ScanIndexOptions, ScanOptions, toDbScanOptions} from './scan-options';
 import {asyncIterableToArray} from './async-iterable-to-array';
-import type * as db from './db/mod';
-import type {MaybePromise} from './replicache';
+import * as db from './db/mod';
 import type {Entry} from './btree/node';
 import {decodeIndexKey} from './db/mod';
 
@@ -11,14 +10,6 @@ const VALUE = 0;
 const KEY = 1;
 const ENTRY = 2;
 type ScanIterableKind = typeof VALUE | typeof KEY | typeof ENTRY;
-
-type Args = [
-  options: ScanOptions | undefined,
-  getTransaction: () => Promise<db.Read> | db.Read,
-  shouldCloseTransaction: boolean,
-  shouldClone: boolean,
-  onLimitKey?: (inclusiveLimitKey: string) => void,
-];
 
 /**
  * This class is used for the results of [[ReadTransaction.scan|scan]]. It
@@ -29,11 +20,19 @@ type Args = [
 export class ScanResult<K, V extends ReadonlyJSONValue = JSONValue>
   implements AsyncIterable<V>
 {
-  private readonly _args: Args;
+  private readonly _options: ScanOptions | undefined;
+  private readonly _dbRead: db.Read;
+  private readonly _onLimitKey?: (inclusiveLimitKey: string) => void;
 
   /** @internal */
-  constructor(...args: Args) {
-    this._args = args;
+  constructor(
+    options: ScanOptions | undefined,
+    dbRead: db.Read,
+    onLimitKey?: (inclusiveLimitKey: string) => void,
+  ) {
+    this._options = options;
+    this._dbRead = dbRead;
+    this._onLimitKey = onLimitKey;
   }
 
   /** The default AsyncIterable. This is the same as [[values]]. */
@@ -41,7 +40,7 @@ export class ScanResult<K, V extends ReadonlyJSONValue = JSONValue>
     return this.values();
   }
 
-  /** Async iterator over the valus of the [[ReadTransaction.scan|scan]] call. */
+  /** Async iterator over the values of the [[ReadTransaction.scan|scan]] call. */
   values(): AsyncIterableIteratorToArrayWrapper<V> {
     return new AsyncIterableIteratorToArrayWrapper(this._newIterator(VALUE));
   }
@@ -71,7 +70,7 @@ export class ScanResult<K, V extends ReadonlyJSONValue = JSONValue>
   }
 
   private _newIterator<T>(kind: ScanIterableKind): AsyncIterableIterator<T> {
-    return scanIterator(kind, ...this._args);
+    return scanIterator(kind, this._options, this._dbRead, this._onLimitKey);
   }
 }
 
@@ -119,17 +118,15 @@ export class AsyncIterableIteratorToArrayWrapper<V>
 async function* scanIterator<V>(
   kind: ScanIterableKind,
   options: ScanOptions | undefined,
-  getTransaction: () => MaybePromise<db.Read>,
-  shouldCloseTransaction: boolean,
-  shouldClone: boolean,
+  dbRead: db.Read,
   onLimitKey?: (inclusiveLimitKey: string) => void,
 ): AsyncIterableIterator<V> {
-  const dbRead = await getTransaction();
   throwIfClosed(dbRead);
 
-  type MaybeIndexName = {indexName?: string};
+  type MaybeIndexName = Partial<ScanIndexOptions>;
   const isIndexScan = (options as MaybeIndexName)?.indexName !== undefined;
 
+  const shouldClone = dbRead instanceof db.Write;
   const toValue = shouldClone ? deepClone : <T>(x: T): T => x;
 
   let convertEntry: (entry: Entry<ReadonlyJSONValue>) => V;
@@ -149,11 +146,5 @@ async function* scanIterator<V>(
       break;
   }
 
-  try {
-    yield* dbRead.scan(toDbScanOptions(options), convertEntry, onLimitKey);
-  } finally {
-    if (shouldCloseTransaction && !dbRead.closed) {
-      dbRead.close();
-    }
-  }
+  yield* dbRead.scan(toDbScanOptions(options), convertEntry, onLimitKey);
 }

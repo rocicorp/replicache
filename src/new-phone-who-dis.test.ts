@@ -4,6 +4,7 @@ import type {Puller} from './puller.js';
 import type {Pusher} from './pusher.js';
 import type {Poke} from './replicache.js';
 import {
+  expectLogContext,
   initReplicacheTesting,
   replicacheForTesting,
   tickAFewTimes,
@@ -36,19 +37,30 @@ test('pull returning ClientStateNotFoundResponse should call onClientStateNotFou
   // One pull from open
 
   expect(onClientStateNotFound.callCount).to.equal(1);
-  expect(consoleErrorStub.callCount).to.equal(1);
-  expect(consoleErrorStub.lastCall.args).to.deep.equal([
-    `Client state not found, clientID: ${await rep.clientID}`,
+  expect(onClientStateNotFound.lastCall.args).to.deep.equal([
+    {type: 'ClientStateNotFoundOnServer'},
   ]);
+
+  expectLogContext(
+    consoleErrorStub,
+    0,
+    rep,
+    `Client state not found, clientID: ${await rep.clientID}`,
+  );
 
   rep.pull();
   await tickAFewTimes();
 
   expect(onClientStateNotFound.callCount).to.equal(2);
-  expect(consoleErrorStub.callCount).to.equal(2);
-  expect(consoleErrorStub.lastCall.args).to.deep.equal([
-    `Client state not found, clientID: ${await rep.clientID}`,
+  expect(onClientStateNotFound.lastCall.args).to.deep.equal([
+    {type: 'ClientStateNotFoundOnServer'},
   ]);
+  expectLogContext(
+    consoleErrorStub,
+    1,
+    rep,
+    `Client state not found, clientID: ${await rep.clientID}`,
+  );
 });
 
 test('poke with ClientStateNotFoundResponse should call onClientStateNotFound', async () => {
@@ -73,8 +85,14 @@ test('poke with ClientStateNotFoundResponse should call onClientStateNotFound', 
   await rep.poke(pokeBody);
 
   expect(onClientStateNotFound.callCount).to.equal(1);
-  expect(consoleErrorStub.callCount).to.equal(1);
-  expect(consoleErrorStub.lastCall.args).to.deep.equal([
-    `Client state not found, clientID: ${await rep.clientID}`,
+  expect(onClientStateNotFound.lastCall.args).to.deep.equal([
+    {type: 'ClientStateNotFoundOnServer'},
   ]);
+  expect(consoleErrorStub.callCount).to.equal(1);
+  expectLogContext(
+    consoleErrorStub,
+    0,
+    rep,
+    `Client state not found, clientID: ${await rep.clientID}`,
+  );
 });

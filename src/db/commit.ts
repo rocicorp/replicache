@@ -10,6 +10,7 @@ import {
 } from '../asserts';
 import type {Value} from '../kv/store';
 import {assertHash, Hash} from '../hash';
+import {skipCommitDataAsserts} from '../config.js';
 
 export const DEFAULT_HEAD_NAME = 'main';
 
@@ -204,7 +205,9 @@ export type SnapshotMeta = BasisHash & {
   readonly cookieJSON: ReadonlyJSONValue;
 };
 
-function assertSnapshot(v: Record<string, unknown>): asserts v is SnapshotMeta {
+function assertSnapshotMeta(
+  v: Record<string, unknown>,
+): asserts v is SnapshotMeta {
   // type already asserted
   assertNumber(v.lastMutationID);
   assertJSONValue(v.cookieJSON);
@@ -227,7 +230,7 @@ function assertMeta(v: unknown): asserts v is Meta {
       assertLocalMeta(v);
       break;
     case MetaTyped.Snapshot:
-      assertSnapshot(v);
+      assertSnapshotMeta(v);
       break;
     default:
       throw new Error(`Invalid enum value ${v.type}`);
@@ -376,6 +379,10 @@ export type CommitData<M extends Meta> = {
 };
 
 export function assertCommitData(v: unknown): asserts v is CommitData<Meta> {
+  if (skipCommitDataAsserts) {
+    return;
+  }
+
   assertObject(v);
   assertMeta(v.meta);
   assertString(v.valueHash);

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1648173122445,
+  "lastUpdate": 1648185210248,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -7421,6 +7421,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 19757,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "phritz@users.noreply.github.com",
+            "name": "phritz",
+            "username": "phritz"
+          },
+          "committer": {
+            "email": "157153+phritz@users.noreply.github.com",
+            "name": "Phritz",
+            "username": "phritz"
+          },
+          "distinct": true,
+          "id": "f887494bae563bf29f9f20c58c7f4ffc8f6eeae0",
+          "message": "include profileID in push and pull requests",
+          "timestamp": "2022-03-24T19:12:33-10:00",
+          "tree_id": "9c3a13a391ee0de6010951805283b784bd4d0446",
+          "url": "https://github.com/rocicorp/replicache/commit/f887494bae563bf29f9f20c58c7f4ffc8f6eeae0"
+        },
+        "date": 1648185208216,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 161733,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 29177,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 160436,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 28834,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 69675,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 19855,
             "unit": "bytes"
           }
         ]

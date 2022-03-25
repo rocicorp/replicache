@@ -52,6 +52,7 @@ test('begin try pull', async () => {
   const baseValueMap = new Map([['foo', '"bar"']]);
 
   const requestID = 'requestID';
+  const profileID = 'test_profile_id';
   const clientID = 'test_client_id';
   const pullAuth = 'pull_auth';
   const pullURL = 'pull_url';
@@ -98,6 +99,7 @@ test('begin try pull', async () => {
   };
 
   const expPullReq: PullRequest = {
+    profileID,
     clientID,
     cookie: baseCookie,
     lastMutationID: baseLastMutationID,
@@ -448,6 +450,7 @@ test('begin try pull', async () => {
     let result: BeginPullResponse | string;
     try {
       result = await beginPull(
+        profileID,
         clientID,
         beginPullReq,
         fakePuller,
@@ -786,6 +789,7 @@ test('changed keys', async () => {
     );
 
     const requestID = 'request_id';
+    const profileID = 'test_profile_id';
     const clientID = 'test_client_id';
     const pullAuth = 'pull_auth';
     const pullURL = 'pull_url';
@@ -794,6 +798,7 @@ test('changed keys', async () => {
     const newCookie = 'new_cookie';
 
     const expPullReq: PullRequest = {
+      profileID,
       clientID,
       cookie: baseCookie,
       lastMutationID: baseLastMutationID,
@@ -827,6 +832,7 @@ test('changed keys', async () => {
     };
 
     const pullResult = await beginPull(
+      profileID,
       clientID,
       beginPullReq,
       fakePuller,

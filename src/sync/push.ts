@@ -14,6 +14,7 @@ export const PUSH_VERSION = 0;
  * endpoint](/server-push).
  */
 export type PushRequest = {
+  profileID: string;
   clientID: string;
   mutations: Mutation[];
   pushVersion: number;
@@ -46,6 +47,7 @@ export async function push(
   requestID: string,
   store: dag.Store,
   lc: LogContext,
+  profileID: string,
   clientID: string,
   pusher: Pusher,
   pushURL: string,
@@ -77,6 +79,7 @@ export async function push(
       }
     }
     const pushReq = {
+      profileID,
       clientID,
       mutations: pushMutations,
       pushVersion: PUSH_VERSION,

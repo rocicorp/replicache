@@ -921,6 +921,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       const {result: pushResponse} = await this._wrapInReauthRetries(
         async () => {
           await this._ready;
+          const profileID = await this._profileIDPromise;
           const clientID = await this._clientIDPromise;
           const requestID = sync.newRequestID(clientID);
           const lc = this._lc
@@ -932,6 +933,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
               requestID,
               this._memdag,
               lc,
+              profileID,
               clientID,
               this.pusher,
               this.pushURL,
@@ -1018,6 +1020,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     } = await this._wrapInReauthRetries(
       async () => {
         await this._ready;
+        const profileID = await this.profileID;
         const clientID = await this._clientIDPromise;
 
         const requestID = sync.newRequestID(clientID);
@@ -1031,6 +1034,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
           puller: this.puller,
         };
         const beginPullResponse = await sync.beginPull(
+          profileID,
           clientID,
           req,
           req.puller,
@@ -1499,6 +1503,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
               pushRequestID,
               dagForOtherClient,
               pushLC,
+              await this.profileID,
               clientID,
               this.pusher,
               this.pushURL,
@@ -1535,6 +1540,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         const {result: beginPullResponse} = await this._wrapInReauthRetries(
           async () => {
             const beginPullResponse = await sync.beginPull(
+              await this.profileID,
               clientID,
               beginPullRequest,
               beginPullRequest.puller,

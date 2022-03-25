@@ -110,13 +110,7 @@ export class ReadTransactionImpl<
     onLimitKey?: (inclusiveLimitKey: string) => void,
   ): ScanResult<Key, Value> {
     const dbRead = this._dbtx;
-    return new ScanResult(
-      options,
-      () => dbRead,
-      false, // shouldCloseTransaction
-      dbRead instanceof db.Write, // shouldClone,
-      onLimitKey,
-    );
+    return new ScanResult(options, dbRead, onLimitKey);
   }
 }
 

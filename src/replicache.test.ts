@@ -1947,7 +1947,7 @@ test('licensing key is valid if check returns valid', async () => {
 
 test('licensing key is not valid if check returns invalid', async () => {
   await licenseKeyCheckTest({
-    licenseKey: 'invalid-license-key',
+    licenseKey: 'testing-invalid-license-key',
     mockFetchParams: {
       body: {
         status: LicenseStatus.Invalid,
@@ -1962,7 +1962,7 @@ test('licensing key is valid if check throws', async () => {
   await licenseKeyCheckTest({
     licenseKey: 'throwing-license-key',
     mockFetchParams: {
-      throw: new Error('kaboom'),
+      throws: new Error('kaboom (this is a fake error in a test)'),
     },
     expectValid: true,
     expectFetchCalled: true,

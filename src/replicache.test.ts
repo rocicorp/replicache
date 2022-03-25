@@ -57,12 +57,17 @@ async function expectAsyncFuncToThrow(f: () => unknown, c: unknown) {
 
 test('name is required', () => {
   expect(
-    () => new Replicache({} as ReplicacheOptions<Record<string, never>>),
+    () =>
+      new Replicache({
+        experimentalLicenseKey: TEST_LICENSE_KEY,
+      } as ReplicacheOptions<Record<string, never>>),
   ).to.throw(/name.*required/);
 });
 
 test('name cannot be empty', () => {
-  expect(() => new Replicache({name: ''})).to.throw(/name.*must be non-empty/);
+  expect(
+    () => new Replicache({experimentalLicenseKey: TEST_LICENSE_KEY, name: ''}),
+  ).to.throw(/name.*must be non-empty/);
 });
 
 test('get, has, scan on empty db', async () => {
@@ -1334,7 +1339,7 @@ test('logLevel', async () => {
 
   rep = await replicacheForTesting('log-level', {logLevel: 'info'});
   await rep.query(() => 42);
-  expect(info.callCount).to.equal(0);
+  expect(info.callCount).to.equal(2 /* licensing log lines */);
   expect(debug.callCount).to.equal(0);
   await rep.close();
 
@@ -1343,18 +1348,23 @@ test('logLevel', async () => {
   await tickAFewTimes(10, 100);
 
   rep = await replicacheForTesting('log-level', {logLevel: 'debug'});
+
   await rep.query(() => 42);
-  expect(info.callCount).to.equal(0);
+  expect(info.callCount).to.equal(2 /* licensing log lines */);
   expect(debug.callCount).to.be.greaterThan(0);
 
   expect(
     debug.getCalls().some(call => call.firstArg.startsWith(`db=${rep.name}`)),
   ).to.equal(true);
   expect(
-    debug.getCalls().some(call => call.firstArg.endsWith('PULL')),
+    debug
+      .getCalls()
+      .some(call => call.args.length > 0 && call.args[1].endsWith('PULL')),
   ).to.equal(true);
   expect(
-    debug.getCalls().some(call => call.firstArg.endsWith('PUSH')),
+    debug
+      .getCalls()
+      .some(call => call.args.length > 0 && call.args[1].endsWith('PUSH')),
   ).to.equal(true);
 
   await rep.close();
@@ -1682,10 +1692,36 @@ test('clientID', async () => {
   // With SDD we never reuse client IDs.
   expect(clientID3).to.not.equal(clientID);
 
-  const rep4 = new Replicache({name: 'clientID4', pullInterval: null});
+  const rep4 = new Replicache({
+    experimentalLicenseKey: TEST_LICENSE_KEY,
+    name: 'clientID4',
+    pullInterval: null,
+  });
   const clientID4 = await rep4.clientID;
   expect(clientID4).to.match(re);
   await rep4.close();
+});
+
+test('profileID', async () => {
+  const re = /^p-.+/; // More specific re tested in IdbDatabase.test.ts.
+
+  const rep = await replicacheForTesting('clientID');
+  const profileID = await rep.profileID;
+  expect(profileID).to.not.equal(await rep.clientID);
+  expect(profileID).to.match(re);
+  await rep.close();
+
+  const rep2 = await replicacheForTesting('clientID2');
+  const profileID2 = await rep2.profileID;
+  expect(profileID2).to.equal(profileID);
+
+  const rep3 = new Replicache({
+    experimentalLicenseKey: TEST_LICENSE_KEY,
+    name: 'clientID3',
+  });
+  const profileID3 = await rep3.profileID;
+  expect(profileID3).to.equal(profileID);
+  await rep3.close();
 });
 
 test('pull and index update', async () => {
@@ -1887,12 +1923,16 @@ async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
   if (tc.expectFetchCalled) {
     fetchMock.postOnce(statusUrlMatcher, tc.mockFetchParams);
   }
-  const rep = new Replicache({
-    name,
+  const rep = await replicacheForTesting(name, {
     experimentalLicenseKey: tc.licenseKey,
   });
-  expect(await rep.licenseValid).to.equal(tc.expectValid);
+
+  expect(await rep.licenseValid()).to.equal(tc.expectValid);
+  if (!tc.expectValid) {
+    expect(rep.closed).to.be.true;
+  }
   expect(fetchMock.called(statusUrlMatcher)).to.equal(tc.expectFetchCalled);
+
   await rep.close();
 }
 
@@ -1929,7 +1969,7 @@ test('licensing key is valid if check returns valid', async () => {
 
 test('licensing key is not valid if check returns invalid', async () => {
   await licenseKeyCheckTest({
-    licenseKey: 'invalid-license-key',
+    licenseKey: 'testing-invalid-license-key',
     mockFetchParams: {
       body: {
         status: LicenseStatus.Invalid,
@@ -1944,7 +1984,7 @@ test('licensing key is valid if check throws', async () => {
   await licenseKeyCheckTest({
     licenseKey: 'throwing-license-key',
     mockFetchParams: {
-      throw: new Error('kaboom'),
+      throws: new Error('kaboom (this is a fake error in a test)'),
     },
     expectValid: true,
     expectFetchCalled: true,
@@ -1971,7 +2011,7 @@ type LicenseActiveTestCase = {
 
 async function licenseActiveTest(tc: LicenseActiveTestCase) {
   fetchMock.reset();
-  fetchMock.post(statusUrlMatcher, 200);
+  fetchMock.post(statusUrlMatcher, '{"status": "VALID"}');
   if (tc.expectFetchCalled) {
     fetchMock.postOnce(activeUrlMatcher, tc.mockFetchParams);
   }
@@ -1981,6 +2021,12 @@ async function licenseActiveTest(tc: LicenseActiveTestCase) {
   const licenseActive = await rep.licenseActive();
   expect(licenseActive).to.equal(tc.expectActive);
   expect(fetchMock.called(activeUrlMatcher)).to.equal(tc.expectFetchCalled);
+  if (tc.expectFetchCalled && fetchMock.called(activeUrlMatcher)) {
+    const got = JSON.parse(fetchMock.lastCall(activeUrlMatcher)[1].body);
+    const {key, browserProfile} = got;
+    expect(key).to.equal(tc.licenseKey);
+    expect(browserProfile).to.equal(await rep.profileID);
+  }
   // TODO(phritz) Should we test that it gets called repeatedly?
   await rep.close();
 }
@@ -2007,7 +2053,8 @@ test('a non-empty, non-test licensing key is active and does send active pings',
   await licenseActiveTest({
     licenseKey: 'some-valid-key',
     mockFetchParams: {
-      body: {},
+      status: 200,
+      body: '{}',
     },
     expectActive: true,
     expectFetchCalled: true,
@@ -2018,13 +2065,25 @@ test('overlapping open/close', async () => {
   const pullInterval = 60_000;
   const name = 'overlapping-open-close';
 
-  const rep = new Replicache({name, pullInterval});
+  const rep = new Replicache({
+    experimentalLicenseKey: TEST_LICENSE_KEY,
+    name,
+    pullInterval,
+  });
   const p = rep.close();
 
-  const rep2 = new Replicache({name, pullInterval});
+  const rep2 = new Replicache({
+    experimentalLicenseKey: TEST_LICENSE_KEY,
+    name,
+    pullInterval,
+  });
   const p2 = rep2.close();
 
-  const rep3 = new Replicache({name, pullInterval});
+  const rep3 = new Replicache({
+    experimentalLicenseKey: TEST_LICENSE_KEY,
+    name,
+    pullInterval,
+  });
   const p3 = rep3.close();
 
   await p;
@@ -2032,10 +2091,18 @@ test('overlapping open/close', async () => {
   await p3;
 
   {
-    const rep = new Replicache({name, pullInterval});
+    const rep = new Replicache({
+      experimentalLicenseKey: TEST_LICENSE_KEY,
+      name,
+      pullInterval,
+    });
     await rep.clientID;
     const p = rep.close();
-    const rep2 = new Replicache({name, pullInterval});
+    const rep2 = new Replicache({
+      experimentalLicenseKey: TEST_LICENSE_KEY,
+      name,
+      pullInterval,
+    });
     await rep2.clientID;
     const p2 = rep2.close();
     await p;

@@ -80,7 +80,7 @@ test('clear', async () => {
     testName1: testDB1,
   });
 
-  await store.clear();
+  await store.clearDatabases();
 
   expect(await store.getDatabases()).to.deep.equal({});
 
@@ -97,4 +97,13 @@ test('clear', async () => {
   expect(await store.getDatabases()).to.deep.equal({
     testName2: testDB2,
   });
+});
+
+test('getProfileID', async () => {
+  const store = new IDBDatabasesStore(_ => new TestMemStore());
+  const profileID = await store.getProfileID();
+  expect(profileID).to.be.a('string');
+  expect(profileID).to.match(/^p-[a-zA-Z0-9-]+$/);
+  const profileID2 = await store.getProfileID();
+  expect(profileID2).to.equal(profileID);
 });

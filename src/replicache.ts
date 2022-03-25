@@ -48,7 +48,7 @@ import {
   TEST_LICENSE_KEY,
   LicenseStatus,
 } from '@rocicorp/licensing/src/client';
-import {browserSimpleFetch} from './simple-fetch';
+import {mustSimpleFetch} from './simple-fetch';
 import {initBgIntervalProcess} from './persist/bg-interval';
 
 export type BeginPullResult = {
@@ -184,8 +184,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private _online = true;
   private readonly _logger: OptionalLogger;
   private readonly _ready: Promise<void>;
+  private readonly _profileIDPromise: Promise<string>;
   private readonly _clientIDPromise: Promise<string>;
-  private readonly _licenseCheckPromise: Promise<boolean>;
+  protected readonly _licenseCheckPromise: Promise<boolean>;
 
   /* The license is active if we have sent at least one license active ping
    * (and we will continue to). We do not send license active pings when
@@ -378,10 +379,13 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     this.mutate = this._registerMutators(mutators);
 
+    const profileIDResolver = resolver<string>();
+    this._profileIDPromise = profileIDResolver.promise;
     const clientIDResolver = resolver<string>();
     this._clientIDPromise = clientIDResolver.promise;
 
     void this._open(
+      profileIDResolver.resolve,
       clientIDResolver.resolve,
       readyResolver.resolve,
       licenseCheckResolver.resolve,
@@ -396,6 +400,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
 
   private async _open(
+    profileIDResolver: (profileID: string) => void,
     resolveClientID: (clientID: string) => void,
     resolveReady: () => void,
     resolveLicenseCheck: (valid: boolean) => void,
@@ -404,6 +409,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     // If we are currently closing a Replicache instance with the same name,
     // wait for it to finish closing.
     await closingInstances.get(this.name);
+    await this._idbDatabases.getProfileID().then(profileIDResolver);
     await this._idbDatabases.putDatabase(this._idbDatabase);
     const [clientID, client, clients] = await persist.initClient(this._perdag);
     resolveClientID(clientID);
@@ -412,7 +418,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       await write.commit();
     });
 
-    // Now we have both a clientID and DB!
+    // Now we have a profileID, a clientID, and DB!
     resolveReady();
 
     this._root = this._getRoot();
@@ -493,25 +499,30 @@ export class Replicache<MD extends MutatorDefs = {}> {
           // TODO(phritz) maybe use a more specific URL
           `See https://replicache.dev for more information.`,
       );
+      // TODO(phritz) test key should time out after 5m
       resolveLicenseCheck(true);
       return;
     }
     try {
       const status = await getLicenseStatus(
-        browserSimpleFetch,
+        mustSimpleFetch,
         PROD_LICENSE_SERVER_URL,
         this._licenseKey,
+        this._lc,
       );
       if (status === LicenseStatus.Valid) {
         this._logger.info?.(`License is valid.`);
       } else {
-        this._logger.error?.(`License is not valid; status: ${status}`);
-        // TODO(phritz) kill switch
+        this._logger.error?.(
+          `** REPLICACHE DISABLED ** Replicache license key '${this._licenseKey}' is not valid (status: ${status}). ` +
+            `Please run 'npx get-license' to get a license key or contact licensing@replicache.dev for help.`,
+        );
+        await this.close();
         resolveLicenseCheck(false);
         return;
       }
     } catch (err) {
-      this._logger.info?.(`Error checking license: ${err}`);
+      this._logger.error?.(`Error checking license: ${err}`);
       // Note: on error we fall through to assuming the license is valid.
     }
     resolveLicenseCheck(true);
@@ -531,12 +542,12 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     const markActive = async () => {
       try {
-        // TODO(phritz) add browser profile
         await licenseActive(
-          browserSimpleFetch,
+          mustSimpleFetch,
           PROD_LICENSE_SERVER_URL,
           this._licenseKey as string,
-          'TODO-BROWSER-PROFILE-ID',
+          await this.profileID,
+          lc,
         );
       } catch (err) {
         this._logger.info?.(`Error sending license active ping: ${err}`);
@@ -551,6 +562,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
       LICENSE_ACTIVE_INTERVAL_MS,
       lc,
     );
+  }
+
+  /**
+   * The browser profile ID for this browser profile. Every instance of Replicache
+   * browser-profile-wide shares the same profile ID.
+   */
+  get profileID(): Promise<string> {
+    return this._profileIDPromise;
   }
 
   /**
@@ -628,15 +647,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
     await Promise.all(closingPromises);
     closingInstances.delete(this.name);
     resolve();
-  }
-
-  /**
-   * Indicates whether the license passed to Replicache is valid. The
-   * TEST_LICENSE_KEY is always valid, but may only be used for automated
-   * testing.
-   */
-  get licenseValid(): Promise<boolean> {
-    return this._licenseCheckPromise;
   }
 
   private async _getRoot(): Promise<Hash | undefined> {
@@ -911,6 +921,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       const {result: pushResponse} = await this._wrapInReauthRetries(
         async () => {
           await this._ready;
+          const profileID = await this._profileIDPromise;
           const clientID = await this._clientIDPromise;
           const requestID = sync.newRequestID(clientID);
           const lc = this._lc
@@ -922,6 +933,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
               requestID,
               this._memdag,
               lc,
+              profileID,
               clientID,
               this.pusher,
               this.pushURL,
@@ -1008,6 +1020,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     } = await this._wrapInReauthRetries(
       async () => {
         await this._ready;
+        const profileID = await this.profileID;
         const clientID = await this._clientIDPromise;
 
         const requestID = sync.newRequestID(clientID);
@@ -1021,6 +1034,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
           puller: this.puller,
         };
         const beginPullResponse = await sync.beginPull(
+          profileID,
           clientID,
           req,
           req.puller,
@@ -1489,6 +1503,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
               pushRequestID,
               dagForOtherClient,
               pushLC,
+              await this.profileID,
               clientID,
               this.pusher,
               this.pushURL,
@@ -1525,6 +1540,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
         const {result: beginPullResponse} = await this._wrapInReauthRetries(
           async () => {
             const beginPullResponse = await sync.beginPull(
+              await this.profileID,
               clientID,
               beginPullRequest,
               beginPullRequest.puller,

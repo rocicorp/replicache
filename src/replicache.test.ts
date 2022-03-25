@@ -1989,7 +1989,7 @@ type LicenseActiveTestCase = {
 
 async function licenseActiveTest(tc: LicenseActiveTestCase) {
   fetchMock.reset();
-  fetchMock.post(statusUrlMatcher, 200);
+  fetchMock.post(statusUrlMatcher, '{"status": "VALID"}');
   if (tc.expectFetchCalled) {
     fetchMock.postOnce(activeUrlMatcher, tc.mockFetchParams);
   }
@@ -2025,7 +2025,8 @@ test('a non-empty, non-test licensing key is active and does send active pings',
   await licenseActiveTest({
     licenseKey: 'some-valid-key',
     mockFetchParams: {
-      body: {},
+      status: 200,
+      body: '{}',
     },
     expectActive: true,
     expectFetchCalled: true,

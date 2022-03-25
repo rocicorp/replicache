@@ -16,3 +16,17 @@ export async function browserSimpleFetch(
   };
   return fetch(url, requestInit);
 }
+
+// mustSimpleFetch throws on non-200 responses.
+export async function mustSimpleFetch(
+  method: string,
+  url: string,
+  body: string | null,
+  headers: string[][],
+): Promise<FetchResponse> {
+  const resp = await browserSimpleFetch(method, url, body, headers);
+  if (resp.status !== 200) {
+    throw new Error(`Got ${resp.status} fetching ${url}: ${await resp.text()}`);
+  }
+  return resp;
+}

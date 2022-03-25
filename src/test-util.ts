@@ -1,3 +1,4 @@
+import {expect} from '@esm-bundle/chai';
 import {MutatorDefs, Replicache, BeginPullResult} from './replicache';
 import type {ReplicacheOptions} from './replicache-options';
 import * as kv from './kv/mod';
@@ -95,14 +96,14 @@ export async function deleteAllDatabases(): Promise<void> {
   dbsToDrop.clear();
 }
 
-const partialNamesToRepliacheNames: Map<string, string> = new Map();
-/** Namespace replicache names to isolate tests' indexeddb state. */
+const partialNamesToReplicacheNames: Map<string, string> = new Map();
+/** Namespace replicache names to isolate tests' IndexedDB state. */
 export function createReplicacheNameForTest(partialName: string): string {
-  let replicacheName = partialNamesToRepliacheNames.get(partialName);
+  let replicacheName = partialNamesToReplicacheNames.get(partialName);
   if (!replicacheName) {
     const namespaceForTest = uuid();
     replicacheName = `${namespaceForTest}:${partialName}`;
-    partialNamesToRepliacheNames.set(partialName, replicacheName);
+    partialNamesToReplicacheNames.set(partialName, replicacheName);
   }
   return replicacheName;
 }
@@ -110,7 +111,9 @@ export function createReplicacheNameForTest(partialName: string): string {
 // eslint-disable-next-line @typescript-eslint/ban-types
 export async function replicacheForTesting<MD extends MutatorDefs = {}>(
   partialName: string,
-  options: Omit<ReplicacheOptions<MD>, 'name'> = {},
+  options: Omit<ReplicacheOptions<MD>, 'name'> & {
+    onClientStateNotFound?: (() => void) | null;
+  } = {},
 ): Promise<ReplicacheTest<MD>> {
   const pullURL = 'https://pull.com/?name=' + partialName;
   const pushURL = 'https://push.com/?name=' + partialName;
@@ -133,8 +136,15 @@ export async function replicacheForTestingNoDefaultURLs<
     pullURL,
     pushDelay = 60_000, // Large to prevent interfering
     pushURL,
+    onClientStateNotFound = () => {
+      throw new Error(
+        'Unexpected call to onClientStateNotFound. Did you forget to pass it as an option?',
+      );
+    },
     ...rest
-  }: Omit<ReplicacheOptions<MD>, 'name'> = {},
+  }: Omit<ReplicacheOptions<MD>, 'name'> & {
+    onClientStateNotFound?: (() => void) | null;
+  } = {},
 ): Promise<ReplicacheTest<MD>> {
   const rep = new ReplicacheTest<MD>({
     experimentalLicenseKey: TEST_LICENSE_KEY,
@@ -146,6 +156,9 @@ export async function replicacheForTestingNoDefaultURLs<
   });
   dbsToDrop.add(rep.idbName);
   reps.add(rep);
+
+  rep.onClientStateNotFound = onClientStateNotFound;
+
   // Wait for open to be done.
   await rep.clientID;
   fetchMock.post(pullURL, {lastMutationID: 0, patch: []});
@@ -168,7 +181,7 @@ export function initReplicacheTesting(): void {
     clock.restore();
     fetchMock.restore();
     sinon.restore();
-    partialNamesToRepliacheNames.clear();
+    partialNamesToReplicacheNames.clear();
     await closeAllReps();
     await deleteAllDatabases();
     await persist.teardownIDBDatabasesStoreForTest();
@@ -236,4 +249,17 @@ export async function addData(
   for (const [key, value] of Object.entries(data)) {
     await tx.put(key, value);
   }
+}
+
+export function expectLogContext(
+  consoleLogStub: sinon.SinonStub,
+  index: number,
+  rep: Replicache,
+  expectedContext: string,
+) {
+  expect(consoleLogStub.callCount).to.greaterThan(index);
+  const {args} = consoleLogStub.getCall(index);
+  expect(args).to.have.length(2);
+  expect(args[0]).to.equal(`name=${rep.name}`);
+  expect(args[1]).to.equal(expectedContext);
 }

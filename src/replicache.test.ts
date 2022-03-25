@@ -2,6 +2,7 @@ import {httpStatusUnauthorized} from './replicache';
 import {
   addData,
   clock,
+  expectLogContext,
   initReplicacheTesting,
   MemStoreWithCounters,
   replicacheForTesting,
@@ -1613,7 +1614,7 @@ test('push and pull concurrently', async () => {
   const invokePushSpy = sinon.spy(rep, 'invokePush');
   const putSpy = sinon.spy(WriteTransactionImpl.prototype, 'put');
 
-  function resetSpys() {
+  function resetSpies() {
     beginPullSpy.resetHistory();
     commitSpy.resetHistory();
     invokePushSpy.resetHistory();
@@ -1627,25 +1628,25 @@ test('push and pull concurrently', async () => {
       invokePush: invokePushSpy.callCount,
       put: putSpy.callCount,
     };
-    resetSpys();
+    resetSpies();
     return rv;
   };
 
   const add = rep.mutate.addData;
 
-  const reqs: string[] = [];
+  const requests: string[] = [];
 
   fetchMock.post(pushURL, async () => {
-    reqs.push(pushURL);
+    requests.push(pushURL);
     return {};
   });
   fetchMock.post(pullURL, () => {
-    reqs.push(pullURL);
+    requests.push(pullURL);
     return {lastMutationID: 0, patch: []};
   });
 
   await add({a: 0});
-  resetSpys();
+  resetSpies();
 
   await add({b: 1});
   rep.pull();
@@ -1662,11 +1663,11 @@ test('push and pull concurrently', async () => {
 
   await tickAFewTimes();
 
-  expect(reqs).to.deep.equal([pullURL, pushURL]);
+  expect(requests).to.deep.equal([pullURL, pushURL]);
 
   await tickAFewTimes();
 
-  expect(reqs).to.deep.equal([pullURL, pushURL]);
+  expect(requests).to.deep.equal([pullURL, pushURL]);
 
   expect(callCounts()).to.deep.equal({
     beginPull: 0,
@@ -2350,11 +2351,10 @@ suite('check for client not found in visibilitychange', () => {
 
       expect(onClientStateNotFound.called).to.equal(called);
       if (called) {
-        expect(consoleErrorStub.callCount).to.equal(1);
-        const {args} = consoleErrorStub.lastCall;
-        expect(args).to.have.length(2);
-        expect(args[0]).to.match(/^name=/);
-        expect(args[1]).to.equal(
+        expectLogContext(
+          consoleErrorStub,
+          0,
+          rep,
           `Client state not found, clientID: ${clientID}`,
         );
       }

@@ -1,5 +1,6 @@
 import {
   addData,
+  expectLogContext,
   initReplicacheTesting,
   replicacheForTesting,
   tickAFewTimes,
@@ -17,7 +18,6 @@ import * as persist from './persist/mod';
 import {assertNotTempHash} from './hash';
 import {assertNotUndefined} from './asserts';
 import {deleteClientForTesting} from './persist/clients-test-helpers.js';
-import type {ClientID} from './sync/client-id.js';
 
 initReplicacheTesting();
 
@@ -104,18 +104,6 @@ test('basic persist & load', async () => {
 });
 
 suite('onClientStateNotFound', () => {
-  function checkConsoleErrorStub(
-    name: string,
-    consoleErrorStub: sinon.SinonStub,
-    clientID: ClientID,
-  ) {
-    expect(consoleErrorStub.callCount).to.equal(1);
-    const {args} = consoleErrorStub.lastCall;
-    expect(args).to.have.length(2);
-    expect(args[0]).to.equal(`name=${name}`);
-    expect(args[1]).to.equal(`Client state not found, clientID: ${clientID}`);
-  }
-
   test('Called in persist if collected', async () => {
     const consoleErrorStub = sinon.stub(console, 'error');
 
@@ -134,7 +122,15 @@ suite('onClientStateNotFound', () => {
     await rep.persist();
 
     expect(onClientStateNotFound.callCount).to.equal(1);
-    checkConsoleErrorStub(rep.name, consoleErrorStub, clientID);
+    expect(onClientStateNotFound.lastCall.args).to.deep.equal([
+      {type: 'NotFoundOnClient'},
+    ]);
+    expectLogContext(
+      consoleErrorStub,
+      0,
+      rep,
+      `Client state not found, clientID: ${clientID}`,
+    );
   });
 
   test('Called in query if collected', async () => {
@@ -169,7 +165,15 @@ suite('onClientStateNotFound', () => {
       e = err;
     }
     expect(e).to.be.instanceOf(persist.ClientStateNotFoundError);
-    checkConsoleErrorStub(rep2.name, consoleErrorStub, clientID2);
+    expectLogContext(
+      consoleErrorStub,
+      0,
+      rep2,
+      `Client state not found, clientID: ${clientID2}`,
+    );
+    expect(onClientStateNotFound.lastCall.args).to.deep.equal([
+      {type: 'NotFoundOnClient'},
+    ]);
   });
 
   test('Called in mutate if collected', async () => {
@@ -213,6 +217,14 @@ suite('onClientStateNotFound', () => {
     }
 
     expect(e).to.be.instanceOf(persist.ClientStateNotFoundError);
-    checkConsoleErrorStub(rep2.name, consoleErrorStub, clientID2);
+    expectLogContext(
+      consoleErrorStub,
+      0,
+      rep2,
+      `Client state not found, clientID: ${clientID2}`,
+    );
+    expect(onClientStateNotFound.lastCall.args).to.deep.equal([
+      {type: 'NotFoundOnClient'},
+    ]);
   });
 });

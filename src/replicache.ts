@@ -4,7 +4,13 @@ import {Lock} from '@rocicorp/lock';
 import {deepClone, deepEqual, ReadonlyJSONValue} from './json';
 import type {JSONValue} from './json';
 import {Pusher, PushError} from './pusher';
-import {Puller, PullError, PullResponse} from './puller';
+import {
+  isClientStateNotFoundResponse,
+  Puller,
+  PullError,
+  PullResponse,
+  PullResponseOK,
+} from './puller';
 import {
   SubscriptionTransactionWrapper,
   IndexTransactionImpl,
@@ -130,13 +136,13 @@ type MakeMutators<T extends MutatorDefs> = {
  */
 export interface RequestOptions {
   /**
-   * When there are pending pull or push requests this is the _minimum_ ammount
+   * When there are pending pull or push requests this is the _minimum_ amount
    * of time to wait until we try another pull/push.
    */
   minDelayMs?: number;
 
   /**
-   * When there are pending pull or push requests this is the _maximum_ ammount
+   * When there are pending pull or push requests this is the _maximum_ amount
    * of time to wait until we try another pull/push.
    */
   maxDelayMs?: number;
@@ -146,6 +152,21 @@ const emptySet: ReadonlySet<string> = new Set();
 
 type UnknownSubscription = Subscription<JSONValue | undefined, unknown>;
 type SubscriptionSet = Set<UnknownSubscription>;
+
+/**
+ * The reason [[onClientStateNotFound]] was called.
+ */
+export type ClientStateNotFoundReason =
+  | {type: 'NotFoundOnServer'}
+  | {type: 'NotFoundOnClient'};
+
+const reasonServer = {
+  type: 'NotFoundOnServer',
+} as const;
+
+const reasonClient = {
+  type: 'NotFoundOnClient',
+} as const;
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 export class Replicache<MD extends MutatorDefs = {}> {
@@ -285,11 +306,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
    * garbage collected. This can happen if the client has not been used for over
    * a week.
    *
+   * It can also happen if the server no longer knows about this client.
+   *
    * The default behavior is to reload the page (using `location.reload()`). Set
    * this to `null` or provide your own function to prevent the page from
    * reloading automatically.
    */
-  onClientStateNotFound: (() => void) | null = reload;
+  onClientStateNotFound: ((reason: ClientStateNotFoundReason) => void) | null =
+    reload;
 
   /**
    * This gets called when we get an HTTP unauthorized (401) response from the
@@ -431,7 +455,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       clientID,
       this._perdag,
       () => {
-        this._fireOnClientStateNotFound(clientID);
+        this._fireOnClientStateNotFound(clientID, reasonClient);
       },
       this._lc,
     );
@@ -476,7 +500,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       persist.hasClientState(clientID, read),
     );
     if (!hasClientState) {
-      this._fireOnClientStateNotFound(clientID);
+      this._fireOnClientStateNotFound(clientID, reasonClient);
     }
     return !hasClientState;
   }
@@ -988,6 +1012,12 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const lc = this._lc
       .addContext('handlePullResponse')
       .addContext('request_id', requestID);
+
+    if (isClientStateNotFoundResponse(poke.pullResponse)) {
+      this._fireOnClientStateNotFound(clientID, reasonServer);
+      return;
+    }
+
     const syncHead = await sync.handlePullResponse(
       lc,
       this._memdag,
@@ -1045,6 +1075,12 @@ export class Replicache<MD extends MutatorDefs = {}> {
       () => this._changeSyncCounters(0, -1),
       () => this._changeSyncCounters(0, 1),
     );
+
+    if (isClientStateNotFoundResponse(beginPullResponse.pullResponse)) {
+      const clientID = await this._clientIDPromise;
+      this._fireOnClientStateNotFound(clientID, reasonServer);
+    }
+
     const {syncHead, httpRequestInfo} = beginPullResponse;
     return {requestID, syncHead, ok: httpRequestInfo.httpStatusCode === 200};
   }
@@ -1061,15 +1097,18 @@ export class Replicache<MD extends MutatorDefs = {}> {
       );
     } catch (e) {
       if (e instanceof persist.ClientStateNotFoundError) {
-        this._fireOnClientStateNotFound(clientID);
+        this._fireOnClientStateNotFound(clientID, reasonClient);
       } else {
         throw e;
       }
     }
   }
-  private _fireOnClientStateNotFound(clientID: sync.ClientID) {
+  private _fireOnClientStateNotFound(
+    clientID: sync.ClientID,
+    reason: ClientStateNotFoundReason,
+  ) {
     this._lc.error?.(`Client state not found, clientID: ${clientID}`);
-    this.onClientStateNotFound?.();
+    this.onClientStateNotFound?.(reason);
   }
 
   private _schedulePersist(): void {
@@ -1563,30 +1602,48 @@ export class Replicache<MD extends MutatorDefs = {}> {
         return;
       }
 
-      this._lc.debug?.(
-        `Client ${selfClientID} recovered mutations for client ` +
-          `${clientID}.  Details`,
-        {
-          mutationID: client.mutationID,
-          lastServerAckdMutationID: client.lastServerAckdMutationID,
-          lastMutationID: pullResponse?.lastMutationID,
-        },
-      );
+      if (pullResponse && isClientStateNotFoundResponse(pullResponse)) {
+        this._lc.debug?.(
+          `Client ${selfClientID} cannot recover mutations for client ` +
+            `${clientID}. The client no longer exists on the server.`,
+        );
+      } else {
+        this._lc.debug?.(
+          `Client ${selfClientID} recovered mutations for client ` +
+            `${clientID}.  Details`,
+          {
+            mutationID: client.mutationID,
+            lastServerAckdMutationID: client.lastServerAckdMutationID,
+            lastMutationID: pullResponse?.lastMutationID,
+          },
+        );
+      }
       const newClientMap = await persist.updateClients(
         (clients: persist.ClientMap) => {
           assertNotUndefined(pullResponse);
+
           const clientToUpdate = clients.get(clientID);
+          if (!clientToUpdate) {
+            return persist.noClientUpdates;
+          }
+
+          if (isClientStateNotFoundResponse(pullResponse)) {
+            const newClients = new Map(clients);
+            newClients.delete(clientID);
+            return {clients: newClients};
+          }
+
           if (
-            !clientToUpdate ||
             clientToUpdate.lastServerAckdMutationID >=
-              pullResponse.lastMutationID
+            (pullResponse as PullResponseOK).lastMutationID
           ) {
             return persist.noClientUpdates;
           }
           return {
             clients: new Map(clients).set(clientID, {
               ...clientToUpdate,
-              lastServerAckdMutationID: pullResponse.lastMutationID,
+              lastServerAckdMutationID: (pullResponse as PullResponseOK)
+                .lastMutationID,
             }),
           };
         },

@@ -1702,6 +1702,28 @@ test('clientID', async () => {
   await rep4.close();
 });
 
+test('profileID', async () => {
+  const re = /^p-.+/; // More specific re tested in IdbDatabase.test.ts.
+
+  const rep = await replicacheForTesting('clientID');
+  const profileID = await rep.profileID;
+  expect(profileID).to.not.equal(await rep.clientID);
+  expect(profileID).to.match(re);
+  await rep.close();
+
+  const rep2 = await replicacheForTesting('clientID2');
+  const profileID2 = await rep2.profileID;
+  expect(profileID2).to.equal(profileID);
+
+  const rep3 = new Replicache({
+    experimentalLicenseKey: TEST_LICENSE_KEY,
+    name: 'clientID3',
+  });
+  const profileID3 = await rep3.profileID;
+  expect(profileID3).to.equal(profileID);
+  await rep3.close();
+});
+
 test('pull and index update', async () => {
   const pullURL = 'https://pull.com/rep';
   const rep = await replicacheForTesting('pull-and-index-update', {

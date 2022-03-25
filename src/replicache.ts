@@ -184,6 +184,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private _online = true;
   private readonly _logger: OptionalLogger;
   private readonly _ready: Promise<void>;
+  private readonly _profileIDPromise: Promise<string>;
   private readonly _clientIDPromise: Promise<string>;
   protected readonly _licenseCheckPromise: Promise<boolean>;
 
@@ -378,10 +379,13 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     this.mutate = this._registerMutators(mutators);
 
+    const profileIDResolver = resolver<string>();
+    this._profileIDPromise = profileIDResolver.promise;
     const clientIDResolver = resolver<string>();
     this._clientIDPromise = clientIDResolver.promise;
 
     void this._open(
+      profileIDResolver.resolve,
       clientIDResolver.resolve,
       readyResolver.resolve,
       licenseCheckResolver.resolve,
@@ -396,6 +400,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
 
   private async _open(
+    profileIDResolver: (profileID: string) => void,
     resolveClientID: (clientID: string) => void,
     resolveReady: () => void,
     resolveLicenseCheck: (valid: boolean) => void,
@@ -404,6 +409,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     // If we are currently closing a Replicache instance with the same name,
     // wait for it to finish closing.
     await closingInstances.get(this.name);
+    await this._idbDatabases.getProfileID().then(profileIDResolver);
     await this._idbDatabases.putDatabase(this._idbDatabase);
     const [clientID, client, clients] = await persist.initClient(this._perdag);
     resolveClientID(clientID);
@@ -412,7 +418,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       await write.commit();
     });
 
-    // Now we have both a clientID and DB!
+    // Now we have a profileID, a clientID, and DB!
     resolveReady();
 
     this._root = this._getRoot();
@@ -557,6 +563,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
       LICENSE_ACTIVE_INTERVAL_MS,
       lc,
     );
+  }
+
+  /**
+   * The browser profile ID for this browser profile. Every instance of Replicache
+   * browser-profile-wide shares the same profile ID.
+   */
+  get profileID(): Promise<string> {
+    return this._profileIDPromise;
   }
 
   /**

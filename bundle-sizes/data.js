@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1648219909981,
+  "lastUpdate": 1648220864194,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -7691,6 +7691,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 20022,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d923876d25a9b8bbc2365ea4d2088c782b4c10ec",
+          "message": "refactor: Remove unused ScanResult parameters (#896)\n\nNow that the deprecated scan has been removed we can remov some of the\r\nparameters to ScanResult etc.",
+          "timestamp": "2022-03-25T15:06:14Z",
+          "tree_id": "8384c82537a6f6d25019824ef8f87ddb9c22aa8a",
+          "url": "https://github.com/rocicorp/replicache/commit/d923876d25a9b8bbc2365ea4d2088c782b4c10ec"
+        },
+        "date": 1648220860466,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 163110,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 29403,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 161813,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 29047,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 70156,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 20008,
             "unit": "bytes"
           }
         ]

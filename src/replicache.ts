@@ -493,6 +493,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
           // TODO(phritz) maybe use a more specific URL
           `See https://replicache.dev for more information.`,
       );
+      // TODO(phritz) test key should time out after 5m
       resolveLicenseCheck(true);
       return;
     }
@@ -506,13 +507,16 @@ export class Replicache<MD extends MutatorDefs = {}> {
       if (status === LicenseStatus.Valid) {
         this._logger.info?.(`License is valid.`);
       } else {
-        this._logger.error?.(`License is not valid; status: ${status}`);
-        // TODO(phritz) kill switch
+        this._logger.error?.(
+          `** REPLICACHE DISABLED ** Replicache license key '${this._licenseKey}' is not valid (status: ${status}). ` +
+            `Please run 'npx get-license' to get a license key or contact licensing@replicache.dev for help.`,
+        );
+        await this.close();
         resolveLicenseCheck(false);
         return;
       }
     } catch (err) {
-      this._logger.info?.(`Error checking license: ${err}`);
+      this._logger.error?.(`Error checking license: ${err}`);
       // Note: on error we fall through to assuming the license is valid.
     }
     resolveLicenseCheck(true);

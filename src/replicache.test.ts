@@ -1906,7 +1906,11 @@ async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
     experimentalLicenseKey: tc.licenseKey,
   });
   expect(await rep.licenseValid).to.equal(tc.expectValid);
+  if (!tc.expectValid) {
+    expect(rep.closed).to.be.true;
+  }
   expect(fetchMock.called(statusUrlMatcher)).to.equal(tc.expectFetchCalled);
+
   await rep.close();
 }
 

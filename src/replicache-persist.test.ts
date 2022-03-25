@@ -123,7 +123,7 @@ suite('onClientStateNotFound', () => {
 
     expect(onClientStateNotFound.callCount).to.equal(1);
     expect(onClientStateNotFound.lastCall.args).to.deep.equal([
-      {type: 'ClientStateNotFoundOnClient'},
+      {type: 'NotFoundOnClient'},
     ]);
     expectLogContext(
       consoleErrorStub,
@@ -172,7 +172,7 @@ suite('onClientStateNotFound', () => {
       `Client state not found, clientID: ${clientID2}`,
     );
     expect(onClientStateNotFound.lastCall.args).to.deep.equal([
-      {type: 'ClientStateNotFoundOnClient'},
+      {type: 'NotFoundOnClient'},
     ]);
   });
 
@@ -224,7 +224,7 @@ suite('onClientStateNotFound', () => {
       `Client state not found, clientID: ${clientID2}`,
     );
     expect(onClientStateNotFound.lastCall.args).to.deep.equal([
-      {type: 'ClientStateNotFoundOnClient'},
+      {type: 'NotFoundOnClient'},
     ]);
   });
 });

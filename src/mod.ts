@@ -6,6 +6,7 @@ export type {
   MutatorDefs,
   Poke,
   RequestOptions,
+  ClientStateNotFoundReason,
 } from './replicache';
 export type {ReplicacheOptions} from './replicache-options';
 export type {

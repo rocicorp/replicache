@@ -153,16 +153,19 @@ const emptySet: ReadonlySet<string> = new Set();
 type UnknownSubscription = Subscription<JSONValue | undefined, unknown>;
 type SubscriptionSet = Set<UnknownSubscription>;
 
-type ErrorReason =
-  | {type: 'ClientStateNotFoundOnServer'}
-  | {type: 'ClientStateNotFoundOnClient'};
+/**
+ * The reason [[onClientStateNotFound]] was called.
+ */
+export type ClientStateNotFoundReason =
+  | {type: 'NotFoundOnServer'}
+  | {type: 'NotFoundOnClient'};
 
 const reasonServer = {
-  type: 'ClientStateNotFoundOnServer',
+  type: 'NotFoundOnServer',
 } as const;
 
 const reasonClient = {
-  type: 'ClientStateNotFoundOnClient',
+  type: 'NotFoundOnClient',
 } as const;
 
 // eslint-disable-next-line @typescript-eslint/ban-types
@@ -303,11 +306,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
    * garbage collected. This can happen if the client has not been used for over
    * a week.
    *
+   * It can also happen if the server no longer knows about this client.
+   *
    * The default behavior is to reload the page (using `location.reload()`). Set
    * this to `null` or provide your own function to prevent the page from
    * reloading automatically.
    */
-  onClientStateNotFound: ((reason: ErrorReason) => void) | null = reload;
+  onClientStateNotFound: ((reason: ClientStateNotFoundReason) => void) | null =
+    reload;
 
   /**
    * This gets called when we get an HTTP unauthorized (401) response from the
@@ -1099,7 +1105,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
   private _fireOnClientStateNotFound(
     clientID: sync.ClientID,
-    reason: ErrorReason,
+    reason: ClientStateNotFoundReason,
   ) {
     this._lc.error?.(`Client state not found, clientID: ${clientID}`);
     this.onClientStateNotFound?.(reason);

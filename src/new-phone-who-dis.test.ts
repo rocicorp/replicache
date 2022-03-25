@@ -38,7 +38,7 @@ test('pull returning ClientStateNotFoundResponse should call onClientStateNotFou
 
   expect(onClientStateNotFound.callCount).to.equal(1);
   expect(onClientStateNotFound.lastCall.args).to.deep.equal([
-    {type: 'ClientStateNotFoundOnServer'},
+    {type: 'NotFoundOnServer'},
   ]);
 
   expectLogContext(
@@ -53,7 +53,7 @@ test('pull returning ClientStateNotFoundResponse should call onClientStateNotFou
 
   expect(onClientStateNotFound.callCount).to.equal(2);
   expect(onClientStateNotFound.lastCall.args).to.deep.equal([
-    {type: 'ClientStateNotFoundOnServer'},
+    {type: 'NotFoundOnServer'},
   ]);
   expectLogContext(
     consoleErrorStub,
@@ -86,7 +86,7 @@ test('poke with ClientStateNotFoundResponse should call onClientStateNotFound', 
 
   expect(onClientStateNotFound.callCount).to.equal(1);
   expect(onClientStateNotFound.lastCall.args).to.deep.equal([
-    {type: 'ClientStateNotFoundOnServer'},
+    {type: 'NotFoundOnServer'},
   ]);
   expect(consoleErrorStub.callCount).to.equal(1);
   expectLogContext(

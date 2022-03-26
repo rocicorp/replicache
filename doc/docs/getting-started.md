@@ -3,110 +3,25 @@ title: Getting Started
 slug: /
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-
-## Install
-
-<Tabs
-groupId="lang"
-defaultValue="hooks"
-values={[
-{label: 'React Hooks', value: 'hooks'},
-{label: 'JavaScript', value: 'js'},
-]}>
-<TabItem value="hooks">
+The easiest way to get started is with our Todo starter app.
 
 ```bash
-npm install replicache replicache-react
+git clone https://github.com/rocicorp/replicache-todo
+npm install
+supabase init
+supabase start
+
+# Use URLs and keys printed out by `supabase start`
+DATABASE_URL="<DB URL>" \
+NEXT_PUBLIC_SUPABASE_URL="<API URL>" \
+NEXT_PUBLIC_SUPABASE_KEY="<anon key>" \
+npm run dev
 ```
 
-  </TabItem>
-  <TabItem value="js">
+This should get you our TodoMVC implementation:
 
-```bash
-npm install replicache
-```
+<p class="text--center">
+  <img src="/img/setup/sync.webp" width="650"/>
+</p>
 
-  </TabItem>
-</Tabs>
-
-## Client Setup
-
-<Tabs
-groupId="lang"
-defaultValue="hooks"
-values={[
-{label: 'React Hooks', value: 'hooks'},
-{label: 'JavaScript', value: 'js'},
-]}>
-<TabItem value="hooks">
-
-```ts
-import {Replicache} from 'replicache';
-import {useSubscribe} from 'replicache-react';
-import {nanoid} from 'nanoid';
-
-const rep = new Replicache({
-  name: 'user-id',
-  mutators: {
-    createTodo: (tx, args) => {
-      tx.put(`/todo/${args.id}`, args);
-    },
-  },
-});
-
-function MyComponent() {
-  const todos = useSubscribe(
-    rep,
-    tx => tx.scan({prefix: '/todo/'}).toArray(),
-    [],
-  );
-
-  const handleClick = () => {
-    rep.mutate.createTodo({
-      id: nanoid(),
-      order: todos.length,
-      text: 'new todo!',
-    });
-  };
-
-  // ...
-}
-```
-
-  </TabItem>
-  <TabItem value="js">
-
-```ts
-import {Replicache} from 'replicache';
-import {nanoid} from 'nanoid';
-
-const rep = new Replicache({
-  name: 'user-id',
-  mutators: {
-    createTodo: (tx, args) => {
-      tx.put(`/todo/${args.id}`, args);
-    },
-  },
-});
-
-rep.subscribe(tx => tx.scan().toArray(), {
-  onData: data => console.log('got todos', data),
-});
-
-rep.mutate.createTodo({
-  id: nanoid(),
-  title: 'Pick up milk',
-  order: 3,
-});
-```
-
-  </TabItem>
-</Tabs>
-
-## Server Setup
-
-In order to sync, you will need to implement _push_ an _pull_ endpoints on your server.
-
-For detailed information, see the [integration guide](/guide/intro), or the [push](server-push)/[pull](server-pull) reference docs.
+For detailed instructions on building a Replicache app, see the [integration guide](/guide/intro).

@@ -48,7 +48,6 @@ AMAZON_REGION=us-west-2 \
 REPLIDRAW_DB_NAME=... \
 REPLIDRAW_RESOURCE_ARN=... \
 REPLIDRAW_SECRET_ARN=... \
-REPLICHAT_DB_CONNECTION_STRING=... \
 npm run dev
 ```
 
@@ -60,12 +59,12 @@ You might need to initialize the DB by going to `http://localhost:3000/api/init`
 
 Open two windows and make sure that the changes are reflected in each window.
 
-### Chat Sample
+### Todo Sample
 
-Check out [rocicorp/replicache-sample-chat](https://github.com/rocicorp/replicache-sample-chat)
+Check out [rocicorp/replicache-todo](https://github.com/rocicorp/replicache-todo)
 
 Replace the replicache dependency in
-[package.json](https://github.com/rocicorp/replicache-sample-chat/blob/master/package.json)
+[package.json](https://github.com/rocicorp/replicache-todo/blob/master/package.json)
 with the tarball.
 
 ```
@@ -79,20 +78,20 @@ Recreate the deps:
 npm install
 ```
 
-Run the app with environment variables:
+Start Supabase:
 
 ```
-NEXT_PUBLIC_REPLICHAT_PUSHER_APP_ID=... \
-NEXT_PUBLIC_REPLICHAT_PUSHER_KEY=... \
-NEXT_PUBLIC_REPLICHAT_PUSHER_SECRET=... \
-NEXT_PUBLIC_REPLICHAT_PUSHER_CLUSTER=... \
-REPLICHAT_DB_CONNECTION_STRING=... \
+supabase start
+```
+
+Run the app:
+
+```
+DATABASE_URL=... \
+NEXT_PUBLIC_SUPABASE_URL=... \
+NEXT_PUBLIC_SUPABASE_KEY=... \
 npm run dev
 ```
-
-Log in to pusher and supabase to get the above info.
-
-You might need to initialize the DB by going to `http://localhost:3000/api/init`.
 
 Open two windows and make sure that the changes are reflected in each window.
 

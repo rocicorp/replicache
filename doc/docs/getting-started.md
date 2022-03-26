@@ -7,6 +7,7 @@ The easiest way to get started is with our Todo starter app.
 
 ```bash
 git clone https://github.com/rocicorp/replicache-todo
+cd replicache-todo
 npm install
 supabase init
 supabase start

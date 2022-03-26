@@ -2063,9 +2063,9 @@ async function licenseActiveTest(tc: LicenseActiveTestCase) {
   expect(fetchMock.called(activeUrlMatcher)).to.equal(tc.expectFetchCalled);
   if (tc.expectFetchCalled && fetchMock.called(activeUrlMatcher)) {
     const got = JSON.parse(fetchMock.lastCall(activeUrlMatcher)[1].body);
-    const {key, browserProfile} = got;
-    expect(key).to.equal(tc.licenseKey);
-    expect(browserProfile).to.equal(await rep.profileID);
+    const {licenseKey, profileID} = got;
+    expect(licenseKey).to.equal(tc.licenseKey);
+    expect(profileID).to.equal(await rep.profileID);
   }
   // TODO(phritz) Should we test that it gets called repeatedly?
   await rep.close();

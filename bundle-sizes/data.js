@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1648466651998,
+  "lastUpdate": 1648466855235,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -8255,6 +8255,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/7fd4930ca748a18fbb09c76e638d18d9e6d2c773"
         },
         "date": 1648466649529,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 163163,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 29421,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 161866,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 29066,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 70192,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 20012,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1980d07d5ee7dc00489f6f8b724189b1f997e3ce",
+          "message": "chore(deps): bump ansi-regex from 4.1.0 to 4.1.1 in /doc (#900)\n\nBumps [ansi-regex](https://github.com/chalk/ansi-regex) from 4.1.0 to 4.1.1.\r\n- [Release notes](https://github.com/chalk/ansi-regex/releases)\r\n- [Commits](https://github.com/chalk/ansi-regex/compare/v4.1.0...v4.1.1)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: ansi-regex\r\n  dependency-type: indirect\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Erik Arvidsson <erik.arvidsson@gmail.com>",
+          "timestamp": "2022-03-28T11:26:32Z",
+          "tree_id": "927e2dd248fa0eb309648ff31ceb5719c18d9d6c",
+          "url": "https://github.com/rocicorp/replicache/commit/1980d07d5ee7dc00489f6f8b724189b1f997e3ce"
+        },
+        "date": 1648466852739,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

@@ -19,10 +19,10 @@ NEXT_PUBLIC_SUPABASE_KEY="<anon key>" \
 npm run dev
 ```
 
-This should get you our TodoMVC implementation:
+This is a really simple Replicache app using React, Next.js, and Supabase.
 
 <p class="text--center">
-  <img src="/img/setup/sync.webp" width="650"/>
+  <img src="/img/setup/todo.webp" width="650"/>
 </p>
 
 For detailed instructions on building a Replicache app, see the [integration guide](/guide/intro).

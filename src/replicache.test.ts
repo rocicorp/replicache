@@ -1743,7 +1743,7 @@ test('clientID', async () => {
 });
 
 test('profileID', async () => {
-  const re = /^p-.+/; // More specific re tested in IdbDatabase.test.ts.
+  const re = /^p.+/; // More specific re tested in IdbDatabase.test.ts.
 
   const rep = await replicacheForTesting('clientID');
   const profileID = await rep.profileID;

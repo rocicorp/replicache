@@ -103,7 +103,7 @@ test('getProfileID', async () => {
   const store = new IDBDatabasesStore(_ => new TestMemStore());
   const profileID = await store.getProfileID();
   expect(profileID).to.be.a('string');
-  expect(profileID).to.match(/^p-[a-zA-Z0-9-]+$/);
+  expect(profileID).to.match(/^p[a-zA-Z0-9]+$/);
   const profileID2 = await store.getProfileID();
   expect(profileID2).to.equal(profileID);
 });

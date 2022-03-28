@@ -103,7 +103,8 @@ export class IDBDatabasesStore {
     return this._kvStore.withWrite(async write => {
       let profileId = await write.get(PROFILE_ID_KEY);
       if (profileId === undefined) {
-        profileId = `p-${uuid()}`;
+        // Profile id is 'p' followed by the guid with no dashes.
+        profileId = `p${uuid().replace(/-/g, '')}`;
         await write.put(PROFILE_ID_KEY, profileId);
         await write.commit();
       }

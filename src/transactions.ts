@@ -5,7 +5,7 @@ import {
   ScanOptions,
   toDbScanOptions,
 } from './scan-options';
-import {ScanResult} from './scan-iterator';
+import {type ScanResult, ScanResultImpl} from './scan-iterator';
 import {throwIfClosed} from './transaction-closed-error';
 import * as db from './db/mod';
 import * as sync from './sync/mod';
@@ -110,7 +110,7 @@ export class ReadTransactionImpl<
     onLimitKey?: (inclusiveLimitKey: string) => void,
   ): ScanResult<Key, Value> {
     const dbRead = this._dbtx;
-    return new ScanResult(options, dbRead, onLimitKey);
+    return new ScanResultImpl(options, dbRead, onLimitKey);
   }
 }
 

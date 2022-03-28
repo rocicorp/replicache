@@ -1957,6 +1957,7 @@ const statusUrlMatcher = new RegExp(`${PROD_LICENSE_SERVER_URL}license/status`);
 const activeUrlMatcher = new RegExp(`${PROD_LICENSE_SERVER_URL}license/active`);
 
 async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
+  const consoleErrorStub = sinon.stub(console, 'error');
   const name = 'license-key-test';
   fetchMock.reset();
   fetchMock.post(activeUrlMatcher, 200);
@@ -1970,6 +1971,10 @@ async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
   expect(await rep.licenseValid()).to.equal(tc.expectValid);
   if (!tc.expectValid) {
     expect(rep.closed).to.be.true;
+    expect(consoleErrorStub.callCount).to.equal(1);
+    expect(consoleErrorStub.lastCall.args[1]).to.equal(
+      `** REPLICACHE DISABLED ** Replicache license key 'testing-invalid-license-key' is not valid (status: INVALID). Please run 'npx get-license' to get a license key or contact licensing@replicache.dev for help.`,
+    );
   }
   expect(fetchMock.called(statusUrlMatcher)).to.equal(tc.expectFetchCalled);
 

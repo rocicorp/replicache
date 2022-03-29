@@ -5,7 +5,7 @@ import {TEST_LICENSE_KEY} from '@rocicorp/licensing/src/client';
 // Only used for type checking
 test.skip('mutator optional args [type checking only]', async () => {
   const rep = new Replicache({
-    experimentalLicenseKey: TEST_LICENSE_KEY,
+    licenseKey: TEST_LICENSE_KEY,
     name: 'test-types',
     mutators: {
       mut: async (tx: WriteTransaction, x: number) => {
@@ -61,7 +61,7 @@ test.skip('mutator optional args [type checking only]', async () => {
 // Only used for type checking
 test.skip('Test partial JSONObject [type checking only]', async () => {
   const rep = new Replicache({
-    experimentalLicenseKey: TEST_LICENSE_KEY,
+    licenseKey: TEST_LICENSE_KEY,
     name: 'test-types',
     mutators: {
       mut: async (tx: WriteTransaction, todo: Partial<Todo>) => {
@@ -87,7 +87,7 @@ test.skip('Test partial JSONObject [type checking only]', async () => {
 // Only used for type checking
 test.skip('Test register param [type checking only]', async () => {
   const rep = new Replicache({
-    experimentalLicenseKey: TEST_LICENSE_KEY,
+    licenseKey: TEST_LICENSE_KEY,
     name: 'test-types',
     mutators: {
       mut: async (tx: WriteTransaction) => {
@@ -123,7 +123,7 @@ test.skip('Test register param [type checking only]', async () => {
   /* eslint-enable prefer-destructuring */
 
   new Replicache({
-    experimentalLicenseKey: TEST_LICENSE_KEY,
+    licenseKey: TEST_LICENSE_KEY,
     name: 'test-types',
     mutators: {
       // @ts-expect-error Type '(tx: WriteTransaction, a: string, b: number) =>
@@ -139,7 +139,7 @@ test.skip('Test register param [type checking only]', async () => {
 // Only used for type checking
 test.skip('Key type for scans [type checking only]', async () => {
   const rep = new Replicache({
-    experimentalLicenseKey: TEST_LICENSE_KEY,
+    licenseKey: TEST_LICENSE_KEY,
     name: 'test-types',
   });
 
@@ -193,7 +193,7 @@ test.skip('mut [type checking only]', async () => {
   type ToRecord<T> = {[P in keyof T]: T[P]};
 
   const rep = new Replicache({
-    experimentalLicenseKey: TEST_LICENSE_KEY,
+    licenseKey: TEST_LICENSE_KEY,
     name: 'type-checking-only',
     mutators: {
       a: (tx: WriteTransaction) => {
@@ -304,7 +304,7 @@ test.skip('mut [type checking only]', async () => {
 
   {
     const rep = new Replicache({
-      experimentalLicenseKey: TEST_LICENSE_KEY,
+      licenseKey: TEST_LICENSE_KEY,
       name: 'type-checking-only',
       mutators: {},
     });
@@ -314,7 +314,7 @@ test.skip('mut [type checking only]', async () => {
 
   {
     const rep = new Replicache({
-      experimentalLicenseKey: TEST_LICENSE_KEY,
+      licenseKey: TEST_LICENSE_KEY,
       name: 'type-checking-only',
     });
     // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
@@ -323,7 +323,7 @@ test.skip('mut [type checking only]', async () => {
 
   {
     const rep = new Replicache({
-      experimentalLicenseKey: TEST_LICENSE_KEY,
+      licenseKey: TEST_LICENSE_KEY,
       name: 'type-checking-only',
     });
     // @ts-expect-error Property 'abc' does not exist on type 'MakeMutators<{}>'.ts(2339)
@@ -334,7 +334,7 @@ test.skip('mut [type checking only]', async () => {
 // Only used for type checking
 test.skip('scan with index [type checking only]', async () => {
   const rep = new Replicache({
-    experimentalLicenseKey: TEST_LICENSE_KEY,
+    licenseKey: TEST_LICENSE_KEY,
     name: 'scan-with-index',
   });
 

@@ -51,11 +51,13 @@ import {
   getLicenseStatus,
   licenseActive,
   PROD_LICENSE_SERVER_URL,
-  TEST_LICENSE_KEY,
   LicenseStatus,
+  TEST_LICENSE_KEY as TLK,
 } from '@rocicorp/licensing/src/client';
 import {mustSimpleFetch} from './simple-fetch';
 import {initBgIntervalProcess} from './persist/bg-interval';
+
+export const TEST_LICENSE_KEY = TLK;
 
 export type BeginPullResult = {
   requestID: string;
@@ -210,7 +212,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   /* The license is active if we have sent at least one license active ping
    * (and we will continue to). We do not send license active pings when
-   * licensing is disabled (license key is undefined) or for the TEST_LICENSE_KEY.
+   * for the TEST_LICENSE_KEY.
    */
   protected _licenseActivePromise: Promise<boolean>;
   private _stopLicenseActive = noop;
@@ -337,8 +339,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
       requestOptions = {},
       puller = defaultPuller,
       pusher = defaultPusher,
+      licenseKey,
       experimentalKVStore,
-      experimentalLicenseKey,
     } = options;
     this.auth = auth ?? '';
     this.pullURL = pullURL;
@@ -373,7 +375,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const readyResolver = resolver<void>();
     this._ready = readyResolver.promise;
 
-    this._licenseKey = experimentalLicenseKey;
+    this._licenseKey = licenseKey;
     const licenseCheckResolver = resolver<boolean>();
     this._licenseCheckPromise = licenseCheckResolver.promise;
     const licenseActiveResolver = resolver<boolean>();
@@ -508,12 +510,15 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private async _licenseCheck(
     resolveLicenseCheck: (valid: boolean) => void,
   ): Promise<void> {
-    // Licensing is experimental, so if a key is not set don't do anything.
-    if (this._licenseKey === undefined) {
-      resolveLicenseCheck(true);
+    if (this._licenseKey === undefined || this._licenseKey === '') {
+      await this._licenseInvalid(
+        this._lc,
+        `license key ReplicacheOptions.licenseKey is not set`,
+        resolveLicenseCheck,
+      );
       return;
     }
-    this._lc.info?.(`Licensing enabled. Key: ${this._licenseKey}`);
+    this._lc.info?.(`Replicache license key: ${this._licenseKey}`);
     if (this._licenseKey === TEST_LICENSE_KEY) {
       this._lc.info?.(
         `Skipping license check for TEST_LICENSE_KEY. ` +
@@ -535,12 +540,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
       if (status === LicenseStatus.Valid) {
         this._lc.info?.(`License is valid.`);
       } else {
-        this._lc.error?.(
-          `** REPLICACHE DISABLED ** Replicache license key '${this._licenseKey}' is not valid (status: ${status}). ` +
-            `Please run 'npx get-license' to get a license key or contact licensing@replicache.dev for help.`,
+        await this._licenseInvalid(
+          this._lc,
+          `status: ${status}`,
+          resolveLicenseCheck,
         );
-        await this.close();
-        resolveLicenseCheck(false);
         return;
       }
     } catch (err) {
@@ -550,12 +554,27 @@ export class Replicache<MD extends MutatorDefs = {}> {
     resolveLicenseCheck(true);
   }
 
+  private async _licenseInvalid(
+    lc: LogContext,
+    reason: string,
+    resolveLicenseCheck: (valid: boolean) => void,
+  ): Promise<void> {
+    lc.error?.(
+      `** REPLICACHE DISABLED ** Replicache license key '${this._licenseKey}' is not valid (${reason}). ` +
+        `Please run 'npx get-replicache-license' to get a license key or contact hello@replicache.dev for help.`,
+    );
+    await this.close();
+    resolveLicenseCheck(false);
+    return;
+  }
+
   private async _startLicenseActive(
     resolveLicenseActive: (valid: boolean) => void,
     lc: LogContext,
   ): Promise<() => void> {
     if (
       this._licenseKey === undefined ||
+      this._licenseKey === '' ||
       this._licenseKey === TEST_LICENSE_KEY
     ) {
       resolveLicenseActive(false);

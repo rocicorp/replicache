@@ -93,7 +93,7 @@ async function setupPersistedData(
     // so that a snapshot commit is created, which new clients
     // can use to bootstrap.
     const rep = (repToClose = new ReplicacheWithPersist({
-      experimentalLicenseKey: TEST_LICENSE_KEY,
+      licenseKey: TEST_LICENSE_KEY,
       name: replicacheName,
       pullInterval: null,
       puller: async (_: Request) => {
@@ -152,7 +152,7 @@ export function benchmarkStartupUsingBasicReadsFromPersistedData(opts: {
       ).map(i => `key${i}`);
       bencher.reset();
       const rep = (repToClose = new Replicache({
-        experimentalLicenseKey: TEST_LICENSE_KEY,
+        licenseKey: TEST_LICENSE_KEY,
         name: repName,
         pullInterval: null,
       }));
@@ -206,7 +206,7 @@ export function benchmarkStartupUsingScanFromPersistedData(opts: {
       const randomStartKey = sortedKeys[randomIndex];
       bencher.reset();
       const rep = (repToClose = new Replicache({
-        experimentalLicenseKey: TEST_LICENSE_KEY,
+        licenseKey: TEST_LICENSE_KEY,
         name: repName,
         pullInterval: null,
       }));
@@ -454,7 +454,7 @@ function makeRep<MD extends MutatorDefs>(
 ) {
   const name = makeRepName();
   return new Replicache<MD>({
-    experimentalLicenseKey: TEST_LICENSE_KEY,
+    licenseKey: TEST_LICENSE_KEY,
     name,
     pullInterval: null,
     ...options,

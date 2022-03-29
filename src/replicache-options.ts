@@ -178,19 +178,22 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
   pusher?: Pusher;
 
   /**
+   * The license key for Replicache. This parameter is required for Replicache to
+   * function. See https://replicache.dev for how to acquire a license key.
+   *
+   * YOU SHOULD PASS Replicache.TEST_LICENSE_KEY IN AUTOMATED TESTS. It disables license
+   * checks for several minutes. If you pass a normal license key in tests, each test
+   * that instantiates Replicache will attempt to perform a license check against
+   * Replicache's licensing server, potentially increasing your monthly active browser
+   * profile count, slowing the test down, and spamming Replicache's servers.
+   */
+  licenseKey?: string;
+
+  /**
    * Allows implementing the underlying storage layer completely in JavaScript.
    *
    * @experimental This option is experimental and might be removed or changed
    * in the future without following semver versioning. Please be cautious.
    */
   experimentalKVStore?: kv.Store;
-
-  /**
-   * When defined, activates Replicache's experimental license key support. You
-   * don't want to use this option unless you are a Replicache developer.
-   *
-   * @experimental This option is experimental and might be removed or changed
-   * in the future without following semver versioning. Please be cautious.
-   */
-  experimentalLicenseKey?: string;
 }

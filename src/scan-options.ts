@@ -28,7 +28,7 @@ export type ScanNoIndexOptions = {
 /**
  * Options for [[ReadTransaction.scan|scan]] when scanning over an index. When
  * scanning over and index you need to provide the `indexName` and the `start`
- * `key` is now a tuple consisting of secondar and primary key
+ * `key` is now a tuple consisting of secondary and primary key
  */
 export type ScanIndexOptions = {
   /** Only include results starting with the *secondary* keys starting with `prefix`. */
@@ -49,6 +49,12 @@ export type ScanIndexOptions = {
     exclusive?: boolean;
   };
 };
+
+export function isScanIndexOptions(
+  options: ScanOptions | undefined,
+): options is ScanIndexOptions {
+  return !!options && (options as ScanIndexOptions).indexName !== undefined;
+}
 
 /**
  * If the options contains an `indexName` then the key type is a tuple of

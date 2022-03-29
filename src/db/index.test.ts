@@ -3,18 +3,18 @@ import {expect} from '@esm-bundle/chai';
 import type {JSONValue} from '../json';
 import {stringCompare} from '../string-compare';
 import * as dag from '../dag/mod';
+import {getIndexKeys} from './get-index-keys';
+import {evaluateJSONPointer} from './evaluate-json-pointer';
+import {indexValue} from './index-value';
+import {IndexOperation} from './index-operation';
 import {
   decodeIndexKey,
   encodeIndexKey,
   encodeIndexScanKey,
-  evaluateJSONPointer,
-  getIndexKeys,
   IndexKey,
-  IndexOperation,
-  indexValue,
   KEY_SEPARATOR,
   KEY_VERSION_0,
-} from './index';
+} from './index-key';
 import {BTreeWrite} from '../btree/mod';
 import {asyncIterableToArray} from '../async-iterable-to-array';
 

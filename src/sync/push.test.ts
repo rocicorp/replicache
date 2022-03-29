@@ -48,7 +48,7 @@ function makeFakePusher(options: FakePusherArgs): Pusher {
           errorMessage: 'Fetch not OK',
         };
       } else {
-        throw new Error('not implented');
+        throw new Error('not implemented');
       }
     }
 
@@ -206,14 +206,8 @@ test('try push', async () => {
     if (c.numPendingMutations > 0) {
       await store.withRead(async dagRead => {
         const read = await fromWhence(whenceHead(DEFAULT_HEAD_NAME), dagRead);
-        let got = false;
-
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for await (const _ of read.scan({prefix: '', indexName: '2'}, e => e)) {
-          got = true;
-          break;
-        }
-        expect(got).to.be.true;
+        const reader = await read.scanReader({prefix: '', indexName: '2'});
+        expect(await reader.next()).to.not.be.undefined;
       });
     }
 

@@ -26,7 +26,8 @@ export {
   chain as commitChain,
 } from './commit';
 export {getRoot} from './root';
-export {decodeIndexKey, encodeIndexKey} from './index';
+
+export type {IndexKey} from './index-key';
 export {Visitor} from './visitor';
 export {BaseTransformer, Transformer} from './transformer';
 

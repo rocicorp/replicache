@@ -16,11 +16,14 @@ import {
   readIndexesForRead,
   Whence,
 } from './read';
-import {IndexWrite, IndexOperation, indexValue, IndexRead} from './index';
+import {IndexWrite, IndexRead} from './index';
+import {indexValue} from './index-value';
+import {IndexOperation} from './index-operation';
 import {BTreeRead, BTreeWrite} from '../btree/mod';
 import {asyncIterableToArray} from '../async-iterable-to-array';
 import {lazy} from '../lazy';
 import {emptyHash, Hash} from '../hash';
+import type {ReadonlyEntry} from '../btree/node.js';
 
 type IndexChangeMeta = {
   type: MetaType.IndexChange;
@@ -214,11 +217,11 @@ export class Write extends Read {
     // Check to see if the index already exists.
     const index = this.indexes.get(name);
     if (index) {
-      const oldDefintion = index.meta.definition;
+      const oldDefinition = index.meta.definition;
       if (
-        oldDefintion.name === name &&
-        oldDefintion.keyPrefix === keyPrefix &&
-        oldDefintion.jsonPointer === jsonPointer
+        oldDefinition.name === name &&
+        oldDefinition.keyPrefix === keyPrefix &&
+        oldDefinition.jsonPointer === jsonPointer
       ) {
         return;
       } else {
@@ -227,7 +230,10 @@ export class Write extends Read {
     }
 
     const indexMap = new BTreeWrite(this._dagWrite);
-    for await (const entry of this.map.scan({prefix: keyPrefix}, x => x)) {
+    const reader = await this.map.scanReader();
+    await reader.seek(keyPrefix);
+    let entry: ReadonlyEntry<ReadonlyJSONValue> | undefined;
+    while ((entry = await reader.next())) {
       await indexValue(
         lc,
         indexMap,

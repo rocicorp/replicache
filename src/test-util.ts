@@ -7,14 +7,14 @@ import {SinonFakeTimers, useFakeTimers} from 'sinon';
 import * as sinon from 'sinon';
 import type {JSONValue, ReadonlyJSONValue} from './json';
 import {Hash, makeNewTempHashFunction} from './hash';
+import {uuid} from './uuid';
+import type {WriteTransaction} from './transactions.js';
+import {TEST_LICENSE_KEY} from '@rocicorp/licensing/src/client';
 
 // fetch-mock has invalid d.ts file so we removed that on npm install.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error
 import fetchMock from 'fetch-mock/esm/client';
-import {uuid} from './uuid';
-import type {WriteTransaction} from './transactions.js';
-import {TEST_LICENSE_KEY} from '@rocicorp/licensing/src/client';
 
 export class ReplicacheTest<
   // eslint-disable-next-line @typescript-eslint/ban-types

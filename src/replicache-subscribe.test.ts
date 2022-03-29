@@ -1026,7 +1026,7 @@ test('Errors in subscriptions are logged if no onError', async () => {
     const consoleErrorStub = sinon.stub(console, 'error');
 
     let called = false;
-    const rep = await replicacheForTesting('subscrition-with-exception');
+    const rep = await replicacheForTesting('subscription-with-exception');
 
     rep.subscribe(
       async () => {
@@ -1063,4 +1063,59 @@ test('Errors in subscriptions are logged if no onError', async () => {
   await t(f, err);
   expect(f.callCount).to.equal(1);
   expect(f.calledWith(err)).to.be.true;
+});
+
+test('subscribe with scan limit', async () => {
+  const log: [string, ReadonlyJSONValue][] = [];
+
+  const rep = await replicacheForTesting('subscribe', {
+    mutators: {
+      addData,
+    },
+  });
+  let queryCallCount = 0;
+  rep.subscribe(
+    async (tx: ReadTransaction) => {
+      queryCallCount++;
+      return await tx
+        .scan({start: {key: 'b'}, limit: 3})
+        .entries()
+        .toArray();
+    },
+    {
+      onData: (values: Iterable<[string, ReadonlyJSONValue]>) => {
+        for (const entry of values) {
+          log.push(entry);
+        }
+      },
+    },
+  );
+
+  expect(log).to.have.length(0);
+  expect(queryCallCount).to.equal(0);
+
+  await tickUntil(() => queryCallCount > 0);
+
+  await rep.mutate.addData({a: 1, b: 2});
+
+  expect(log).to.deep.equal([['b', 2]]);
+
+  log.length = 0;
+  await rep.mutate.addData({c: 3});
+  expect(log).to.deep.equal([
+    ['b', 2],
+    ['c', 3],
+  ]);
+
+  log.length = 0;
+  await rep.mutate.addData({d: 4});
+  expect(log).to.deep.equal([
+    ['b', 2],
+    ['c', 3],
+    ['d', 4],
+  ]);
+
+  queryCallCount = 0;
+  await rep.mutate.addData({e: 5});
+  expect(queryCallCount).to.equal(0);
 });

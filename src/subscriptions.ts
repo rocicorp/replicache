@@ -1,7 +1,8 @@
 import type {JSONValue} from './json';
 import type {ReadTransaction} from './transactions';
-import * as db from './db/mod';
+import type * as db from './db/mod';
 import type * as sync from './sync/mod';
+import {decodeIndexKey} from './db/index-key.js';
 
 export type ScanSubscriptionInfo = {
   options: db.ScanOptions;
@@ -95,8 +96,7 @@ export function scanInfoMatchesKey(
     return true;
   }
 
-  const [changedKeySecondary, changedKeyPrimary] =
-    db.decodeIndexKey(changedKey);
+  const [changedKeySecondary, changedKeyPrimary] = decodeIndexKey(changedKey);
 
   if (prefix) {
     if (!changedKeySecondary.startsWith(prefix)) {

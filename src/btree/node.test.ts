@@ -1,6 +1,5 @@
 import {expect, assert} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
-import type {ScanOptionsInternal} from '../db/scan';
 import {emptyHash, Hash} from '../hash';
 import {getSizeOfValue, ReadonlyJSONValue} from '../json';
 import {
@@ -15,10 +14,12 @@ import {
   NODE_LEVEL,
   NODE_ENTRIES,
   emptyDataNode,
+  ReadonlyEntry,
 } from './node';
 import {BTreeWrite} from './write';
 import {makeTestChunkHasher} from '../dag/chunk';
 import {BTreeRead, NODE_HEADER_SIZE} from './read';
+import type {ScanReader} from '../scan-reader.js';
 
 test('findLeaf', async () => {
   const dagStore = new dag.TestStore();
@@ -249,10 +250,21 @@ function doWrite(
   });
 }
 
-async function asyncIterToArray<T>(iter: AsyncIterable<T>): Promise<T[]> {
-  const rv: T[] = [];
-  for await (const e of iter) {
-    rv.push(e);
+// async function asyncIterToArray<T>(iter: AsyncIterable<T>): Promise<T[]> {
+//   const rv: T[] = [];
+//   for await (const e of iter) {
+//     rv.push(e);
+//   }
+//   return rv;
+// }
+
+async function scanReaderToArray(
+  reader: ScanReader,
+): Promise<ReadonlyEntry<ReadonlyJSONValue>[]> {
+  const rv: ReadonlyEntry<ReadonlyJSONValue>[] = [];
+  let entry: ReadonlyEntry<ReadonlyJSONValue> | undefined;
+  while ((entry = await reader.next())) {
+    rv.push(entry);
   }
   return rv;
 }
@@ -263,7 +275,7 @@ test('empty read tree', async () => {
     const r = new BTreeRead(dagRead);
     expect(await r.get('a')).to.be.undefined;
     expect(await r.has('b')).to.be.false;
-    expect(await asyncIterToArray(r.scan({}, x => x))).to.deep.equal([]);
+    expect(await scanReaderToArray(await r.scanReader())).to.deep.equal([]);
   });
 });
 
@@ -284,7 +296,7 @@ test('empty write tree', async () => {
     );
     expect(await w.get('a')).to.be.undefined;
     expect(await w.has('b')).to.be.false;
-    expect(await asyncIterToArray(w.scan({}, x => x))).to.deep.equal([]);
+    expect(await scanReaderToArray(await w.scanReader())).to.deep.equal([]);
 
     const h = await w.flush();
     expect(h).to.equal(emptyTreeHash);
@@ -1194,10 +1206,10 @@ test('put/del - getSize', async () => {
   });
 });
 
-test('scan', async () => {
+test('scanReader', async () => {
   const t = async (
     entries: Entry<ReadonlyJSONValue>[],
-    options: ScanOptionsInternal = {},
+    seekKey = '',
     expectedEntries = entries,
   ) => {
     const dagStore = new dag.TestStore();
@@ -1215,29 +1227,16 @@ test('scan', async () => {
     });
 
     await doRead(rootHash, dagStore, async r => {
-      const res: Entry<ReadonlyJSONValue>[] = [];
-      const onLimitKeyCalls: string[] = [];
-      const scanResult = r.scan(
-        options,
-        x => x,
-        inclusiveLimitKey => {
-          onLimitKeyCalls.push(inclusiveLimitKey);
-        },
-      );
-      for await (const e of scanResult) {
-        res.push(e);
+      const res: ReadonlyEntry<ReadonlyJSONValue>[] = [];
+      const reader = await r.scanReader();
+      if (seekKey) {
+        await reader.seek(seekKey);
+      }
+      let entry: ReadonlyEntry<ReadonlyJSONValue> | undefined;
+      while ((entry = await reader.next())) {
+        res.push(entry);
       }
       expect(res).to.deep.equal(expectedEntries);
-      if (options.limit !== undefined) {
-        if (options.limit > 0 && res.length === options.limit) {
-          expect(onLimitKeyCalls.length).to.equal(1);
-          expect(onLimitKeyCalls[0]).to.equal(res[res.length - 1][0]);
-        } else {
-          expect(onLimitKeyCalls.length).to.equal(0);
-        }
-      } else {
-        expect(onLimitKeyCalls.length).to.equal(0);
-      }
     });
   };
 
@@ -1268,50 +1267,153 @@ test('scan', async () => {
 
   await t(
     [
-      ['a', 1],
-      ['b', 2],
-      ['c', 3],
-      ['d', 4],
-      ['e', 5],
+      ['b', 1],
+      ['d', 2],
+      ['f', 3],
+      ['h', 4],
+      ['j', 5],
     ],
-    {limit: 0},
-    [],
+    'a',
   );
+
   await t(
     [
-      ['a', 1],
-      ['b', 2],
-      ['c', 3],
-      ['d', 4],
-      ['e', 5],
+      ['b', 1],
+      ['d', 2],
+      ['f', 3],
+      ['h', 4],
+      ['j', 5],
     ],
-    {limit: 1},
-    [['a', 1]],
+    'b',
   );
+
   await t(
     [
-      ['a', 1],
-      ['b', 2],
-      ['c', 3],
-      ['d', 4],
-      ['e', 5],
+      ['b', 1],
+      ['d', 2],
+      ['f', 3],
+      ['h', 4],
+      ['j', 5],
     ],
-    {limit: 2},
+    'c',
     [
-      ['a', 1],
-      ['b', 2],
+      ['d', 2],
+      ['f', 3],
+      ['h', 4],
+      ['j', 5],
     ],
   );
 
   await t(
     [
-      ['a', 1],
-      ['b', 2],
-      ['c', 3],
-      ['d', 4],
-      ['e', 5],
+      ['b', 1],
+      ['d', 2],
+      ['f', 3],
+      ['h', 4],
+      ['j', 5],
     ],
-    {limit: 8},
+    'd',
+    [
+      ['d', 2],
+      ['f', 3],
+      ['h', 4],
+      ['j', 5],
+    ],
+  );
+
+  await t(
+    [
+      ['b', 1],
+      ['d', 2],
+      ['f', 3],
+      ['h', 4],
+      ['j', 5],
+    ],
+    'e',
+    [
+      ['f', 3],
+      ['h', 4],
+      ['j', 5],
+    ],
+  );
+
+  await t(
+    [
+      ['b', 1],
+      ['d', 2],
+      ['f', 3],
+      ['h', 4],
+      ['j', 5],
+    ],
+    'f',
+    [
+      ['f', 3],
+      ['h', 4],
+      ['j', 5],
+    ],
+  );
+
+  await t(
+    [
+      ['b', 1],
+      ['d', 2],
+      ['f', 3],
+      ['h', 4],
+      ['j', 5],
+    ],
+    'g',
+    [
+      ['h', 4],
+      ['j', 5],
+    ],
+  );
+
+  await t(
+    [
+      ['b', 1],
+      ['d', 2],
+      ['f', 3],
+      ['h', 4],
+      ['j', 5],
+    ],
+    'h',
+    [
+      ['h', 4],
+      ['j', 5],
+    ],
+  );
+  await t(
+    [
+      ['b', 1],
+      ['d', 2],
+      ['f', 3],
+      ['h', 4],
+      ['j', 5],
+    ],
+    'i',
+    [['j', 5]],
+  );
+  await t(
+    [
+      ['b', 1],
+      ['d', 2],
+      ['f', 3],
+      ['h', 4],
+      ['j', 5],
+    ],
+    'j',
+    [['j', 5]],
+  );
+  await t(
+    [
+      ['b', 1],
+      ['d', 2],
+      ['f', 3],
+      ['h', 4],
+      ['j', 5],
+    ],
+    'k',
+    [],
   );
 
   await t(
@@ -1323,50 +1425,33 @@ test('scan', async () => {
       ['ab', 4],
       ['b', 5],
     ],
-    {prefix: 'aa'},
+    'aa',
     [
       ['aa', 1],
       ['aaa', 2],
       ['aab', 3],
+      ['ab', 4],
+      ['b', 5],
     ],
   );
 
-  for (let limit = 4; limit >= 0; limit--) {
-    await t(
-      [
-        ['a', 0],
-        ['aa', 1],
-        ['aaa', 2],
-        ['aab', 3],
-        ['ab', 4],
-        ['b', 5],
-      ],
-      {prefix: 'aa', limit},
-      [
-        ['aa', 1],
-        ['aaa', 2],
-        ['aab', 3],
-      ].slice(0, limit) as Entry<number>[],
-    );
-  }
-
-  for (let limit = 3; limit >= 0; limit--) {
-    await t(
-      [
-        ['a', 0],
-        ['aa', 1],
-        ['aaa', 2],
-        ['aab', 3],
-        ['ab', 4],
-        ['b', 5],
-      ],
-      {prefix: 'aa', startKey: 'aaa', limit},
-      [
-        ['aaa', 2],
-        ['aab', 3],
-      ].slice(0, limit) as Entry<number>[],
-    );
-  }
+  await t(
+    [
+      ['a', 0],
+      ['aa', 1],
+      ['aaa', 2],
+      ['aab', 3],
+      ['ab', 4],
+      ['b', 5],
+    ],
+    'aaa',
+    [
+      ['aaa', 2],
+      ['aab', 3],
+      ['ab', 4],
+      ['b', 5],
+    ],
+  );
 
   await t(
     [
@@ -1376,7 +1461,7 @@ test('scan', async () => {
       ['d', 4],
       ['e', 5],
     ],
-    {limit: -1},
+    'f',
     [],
   );
 
@@ -1388,31 +1473,7 @@ test('scan', async () => {
       ['d', 4],
       ['e', 5],
     ],
-    {prefix: 'f'},
-    [],
-  );
-
-  await t(
-    [
-      ['a', 1],
-      ['b', 2],
-      ['c', 3],
-      ['d', 4],
-      ['e', 5],
-    ],
-    {startKey: 'f'},
-    [],
-  );
-
-  await t(
-    [
-      ['a', 1],
-      ['b', 2],
-      ['c', 3],
-      ['d', 4],
-      ['e', 5],
-    ],
-    {startKey: 'e'},
+    'e',
     [['e', 5]],
   );
 });

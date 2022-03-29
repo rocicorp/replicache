@@ -4,6 +4,7 @@ import {Hash, emptyHash, newTempHash} from '../hash';
 import type {BTreeRead} from './read';
 import type {BTreeWrite} from './write';
 import {skipBTreeNodeAsserts} from '../config.js';
+import type {ScanReader} from '../scan-reader.js';
 
 export type Entry<V> = [key: string, value: V];
 export type ReadonlyEntry<V> = readonly [key: string, value: V];
@@ -81,7 +82,7 @@ export async function findLeaf(
  *
  * If the key found then the return value is the index it was found at.
  *
- * If the key was *not* found then the retun value is the index where it should
+ * If the key was *not* found then the return value is the index where it should
  * be inserted at bitwise or'ed (`~index`). This is the same as `-index -1`. For
  * example if not found and needs to be inserted at `0` then we return `-1`.
  */
@@ -232,33 +233,10 @@ export class DataNodeImpl extends NodeImpl<ReadonlyJSONValue> {
     return this._splice(tree, i, 1);
   }
 
-  async *scan<R>(
-    _tree: BTreeRead,
-    prefix: string,
-    fromKey: string,
-    limit: number,
-    convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
-    onLimitKey?: (inclusiveLimitKey: string) => void,
-  ): AsyncGenerator<R, number, unknown> {
-    const {entries} = this;
-    let i = binarySearch(fromKey, entries);
-    if (i < 0) {
-      i = ~i;
-    }
-    for (
-      ;
-      limit > 0 && i < entries.length && entries[i][0].startsWith(prefix);
-      limit--, i++
-    ) {
-      if (onLimitKey && limit === 1) {
-        onLimitKey(entries[i][0]);
-      }
-      yield convertEntry(entries[i]);
-    }
-    return limit;
+  scanReader(_tree: BTreeRead): ScanReader {
+    return new DataNodeScanReader(this.entries);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async *keys(_tree: BTreeRead): AsyncGenerator<string, void> {
     for (const entry of this.entries) {
       yield entry[0];
@@ -266,7 +244,6 @@ export class DataNodeImpl extends NodeImpl<ReadonlyJSONValue> {
   }
 
   async *entriesIter(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _tree: BTreeRead,
   ): AsyncGenerator<ReadonlyEntry<ReadonlyJSONValue>, void> {
     for (const entry of this.entries) {
@@ -339,7 +316,7 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
 
   /**
    * This merges the child node entries with previous or next sibling and then
-   * partions the merged entries.
+   * partitions the merged entries.
    */
   private async _mergeAndPartition(
     tree: BTreeWrite,
@@ -456,34 +433,8 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
     return this._mergeAndPartition(tree, i, childNode);
   }
 
-  async *scan<R>(
-    tree: BTreeRead,
-    prefix: string,
-    fromKey: string,
-    limit: number,
-    convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
-    onLimitKey?: (inclusiveLimitKey: string) => void,
-  ): AsyncGenerator<R, number> {
-    const {entries} = this;
-    let i = binarySearch(fromKey, entries);
-    if (i < 0) {
-      i = ~i;
-      if (i >= entries.length) {
-        return limit;
-      }
-    }
-    for (; i < entries.length && limit > 0; i++) {
-      const childNode = await tree.getNode(entries[i][1]);
-      limit = yield* childNode.scan(
-        tree,
-        prefix,
-        fromKey,
-        limit,
-        convertEntry,
-        onLimitKey,
-      );
-    }
-    return limit;
+  scanReader(tree: BTreeRead): ScanReader {
+    return new InternalNodeScanReader(tree, this.entries);
   }
 
   async *keys(tree: BTreeRead): AsyncGenerator<string, void> {
@@ -621,3 +572,80 @@ export function partition<T>(
 
 export const emptyDataNode: DataNode = [0, []];
 export const emptyDataNodeImpl = new DataNodeImpl([], emptyHash, false);
+
+class DataNodeScanReader implements ScanReader {
+  private readonly _entries: readonly ReadonlyEntry<ReadonlyJSONValue>[];
+  private _i = 0;
+
+  constructor(entries: readonly ReadonlyEntry<ReadonlyJSONValue>[]) {
+    this._entries = entries;
+  }
+
+  seek(key: string): Promise<void> {
+    let i = binarySearch(key, this._entries);
+    if (i < 0) {
+      i = ~i;
+    }
+    this._i = i;
+    return Promise.resolve();
+  }
+
+  next(): Promise<
+    readonly [key: string, value: ReadonlyJSONValue] | undefined
+  > {
+    if (this._i >= this._entries.length) {
+      return Promise.resolve(undefined);
+    }
+    return Promise.resolve(this._entries[this._i++]);
+  }
+}
+
+class InternalNodeScanReader implements ScanReader {
+  private readonly _entries: readonly ReadonlyEntry<Hash>[];
+  private _i = 0;
+  private _childScanReader: ScanReader | undefined = undefined;
+  private readonly _tree: BTreeRead;
+
+  constructor(tree: BTreeRead, entries: readonly ReadonlyEntry<Hash>[]) {
+    this._tree = tree;
+    this._entries = entries;
+  }
+
+  async seek(key: string): Promise<void> {
+    let i = binarySearch(key, this._entries);
+    if (i < 0) {
+      i = ~i;
+    }
+    this._i = i;
+    this._childScanReader = await this._getReaderForChild(this._i++);
+    if (this._childScanReader) {
+      await this._childScanReader.seek(key);
+    }
+  }
+
+  private async _getReaderForChild(i: number): Promise<ScanReader | undefined> {
+    if (i >= this._entries.length) {
+      return undefined;
+    }
+
+    const child = await this._tree.getNode(this._entries[i][1]);
+    return child.scanReader(this._tree);
+  }
+
+  async next(): Promise<ReadonlyEntry<ReadonlyJSONValue> | undefined> {
+    if (this._childScanReader === undefined) {
+      if (this._i >= this._entries.length) {
+        return undefined;
+      }
+      this._childScanReader = await this._getReaderForChild(this._i++);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const entry = await this._childScanReader!.next();
+    if (entry !== undefined) {
+      return entry;
+    }
+    this._childScanReader = undefined;
+
+    return this.next();
+  }
+}

@@ -1,5 +1,5 @@
-import {encodeIndexScanKey} from '.';
 import type {ReadonlyJSONValue} from '../json';
+import {encodeIndexScanKey} from './index-key.js';
 
 // TODO(arv): Unify with src/scan-options.ts
 
@@ -82,7 +82,7 @@ export function convert(source: ScanOptions): ScanOptionsInternal {
     );
   } else {
     let sk = source.startKey ?? '';
-    if (source.startExclusive ?? false) {
+    if (source.startExclusive) {
       sk += '\u0000';
     }
     startKey = sk;

@@ -517,7 +517,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
     ),
   ).to.be.true;
 
-  // Changed key is between startKey and lastKey inclusive, but doesnt match prefix
+  // Changed key is between startKey and lastKey inclusive, but doesn't match prefix
   expect(
     scanInfoMatchesKey(
       {

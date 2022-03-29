@@ -60,14 +60,14 @@ test('name is required', () => {
   expect(
     () =>
       new Replicache({
-        experimentalLicenseKey: TEST_LICENSE_KEY,
+        licenseKey: TEST_LICENSE_KEY,
       } as ReplicacheOptions<Record<string, never>>),
   ).to.throw(/name.*required/);
 });
 
 test('name cannot be empty', () => {
   expect(
-    () => new Replicache({experimentalLicenseKey: TEST_LICENSE_KEY, name: ''}),
+    () => new Replicache({licenseKey: TEST_LICENSE_KEY, name: ''}),
   ).to.throw(/name.*must be non-empty/);
 });
 
@@ -1733,7 +1733,7 @@ test('clientID', async () => {
   expect(clientID3).to.not.equal(clientID);
 
   const rep4 = new Replicache({
-    experimentalLicenseKey: TEST_LICENSE_KEY,
+    licenseKey: TEST_LICENSE_KEY,
     name: 'clientID4',
     pullInterval: null,
   });
@@ -1756,7 +1756,7 @@ test('profileID', async () => {
   expect(profileID2).to.equal(profileID);
 
   const rep3 = new Replicache({
-    experimentalLicenseKey: TEST_LICENSE_KEY,
+    licenseKey: TEST_LICENSE_KEY,
     name: 'clientID3',
   });
   const profileID3 = await rep3.profileID;
@@ -1965,27 +1965,25 @@ async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
     fetchMock.postOnce(statusUrlMatcher, tc.mockFetchParams);
   }
   const rep = await replicacheForTesting(name, {
-    experimentalLicenseKey: tc.licenseKey,
+    licenseKey: tc.licenseKey,
   });
 
   expect(await rep.licenseValid()).to.equal(tc.expectValid);
   if (!tc.expectValid) {
     expect(rep.closed).to.be.true;
     expect(consoleErrorStub.callCount).to.equal(1);
-    expect(consoleErrorStub.lastCall.args[1]).to.equal(
-      `** REPLICACHE DISABLED ** Replicache license key 'testing-invalid-license-key' is not valid (status: INVALID). Please run 'npx get-license' to get a license key or contact licensing@replicache.dev for help.`,
-    );
+    expect(consoleErrorStub.lastCall.args[1]).to.match(/REPLICACHE DISABLED/);
   }
   expect(fetchMock.called(statusUrlMatcher)).to.equal(tc.expectFetchCalled);
 
   await rep.close();
 }
 
-test('no licensing key is valid and does not send status check', async () => {
+test('no licensing key is not valid and does not send status check', async () => {
   await licenseKeyCheckTest({
     licenseKey: undefined,
     mockFetchParams: undefined,
-    expectValid: true,
+    expectValid: false,
     expectFetchCalled: false,
   });
 });
@@ -2001,7 +1999,7 @@ test('test licensing key is valid and does not send status check', async () => {
 
 test('licensing key is valid if check returns valid', async () => {
   await licenseKeyCheckTest({
-    licenseKey: 'valid-license-key',
+    licenseKey: 'l123validkey',
     mockFetchParams: {
       body: {
         status: LicenseStatus.Valid,
@@ -2014,7 +2012,7 @@ test('licensing key is valid if check returns valid', async () => {
 
 test('licensing key is not valid if check returns invalid', async () => {
   await licenseKeyCheckTest({
-    licenseKey: 'testing-invalid-license-key',
+    licenseKey: 'l123keyreturnsINVALID',
     mockFetchParams: {
       body: {
         status: LicenseStatus.Invalid,
@@ -2027,7 +2025,7 @@ test('licensing key is not valid if check returns invalid', async () => {
 
 test('licensing key is valid if check throws', async () => {
   await licenseKeyCheckTest({
-    licenseKey: 'throwing-license-key',
+    licenseKey: 'l123keythrows',
     mockFetchParams: {
       throws: new Error('kaboom (this is a fake error in a test)'),
     },
@@ -2038,7 +2036,7 @@ test('licensing key is valid if check throws', async () => {
 
 test('licensing key is valid if check returns non-200', async () => {
   await licenseKeyCheckTest({
-    licenseKey: '500ing-license-key',
+    licenseKey: 'lkeyreturns500',
     mockFetchParams: {
       status: 500,
     },
@@ -2061,7 +2059,7 @@ async function licenseActiveTest(tc: LicenseActiveTestCase) {
     fetchMock.postOnce(activeUrlMatcher, tc.mockFetchParams);
   }
   const rep = await replicacheForTesting('license-active-test', {
-    experimentalLicenseKey: tc.licenseKey,
+    licenseKey: tc.licenseKey,
   });
   const licenseActive = await rep.licenseActive();
   expect(licenseActive).to.equal(tc.expectActive);
@@ -2096,7 +2094,7 @@ test('test licensing key is not active and does not send active pings', async ()
 
 test('a non-empty, non-test licensing key is active and does send active pings', async () => {
   await licenseActiveTest({
-    licenseKey: 'some-valid-key',
+    licenseKey: 'l123validkey',
     mockFetchParams: {
       status: 200,
       body: '{}',
@@ -2111,21 +2109,21 @@ test('overlapping open/close', async () => {
   const name = 'overlapping-open-close';
 
   const rep = new Replicache({
-    experimentalLicenseKey: TEST_LICENSE_KEY,
+    licenseKey: TEST_LICENSE_KEY,
     name,
     pullInterval,
   });
   const p = rep.close();
 
   const rep2 = new Replicache({
-    experimentalLicenseKey: TEST_LICENSE_KEY,
+    licenseKey: TEST_LICENSE_KEY,
     name,
     pullInterval,
   });
   const p2 = rep2.close();
 
   const rep3 = new Replicache({
-    experimentalLicenseKey: TEST_LICENSE_KEY,
+    licenseKey: TEST_LICENSE_KEY,
     name,
     pullInterval,
   });
@@ -2137,14 +2135,14 @@ test('overlapping open/close', async () => {
 
   {
     const rep = new Replicache({
-      experimentalLicenseKey: TEST_LICENSE_KEY,
+      licenseKey: TEST_LICENSE_KEY,
       name,
       pullInterval,
     });
     await rep.clientID;
     const p = rep.close();
     const rep2 = new Replicache({
-      experimentalLicenseKey: TEST_LICENSE_KEY,
+      licenseKey: TEST_LICENSE_KEY,
       name,
       pullInterval,
     });

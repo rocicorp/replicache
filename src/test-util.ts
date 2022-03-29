@@ -147,7 +147,7 @@ export async function replicacheForTestingNoDefaultURLs<
   } = {},
 ): Promise<ReplicacheTest<MD>> {
   const rep = new ReplicacheTest<MD>({
-    experimentalLicenseKey: TEST_LICENSE_KEY,
+    licenseKey: TEST_LICENSE_KEY,
     pullURL,
     pushDelay,
     pushURL,

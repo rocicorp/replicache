@@ -1,4 +1,4 @@
-import type {LogLevel} from '@rocicorp/logger';
+import type {LogLevel, LogSink} from '@rocicorp/logger';
 import type {Pusher} from './pusher';
 import type {Puller} from './puller';
 import type {MutatorDefs, RequestOptions} from './replicache';
@@ -81,8 +81,17 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * Replicache will also log `'info'` and `'error'` messages. When set to
    * `'info'` we log `'info'` and `'error'` but not `'debug'`. When set to
    * `'error'` we only log `'error'` messages.
+   * Default is `'info'`.
    */
   logLevel?: LogLevel;
+
+  /**
+   * Enables custom handling of logs. By default logs are logged to the console.
+   * If you would like logs to be sent somewhere else (e.g. to a cloud logging
+   * service like DataDog) you can provide a custom `LogSink`.  Logs above
+   * [[logLevel]] are sent to this `LogSink`.
+   */
+  logSink?: LogSink;
 
   /**
    * An object used as a map to define the *mutators*. These gets registered at

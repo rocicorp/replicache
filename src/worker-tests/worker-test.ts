@@ -6,6 +6,7 @@ import {asyncIterableToArray} from '../async-iterable-to-array';
 import {expect} from '@esm-bundle/chai';
 import type {JSONValue} from '../json';
 import {closeAllReps, reps} from '../test-util';
+import {TEST_LICENSE_KEY} from '../replicache';
 
 onmessage = async (e: MessageEvent) => {
   const {name} = e.data;
@@ -27,6 +28,7 @@ async function testGetHasScanOnEmptyDB(name: string) {
   const rep = new ReplicacheTest({
     pushDelay: 60_000, // Large to prevent interferin;,
     name,
+    licenseKey: TEST_LICENSE_KEY,
     mutators: {
       testMut: async (
         tx: WriteTransaction,

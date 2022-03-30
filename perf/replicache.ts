@@ -450,7 +450,7 @@ function makeRepName(): string {
 }
 
 function makeRep<MD extends MutatorDefs>(
-  options: Omit<ReplicacheOptions<MD>, 'name'> = {},
+  options: Omit<ReplicacheOptions<MD>, 'name' | 'licenseKey'> = {},
 ) {
   const name = makeRepName();
   return new Replicache<MD>({

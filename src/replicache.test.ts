@@ -37,7 +37,7 @@ import fetchMock from 'fetch-mock/esm/client';
 import type {Mutation} from './sync/push';
 import type {ReplicacheOptions} from './replicache-options';
 import {deleteClientForTesting} from './persist/clients-test-helpers.js';
-import {LogLevel} from '@rocicorp/logger';
+import type {LogLevel} from '@rocicorp/logger';
 
 const {fail} = assert;
 

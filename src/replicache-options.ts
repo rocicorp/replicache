@@ -88,8 +88,8 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
   /**
    * Enables custom handling of logs. By default logs are logged to the console.
    * If you would like logs to be sent somewhere else (e.g. to a cloud logging
-   * service like DataDog) you can provide a custom `LogSink`.  Logs above
-   * [[logLevel]] are sent to this `LogSink`.
+   * service like DataDog) you can provide a custom `LogSink`.  Logs at or above
+   * [[ReplicacheOptions.logLevel]] are sent to this `LogSink`.
    */
   logSink?: LogSink;
 

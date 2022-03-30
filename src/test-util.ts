@@ -111,8 +111,9 @@ export function createReplicacheNameForTest(partialName: string): string {
 // eslint-disable-next-line @typescript-eslint/ban-types
 export async function replicacheForTesting<MD extends MutatorDefs = {}>(
   partialName: string,
-  options: Omit<ReplicacheOptions<MD>, 'name'> & {
+  options: Omit<ReplicacheOptions<MD>, 'name' | 'licenseKey'> & {
     onClientStateNotFound?: (() => void) | null;
+    licenseKey?: string;
   } = {},
 ): Promise<ReplicacheTest<MD>> {
   const pullURL = 'https://pull.com/?name=' + partialName;
@@ -122,6 +123,7 @@ export async function replicacheForTesting<MD extends MutatorDefs = {}>(
     {
       pullURL,
       pushURL,
+      licenseKey: options.licenseKey ?? TEST_LICENSE_KEY,
       ...options,
     },
   );
@@ -142,16 +144,16 @@ export async function replicacheForTestingNoDefaultURLs<
       );
     },
     ...rest
-  }: Omit<ReplicacheOptions<MD>, 'name'> & {
+  }: Omit<ReplicacheOptions<MD>, 'name' | 'licenseKey'> & {
     onClientStateNotFound?: (() => void) | null;
   } = {},
 ): Promise<ReplicacheTest<MD>> {
   const rep = new ReplicacheTest<MD>({
-    licenseKey: TEST_LICENSE_KEY,
     pullURL,
     pushDelay,
     pushURL,
     name,
+    licenseKey: TEST_LICENSE_KEY,
     ...rest,
   });
   dbsToDrop.add(rep.idbName);

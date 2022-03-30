@@ -1946,7 +1946,7 @@ test('online', async () => {
 });
 
 type LicenseKeyCheckTestCase = {
-  licenseKey: string | undefined;
+  licenseKey: string;
   mockFetchParams: object | undefined;
   expectValid: boolean;
   expectFetchCalled: boolean;
@@ -1979,9 +1979,9 @@ async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
   await rep.close();
 }
 
-test('no licensing key is not valid and does not send status check', async () => {
+test('empty licensing key is not valid and does not send status check', async () => {
   await licenseKeyCheckTest({
-    licenseKey: undefined,
+    licenseKey: '',
     mockFetchParams: undefined,
     expectValid: false,
     expectFetchCalled: false,

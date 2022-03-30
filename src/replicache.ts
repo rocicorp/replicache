@@ -52,12 +52,12 @@ import {
   licenseActive,
   PROD_LICENSE_SERVER_URL,
   LicenseStatus,
-  TEST_LICENSE_KEY as TLK,
+  TEST_LICENSE_KEY,
 } from '@rocicorp/licensing/src/client';
 import {mustSimpleFetch} from './simple-fetch';
 import {initBgIntervalProcess} from './persist/bg-interval';
 
-export const TEST_LICENSE_KEY = TLK;
+export {TEST_LICENSE_KEY};
 
 export type BeginPullResult = {
   requestID: string;
@@ -510,7 +510,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private async _licenseCheck(
     resolveLicenseCheck: (valid: boolean) => void,
   ): Promise<void> {
-    if (this._licenseKey === undefined || this._licenseKey === '') {
+    if (!this._licenseKey) {
       await this._licenseInvalid(
         this._lc,
         `license key ReplicacheOptions.licenseKey is not set`,
@@ -572,11 +572,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     resolveLicenseActive: (valid: boolean) => void,
     lc: LogContext,
   ): Promise<() => void> {
-    if (
-      this._licenseKey === undefined ||
-      this._licenseKey === '' ||
-      this._licenseKey === TEST_LICENSE_KEY
-    ) {
+    if (!this._licenseKey || this._licenseKey === TEST_LICENSE_KEY) {
       resolveLicenseActive(false);
       return noop;
     }

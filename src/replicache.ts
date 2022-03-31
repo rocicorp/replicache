@@ -514,6 +514,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       await this._licenseInvalid(
         this._lc,
         `license key ReplicacheOptions.licenseKey is not set`,
+        true /* disable replicache */,
         resolveLicenseCheck,
       );
       return;
@@ -531,18 +532,19 @@ export class Replicache<MD extends MutatorDefs = {}> {
       return;
     }
     try {
-      const status = await getLicenseStatus(
+      const resp = await getLicenseStatus(
         mustSimpleFetch,
         PROD_LICENSE_SERVER_URL,
         this._licenseKey,
         this._lc,
       );
-      if (status === LicenseStatus.Valid) {
+      if (resp.status === LicenseStatus.Valid) {
         this._lc.info?.(`License is valid.`);
       } else {
         await this._licenseInvalid(
           this._lc,
-          `status: ${status}`,
+          `status: ${resp.status}`,
+          resp.disable,
           resolveLicenseCheck,
         );
         return;
@@ -557,13 +559,17 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private async _licenseInvalid(
     lc: LogContext,
     reason: string,
+    disable: boolean,
     resolveLicenseCheck: (valid: boolean) => void,
   ): Promise<void> {
     lc.error?.(
-      `** REPLICACHE DISABLED ** Replicache license key '${this._licenseKey}' is not valid (${reason}). ` +
+      `** REPLICACHE LICENSE NOT VALID ** Replicache license key '${this._licenseKey}' is not valid (${reason}). ` +
         `Please run 'npx get-replicache-license' to get a license key or contact hello@replicache.dev for help.`,
     );
-    await this.close();
+    if (disable) {
+      await this.close();
+      lc.error?.(`** REPLICACHE DISABLED **`);
+    }
     resolveLicenseCheck(false);
     return;
   }

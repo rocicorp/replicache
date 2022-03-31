@@ -1949,6 +1949,7 @@ type LicenseKeyCheckTestCase = {
   licenseKey: string;
   mockFetchParams: object | undefined;
   expectValid: boolean;
+  expectDisable: boolean;
   expectFetchCalled: boolean;
 };
 
@@ -1969,10 +1970,14 @@ async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
   });
 
   expect(await rep.licenseValid()).to.equal(tc.expectValid);
-  if (!tc.expectValid) {
+  if (tc.expectDisable) {
     expect(rep.closed).to.be.true;
-    expect(consoleErrorStub.callCount).to.equal(1);
     expect(consoleErrorStub.lastCall.args[1]).to.match(/REPLICACHE DISABLED/);
+  } else {
+    expect(rep.closed).to.be.false;
+  }
+  if (!tc.expectValid) {
+    expect(consoleErrorStub.getCall(0).args[1]).to.match(/REPLICACHE LICENSE NOT VALID/);
   }
   expect(fetchMock.called(statusUrlMatcher)).to.equal(tc.expectFetchCalled);
 
@@ -1984,6 +1989,7 @@ test('empty licensing key is not valid and does not send status check', async ()
     licenseKey: '',
     mockFetchParams: undefined,
     expectValid: false,
+    expectDisable: true,
     expectFetchCalled: false,
   });
 });
@@ -1993,6 +1999,7 @@ test('test licensing key is valid and does not send status check', async () => {
     licenseKey: TEST_LICENSE_KEY,
     mockFetchParams: undefined,
     expectValid: true,
+    expectDisable: false,
     expectFetchCalled: false,
   });
 });
@@ -2003,9 +2010,11 @@ test('licensing key is valid if check returns valid', async () => {
     mockFetchParams: {
       body: {
         status: LicenseStatus.Valid,
+        disable: false,
       },
     },
     expectValid: true,
+    expectDisable: false,
     expectFetchCalled: true,
   });
 });
@@ -2016,9 +2025,26 @@ test('licensing key is not valid if check returns invalid', async () => {
     mockFetchParams: {
       body: {
         status: LicenseStatus.Invalid,
+        disable: false,
       },
     },
     expectValid: false,
+    expectDisable: false,
+    expectFetchCalled: true,
+  });
+});
+
+test('Replicache is disabled if check returns disable', async () => {
+  await licenseKeyCheckTest({
+    licenseKey: 'l123keyreturnsINVALID',
+    mockFetchParams: {
+      body: {
+        status: LicenseStatus.Invalid,
+        disable: true,
+      },
+    },
+    expectValid: false,
+    expectDisable: true,
     expectFetchCalled: true,
   });
 });
@@ -2030,6 +2056,7 @@ test('licensing key is valid if check throws', async () => {
       throws: new Error('kaboom (this is a fake error in a test)'),
     },
     expectValid: true,
+    expectDisable: false,
     expectFetchCalled: true,
   });
 });
@@ -2041,6 +2068,7 @@ test('licensing key is valid if check returns non-200', async () => {
       status: 500,
     },
     expectValid: true,
+    expectDisable: false,
     expectFetchCalled: true,
   });
 });

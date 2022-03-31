@@ -57,7 +57,7 @@ instantiated with it will shut itself down after a few minutes.
 
 ## License pings
 
-Per [Replicache Pricing](https://replicache.dev/#price), we charge post-funding/revnue
+Per [Replicache Pricing](https://replicache.dev/#price), we charge post-funding/revenue
 commercial customers based on _Monthly Active Browser Profiles_, meaning unique browser
 instances that instantiate Replicache in a calendar month. The way we accomplish this
 is to send a ping to our servers containing your license key and a unique browser

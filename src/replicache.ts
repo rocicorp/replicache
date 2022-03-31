@@ -564,7 +564,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   ): Promise<void> {
     lc.error?.(
       `** REPLICACHE LICENSE NOT VALID ** Replicache license key '${this._licenseKey}' is not valid (${reason}). ` +
-        `Please run 'npx get-replicache-license' to get a license key or contact hello@replicache.dev for help.`,
+        `Please run 'npx replicache get-license' to get a license key or contact hello@replicache.dev for help.`,
     );
     if (disable) {
       await this.close();

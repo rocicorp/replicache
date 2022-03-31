@@ -1,5 +1,6 @@
 export {Replicache, makeIDBName} from './replicache';
 export {TransactionClosedError} from './transaction-closed-error';
+export {consoleLogSink} from '@rocicorp/logger';
 
 export type {
   MaybePromise,
@@ -18,7 +19,7 @@ export type {
   ScanResult,
   AsyncIterableIteratorToArrayWrapper,
 } from './scan-iterator';
-export type {LogLevel} from '@rocicorp/logger';
+export type {LogSink, LogLevel} from '@rocicorp/logger';
 export type {
   JSONObject,
   JSONValue,

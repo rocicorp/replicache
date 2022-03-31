@@ -1,4 +1,4 @@
-import {consoleLogSink, LogContext} from '@rocicorp/logger';
+import {consoleLogSink, LogContext, TeeLogSink} from '@rocicorp/logger';
 import {resolver} from '@rocicorp/resolver';
 import {Lock} from '@rocicorp/lock';
 import {deepClone, deepEqual, ReadonlyJSONValue} from './json';
@@ -329,7 +329,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const {
       name,
       logLevel = 'info',
-      logSink = consoleLogSink,
+      logSinks = [consoleLogSink],
       pullURL = '',
       auth,
       pushDelay = 10,
@@ -356,6 +356,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.puller = puller;
     this.pusher = pusher;
 
+    const logSink =
+      logSinks.length === 1 ? logSinks[0] : new TeeLogSink(logSinks);
     this._lc = new LogContext(logLevel, logSink).addContext('name', name);
 
     const perKvStore = experimentalKVStore || new IDBStore(this.idbName);

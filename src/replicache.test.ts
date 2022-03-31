@@ -1977,7 +1977,9 @@ async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
     expect(rep.closed).to.be.false;
   }
   if (!tc.expectValid) {
-    expect(consoleErrorStub.getCall(0).args[1]).to.match(/REPLICACHE LICENSE NOT VALID/);
+    expect(consoleErrorStub.getCall(0).args[1]).to.match(
+      /REPLICACHE LICENSE NOT VALID/,
+    );
   }
   expect(fetchMock.called(statusUrlMatcher)).to.equal(tc.expectFetchCalled);
 

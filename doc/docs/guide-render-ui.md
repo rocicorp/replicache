@@ -25,6 +25,7 @@ export default function Home() {
   useEffect(async () => {
     const rep = new Replicache({
       name: 'chat-user-id',
+      licenseKey: '...';
       pushURL: '/api/replicache-push',
       pullURL: '/api/replicache-pull',
     });

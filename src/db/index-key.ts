@@ -51,7 +51,7 @@ export function encodeIndexKey(indexKey: IndexKey): string {
 export function encodeIndexScanKey(
   secondary: string,
   primary: string | undefined,
-  exclusive: boolean,
+  exclusive: boolean | undefined,
 ): string {
   let k = encodeIndexKey([secondary, primary || '']);
 

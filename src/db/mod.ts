@@ -39,5 +39,4 @@ export type {
   CommitData,
   Meta,
 } from './commit';
-export type {ScanOptions} from './scan';
 export type {Whence} from './read';

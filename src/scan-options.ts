@@ -1,5 +1,3 @@
-import type * as db from './db/mod';
-
 /**
  * Options for [[ReadTransaction.scan|scan]]
  */
@@ -51,9 +49,9 @@ export type ScanIndexOptions = {
 };
 
 export function isScanIndexOptions(
-  options: ScanOptions | undefined,
+  options: ScanOptions,
 ): options is ScanIndexOptions {
-  return !!options && (options as ScanIndexOptions).indexName !== undefined;
+  return (options as ScanIndexOptions).indexName !== undefined;
 }
 
 /**
@@ -82,35 +80,11 @@ export type ScanOptionIndexedStartKey =
   | [secondary: string, primary?: string]
   | string;
 
-export function toDbScanOptions(options?: ScanOptions): db.ScanOptions {
-  if (!options) {
-    return {};
+export function scanOptionIndexedStartKeyToSecondaryAndPrimary(
+  key: ScanOptionIndexedStartKey,
+): [secondary: string, primary?: string] {
+  if (typeof key === 'string') {
+    return [key, undefined];
   }
-  let key: string | ScanOptionIndexedStartKey | undefined;
-  let exclusive: boolean | undefined;
-  let primary: string | undefined;
-  let secondary: string | undefined;
-  type MaybeIndexName = {indexName?: string};
-  if (options.start) {
-    ({key, exclusive} = options.start);
-    if ((options as MaybeIndexName).indexName) {
-      if (typeof key === 'string') {
-        secondary = key;
-      } else {
-        secondary = key[0];
-        primary = key[1];
-      }
-    } else {
-      primary = key as string;
-    }
-  }
-
-  return {
-    prefix: options.prefix,
-    startSecondaryKey: secondary,
-    startKey: primary,
-    startExclusive: exclusive,
-    limit: options.limit,
-    indexName: (options as MaybeIndexName).indexName,
-  };
+  return key;
 }

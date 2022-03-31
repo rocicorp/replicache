@@ -2,8 +2,8 @@ import type * as db from './db/mod';
 import type {ReadonlyJSONValue} from './json.js';
 import {AsyncIterableIteratorToArrayWrapper} from './async-iterable-iterator-to-array-wrapper';
 import type {ScanResult} from './scan-result.js';
-import {ScanOptions, toDbScanOptions} from './scan-options.js';
-import {convert} from './db/scan.js';
+import type {ScanOptions} from './scan-options.js';
+import {convertToOptionsInternal} from './db/scan.js';
 import {decodeIndexKey} from './db/index-key.js';
 
 /**
@@ -26,7 +26,7 @@ export class ScanResultImpl<K, V extends ReadonlyJSONValue = ReadonlyJSONValue>
   implements ScanResult<K, V>
 {
   private readonly _reader: ScanReader;
-  private readonly _options: db.ScanOptions;
+  private readonly _options: ScanOptions;
   private readonly _onLimitKey: (inclusiveLimitKey: string) => void;
 
   constructor(
@@ -35,7 +35,7 @@ export class ScanResultImpl<K, V extends ReadonlyJSONValue = ReadonlyJSONValue>
     onLimitKey: (inclusiveLimitKey: string) => void,
   ) {
     this._reader = reader;
-    this._options = toDbScanOptions(options);
+    this._options = options;
     this._onLimitKey = onLimitKey;
   }
 
@@ -101,15 +101,13 @@ export function createScanResultFromScanReaderWithOnLimitKey<K, V>(
 
 async function* scanIteratorUsingReader<V>(
   reader: ScanReader,
-  options: db.ScanOptions,
+  options: ScanOptions,
   onLimitKey: (key: string) => void,
   toValue: (
     entry: readonly [key: string | db.IndexKey, value: ReadonlyJSONValue],
   ) => V,
 ): AsyncIterableIterator<V> {
-  // TODO(arv): Clean up the ScanOptions interfaces! We should only have
-  // ScanOptions and ScanOptionsInternal. We should remove db.ScanOptions.
-  const optionsInternal = convert(options);
+  const optionsInternal = convertToOptionsInternal(options);
 
   const {prefix = '', startKey, indexName} = optionsInternal;
   let {limit = Infinity} = optionsInternal;

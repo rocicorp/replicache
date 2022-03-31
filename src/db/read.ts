@@ -1,6 +1,5 @@
 import {IndexRead} from './index';
 import type * as dag from '../dag/mod';
-import type {ScanOptions} from './scan';
 import {
   Commit,
   DEFAULT_HEAD_NAME,
@@ -11,6 +10,7 @@ import type {ReadonlyJSONValue} from '../json';
 import {BTreeRead, BTreeWrite} from '../btree/mod';
 import type {Hash} from '../hash';
 import type {ScanReader} from '../scan-reader.js';
+import {isScanIndexOptions, ScanOptions} from '../scan-options.js';
 
 export class Read {
   private readonly _dagRead: dag.Read;
@@ -40,8 +40,8 @@ export class Read {
   }
 
   async scanReader(options: ScanOptions): Promise<ScanReader> {
-    if ((options as {indexName?: string}).indexName !== undefined) {
-      const map = await this.getMapForIndex(options.indexName as string);
+    if (isScanIndexOptions(options)) {
+      const map = await this.getMapForIndex(options.indexName);
       return map.scanReader();
     }
     return this.map.scanReader();

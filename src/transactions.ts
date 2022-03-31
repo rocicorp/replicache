@@ -4,7 +4,6 @@ import {
   isScanIndexOptions,
   KeyTypeForScanOptions,
   ScanOptions,
-  toDbScanOptions,
 } from './scan-options';
 import type {ScanResult} from './scan-result';
 import {
@@ -125,9 +124,10 @@ function scan<Key, Value>(
   options: ScanOptions | undefined,
   onLimitKey: (inclusiveLimitKey: string) => void,
 ): ScanResult<Key, Value> {
-  const readerP = isScanIndexOptions(options)
-    ? getScanReaderForIndexMap(dbRead, options)
-    : dbRead.map.scanReader();
+  const readerP =
+    options && isScanIndexOptions(options)
+      ? getScanReaderForIndexMap(dbRead, options)
+      : dbRead.map.scanReader();
 
   return createScanResultFromScanReaderWithOnLimitKey(
     new GuardedScanReader(readerP, dbRead),
@@ -190,7 +190,8 @@ export class SubscriptionTransactionWrapper extends ReadTransactionImpl {
     options?: Options,
   ): ScanResult<Key, ReadonlyJSONValue> {
     const scanInfo: ScanSubscriptionInfo = {
-      options: toDbScanOptions(options),
+      options,
+      inclusiveLimitKey: undefined,
     };
     this._scans.push(scanInfo);
     return scan(this._dbtx, options, inclusiveLimitKey => {

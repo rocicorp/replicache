@@ -36,6 +36,7 @@ module.exports = {
     {
       Samples: ['sample-todo', 'sample-replidraw'],
     },
+    'licensing',
     'launch-checklist',
     'design',
     'faq',

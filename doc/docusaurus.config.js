@@ -20,7 +20,7 @@ module.exports = {
         exclude: ['node_modules', 'src/*.test.ts'],
         excludePrivate: true,
         excludeProtected: true,
-        excludeExternals: true,
+        excludeExternals: false,
         disableSources: true,
         name: 'Replicache',
         readme: 'none',

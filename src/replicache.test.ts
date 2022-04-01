@@ -37,6 +37,7 @@ import fetchMock from 'fetch-mock/esm/client';
 import type {Mutation} from './sync/push';
 import type {ReplicacheOptions} from './replicache-options';
 import {deleteClientForTesting} from './persist/clients-test-helpers.js';
+import type {LogLevel} from '@rocicorp/logger';
 
 const {fail} = assert;
 
@@ -1405,6 +1406,137 @@ test('logLevel', async () => {
       .some(call => call.args.length > 0 && call.args[1].endsWith('PUSH')),
   ).to.equal(true);
 
+  await rep.close();
+});
+
+test('logSinks length 0', async () => {
+  const infoStub = sinon.stub(console, 'info');
+  const debugStub = sinon.stub(console, 'debug');
+  const expectNoLogsToConsole = () => {
+    expect(infoStub.callCount).to.equal(0);
+    expect(debugStub.callCount).to.equal(0);
+  };
+
+  const resetLogCounts = () => {
+    infoStub.reset();
+    debugStub.reset();
+  };
+
+  resetLogCounts();
+  let rep = await replicacheForTesting('logSinks-0', {
+    logLevel: 'info',
+    logSinks: [],
+  });
+  await rep.query(() => 42);
+  expectNoLogsToConsole();
+  await rep.close();
+  rep = await replicacheForTesting('logSinks-0', {
+    logLevel: 'debug',
+    logSinks: [],
+  });
+  await rep.query(() => 42);
+  expectNoLogsToConsole();
+  await rep.close();
+});
+
+test('logSinks length 1', async () => {
+  const infoStub = sinon.stub(console, 'info');
+  const debugStub = sinon.stub(console, 'debug');
+  const expectNoLogsToConsole = () => {
+    expect(infoStub.callCount).to.equal(0);
+    expect(debugStub.callCount).to.equal(0);
+  };
+
+  const initLogCounts = () => ({
+    info: 0,
+    debug: 0,
+    error: 0,
+  });
+  let logCounts: Record<LogLevel, number> = initLogCounts();
+  const resetLogCounts = () => {
+    logCounts = initLogCounts();
+    infoStub.reset();
+    debugStub.reset();
+  };
+
+  const logSink = {
+    log: (level: LogLevel, ..._args: unknown[]) => {
+      logCounts[level]++;
+    },
+  };
+  resetLogCounts();
+  let rep = await replicacheForTesting('logSinks-1', {
+    logLevel: 'info',
+    logSinks: [logSink],
+  });
+  await rep.query(() => 42);
+  expect(logCounts.info).to.be.greaterThan(0);
+  expect(logCounts.debug).to.equal(0);
+  expectNoLogsToConsole();
+  await rep.close();
+
+  logCounts = initLogCounts();
+  rep = await replicacheForTesting('logSinks-1', {
+    logLevel: 'debug',
+    logSinks: [logSink],
+  });
+  await rep.query(() => 42);
+  expect(logCounts.info).to.be.greaterThan(0);
+  expect(logCounts.debug).to.be.greaterThan(0);
+  expectNoLogsToConsole();
+  await rep.close();
+});
+
+test('logSinks length 3', async () => {
+  const infoStub = sinon.stub(console, 'info');
+  const debugStub = sinon.stub(console, 'debug');
+  const expectNoLogsToConsole = () => {
+    expect(infoStub.callCount).to.equal(0);
+    expect(debugStub.callCount).to.equal(0);
+  };
+
+  const initLogCounts = () =>
+    Array.from({length: 3}, () => ({
+      info: 0,
+      debug: 0,
+      error: 0,
+    }));
+  let logCounts: Record<LogLevel, number>[] = initLogCounts();
+  const resetLogCounts = () => {
+    logCounts = initLogCounts();
+    infoStub.reset();
+    debugStub.reset();
+  };
+
+  const logSinks = Array.from({length: 3}, (_, i) => ({
+    log: (level: LogLevel, ..._args: unknown[]) => {
+      logCounts[i][level]++;
+    },
+  }));
+  resetLogCounts();
+  let rep = await replicacheForTesting('log-level', {
+    logLevel: 'info',
+    logSinks,
+  });
+  await rep.query(() => 42);
+  for (const counts of logCounts) {
+    expect(counts.info).to.be.greaterThan(0);
+    expect(counts.debug).to.equal(0);
+  }
+  expectNoLogsToConsole();
+  await rep.close();
+
+  logCounts = initLogCounts();
+  rep = await replicacheForTesting('log-level', {
+    logLevel: 'debug',
+    logSinks,
+  });
+  await rep.query(() => 42);
+  for (const counts of logCounts) {
+    expect(counts.info).to.be.greaterThan(0);
+    expect(counts.info).to.be.greaterThan(0);
+  }
+  expectNoLogsToConsole();
   await rep.close();
 });
 

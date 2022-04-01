@@ -92,8 +92,8 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    * sent elsewhere (e.g. to a cloud logging service like DataDog) you can
    * provide an array of `LogSink`s.  Logs at or above
    * [[ReplicacheOptions.logLevel]] are sent to each of these `LogSink`s.
-   * If you would still like logs to go to the console, include
-   * [[consoleLogSink]] in the array.
+   * If you would still like logs to go to the console, include `consoleLogSink`
+   * in the array.
    *
    * ```ts
    * logSinks: [consoleLogSink, myCloudLogSink],

@@ -5,6 +5,7 @@ import {
   dbsToDrop,
   clock,
   createReplicacheNameForTest,
+  replicacheForTestingNoDefaultURLs,
 } from './test-util';
 import {makeIDBName, REPLICACHE_FORMAT_VERSION} from './replicache';
 import {addGenesis, addLocal, addSnapshot, Chain} from './db/test-helpers';
@@ -232,6 +233,82 @@ test('successfully recovering some but not all mutations of another client (pull
     schemaVersionOfClientRecoveringMutations: 'testSchema1',
     numMutationsNotAcknowledgedByPull: 1,
   });
+});
+
+test('recovering mutations with pull disabled', async () => {
+  const schemaVersionOfClientWPendingMutations = 'testSchema1';
+  const schemaVersionOfClientRecoveringMutations = 'testSchema1';
+  const client1ID = 'client1';
+  const auth = '1';
+  const pushURL = 'https://test.replicache.dev/push';
+  const pullURL = ''; // pull disabled
+  const rep = await replicacheForTesting(
+    `recoverMutations${schemaVersionOfClientRecoveringMutations}recovering${schemaVersionOfClientWPendingMutations}`,
+    {
+      auth,
+      schemaVersion: schemaVersionOfClientRecoveringMutations,
+      pushURL,
+      pullURL,
+    },
+  );
+  const profileID = await rep.profileID;
+
+  await tickAFewTimes();
+
+  const testPerdag = await createPerdag({
+    replicacheName: rep.name,
+    schemaVersion: schemaVersionOfClientWPendingMutations,
+  });
+
+  const client1PendingLocalMetas = await createAndPersistClientWithPendingLocal(
+    client1ID,
+    testPerdag,
+    2,
+  );
+  const client1 = await testPerdag.withRead(read =>
+    persist.getClient(client1ID, read),
+  );
+  assertNotUndefined(client1);
+
+  fetchMock.reset();
+  fetchMock.post(pushURL, 'ok');
+  fetchMock.catch(() => {
+    throw new Error('unexpected fetch in test');
+  });
+
+  await rep.recoverMutations();
+
+  const pushCalls = fetchMock.calls(pushURL);
+  expect(pushCalls.length).to.equal(1);
+  expect(await pushCalls[0].request.json()).to.deep.equal({
+    profileID,
+    clientID: client1ID,
+    mutations: [
+      {
+        id: client1PendingLocalMetas[0].mutationID,
+        name: client1PendingLocalMetas[0].mutatorName,
+        args: client1PendingLocalMetas[0].mutatorArgsJSON,
+        timestamp: client1PendingLocalMetas[0].timestamp,
+      },
+      {
+        id: client1PendingLocalMetas[1].mutationID,
+        name: client1PendingLocalMetas[1].mutatorName,
+        args: client1PendingLocalMetas[1].mutatorArgsJSON,
+        timestamp: client1PendingLocalMetas[1].timestamp,
+      },
+    ],
+    pushVersion: 0,
+    schemaVersion: schemaVersionOfClientWPendingMutations,
+  });
+
+  // Expect no unmatched fetches (only a push request should be sent, no pull)
+  expect(fetchMock.calls('unmatched').length).to.equal(0);
+
+  const updatedClient1 = await testPerdag.withRead(read =>
+    persist.getClient(client1ID, read),
+  );
+  // unchanged
+  expect(updatedClient1).to.deep.equal(client1);
 });
 
 test('client does not attempt to recover mutations from IndexedDB with different replicache name', async () => {
@@ -1062,6 +1139,20 @@ test('mutation recovery exits early if Replicache is closed', async () => {
 test('mutation recovery is invoked at startup', async () => {
   const rep = await replicacheForTesting('mutation-recovery-startup');
   expect(rep.recoverMutationsSpy.callCount).to.equal(1);
+  expect(rep.recoverMutationsSpy.callCount).to.equal(1);
+  expect(await rep.recoverMutationsSpy.firstCall.returnValue).to.equal(true);
+});
+
+test('mutation recovery returns early without running if push is disabled', async () => {
+  const rep = await replicacheForTestingNoDefaultURLs(
+    'mutation-recovery-startup',
+    {
+      pullURL: 'https://diff.com/pull',
+    },
+  );
+  expect(rep.recoverMutationsSpy.callCount).to.equal(1);
+  expect(await rep.recoverMutationsSpy.firstCall.returnValue).to.equal(false);
+  expect(await rep.recoverMutations()).to.equal(false);
 });
 
 test('mutation recovery is invoked on change from offline to online', async () => {

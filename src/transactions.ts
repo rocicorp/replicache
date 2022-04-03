@@ -7,9 +7,11 @@ import {
 } from './scan-options';
 import type {ScanResult} from './scan-result';
 import {
-  createScanResultFromScanReaderWithOnLimitKey,
+  createScanResultFromScanReaderWithOnLimitKey as makeScanResultWithOnLimitKey,
   noopOnLimitKey,
+  ScanKey,
   ScanReader,
+  ScanReaderForIndex,
 } from './scan-reader';
 import {throwIfClosed} from './transaction-closed-error';
 import * as db from './db/mod';
@@ -17,7 +19,6 @@ import * as sync from './sync/mod';
 import type {Hash} from './hash';
 import type {ScanSubscriptionInfo} from './subscriptions';
 import type {ScanIndexOptions} from './scan-options.js';
-import type {ReadonlyEntry} from './btree/node.js';
 
 /**
  * ReadTransactions are used with [[Replicache.query]] and
@@ -72,9 +73,8 @@ export interface ReadTransaction {
 
 let transactionIDCounter = 0;
 
-export class ReadTransactionImpl<
-  Value extends ReadonlyJSONValue = ReadonlyJSONValue,
-> implements ReadTransaction
+export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
+  implements ReadTransaction
 {
   readonly clientID: string;
   protected readonly _dbtx: db.Read;
@@ -119,38 +119,43 @@ export class ReadTransactionImpl<
   }
 }
 
-function scan<Key, Value>(
+function scan<
+  Options extends ScanOptions,
+  Key extends KeyTypeForScanOptions<Options>,
+  Value,
+>(
   dbRead: db.Read,
-  options: ScanOptions | undefined,
+  options: Options | undefined,
   onLimitKey: (inclusiveLimitKey: string) => void,
 ): ScanResult<Key, Value> {
-  const readerP =
-    options && isScanIndexOptions(options)
-      ? getScanReaderForIndexMap(dbRead, options)
-      : dbRead.map.scanReader();
-
-  return createScanResultFromScanReaderWithOnLimitKey(
-    new GuardedScanReader(readerP, dbRead),
-    options,
+  const scanReader = getScanReader(dbRead, options);
+  return makeScanResultWithOnLimitKey(
+    scanReader,
+    options ?? ({} as Options),
     onLimitKey,
-  );
+  ) as ScanResult<Key, Value>;
 }
 
-class GuardedScanReader implements ScanReader {
-  private readonly _readerPromise: Promise<ScanReader>;
+class GuardedScanReader<Key extends ScanKey> implements ScanReader<Key> {
+  private readonly _readerPromise: Promise<ScanReader<Key>>;
   private readonly _dbRead: {closed: boolean};
 
-  constructor(readerPromise: Promise<ScanReader>, dbRead: {closed: boolean}) {
+  constructor(
+    readerPromise: Promise<ScanReader<Key>>,
+    dbRead: {closed: boolean},
+  ) {
     this._readerPromise = readerPromise;
     this._dbRead = dbRead;
   }
 
-  async seek(key: string): Promise<void> {
+  async seek(key: Key): Promise<void> {
     throwIfClosed(this._dbRead);
     return (await this._readerPromise).seek(key);
   }
 
-  async next(): Promise<ReadonlyEntry<ReadonlyJSONValue> | undefined> {
+  async next(): Promise<
+    readonly [key: Key, value: ReadonlyJSONValue] | undefined
+  > {
     throwIfClosed(this._dbRead);
     return (await this._readerPromise).next();
   }
@@ -159,14 +164,30 @@ class GuardedScanReader implements ScanReader {
 async function getScanReaderForIndexMap(
   dbRead: db.Read,
   options: ScanIndexOptions,
-): Promise<ScanReader> {
+): Promise<ScanReader<db.IndexKey>> {
   const map = await dbRead.getMapForIndex(options.indexName);
-  return map.scanReader();
+  return new ScanReaderForIndex(await map.scanReader());
+}
+
+function getScanReader<
+  Options extends ScanOptions,
+  Key extends KeyTypeForScanOptions<Options>,
+>(dbRead: db.Read, options: Options | undefined): ScanReader<Key> {
+  if (options && isScanIndexOptions(options)) {
+    return new GuardedScanReader(
+      getScanReaderForIndexMap(dbRead, options) as Promise<ScanReader<Key>>,
+      dbRead,
+    );
+  }
+  return new GuardedScanReader(
+    dbRead.map.scanReader() as Promise<ScanReader<Key>>,
+    dbRead,
+  );
 }
 
 // An implementation of ReadTransaction that keeps track of `keys` and `scans`
 // for use with Subscriptions.
-export class SubscriptionTransactionWrapper extends ReadTransactionImpl {
+export class SubscriptionTransactionWrapper extends ReadTransactionImpl<ReadonlyJSONValue> {
   private readonly _keys: Set<string> = new Set();
   private readonly _scans: ScanSubscriptionInfo[] = [];
 

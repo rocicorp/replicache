@@ -4,7 +4,7 @@ import {Hash, emptyHash, newTempHash} from '../hash';
 import type {BTreeRead} from './read';
 import type {BTreeWrite} from './write';
 import {skipBTreeNodeAsserts} from '../config.js';
-import type {ScanReader} from '../scan-reader.js';
+import type {ScanReaderInternal} from '../scan-reader.js';
 
 export type Entry<V> = [key: string, value: V];
 export type ReadonlyEntry<V> = readonly [key: string, value: V];
@@ -233,7 +233,7 @@ export class DataNodeImpl extends NodeImpl<ReadonlyJSONValue> {
     return this._splice(tree, i, 1);
   }
 
-  scanReader(_tree: BTreeRead): ScanReader {
+  scanReader(_tree: BTreeRead): ScanReaderInternal {
     return new DataNodeScanReader(this.entries);
   }
 
@@ -433,7 +433,7 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
     return this._mergeAndPartition(tree, i, childNode);
   }
 
-  scanReader(tree: BTreeRead): ScanReader {
+  scanReader(tree: BTreeRead): ScanReaderInternal {
     return new InternalNodeScanReader(tree, this.entries);
   }
 
@@ -573,7 +573,7 @@ export function partition<T>(
 export const emptyDataNode: DataNode = [0, []];
 export const emptyDataNodeImpl = new DataNodeImpl([], emptyHash, false);
 
-class DataNodeScanReader implements ScanReader {
+class DataNodeScanReader implements ScanReaderInternal {
   private readonly _entries: readonly ReadonlyEntry<ReadonlyJSONValue>[];
   private _i = 0;
 
@@ -600,10 +600,10 @@ class DataNodeScanReader implements ScanReader {
   }
 }
 
-class InternalNodeScanReader implements ScanReader {
+class InternalNodeScanReader implements ScanReaderInternal {
   private readonly _entries: readonly ReadonlyEntry<Hash>[];
   private _i = 0;
-  private _childScanReader: ScanReader | undefined = undefined;
+  private _childScanReader: ScanReaderInternal | undefined = undefined;
   private readonly _tree: BTreeRead;
 
   constructor(tree: BTreeRead, entries: readonly ReadonlyEntry<Hash>[]) {
@@ -623,7 +623,9 @@ class InternalNodeScanReader implements ScanReader {
     }
   }
 
-  private async _getReaderForChild(i: number): Promise<ScanReader | undefined> {
+  private async _getReaderForChild(
+    i: number,
+  ): Promise<ScanReaderInternal | undefined> {
     if (i >= this._entries.length) {
       return undefined;
     }

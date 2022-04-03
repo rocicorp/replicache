@@ -23,7 +23,7 @@ import {
   SPLICE_FROM,
   SPLICE_REMOVED,
 } from './splice';
-import type {ScanReader} from '../scan-reader.js';
+import type {ScanReaderInternal} from '../scan-reader.js';
 
 /**
  * The size of the header of a node. (If we had compile time
@@ -97,7 +97,7 @@ export class BTreeRead {
     return node.entries.length === 0;
   }
 
-  async scanReader(): Promise<ScanReader> {
+  async scanReader(): Promise<ScanReaderInternal> {
     return (await this.getNode(this.rootHash)).scanReader(this);
   }
 

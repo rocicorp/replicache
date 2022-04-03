@@ -9,7 +9,7 @@ import {
 import type {ReadonlyJSONValue} from '../json';
 import {BTreeRead, BTreeWrite} from '../btree/mod';
 import type {Hash} from '../hash';
-import type {ScanReader} from '../scan-reader.js';
+import type {ScanReaderInternal} from '../scan-reader.js';
 import {isScanIndexOptions, ScanOptions} from '../scan-options.js';
 
 export class Read {
@@ -39,7 +39,7 @@ export class Read {
     return this.map.isEmpty();
   }
 
-  async scanReader(options: ScanOptions): Promise<ScanReader> {
+  async scanReader(options: ScanOptions): Promise<ScanReaderInternal> {
     if (isScanIndexOptions(options)) {
       const map = await this.getMapForIndex(options.indexName);
       return map.scanReader();

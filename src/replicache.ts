@@ -1294,7 +1294,10 @@ export class Replicache<MD extends MutatorDefs = {}> {
     return this._queryInternal(ReadTransactionImpl, body);
   }
 
-  private async _queryInternal<R, C extends ReadTransactionImpl>(
+  private async _queryInternal<
+    R,
+    C extends ReadTransactionImpl<ReadonlyJSONValue>,
+  >(
     ctor: new (clientID: string, dbRead: db.Read, lc: LogContext) => C,
     body: (tx: C) => Promise<R> | R,
   ): Promise<R> {

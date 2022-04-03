@@ -27,7 +27,7 @@ async function addData(tx: WriteTransaction, data: {[key: string]: JSONValue}) {
 }
 
 test('subscribe', async () => {
-  const log: [string, ReadonlyJSONValue][] = [];
+  const log: (readonly [string, ReadonlyJSONValue])[] = [];
 
   const rep = await replicacheForTesting('subscribe', {
     mutators: {
@@ -41,7 +41,7 @@ test('subscribe', async () => {
       return await tx.scan({prefix: 'a/'}).entries().toArray();
     },
     {
-      onData: (values: Iterable<[string, ReadonlyJSONValue]>) => {
+      onData: (values: Iterable<readonly [string, ReadonlyJSONValue]>) => {
         for (const entry of values) {
           log.push(entry);
         }
@@ -90,7 +90,7 @@ test('subscribe', async () => {
 });
 
 test('subscribe with index', async () => {
-  const log: [[string, string], ReadonlyJSONValue][] = [];
+  const log: (readonly [readonly [string, string], ReadonlyJSONValue])[] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index', {
     mutators: {
@@ -112,10 +112,17 @@ test('subscribe with index', async () => {
   const cancel = rep.subscribe(
     async (tx: ReadTransaction) => {
       queryCallCount++;
-      return await tx.scan({indexName: 'i1'}).entries().toArray();
+      const x = tx.scan({indexName: 'i1'});
+      const y = x.entries();
+      const z = y.toArray();
+      return await z;
     },
     {
-      onData: (values: Iterable<[[string, string], ReadonlyJSONValue]>) => {
+      onData: (
+        values: Iterable<
+          readonly [readonly [string, string], ReadonlyJSONValue]
+        >,
+      ) => {
         onDataCallCount++;
         for (const entry of values) {
           log.push(entry);
@@ -238,7 +245,7 @@ test('subscribe with index', async () => {
 });
 
 test('subscribe with index and start', async () => {
-  const log: [[string, string], ReadonlyJSONValue][] = [];
+  const log: (readonly [readonly [string, string], ReadonlyJSONValue])[] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index-and-start', {
     mutators: {
@@ -262,7 +269,11 @@ test('subscribe with index and start', async () => {
         .toArray();
     },
     {
-      onData: (values: Iterable<[[string, string], ReadonlyJSONValue]>) => {
+      onData: (
+        values: Iterable<
+          readonly [readonly [string, string], ReadonlyJSONValue]
+        >,
+      ) => {
         onDataCallCount++;
         for (const entry of values) {
           log.push(entry);
@@ -346,7 +357,7 @@ test('subscribe with index and start', async () => {
 });
 
 test('subscribe with index and prefix', async () => {
-  const log: [[string, string], ReadonlyJSONValue][] = [];
+  const log: (readonly [readonly [string, string], ReadonlyJSONValue])[] = [];
 
   const rep = await replicacheForTesting('subscribe-with-index-and-prefix', {
     mutators: {
@@ -367,7 +378,11 @@ test('subscribe with index and prefix', async () => {
       return await tx.scan({indexName: 'i1', prefix: 'b'}).entries().toArray();
     },
     {
-      onData: (values: Iterable<[[string, string], ReadonlyJSONValue]>) => {
+      onData: (
+        values: Iterable<
+          readonly [readonly [string, string], ReadonlyJSONValue]
+        >,
+      ) => {
         onDataCallCount++;
         for (const entry of values) {
           log.push(entry);
@@ -1066,7 +1081,7 @@ test('Errors in subscriptions are logged if no onError', async () => {
 });
 
 test('subscribe with scan limit', async () => {
-  const log: [string, ReadonlyJSONValue][] = [];
+  const log: (readonly [string, ReadonlyJSONValue])[] = [];
 
   const rep = await replicacheForTesting('subscribe', {
     mutators: {
@@ -1083,7 +1098,7 @@ test('subscribe with scan limit', async () => {
         .toArray();
     },
     {
-      onData: (values: Iterable<[string, ReadonlyJSONValue]>) => {
+      onData: (values: Iterable<readonly [string, ReadonlyJSONValue]>) => {
         for (const entry of values) {
           log.push(entry);
         }

@@ -1,7 +1,11 @@
+/**
+ * Index keys consists of a secondary and a primary key. The IndexKey type is
+ * used when [[ReadTransaction.scan|scanning]] over indexes.
+ */
 export type IndexKey = [secondary: string, primary: string];
 
-export const KEY_VERSION_0 = '\u0000';
-export const KEY_SEPARATOR = '\u0000';
+export const KEY_VERSION_0 = '\x00';
+export const KEY_SEPARATOR = '\x00';
 
 // An index key is encoded to vec of bytes in the following order:
 //   - key version byte(s), followed by
@@ -17,7 +21,7 @@ export function encodeIndexKey(indexKey: IndexKey): string {
   const secondary = indexKey[0];
   const primary = indexKey[1];
 
-  if (secondary.includes('\u0000')) {
+  if (secondary.includes('\x00')) {
     throw new Error('Secondary key cannot contain null byte');
   }
   return KEY_VERSION_0 + secondary + KEY_SEPARATOR + primary;
@@ -53,12 +57,12 @@ export function encodeIndexScanKey(
   primary: string | undefined,
   exclusive: boolean | undefined,
 ): string {
-  let k = encodeIndexKey([secondary, primary || '']);
+  let k = encodeIndexKey([secondary, primary ?? '']);
 
-  let smallestLegalValue = '\u0000';
+  let smallestLegalValue = '\x00';
   if (primary === undefined) {
     k = k.slice(0, k.length - 1);
-    smallestLegalValue = '\u0001';
+    smallestLegalValue = '\x01';
   }
   if (exclusive) {
     k += smallestLegalValue;

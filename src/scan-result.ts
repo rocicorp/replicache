@@ -1,5 +1,6 @@
 import type {ReadonlyJSONValue} from './json';
 import type {AsyncIterableIteratorToArrayWrapper} from './async-iterable-iterator-to-array-wrapper.js';
+import type {ScanKey} from './scan-reader.js';
 
 /**
  * This interface is used for the results of [[ReadTransaction.scan|scan]]. It
@@ -7,20 +8,22 @@ import type {AsyncIterableIteratorToArrayWrapper} from './async-iterable-iterato
  * await` loop. There are also methods to iterate over the [[keys]],
  * [[entries]] or [[values]].
  */
-export interface ScanResult<K, V extends ReadonlyJSONValue = ReadonlyJSONValue>
-  extends AsyncIterable<V> {
+export interface ScanResult<
+  Key extends ScanKey,
+  Value extends ReadonlyJSONValue,
+> extends AsyncIterable<Value> {
   /** The default AsyncIterable. This is the same as [[values]]. */
-  [Symbol.asyncIterator](): AsyncIterableIteratorToArrayWrapper<V>;
+  [Symbol.asyncIterator](): AsyncIterableIteratorToArrayWrapper<Value>;
 
   /** Async iterator over the values of the [[ReadTransaction.scan|scan]] call. */
-  values(): AsyncIterableIteratorToArrayWrapper<V>;
+  values(): AsyncIterableIteratorToArrayWrapper<Value>;
 
   /**
    * Async iterator over the keys of the [[ReadTransaction.scan|scan]]
    * call. If the [[ReadTransaction.scan|scan]] is over an index the key
    * is a tuple of `[secondaryKey: string, primaryKey]`
    */
-  keys(): AsyncIterableIteratorToArrayWrapper<K>;
+  keys(): AsyncIterableIteratorToArrayWrapper<Key>;
 
   /**
    * Async iterator over the entries of the [[ReadTransaction.scan|scan]]
@@ -28,8 +31,8 @@ export interface ScanResult<K, V extends ReadonlyJSONValue = ReadonlyJSONValue>
    * [[ReadTransaction.scan|scan]] is over an index the key is a tuple of
    * `[secondaryKey: string, primaryKey]`
    */
-  entries(): AsyncIterableIteratorToArrayWrapper<[K, V]>;
+  entries(): AsyncIterableIteratorToArrayWrapper<readonly [Key, Value]>;
 
   /** Returns all the values as an array. Same as `values().toArray()` */
-  toArray(): Promise<V[]>;
+  toArray(): Promise<Value[]>;
 }

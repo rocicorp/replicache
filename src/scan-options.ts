@@ -1,3 +1,5 @@
+import type {IndexKey} from './db/index-key.js';
+
 /**
  * Options for [[ReadTransaction.scan|scan]]
  */
@@ -61,7 +63,7 @@ export function isScanIndexOptions(
 export type KeyTypeForScanOptions<O extends ScanOptions> = O extends {
   indexName: string;
 }
-  ? [secondary: string, primary: string]
+  ? IndexKey
   : string;
 
 /**
@@ -75,7 +77,6 @@ export type KeyTypeForScanOptions<O extends ScanOptions> = O extends {
  * use the tuple form. In that case, `secondary` is the secondary key to start
  * scanning at, and `primary` (if any) is the primary key to start scanning at.
  */
-
 export type ScanOptionIndexedStartKey =
   | [secondary: string, primary?: string]
   | string;

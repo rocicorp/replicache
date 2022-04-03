@@ -1,37 +1,58 @@
-import type * as db from './db/mod';
 import type {ReadonlyJSONValue} from './json.js';
 import {AsyncIterableIteratorToArrayWrapper} from './async-iterable-iterator-to-array-wrapper';
 import type {ScanResult} from './scan-result.js';
-import type {ScanOptions} from './scan-options.js';
-import {convertToOptionsInternal} from './db/scan.js';
-import {decodeIndexKey} from './db/index-key.js';
+import {
+  isScanIndexOptions,
+  KeyTypeForScanOptions,
+  ScanIndexOptions,
+  ScanNoIndexOptions,
+  ScanOptionIndexedStartKey,
+  ScanOptions,
+} from './scan-options.js';
+import {decodeIndexKey, encodeIndexScanKey, IndexKey} from './db/index-key.js';
+
+/**
+ * The type of the key used when doing a scan. When scanning over an index, this
+ * is a tuple of the secondary key followed by the primary key. When doing a non
+ * index scan, keys are strings.
+ */
+export type ScanKey = string | IndexKey;
 
 /**
  * ScanReader is a low level interface that is used to iterate over scan results.
  */
-export interface ScanReader {
+export interface ScanReader<Key extends ScanKey> {
   /**
    * Moves the reader to the key starting at `key`.
    */
-  seek(key: string): Promise<void>;
+  seek(key: Key): Promise<void>;
 
   /**
    * Returns the next entry in the reader. This should return `undefined` when
    * the reader is at the end and there are no more entries to return.
    */
-  next(): Promise<readonly [key: string, value: ReadonlyJSONValue] | undefined>;
+  next(): Promise<readonly [key: Key, value: ReadonlyJSONValue] | undefined>;
 }
 
-export class ScanResultImpl<K, V extends ReadonlyJSONValue = ReadonlyJSONValue>
-  implements ScanResult<K, V>
+/**
+ * Internally we only use strings for the keys. For index maps we encode the
+ * keys into specially shaped string keys.
+ */
+export type ScanReaderInternal = ScanReader<string>;
+
+export class ScanResultImpl<
+  Options extends ScanOptions,
+  Key extends KeyTypeForScanOptions<Options>,
+  Value extends ReadonlyJSONValue,
+> implements ScanResult<Key, Value>
 {
-  private readonly _reader: ScanReader;
-  private readonly _options: ScanOptions;
+  private readonly _reader: ScanReader<Key>;
+  private readonly _options: Options;
   private readonly _onLimitKey: (inclusiveLimitKey: string) => void;
 
   constructor(
-    reader: ScanReader,
-    options: ScanOptions,
+    reader: ScanReader<Key>,
+    options: Options,
     onLimitKey: (inclusiveLimitKey: string) => void,
   ) {
     this._reader = reader;
@@ -39,38 +60,47 @@ export class ScanResultImpl<K, V extends ReadonlyJSONValue = ReadonlyJSONValue>
     this._onLimitKey = onLimitKey;
   }
 
-  [Symbol.asyncIterator](): AsyncIterableIteratorToArrayWrapper<V> {
+  [Symbol.asyncIterator](): AsyncIterableIteratorToArrayWrapper<Value> {
     return this.values();
   }
 
-  values(): AsyncIterableIteratorToArrayWrapper<V> {
-    return this._newIterator(e => e[1] as unknown as V);
+  values(): AsyncIterableIteratorToArrayWrapper<Value> {
+    return this._newIterator(e => e[1] as unknown as Value);
   }
 
-  keys(): AsyncIterableIteratorToArrayWrapper<K> {
-    return this._newIterator(e => e[0] as unknown as K);
+  keys(): AsyncIterableIteratorToArrayWrapper<Key> {
+    return this._newIterator(e => e[0] as unknown as Key);
   }
 
-  entries(): AsyncIterableIteratorToArrayWrapper<[K, V]> {
-    return this._newIterator(e => e as unknown as [K, V]);
+  entries(): AsyncIterableIteratorToArrayWrapper<readonly [Key, Value]> {
+    return this._newIterator(e => e as unknown as [Key, Value]);
   }
 
-  private _newIterator<V>(
+  private _newIterator<ToValueReturnType>(
     toValue: (
-      entry: readonly [key: string | db.IndexKey, value: ReadonlyJSONValue],
-    ) => V,
+      entry: readonly [key: string | IndexKey, value: ReadonlyJSONValue],
+    ) => ToValueReturnType,
   ) {
-    return new AsyncIterableIteratorToArrayWrapper(
-      scanIteratorUsingReader<V>(
-        this._reader,
+    // TODO: let reader = ...
+    let reader: AsyncIterableIterator<ToValueReturnType>;
+    if (isScanIndexOptions(this._options)) {
+      reader = scanIteratorUsingIndexedScanReader(
+        this._reader as ScanReader<IndexKey>,
+        this._options,
+        toValue,
+      );
+    } else {
+      reader = scanIteratorUsingNonIndexReader(
+        this._reader as ScanReader<string>,
         this._options,
         this._onLimitKey,
-        toValue,
-      ),
-    );
+        toValue as any,
+      );
+    }
+    return new AsyncIterableIteratorToArrayWrapper(reader);
   }
 
-  toArray(): Promise<V[]> {
+  toArray(): Promise<Value[]> {
     return this.values().toArray();
   }
 }
@@ -80,10 +110,18 @@ export class ScanResultImpl<K, V extends ReadonlyJSONValue = ReadonlyJSONValue>
  * that is exposed in the public API because it is useful for implementing
  * Replicache's [[ReadTransaction]] interface.
  */
-export function createScanResultFromScanReader<K, V>(
-  reader: ScanReader,
-  options: ScanOptions = {},
-): ScanResult<K, V> {
+export function makeScanResult<
+  Options extends ScanOptions,
+  Key extends KeyTypeForScanOptions<Options>,
+  Value,
+>(reader: ScanReader<Key>, options: Options): ScanResult<Key, Value> {
+  if (isScanIndexOptions(options)) {
+    return createScanResultFromScanReaderWithOnLimitKey(
+      reader,
+      options,
+      noopOnLimitKey,
+    );
+  }
   return createScanResultFromScanReaderWithOnLimitKey(
     reader,
     options,
@@ -91,29 +129,43 @@ export function createScanResultFromScanReader<K, V>(
   );
 }
 
-export function createScanResultFromScanReaderWithOnLimitKey<K, V>(
-  reader: ScanReader,
-  options: ScanOptions = {},
+export function createScanResultFromScanReaderWithOnLimitKey<
+  Options extends ScanOptions,
+  Key extends KeyTypeForScanOptions<Options>,
+  Value,
+>(
+  reader: ScanReader<Key>,
+  options: Options,
   onLimitKey: (key: string) => void,
-): ScanResult<K, V> {
+): ScanResult<Key, Value> {
   return new ScanResultImpl(reader, options, onLimitKey);
 }
 
-async function* scanIteratorUsingReader<V>(
-  reader: ScanReader,
-  options: ScanOptions,
+function maxFromKey(
+  key: ScanOptionIndexedStartKey,
+  fromKey: string,
+): ScanOptionIndexedStartKey {
+  if (key[0] >= fromKey) {
+    return key;
+  }
+  return fromKey;
+}
+
+async function* scanIteratorUsingNonIndexReader<ToValueReturnType>(
+  reader: ScanReader<string>,
+  options: ScanNoIndexOptions,
   onLimitKey: (key: string) => void,
   toValue: (
-    entry: readonly [key: string | db.IndexKey, value: ReadonlyJSONValue],
-  ) => V,
-): AsyncIterableIterator<V> {
-  const optionsInternal = convertToOptionsInternal(options);
-
-  const {prefix = '', startKey, indexName} = optionsInternal;
-  let {limit = Infinity} = optionsInternal;
+    entry: readonly [key: string, value: ReadonlyJSONValue],
+  ) => ToValueReturnType,
+): AsyncIterableIterator<ToValueReturnType> {
+  const {prefix = '', start} = options;
+  let {limit = Infinity} = options;
+  let exclusive: boolean | undefined = false;
   let fromKey = prefix;
-  if (startKey !== undefined && startKey > fromKey) {
-    fromKey = startKey;
+  if (start !== undefined) {
+    fromKey = start.key;
+    exclusive = start.exclusive;
   }
 
   if (fromKey !== '') {
@@ -126,12 +178,14 @@ async function* scanIteratorUsingReader<V>(
       return;
     }
 
-    if (indexName) {
-      const key = decodeIndexKey(result[0]);
-      yield toValue([key, result[1]]);
-    } else {
-      yield toValue(result);
+    if (exclusive) {
+      exclusive = false;
+      if (result[0] === fromKey) {
+        continue;
+      }
     }
+
+    yield toValue(result);
 
     if (limit === 0) {
       onLimitKey(result[0]);
@@ -139,6 +193,100 @@ async function* scanIteratorUsingReader<V>(
   }
 }
 
+function shouldSeek(key: ScanOptionIndexedStartKey): boolean {
+  if (typeof key === 'string') {
+    return key !== '';
+  }
+  return key[0] !== '';
+}
+
+function seekKey(key: ScanOptionIndexedStartKey): IndexKey {
+  if (typeof key === 'string') {
+    return [key, ''];
+  }
+  if (key[1] === undefined) {
+    return [key[0], ''];
+  }
+  return key as IndexKey;
+}
+
+function shouldSkip(
+  fromKey: ScanOptionIndexedStartKey,
+  key: IndexKey,
+): boolean {
+  if (typeof fromKey === 'string') {
+    return key[0] === fromKey;
+  }
+  if (fromKey[1] === undefined) {
+    // When primary is not defined we skip the first entry.
+    return fromKey[0] === key[0];
+  }
+  return key[0] === fromKey[0] && key[1] === fromKey[1];
+}
+
+async function* scanIteratorUsingIndexedScanReader<ToValueReturnType>(
+  reader: ScanReader<IndexKey>,
+  options: ScanIndexOptions,
+  toValue: (
+    entry: readonly [key: IndexKey, value: ReadonlyJSONValue],
+  ) => ToValueReturnType,
+): AsyncIterableIterator<ToValueReturnType> {
+  const {prefix = '', start} = options;
+  let {limit = Infinity} = options;
+  let exclusive: boolean | undefined = false;
+
+  let fromKey: ScanOptionIndexedStartKey = prefix;
+  if (start !== undefined) {
+    fromKey = maxFromKey(start.key, fromKey);
+    exclusive = start.exclusive;
+  }
+
+  if (shouldSeek(fromKey)) {
+    await reader.seek(seekKey(fromKey));
+  }
+
+  while (limit--) {
+    const result = await reader.next();
+    // prefix only applies to secondary key.
+    if (!result || !result[0][0].startsWith(prefix)) {
+      return;
+    }
+
+    if (exclusive) {
+      exclusive = false;
+      if (shouldSkip(fromKey, result[0])) {
+        continue;
+      }
+    }
+
+    yield toValue(result);
+  }
+}
+
 export function noopOnLimitKey(_key: string): void {
   // noop
+}
+
+export class ScanReaderForIndex implements ScanReader<IndexKey> {
+  private readonly _reader: ScanReader<string>;
+
+  constructor(reader: ScanReader<string>) {
+    this._reader = reader;
+  }
+
+  seek(key: IndexKey): Promise<void> {
+    // exclusive is handled by the main scan loop.
+    const k = encodeIndexScanKey(key[0], key[1], false);
+    return this._reader.seek(k);
+  }
+
+  async next(): Promise<
+    readonly [key: IndexKey, value: ReadonlyJSONValue] | undefined
+  > {
+    const res = await this._reader.next();
+    if (!res) {
+      return undefined;
+    }
+    return [decodeIndexKey(res[0]), res[1]];
+  }
 }

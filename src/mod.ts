@@ -52,5 +52,7 @@ export type {
 export type {PullRequest} from './sync/pull';
 export type {PushRequest} from './sync/push';
 
-export type {ScanReader} from './scan-reader';
-export {createScanResultFromScanReader} from './scan-reader';
+export type {ScanReader, ScanKey} from './scan-reader';
+export {makeScanResult} from './scan-reader';
+
+export type {IndexKey} from './db/index-key';

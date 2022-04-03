@@ -19,7 +19,7 @@ import {
 import {BTreeWrite} from './write';
 import {makeTestChunkHasher} from '../dag/chunk';
 import {BTreeRead, NODE_HEADER_SIZE} from './read';
-import type {ScanReader} from '../scan-reader.js';
+import type {ScanReaderInternal} from '../scan-reader.js';
 
 test('findLeaf', async () => {
   const dagStore = new dag.TestStore();
@@ -259,7 +259,7 @@ function doWrite(
 // }
 
 async function scanReaderToArray(
-  reader: ScanReader,
+  reader: ScanReaderInternal,
 ): Promise<ReadonlyEntry<ReadonlyJSONValue>[]> {
   const rv: ReadonlyEntry<ReadonlyJSONValue>[] = [];
   let entry: ReadonlyEntry<ReadonlyJSONValue> | undefined;

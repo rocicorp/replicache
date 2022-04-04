@@ -2,8 +2,9 @@ import type {ReadonlyJSONValue} from '../json';
 import {evaluateJSONPointer} from './evaluate-json-pointer';
 import {encodeIndexKey} from './index-key.js';
 
-// Gets the set of index keys for a given primary key and value.
-
+/**
+ *  Gets the set of index keys for a given primary key and value.
+ */
 export function getIndexKeys(
   primary: string,
   value: ReadonlyJSONValue,

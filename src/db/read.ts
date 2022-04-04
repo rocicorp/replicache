@@ -40,11 +40,10 @@ export class Read {
   }
 
   async scanReader(options: ScanOptions): Promise<ScanReaderInternal> {
-    if (isScanIndexOptions(options)) {
-      const map = await this.getMapForIndex(options.indexName);
-      return map.scanReader();
-    }
-    return this.map.scanReader();
+    const map = isScanIndexOptions(options)
+      ? await this.getMapForIndex(options.indexName)
+      : this.map;
+    return map.scanReader();
   }
 
   get closed(): boolean {

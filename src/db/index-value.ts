@@ -4,8 +4,9 @@ import type {BTreeWrite} from '../btree/mod';
 import {getIndexKeys} from './get-index-keys';
 import {IndexOperation} from './index-operation';
 
-// Index or de-index a single primary entry.
-
+/**
+ * Index or de-index a single primary entry.
+ */
 export async function indexValue(
   lc: LogContext,
   index: BTreeWrite,

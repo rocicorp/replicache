@@ -10,8 +10,8 @@ import {
 } from './scan-options.js';
 
 export type ScanSubscriptionInfo = {
-  options?: ScanOptions;
-  inclusiveLimitKey?: string;
+  options: ScanOptions | undefined;
+  inclusiveLimitKey: string | undefined;
 };
 
 export type Subscription<R extends JSONValue | undefined, E> = {

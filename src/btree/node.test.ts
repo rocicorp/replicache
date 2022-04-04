@@ -250,14 +250,6 @@ function doWrite(
   });
 }
 
-// async function asyncIterToArray<T>(iter: AsyncIterable<T>): Promise<T[]> {
-//   const rv: T[] = [];
-//   for await (const e of iter) {
-//     rv.push(e);
-//   }
-//   return rv;
-// }
-
 async function scanReaderToArray(
   reader: ScanReaderInternal,
 ): Promise<ReadonlyEntry<ReadonlyJSONValue>[]> {

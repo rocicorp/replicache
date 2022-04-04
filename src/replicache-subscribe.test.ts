@@ -112,10 +112,7 @@ test('subscribe with index', async () => {
   const cancel = rep.subscribe(
     async (tx: ReadTransaction) => {
       queryCallCount++;
-      const x = tx.scan({indexName: 'i1'});
-      const y = x.entries();
-      const z = y.toArray();
-      return await z;
+      return await tx.scan({indexName: 'i1'}).entries().toArray();
     },
     {
       onData: (

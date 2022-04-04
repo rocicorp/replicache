@@ -7,7 +7,7 @@ import {
 } from './scan-options';
 import type {ScanResult} from './scan-result';
 import {
-  createScanResultFromScanReaderWithOnLimitKey as makeScanResultWithOnLimitKey,
+  makeScanResultWithOnLimitKey,
   noopOnLimitKey,
   ScanKey,
   ScanReader,
@@ -136,6 +136,10 @@ function scan<
   ) as ScanResult<Key, Value>;
 }
 
+/**
+ * GuardedScanReader wraps a Promise to a ScanReader as wells as ensuring that
+ * the underlying db Read instance is not closed.
+ */
 class GuardedScanReader<Key extends ScanKey> implements ScanReader<Key> {
   private readonly _readerPromise: Promise<ScanReader<Key>>;
   private readonly _dbRead: {closed: boolean};
@@ -193,7 +197,7 @@ export class SubscriptionTransactionWrapper extends ReadTransactionImpl<Readonly
 
   isEmpty(): Promise<boolean> {
     // Any change to the subscription requires rerunning it.
-    this._scans.push({options: {}});
+    this._scans.push({options: {}, inclusiveLimitKey: undefined});
     return super.isEmpty();
   }
 

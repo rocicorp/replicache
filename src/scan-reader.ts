@@ -81,7 +81,6 @@ export class ScanResultImpl<
       entry: readonly [key: string | IndexKey, value: ReadonlyJSONValue],
     ) => ToValueReturnType,
   ) {
-    // TODO: let reader = ...
     let reader: AsyncIterableIterator<ToValueReturnType>;
     if (isScanIndexOptions(this._options)) {
       reader = scanIteratorUsingIndexedScanReader(
@@ -94,7 +93,7 @@ export class ScanResultImpl<
         this._reader as ScanReader<string>,
         this._options,
         this._onLimitKey,
-        toValue as any,
+        toValue,
       );
     }
     return new AsyncIterableIteratorToArrayWrapper(reader);
@@ -115,21 +114,11 @@ export function makeScanResult<
   Key extends KeyTypeForScanOptions<Options>,
   Value,
 >(reader: ScanReader<Key>, options: Options): ScanResult<Key, Value> {
-  if (isScanIndexOptions(options)) {
-    return createScanResultFromScanReaderWithOnLimitKey(
-      reader,
-      options,
-      noopOnLimitKey,
-    );
-  }
-  return createScanResultFromScanReaderWithOnLimitKey(
-    reader,
-    options,
-    noopOnLimitKey,
-  );
+  return makeScanResultWithOnLimitKey(reader, options, noopOnLimitKey);
 }
 
-export function createScanResultFromScanReaderWithOnLimitKey<
+// Not part of the public API
+export function makeScanResultWithOnLimitKey<
   Options extends ScanOptions,
   Key extends KeyTypeForScanOptions<Options>,
   Value,

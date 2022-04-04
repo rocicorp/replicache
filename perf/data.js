@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1648836162001,
+  "lastUpdate": 1649073105926,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Benchmark": [
@@ -75766,6 +75766,135 @@ window.BENCHMARK_DATA = {
             "range": "±4.6%",
             "unit": "MB/s",
             "extra": "13 samples"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "42a3decd81ff5161f1ad0d75d08156ad4159443c",
+          "message": "feat!: Switch to use a ScanReader and expose it to the API. (#906)\n\nThis changes scan to use a ScanReader instead of an async iterator.\r\n\r\nIt also exposes a function that returns a ScanResult from a ScanReader\r\nand ScanOptions.\r\n\r\n```ts\r\ndeclare const options: ScanOptions;\r\ndeclare const reader: ScanReader;\r\n\r\nconst scanResult = makeScanResult(reader, options);\r\n```\r\n\r\nIf you are trying to implement Replicache's scan API you now only need\r\nto write a function that creates a ScanReader.\r\nmakeScanResult will take care of seeking to the correct\r\nposition and reading the data.\r\n\r\nWhen working with index scans you need to use `ScanReader<IndexKey>`\r\n\r\nCloses #607",
+          "timestamp": "2022-04-04T11:48:15Z",
+          "tree_id": "ec5226eacf72808de19616007d0ceddf612b4bdd",
+          "url": "https://github.com/rocicorp/replicache/commit/42a3decd81ff5161f1ad0d75d08156ad4159443c"
+        },
+        "date": 1649073103866,
+        "tool": "benchmarkjs",
+        "benches": [
+          {
+            "name": "writeSubRead 1MB total, 64 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 344.83,
+            "range": "±4.5%",
+            "unit": "ops/sec",
+            "extra": "19 samples"
+          },
+          {
+            "name": "writeSubRead 4MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 144.93,
+            "range": "±4.2%",
+            "unit": "ops/sec",
+            "extra": "14 samples"
+          },
+          {
+            "name": "writeSubRead 16MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 105.26,
+            "range": "±14.1%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "writeSubRead 64MB total, 128 subs total, 5 subs dirty, 16kb read per sub",
+            "value": 83.33,
+            "range": "±20.4%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 0)",
+            "value": 25.56,
+            "range": "±118.7%",
+            "unit": "MB/s",
+            "extra": "9 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 1)",
+            "value": 15.43,
+            "range": "±23.8%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x1000 (clean, indexes: 2)",
+            "value": 11.57,
+            "range": "±36.7%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x10000 (clean, indexes: 0)",
+            "value": 30.56,
+            "range": "±107.4%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x10000 (clean, indexes: 1)",
+            "value": 13.78,
+            "range": "±84.4%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "populate 1024x10000 (clean, indexes: 2)",
+            "value": 9.27,
+            "range": "±67.3%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "scan 1024x1000",
+            "value": 513.98,
+            "range": "±3.0%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "scan 1024x10000",
+            "value": 626,
+            "range": "±5.7%",
+            "unit": "MB/s",
+            "extra": "19 samples"
+          },
+          {
+            "name": "create index 1024x5000",
+            "value": 8.74,
+            "range": "±34.2%",
+            "unit": "ops/sec",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup read 1024x100 from 1024x100000 stored",
+            "value": 0.73,
+            "range": "±13.6%",
+            "unit": "MB/s",
+            "extra": "7 samples"
+          },
+          {
+            "name": "startup scan 1024x100 from 1024x100000 stored",
+            "value": 2.84,
+            "range": "±5.1%",
+            "unit": "MB/s",
+            "extra": "14 samples"
           }
         ]
       }

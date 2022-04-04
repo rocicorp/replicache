@@ -400,12 +400,21 @@ test('begin try pull', async () => {
           db.whenceHead(DEFAULT_HEAD_NAME),
           dagRead,
         );
+        let got = false;
 
-        const reader = await read.scanReader({
-          prefix: '',
-          indexName: '2',
-        });
-        expect(await reader.next(), c.name).to.not.be.undefined;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for await (const _ of read.scan(
+          {
+            prefix: '',
+            indexName: '2',
+          },
+          e => e,
+        )) {
+          got = true;
+          break;
+        }
+
+        expect(got, c.name).to.be.true;
       });
     }
 
@@ -500,12 +509,16 @@ test('begin try pull', async () => {
               db.whenceHead(SYNC_HEAD_NAME),
               dagRead,
             );
-
-            const reader = await read.scanReader({
-              prefix: '',
-              indexName: '2',
-            });
-            expect(await reader.next()).to.be.undefined;
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            for await (const _ of read.scan(
+              {
+                prefix: '',
+                indexName: '2',
+              },
+              e => e,
+            )) {
+              expect(false).to.be.true;
+            }
           });
 
           assertObject(result);

@@ -1,24 +1,16 @@
 import type {LogContext} from '@rocicorp/logger';
 import {deepClone, JSONValue, ReadonlyJSONValue} from './json';
 import {
-  isScanIndexOptions,
   KeyTypeForScanOptions,
   ScanOptions,
+  toDbScanOptions,
 } from './scan-options';
-import type {ScanResult} from './scan-result';
-import {
-  makeScanResultWithOnLimitKey,
-  noopOnLimitKey,
-  ScanKey,
-  ScanReader,
-  ScanReaderForIndex,
-} from './scan-reader';
+import {ScanResult} from './scan-iterator';
 import {throwIfClosed} from './transaction-closed-error';
 import * as db from './db/mod';
 import * as sync from './sync/mod';
 import type {Hash} from './hash';
 import type {ScanSubscriptionInfo} from './subscriptions';
-import type {ScanIndexOptions} from './scan-options.js';
 
 /**
  * ReadTransactions are used with [[Replicache.query]] and
@@ -73,8 +65,9 @@ export interface ReadTransaction {
 
 let transactionIDCounter = 0;
 
-export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
-  implements ReadTransaction
+export class ReadTransactionImpl<
+  Value extends ReadonlyJSONValue = ReadonlyJSONValue,
+> implements ReadTransaction
 {
   readonly clientID: string;
   protected readonly _dbtx: db.Read;
@@ -114,112 +107,52 @@ export class ReadTransactionImpl<Value extends ReadonlyJSONValue>
 
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
+    onLimitKey?: (inclusiveLimitKey: string) => void,
   ): ScanResult<Key, Value> {
-    return scan(this._dbtx, options, noopOnLimitKey);
+    const dbRead = this._dbtx;
+    return new ScanResult(options, dbRead, onLimitKey);
   }
-}
-
-function scan<
-  Options extends ScanOptions,
-  Key extends KeyTypeForScanOptions<Options>,
-  Value,
->(
-  dbRead: db.Read,
-  options: Options | undefined,
-  onLimitKey: (inclusiveLimitKey: string) => void,
-): ScanResult<Key, Value> {
-  const scanReader = getScanReader(dbRead, options);
-  return makeScanResultWithOnLimitKey(
-    scanReader,
-    options ?? ({} as Options),
-    onLimitKey,
-  ) as ScanResult<Key, Value>;
-}
-
-/**
- * GuardedScanReader wraps a Promise to a ScanReader as wells as ensuring that
- * the underlying db Read instance is not closed.
- */
-class GuardedScanReader<Key extends ScanKey> implements ScanReader<Key> {
-  private readonly _readerPromise: Promise<ScanReader<Key>>;
-  private readonly _dbRead: {closed: boolean};
-
-  constructor(
-    readerPromise: Promise<ScanReader<Key>>,
-    dbRead: {closed: boolean},
-  ) {
-    this._readerPromise = readerPromise;
-    this._dbRead = dbRead;
-  }
-
-  async seek(key: Key): Promise<void> {
-    throwIfClosed(this._dbRead);
-    return (await this._readerPromise).seek(key);
-  }
-
-  async next(): Promise<
-    readonly [key: Key, value: ReadonlyJSONValue] | undefined
-  > {
-    throwIfClosed(this._dbRead);
-    return (await this._readerPromise).next();
-  }
-}
-
-async function getScanReaderForIndexMap(
-  dbRead: db.Read,
-  options: ScanIndexOptions,
-): Promise<ScanReader<db.IndexKey>> {
-  const map = await dbRead.getMapForIndex(options.indexName);
-  return new ScanReaderForIndex(await map.scanReader());
-}
-
-function getScanReader<
-  Options extends ScanOptions,
-  Key extends KeyTypeForScanOptions<Options>,
->(dbRead: db.Read, options: Options | undefined): ScanReader<Key> {
-  if (options && isScanIndexOptions(options)) {
-    return new GuardedScanReader(
-      getScanReaderForIndexMap(dbRead, options) as Promise<ScanReader<Key>>,
-      dbRead,
-    );
-  }
-  return new GuardedScanReader(
-    dbRead.map.scanReader() as Promise<ScanReader<Key>>,
-    dbRead,
-  );
 }
 
 // An implementation of ReadTransaction that keeps track of `keys` and `scans`
 // for use with Subscriptions.
-export class SubscriptionTransactionWrapper extends ReadTransactionImpl<ReadonlyJSONValue> {
+export class SubscriptionTransactionWrapper implements ReadTransaction {
   private readonly _keys: Set<string> = new Set();
   private readonly _scans: ScanSubscriptionInfo[] = [];
+  private readonly _tx: ReadTransactionImpl;
+
+  constructor(tx: ReadTransactionImpl) {
+    this._tx = tx;
+  }
+
+  get clientID(): string {
+    return this._tx.clientID;
+  }
 
   isEmpty(): Promise<boolean> {
     // Any change to the subscription requires rerunning it.
-    this._scans.push({options: {}, inclusiveLimitKey: undefined});
-    return super.isEmpty();
+    this._scans.push({options: {}});
+    return this._tx.isEmpty();
   }
 
   get(key: string): Promise<ReadonlyJSONValue | undefined> {
     this._keys.add(key);
-    return super.get(key);
+    return this._tx.get(key);
   }
 
   has(key: string): Promise<boolean> {
     this._keys.add(key);
-    return super.has(key);
+    return this._tx.has(key);
   }
 
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
   ): ScanResult<Key, ReadonlyJSONValue> {
     const scanInfo: ScanSubscriptionInfo = {
-      options,
-      inclusiveLimitKey: undefined,
+      options: toDbScanOptions(options),
     };
     this._scans.push(scanInfo);
-    return scan(this._dbtx, options, inclusiveLimitKey => {
+    return this._tx.scan(options, inclusiveLimitKey => {
       scanInfo.inclusiveLimitKey = inclusiveLimitKey;
     });
   }

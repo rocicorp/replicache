@@ -1,4 +1,4 @@
-import type {IndexKey} from './db/index-key.js';
+import type * as db from './db/mod';
 
 /**
  * Options for [[ReadTransaction.scan|scan]]
@@ -28,7 +28,7 @@ export type ScanNoIndexOptions = {
 /**
  * Options for [[ReadTransaction.scan|scan]] when scanning over an index. When
  * scanning over and index you need to provide the `indexName` and the `start`
- * `key` is now a tuple consisting of secondary and primary key
+ * `key` is now a tuple consisting of secondar and primary key
  */
 export type ScanIndexOptions = {
   /** Only include results starting with the *secondary* keys starting with `prefix`. */
@@ -50,12 +50,6 @@ export type ScanIndexOptions = {
   };
 };
 
-export function isScanIndexOptions(
-  options: ScanOptions,
-): options is ScanIndexOptions {
-  return (options as ScanIndexOptions).indexName !== undefined;
-}
-
 /**
  * If the options contains an `indexName` then the key type is a tuple of
  * secondary and primary.
@@ -63,7 +57,7 @@ export function isScanIndexOptions(
 export type KeyTypeForScanOptions<O extends ScanOptions> = O extends {
   indexName: string;
 }
-  ? IndexKey
+  ? [secondary: string, primary: string]
   : string;
 
 /**
@@ -77,15 +71,40 @@ export type KeyTypeForScanOptions<O extends ScanOptions> = O extends {
  * use the tuple form. In that case, `secondary` is the secondary key to start
  * scanning at, and `primary` (if any) is the primary key to start scanning at.
  */
+
 export type ScanOptionIndexedStartKey =
   | [secondary: string, primary?: string]
   | string;
 
-export function scanOptionIndexedStartKeyToSecondaryAndPrimary(
-  key: ScanOptionIndexedStartKey,
-): [secondary: string, primary?: string] {
-  if (typeof key === 'string') {
-    return [key, undefined];
+export function toDbScanOptions(options?: ScanOptions): db.ScanOptions {
+  if (!options) {
+    return {};
   }
-  return key;
+  let key: string | ScanOptionIndexedStartKey | undefined;
+  let exclusive: boolean | undefined;
+  let primary: string | undefined;
+  let secondary: string | undefined;
+  type MaybeIndexName = {indexName?: string};
+  if (options.start) {
+    ({key, exclusive} = options.start);
+    if ((options as MaybeIndexName).indexName) {
+      if (typeof key === 'string') {
+        secondary = key;
+      } else {
+        secondary = key[0];
+        primary = key[1];
+      }
+    } else {
+      primary = key as string;
+    }
+  }
+
+  return {
+    prefix: options.prefix,
+    startSecondaryKey: secondary,
+    startKey: primary,
+    startExclusive: exclusive,
+    limit: options.limit,
+    indexName: (options as MaybeIndexName).indexName,
+  };
 }

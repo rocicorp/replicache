@@ -1,13 +1,19 @@
 import {expect} from '@esm-bundle/chai';
-import type {ScanItem} from './scan';
+import {convert, ScanItem, ScanOptions} from './scan';
 import * as dag from '../dag/mod';
+import {decodeIndexKey, encodeIndexKey} from './index';
 import {BTreeWrite} from '../btree/mod';
-import type {ReadonlyEntry} from '../btree/node';
+import type {Entry} from '../btree/node';
 import type {ReadonlyJSONValue} from '../json';
-import {decodeIndexKey, encodeIndexKey} from './index-key.js';
 
-test('scanReader', async () => {
-  const t = async (seekKey: string | undefined, expected: string[]) => {
+test('scan', async () => {
+  const t = async (opts: ScanOptions, expected: string[]) => {
+    const testDesc = `opts: ${JSON.stringify(
+      opts,
+      null,
+      2,
+    )}, expected: ${expected}`;
+
     const dagStore = new dag.TestStore();
 
     await dagStore.withWrite(async dagWrite => {
@@ -15,40 +21,307 @@ test('scanReader', async () => {
       await map.put('foo', 'foo');
       await map.put('bar', 'bar');
       await map.put('baz', 'baz');
+      const optsInternal = convert(opts);
       const actual = [];
-      const reader = await map.scanReader();
-      if (seekKey) {
-        await reader.seek(seekKey);
-      }
-      let entry: ReadonlyEntry<ReadonlyJSONValue> | undefined;
-      while ((entry = await reader.next())) {
-        actual.push(entry[0]);
+      for await (const key of map.scan(optsInternal, entry => entry[0])) {
+        actual.push(key);
       }
       const expected2 = expected;
-      expect(actual).to.deep.equal(expected2);
+      expect(actual).to.deep.equal(expected2, testDesc);
     });
   };
 
   // Empty
-  await t(undefined, ['bar', 'baz', 'foo']);
+  await t(
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: undefined,
+      startExclusive: undefined,
+      limit: undefined,
+      indexName: undefined,
+    },
+    ['bar', 'baz', 'foo'],
+  );
 
   // Prefix alone
-  await t('', ['bar', 'baz', 'foo']);
-  await t('ba', ['bar', 'baz', 'foo']);
-  await t('bar', ['bar', 'baz', 'foo']);
-  await t('bas', ['baz', 'foo']);
-  await t('a', ['bar', 'baz', 'foo']);
-  await t('b', ['bar', 'baz', 'foo']);
-  await t('bas', ['baz', 'foo']);
-  await t('baz', ['baz', 'foo']);
-  await t('baza', ['foo']);
-  await t('fop', []);
+  await t(
+    {
+      prefix: '',
+      startSecondaryKey: undefined,
+      startKey: undefined,
+      startExclusive: undefined,
+      limit: undefined,
+      indexName: undefined,
+    },
+    ['bar', 'baz', 'foo'],
+  );
+  await t(
+    {
+      prefix: 'ba',
+      startSecondaryKey: undefined,
+      startKey: undefined,
+      startExclusive: undefined,
+      limit: undefined,
+      indexName: undefined,
+    },
+    ['bar', 'baz'],
+  );
+  await t(
+    {
+      prefix: 'bar',
+      startSecondaryKey: undefined,
+      startKey: undefined,
+      startExclusive: undefined,
+      limit: undefined,
+      indexName: undefined,
+    },
+    ['bar'],
+  );
+  await t(
+    {
+      prefix: 'bas',
+      startSecondaryKey: undefined,
+      startKey: undefined,
+      startExclusive: undefined,
+      limit: undefined,
+      indexName: undefined,
+    },
+    [],
+  );
+  // start key alone
+  await t(
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: '',
+      startExclusive: undefined,
+      limit: undefined,
+      indexName: undefined,
+    },
+    ['bar', 'baz', 'foo'],
+  );
+  await t(
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: 'a',
+      startExclusive: undefined,
+      limit: undefined,
+      indexName: undefined,
+    },
+    ['bar', 'baz', 'foo'],
+  );
+  await t(
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: 'b',
+      startExclusive: undefined,
+      limit: undefined,
+      indexName: undefined,
+    },
+    ['bar', 'baz', 'foo'],
+  );
+  await t(
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: 'bas',
+      startExclusive: undefined,
+      limit: undefined,
+      indexName: undefined,
+    },
+    ['baz', 'foo'],
+  );
+  await t(
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: 'baz',
+      startExclusive: undefined,
+      limit: undefined,
+      indexName: undefined,
+    },
+    ['baz', 'foo'],
+  );
+  await t(
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: 'baza',
+      startExclusive: undefined,
+      limit: undefined,
+      indexName: undefined,
+    },
+    ['foo'],
+  );
+  await t(
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: 'fop',
+      startExclusive: undefined,
+      limit: undefined,
+      indexName: undefined,
+    },
+    [],
+  );
 
-  // exclusive and limit are handled externally from the reader.
+  // exclusive
+  await t(
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: '',
+      startExclusive: true,
+      limit: undefined,
+      indexName: undefined,
+    },
+    ['bar', 'baz', 'foo'],
+  );
+  await t(
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: 'bar',
+      startExclusive: true,
+      limit: undefined,
+      indexName: undefined,
+    },
+    ['baz', 'foo'],
+  );
+
+  // limit alone
+  await t(
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: undefined,
+      startExclusive: undefined,
+      limit: 0,
+      indexName: undefined,
+    },
+    [],
+  );
+  await t(
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: undefined,
+      startExclusive: undefined,
+      limit: 1,
+      indexName: undefined,
+    },
+    ['bar'],
+  );
+  await t(
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: undefined,
+      startExclusive: undefined,
+      limit: 2,
+      indexName: undefined,
+    },
+    ['bar', 'baz'],
+  );
+  await t(
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: undefined,
+      startExclusive: undefined,
+      limit: 3,
+      indexName: undefined,
+    },
+    ['bar', 'baz', 'foo'],
+  );
+  await t(
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: undefined,
+      startExclusive: undefined,
+      limit: 7,
+      indexName: undefined,
+    },
+    ['bar', 'baz', 'foo'],
+  );
+
+  // combos
+  await t(
+    {
+      prefix: 'f',
+      startSecondaryKey: undefined,
+      startKey: undefined,
+      startExclusive: undefined,
+      limit: 0,
+      indexName: undefined,
+    },
+    [],
+  );
+  await t(
+    {
+      prefix: 'f',
+      startSecondaryKey: undefined,
+      startKey: undefined,
+      startExclusive: undefined,
+      limit: 7,
+      indexName: undefined,
+    },
+    ['foo'],
+  );
+  await t(
+    {
+      prefix: 'ba',
+      startSecondaryKey: undefined,
+      startKey: 'a',
+      startExclusive: undefined,
+      limit: 2,
+      indexName: undefined,
+    },
+    ['bar', 'baz'],
+  );
+  await t(
+    {
+      prefix: 'ba',
+      startSecondaryKey: undefined,
+      startKey: 'a',
+      startExclusive: false,
+      limit: 1,
+      indexName: undefined,
+    },
+    ['bar'],
+  );
+  await t(
+    {
+      prefix: 'ba',
+      startSecondaryKey: undefined,
+      startKey: 'a',
+      startExclusive: false,
+      limit: 1,
+      indexName: undefined,
+    },
+    ['bar'],
+  );
+  await t(
+    {
+      prefix: 'ba',
+      startSecondaryKey: undefined,
+      startKey: 'bar',
+      startExclusive: true,
+      limit: 1,
+      indexName: undefined,
+    },
+    ['baz'],
+  );
 });
 
-test('regular map', async () => {
-  const t = async (keys: string[], seekKey: string, expected: string[]) => {
+test('exclusive regular map', async () => {
+  const t = async (keys: string[], startKey: string, expected: string[]) => {
+    const testDesc = `keys: ${keys}, startKey: ${startKey}, expected: ${expected}`;
+
     const dagStore = new dag.TestStore();
 
     await dagStore.withWrite(async dagWrite => {
@@ -56,34 +329,38 @@ test('regular map', async () => {
       for (const key of keys) {
         await map.put(key, 'value');
       }
+      const opts = {
+        prefix: undefined,
+        startSecondaryKey: undefined,
+        startKey,
+        startExclusive: true,
+        limit: undefined,
+        indexName: undefined,
+      };
+      const convertedOpts = convert(opts);
       const got = [];
 
-      const reader = await map.scanReader();
-      if (seekKey) {
-        await reader.seek(seekKey);
+      for await (const key of map.scan(convertedOpts, entry => entry[0])) {
+        got.push(key);
       }
-      let entry: ReadonlyEntry<ReadonlyJSONValue> | undefined;
-      while ((entry = await reader.next())) {
-        got.push(entry[0]);
-      }
-      expect(got).to.deep.equal(expected);
+      expect(got).to.deep.equal(expected, testDesc);
     });
   };
 
-  await t(['', 'a', 'aa', 'ab', 'b'], '', ['', 'a', 'aa', 'ab', 'b']);
-  await t(['', 'a', 'aa', 'ab', 'b'], 'a', ['a', 'aa', 'ab', 'b']);
-  await t(['', 'a', 'aa', 'ab', 'b'], 'aa', ['aa', 'ab', 'b']);
-  await t(['', 'a', 'aa', 'ab', 'b'], 'ab', ['ab', 'b']);
+  await t(['', 'a', 'aa', 'ab', 'b'], '', ['a', 'aa', 'ab', 'b']);
+  await t(['', 'a', 'aa', 'ab', 'b'], 'a', ['aa', 'ab', 'b']);
+  await t(['', 'a', 'aa', 'ab', 'b'], 'aa', ['ab', 'b']);
+  await t(['', 'a', 'aa', 'ab', 'b'], 'ab', ['b']);
 });
 
-test('index map', async () => {
+test('exclusive index map', async () => {
   const t = async (
     entries: [string, string][],
-    seekSecondaryKey: string,
-    seekPrimaryKey: string,
+    startSecondaryKey: string,
+    startKey: string | undefined,
     expected: [string, string][],
   ) => {
-    const testDesc = `entries: ${entries}, seekSecondaryKey ${seekSecondaryKey}, seekPrimaryKey: ${seekPrimaryKey}, expected: ${expected}`;
+    const testDesc = `entries: ${entries}, startSecondaryKey ${startSecondaryKey}, startKey: ${startKey}, expected: ${expected}`;
 
     const dagStore = new dag.TestStore();
 
@@ -93,15 +370,18 @@ test('index map', async () => {
         const encoded = encodeIndexKey(entry);
         await map.put(encoded, 'value');
       }
+      const opts = {
+        prefix: undefined,
+        startSecondaryKey,
+        startKey,
+        startExclusive: true,
+        limit: undefined,
+        indexName: 'index',
+      };
       const got = [];
-      const reader = await map.scanReader();
-
-      const seekKey = encodeIndexKey([seekSecondaryKey, seekPrimaryKey]);
-      await reader.seek(seekKey);
-
-      let entry: ReadonlyEntry<ReadonlyJSONValue> | undefined;
-      while ((entry = await reader.next())) {
-        got.push(decodeIndexKey(entry[0]));
+      for await (const key of map.scan(convert(opts), entry => entry[0])) {
+        const [secondary, primary] = decodeIndexKey(key);
+        got.push([secondary, primary]);
       }
       expect(got).to.deep.equal(expected, testDesc);
     });
@@ -119,9 +399,8 @@ test('index map', async () => {
         ['b', pk],
       ],
       '',
-      '',
+      undefined,
       [
-        ['', pk],
         ['a', pk],
         ['aa', pk],
         ['ab', pk],
@@ -137,9 +416,8 @@ test('index map', async () => {
         ['b', pk],
       ],
       'a',
-      '',
+      undefined,
       [
-        ['a', pk],
         ['aa', pk],
         ['ab', pk],
         ['b', pk],
@@ -154,9 +432,8 @@ test('index map', async () => {
         ['b', pk],
       ],
       'aa',
-      '',
+      undefined,
       [
-        ['aa', pk],
         ['ab', pk],
         ['b', pk],
       ],
@@ -170,16 +447,12 @@ test('index map', async () => {
         ['b', pk],
       ],
       'ab',
-      '',
-
-      [
-        ['ab', pk],
-        ['b', pk],
-      ],
+      undefined,
+      [['b', pk]],
     );
   }
 
-  // scanning with startSecondaryKey and startKey,
+  // t exclusive scanning with startSecondaryKey and startKey,
   // with the same secondary value.
   await t(
     [
@@ -192,7 +465,6 @@ test('index map', async () => {
     'a',
     '',
     [
-      ['a', ''],
       ['a', '\u0000'],
       ['a', '\u0000\u0000'],
       ['a', '\u0000\u0001'],
@@ -210,7 +482,6 @@ test('index map', async () => {
     'a',
     '\u{0000}',
     [
-      ['a', '\u0000'],
       ['a', '\u0000\u0000'],
       ['a', '\u0000\u0001'],
       ['a', '\u0001'],
@@ -227,7 +498,6 @@ test('index map', async () => {
     'a',
     '\u{0000}\u{0000}',
     [
-      ['a', '\u0000\u0000'],
       ['a', '\u0000\u0001'],
       ['a', '\u0001'],
     ],
@@ -242,13 +512,10 @@ test('index map', async () => {
     ],
     'a',
     '\u{0000}\u{0001}',
-    [
-      ['a', '\u0000\u0001'],
-      ['a', '\u0001'],
-    ],
+    [['a', '\u0001']],
   );
 
-  // scanning with startSecondaryKey and startKey,
+  // t exclusive scanning with startSecondaryKey and startKey,
   // with different secondary values.
   await t(
     [
@@ -261,7 +528,6 @@ test('index map', async () => {
     '',
     '',
     [
-      ['', ''],
       ['a', '\u0000'],
       ['aa', '\u0000\u0000'],
       ['ab', '\u0000\u0001'],
@@ -279,7 +545,6 @@ test('index map', async () => {
     'a',
     '\u{0000}',
     [
-      ['a', '\u0000'],
       ['aa', '\u0000\u0000'],
       ['ab', '\u0000\u0001'],
       ['b', '\u0001'],
@@ -296,7 +561,6 @@ test('index map', async () => {
     'aa',
     '\u{0000}\u{0000}',
     [
-      ['aa', '\u0000\u0000'],
       ['ab', '\u0000\u0001'],
       ['b', '\u0001'],
     ],
@@ -311,10 +575,7 @@ test('index map', async () => {
     ],
     'ab',
     '\u{0000}\u{0001}',
-    [
-      ['ab', '\u0000\u0001'],
-      ['b', '\u0001'],
-    ],
+    [['b', '\u0001']],
   );
 });
 
@@ -329,7 +590,7 @@ async function makeBTreeWrite(
   return map;
 }
 
-function convertEntry(entry: ReadonlyEntry<ReadonlyJSONValue>): ScanItem {
+function convertEntry(entry: Entry<ReadonlyJSONValue>): ScanItem {
   return {
     primaryKey: entry[0],
     secondaryKey: '',
@@ -337,9 +598,7 @@ function convertEntry(entry: ReadonlyEntry<ReadonlyJSONValue>): ScanItem {
   };
 }
 
-function convertEntryIndexScan(
-  entry: ReadonlyEntry<ReadonlyJSONValue>,
-): ScanItem {
+function convertEntryIndexScan(entry: Entry<ReadonlyJSONValue>): ScanItem {
   const decoded = decodeIndexKey(entry[0]);
   const secondary = decoded[0];
   const primary = decoded[1];
@@ -353,28 +612,24 @@ function convertEntryIndexScan(
 test('scan index startKey', async () => {
   const t = async (
     entries: Iterable<[string, string]>,
-    seekKey: string,
-    isIndexScan: boolean,
+    opts: ScanOptions,
     expected: ScanItem[],
   ) => {
     const dagStore = new dag.TestStore();
 
     await dagStore.withWrite(async dagWrite => {
       const map = await makeBTreeWrite(dagWrite, entries);
+      const testDesc = `opts: ${opts}, expected: ${expected}`;
 
       const actual: ScanItem[] = [];
-      const reader = await map.scanReader();
-      if (seekKey) {
-        await reader.seek(seekKey);
-      }
-      let entry: ReadonlyEntry<ReadonlyJSONValue> | undefined;
-      while ((entry = await reader.next())) {
-        actual.push(
-          isIndexScan ? convertEntryIndexScan(entry) : convertEntry(entry),
-        );
+      for await (const item of map.scan(
+        convert(opts),
+        opts.indexName ? convertEntryIndexScan : convertEntry,
+      )) {
+        actual.push(item);
       }
 
-      expect(actual).to.deep.equal(expected);
+      expect(actual).to.deep.equal(expected, testDesc);
     });
   };
 
@@ -384,8 +639,14 @@ test('scan index startKey', async () => {
       ['b', '2'],
       ['c', '3'],
     ],
-    'b',
-    false,
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: 'b',
+      startExclusive: false,
+      limit: undefined,
+      indexName: undefined,
+    },
     [
       {
         primaryKey: 'b',
@@ -402,12 +663,41 @@ test('scan index startKey', async () => {
 
   await t(
     [
+      ['a', '1'],
+      ['b', '2'],
+      ['c', '3'],
+    ],
+    {
+      prefix: undefined,
+      startSecondaryKey: undefined,
+      startKey: 'b',
+      startExclusive: true,
+      limit: undefined,
+      indexName: undefined,
+    },
+    [
+      {
+        primaryKey: 'c',
+        secondaryKey: '',
+        val: '3',
+      },
+    ],
+  );
+
+  await t(
+    [
       ['\u{0000}as\u{0000}ap', '1'],
       ['\u{0000}bs\u{0000}bp', '2'],
       ['\u{0000}cs\u{0000}cp', '3'],
     ],
-    encodeIndexKey(['bs', '']),
-    true,
+    {
+      prefix: undefined,
+      startSecondaryKey: 'bs',
+      startKey: undefined,
+      startExclusive: false,
+      limit: undefined,
+      indexName: 'index',
+    },
     [
       {
         primaryKey: 'bp',
@@ -425,18 +715,71 @@ test('scan index startKey', async () => {
   await t(
     [
       ['\u{0000}as\u{0000}ap', '1'],
+      ['\u{0000}bs\u{0000}bp', '2'],
+      ['\u{0000}cs\u{0000}cp', '3'],
+    ],
+    {
+      prefix: undefined,
+      startSecondaryKey: 'bs',
+      startKey: undefined,
+      startExclusive: true,
+      limit: undefined,
+      indexName: 'index',
+    },
+    [
+      {
+        primaryKey: 'cp',
+        secondaryKey: 'cs',
+        val: '3',
+      },
+    ],
+  );
+
+  await t(
+    [
+      ['\u{0000}as\u{0000}ap', '1'],
       ['\u{0000}bs\u{0000}bp1', '2'],
       ['\u{0000}bs\u{0000}bp2', '3'],
       ['\u{0000}cs\u{0000}cp', '4'],
     ],
-    encodeIndexKey(['bs', 'bp2']),
-    true,
+    {
+      prefix: undefined,
+      startSecondaryKey: 'bs',
+      startKey: 'bp2',
+      startExclusive: false,
+      limit: undefined,
+      indexName: 'index',
+    },
     [
       {
         primaryKey: 'bp2',
         secondaryKey: 'bs',
         val: '3',
       },
+      {
+        primaryKey: 'cp',
+        secondaryKey: 'cs',
+        val: '4',
+      },
+    ],
+  );
+
+  await t(
+    [
+      ['\u{0000}as\u{0000}ap', '1'],
+      ['\u{0000}bs\u{0000}bp1', '2'],
+      ['\u{0000}bs\u{0000}bp2', '3'],
+      ['\u{0000}cs\u{0000}cp', '4'],
+    ],
+    {
+      prefix: undefined,
+      startSecondaryKey: 'bs',
+      startKey: 'bp2',
+      startExclusive: true,
+      limit: undefined,
+      indexName: 'index',
+    },
+    [
       {
         primaryKey: 'cp',
         secondaryKey: 'cs',

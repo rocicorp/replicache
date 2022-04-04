@@ -26,8 +26,7 @@ export {
   chain as commitChain,
 } from './commit';
 export {getRoot} from './root';
-
-export type {IndexKey} from './index-key';
+export {decodeIndexKey, encodeIndexKey} from './index';
 export {Visitor} from './visitor';
 export {BaseTransformer, Transformer} from './transformer';
 
@@ -39,4 +38,5 @@ export type {
   CommitData,
   Meta,
 } from './commit';
+export type {ScanOptions} from './scan';
 export type {Whence} from './read';

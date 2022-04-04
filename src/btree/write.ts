@@ -13,6 +13,7 @@ import {
   DiffResult,
   emptyDataNode,
 } from './node';
+import type {ScanOptionsInternal} from '../db/scan';
 import type {CreateChunk} from '../dag/chunk';
 import {assert} from '../asserts';
 
@@ -124,6 +125,13 @@ export class BTreeWrite extends BTreeRead {
 
   override isEmpty(): Promise<boolean> {
     return this._rwLock.withRead(() => super.isEmpty());
+  }
+
+  override async *scan<R>(
+    options: ScanOptionsInternal,
+    convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
+  ): AsyncIterableIterator<R> {
+    yield* runRead(this._rwLock, super.scan(options, convertEntry));
   }
 
   override async *keys(): AsyncIterableIterator<string> {

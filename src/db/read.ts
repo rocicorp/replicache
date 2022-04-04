@@ -1,6 +1,5 @@
 import {IndexRead} from './index';
 import type * as dag from '../dag/mod';
-import {convert, ScanOptions, ScanOptionsInternal} from './scan';
 import {
   Commit,
   DEFAULT_HEAD_NAME,
@@ -8,8 +7,10 @@ import {
   Meta,
 } from './commit';
 import type {ReadonlyJSONValue} from '../json';
-import {BTreeRead, BTreeWrite, Entry} from '../btree/mod';
+import {BTreeRead, BTreeWrite} from '../btree/mod';
 import type {Hash} from '../hash';
+import type {ScanReaderInternal} from '../scan-reader.js';
+import {isScanIndexOptions, ScanOptions} from '../scan-options.js';
 
 export class Read {
   private readonly _dagRead: dag.Read;
@@ -38,28 +39,11 @@ export class Read {
     return this.map.isEmpty();
   }
 
-  scan<R>(
-    opts: ScanOptions,
-    convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
-    onLimitKey?: (inclusiveLimitKey: string) => void,
-  ): AsyncIterableIterator<R> {
-    const optsInternal: ScanOptionsInternal = convert(opts);
-    if (optsInternal.indexName !== undefined) {
-      const name = optsInternal.indexName;
-      const idx = this.indexes.get(name);
-      if (idx === undefined) {
-        throw new Error(`Unknown index name: ${name}`);
-      }
-
-      return scanIndexMap(
-        idx,
-        this._dagRead,
-        optsInternal,
-        convertEntry,
-        onLimitKey,
-      );
-    }
-    return this.map.scan(optsInternal, convertEntry, onLimitKey);
+  async scanReader(options: ScanOptions): Promise<ScanReaderInternal> {
+    const map = isScanIndexOptions(options)
+      ? await this.getMapForIndex(options.indexName)
+      : this.map;
+    return map.scanReader();
   }
 
   get closed(): boolean {
@@ -69,18 +53,14 @@ export class Read {
   close(): void {
     this._dagRead.close();
   }
-}
 
-async function* scanIndexMap<R>(
-  idx: IndexRead,
-  dagRead: dag.Read,
-  optsInternal: ScanOptionsInternal,
-  convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
-  onLimitKey?: (inclusiveLimitKey: string) => void,
-): AsyncIterableIterator<R> {
-  yield* await idx.withMap(dagRead, map =>
-    map.scan(optsInternal, convertEntry, onLimitKey),
-  );
+  async getMapForIndex(indexName: string): Promise<BTreeRead> {
+    const idx = this.indexes.get(indexName);
+    if (idx === undefined) {
+      throw new Error(`Unknown index name: ${indexName}`);
+    }
+    return idx.withMap(this._dagRead, map => map);
+  }
 }
 
 const enum WhenceType {
@@ -121,8 +101,8 @@ export async function fromWhence(
   dagRead: dag.Read,
 ): Promise<Read> {
   const [, basis, map] = await readCommitForBTreeRead(whence, dagRead);
-  const indexex = readIndexesForRead(basis);
-  return new Read(dagRead, map, indexex);
+  const indexes = readIndexesForRead(basis);
+  return new Read(dagRead, map, indexes);
 }
 
 export async function readCommit(

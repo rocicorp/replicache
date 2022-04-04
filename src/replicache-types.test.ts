@@ -231,7 +231,7 @@ test.skip('mut [type checking only]', async () => {
       },
 
       // // This should be flagged as an error but I need to use `any` for the
-      // // arg since I need covariance and TS uses contravariance here.
+      // // arg since I need covariance and TS uses contravariant here.
       // // @ts-expect-error XXX
       // i: (tx: WriteTransaction, d: Date) =>
       // {console.log(tx, d);

@@ -10,7 +10,7 @@ import {
   whenceHead,
 } from './read';
 import {initDB, Write} from './write';
-import {encodeIndexKey} from './index';
+import {encodeIndexKey} from './index-key.js';
 import {asyncIterableToArray} from '../async-iterable-to-array';
 import {BTreeRead} from '../btree/mod';
 

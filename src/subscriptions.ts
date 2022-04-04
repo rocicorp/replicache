@@ -1,11 +1,17 @@
 import type {JSONValue} from './json';
 import type {ReadTransaction} from './transactions';
-import * as db from './db/mod';
 import type * as sync from './sync/mod';
+import {decodeIndexKey} from './db/index-key.js';
+import {
+  isScanIndexOptions,
+  ScanIndexOptions,
+  scanOptionIndexedStartKeyToSecondaryAndPrimary,
+  ScanOptions,
+} from './scan-options.js';
 
 export type ScanSubscriptionInfo = {
-  options: db.ScanOptions;
-  inclusiveLimitKey?: string;
+  options: ScanOptions | undefined;
+  inclusiveLimitKey: string | undefined;
 };
 
 export type Subscription<R extends JSONValue | undefined, E> = {
@@ -46,22 +52,27 @@ export function scanInfoMatchesKey(
   changeIndexName: string,
   changedKey: string,
 ): boolean {
-  const {indexName, prefix, startKey, startExclusive, startSecondaryKey} =
-    scanInfo.options;
+  const {options} = scanInfo;
+  if (!options) {
+    // No options to scan. This matches all keys.
+    return true;
+  }
 
-  if (!indexName) {
+  const {prefix, start, limit} = options;
+
+  if (!isScanIndexOptions(options)) {
     if (changeIndexName) {
       return false;
     }
 
     // A scan with limit <= 0 can have no matches
-    if (scanInfo.options.limit !== undefined && scanInfo.options.limit <= 0) {
+    if (limit !== undefined && limit <= 0) {
       return false;
     }
 
     // No prefix and no start. Must recompute the subscription because all keys
     // will have an effect on the subscription.
-    if (!prefix && !startKey) {
+    if (!prefix && !start) {
       return true;
     }
 
@@ -74,9 +85,9 @@ export function scanInfoMatchesKey(
     }
 
     if (
-      startKey &&
-      ((startExclusive && changedKey <= startKey) ||
-        changedKey < startKey ||
+      start &&
+      ((start.exclusive && changedKey <= start.key) ||
+        changedKey < start.key ||
         isKeyPastInclusiveLimit(scanInfo, changedKey))
     ) {
       return false;
@@ -85,18 +96,18 @@ export function scanInfoMatchesKey(
     return true;
   }
 
+  const {indexName} = options;
   if (changeIndexName !== indexName) {
     return false;
   }
 
   // No prefix and no start. Must recompute the subscription because all keys
   // will have an effect on the subscription.
-  if (!prefix && !startKey && !startSecondaryKey) {
+  if (!prefix && !start) {
     return true;
   }
 
-  const [changedKeySecondary, changedKeyPrimary] =
-    db.decodeIndexKey(changedKey);
+  const [changedKeySecondary, changedKeyPrimary] = decodeIndexKey(changedKey);
 
   if (prefix) {
     if (!changedKeySecondary.startsWith(prefix)) {
@@ -104,20 +115,26 @@ export function scanInfoMatchesKey(
     }
   }
 
-  if (
-    startSecondaryKey &&
-    ((startExclusive && changedKeySecondary <= startSecondaryKey) ||
-      changedKeySecondary < startSecondaryKey)
-  ) {
-    return false;
-  }
+  if (start) {
+    const {key, exclusive} = start;
+    const [startSecondaryKey, startPrimaryKey] =
+      scanOptionIndexedStartKeyToSecondaryAndPrimary(key);
 
-  if (
-    startKey &&
-    ((startExclusive && changedKeyPrimary <= startKey) ||
-      changedKeyPrimary < startKey)
-  ) {
-    return false;
+    if (
+      startSecondaryKey &&
+      ((exclusive && changedKeySecondary <= startSecondaryKey) ||
+        changedKeySecondary < startSecondaryKey)
+    ) {
+      return false;
+    }
+
+    if (
+      startPrimaryKey &&
+      ((exclusive && changedKeyPrimary <= startPrimaryKey) ||
+        changedKeyPrimary < startPrimaryKey)
+    ) {
+      return false;
+    }
   }
 
   return true;
@@ -129,7 +146,7 @@ function isKeyPastInclusiveLimit(
 ): boolean {
   const {inclusiveLimitKey} = scanInfo;
   return (
-    scanInfo.options.limit !== undefined &&
+    scanInfo.options?.limit !== undefined &&
     inclusiveLimitKey !== undefined &&
     changedKey > inclusiveLimitKey
   );
@@ -157,7 +174,9 @@ export function* subscriptionsForIndexDefinitionChanged<V, E>(
 ): Generator<Subscription<V, E>> {
   for (const subscription of subscriptions) {
     if (
-      subscription.scans.some(scanInfo => scanInfo.options.indexName === name)
+      subscription.scans.some(
+        ({options}) => (options as ScanIndexOptions).indexName === name,
+      )
     ) {
       yield subscription;
     }

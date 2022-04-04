@@ -2,30 +2,67 @@ import {expect} from '@esm-bundle/chai';
 import {scanInfoMatchesKey} from './subscriptions';
 
 test('scanInfoMatchesKey', () => {
-  expect(scanInfoMatchesKey({options: {}}, '', 'a')).to.be.true;
-  expect(scanInfoMatchesKey({options: {indexName: 'idx'}}, 'idx', 'a')).to.be
-    .true;
-  expect(scanInfoMatchesKey({options: {indexName: 'idx'}}, '', 'a')).to.be
-    .false;
-  expect(scanInfoMatchesKey({options: {}}, 'idx', 'a')).to.be.false;
-
-  expect(scanInfoMatchesKey({options: {prefix: 'p'}}, '', 'a')).to.be.false;
-
-  expect(scanInfoMatchesKey({options: {startKey: 'sk'}}, '', 'a')).to.be.false;
-  expect(scanInfoMatchesKey({options: {startKey: 'sk'}}, '', 'skate')).to.be
-    .true;
-  expect(scanInfoMatchesKey({options: {startKey: 'a'}}, '', 'b')).to.be.true;
+  expect(
+    scanInfoMatchesKey({options: {}, inclusiveLimitKey: undefined}, '', 'a'),
+  ).to.be.true;
+  expect(
+    scanInfoMatchesKey(
+      {options: {indexName: 'idx'}, inclusiveLimitKey: undefined},
+      'idx',
+      'a',
+    ),
+  ).to.be.true;
+  expect(
+    scanInfoMatchesKey(
+      {options: {indexName: 'idx'}, inclusiveLimitKey: undefined},
+      '',
+      'a',
+    ),
+  ).to.be.false;
+  expect(
+    scanInfoMatchesKey({options: {}, inclusiveLimitKey: undefined}, 'idx', 'a'),
+  ).to.be.false;
 
   expect(
     scanInfoMatchesKey(
-      {options: {prefix: 'a', indexName: 'idx'}},
+      {options: {prefix: 'p'}, inclusiveLimitKey: undefined},
+      '',
+      'a',
+    ),
+  ).to.be.false;
+
+  expect(
+    scanInfoMatchesKey(
+      {options: {start: {key: 'sk'}}, inclusiveLimitKey: undefined},
+      '',
+      'a',
+    ),
+  ).to.be.false;
+  expect(
+    scanInfoMatchesKey(
+      {options: {start: {key: 'sk'}}, inclusiveLimitKey: undefined},
+      '',
+      'skate',
+    ),
+  ).to.be.true;
+  expect(
+    scanInfoMatchesKey(
+      {options: {start: {key: 'a'}}, inclusiveLimitKey: undefined},
+      '',
+      'b',
+    ),
+  ).to.be.true;
+
+  expect(
+    scanInfoMatchesKey(
+      {options: {prefix: 'a', indexName: 'idx'}, inclusiveLimitKey: undefined},
       'idx',
       '\u0000a\u0000b',
     ),
   ).to.be.true;
   expect(
     scanInfoMatchesKey(
-      {options: {prefix: 'sb', indexName: 'idx'}},
+      {options: {prefix: 'sb', indexName: 'idx'}, inclusiveLimitKey: undefined},
       'idx',
       '\u0000sa\u0000p',
     ),
@@ -33,21 +70,38 @@ test('scanInfoMatchesKey', () => {
 
   expect(
     scanInfoMatchesKey(
-      {options: {prefix: 'sa', indexName: 'idx', startSecondaryKey: 'sab'}},
+      {
+        options: {
+          prefix: 'sa',
+          indexName: 'idx',
+          start: {key: 'sab'},
+        },
+        inclusiveLimitKey: undefined,
+      },
       'idx',
       '\u0000sab\u0000p',
     ),
   ).to.be.true;
   expect(
     scanInfoMatchesKey(
-      {options: {prefix: 'sa', indexName: 'idx', startSecondaryKey: 'sab'}},
+      {
+        options: {
+          prefix: 'sa',
+          indexName: 'idx',
+          start: {key: 'sab'},
+        },
+        inclusiveLimitKey: undefined,
+      },
       'idx',
       '\u0000sac\u0000p',
     ),
   ).to.be.true;
   expect(
     scanInfoMatchesKey(
-      {options: {prefix: 'sa', indexName: 'idx', startSecondaryKey: 'sac'}},
+      {
+        options: {prefix: 'sa', indexName: 'idx', start: {key: 'sac'}},
+        inclusiveLimitKey: undefined,
+      },
       'idx',
       '\u0000sab\u0000p',
     ),
@@ -59,9 +113,9 @@ test('scanInfoMatchesKey', () => {
         options: {
           prefix: 'sa',
           indexName: 'idx',
-          startSecondaryKey: 'sab',
-          startKey: 'pa',
+          start: {key: ['sab', 'pa']},
         },
+        inclusiveLimitKey: undefined,
       },
       'idx',
       '\u0000sac\u0000pa',
@@ -73,9 +127,9 @@ test('scanInfoMatchesKey', () => {
         options: {
           prefix: 'sa',
           indexName: 'idx',
-          startSecondaryKey: 'sab',
-          startKey: 'pab',
+          start: {key: ['sab', 'pab']},
         },
+        inclusiveLimitKey: undefined,
       },
       'idx',
       '\u0000sac\u0000pab',
@@ -87,9 +141,9 @@ test('scanInfoMatchesKey', () => {
         options: {
           prefix: 'sa',
           indexName: 'idx',
-          startSecondaryKey: 'sab',
-          startKey: 'pab',
+          start: {key: ['sab', 'pab']},
         },
+        inclusiveLimitKey: undefined,
       },
       'idx',
       '\u0000sac\u0000pac',
@@ -101,9 +155,9 @@ test('scanInfoMatchesKey', () => {
         options: {
           prefix: 'sa',
           indexName: 'idx',
-          startSecondaryKey: 'sab',
-          startKey: 'pac',
+          start: {key: ['sab', 'pac']},
         },
+        inclusiveLimitKey: undefined,
       },
       'idx',
       '\u0000sac\u0000pab',
@@ -118,9 +172,10 @@ test('scanInfoMatchesKey limit optimizations', () => {
     scanInfoMatchesKey(
       {
         options: {
-          startKey: 'pac2',
+          start: {key: 'pac2'},
           limit: 10,
         },
+        inclusiveLimitKey: undefined,
       },
       '',
       'pac2',
@@ -131,7 +186,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
     scanInfoMatchesKey(
       {
         options: {
-          startKey: 'pac2',
+          start: {key: 'pac2'},
           limit: 10,
         },
         inclusiveLimitKey: 'pac8',
@@ -146,9 +201,10 @@ test('scanInfoMatchesKey limit optimizations', () => {
     scanInfoMatchesKey(
       {
         options: {
-          startKey: 'pac2',
+          start: {key: 'pac2'},
           limit: 10,
         },
+        inclusiveLimitKey: undefined,
       },
       '',
       'pac4',
@@ -160,7 +216,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
     scanInfoMatchesKey(
       {
         options: {
-          startKey: 'pac2',
+          start: {key: 'pac2'},
           limit: 10,
         },
         inclusiveLimitKey: 'pac8',
@@ -175,7 +231,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
     scanInfoMatchesKey(
       {
         options: {
-          startKey: 'pac2',
+          start: {key: 'pac2'},
           limit: 10,
         },
         inclusiveLimitKey: 'pac8',
@@ -190,7 +246,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
     scanInfoMatchesKey(
       {
         options: {
-          startKey: 'pac2',
+          start: {key: 'pac2'},
           limit: 10,
         },
         inclusiveLimitKey: 'pac8',
@@ -205,9 +261,10 @@ test('scanInfoMatchesKey limit optimizations', () => {
     scanInfoMatchesKey(
       {
         options: {
-          startKey: 'pac2',
+          start: {key: 'pac2'},
           limit: 10,
         },
+        inclusiveLimitKey: undefined,
       },
       '',
       'pac1',
@@ -218,7 +275,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
     scanInfoMatchesKey(
       {
         options: {
-          startKey: 'pac2',
+          start: {key: 'pac2'},
           limit: 10,
         },
         inclusiveLimitKey: 'pac8',
@@ -233,10 +290,10 @@ test('scanInfoMatchesKey limit optimizations', () => {
     scanInfoMatchesKey(
       {
         options: {
-          startKey: 'pac2',
-          startExclusive: true,
+          start: {key: 'pac2', exclusive: true},
           limit: 10,
         },
+        inclusiveLimitKey: undefined,
       },
       '',
       'pac2',
@@ -247,8 +304,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
     scanInfoMatchesKey(
       {
         options: {
-          startKey: 'pac2',
-          startExclusive: true,
+          start: {key: 'pac2', exclusive: true},
           limit: 10,
         },
         inclusiveLimitKey: 'pac8',
@@ -263,7 +319,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
     scanInfoMatchesKey(
       {
         options: {
-          startKey: 'pac2',
+          start: {key: 'pac2'},
         },
         inclusiveLimitKey: 'pac8',
       },
@@ -354,9 +410,10 @@ test('scanInfoMatchesKey limit optimizations', () => {
       {
         options: {
           prefix: 'pac2',
-          startKey: 'pac22',
+          start: {key: 'pac22'},
           limit: 10,
         },
+        inclusiveLimitKey: undefined,
       },
       '',
       'pac22',
@@ -367,7 +424,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
       {
         options: {
           prefix: 'pac2',
-          startKey: 'pac22',
+          start: {key: 'pac22'},
           limit: 10,
         },
         inclusiveLimitKey: 'pac28',
@@ -383,9 +440,10 @@ test('scanInfoMatchesKey limit optimizations', () => {
       {
         options: {
           prefix: 'pac2',
-          startKey: 'pac22',
+          start: {key: 'pac22'},
           limit: 10,
         },
+        inclusiveLimitKey: undefined,
       },
       '',
       'pac24',
@@ -398,7 +456,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
       {
         options: {
           prefix: 'pac2',
-          startKey: 'pac22',
+          start: {key: 'pac22'},
           limit: 10,
         },
         inclusiveLimitKey: 'pac28',
@@ -414,7 +472,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
       {
         options: {
           prefix: 'pac2',
-          startKey: 'pac22',
+          start: {key: 'pac22'},
           limit: 10,
         },
         inclusiveLimitKey: 'pac28',
@@ -430,7 +488,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
       {
         options: {
           prefix: 'pac2',
-          startKey: 'pac22',
+          start: {key: 'pac22'},
           limit: 10,
         },
         inclusiveLimitKey: 'pac28',
@@ -446,9 +504,10 @@ test('scanInfoMatchesKey limit optimizations', () => {
       {
         options: {
           prefix: 'pac2',
-          startKey: 'pac22',
+          start: {key: 'pac22'},
           limit: 10,
         },
+        inclusiveLimitKey: undefined,
       },
       '',
       'pac21',
@@ -460,7 +519,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
       {
         options: {
           prefix: 'pac2',
-          startKey: 'pac22',
+          start: {key: 'pac22'},
           limit: 10,
         },
         inclusiveLimitKey: 'pac28',
@@ -476,10 +535,10 @@ test('scanInfoMatchesKey limit optimizations', () => {
       {
         options: {
           prefix: 'pac2',
-          startKey: 'pac22',
-          startExclusive: true,
+          start: {key: 'pac22', exclusive: true},
           limit: 10,
         },
+        inclusiveLimitKey: undefined,
       },
       '',
       'pac22',
@@ -491,8 +550,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
       {
         options: {
           prefix: 'pac2',
-          startKey: 'pac22',
-          startExclusive: true,
+          start: {key: 'pac22', exclusive: true},
           limit: 10,
         },
         inclusiveLimitKey: 'pac28',
@@ -508,7 +566,7 @@ test('scanInfoMatchesKey limit optimizations', () => {
       {
         options: {
           prefix: 'pac2',
-          startKey: 'pac22',
+          start: {key: 'pac22'},
         },
         inclusiveLimitKey: 'pac28',
       },
@@ -517,13 +575,13 @@ test('scanInfoMatchesKey limit optimizations', () => {
     ),
   ).to.be.true;
 
-  // Changed key is between startKey and lastKey inclusive, but doesnt match prefix
+  // Changed key is between startKey and lastKey inclusive, but doesn't match prefix
   expect(
     scanInfoMatchesKey(
       {
         options: {
           prefix: 'pac2',
-          startKey: 'pab1',
+          start: {key: 'pab1'},
         },
         inclusiveLimitKey: 'pac28',
       },

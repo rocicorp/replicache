@@ -15,10 +15,8 @@ export type {
   ReadTransaction,
   WriteTransaction,
 } from './transactions';
-export type {
-  ScanResult,
-  AsyncIterableIteratorToArrayWrapper,
-} from './scan-iterator';
+export type {ScanResult} from './scan-result';
+export type {AsyncIterableIteratorToArrayWrapper} from './async-iterable-iterator-to-array-wrapper';
 export type {LogSink, LogLevel} from '@rocicorp/logger';
 export type {
   JSONObject,
@@ -53,3 +51,8 @@ export type {
 
 export type {PullRequest} from './sync/pull';
 export type {PushRequest} from './sync/push';
+
+export type {ScanReader, ScanKey} from './scan-reader';
+export {makeScanResult} from './scan-reader';
+
+export type {IndexKey} from './db/index-key';

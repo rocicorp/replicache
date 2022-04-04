@@ -5,6 +5,7 @@ import {fakeHash, makeNewTempHashFunction, parse as parseHash} from '../hash';
 import {BTreeWrite} from '../btree/write';
 import {FixupTransformer} from './fixup-transformer';
 import type {ReadonlyJSONValue} from '../json';
+import {encodeIndexKey} from '../db/index-key.js';
 
 test('fixup of a single snapshot commit with empty btree', async () => {
   const memdag = new dag.TestStore(
@@ -520,11 +521,11 @@ test('fixup of a base snapshot with an index', async () => {
   });
 
   const indexEntries: [string, ReadonlyJSONValue][] = [
-    [db.encodeIndexKey(['0', 'a']), {a: '0'}],
-    [db.encodeIndexKey(['1', 'b']), {a: '1'}],
-    [db.encodeIndexKey(['2', 'c']), {a: '2'}],
-    [db.encodeIndexKey(['3', 'd']), {a: '3'}],
-    [db.encodeIndexKey(['4', 'e']), {a: '4'}],
+    [encodeIndexKey(['0', 'a']), {a: '0'}],
+    [encodeIndexKey(['1', 'b']), {a: '1'}],
+    [encodeIndexKey(['2', 'c']), {a: '2'}],
+    [encodeIndexKey(['3', 'd']), {a: '3'}],
+    [encodeIndexKey(['4', 'e']), {a: '4'}],
   ];
 
   const [headHash, valueHash, indexHash] = await memdag.withWrite(

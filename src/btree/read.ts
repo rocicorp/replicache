@@ -1,6 +1,5 @@
 import {deepEqual, getSizeOfValue, ReadonlyJSONValue} from '../json';
 import type * as dag from '../dag/mod';
-import type {ScanOptionsInternal} from '../db/scan';
 import {Hash, emptyHash} from '../hash';
 import {
   DataNodeImpl,
@@ -24,6 +23,7 @@ import {
   SPLICE_FROM,
   SPLICE_REMOVED,
 } from './splice';
+import type {ScanReaderInternal} from '../scan-reader.js';
 
 /**
  * The size of the header of a node. (If we had compile time
@@ -97,25 +97,8 @@ export class BTreeRead {
     return node.entries.length === 0;
   }
 
-  // We don't do any encoding of the key in the map, so we have no way of
-  // determining from an entry.key alone whether it is a regular key or an
-  // encoded IndexKey in an index map. Without encoding regular map keys we need
-  // to rely on the options to tell us what we expect.
-  async *scan<R>(
-    options: ScanOptionsInternal,
-    convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
-    onLimitKey?: (inclusiveLimitKey: string) => void,
-  ): AsyncIterableIterator<R> {
-    const node = await this.getNode(this.rootHash);
-    const {prefix = '', limit = Infinity, startKey} = options;
-    let fromKey = prefix;
-    if (startKey !== undefined) {
-      if (startKey > fromKey) {
-        fromKey = startKey;
-      }
-    }
-
-    yield* node.scan(this, prefix, fromKey, limit, convertEntry, onLimitKey);
+  async scanReader(): Promise<ScanReaderInternal> {
+    return (await this.getNode(this.rootHash)).scanReader(this);
   }
 
   async *keys(): AsyncIterableIterator<string> {

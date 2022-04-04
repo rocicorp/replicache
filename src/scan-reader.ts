@@ -40,6 +40,10 @@ export interface ScanReader<Key extends ScanKey> {
  */
 export type ScanReaderInternal = ScanReader<string>;
 
+type ToValue<Key, ToValueReturnType> = (
+  entry: readonly [key: Key, value: ReadonlyJSONValue],
+) => ToValueReturnType;
+
 export class ScanResultImpl<
   Options extends ScanOptions,
   Key extends KeyTypeForScanOptions<Options>,
@@ -77,23 +81,25 @@ export class ScanResultImpl<
   }
 
   private _newIterator<ToValueReturnType>(
-    toValue: (
-      entry: readonly [key: string | IndexKey, value: ReadonlyJSONValue],
-    ) => ToValueReturnType,
+    toValue: ToValue<ScanKey, ToValueReturnType>,
   ) {
     let reader: AsyncIterableIterator<ToValueReturnType>;
     if (isScanIndexOptions(this._options)) {
-      reader = scanIteratorUsingIndexedScanReader(
-        this._reader as ScanReader<IndexKey>,
-        this._options,
-        toValue,
+      reader = scanIteratorUsingReader(
+        makeIndexedDelegate(
+          this._options,
+          this._reader as ScanReader<IndexKey>,
+          toValue,
+        ),
       );
     } else {
-      reader = scanIteratorUsingNonIndexReader(
-        this._reader as ScanReader<string>,
-        this._options,
-        this._onLimitKey,
-        toValue,
+      reader = scanIteratorUsingReader(
+        makeNonIndexedDelegate(
+          this._options,
+          this._reader as ScanReader<string>,
+          this._onLimitKey,
+          toValue,
+        ),
       );
     }
     return new AsyncIterableIteratorToArrayWrapper(reader);
@@ -102,6 +108,65 @@ export class ScanResultImpl<
   toArray(): Promise<Value[]> {
     return this.values().toArray();
   }
+}
+
+function makeNonIndexedDelegate<ToValueReturnType>(
+  options: ScanNoIndexOptions,
+  reader: ScanReader<string>,
+  onLimitKey: (inclusiveLimitKey: string) => void,
+  toValue: ToValue<string, ToValueReturnType>,
+): ScanIteratorDelegate<ScanNoIndexOptions, ToValueReturnType, string, string> {
+  return {
+    maxFromKey: (key, fromKey) => (key >= fromKey ? key : fromKey),
+    onLimitKey,
+    reader,
+    options,
+    seekKey: key => key,
+    shouldSeek: key => key !== '',
+    shouldSkip: (fromKey, key) => fromKey === key,
+    startsWith: (key, prefix) => key.startsWith(prefix),
+    toValue,
+  };
+}
+
+function makeIndexedDelegate<ToValueReturnType>(
+  options: ScanIndexOptions,
+  reader: ScanReader<IndexKey>,
+  toValue: ToValue<IndexKey, ToValueReturnType>,
+): ScanIteratorDelegate<ScanIndexOptions, ToValueReturnType> {
+  return {
+    maxFromKey: (key, fromKey) => (key[0] >= fromKey ? key : fromKey),
+    onLimitKey: noopOnLimitKey,
+    reader,
+    options,
+    seekKey: key => {
+      if (typeof key === 'string') {
+        return [key, ''];
+      }
+      if (key[1] === undefined) {
+        return [key[0], ''];
+      }
+      return key as IndexKey;
+    },
+    shouldSeek: key => {
+      if (typeof key === 'string') {
+        return key !== '';
+      }
+      return key[0] !== '';
+    },
+    shouldSkip: (fromKey, key) => {
+      if (typeof fromKey === 'string') {
+        return key[0] === fromKey;
+      }
+      if (fromKey[1] === undefined) {
+        // When primary is not defined we skip the first entry.
+        return fromKey[0] === key[0];
+      }
+      return key[0] === fromKey[0] && key[1] === fromKey[1];
+    },
+    startsWith: (key, prefix) => key[0].startsWith(prefix),
+    toValue,
+  };
 }
 
 /**
@@ -130,46 +195,66 @@ export function makeScanResultWithOnLimitKey<
   return new ScanResultImpl(reader, options, onLimitKey);
 }
 
-function maxFromKey(
-  key: ScanOptionIndexedStartKey,
-  fromKey: string,
-): ScanOptionIndexedStartKey {
-  if (key[0] >= fromKey) {
-    return key;
-  }
-  return fromKey;
+interface ScanIteratorDelegate<
+  Options extends ScanOptions,
+  ToValueReturnType,
+  Key extends ScanKey = Options extends ScanIndexOptions ? IndexKey : string,
+  StartKey extends ScanOptionIndexedStartKey = Options extends ScanIndexOptions
+    ? ScanOptionIndexedStartKey
+    : string,
+> {
+  maxFromKey(key: StartKey, fromKey: StartKey): StartKey;
+
+  onLimitKey(key: Key): void;
+
+  options: Options;
+
+  reader: ScanReader<Key>;
+
+  seekKey(key: StartKey): Key;
+
+  shouldSeek(key: StartKey): boolean;
+
+  shouldSkip(fromKey: StartKey, key: Key): boolean;
+
+  startsWith(key: Key, prefix: string): boolean;
+
+  toValue: ToValue<Key, ToValueReturnType>;
 }
 
-async function* scanIteratorUsingNonIndexReader<ToValueReturnType>(
-  reader: ScanReader<string>,
-  options: ScanNoIndexOptions,
-  onLimitKey: (key: string) => void,
-  toValue: (
-    entry: readonly [key: string, value: ReadonlyJSONValue],
-  ) => ToValueReturnType,
+async function* scanIteratorUsingReader<
+  Options extends ScanOptions,
+  ToValueReturnType,
+  Key extends ScanKey = Options extends ScanIndexOptions ? IndexKey : string,
+  StartKey extends ScanOptionIndexedStartKey = Options extends ScanIndexOptions
+    ? ScanOptionIndexedStartKey
+    : string,
+>(
+  delegate: ScanIteratorDelegate<Options, ToValueReturnType, Key, StartKey>,
 ): AsyncIterableIterator<ToValueReturnType> {
+  const {options, reader, startsWith, toValue} = delegate;
   const {prefix = '', start} = options;
   let {limit = Infinity} = options;
   let exclusive: boolean | undefined = false;
-  let fromKey = prefix;
+  let fromKey = prefix as StartKey;
   if (start !== undefined) {
-    fromKey = start.key;
+    fromKey = delegate.maxFromKey(start.key as StartKey, fromKey);
     exclusive = start.exclusive;
   }
 
-  if (fromKey !== '') {
-    await reader.seek(fromKey);
+  if (delegate.shouldSeek(fromKey)) {
+    await reader.seek(delegate.seekKey(fromKey));
   }
 
   while (limit--) {
     const result = await reader.next();
-    if (!result || !result[0].startsWith(prefix)) {
+    if (!result || !startsWith(result[0], prefix)) {
       return;
     }
 
     if (exclusive) {
       exclusive = false;
-      if (result[0] === fromKey) {
+      if (delegate.shouldSkip(fromKey, result[0])) {
         continue;
       }
     }
@@ -177,82 +262,12 @@ async function* scanIteratorUsingNonIndexReader<ToValueReturnType>(
     yield toValue(result);
 
     if (limit === 0) {
-      onLimitKey(result[0]);
+      delegate.onLimitKey(result[0]);
     }
   }
 }
 
-function shouldSeek(key: ScanOptionIndexedStartKey): boolean {
-  if (typeof key === 'string') {
-    return key !== '';
-  }
-  return key[0] !== '';
-}
-
-function seekKey(key: ScanOptionIndexedStartKey): IndexKey {
-  if (typeof key === 'string') {
-    return [key, ''];
-  }
-  if (key[1] === undefined) {
-    return [key[0], ''];
-  }
-  return key as IndexKey;
-}
-
-function shouldSkip(
-  fromKey: ScanOptionIndexedStartKey,
-  key: IndexKey,
-): boolean {
-  if (typeof fromKey === 'string') {
-    return key[0] === fromKey;
-  }
-  if (fromKey[1] === undefined) {
-    // When primary is not defined we skip the first entry.
-    return fromKey[0] === key[0];
-  }
-  return key[0] === fromKey[0] && key[1] === fromKey[1];
-}
-
-async function* scanIteratorUsingIndexedScanReader<ToValueReturnType>(
-  reader: ScanReader<IndexKey>,
-  options: ScanIndexOptions,
-  toValue: (
-    entry: readonly [key: IndexKey, value: ReadonlyJSONValue],
-  ) => ToValueReturnType,
-): AsyncIterableIterator<ToValueReturnType> {
-  const {prefix = '', start} = options;
-  let {limit = Infinity} = options;
-  let exclusive: boolean | undefined = false;
-
-  let fromKey: ScanOptionIndexedStartKey = prefix;
-  if (start !== undefined) {
-    fromKey = maxFromKey(start.key, fromKey);
-    exclusive = start.exclusive;
-  }
-
-  if (shouldSeek(fromKey)) {
-    await reader.seek(seekKey(fromKey));
-  }
-
-  while (limit--) {
-    const result = await reader.next();
-    // prefix only applies to secondary key.
-    if (!result || !result[0][0].startsWith(prefix)) {
-      return;
-    }
-
-    if (exclusive) {
-      exclusive = false;
-      if (shouldSkip(fromKey, result[0])) {
-        continue;
-      }
-    }
-
-    yield toValue(result);
-  }
-}
-
-export function noopOnLimitKey(_key: string): void {
+export function noopOnLimitKey(_key: unknown): void {
   // noop
 }
 

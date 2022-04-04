@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1649072962376,
+  "lastUpdate": 1649076446206,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -8717,6 +8717,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 20446,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "distinct": true,
+          "id": "b5d7a12ffa9cbd2fe418f75191435c6a066d5b10",
+          "message": "Revert \"feat!: Switch to use a ScanReader and expose it to the API. (#906)\"\n\nRegressed writeSubRead\n\nThis reverts commit 42a3decd81ff5161f1ad0d75d08156ad4159443c.",
+          "timestamp": "2022-04-04T14:45:59+02:00",
+          "tree_id": "ed08918deb4165a71402ca85a2590b65676e143b",
+          "url": "https://github.com/rocicorp/replicache/commit/b5d7a12ffa9cbd2fe418f75191435c6a066d5b10"
+        },
+        "date": 1649076443880,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 164039,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 29610,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 162720,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 29235,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 70652,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 20204,
             "unit": "bytes"
           }
         ]

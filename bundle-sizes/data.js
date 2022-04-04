@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1648835810564,
+  "lastUpdate": 1649072962376,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -8663,6 +8663,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 20204,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "42a3decd81ff5161f1ad0d75d08156ad4159443c",
+          "message": "feat!: Switch to use a ScanReader and expose it to the API. (#906)\n\nThis changes scan to use a ScanReader instead of an async iterator.\r\n\r\nIt also exposes a function that returns a ScanResult from a ScanReader\r\nand ScanOptions.\r\n\r\n```ts\r\ndeclare const options: ScanOptions;\r\ndeclare const reader: ScanReader;\r\n\r\nconst scanResult = makeScanResult(reader, options);\r\n```\r\n\r\nIf you are trying to implement Replicache's scan API you now only need\r\nto write a function that creates a ScanReader.\r\nmakeScanResult will take care of seeking to the correct\r\nposition and reading the data.\r\n\r\nWhen working with index scans you need to use `ScanReader<IndexKey>`\r\n\r\nCloses #607",
+          "timestamp": "2022-04-04T11:48:15Z",
+          "tree_id": "ec5226eacf72808de19616007d0ceddf612b4bdd",
+          "url": "https://github.com/rocicorp/replicache/commit/42a3decd81ff5161f1ad0d75d08156ad4159443c"
+        },
+        "date": 1649072959441,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 166079,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 29901,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 164738,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 29542,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 71705,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 20446,
             "unit": "bytes"
           }
         ]

@@ -279,6 +279,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private _persistIsScheduled = false;
   private _recoveringMutations = false;
 
+  private readonly _disableLicenseCheck: boolean = false;
+  private readonly _disableMutationRecovery: boolean = false;
+
   /**
    * The options used to control the [[pull]] and push request behavior. This
    * object is live so changes to it will affect the next pull or push call.
@@ -355,6 +358,17 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.pushDelay = pushDelay;
     this.puller = puller;
     this.pusher = pusher;
+
+    const internalOptions = options as {
+      disableLicenseCheck?: boolean;
+      disableMutationRecovery?: boolean;
+    };
+    if (internalOptions.disableLicenseCheck) {
+      this._disableLicenseCheck = true;
+    }
+    if (internalOptions.disableMutationRecovery) {
+      this._disableMutationRecovery = true;
+    }
 
     const logSink =
       logSinks.length === 1 ? logSinks[0] : new TeeLogSink(logSinks);
@@ -513,6 +527,10 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private async _licenseCheck(
     resolveLicenseCheck: (valid: boolean) => void,
   ): Promise<void> {
+    if (this._disableLicenseCheck) {
+      resolveLicenseCheck(true);
+      return;
+    }
     if (!this._licenseKey) {
       await this._licenseInvalid(
         this._lc,
@@ -1429,6 +1447,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     preReadClientMap?: persist.ClientMap,
   ): Promise<boolean> {
     if (
+      this._disableMutationRecovery ||
       this._recoveringMutations ||
       !this.online ||
       this.closed ||

@@ -7,6 +7,7 @@ import type * as kv from './kv/mod';
 /**
  * The options passed to [[Replicache]].
  */
+
 export interface ReplicacheOptions<MD extends MutatorDefs> {
   /**
    * This is the URL to the server endpoint dealing with the push updates. See

@@ -2079,6 +2079,7 @@ test('online', async () => {
 
 type LicenseKeyCheckTestCase = {
   licenseKey: string;
+  disableLicensing?: boolean;
   mockFetchParams: object | undefined;
   expectValid: boolean;
   expectDisable: boolean;
@@ -2097,9 +2098,15 @@ async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
   if (tc.expectFetchCalled) {
     fetchMock.postOnce(statusUrlMatcher, tc.mockFetchParams);
   }
-  const rep = await replicacheForTesting(name, {
-    licenseKey: tc.licenseKey,
-  });
+
+  const options = tc.disableLicensing
+    ? ({
+        licenseKey: tc.licenseKey,
+        disableLicensing: true,
+      } as unknown as ReplicacheOptions<Record<string, never>>)
+    : {licenseKey: tc.licenseKey};
+
+  const rep = await replicacheForTesting(name, options);
 
   expect(await rep.licenseValid()).to.equal(tc.expectValid);
   if (tc.expectDisable) {
@@ -2138,18 +2145,16 @@ test('test licensing key is valid and does not send status check', async () => {
   });
 });
 
+test('test with disableLicensing any key is valid and does not send status check', async () => {});
+
 test('licensing key is valid if check returns valid', async () => {
   await licenseKeyCheckTest({
-    licenseKey: 'l123validkey',
-    mockFetchParams: {
-      body: {
-        status: LicenseStatus.Valid,
-        disable: false,
-      },
-    },
+    licenseKey: 'any-random-key',
+    disableLicensing: true,
+    mockFetchParams: undefined,
     expectValid: true,
     expectDisable: false,
-    expectFetchCalled: true,
+    expectFetchCalled: false,
   });
 });
 

@@ -279,7 +279,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private _persistIsScheduled = false;
   private _recoveringMutations = false;
 
-  private readonly _disableLicenseCheck: boolean = false;
+  private readonly _disableLicensing: boolean = false;
   private readonly _disableMutationRecovery: boolean = false;
 
   /**
@@ -360,11 +360,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.pusher = pusher;
 
     const internalOptions = options as {
-      disableLicenseCheck?: boolean;
+      disableLicensing?: boolean;
       disableMutationRecovery?: boolean;
     };
-    if (internalOptions.disableLicenseCheck) {
-      this._disableLicenseCheck = true;
+    if (internalOptions.disableLicensing) {
+      this._disableLicensing = true;
     }
     if (internalOptions.disableMutationRecovery) {
       this._disableMutationRecovery = true;
@@ -527,7 +527,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private async _licenseCheck(
     resolveLicenseCheck: (valid: boolean) => void,
   ): Promise<void> {
-    if (this._disableLicenseCheck) {
+    if (this._disableLicensing) {
       resolveLicenseCheck(true);
       return;
     }
@@ -599,7 +599,11 @@ export class Replicache<MD extends MutatorDefs = {}> {
     resolveLicenseActive: (valid: boolean) => void,
     lc: LogContext,
   ): Promise<() => void> {
-    if (!this._licenseKey || this._licenseKey === TEST_LICENSE_KEY) {
+    if (
+      this._disableLicensing ||
+      !this._licenseKey ||
+      this._licenseKey === TEST_LICENSE_KEY
+    ) {
       resolveLicenseActive(false);
       return noop;
     }

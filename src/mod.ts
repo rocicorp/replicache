@@ -1,14 +1,15 @@
-export {Replicache, makeIDBName} from './replicache';
+export {Replicache} from './replicache';
+export {makeIDBName} from './replicache-internal';
 export {TransactionClosedError} from './transaction-closed-error';
 export {consoleLogSink} from '@rocicorp/logger';
 
 export type {
-  MaybePromise,
   MutatorDefs,
   Poke,
   RequestOptions,
   ClientStateNotFoundReason,
-} from './replicache';
+} from './replicache-types';
+export type {MaybePromise} from './maybe-promise';
 export type {ReplicacheOptions} from './replicache-options';
 export type {
   CreateIndexDefinition,

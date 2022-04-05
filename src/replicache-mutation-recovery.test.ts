@@ -6,7 +6,7 @@ import {
   clock,
   createReplicacheNameForTest,
 } from './test-util';
-import {makeIDBName, REPLICACHE_FORMAT_VERSION} from './replicache';
+import {makeIDBName, REPLICACHE_FORMAT_VERSION} from './replicache-internal';
 import {addGenesis, addLocal, addSnapshot, Chain} from './db/test-helpers';
 import type * as db from './db/mod';
 import * as dag from './dag/mod';

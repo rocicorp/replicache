@@ -1,5 +1,4 @@
 import {expect} from '@esm-bundle/chai';
-import {MutatorDefs, Replicache, BeginPullResult} from './replicache';
 import type {ReplicacheOptions} from './replicache-options';
 import * as kv from './kv/mod';
 import * as persist from './persist/mod';
@@ -15,11 +14,13 @@ import fetchMock from 'fetch-mock/esm/client';
 import {uuid} from './uuid';
 import type {WriteTransaction} from './transactions.js';
 import {TEST_LICENSE_KEY} from '@rocicorp/licensing/src/client';
+import type {BeginPullResult, MutatorDefs} from './replicache-types';
+import {ReplicacheInternal} from './replicache-internal';
 
 export class ReplicacheTest<
   // eslint-disable-next-line @typescript-eslint/ban-types
   MD extends MutatorDefs = {},
-> extends Replicache<MD> {
+> extends ReplicacheInternal<MD> {
   beginPull(): Promise<BeginPullResult> {
     return super._beginPull();
   }
@@ -256,7 +257,7 @@ export async function addData(
 export function expectLogContext(
   consoleLogStub: sinon.SinonStub,
   index: number,
-  rep: Replicache,
+  rep: ReplicacheTest,
   expectedContext: string,
 ) {
   expect(consoleLogStub.callCount).to.greaterThan(index);

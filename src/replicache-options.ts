@@ -1,7 +1,7 @@
 import type {LogLevel, LogSink} from '@rocicorp/logger';
 import type {Pusher} from './pusher';
 import type {Puller} from './puller';
-import type {MutatorDefs, RequestOptions} from './replicache';
+import type {MutatorDefs, RequestOptions} from './replicache-types';
 import type * as kv from './kv/mod';
 
 /**

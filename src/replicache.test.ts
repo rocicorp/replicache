@@ -1,4 +1,3 @@
-import {httpStatusUnauthorized} from './replicache';
 import {
   addData,
   clock,
@@ -7,6 +6,7 @@ import {
   MemStoreWithCounters,
   replicacheForTesting,
   replicacheForTestingNoDefaultURLs,
+  ReplicacheTest,
   tickAFewTimes,
   tickUntil,
 } from './test-util';
@@ -29,6 +29,8 @@ import {
   TEST_LICENSE_KEY,
   LicenseStatus,
 } from '@rocicorp/licensing/src/client';
+
+const httpStatusUnauthorized = 401;
 
 // fetch-mock has invalid d.ts file so we removed that on npm install.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -122,7 +124,7 @@ test('put, get, has, del inside tx', async () => {
 });
 
 async function testScanResult<K, V>(
-  rep: Replicache,
+  rep: ReplicacheTest,
   options: ScanOptions | undefined,
   entries: [K, V][],
 ) {

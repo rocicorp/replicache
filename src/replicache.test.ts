@@ -2145,9 +2145,7 @@ test('test licensing key is valid and does not send status check', async () => {
   });
 });
 
-test('test with disableLicensing any key is valid and does not send status check', async () => {});
-
-test('licensing key is valid if check returns valid', async () => {
+test('test with hidden disableLicensing option any key is valid and does not send status check', async () => {
   await licenseKeyCheckTest({
     licenseKey: 'any-random-key',
     disableLicensing: true,
@@ -2155,6 +2153,21 @@ test('licensing key is valid if check returns valid', async () => {
     expectValid: true,
     expectDisable: false,
     expectFetchCalled: false,
+  });
+});
+
+test('licensing key is valid if check returns valid', async () => {
+  await licenseKeyCheckTest({
+    licenseKey: 'l123validkey',
+    mockFetchParams: {
+      body: {
+        status: LicenseStatus.Valid,
+        disable: false,
+      },
+    },
+    expectValid: true,
+    expectDisable: false,
+    expectFetchCalled: true,
   });
 });
 

@@ -825,7 +825,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   }
 
   private async _invokePull(): Promise<boolean> {
-    if (this.pullURL === '' && this.puller === defaultPuller) {
+    if (this._isPullDisabled()) {
       return true;
     }
     return await this._wrapInOnlineCheck(async () => {
@@ -843,6 +843,10 @@ export class Replicache<MD extends MutatorDefs = {}> {
       }
       return true;
     }, 'Pull');
+  }
+
+  private _isPullDisabled() {
+    return this.pullURL === '' && this.puller === defaultPuller;
   }
 
   private async _wrapInOnlineCheck(
@@ -953,8 +957,12 @@ export class Replicache<MD extends MutatorDefs = {}> {
     };
   }
 
+  private _isPushDisabled() {
+    return this.pushURL === '' && this.pusher === defaultPusher;
+  }
+
   protected async _invokePush(): Promise<boolean> {
-    if (this.pushURL === '' && this.pusher === defaultPusher) {
+    if (this._isPushDisabled()) {
       return true;
     }
 
@@ -1420,7 +1428,12 @@ export class Replicache<MD extends MutatorDefs = {}> {
   protected async _recoverMutations(
     preReadClientMap?: persist.ClientMap,
   ): Promise<boolean> {
-    if (this._recoveringMutations || !this.online || this.closed) {
+    if (
+      this._recoveringMutations ||
+      !this.online ||
+      this.closed ||
+      this._isPushDisabled()
+    ) {
       return false;
     }
     const stepDescription = 'Recovering mutations.';
@@ -1546,6 +1559,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
         await write.commit();
       });
 
+      if (this._isPushDisabled()) {
+        this._lc.debug?.(
+          `Cannot recover mutations for client ${clientID} because push is disabled.`,
+        );
+        return;
+      }
+      const {pusher, pushURL} = this;
+
       const pushRequestID = sync.newRequestID(clientID);
       const pushDescription = 'recoveringMutationsPush';
       const pushLC = this._lc
@@ -1561,8 +1582,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
               pushLC,
               await this.profileID,
               clientID,
-              this.pusher,
-              this.pushURL,
+              pusher,
+              pushURL,
               this.auth,
               database.schemaVersion,
             );
@@ -1580,21 +1601,31 @@ export class Replicache<MD extends MutatorDefs = {}> {
         return;
       }
 
+      if (this._isPullDisabled()) {
+        this._lc.debug?.(
+          `Cannot confirm mutations were recovered for client ${clientID} ` +
+            `because pull is disabled.`,
+        );
+        return;
+      }
+      const {puller, pullURL} = this;
+
       const requestID = sync.newRequestID(clientID);
       const pullDescription = 'recoveringMutationsPull';
       const pullLC = this._lc
         .addContext(pullDescription)
         .addContext('request_id', requestID);
-      const beginPullRequest = {
-        pullAuth: this.auth,
-        pullURL: this.pullURL,
-        schemaVersion: database.schemaVersion,
-        puller: this.puller,
-      };
+
       let pullResponse: PullResponse | undefined;
       const pullSucceeded = await this._wrapInOnlineCheck(async () => {
         const {result: beginPullResponse} = await this._wrapInReauthRetries(
           async () => {
+            const beginPullRequest = {
+              pullAuth: this.auth,
+              pullURL,
+              schemaVersion: database.schemaVersion,
+              puller,
+            };
             const beginPullResponse = await sync.beginPull(
               await this.profileID,
               clientID,

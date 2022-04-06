@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1649197833688,
+  "lastUpdate": 1649203917019,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -8825,6 +8825,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 20319,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "greg@roci.dev",
+            "name": "Greg Baker",
+            "username": "grgbkr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0b8a99ffb95d63e33d89bd29e95ae9b6348ec8df",
+          "message": "feature: Add some internal hidden options needed for reflect (#915)\n\nAdds\r\n1. disableLicensing\r\n2. disableMutationRecovery",
+          "timestamp": "2022-04-05T17:11:04-07:00",
+          "tree_id": "52c33a5b2d63a3bb9b09128094f9e4651cc41702",
+          "url": "https://github.com/rocicorp/replicache/commit/0b8a99ffb95d63e33d89bd29e95ae9b6348ec8df"
+        },
+        "date": 1649203914868,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 165147,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 29781,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 163828,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 29423,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 71167,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 20361,
             "unit": "bytes"
           }
         ]

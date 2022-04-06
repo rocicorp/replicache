@@ -10,5 +10,9 @@ export default {
   output: {
     file: `./out/replicache.d.ts`,
   },
-  plugins: [dts()],
+  plugins: [
+    dts({
+      respectExternal: true,
+    }),
+  ],
 };

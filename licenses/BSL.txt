@@ -4,7 +4,7 @@ Parameters
 
 Licensor:             Rocicorp, LLC
 
-Licensed Work:        Replicache 9.0.0
+Licensed Work:        Replicache 10.0.0-alpha.0
                       The Licensed Work is (c) 2020 Rocicorp, LLC.
 
 Additional Use Grant: You may make use of the Licensed Work, provided you
@@ -17,7 +17,7 @@ Additional Use Grant: You may make use of the Licensed Work, provided you
                      * Use it for commercial purposes with more than 500
                      monthly active client instances.
 
-Change Date:          2024-01-25
+Change Date:          2024-04-05
 
 Change License:       Apache License, Version 2.0
 

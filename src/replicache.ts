@@ -25,7 +25,10 @@ import type {
 import {ConnectionLoop, MAX_DELAY_MS, MIN_DELAY_MS} from './connection-loop';
 import {defaultPuller} from './puller';
 import {defaultPusher} from './pusher';
-import type {ReplicacheOptions} from './replicache-options';
+import type {
+  ReplicacheInternalOptions,
+  ReplicacheOptions,
+} from './replicache-options';
 import {PullDelegate, PushDelegate} from './connection-loop-delegates';
 import type {Subscription} from './subscriptions';
 import {
@@ -277,8 +280,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private _persistIsScheduled = false;
   private _recoveringMutations = false;
 
-  private readonly _disableLicensing: boolean = false;
-  private readonly _disableMutationRecovery: boolean = false;
+  private readonly _enableLicensing: boolean;
+  private readonly _enableMutationRecovery: boolean;
 
   /**
    * The options used to control the [[pull]] and push request behavior. This
@@ -357,16 +360,10 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.puller = puller;
     this.pusher = pusher;
 
-    const internalOptions = options as {
-      disableLicensing?: boolean;
-      disableMutationRecovery?: boolean;
-    };
-    if (internalOptions.disableLicensing) {
-      this._disableLicensing = true;
-    }
-    if (internalOptions.disableMutationRecovery) {
-      this._disableMutationRecovery = true;
-    }
+    const {enableLicensing = true, enableMutationRecovery = true} =
+      options as ReplicacheInternalOptions;
+    this._enableLicensing = enableLicensing;
+    this._enableMutationRecovery = enableMutationRecovery;
 
     const logSink =
       logSinks.length === 1 ? logSinks[0] : new TeeLogSink(logSinks);
@@ -525,7 +522,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private async _licenseCheck(
     resolveLicenseCheck: (valid: boolean) => void,
   ): Promise<void> {
-    if (this._disableLicensing) {
+    if (!this._enableLicensing) {
       resolveLicenseCheck(true);
       return;
     }
@@ -598,7 +595,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     lc: LogContext,
   ): Promise<() => void> {
     if (
-      this._disableLicensing ||
+      !this._enableLicensing ||
       !this._licenseKey ||
       this._licenseKey === TEST_LICENSE_KEY
     ) {
@@ -1449,7 +1446,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     preReadClientMap?: persist.ClientMap,
   ): Promise<boolean> {
     if (
-      this._disableMutationRecovery ||
+      !this._enableMutationRecovery ||
       this._recoveringMutations ||
       !this.online ||
       this.closed ||

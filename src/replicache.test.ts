@@ -2098,17 +2098,17 @@ async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
   if (tc.expectFetchCalled) {
     fetchMock.postOnce(statusUrlMatcher, tc.mockFetchParams);
   }
+  fetchMock.catch();
 
-  const {enableLicensing = true} = tc;
-
-  const options = enableLicensing
-    ? {
-        licenseKey: tc.licenseKey,
-        disableLicensing: true,
-      }
-    : {licenseKey: tc.licenseKey};
-
-  const rep = await replicacheForTesting(name, options);
+  const rep = await replicacheForTesting(
+    name,
+    tc.enableLicensing !== undefined
+      ? {
+          licenseKey: tc.licenseKey,
+          enableLicensing: tc.enableLicensing,
+        }
+      : {licenseKey: tc.licenseKey},
+  );
 
   expect(await rep.licenseValid()).to.equal(tc.expectValid);
   if (tc.expectDisable) {
@@ -2229,6 +2229,7 @@ test('licensing key is valid if check returns non-200', async () => {
 
 type LicenseActiveTestCase = {
   licenseKey: string | undefined;
+  enableLicensing?: boolean; // default true
   mockFetchParams: object | undefined;
   expectActive: boolean;
   expectFetchCalled: boolean;
@@ -2240,9 +2241,16 @@ async function licenseActiveTest(tc: LicenseActiveTestCase) {
   if (tc.expectFetchCalled) {
     fetchMock.postOnce(activeUrlMatcher, tc.mockFetchParams);
   }
-  const rep = await replicacheForTesting('license-active-test', {
-    licenseKey: tc.licenseKey,
-  });
+  fetchMock.catch();
+  const rep = await replicacheForTesting(
+    'license-active-test',
+    tc.enableLicensing !== undefined
+      ? {
+          licenseKey: tc.licenseKey,
+          enableLicensing: tc.enableLicensing,
+        }
+      : {licenseKey: tc.licenseKey},
+  );
   const licenseActive = await rep.licenseActive();
   expect(licenseActive).to.equal(tc.expectActive);
   expect(fetchMock.called(activeUrlMatcher)).to.equal(tc.expectFetchCalled);
@@ -2268,6 +2276,16 @@ test('no licensing key is not active and does not send active pings', async () =
 test('test licensing key is not active and does not send active pings', async () => {
   await licenseActiveTest({
     licenseKey: TEST_LICENSE_KEY,
+    mockFetchParams: undefined,
+    expectActive: false,
+    expectFetchCalled: false,
+  });
+});
+
+test('test when internal option enableLicensing is false any licensing key is not active and does not send active pings', async () => {
+  await licenseActiveTest({
+    licenseKey: 'any-random-key',
+    enableLicensing: false,
     mockFetchParams: undefined,
     expectActive: false,
     expectFetchCalled: false,

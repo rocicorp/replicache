@@ -57,8 +57,6 @@ import {
 import {mustSimpleFetch} from './simple-fetch';
 import {initBgIntervalProcess} from './persist/bg-interval';
 
-export {TEST_LICENSE_KEY};
-
 export type BeginPullResult = {
   requestID: string;
   syncHead: Hash;

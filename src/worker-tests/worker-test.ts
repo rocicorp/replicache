@@ -6,7 +6,7 @@ import {asyncIterableToArray} from '../async-iterable-to-array';
 import {expect} from '@esm-bundle/chai';
 import type {JSONValue} from '../json';
 import {closeAllReps, reps} from '../test-util';
-import {TEST_LICENSE_KEY} from '../replicache';
+import {TEST_LICENSE_KEY} from '@rocicorp/licensing/src/client';
 
 onmessage = async (e: MessageEvent) => {
   const {name} = e.data;

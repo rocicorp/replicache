@@ -26,7 +26,6 @@ import sinon from 'sinon';
 // @ts-expect-error
 import fetchMock from 'fetch-mock/esm/client';
 import {initClientWithClientID} from './persist/clients-test-helpers.js';
-import type {ReplicacheOptions} from './replicache-options';
 
 initReplicacheTesting();
 

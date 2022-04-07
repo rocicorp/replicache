@@ -119,7 +119,10 @@ type ReplicacheTestOptions<MD extends MutatorDefs> = Omit<
   licenseKey?: string;
 } & ReplicacheInternalOptions;
 
-export async function replicacheForTesting<MD extends MutatorDefs = {}>(
+export async function replicacheForTesting<
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  MD extends MutatorDefs = {},
+>(
   partialName: string,
   options: ReplicacheTestOptions<MD> = {},
 ): Promise<ReplicacheTest<MD>> {

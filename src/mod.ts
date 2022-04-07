@@ -16,9 +16,12 @@ export type {
   WriteTransaction,
 } from './transactions';
 export type {
+  GetScanIterator,
+  GetIndexScanIterator,
   ScanResult,
   AsyncIterableIteratorToArrayWrapper,
 } from './scan-iterator';
+export {makeScanResult} from './scan-iterator';
 export type {LogSink, LogLevel} from '@rocicorp/logger';
 export type {
   JSONObject,

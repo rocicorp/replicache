@@ -1,6 +1,9 @@
 import {expect} from '@esm-bundle/chai';
 import {MutatorDefs, Replicache, BeginPullResult} from './replicache';
-import type {ReplicacheOptions} from './replicache-options';
+import type {
+  ReplicacheOptions,
+  ReplicacheInternalOptions,
+} from './replicache-options';
 import * as kv from './kv/mod';
 import * as persist from './persist/mod';
 import {SinonFakeTimers, useFakeTimers} from 'sinon';
@@ -108,13 +111,17 @@ export function createReplicacheNameForTest(partialName: string): string {
   return replicacheName;
 }
 
-// eslint-disable-next-line @typescript-eslint/ban-types
+type ReplicacheTestOptions<MD extends MutatorDefs> = Omit<
+  ReplicacheOptions<MD>,
+  'name' | 'licenseKey'
+> & {
+  onClientStateNotFound?: (() => void) | null;
+  licenseKey?: string;
+} & ReplicacheInternalOptions;
+
 export async function replicacheForTesting<MD extends MutatorDefs = {}>(
   partialName: string,
-  options: Omit<ReplicacheOptions<MD>, 'name' | 'licenseKey'> & {
-    onClientStateNotFound?: (() => void) | null;
-    licenseKey?: string;
-  } = {},
+  options: ReplicacheTestOptions<MD> = {},
 ): Promise<ReplicacheTest<MD>> {
   const pullURL = 'https://pull.com/?name=' + partialName;
   const pushURL = 'https://push.com/?name=' + partialName;
@@ -144,9 +151,7 @@ export async function replicacheForTestingNoDefaultURLs<
       );
     },
     ...rest
-  }: Omit<ReplicacheOptions<MD>, 'name' | 'licenseKey'> & {
-    onClientStateNotFound?: (() => void) | null;
-  } = {},
+  }: ReplicacheTestOptions<MD> = {},
 ): Promise<ReplicacheTest<MD>> {
   const rep = new ReplicacheTest<MD>({
     pullURL,

@@ -214,3 +214,14 @@ export interface ReplicacheOptions<MD extends MutatorDefs> {
    */
   experimentalKVStore?: kv.Store;
 }
+
+export type ReplicacheInternalOptions = {
+  /**
+   * Defaults to true.
+   */
+  enableLicensing?: boolean;
+  /**
+   * Defaults to true.
+   */
+  enableMutationRecovery?: boolean;
+};

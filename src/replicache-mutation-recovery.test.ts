@@ -1156,13 +1156,13 @@ test('mutation recovery returns early without running if push is disabled', asyn
   expect(await rep.recoverMutations()).to.equal(false);
 });
 
-test('disableMutationRecovery hidden option', async () => {
+test('mutation recovery returns early when internal option enableMutationRecovery is false', async () => {
   const rep = await replicacheForTestingNoDefaultURLs(
     'mutation-recovery-startup',
     {
       pullURL: 'https://diff.com/pull',
-      disableMutationRecovery: true,
-    } as unknown as ReplicacheOptions<Record<string, never>>,
+      enableMutationRecovery: false,
+    },
   );
   expect(rep.recoverMutationsSpy.callCount).to.equal(1);
   expect(await rep.recoverMutationsSpy.firstCall.returnValue).to.equal(false);

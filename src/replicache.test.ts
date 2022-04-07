@@ -2079,7 +2079,7 @@ test('online', async () => {
 
 type LicenseKeyCheckTestCase = {
   licenseKey: string;
-  disableLicensing?: boolean;
+  enableLicensing?: boolean; // default true
   mockFetchParams: object | undefined;
   expectValid: boolean;
   expectDisable: boolean;
@@ -2099,7 +2099,9 @@ async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
     fetchMock.postOnce(statusUrlMatcher, tc.mockFetchParams);
   }
 
-  const options = tc.disableLicensing
+  const {enableLicensing = true} = tc;
+
+  const options = enableLicensing
     ? ({
         licenseKey: tc.licenseKey,
         disableLicensing: true,
@@ -2145,10 +2147,10 @@ test('test licensing key is valid and does not send status check', async () => {
   });
 });
 
-test('test with hidden disableLicensing option any key is valid and does not send status check', async () => {
+test('test when internal option enableLicensing is false any key is valid and does not send status check', async () => {
   await licenseKeyCheckTest({
     licenseKey: 'any-random-key',
-    disableLicensing: true,
+    enableLicensing: false,
     mockFetchParams: undefined,
     expectValid: true,
     expectDisable: false,

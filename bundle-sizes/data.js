@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1649291669824,
+  "lastUpdate": 1649346163129,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -9095,6 +9095,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 20368,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2c83f22f50924474cc5f9d5e60ccb9c3dc8252b1",
+          "message": "feat!: Expose a way to reuse ScanResult (#926)\n\nWe now expose a method called `makeScanResult`. It takes a `ScanOptions`\r\nand a function that returns an async iterator.\r\n\r\n```ts\r\nmakeScanResult({prefix: 'b'}, async function* (fromKey) {\r\n  // yield ['a', 1];\r\n  yield ['b', 2];\r\n});\r\n```\r\n\r\nor when using an index:\r\n\r\n```ts\r\nmakeScanResult(\r\n  {prefix: 'b', indexName: 'i'},\r\n  async function* (indexName, fromSecondaryKey, fromPrimaryKey) {\r\n    // yield [['as', 'ap', 1];\r\n    yield [['bs', 'bp', 2];\r\n});\r\n```\r\n\r\nTo make this work we moved the limit and exclusive handling to the top\r\nlevel iterator loop.\r\n\r\nWe now compute the fromKey and pass that into the iterator.\r\n\r\nFixes #607",
+          "timestamp": "2022-04-07T17:41:30+02:00",
+          "tree_id": "8aa8e6398ac326bca7d0cc8ba31a6c88b8970fb2",
+          "url": "https://github.com/rocicorp/replicache/commit/2c83f22f50924474cc5f9d5e60ccb9c3dc8252b1"
+        },
+        "date": 1649346159717,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 166952,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 30131,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 165587,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 29767,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 71693,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 20565,
             "unit": "bytes"
           }
         ]

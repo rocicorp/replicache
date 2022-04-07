@@ -1,6 +1,5 @@
 import {deepEqual, getSizeOfValue, ReadonlyJSONValue} from '../json';
 import type * as dag from '../dag/mod';
-import type {ScanOptionsInternal} from '../db/scan';
 import {Hash, emptyHash} from '../hash';
 import {
   DataNodeImpl,
@@ -16,6 +15,7 @@ import {
   ReadonlyEntry,
   NODE_LEVEL,
   NODE_ENTRIES,
+  isInternalNode,
 } from './node';
 import {
   computeSplices,
@@ -99,23 +99,12 @@ export class BTreeRead {
 
   // We don't do any encoding of the key in the map, so we have no way of
   // determining from an entry.key alone whether it is a regular key or an
-  // encoded IndexKey in an index map. Without encoding regular map keys we need
-  // to rely on the options to tell us what we expect.
-  async *scan<R>(
-    options: ScanOptionsInternal,
-    convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
-    onLimitKey?: (inclusiveLimitKey: string) => void,
-  ): AsyncIterableIterator<R> {
-    const node = await this.getNode(this.rootHash);
-    const {prefix = '', limit = Infinity, startKey} = options;
-    let fromKey = prefix;
-    if (startKey !== undefined) {
-      if (startKey > fromKey) {
-        fromKey = startKey;
-      }
-    }
-
-    yield* node.scan(this, prefix, fromKey, limit, convertEntry, onLimitKey);
+  // encoded IndexKey in an index map. Without encoding regular map keys the
+  // caller has to deal with encoding and decoding the keys for the index map.
+  scan(
+    fromKey: string,
+  ): AsyncIterableIterator<ReadonlyEntry<ReadonlyJSONValue>> {
+    return scanForHash(this.rootHash, fromKey, this._dagRead);
   }
 
   async *keys(): AsyncIterableIterator<string> {
@@ -259,5 +248,41 @@ function* diffEntries<T>(
       key: currentEntries[j][0],
       newValue: currentEntries[j][1],
     };
+  }
+}
+
+export async function* scanForHash(
+  hash: Hash,
+  fromKey: string,
+  dagRead: dag.Read,
+): AsyncIterableIterator<ReadonlyEntry<ReadonlyJSONValue>> {
+  if (hash === emptyHash) {
+    return;
+  }
+
+  const {data} = await dagRead.mustGetChunk(hash);
+  assertBTreeNode(data);
+  const entries = data[NODE_ENTRIES];
+  let i = 0;
+  if (fromKey) {
+    i = binarySearch(fromKey, entries);
+    if (i < 0) {
+      i = ~i;
+    }
+  }
+
+  if (isInternalNode(data)) {
+    for (; i < entries.length; i++) {
+      yield* scanForHash(
+        (entries[i] as ReadonlyEntry<Hash>)[1],
+        fromKey,
+        dagRead,
+      );
+      fromKey = '';
+    }
+  } else {
+    for (; i < entries.length; i++) {
+      yield entries[i];
+    }
   }
 }

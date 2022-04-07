@@ -2102,10 +2102,10 @@ async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
   const {enableLicensing = true} = tc;
 
   const options = enableLicensing
-    ? ({
+    ? {
         licenseKey: tc.licenseKey,
         disableLicensing: true,
-      } as unknown as ReplicacheOptions<Record<string, never>>)
+      }
     : {licenseKey: tc.licenseKey};
 
   const rep = await replicacheForTesting(name, options);

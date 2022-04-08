@@ -1,15 +1,24 @@
-import {deepClone, JSONValue, ReadonlyJSONValue} from './json';
-import {throwIfClosed} from './transaction-closed-error';
-import {ScanIndexOptions, ScanOptions, toDbScanOptions} from './scan-options';
+import {deepClone, ReadonlyJSONValue} from './json';
+import {Closed, throwIfClosed} from './transaction-closed-error';
+import {
+  isScanIndexOptions,
+  KeyTypeForScanOptions,
+  normalizeScanOptionIndexedStartKey,
+  ScanIndexOptions,
+  ScanOptionIndexedStartKey,
+  ScanOptions,
+} from './scan-options';
 import {asyncIterableToArray} from './async-iterable-to-array';
-import * as db from './db/mod';
-import type {Entry} from './btree/node';
+import type {ReadonlyEntry} from './btree/node';
 import {decodeIndexKey} from './db/mod';
+import {encodeIndexKey, encodeIndexScanKey, IndexKey} from './db/index.js';
+import {fromKeyForNonIndexScan} from './transactions.js';
 
-const VALUE = 0;
-const KEY = 1;
-const ENTRY = 2;
-type ScanIterableKind = typeof VALUE | typeof KEY | typeof ENTRY;
+type ScanKey = string | IndexKey;
+
+type ToValue<V> = (entry: ReadonlyEntry<ReadonlyJSONValue>) => V;
+
+type ShouldDeepClone = {shouldDeepClone: boolean};
 
 /**
  * This class is used for the results of [[ReadTransaction.scan|scan]]. It
@@ -17,21 +26,25 @@ type ScanIterableKind = typeof VALUE | typeof KEY | typeof ENTRY;
  * await` loop. There are also methods to iterate over the [[keys]],
  * [[entries]] or [[values]].
  */
-export class ScanResult<K, V extends ReadonlyJSONValue = JSONValue>
-  implements AsyncIterable<V>
+export class ScanResultImpl<
+  Options extends ScanOptions,
+  V extends ReadonlyJSONValue,
+> implements ScanResult<KeyTypeForScanOptions<Options>, V>
 {
-  private readonly _options: ScanOptions | undefined;
-  private readonly _dbRead: db.Read;
-  private readonly _onLimitKey?: (inclusiveLimitKey: string) => void;
+  private readonly _iter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>;
+  private readonly _options: Options;
+  private readonly _dbDelegateOptions: Closed & ShouldDeepClone;
+  private readonly _onLimitKey: (inclusiveLimitKey: string) => void;
 
-  /** @internal */
   constructor(
-    options: ScanOptions | undefined,
-    dbRead: db.Read,
-    onLimitKey?: (inclusiveLimitKey: string) => void,
+    iter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>,
+    options: Options,
+    dbDelegateOptions: Closed & ShouldDeepClone,
+    onLimitKey: (inclusiveLimitKey: string) => void,
   ) {
+    this._iter = iter;
     this._options = options;
-    this._dbRead = dbRead;
+    this._dbDelegateOptions = dbDelegateOptions;
     this._onLimitKey = onLimitKey;
   }
 
@@ -42,7 +55,12 @@ export class ScanResult<K, V extends ReadonlyJSONValue = JSONValue>
 
   /** Async iterator over the values of the [[ReadTransaction.scan|scan]] call. */
   values(): AsyncIterableIteratorToArrayWrapper<V> {
-    return new AsyncIterableIteratorToArrayWrapper(this._newIterator(VALUE));
+    const clone = this._dbDelegateOptions.shouldDeepClone
+      ? deepClone
+      : (x: ReadonlyJSONValue) => x;
+    return new AsyncIterableIteratorToArrayWrapper(
+      this._newIterator(e => clone(e[1])) as AsyncIterableIterator<V>,
+    );
   }
 
   /**
@@ -50,8 +68,12 @@ export class ScanResult<K, V extends ReadonlyJSONValue = JSONValue>
    * call. If the [[ReadTransaction.scan|scan]] is over an index the key
    * is a tuple of `[secondaryKey: string, primaryKey]`
    */
-  keys(): AsyncIterableIteratorToArrayWrapper<K> {
-    return new AsyncIterableIteratorToArrayWrapper(this._newIterator(KEY));
+  keys(): AsyncIterableIteratorToArrayWrapper<KeyTypeForScanOptions<Options>> {
+    type K = KeyTypeForScanOptions<Options>;
+    const toValue = isScanIndexOptions(this._options)
+      ? (e: ReadonlyEntry<ReadonlyJSONValue>) => decodeIndexKey(e[0]) as K
+      : (e: ReadonlyEntry<ReadonlyJSONValue>) => e[0] as K;
+    return new AsyncIterableIteratorToArrayWrapper(this._newIterator(toValue));
   }
 
   /**
@@ -60,8 +82,19 @@ export class ScanResult<K, V extends ReadonlyJSONValue = JSONValue>
    * [[ReadTransaction.scan|scan]] is over an index the key is a tuple of
    * `[secondaryKey: string, primaryKey]`
    */
-  entries(): AsyncIterableIteratorToArrayWrapper<[K, V]> {
-    return new AsyncIterableIteratorToArrayWrapper(this._newIterator(ENTRY));
+  entries(): AsyncIterableIteratorToArrayWrapper<
+    readonly [KeyTypeForScanOptions<Options>, V]
+  > {
+    type K = KeyTypeForScanOptions<Options>;
+    const clone = this._dbDelegateOptions.shouldDeepClone
+      ? deepClone
+      : (x: ReadonlyJSONValue) => x;
+    const toValue = isScanIndexOptions(this._options)
+      ? (e: ReadonlyEntry<ReadonlyJSONValue>) =>
+          [decodeIndexKey(e[0]), clone(e[1])] as [K, V]
+      : (e: ReadonlyEntry<ReadonlyJSONValue>) =>
+          clone(e) as unknown as readonly [K, V];
+    return new AsyncIterableIteratorToArrayWrapper(this._newIterator(toValue));
   }
 
   /** Returns all the values as an array. Same as `values().toArray()` */
@@ -69,9 +102,42 @@ export class ScanResult<K, V extends ReadonlyJSONValue = JSONValue>
     return this.values().toArray();
   }
 
-  private _newIterator<T>(kind: ScanIterableKind): AsyncIterableIterator<T> {
-    return scanIterator(kind, this._options, this._dbRead, this._onLimitKey);
+  private _newIterator<T>(toValue: ToValue<T>): AsyncIterableIterator<T> {
+    return scanIterator(
+      toValue,
+      this._iter,
+      this._options,
+      this._dbDelegateOptions,
+      this._onLimitKey,
+    );
   }
+}
+
+export interface ScanResult<K extends ScanKey, V extends ReadonlyJSONValue>
+  extends AsyncIterable<V> {
+  /** The default AsyncIterable. This is the same as [[values]]. */
+  [Symbol.asyncIterator](): AsyncIterableIteratorToArrayWrapper<V>;
+
+  /** Async iterator over the values of the [[ReadTransaction.scan|scan]] call. */
+  values(): AsyncIterableIteratorToArrayWrapper<V>;
+
+  /**
+   * Async iterator over the keys of the [[ReadTransaction.scan|scan]]
+   * call. If the [[ReadTransaction.scan|scan]] is over an index the key
+   * is a tuple of `[secondaryKey: string, primaryKey]`
+   */
+  keys(): AsyncIterableIteratorToArrayWrapper<K>;
+
+  /**
+   * Async iterator over the entries of the [[ReadTransaction.scan|scan]]
+   * call. An entry is a tuple of key values. If the
+   * [[ReadTransaction.scan|scan]] is over an index the key is a tuple of
+   * `[secondaryKey: string, primaryKey]`
+   */
+  entries(): AsyncIterableIteratorToArrayWrapper<readonly [K, V]>;
+
+  /** Returns all the values as an array. Same as `values().toArray()` */
+  toArray(): Promise<V[]>;
 }
 
 /**
@@ -116,35 +182,160 @@ export class AsyncIterableIteratorToArrayWrapper<V>
 }
 
 async function* scanIterator<V>(
-  kind: ScanIterableKind,
-  options: ScanOptions | undefined,
-  dbRead: db.Read,
-  onLimitKey?: (inclusiveLimitKey: string) => void,
+  toValue: ToValue<V>,
+  iter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>,
+  options: ScanOptions,
+  closed: Closed,
+  onLimitKey: (inclusiveLimitKey: string) => void,
 ): AsyncIterableIterator<V> {
-  throwIfClosed(dbRead);
+  throwIfClosed(closed);
 
-  type MaybeIndexName = Partial<ScanIndexOptions>;
-  const isIndexScan = (options as MaybeIndexName)?.indexName !== undefined;
+  let {limit = Infinity, prefix = ''} = options;
+  let exclusive = options.start?.exclusive;
 
-  const shouldClone = dbRead instanceof db.Write;
-  const toValue = shouldClone ? deepClone : <T>(x: T): T => x;
-
-  let convertEntry: (entry: Entry<ReadonlyJSONValue>) => V;
-  switch (kind) {
-    case VALUE:
-      convertEntry = entry => toValue(entry[1]) as V;
-      break;
-    case KEY:
-      convertEntry = isIndexScan
-        ? entry => decodeIndexKey(entry[0]) as unknown as V
-        : entry => entry[0] as unknown as V;
-      break;
-    case ENTRY:
-      convertEntry = isIndexScan
-        ? entry => [decodeIndexKey(entry[0]), toValue(entry[1])] as unknown as V
-        : entry => entry as unknown as V;
-      break;
+  const isIndexScan = isScanIndexOptions(options);
+  if (prefix && isIndexScan) {
+    prefix = encodeIndexScanKey(prefix, undefined);
   }
 
-  yield* dbRead.scan(toDbScanOptions(options), convertEntry, onLimitKey);
+  // iter has already been moved to the first entry
+  for await (const entry of iter) {
+    if (!entry[0].startsWith(prefix)) {
+      return;
+    }
+
+    if (exclusive) {
+      exclusive = true;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      if (shouldSkip(entry[0], isIndexScan, options.start!.key)) {
+        continue;
+      }
+    }
+
+    yield toValue(entry);
+
+    if (--limit === 0) {
+      onLimitKey(entry[0]);
+      return;
+    }
+  }
+}
+
+function shouldSkip(
+  key: string,
+  isIndexScan: boolean,
+  startKey: ScanOptionIndexedStartKey,
+): boolean {
+  if (isIndexScan) {
+    const [secondaryStartKey, primaryStartKey] =
+      normalizeScanOptionIndexedStartKey(startKey);
+    const [secondaryKey, primaryKey] = decodeIndexKey(key);
+    if (secondaryKey !== secondaryStartKey) {
+      return false;
+    }
+    if (primaryStartKey === undefined) {
+      return true;
+    }
+    return primaryKey === primaryStartKey;
+  }
+  return key === startKey;
+}
+
+/**
+ * This is called when doing a [[ReadTransaction.scan|scan]] without an
+ * `indexName`.
+ *
+ * @param fromKey The `fromKey` is computed by `scan` and is the key of the
+ * first entry to return in the iterator. It is based on `prefix` and
+ * `start.key` of the [[ScanNoIndexOptions]].
+ */
+export type GetScanIterator = (
+  fromKey: string,
+) => AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>;
+
+/**
+ * This is called when doing a [[ReadTransaction.scan|scan]] with an
+ * `indexName`.
+ *
+ * @param indexName The name of the index we are scanning over.
+ * @param fromSecondaryKey The `fromSecondaryKey` is computed by `scan` and is
+ * the secondary key of the first entry to return in the iterator. It is based
+ * on `prefix` and `start.key` of the [[ScanIndexOptions]].
+ * @param fromPrimaryKey The `fromPrimaryKey` is computed by `scan` and is the
+ * primary key of the first entry to return in the iterator. It is based on
+ * `prefix` and `start.key` of the [[ScanIndexOptions]].
+ */
+export type GetIndexScanIterator = (
+  indexName: string,
+  fromSecondaryKey: string,
+  fromPrimaryKey: string | undefined,
+) => AsyncIterable<readonly [key: IndexKey, value: ReadonlyJSONValue]>;
+
+/**
+ * A helper function that makes it easier to implement [[ReadTransaction.scan]]
+ * with a custom backend
+ */
+export function makeScanResult<Options extends ScanOptions>(
+  options: Options,
+  getScanIterator: Options extends ScanIndexOptions
+    ? GetIndexScanIterator
+    : GetScanIterator,
+): ScanResult<KeyTypeForScanOptions<Options>, ReadonlyJSONValue> {
+  let internalIter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>;
+  if (isScanIndexOptions(options)) {
+    const [fromSecondaryKey, fromPrimaryKey] = fromKeyForIndexScan(options);
+    const iter = (getScanIterator as GetIndexScanIterator)(
+      options.indexName,
+      fromSecondaryKey,
+      fromPrimaryKey,
+    );
+    internalIter = internalIndexScanIterator(iter);
+  } else {
+    const fromKey = fromKeyForNonIndexScan(options);
+    internalIter = (getScanIterator as GetScanIterator)(fromKey);
+  }
+
+  return new ScanResultImpl(
+    internalIter,
+    options,
+    {closed: false, shouldDeepClone: false},
+    _ => {
+      // noop
+    },
+  );
+}
+
+async function* internalIndexScanIterator<Value extends ReadonlyJSONValue>(
+  iter: AsyncIterable<readonly [key: IndexKey, value: Value]>,
+): AsyncIterable<ReadonlyEntry<Value>> {
+  for await (const entry of iter) {
+    yield [encodeIndexKey(entry[0]), entry[1]];
+  }
+}
+
+export function fromKeyForIndexScan(
+  options: ScanIndexOptions,
+): [secondary: string, primary?: string] {
+  const {prefix, start} = options;
+  const prefixNormalized: [secondary: string, primary?: string] = [
+    prefix ?? '',
+    undefined,
+  ];
+
+  if (!start) {
+    return prefixNormalized;
+  }
+
+  const startKeyNormalized = normalizeScanOptionIndexedStartKey(start.key);
+  if (startKeyNormalized[0] > prefixNormalized[0]) {
+    return startKeyNormalized;
+  }
+  if (
+    startKeyNormalized[0] === prefixNormalized[0] &&
+    startKeyNormalized[1] !== undefined
+  ) {
+    return startKeyNormalized;
+  }
+
+  return prefixNormalized;
 }

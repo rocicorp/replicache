@@ -16,9 +16,12 @@ export type {
   WriteTransaction,
 } from './transactions';
 export type {
+  GetScanIterator,
+  GetIndexScanIterator,
   ScanResult,
   AsyncIterableIteratorToArrayWrapper,
 } from './scan-iterator';
+export {makeScanResult} from './scan-iterator';
 export type {LogSink, LogLevel} from '@rocicorp/logger';
 export type {
   JSONObject,
@@ -33,6 +36,7 @@ export type {
   ScanOptionIndexedStartKey,
   ScanOptions,
 } from './scan-options';
+export {isScanIndexOptions} from './scan-options';
 export type {HTTPRequestInfo} from './http-request-info';
 export type {
   PatchOperation,
@@ -55,3 +59,5 @@ export type {PullRequest} from './sync/pull';
 export type {PushRequest} from './sync/push';
 
 export {TEST_LICENSE_KEY} from '@rocicorp/licensing/src/client';
+
+export type {IndexKey} from './db/index';

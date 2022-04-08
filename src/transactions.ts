@@ -1,16 +1,23 @@
 import type {LogContext} from '@rocicorp/logger';
 import {deepClone, JSONValue, ReadonlyJSONValue} from './json';
 import {
+  isScanIndexOptions,
   KeyTypeForScanOptions,
+  normalizeScanOptionIndexedStartKey,
+  ScanIndexOptions,
   ScanOptions,
   toDbScanOptions,
 } from './scan-options';
-import {ScanResult} from './scan-iterator';
+import {ScanResultImpl} from './scan-iterator';
+import type {ScanResult} from './scan-iterator';
 import {throwIfClosed} from './transaction-closed-error';
 import * as db from './db/mod';
 import * as sync from './sync/mod';
 import type {Hash} from './hash';
 import type {ScanSubscriptionInfo} from './subscriptions';
+import type {ReadonlyEntry} from './btree/node.js';
+import type {ScanNoIndexOptions} from './mod.js';
+import {encodeIndexScanKey} from './db/index.js';
 
 /**
  * ReadTransactions are used with [[Replicache.query]] and
@@ -58,9 +65,9 @@ export interface ReadTransaction {
    * If the [[ScanResult]] is used after the `ReadTransaction` has been closed it
    * will throw a [[TransactionClosedError]].
    */
-  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+  scan<Options extends ScanOptions>(
     options?: Options,
-  ): ScanResult<Key, ReadonlyJSONValue>;
+  ): ScanResult<KeyTypeForScanOptions<Options>, ReadonlyJSONValue>;
 }
 
 let transactionIDCounter = 0;
@@ -105,13 +112,34 @@ export class ReadTransactionImpl<
     return this._dbtx.isEmpty();
   }
 
-  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+  scan(): ScanResult<string, Value>;
+  scan<Options extends ScanOptions>(
     options?: Options,
-    onLimitKey?: (inclusiveLimitKey: string) => void,
-  ): ScanResult<Key, Value> {
-    const dbRead = this._dbtx;
-    return new ScanResult(options, dbRead, onLimitKey);
+  ): ScanResult<KeyTypeForScanOptions<Options>, Value>;
+  scan<Options extends ScanOptions>(
+    options?: Options,
+  ): ScanResult<KeyTypeForScanOptions<Options>, Value> {
+    return scan(options, this._dbtx, noop);
   }
+}
+
+function noop(_: unknown): void {
+  // empty
+}
+
+function scan<Options extends ScanOptions, Value>(
+  options: Options | undefined,
+  dbRead: db.Read,
+  onLimitKey: (inclusiveLimitKey: string) => void,
+): ScanResult<KeyTypeForScanOptions<Options>, Value> {
+  const iter: AsyncIterableIterator<ReadonlyEntry<ReadonlyJSONValue>> =
+    getScanIterator(dbRead, options);
+  return makeScanResultFromScanIteratorInternal(
+    iter,
+    options ?? ({} as ScanNoIndexOptions),
+    dbRead,
+    onLimitKey,
+  ) as ScanResult<KeyTypeForScanOptions<Options>, Value>;
 }
 
 // An implementation of ReadTransaction that keeps track of `keys` and `scans`
@@ -145,14 +173,20 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
     return this._tx.has(key);
   }
 
-  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+  scan(): ScanResult<string, ReadonlyJSONValue>;
+  scan<Options extends ScanOptions>(
     options?: Options,
-  ): ScanResult<Key, ReadonlyJSONValue> {
+  ): ScanResult<KeyTypeForScanOptions<Options>, ReadonlyJSONValue>;
+  scan<Options extends ScanOptions>(
+    options?: Options,
+  ): ScanResult<KeyTypeForScanOptions<Options>, ReadonlyJSONValue> {
     const scanInfo: ScanSubscriptionInfo = {
       options: toDbScanOptions(options),
+      inclusiveLimitKey: undefined,
     };
     this._scans.push(scanInfo);
-    return this._tx.scan(options, inclusiveLimitKey => {
+    // @ts-expect-error _dbtx is protected
+    return scan(options, this._tx._dbtx, inclusiveLimitKey => {
       scanInfo.inclusiveLimitKey = inclusiveLimitKey;
     });
   }
@@ -193,9 +227,9 @@ export interface WriteTransaction extends ReadTransaction {
    * Overrides [[ReadTransaction.scan]] to return a mutable [[JSONValue]].
    */
   scan(): ScanResult<string, JSONValue>;
-  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+  scan<Options extends ScanOptions>(
     options?: Options,
-  ): ScanResult<Key, JSONValue>;
+  ): ScanResult<KeyTypeForScanOptions<Options>, JSONValue>;
 }
 
 export class WriteTransactionImpl
@@ -304,4 +338,69 @@ export class IndexTransactionImpl
   async commit(): Promise<[Hash, sync.ChangedKeysMap]> {
     return super.commit(false);
   }
+}
+
+function getScanIterator(
+  dbRead: db.Read,
+  options: ScanOptions | undefined,
+): AsyncIterableIterator<ReadonlyEntry<ReadonlyJSONValue>> {
+  if (options && isScanIndexOptions(options)) {
+    return getScanIteratorForIndexMap(dbRead, options);
+  }
+  return dbRead.map.scan(fromKeyForNonIndexScan(options));
+}
+
+export function fromKeyForNonIndexScan(
+  options: ScanNoIndexOptions | undefined,
+): string {
+  if (!options) {
+    return '';
+  }
+
+  const {prefix = '', start} = options;
+  if (start && start.key > prefix) {
+    return start.key;
+  }
+  return prefix;
+}
+
+function makeScanResultFromScanIteratorInternal<
+  Options extends ScanOptions,
+  Value,
+>(
+  iter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>,
+  options: Options,
+  dbRead: db.Read,
+  onLimitKey: (inclusiveLimitKey: string) => void,
+): ScanResult<KeyTypeForScanOptions<Options>, Value> {
+  return new ScanResultImpl(iter, options, dbRead, onLimitKey);
+}
+
+async function* getScanIteratorForIndexMap(
+  dbRead: db.Read,
+  options: ScanIndexOptions,
+) {
+  const map = await dbRead.getMapForIndex(options.indexName);
+  yield* map.scan(fromKeyForIndexScanInternal(options));
+}
+
+export function fromKeyForIndexScanInternal(options: ScanIndexOptions): string {
+  const {prefix, start} = options;
+  let prefix2 = '';
+  if (prefix !== undefined) {
+    prefix2 = encodeIndexScanKey(prefix, undefined);
+  }
+  if (!start) {
+    return prefix2;
+  }
+
+  const {key} = start;
+  const [secondary, primary] = normalizeScanOptionIndexedStartKey(key);
+  const startKey = encodeIndexScanKey(secondary, primary);
+
+  if (startKey > prefix2) {
+    return startKey;
+  }
+
+  return prefix2;
 }

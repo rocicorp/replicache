@@ -27,7 +27,6 @@ type ShouldDeepClone = {shouldDeepClone: boolean};
  * [[entries]] or [[values]].
  */
 export class ScanResultImpl<K extends ScanKey, V extends ReadonlyJSONValue>
-  implements ScanResult<K, V>
 {
   private readonly _iter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>;
   private readonly _options: ScanOptions;
@@ -105,33 +104,6 @@ export class ScanResultImpl<K extends ScanKey, V extends ReadonlyJSONValue>
       this._onLimitKey,
     );
   }
-}
-
-export interface ScanResult<K extends ScanKey, V extends ReadonlyJSONValue>
-  extends AsyncIterable<V> {
-  /** The default AsyncIterable. This is the same as [[values]]. */
-  [Symbol.asyncIterator](): AsyncIterableIteratorToArrayWrapper<V>;
-
-  /** Async iterator over the values of the [[ReadTransaction.scan|scan]] call. */
-  values(): AsyncIterableIteratorToArrayWrapper<V>;
-
-  /**
-   * Async iterator over the keys of the [[ReadTransaction.scan|scan]]
-   * call. If the [[ReadTransaction.scan|scan]] is over an index the key
-   * is a tuple of `[secondaryKey: string, primaryKey]`
-   */
-  keys(): AsyncIterableIteratorToArrayWrapper<K>;
-
-  /**
-   * Async iterator over the entries of the [[ReadTransaction.scan|scan]]
-   * call. An entry is a tuple of key values. If the
-   * [[ReadTransaction.scan|scan]] is over an index the key is a tuple of
-   * `[secondaryKey: string, primaryKey]`
-   */
-  entries(): AsyncIterableIteratorToArrayWrapper<readonly [K, V]>;
-
-  /** Returns all the values as an array. Same as `values().toArray()` */
-  toArray(): Promise<V[]>;
 }
 
 /**
@@ -274,7 +246,7 @@ export function makeScanResult<Options extends ScanOptions>(
   getScanIterator: Options extends ScanIndexOptions
     ? GetIndexScanIterator
     : GetScanIterator,
-): ScanResult<KeyTypeForScanOptions<Options>, ReadonlyJSONValue> {
+): ScanResultImpl<KeyTypeForScanOptions<Options>, ReadonlyJSONValue> {
   let internalIter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>;
   if (isScanIndexOptions(options)) {
     const [fromSecondaryKey, fromPrimaryKey] = fromKeyForIndexScan(options);

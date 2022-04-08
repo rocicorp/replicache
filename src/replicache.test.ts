@@ -38,6 +38,10 @@ import type {Mutation} from './sync/push';
 import type {ReplicacheOptions} from './replicache-options';
 import {deleteClientForTesting} from './persist/clients-test-helpers.js';
 import type {LogLevel} from '@rocicorp/logger';
+import {
+  LICENSE_ACTIVE_PATH,
+  LICENSE_STATUS_PATH,
+} from '@rocicorp/licensing/src/server/api-types';
 
 const {fail} = assert;
 
@@ -2086,9 +2090,13 @@ type LicenseKeyCheckTestCase = {
   expectFetchCalled: boolean;
 };
 
-// TODO(phritz) export these urls from the licensing client.
-const statusUrlMatcher = new RegExp(`${PROD_LICENSE_SERVER_URL}license/status`);
-const activeUrlMatcher = new RegExp(`${PROD_LICENSE_SERVER_URL}license/active`);
+// TODO(phritz) ick, export these urls from the licensing client.
+const statusUrlMatcher = new RegExp(
+  `${PROD_LICENSE_SERVER_URL}${LICENSE_STATUS_PATH.slice(1)}`,
+);
+const activeUrlMatcher = new RegExp(
+  `${PROD_LICENSE_SERVER_URL}${LICENSE_ACTIVE_PATH.slice(1)}`,
+);
 
 async function licenseKeyCheckTest(tc: LicenseKeyCheckTestCase) {
   const consoleErrorStub = sinon.stub(console, 'error');
@@ -2165,6 +2173,7 @@ test('licensing key is valid if check returns valid', async () => {
       body: {
         status: LicenseStatus.Valid,
         disable: false,
+        pleaseUpdate: false,
       },
     },
     expectValid: true,
@@ -2180,6 +2189,7 @@ test('licensing key is not valid if check returns invalid', async () => {
       body: {
         status: LicenseStatus.Invalid,
         disable: false,
+        pleaseUpdate: false,
       },
     },
     expectValid: false,
@@ -2195,6 +2205,7 @@ test('Replicache is disabled if check returns disable', async () => {
       body: {
         status: LicenseStatus.Invalid,
         disable: true,
+        pleaseUpdate: false,
       },
     },
     expectValid: false,
@@ -2237,7 +2248,10 @@ type LicenseActiveTestCase = {
 
 async function licenseActiveTest(tc: LicenseActiveTestCase) {
   fetchMock.reset();
-  fetchMock.post(statusUrlMatcher, '{"status": "VALID"}');
+  fetchMock.post(
+    statusUrlMatcher,
+    '{"status": "VALID", "disable": false, "pleaseUpdate": false}',
+  );
   if (tc.expectFetchCalled) {
     fetchMock.postOnce(activeUrlMatcher, tc.mockFetchParams);
   }

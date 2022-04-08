@@ -3,12 +3,11 @@ import {deepClone, JSONValue, ReadonlyJSONValue} from './json';
 import {
   isScanIndexOptions,
   KeyTypeForScanOptions,
-  normalizeScanOptionIndexedStartKey,
   ScanIndexOptions,
   ScanOptions,
   toDbScanOptions,
 } from './scan-options';
-import {ScanResultImpl} from './scan-iterator';
+import {fromKeyForIndexScanInternal, ScanResultImpl} from './scan-iterator';
 import type {ScanResult} from './scan-iterator';
 import {throwIfClosed} from './transaction-closed-error';
 import * as db from './db/mod';
@@ -16,7 +15,7 @@ import * as sync from './sync/mod';
 import type {Hash} from './hash';
 import type {ScanSubscriptionInfo} from './subscriptions';
 import type {ScanNoIndexOptions} from './mod.js';
-import {decodeIndexKey, encodeIndexScanKey, IndexKey} from './db/index.js';
+import {decodeIndexKey, IndexKey} from './db/index.js';
 
 /**
  * ReadTransactions are used with [[Replicache.query]] and
@@ -396,25 +395,4 @@ async function* getScanIteratorForIndexMap(
   for await (const entry of map.scan(fromKeyForIndexScanInternal(options))) {
     yield [decodeIndexKey(entry[0]), entry[1]];
   }
-}
-
-export function fromKeyForIndexScanInternal(options: ScanIndexOptions): string {
-  const {prefix, start} = options;
-  let prefix2 = '';
-  if (prefix !== undefined) {
-    prefix2 = encodeIndexScanKey(prefix, undefined);
-  }
-  if (!start) {
-    return prefix2;
-  }
-
-  const {key} = start;
-  const [secondary, primary] = normalizeScanOptionIndexedStartKey(key);
-  const startKey = encodeIndexScanKey(secondary, primary);
-
-  if (startKey > prefix2) {
-    return startKey;
-  }
-
-  return prefix2;
 }

@@ -10,7 +10,7 @@ import {
 } from './scan-options';
 import {asyncIterableToArray} from './async-iterable-to-array';
 import type {ReadonlyEntry} from './btree/node';
-import type {IndexKey} from './db/index.js';
+import {encodeIndexScanKey, IndexKey} from './db/index.js';
 import {EntryForOptions, fromKeyForNonIndexScan} from './transactions.js';
 
 type ScanKey = string | IndexKey;
@@ -344,4 +344,25 @@ export function fromKeyForIndexScan(
   }
 
   return prefixNormalized;
+}
+
+export function fromKeyForIndexScanInternal(options: ScanIndexOptions): string {
+  const {prefix, start} = options;
+  let prefix2 = '';
+  if (prefix !== undefined) {
+    prefix2 = encodeIndexScanKey(prefix, undefined);
+  }
+  if (!start) {
+    return prefix2;
+  }
+
+  const {key} = start;
+  const [secondary, primary] = normalizeScanOptionIndexedStartKey(key);
+  const startKey = encodeIndexScanKey(secondary, primary);
+
+  if (startKey > prefix2) {
+    return startKey;
+  }
+
+  return prefix2;
 }

@@ -16,6 +16,11 @@ module.exports = {
         format: ['camelCase'],
         leadingUnderscore: 'forbid',
       },
+      {
+        selector: ['property', 'method'],
+        format: null,
+        modifiers: ['requiresQuotes'],
+      },
     ],
     'eqeqeq': 'error',
     'no-var': 'error',

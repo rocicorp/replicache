@@ -2544,8 +2544,11 @@ test('mutation timestamps are immutable', async () => {
   ]);
 });
 
+// Define this here to prevent issues with building docs
+type DocumentVisibilityState = 'hidden' | 'visible';
+
 suite('check for client not found in visibilitychange', () => {
-  const t = (visibilityState: VisibilityState, called: boolean) => {
+  const t = (visibilityState: DocumentVisibilityState, called: boolean) => {
     test('visibilityState: ' + visibilityState, async () => {
       const consoleErrorStub = sinon.stub(console, 'error');
       sinon.stub(document, 'visibilityState').get(() => visibilityState);

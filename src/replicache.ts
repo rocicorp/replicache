@@ -554,6 +554,12 @@ export class Replicache<MD extends MutatorDefs = {}> {
         this._licenseKey,
         this._lc,
       );
+      if (resp.pleaseUpdate) {
+        this._lc.error?.(
+          `You are using an old version of Replicache that uses deprecated licensing features. ` +
+            `Please update Replicache else it may stop working.`,
+        );
+      }
       if (resp.status === LicenseStatus.Valid) {
         this._lc.info?.(`License is valid.`);
       } else {

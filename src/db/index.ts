@@ -129,7 +129,7 @@ export function getIndexKeys(
 export const KEY_VERSION_0 = '\u0000';
 export const KEY_SEPARATOR = '\u0000';
 
-export type IndexKey = readonly [secondary: string, primary: string];
+export type IndexKey = [secondary: string, primary: string];
 
 // An index key is encoded to vec of bytes in the following order:
 //   - key version byte(s), followed by
@@ -179,10 +179,17 @@ export function encodeIndexKey(indexKey: IndexKey): string {
 export function encodeIndexScanKey(
   secondary: string,
   primary: string | undefined,
+  exclusive: boolean,
 ): string {
-  const k = encodeIndexKey([secondary, primary || '']);
+  let k = encodeIndexKey([secondary, primary || '']);
+
+  let smallestLegalValue = '\u0000';
   if (primary === undefined) {
-    return k.slice(0, k.length - 1);
+    k = k.slice(0, k.length - 1);
+    smallestLegalValue = '\u0001';
+  }
+  if (exclusive) {
+    k += smallestLegalValue;
   }
   return k;
 }

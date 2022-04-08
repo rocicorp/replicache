@@ -1,3 +1,4 @@
+import {encodeIndexScanKey} from '.';
 import type {ReadonlyJSONValue} from '../json';
 
 // TODO(arv): Unify with src/scan-options.ts
@@ -60,3 +61,36 @@ export type ScanItem = {
   secondaryKey: string;
   val: ReadonlyJSONValue;
 };
+
+export function convert(source: ScanOptions): ScanOptionsInternal {
+  // If the scan is using an index then we need to generate the scan keys.
+  let prefix: string | undefined;
+  if (source.prefix !== undefined) {
+    if (source.indexName !== undefined) {
+      prefix = encodeIndexScanKey(source.prefix, undefined, false);
+    } else {
+      prefix = source.prefix;
+    }
+  }
+
+  let startKey: string | undefined;
+  if (source.indexName !== undefined) {
+    startKey = encodeIndexScanKey(
+      source.startSecondaryKey ?? '',
+      source.startKey === undefined ? undefined : source.startKey,
+      source.startExclusive ?? false,
+    );
+  } else {
+    let sk = source.startKey ?? '';
+    if (source.startExclusive ?? false) {
+      sk += '\u0000';
+    }
+    startKey = sk;
+  }
+  return {
+    prefix,
+    startKey,
+    limit: source.limit,
+    indexName: source.indexName,
+  };
+}

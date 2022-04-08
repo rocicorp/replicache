@@ -402,9 +402,14 @@ test('begin try pull', async () => {
         );
         let got = false;
 
-        const indexMap = await read.getMapForIndex('2');
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for await (const _ of indexMap.scan('')) {
+        for await (const _ of read.scan(
+          {
+            prefix: '',
+            indexName: '2',
+          },
+          e => e,
+        )) {
           got = true;
           break;
         }
@@ -504,9 +509,14 @@ test('begin try pull', async () => {
               db.whenceHead(SYNC_HEAD_NAME),
               dagRead,
             );
-            const indexMap = await read.getMapForIndex('2');
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            for await (const _ of indexMap.scan('')) {
+            for await (const _ of read.scan(
+              {
+                prefix: '',
+                indexName: '2',
+              },
+              e => e,
+            )) {
               expect(false).to.be.true;
             }
           });
@@ -518,7 +528,7 @@ test('begin try pull', async () => {
         const gotHead = await read.getHead(SYNC_HEAD_NAME);
         expect(gotHead).to.be.undefined;
         // When createSyncBranch is false or sync is a noop (empty patch,
-        // same last mutation id, same cookie) we except BeginPull to succeed
+        // same last mutation id, same cookie) we except Beginpull to succeed
         // but sync_head will be empty.
         if (typeof c.expBeginPullResult !== 'string') {
           assertObject(result);

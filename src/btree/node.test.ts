@@ -1,5 +1,6 @@
 import {expect, assert} from '@esm-bundle/chai';
 import * as dag from '../dag/mod';
+import type {ScanOptionsInternal} from '../db/scan';
 import {emptyHash, Hash} from '../hash';
 import {getSizeOfValue, ReadonlyJSONValue} from '../json';
 import {
@@ -14,7 +15,6 @@ import {
   NODE_LEVEL,
   NODE_ENTRIES,
   emptyDataNode,
-  ReadonlyEntry,
 } from './node';
 import {BTreeWrite} from './write';
 import {makeTestChunkHasher} from '../dag/chunk';
@@ -263,7 +263,7 @@ test('empty read tree', async () => {
     const r = new BTreeRead(dagRead);
     expect(await r.get('a')).to.be.undefined;
     expect(await r.has('b')).to.be.false;
-    expect(await asyncIterToArray(r.scan(''))).to.deep.equal([]);
+    expect(await asyncIterToArray(r.scan({}, x => x))).to.deep.equal([]);
   });
 });
 
@@ -284,7 +284,7 @@ test('empty write tree', async () => {
     );
     expect(await w.get('a')).to.be.undefined;
     expect(await w.has('b')).to.be.false;
-    expect(await asyncIterToArray(w.scan(''))).to.deep.equal([]);
+    expect(await asyncIterToArray(w.scan({}, x => x))).to.deep.equal([]);
 
     const h = await w.flush();
     expect(h).to.equal(emptyTreeHash);
@@ -1197,7 +1197,7 @@ test('put/del - getSize', async () => {
 test('scan', async () => {
   const t = async (
     entries: Entry<ReadonlyJSONValue>[],
-    fromKey = '',
+    options: ScanOptionsInternal = {},
     expectedEntries = entries,
   ) => {
     const dagStore = new dag.TestStore();
@@ -1215,12 +1215,29 @@ test('scan', async () => {
     });
 
     await doRead(rootHash, dagStore, async r => {
-      const res: ReadonlyEntry<ReadonlyJSONValue>[] = [];
-      const scanResult = r.scan(fromKey);
+      const res: Entry<ReadonlyJSONValue>[] = [];
+      const onLimitKeyCalls: string[] = [];
+      const scanResult = r.scan(
+        options,
+        x => x,
+        inclusiveLimitKey => {
+          onLimitKeyCalls.push(inclusiveLimitKey);
+        },
+      );
       for await (const e of scanResult) {
         res.push(e);
       }
       expect(res).to.deep.equal(expectedEntries);
+      if (options.limit !== undefined) {
+        if (options.limit > 0 && res.length === options.limit) {
+          expect(onLimitKeyCalls.length).to.equal(1);
+          expect(onLimitKeyCalls[0]).to.equal(res[res.length - 1][0]);
+        } else {
+          expect(onLimitKeyCalls.length).to.equal(0);
+        }
+      } else {
+        expect(onLimitKeyCalls.length).to.equal(0);
+      }
     });
   };
 
@@ -1251,20 +1268,38 @@ test('scan', async () => {
 
   await t(
     [
-      ['a', 0],
-      ['aa', 1],
-      ['aaa', 2],
-      ['aab', 3],
-      ['ab', 4],
-      ['b', 5],
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+      ['d', 4],
+      ['e', 5],
     ],
-    'aa',
+    {limit: 0},
+    [],
+  );
+  await t(
     [
-      ['aa', 1],
-      ['aaa', 2],
-      ['aab', 3],
-      ['ab', 4],
-      ['b', 5],
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+      ['d', 4],
+      ['e', 5],
+    ],
+    {limit: 1},
+    [['a', 1]],
+  );
+  await t(
+    [
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+      ['d', 4],
+      ['e', 5],
+    ],
+    {limit: 2},
+    [
+      ['a', 1],
+      ['b', 2],
     ],
   );
 
@@ -1276,7 +1311,72 @@ test('scan', async () => {
       ['d', 4],
       ['e', 5],
     ],
-    'f',
+    {limit: 8},
+  );
+
+  await t(
+    [
+      ['a', 0],
+      ['aa', 1],
+      ['aaa', 2],
+      ['aab', 3],
+      ['ab', 4],
+      ['b', 5],
+    ],
+    {prefix: 'aa'},
+    [
+      ['aa', 1],
+      ['aaa', 2],
+      ['aab', 3],
+    ],
+  );
+
+  for (let limit = 4; limit >= 0; limit--) {
+    await t(
+      [
+        ['a', 0],
+        ['aa', 1],
+        ['aaa', 2],
+        ['aab', 3],
+        ['ab', 4],
+        ['b', 5],
+      ],
+      {prefix: 'aa', limit},
+      [
+        ['aa', 1],
+        ['aaa', 2],
+        ['aab', 3],
+      ].slice(0, limit) as Entry<number>[],
+    );
+  }
+
+  for (let limit = 3; limit >= 0; limit--) {
+    await t(
+      [
+        ['a', 0],
+        ['aa', 1],
+        ['aaa', 2],
+        ['aab', 3],
+        ['ab', 4],
+        ['b', 5],
+      ],
+      {prefix: 'aa', startKey: 'aaa', limit},
+      [
+        ['aaa', 2],
+        ['aab', 3],
+      ].slice(0, limit) as Entry<number>[],
+    );
+  }
+
+  await t(
+    [
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+      ['d', 4],
+      ['e', 5],
+    ],
+    {limit: -1},
     [],
   );
 
@@ -1288,7 +1388,31 @@ test('scan', async () => {
       ['d', 4],
       ['e', 5],
     ],
-    'e',
+    {prefix: 'f'},
+    [],
+  );
+
+  await t(
+    [
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+      ['d', 4],
+      ['e', 5],
+    ],
+    {startKey: 'f'},
+    [],
+  );
+
+  await t(
+    [
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+      ['d', 4],
+      ['e', 5],
+    ],
+    {startKey: 'e'},
     [['e', 5]],
   );
 });

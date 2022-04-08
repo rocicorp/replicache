@@ -7,9 +7,7 @@ export class TransactionClosedError extends Error {
   }
 }
 
-export type Closed = {closed: boolean};
-
-export function throwIfClosed(tx: Closed): void {
+export function throwIfClosed(tx: {closed: boolean}): void {
   if (tx.closed) {
     throw new TransactionClosedError();
   }

@@ -1,22 +1,16 @@
 import type {LogContext} from '@rocicorp/logger';
 import {deepClone, JSONValue, ReadonlyJSONValue} from './json';
 import {
-  isScanIndexOptions,
   KeyTypeForScanOptions,
-  normalizeScanOptionIndexedStartKey,
-  ScanIndexOptions,
   ScanOptions,
   toDbScanOptions,
 } from './scan-options';
-import {ScanResultImpl} from './scan-iterator';
+import {ScanResult} from './scan-iterator';
 import {throwIfClosed} from './transaction-closed-error';
 import * as db from './db/mod';
 import * as sync from './sync/mod';
 import type {Hash} from './hash';
 import type {ScanSubscriptionInfo} from './subscriptions';
-import type {ReadonlyEntry} from './btree/node.js';
-import type {ScanNoIndexOptions} from './mod.js';
-import {encodeIndexScanKey} from './db/index.js';
 
 /**
  * ReadTransactions are used with [[Replicache.query]] and
@@ -50,7 +44,7 @@ export interface ReadTransaction {
    * If the [[ScanResult]] is used after the `ReadTransaction` has been closed it
    * will throw a [[TransactionClosedError]].
    */
-  scan(): ScanResultImpl<string, ReadonlyJSONValue>;
+  scan(): ScanResult<string, ReadonlyJSONValue>;
 
   /**
    * Gets many values from the database. This returns a [[ScanResult]] which
@@ -66,7 +60,7 @@ export interface ReadTransaction {
    */
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
-  ): ScanResultImpl<Key, ReadonlyJSONValue>;
+  ): ScanResult<Key, ReadonlyJSONValue>;
 }
 
 let transactionIDCounter = 0;
@@ -113,32 +107,11 @@ export class ReadTransactionImpl<
 
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
-  ): ScanResultImpl<Key, Value> {
-    return scan(options, this._dbtx, noop);
+    onLimitKey?: (inclusiveLimitKey: string) => void,
+  ): ScanResult<Key, Value> {
+    const dbRead = this._dbtx;
+    return new ScanResult(options, dbRead, onLimitKey);
   }
-}
-
-function noop(_: unknown): void {
-  // empty
-}
-
-function scan<
-  Options extends ScanOptions,
-  Key extends KeyTypeForScanOptions<Options>,
-  Value,
->(
-  options: Options | undefined,
-  dbRead: db.Read,
-  onLimitKey: (inclusiveLimitKey: string) => void,
-): ScanResultImpl<Key, Value> {
-  const iter: AsyncIterableIterator<ReadonlyEntry<ReadonlyJSONValue>> =
-    getScanIterator(dbRead, options);
-  return makeScanResultFromScanIteratorInternal(
-    iter,
-    options ?? ({} as ScanNoIndexOptions),
-    dbRead,
-    onLimitKey,
-  );
 }
 
 // An implementation of ReadTransaction that keeps track of `keys` and `scans`
@@ -174,14 +147,12 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
 
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
-  ): ScanResultImpl<Key, ReadonlyJSONValue> {
+  ): ScanResult<Key, ReadonlyJSONValue> {
     const scanInfo: ScanSubscriptionInfo = {
       options: toDbScanOptions(options),
-      inclusiveLimitKey: undefined,
     };
     this._scans.push(scanInfo);
-    // @ts-expect-error _dbtx is protected
-    return scan(options, this._tx._dbtx, inclusiveLimitKey => {
+    return this._tx.scan(options, inclusiveLimitKey => {
       scanInfo.inclusiveLimitKey = inclusiveLimitKey;
     });
   }
@@ -221,10 +192,10 @@ export interface WriteTransaction extends ReadTransaction {
   /**
    * Overrides [[ReadTransaction.scan]] to return a mutable [[JSONValue]].
    */
-  scan(): ScanResultImpl<string, JSONValue>;
+  scan(): ScanResult<string, JSONValue>;
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
-  ): ScanResultImpl<Key, JSONValue>;
+  ): ScanResult<Key, JSONValue>;
 }
 
 export class WriteTransactionImpl
@@ -333,70 +304,4 @@ export class IndexTransactionImpl
   async commit(): Promise<[Hash, sync.ChangedKeysMap]> {
     return super.commit(false);
   }
-}
-
-function getScanIterator(
-  dbRead: db.Read,
-  options: ScanOptions | undefined,
-): AsyncIterableIterator<ReadonlyEntry<ReadonlyJSONValue>> {
-  if (options && isScanIndexOptions(options)) {
-    return getScanIteratorForIndexMap(dbRead, options);
-  }
-  return dbRead.map.scan(fromKeyForNonIndexScan(options));
-}
-
-export function fromKeyForNonIndexScan(
-  options: ScanNoIndexOptions | undefined,
-): string {
-  if (!options) {
-    return '';
-  }
-
-  const {prefix = '', start} = options;
-  if (start && start.key > prefix) {
-    return start.key;
-  }
-  return prefix;
-}
-
-function makeScanResultFromScanIteratorInternal<
-  Options extends ScanOptions,
-  Key extends KeyTypeForScanOptions<Options>,
-  Value,
->(
-  iter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>,
-  options: Options,
-  dbRead: db.Read,
-  onLimitKey: (inclusiveLimitKey: string) => void,
-): ScanResultImpl<Key, Value> {
-  return new ScanResultImpl(iter, options, dbRead, onLimitKey);
-}
-
-async function* getScanIteratorForIndexMap(
-  dbRead: db.Read,
-  options: ScanIndexOptions,
-) {
-  const map = await dbRead.getMapForIndex(options.indexName);
-  yield* map.scan(fromKeyForIndexScanInternal(options));
-}
-
-export function fromKeyForIndexScanInternal(options: ScanIndexOptions): string {
-  const {prefix, start} = options;
-  let prefix2 = '';
-  if (prefix !== undefined) {
-    prefix2 = encodeIndexScanKey(prefix, undefined);
-  }
-  if (!start) {
-    return prefix2;
-  }
-
-  const {key} = start;
-  const [secondary, primary] = normalizeScanOptionIndexedStartKey(key);
-  const startKey = encodeIndexScanKey(secondary, primary);
-
-  if (startKey > prefix2) {
-    return startKey;
-  }
-
-  return prefix2;
 }

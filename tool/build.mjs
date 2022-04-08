@@ -2,33 +2,38 @@
 
 import * as esbuild from 'esbuild';
 
+const forBundleSizeDashboard = process.argv.includes('--bundle-sizes');
+
 const sharedOptions = {
   bundle: true,
   target: 'es2018',
-  minify: true,
   mangleProps: /^_./,
   reserveProps: /^__.*__$/,
 };
 
-async function buildMJS() {
+/**
+ * @param {"esm" | "cjs"} format
+ * @param {boolean} minify
+ * @param {string} ext
+ */
+async function buildReplicache(format, minify, ext) {
   await esbuild.build({
     ...sharedOptions,
-    outfile: 'out/replicache.mjs',
-    format: 'esm',
+    outfile: 'out/replicache.' + ext,
+    format,
     entryPoints: ['src/mod.ts'],
     // We inject __DEV__ into the output so that esbuild does not replace this.
     banner: {js: 'const __DEV__=process.env.NODE_ENV!=="production";'},
+    minify,
   });
 }
 
-async function buildCJS() {
-  await esbuild.build({
-    ...sharedOptions,
-    outfile: 'out/replicache.js',
-    format: 'cjs',
-    entryPoints: ['src/mod.ts'],
-    banner: {js: 'const __DEV__=process.env.NODE_ENV!=="production";'},
-  });
+async function buildMJS(minify = true, ext = 'mjs') {
+  await buildReplicache('esm', minify, ext);
+}
+
+async function buildCJS(minify = true, ext = 'js') {
+  await buildReplicache('cjs', minify, ext);
 }
 
 async function buildCLI() {
@@ -38,7 +43,18 @@ async function buildCLI() {
     external: ['node:*'],
     outfile: 'out/cli.cjs',
     entryPoints: ['tool/cli.ts'],
+    minify: true,
   });
 }
 
-Promise.all([buildMJS(), buildCJS(), buildCLI()]);
+if (forBundleSizeDashboard) {
+  Promise.all([
+    buildMJS(false, 'mjs'),
+    buildMJS(true, 'min.mjs'),
+    buildCJS(false, 'js'),
+    buildCJS(true, 'min.js'),
+    buildCLI(),
+  ]);
+} else {
+  Promise.all([buildMJS(), buildCJS(), buildCLI()]);
+}

@@ -9,6 +9,7 @@ import {
   toDbScanOptions,
 } from './scan-options';
 import {ScanResultImpl} from './scan-iterator';
+import type {ScanResult} from './scan-iterator';
 import {throwIfClosed} from './transaction-closed-error';
 import * as db from './db/mod';
 import * as sync from './sync/mod';
@@ -50,7 +51,7 @@ export interface ReadTransaction {
    * If the [[ScanResult]] is used after the `ReadTransaction` has been closed it
    * will throw a [[TransactionClosedError]].
    */
-  scan(): ScanResultImpl<string, ReadonlyJSONValue>;
+  scan(): ScanResult<string, ReadonlyJSONValue>;
 
   /**
    * Gets many values from the database. This returns a [[ScanResult]] which
@@ -64,9 +65,9 @@ export interface ReadTransaction {
    * If the [[ScanResult]] is used after the `ReadTransaction` has been closed it
    * will throw a [[TransactionClosedError]].
    */
-  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+  scan<Options extends ScanOptions>(
     options?: Options,
-  ): ScanResultImpl<Key, ReadonlyJSONValue>;
+  ): ScanResult<KeyTypeForScanOptions<Options>, ReadonlyJSONValue>;
 }
 
 let transactionIDCounter = 0;
@@ -111,9 +112,13 @@ export class ReadTransactionImpl<
     return this._dbtx.isEmpty();
   }
 
-  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+  scan(): ScanResult<string, Value>;
+  scan<Options extends ScanOptions>(
     options?: Options,
-  ): ScanResultImpl<Key, Value> {
+  ): ScanResult<KeyTypeForScanOptions<Options>, Value>;
+  scan<Options extends ScanOptions>(
+    options?: Options,
+  ): ScanResult<KeyTypeForScanOptions<Options>, Value> {
     return scan(options, this._dbtx, noop);
   }
 }
@@ -122,15 +127,11 @@ function noop(_: unknown): void {
   // empty
 }
 
-function scan<
-  Options extends ScanOptions,
-  Key extends KeyTypeForScanOptions<Options>,
-  Value,
->(
+function scan<Options extends ScanOptions, Value>(
   options: Options | undefined,
   dbRead: db.Read,
   onLimitKey: (inclusiveLimitKey: string) => void,
-): ScanResultImpl<Key, Value> {
+): ScanResult<KeyTypeForScanOptions<Options>, Value> {
   const iter: AsyncIterableIterator<ReadonlyEntry<ReadonlyJSONValue>> =
     getScanIterator(dbRead, options);
   return makeScanResultFromScanIteratorInternal(
@@ -138,7 +139,7 @@ function scan<
     options ?? ({} as ScanNoIndexOptions),
     dbRead,
     onLimitKey,
-  );
+  ) as ScanResult<KeyTypeForScanOptions<Options>, Value>;
 }
 
 // An implementation of ReadTransaction that keeps track of `keys` and `scans`
@@ -172,9 +173,13 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
     return this._tx.has(key);
   }
 
-  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+  scan(): ScanResult<string, ReadonlyJSONValue>;
+  scan<Options extends ScanOptions>(
     options?: Options,
-  ): ScanResultImpl<Key, ReadonlyJSONValue> {
+  ): ScanResult<KeyTypeForScanOptions<Options>, ReadonlyJSONValue>;
+  scan<Options extends ScanOptions>(
+    options?: Options,
+  ): ScanResult<KeyTypeForScanOptions<Options>, ReadonlyJSONValue> {
     const scanInfo: ScanSubscriptionInfo = {
       options: toDbScanOptions(options),
       inclusiveLimitKey: undefined,
@@ -221,10 +226,10 @@ export interface WriteTransaction extends ReadTransaction {
   /**
    * Overrides [[ReadTransaction.scan]] to return a mutable [[JSONValue]].
    */
-  scan(): ScanResultImpl<string, JSONValue>;
-  scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
+  scan(): ScanResult<string, JSONValue>;
+  scan<Options extends ScanOptions>(
     options?: Options,
-  ): ScanResultImpl<Key, JSONValue>;
+  ): ScanResult<KeyTypeForScanOptions<Options>, JSONValue>;
 }
 
 export class WriteTransactionImpl
@@ -361,14 +366,13 @@ export function fromKeyForNonIndexScan(
 
 function makeScanResultFromScanIteratorInternal<
   Options extends ScanOptions,
-  Key extends KeyTypeForScanOptions<Options>,
   Value,
 >(
   iter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>,
   options: Options,
   dbRead: db.Read,
   onLimitKey: (inclusiveLimitKey: string) => void,
-): ScanResultImpl<Key, Value> {
+): ScanResult<KeyTypeForScanOptions<Options>, Value> {
   return new ScanResultImpl(iter, options, dbRead, onLimitKey);
 }
 

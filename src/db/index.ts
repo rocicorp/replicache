@@ -129,6 +129,10 @@ export function getIndexKeys(
 export const KEY_VERSION_0 = '\u0000';
 export const KEY_SEPARATOR = '\u0000';
 
+/**
+ * When using indexes the key is a tuple of the secondary key and the primary
+ * key.
+ */
 export type IndexKey = readonly [secondary: string, primary: string];
 
 // An index key is encoded to vec of bytes in the following order:

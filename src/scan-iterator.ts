@@ -26,17 +26,19 @@ type ShouldDeepClone = {shouldDeepClone: boolean};
  * await` loop. There are also methods to iterate over the [[keys]],
  * [[entries]] or [[values]].
  */
-export class ScanResultImpl<K extends ScanKey, V extends ReadonlyJSONValue>
-  implements ScanResult<K, V>
+export class ScanResultImpl<
+  Options extends ScanOptions,
+  V extends ReadonlyJSONValue,
+> implements ScanResult<KeyTypeForScanOptions<Options>, V>
 {
   private readonly _iter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>;
-  private readonly _options: ScanOptions;
+  private readonly _options: Options;
   private readonly _dbDelegateOptions: Closed & ShouldDeepClone;
   private readonly _onLimitKey: (inclusiveLimitKey: string) => void;
 
   constructor(
     iter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>,
-    options: ScanOptions,
+    options: Options,
     dbDelegateOptions: Closed & ShouldDeepClone,
     onLimitKey: (inclusiveLimitKey: string) => void,
   ) {
@@ -66,7 +68,8 @@ export class ScanResultImpl<K extends ScanKey, V extends ReadonlyJSONValue>
    * call. If the [[ReadTransaction.scan|scan]] is over an index the key
    * is a tuple of `[secondaryKey: string, primaryKey]`
    */
-  keys(): AsyncIterableIteratorToArrayWrapper<K> {
+  keys(): AsyncIterableIteratorToArrayWrapper<KeyTypeForScanOptions<Options>> {
+    type K = KeyTypeForScanOptions<Options>;
     const toValue = isScanIndexOptions(this._options)
       ? (e: ReadonlyEntry<ReadonlyJSONValue>) => decodeIndexKey(e[0]) as K
       : (e: ReadonlyEntry<ReadonlyJSONValue>) => e[0] as K;
@@ -79,7 +82,10 @@ export class ScanResultImpl<K extends ScanKey, V extends ReadonlyJSONValue>
    * [[ReadTransaction.scan|scan]] is over an index the key is a tuple of
    * `[secondaryKey: string, primaryKey]`
    */
-  entries(): AsyncIterableIteratorToArrayWrapper<readonly [K, V]> {
+  entries(): AsyncIterableIteratorToArrayWrapper<
+    readonly [KeyTypeForScanOptions<Options>, V]
+  > {
+    type K = KeyTypeForScanOptions<Options>;
     const clone = this._dbDelegateOptions.shouldDeepClone
       ? deepClone
       : (x: ReadonlyJSONValue) => x;

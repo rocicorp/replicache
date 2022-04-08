@@ -1,3 +1,4 @@
+import type {IndexKey} from './db/mod';
 import type * as db from './db/mod';
 
 /**
@@ -50,6 +51,9 @@ export type ScanIndexOptions = {
   };
 };
 
+/**
+ * Type narrowing of [[ScanOptions]].
+ */
 export function isScanIndexOptions(
   options: ScanOptions,
 ): options is ScanIndexOptions {
@@ -63,7 +67,7 @@ export function isScanIndexOptions(
 export type KeyTypeForScanOptions<O extends ScanOptions> = O extends {
   indexName: string;
 }
-  ? [secondary: string, primary: string]
+  ? IndexKey
   : string;
 
 /**

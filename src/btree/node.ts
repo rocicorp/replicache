@@ -60,19 +60,19 @@ export async function findLeaf(
   source: BTreeRead,
 ): Promise<DataNodeImpl> {
   const node = await source.getNode(hash);
-  if (node.level === 0) {
-    return node as DataNodeImpl;
+  if (isDataNodeImpl(node)) {
+    return node;
   }
-  const internalNode = node as InternalNodeImpl;
-  let index = binarySearch(key, internalNode.entries);
-  if (index < 0) {
+  const {entries} = node;
+  let i = binarySearch(key, entries);
+  if (i < 0) {
     // not found
-    index = ~index;
+    i = ~i;
   }
-  if (index === internalNode.entries.length) {
-    index--;
+  if (i === entries.length) {
+    i--;
   }
-  const entry = internalNode.entries[index];
+  const entry = entries[i];
   return findLeaf(key, entry[1], source);
 }
 
@@ -81,7 +81,7 @@ export async function findLeaf(
  *
  * If the key found then the return value is the index it was found at.
  *
- * If the key was *not* found then the retun value is the index where it should
+ * If the key was *not* found then the return value is the index where it should
  * be inserted at bitwise or'ed (`~index`). This is the same as `-index -1`. For
  * example if not found and needs to be inserted at `0` then we return `-1`.
  */
@@ -232,33 +232,6 @@ export class DataNodeImpl extends NodeImpl<ReadonlyJSONValue> {
     return this._splice(tree, i, 1);
   }
 
-  async *scan<R>(
-    _tree: BTreeRead,
-    prefix: string,
-    fromKey: string,
-    limit: number,
-    convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
-    onLimitKey?: (inclusiveLimitKey: string) => void,
-  ): AsyncGenerator<R, number, unknown> {
-    const {entries} = this;
-    let i = binarySearch(fromKey, entries);
-    if (i < 0) {
-      i = ~i;
-    }
-    for (
-      ;
-      limit > 0 && i < entries.length && entries[i][0].startsWith(prefix);
-      limit--, i++
-    ) {
-      if (onLimitKey && limit === 1) {
-        onLimitKey(entries[i][0]);
-      }
-      yield convertEntry(entries[i]);
-    }
-    return limit;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async *keys(_tree: BTreeRead): AsyncGenerator<string, void> {
     for (const entry of this.entries) {
       yield entry[0];
@@ -266,7 +239,6 @@ export class DataNodeImpl extends NodeImpl<ReadonlyJSONValue> {
   }
 
   async *entriesIter(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _tree: BTreeRead,
   ): AsyncGenerator<ReadonlyEntry<ReadonlyJSONValue>, void> {
     for (const entry of this.entries) {
@@ -339,7 +311,7 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
 
   /**
    * This merges the child node entries with previous or next sibling and then
-   * partions the merged entries.
+   * partitions the merged entries.
    */
   private async _mergeAndPartition(
     tree: BTreeWrite,
@@ -456,36 +428,6 @@ export class InternalNodeImpl extends NodeImpl<Hash> {
     return this._mergeAndPartition(tree, i, childNode);
   }
 
-  async *scan<R>(
-    tree: BTreeRead,
-    prefix: string,
-    fromKey: string,
-    limit: number,
-    convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
-    onLimitKey?: (inclusiveLimitKey: string) => void,
-  ): AsyncGenerator<R, number> {
-    const {entries} = this;
-    let i = binarySearch(fromKey, entries);
-    if (i < 0) {
-      i = ~i;
-      if (i >= entries.length) {
-        return limit;
-      }
-    }
-    for (; i < entries.length && limit > 0; i++) {
-      const childNode = await tree.getNode(entries[i][1]);
-      limit = yield* childNode.scan(
-        tree,
-        prefix,
-        fromKey,
-        limit,
-        convertEntry,
-        onLimitKey,
-      );
-    }
-    return limit;
-  }
-
   async *keys(tree: BTreeRead): AsyncGenerator<string, void> {
     for (const entry of this.entries) {
       const childNode = await tree.getNode(entry[1]);
@@ -572,6 +514,12 @@ export function newNodeImpl(
     return new DataNodeImpl(entries, hash, isMutable);
   }
   return new InternalNodeImpl(entries as Entry<Hash>[], hash, level, isMutable);
+}
+
+export function isDataNodeImpl(
+  node: DataNodeImpl | InternalNodeImpl,
+): node is DataNodeImpl {
+  return node.level === 0;
 }
 
 export function partition<T>(

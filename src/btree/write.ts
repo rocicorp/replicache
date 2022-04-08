@@ -12,8 +12,8 @@ import {
   ReadonlyEntry,
   DiffResult,
   emptyDataNode,
+  isDataNodeImpl,
 } from './node';
-import type {ScanOptionsInternal} from '../db/scan';
 import type {CreateChunk} from '../dag/chunk';
 import {assert} from '../asserts';
 
@@ -127,11 +127,10 @@ export class BTreeWrite extends BTreeRead {
     return this._rwLock.withRead(() => super.isEmpty());
   }
 
-  override async *scan<R>(
-    options: ScanOptionsInternal,
-    convertEntry: (entry: Entry<ReadonlyJSONValue>) => R,
-  ): AsyncIterableIterator<R> {
-    yield* runRead(this._rwLock, super.scan(options, convertEntry));
+  override async *scan(
+    fromKey: string,
+  ): AsyncIterableIterator<ReadonlyEntry<ReadonlyJSONValue>> {
+    yield* runRead(this._rwLock, super.scan(fromKey));
   }
 
   override async *keys(): AsyncIterableIterator<string> {
@@ -219,16 +218,14 @@ export class BTreeWrite extends BTreeRead {
         // Not modified, use the original.
         return hash;
       }
-      if (node.level === 0) {
+      if (isDataNodeImpl(node)) {
         const chunk = createChunk(node.toChunkData(), []);
         newChunks.push(chunk);
         return chunk.hash;
       }
       const refs: Hash[] = [];
 
-      const internalNode = node as InternalNodeImpl;
-
-      for (const entry of internalNode.entries) {
+      for (const entry of node.entries) {
         const childHash = entry[1];
         const newChildHash = walk(childHash, newChunks, createChunk);
         if (newChildHash !== childHash) {
@@ -237,7 +234,7 @@ export class BTreeWrite extends BTreeRead {
         }
         refs.push(newChildHash);
       }
-      const chunk = createChunk(internalNode.toChunkData(), refs);
+      const chunk = createChunk(node.toChunkData(), refs);
       newChunks.push(chunk);
       return chunk.hash;
     };

@@ -8,7 +8,7 @@ import {
   ScanOptions,
   toDbScanOptions,
 } from './scan-options';
-import {ScanResultImpl} from './scan-iterator';
+import {ScanResult} from './scan-iterator';
 import {throwIfClosed} from './transaction-closed-error';
 import * as db from './db/mod';
 import * as sync from './sync/mod';
@@ -50,7 +50,7 @@ export interface ReadTransaction {
    * If the [[ScanResult]] is used after the `ReadTransaction` has been closed it
    * will throw a [[TransactionClosedError]].
    */
-  scan(): ScanResultImpl<string, ReadonlyJSONValue>;
+  scan(): ScanResult<string, ReadonlyJSONValue>;
 
   /**
    * Gets many values from the database. This returns a [[ScanResult]] which
@@ -66,7 +66,7 @@ export interface ReadTransaction {
    */
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
-  ): ScanResultImpl<Key, ReadonlyJSONValue>;
+  ): ScanResult<Key, ReadonlyJSONValue>;
 }
 
 let transactionIDCounter = 0;
@@ -113,7 +113,7 @@ export class ReadTransactionImpl<
 
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
-  ): ScanResultImpl<Key, Value> {
+  ): ScanResult<Key, Value> {
     return scan(options, this._dbtx, noop);
   }
 }
@@ -130,7 +130,7 @@ function scan<
   options: Options | undefined,
   dbRead: db.Read,
   onLimitKey: (inclusiveLimitKey: string) => void,
-): ScanResultImpl<Key, Value> {
+): ScanResult<Key, Value> {
   const iter: AsyncIterableIterator<ReadonlyEntry<ReadonlyJSONValue>> =
     getScanIterator(dbRead, options);
   return makeScanResultFromScanIteratorInternal(
@@ -174,7 +174,7 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
 
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
-  ): ScanResultImpl<Key, ReadonlyJSONValue> {
+  ): ScanResult<Key, ReadonlyJSONValue> {
     const scanInfo: ScanSubscriptionInfo = {
       options: toDbScanOptions(options),
       inclusiveLimitKey: undefined,
@@ -221,10 +221,10 @@ export interface WriteTransaction extends ReadTransaction {
   /**
    * Overrides [[ReadTransaction.scan]] to return a mutable [[JSONValue]].
    */
-  scan(): ScanResultImpl<string, JSONValue>;
+  scan(): ScanResult<string, JSONValue>;
   scan<Options extends ScanOptions, Key extends KeyTypeForScanOptions<Options>>(
     options?: Options,
-  ): ScanResultImpl<Key, JSONValue>;
+  ): ScanResult<Key, JSONValue>;
 }
 
 export class WriteTransactionImpl
@@ -368,8 +368,8 @@ function makeScanResultFromScanIteratorInternal<
   options: Options,
   dbRead: db.Read,
   onLimitKey: (inclusiveLimitKey: string) => void,
-): ScanResultImpl<Key, Value> {
-  return new ScanResultImpl(iter, options, dbRead, onLimitKey);
+): ScanResult<Key, Value> {
+  return new ScanResult(iter, options, dbRead, onLimitKey);
 }
 
 async function* getScanIteratorForIndexMap(

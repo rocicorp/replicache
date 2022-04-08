@@ -18,7 +18,7 @@ export type {
 export type {
   GetScanIterator,
   GetIndexScanIterator,
-  ScanResultImpl,
+  ScanResult,
   AsyncIterableIteratorToArrayWrapper,
 } from './scan-iterator';
 export {makeScanResult} from './scan-iterator';

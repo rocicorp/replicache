@@ -26,8 +26,7 @@ type ShouldDeepClone = {shouldDeepClone: boolean};
  * await` loop. There are also methods to iterate over the [[keys]],
  * [[entries]] or [[values]].
  */
-export class ScanResultImpl<K extends ScanKey, V extends ReadonlyJSONValue>
-{
+export class ScanResult<K extends ScanKey, V extends ReadonlyJSONValue> {
   private readonly _iter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>;
   private readonly _options: ScanOptions;
   private readonly _dbDelegateOptions: Closed & ShouldDeepClone;
@@ -246,7 +245,7 @@ export function makeScanResult<Options extends ScanOptions>(
   getScanIterator: Options extends ScanIndexOptions
     ? GetIndexScanIterator
     : GetScanIterator,
-): ScanResultImpl<KeyTypeForScanOptions<Options>, ReadonlyJSONValue> {
+): ScanResult<KeyTypeForScanOptions<Options>, ReadonlyJSONValue> {
   let internalIter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>;
   if (isScanIndexOptions(options)) {
     const [fromSecondaryKey, fromPrimaryKey] = fromKeyForIndexScan(options);
@@ -261,7 +260,7 @@ export function makeScanResult<Options extends ScanOptions>(
     internalIter = (getScanIterator as GetScanIterator)(fromKey);
   }
 
-  return new ScanResultImpl(
+  return new ScanResult(
     internalIter,
     options,
     {closed: false, shouldDeepClone: false},

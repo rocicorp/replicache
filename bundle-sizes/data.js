@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1649388926934,
+  "lastUpdate": 1649410364449,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -9365,6 +9365,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 20598,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cbca2683838451ee438a07201156dece12107508",
+          "message": "feat!: Expose makeScanResult (#931)\n\n* Revert \"Revert \"feat!: Expose a way to reuse ScanResult (#926)\"\"\r\n\r\nThis reverts commit be73814502de08cac0aa766536752088aee359e1.\r\n\r\n* fix!: Make scan returns the public type\r\n\r\nAlso, try to simplify the types of scan further",
+          "timestamp": "2022-04-08T11:31:36+02:00",
+          "tree_id": "33b8064789434489f6c2bf49e5985ee9fbcb14b9",
+          "url": "https://github.com/rocicorp/replicache/commit/cbca2683838451ee438a07201156dece12107508"
+        },
+        "date": 1649410361135,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 167696,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 30340,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 166305,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 29965,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 72174,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 20809,
             "unit": "bytes"
           }
         ]

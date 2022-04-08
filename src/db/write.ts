@@ -55,8 +55,6 @@ export class Write extends Read {
   private readonly _basis: Commit<CommitMeta> | undefined;
   private readonly _meta: Meta;
 
-  shouldDeepClone = true;
-
   declare map: BTreeWrite;
 
   declare readonly indexes: Map<string, IndexWrite>;
@@ -216,11 +214,11 @@ export class Write extends Read {
     // Check to see if the index already exists.
     const index = this.indexes.get(name);
     if (index) {
-      const oldDefinition = index.meta.definition;
+      const oldDefintion = index.meta.definition;
       if (
-        oldDefinition.name === name &&
-        oldDefinition.keyPrefix === keyPrefix &&
-        oldDefinition.jsonPointer === jsonPointer
+        oldDefintion.name === name &&
+        oldDefintion.keyPrefix === keyPrefix &&
+        oldDefintion.jsonPointer === jsonPointer
       ) {
         return;
       } else {
@@ -229,7 +227,7 @@ export class Write extends Read {
     }
 
     const indexMap = new BTreeWrite(this._dagWrite);
-    for await (const entry of this.map.scan(keyPrefix)) {
+    for await (const entry of this.map.scan({prefix: keyPrefix}, x => x)) {
       await indexValue(
         lc,
         indexMap,

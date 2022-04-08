@@ -71,11 +71,16 @@ test('test index key', () => {
 test('encode scan key', () => {
   const t = (secondary: string, primary: string) => {
     const encodedIndexKey = encodeIndexKey([secondary, primary]);
-    const scanKey = encodeIndexScanKey(secondary, primary);
+    // With exclusive == false
+    let scanKey = encodeIndexScanKey(secondary, primary, false);
 
     expect(scanKey.startsWith(encodedIndexKey)).to.be.true;
 
     expect(stringCompare(encodedIndexKey, scanKey)).to.greaterThanOrEqual(0);
+
+    // With exclusive == true
+    scanKey = encodeIndexScanKey(secondary, primary, true);
+    expect(stringCompare(encodedIndexKey, scanKey)).to.equal(-1);
   };
 
   t('', '');

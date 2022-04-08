@@ -15,9 +15,8 @@ import * as db from './db/mod';
 import * as sync from './sync/mod';
 import type {Hash} from './hash';
 import type {ScanSubscriptionInfo} from './subscriptions';
-import type {ReadonlyEntry} from './btree/node.js';
 import type {ScanNoIndexOptions} from './mod.js';
-import {encodeIndexScanKey} from './db/index.js';
+import {decodeIndexKey, encodeIndexScanKey, IndexKey} from './db/index.js';
 
 /**
  * ReadTransactions are used with [[Replicache.query]] and
@@ -132,11 +131,10 @@ function scan<Options extends ScanOptions, Value>(
   dbRead: db.Read,
   onLimitKey: (inclusiveLimitKey: string) => void,
 ): ScanResult<KeyTypeForScanOptions<Options>, Value> {
-  const iter: AsyncIterableIterator<ReadonlyEntry<ReadonlyJSONValue>> =
-    getScanIterator(dbRead, options);
+  const iter = getScanIterator(dbRead, options);
   return makeScanResultFromScanIteratorInternal(
     iter,
-    options ?? ({} as ScanNoIndexOptions),
+    options ?? ({} as Options),
     dbRead,
     onLimitKey,
   ) as ScanResult<KeyTypeForScanOptions<Options>, Value>;
@@ -340,14 +338,28 @@ export class IndexTransactionImpl
   }
 }
 
-function getScanIterator(
+type Entry<K> = readonly [key: K, value: ReadonlyJSONValue];
+
+export type IndexKeyEntry = Entry<IndexKey>;
+
+export type StringKeyEntry = Entry<string>;
+
+export type EntryForOptions<Options extends ScanOptions> =
+  Options extends ScanIndexOptions ? IndexKeyEntry : StringKeyEntry;
+
+function getScanIterator<Options extends ScanOptions>(
   dbRead: db.Read,
-  options: ScanOptions | undefined,
-): AsyncIterableIterator<ReadonlyEntry<ReadonlyJSONValue>> {
+  options: Options | undefined,
+): AsyncIterable<EntryForOptions<Options>> {
   if (options && isScanIndexOptions(options)) {
-    return getScanIteratorForIndexMap(dbRead, options);
+    return getScanIteratorForIndexMap(dbRead, options) as AsyncIterable<
+      EntryForOptions<Options>
+    >;
   }
-  return dbRead.map.scan(fromKeyForNonIndexScan(options));
+
+  return dbRead.map.scan(fromKeyForNonIndexScan(options)) as AsyncIterable<
+    EntryForOptions<Options>
+  >;
 }
 
 export function fromKeyForNonIndexScan(
@@ -368,7 +380,7 @@ function makeScanResultFromScanIteratorInternal<
   Options extends ScanOptions,
   Value,
 >(
-  iter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>,
+  iter: AsyncIterable<EntryForOptions<Options>>,
   options: Options,
   dbRead: db.Read,
   onLimitKey: (inclusiveLimitKey: string) => void,
@@ -379,9 +391,11 @@ function makeScanResultFromScanIteratorInternal<
 async function* getScanIteratorForIndexMap(
   dbRead: db.Read,
   options: ScanIndexOptions,
-) {
+): AsyncIterable<IndexKeyEntry> {
   const map = await dbRead.getMapForIndex(options.indexName);
-  yield* map.scan(fromKeyForIndexScanInternal(options));
+  for await (const entry of map.scan(fromKeyForIndexScanInternal(options))) {
+    yield [decodeIndexKey(entry[0]), entry[1]];
+  }
 }
 
 export function fromKeyForIndexScanInternal(options: ScanIndexOptions): string {

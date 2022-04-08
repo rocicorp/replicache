@@ -33,7 +33,9 @@ import {
  */
 export const NODE_HEADER_SIZE = 11;
 
-export class BTreeRead {
+export class BTreeRead
+  implements AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>
+{
   rootHash: Hash;
   protected readonly _dagRead: dag.Read;
   private readonly _cache: Map<Hash, DataNodeImpl | InternalNodeImpl> =
@@ -145,7 +147,7 @@ async function* diffNodes(
   current: InternalNodeImpl | DataNodeImpl,
   lastTree: BTreeRead,
   currentTree: BTreeRead,
-): AsyncGenerator<DiffResult<ReadonlyJSONValue>, void> {
+): AsyncIterableIterator<DiffResult<ReadonlyJSONValue>> {
   if (last.level > current.level) {
     // merge all of last's children into a new node
     // We know last is an internal node because level > 0.
@@ -200,7 +202,7 @@ async function* diffNodes(
 function* diffEntries<T>(
   lastEntries: ReadonlyArray<ReadonlyEntry<T>>,
   currentEntries: ReadonlyArray<ReadonlyEntry<T>>,
-): Generator<DiffResult<ReadonlyJSONValue>, void> {
+): IterableIterator<DiffResult<ReadonlyJSONValue>> {
   const lastLength = lastEntries.length;
   const currentLength = currentEntries.length;
   let i = 0;

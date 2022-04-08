@@ -39,22 +39,6 @@ export type ScanOptions = {
   indexName?: string;
 };
 
-// ScanOptionsInternal is a version of the ScanOptions that has been
-// prepared for execution of a scan. We need to carefully set up scan
-// keys based on several factors (eg, is it an index scan), so you should
-// probably not create this structure directly. It is intended to be
-// created via TryFrom a ScanOptions.
-//
-// You'll note that 'start_exclusive' is missing. That's because
-// of the above-mentioned scan prep; exclusive is implemented by scanning
-// for the next value after the one provided.
-export type ScanOptionsInternal = {
-  prefix?: string;
-  startKey?: string;
-  limit?: number;
-  indexName?: string;
-};
-
 export type ScanItem = {
   primaryKey: string;
   secondaryKey: string;

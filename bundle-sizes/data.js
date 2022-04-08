@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1649410364449,
+  "lastUpdate": 1649419280358,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -9419,6 +9419,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 20809,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "430ef7c560a151eead8e6530bcf4015478788042",
+          "message": "refactor: Convert the key for btree index iterator early (#932)\n\nInstead of converting the key from third party BTree iterators to our\r\nencoded string, convert our encoded string to to an entry. Then let the\r\nmain scan loop work with IndexKey as needed.\r\n\r\nThe benefit is that for external iterators we do not have to go from\r\nIndexKey to string and back to IndexKey.",
+          "timestamp": "2022-04-08T14:00:08+02:00",
+          "tree_id": "316f5884bda87d3be80dc289292de0c2b5d934c3",
+          "url": "https://github.com/rocicorp/replicache/commit/430ef7c560a151eead8e6530bcf4015478788042"
+        },
+        "date": 1649419276916,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 167681,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 30291,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 166290,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 29928,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 72181,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 20744,
             "unit": "bytes"
           }
         ]

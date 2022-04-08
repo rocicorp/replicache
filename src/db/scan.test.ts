@@ -2,8 +2,8 @@ import {expect} from '@esm-bundle/chai';
 import type {ScanItem} from './scan';
 import * as dag from '../dag/mod';
 import {BTreeWrite} from '../btree/mod';
-import {fromKeyForIndexScanInternal} from '../transactions.js';
 import {decodeIndexKey} from './index.js';
+import {fromKeyForIndexScanInternal} from '../scan-iterator.js';
 
 test('scan', async () => {
   const t = async (fromKey: string, expected: string[]) => {

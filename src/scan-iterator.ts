@@ -10,13 +10,14 @@ import {
 } from './scan-options';
 import {asyncIterableToArray} from './async-iterable-to-array';
 import type {ReadonlyEntry} from './btree/node';
-import {decodeIndexKey} from './db/mod';
-import {encodeIndexKey, encodeIndexScanKey, IndexKey} from './db/index.js';
-import {fromKeyForNonIndexScan} from './transactions.js';
+import type {IndexKey} from './db/index.js';
+import {EntryForOptions, fromKeyForNonIndexScan} from './transactions.js';
 
 type ScanKey = string | IndexKey;
 
-type ToValue<V> = (entry: ReadonlyEntry<ReadonlyJSONValue>) => V;
+type ToValue<Options extends ScanOptions, V> = (
+  entry: EntryForOptions<Options>,
+) => V;
 
 type ShouldDeepClone = {shouldDeepClone: boolean};
 
@@ -31,13 +32,13 @@ export class ScanResultImpl<
   V extends ReadonlyJSONValue,
 > implements ScanResult<KeyTypeForScanOptions<Options>, V>
 {
-  private readonly _iter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>;
+  private readonly _iter: AsyncIterable<EntryForOptions<Options>>;
   private readonly _options: Options;
   private readonly _dbDelegateOptions: Closed & ShouldDeepClone;
   private readonly _onLimitKey: (inclusiveLimitKey: string) => void;
 
   constructor(
-    iter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>,
+    iter: AsyncIterable<EntryForOptions<Options>>,
     options: Options,
     dbDelegateOptions: Closed & ShouldDeepClone,
     onLimitKey: (inclusiveLimitKey: string) => void,
@@ -70,10 +71,10 @@ export class ScanResultImpl<
    */
   keys(): AsyncIterableIteratorToArrayWrapper<KeyTypeForScanOptions<Options>> {
     type K = KeyTypeForScanOptions<Options>;
-    const toValue = isScanIndexOptions(this._options)
-      ? (e: ReadonlyEntry<ReadonlyJSONValue>) => decodeIndexKey(e[0]) as K
-      : (e: ReadonlyEntry<ReadonlyJSONValue>) => e[0] as K;
-    return new AsyncIterableIteratorToArrayWrapper(this._newIterator(toValue));
+    const toValue = (e: EntryForOptions<Options>) => e[0];
+    return new AsyncIterableIteratorToArrayWrapper(
+      this._newIterator(toValue as ToValue<Options, K>),
+    );
   }
 
   /**
@@ -89,12 +90,10 @@ export class ScanResultImpl<
     const clone = this._dbDelegateOptions.shouldDeepClone
       ? deepClone
       : (x: ReadonlyJSONValue) => x;
-    const toValue = isScanIndexOptions(this._options)
-      ? (e: ReadonlyEntry<ReadonlyJSONValue>) =>
-          [decodeIndexKey(e[0]), clone(e[1])] as [K, V]
-      : (e: ReadonlyEntry<ReadonlyJSONValue>) =>
-          clone(e) as unknown as readonly [K, V];
-    return new AsyncIterableIteratorToArrayWrapper(this._newIterator(toValue));
+    const toValue = (e: EntryForOptions<Options>) => clone(e);
+    return new AsyncIterableIteratorToArrayWrapper(
+      this._newIterator(toValue as ToValue<Options, readonly [K, V]>),
+    );
   }
 
   /** Returns all the values as an array. Same as `values().toArray()` */
@@ -102,7 +101,9 @@ export class ScanResultImpl<
     return this.values().toArray();
   }
 
-  private _newIterator<T>(toValue: ToValue<T>): AsyncIterableIterator<T> {
+  private _newIterator<T>(
+    toValue: ToValue<Options, T>,
+  ): AsyncIterableIterator<T> {
     return scanIterator(
       toValue,
       this._iter,
@@ -181,63 +182,70 @@ export class AsyncIterableIteratorToArrayWrapper<V>
   }
 }
 
-async function* scanIterator<V>(
-  toValue: ToValue<V>,
-  iter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>,
-  options: ScanOptions,
+async function* scanIterator<Options extends ScanOptions, V>(
+  toValue: ToValue<Options, V>,
+  iter: AsyncIterable<EntryForOptions<Options>>,
+  options: Options,
   closed: Closed,
   onLimitKey: (inclusiveLimitKey: string) => void,
 ): AsyncIterableIterator<V> {
   throwIfClosed(closed);
 
-  let {limit = Infinity, prefix = ''} = options;
+  let {limit = Infinity} = options;
+  const {prefix = ''} = options;
   let exclusive = options.start?.exclusive;
 
   const isIndexScan = isScanIndexOptions(options);
-  if (prefix && isIndexScan) {
-    prefix = encodeIndexScanKey(prefix, undefined);
-  }
 
   // iter has already been moved to the first entry
   for await (const entry of iter) {
-    if (!entry[0].startsWith(prefix)) {
+    const key = entry[0];
+    const keyToMatch: string = isIndexScan ? key[0] : (key as string);
+    if (!keyToMatch.startsWith(prefix)) {
       return;
     }
 
     if (exclusive) {
       exclusive = true;
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      if (shouldSkip(entry[0], isIndexScan, options.start!.key)) {
-        continue;
+      if (isIndexScan) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        if (shouldSkipIndexScan(key as IndexKey, options.start!.key)) {
+          continue;
+        }
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        if (shouldSkipNonIndexScan(key as string, options.start!.key)) {
+          continue;
+        }
       }
     }
 
     yield toValue(entry);
 
-    if (--limit === 0) {
-      onLimitKey(entry[0]);
+    if (--limit === 0 && !isIndexScan) {
+      onLimitKey(key as string);
       return;
     }
   }
 }
 
-function shouldSkip(
-  key: string,
-  isIndexScan: boolean,
+function shouldSkipIndexScan(
+  key: IndexKey,
   startKey: ScanOptionIndexedStartKey,
 ): boolean {
-  if (isIndexScan) {
-    const [secondaryStartKey, primaryStartKey] =
-      normalizeScanOptionIndexedStartKey(startKey);
-    const [secondaryKey, primaryKey] = decodeIndexKey(key);
-    if (secondaryKey !== secondaryStartKey) {
-      return false;
-    }
-    if (primaryStartKey === undefined) {
-      return true;
-    }
-    return primaryKey === primaryStartKey;
+  const [secondaryStartKey, primaryStartKey] =
+    normalizeScanOptionIndexedStartKey(startKey);
+  const [secondaryKey, primaryKey] = normalizeScanOptionIndexedStartKey(key);
+  if (secondaryKey !== secondaryStartKey) {
+    return false;
   }
+  if (primaryStartKey === undefined) {
+    return true;
+  }
+  return primaryKey === primaryStartKey;
+}
+
+function shouldSkipNonIndexScan(key: string, startKey: string): boolean {
   return key === startKey;
 }
 
@@ -281,22 +289,29 @@ export function makeScanResult<Options extends ScanOptions>(
     ? GetIndexScanIterator
     : GetScanIterator,
 ): ScanResult<KeyTypeForScanOptions<Options>, ReadonlyJSONValue> {
-  let internalIter: AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>;
+  type AsyncIter = AsyncIterable<EntryForOptions<Options>>;
+
   if (isScanIndexOptions(options)) {
     const [fromSecondaryKey, fromPrimaryKey] = fromKeyForIndexScan(options);
     const iter = (getScanIterator as GetIndexScanIterator)(
       options.indexName,
       fromSecondaryKey,
       fromPrimaryKey,
+    ) as AsyncIter;
+    return new ScanResultImpl(
+      iter,
+      options,
+      {closed: false, shouldDeepClone: false},
+      _ => {
+        // noop
+      },
     );
-    internalIter = internalIndexScanIterator(iter);
-  } else {
-    const fromKey = fromKeyForNonIndexScan(options);
-    internalIter = (getScanIterator as GetScanIterator)(fromKey);
   }
+  const fromKey = fromKeyForNonIndexScan(options);
+  const iter = (getScanIterator as GetScanIterator)(fromKey) as AsyncIter;
 
   return new ScanResultImpl(
-    internalIter,
+    iter,
     options,
     {closed: false, shouldDeepClone: false},
     _ => {
@@ -304,18 +319,9 @@ export function makeScanResult<Options extends ScanOptions>(
     },
   );
 }
-
-async function* internalIndexScanIterator<Value extends ReadonlyJSONValue>(
-  iter: AsyncIterable<readonly [key: IndexKey, value: Value]>,
-): AsyncIterable<ReadonlyEntry<Value>> {
-  for await (const entry of iter) {
-    yield [encodeIndexKey(entry[0]), entry[1]];
-  }
-}
-
 export function fromKeyForIndexScan(
   options: ScanIndexOptions,
-): [secondary: string, primary?: string] {
+): readonly [secondary: string, primary?: string] {
   const {prefix, start} = options;
   const prefixNormalized: [secondary: string, primary?: string] = [
     prefix ?? '',

@@ -64,11 +64,8 @@ export function isScanIndexOptions(
  * If the options contains an `indexName` then the key type is a tuple of
  * secondary and primary.
  */
-export type KeyTypeForScanOptions<O extends ScanOptions> = O extends {
-  indexName: string;
-}
-  ? IndexKey
-  : string;
+export type KeyTypeForScanOptions<O extends ScanOptions> =
+  O extends ScanIndexOptions ? IndexKey : string;
 
 /**
  * The key to start scanning at.
@@ -82,12 +79,12 @@ export type KeyTypeForScanOptions<O extends ScanOptions> = O extends {
  * scanning at, and `primary` (if any) is the primary key to start scanning at.
  */
 export type ScanOptionIndexedStartKey =
-  | [secondary: string, primary?: string]
+  | readonly [secondary: string, primary?: string]
   | string;
 
 export function normalizeScanOptionIndexedStartKey(
-  startKey: ScanOptionIndexedStartKey,
-): [secondary: string, primary?: string] {
+  startKey: string | readonly [secondary: string, primary?: string],
+): readonly [secondary: string, primary?: string] {
   if (typeof startKey === 'string') {
     return [startKey];
   }

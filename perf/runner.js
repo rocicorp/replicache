@@ -140,7 +140,7 @@ async function main() {
           target: 'esnext',
           define: {
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            'process.env.NODE_ENV': '"production"',
+            __DEV__: false,
           },
         }),
       ],

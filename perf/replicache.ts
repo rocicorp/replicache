@@ -1,5 +1,4 @@
 import {resolver} from '@rocicorp/resolver';
-import range from 'lodash-es/range';
 import sampleSize from 'lodash-es/sampleSize';
 import {deepEqual} from '../src/json';
 import {assert} from '../src/asserts';
@@ -546,4 +545,14 @@ export function benchmarks(): Benchmark[] {
       numKeysToRead: 100,
     }),
   ];
+}
+
+function* rangeIter(end: number) {
+  for (let i = 0; i < end; i++) {
+    yield i;
+  }
+}
+
+function range(end: number): number[] {
+  return [...rangeIter(end)];
 }

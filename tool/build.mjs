@@ -3,6 +3,7 @@
 import * as esbuild from 'esbuild';
 
 const forBundleSizeDashboard = process.argv.includes('--bundle-sizes');
+const perf = process.argv.includes('--perf');
 
 const sharedOptions = {
   bundle: true,
@@ -47,8 +48,24 @@ async function buildCLI() {
   });
 }
 
-if (forBundleSizeDashboard) {
-  Promise.all([
+async function buildPerf() {
+  await esbuild.build({
+    ...sharedOptions,
+    outfile: 'perf/index.js',
+    entryPoints: ['perf/index.ts'],
+    define: {
+      'process.env.NODE_ENV': '"production"',
+    },
+    sourcemap: true,
+    format: 'esm',
+    minify: true,
+  });
+}
+
+if (perf) {
+  await buildPerf();
+} else if (forBundleSizeDashboard) {
+  await Promise.all([
     buildMJS(false, 'mjs'),
     buildMJS(true, 'min.mjs'),
     buildCJS(false, 'js'),
@@ -56,5 +73,5 @@ if (forBundleSizeDashboard) {
     buildCLI(),
   ]);
 } else {
-  Promise.all([buildMJS(), buildCJS(), buildCLI()]);
+  await Promise.all([buildMJS(), buildCJS(), buildCLI()]);
 }

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1649753141693,
+  "lastUpdate": 1649762818829,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -9767,6 +9767,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/1ca8e3dfd7def26acc0dc199e18528283bced8fc"
         },
         "date": 1649753138182,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 167339,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 30169,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 166292,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 29878,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 72203,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 20796,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dd0d767d82e90c2d97c18d03af5bdac1d3171ac9",
+          "message": "fix: Prevent too many modules error in chrome (#942)\n\nChromium has a bug where it fails to load if there are too many modules\r\nin the dependency tree. We were depending on lodash-es which has hundreds\r\nof modules which all tried to get loaded in Chrome.\r\n\r\nChange to only load the sub modules of lodash-es.",
+          "timestamp": "2022-04-12T11:25:47Z",
+          "tree_id": "8b2876d18eb83624b6af330f5cf01b46e6686e4f",
+          "url": "https://github.com/rocicorp/replicache/commit/dd0d767d82e90c2d97c18d03af5bdac1d3171ac9"
+        },
+        "date": 1649762815926,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

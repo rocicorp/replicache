@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1649762818829,
+  "lastUpdate": 1649765820439,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -9821,6 +9821,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/dd0d767d82e90c2d97c18d03af5bdac1d3171ac9"
         },
         "date": 1649762815926,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 167339,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 30169,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 166292,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 29878,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 72203,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 20796,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d0e12b0fd871600cc057eb6970410bb90c452b83",
+          "message": "refactor: Remove dep on lodash-es/range (#943)\n\n* refactor: Remove dep on lodash-es/range\r\n\r\n* chore: Exit perf runner on request failed\r\n\r\nWe get request failed when we hit the chrome bug...",
+          "timestamp": "2022-04-12T12:16:04Z",
+          "tree_id": "770f5652bbecd7a6253c4dfd65aeeb6573be6e85",
+          "url": "https://github.com/rocicorp/replicache/commit/d0e12b0fd871600cc057eb6970410bb90c452b83"
+        },
+        "date": 1649765818087,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

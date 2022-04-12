@@ -164,6 +164,10 @@ async function main() {
       {devtools: options.devtools},
     );
     const page = await context.newPage();
+    page.on('requestfailed', request => {
+      console.error('Request failed', request.url());
+      process.exit(1);
+    });
     await page.goto(`http://127.0.0.1:${port}/perf/index.html`);
 
     await runInBrowser(browser, page, options);

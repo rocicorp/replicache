@@ -12,7 +12,7 @@ export default {
     esbuildPlugin({
       ts: true,
       target: 'esnext',
-      define: {__DEV__: 'true'},
+      define: {'process.env.NODE_ENV': '"development"'},
     }),
   ],
   staticLogging: !!process.env.CI,

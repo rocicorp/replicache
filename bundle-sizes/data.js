@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1649774385831,
+  "lastUpdate": 1649778442799,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -10361,6 +10361,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/2c58769fa8d4adcb0a9ff7010287dc9c24d6b35a"
         },
         "date": 1649774382216,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 159105,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 29680,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 158058,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 29376,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 72264,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 20798,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ad6c24f24cac13a66f14a510751b9df7590d8ac7",
+          "message": "chore: Run perf test from bundled source code (#949)\n\nThis is to work around issues where chrome/web-dev-server fails to load\r\nthe files",
+          "timestamp": "2022-04-12T15:46:01Z",
+          "tree_id": "0d972c963ca3c020d1adb7062569c1d0ca0a079b",
+          "url": "https://github.com/rocicorp/replicache/commit/ad6c24f24cac13a66f14a510751b9df7590d8ac7"
+        },
+        "date": 1649778439359,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

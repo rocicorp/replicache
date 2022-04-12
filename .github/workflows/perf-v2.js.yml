@@ -26,8 +26,7 @@ jobs:
 
       # Run benchmark and stores the output to a file
       - name: Run benchmark
-      - run: set -o pipefail
-      - run: node perf/runner.js --format=json | tee perf-v2-output.json
+        run: node perf/runner.js --format=json | tee perf-v2-output.json
 
       # Run `github-action-benchmark` action
       - name: Store benchmark result

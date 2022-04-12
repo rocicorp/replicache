@@ -1,5 +1,4 @@
 import {resolver} from '@rocicorp/resolver';
-import sampleSize from 'lodash-es/sampleSize';
 import {deepEqual} from '../src/json';
 import {assert} from '../src/asserts';
 import {
@@ -555,4 +554,17 @@ function* rangeIter(end: number) {
 
 function range(end: number): number[] {
   return [...rangeIter(end)];
+}
+
+function sampleSize<T>(arr: Iterable<T>, n: number): T[] {
+  return shuffle(arr).slice(0, n);
+}
+
+function shuffle<T>(arr: Iterable<T>): T[] {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }

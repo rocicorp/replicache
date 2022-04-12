@@ -10,7 +10,7 @@ const selected = window.location.search
   .slice(1)
   .split('&')
   .map(kv => kv.split('='))
-  .filter(([k]) => k == 'group')
+  .filter(([k]) => k === 'group')
   .map(([, v]) => v);
 
 window.onload = () => {

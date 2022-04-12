@@ -19,11 +19,11 @@ const sharedOptions = {
 async function buildReplicache(format, minify, ext) {
   await esbuild.build({
     ...sharedOptions,
+    // Use neutral to remove the automatic define for process.env.NODE_ENV
+    platform: 'neutral',
     outfile: 'out/replicache.' + ext,
     format,
     entryPoints: ['src/mod.ts'],
-    // We inject __DEV__ into the output so that esbuild does not replace this.
-    banner: {js: 'const __DEV__=process.env.NODE_ENV!=="production";'},
     minify,
   });
 }

@@ -19,7 +19,7 @@ jobs:
           NPM_TOKEN: ${{secrets.NPM_TOKEN}}
       - name: npm install
         run: npm install
-      - run: npm run build
+      - run: npm run build-bundle-sizes
       - run: brotli ./out/*
 
       # Builds bundles then measures bundles sizes and stores them to a file

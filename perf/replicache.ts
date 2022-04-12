@@ -1,5 +1,6 @@
 import {resolver} from '@rocicorp/resolver';
-import {range, sampleSize} from 'lodash-es';
+import range from 'lodash-es/range';
+import sampleSize from 'lodash-es/sampleSize';
 import {deepEqual} from '../src/json';
 import {assert} from '../src/asserts';
 import {

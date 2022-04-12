@@ -22,6 +22,7 @@ jobs:
           NPM_TOKEN: ${{secrets.NPM_TOKEN}}
       - run: npm ci
       - run: npx playwright install --with-deps
+      - run: npm run build-perf
 
       # Run benchmark and stores the output to a file
       - name: Run benchmark

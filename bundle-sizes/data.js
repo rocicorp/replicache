@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1649942183725,
+  "lastUpdate": 1649944025762,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -10661,6 +10661,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 20931,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6a08d8c5a9dd279936e33349d132b6f2c09e0c07",
+          "message": "chore; Add lastOpenedTimestampMS to IndexedDBDatabase (#952)\n\nWhen the IDB is added to the meta table we note the time stamp. This is\r\ngoing to be used later when we GC IDB instances.",
+          "timestamp": "2022-04-14T13:46:13Z",
+          "tree_id": "672cba8662d39c9f904f83ccb15ec593db3b3397",
+          "url": "https://github.com/rocicorp/replicache/commit/6a08d8c5a9dd279936e33349d132b6f2c09e0c07"
+        },
+        "date": 1649944023338,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 159848,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 29846,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 158801,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 29542,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 72595,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 20914,
             "unit": "bytes"
           }
         ]

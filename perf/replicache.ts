@@ -67,8 +67,10 @@ const persistSymbol = Symbol();
 class ReplicacheWithPersist<MD extends MutatorDefs> extends Replicache {
   [persistSymbol]: () => void;
   constructor(options: ReplicacheOptions<MD>) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    super({...options, exposePersistMethodAs: persistSymbol} as any);
+    super({
+      ...options,
+      exposePersistMethodAs: persistSymbol,
+    } as ReplicacheOptions<MD>);
   }
   async persist(): Promise<void> {
     return this[persistSymbol]();
@@ -90,7 +92,7 @@ async function setupPersistedData(
   }
 
   setupIDBDatabasesStoreForTest();
-  let repToClose: ReplicacheWithPersist<MutatorDefs>;
+  let repToClose;
   try {
     // populate store using pull (as opposed to mutators)
     // so that a snapshot commit is created, which new clients

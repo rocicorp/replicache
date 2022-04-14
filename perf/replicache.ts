@@ -8,7 +8,7 @@ import {
   Replicache,
   ReplicacheOptions,
   WriteTransaction,
-} from '../src/mod';
+} from '../out/replicache';
 import {jsonArrayTestData, TestDataObject, jsonObjectTestData} from './data';
 import type {Bencher, Benchmark} from './perf';
 import * as kv from '../src/kv/mod';
@@ -62,12 +62,16 @@ export function benchmarkPopulate(opts: {
   };
 }
 
+const persistSymbol = Symbol();
+
 class ReplicacheWithPersist<MD extends MutatorDefs> extends Replicache {
+  [persistSymbol]: () => void;
   constructor(options: ReplicacheOptions<MD>) {
-    super(options);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    super({...options, exposePersistMethodAs: persistSymbol} as any);
   }
   async persist(): Promise<void> {
-    return this._persist();
+    return this[persistSymbol]();
   }
 }
 
@@ -86,7 +90,7 @@ async function setupPersistedData(
   }
 
   setupIDBDatabasesStoreForTest();
-  let repToClose;
+  let repToClose: ReplicacheWithPersist<MutatorDefs>;
   try {
     // populate store using pull (as opposed to mutators)
     // so that a snapshot commit is created, which new clients

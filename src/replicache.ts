@@ -360,10 +360,16 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.puller = puller;
     this.pusher = pusher;
 
+    const internalOptions = options as ReplicacheInternalOptions;
     const {enableLicensing = true, enableMutationRecovery = true} =
-      options as ReplicacheInternalOptions;
+      internalOptions;
     this._enableLicensing = enableLicensing;
     this._enableMutationRecovery = enableMutationRecovery;
+
+    if (internalOptions.exposePersistMethodAs) {
+      (this as Record<symbol, unknown>)[internalOptions.exposePersistMethodAs] =
+        this._persist;
+    }
 
     const logSink =
       logSinks.length === 1 ? logSinks[0] : new TeeLogSink(logSinks);
@@ -1140,7 +1146,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     return {requestID, syncHead, ok: httpRequestInfo.httpStatusCode === 200};
   }
 
-  protected async _persist(): Promise<void> {
+  private async _persist(): Promise<void> {
     if (this._closed) {
       return;
     }

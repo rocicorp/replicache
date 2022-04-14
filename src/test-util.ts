@@ -19,10 +19,14 @@ import {uuid} from './uuid';
 import type {WriteTransaction} from './transactions.js';
 import {TEST_LICENSE_KEY} from '@rocicorp/licensing/src/client';
 
+const persistSymbol = Symbol();
+
 export class ReplicacheTest<
   // eslint-disable-next-line @typescript-eslint/ban-types
   MD extends MutatorDefs = {},
 > extends Replicache<MD> {
+  private [persistSymbol]: () => void;
+
   beginPull(): Promise<BeginPullResult> {
     return super._beginPull();
   }
@@ -51,7 +55,7 @@ export class ReplicacheTest<
   }
 
   persist() {
-    return super._persist();
+    return this[persistSymbol]();
   }
 
   recoverMutationsSpy = sinon.spy(this, 'recoverMutations');
@@ -134,6 +138,7 @@ export async function replicacheForTesting<
       pullURL,
       pushURL,
       licenseKey: options.licenseKey ?? TEST_LICENSE_KEY,
+      exposePersistMethodAs: persistSymbol,
       ...options,
     },
   );

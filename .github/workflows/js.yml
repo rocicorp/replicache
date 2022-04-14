@@ -56,5 +56,5 @@ jobs:
           NPM_TOKEN: ${{secrets.NPM_TOKEN}}
       - name: npm install
         run: npm install
-      - run: npx playwright install-deps
+      - run: npx playwright install --with-deps
       - run: npm test

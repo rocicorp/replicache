@@ -138,9 +138,6 @@ async function main() {
         esbuildPlugin({
           ts: true,
           target: 'esnext',
-          define: {
-            'process.env.NODE_ENV': '"production"',
-          },
         }),
       ],
     },

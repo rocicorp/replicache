@@ -1,6 +1,11 @@
 import {expect} from '@esm-bundle/chai';
 import {TestMemStore} from '../kv/test-mem-store';
-import {IDBDatabasesStore} from './idb-databases-store';
+import {IDBDatabasesStore, IndexedDBDatabase} from './idb-databases-store';
+import * as sinon from 'sinon';
+
+teardown(() => {
+  sinon.restore();
+});
 
 test('getDatabases with no existing record in db', async () => {
   const store = new IDBDatabasesStore(_ => new TestMemStore());
@@ -8,6 +13,8 @@ test('getDatabases with no existing record in db', async () => {
 });
 
 test('putDatabase with no existing record in db', async () => {
+  sinon.replace(Date, 'now', () => 1);
+
   const store = new IDBDatabasesStore(_ => new TestMemStore());
   const testDB = {
     name: 'testName',
@@ -16,14 +23,73 @@ test('putDatabase with no existing record in db', async () => {
     schemaVersion: 'testSchemaVersion',
   };
   expect(await store.putDatabase(testDB)).to.deep.equal({
-    testName: testDB,
+    testName: withLastOpenedTimestampMS(testDB, 1),
   });
   expect(await store.getDatabases()).to.deep.equal({
-    testName: testDB,
+    testName: withLastOpenedTimestampMS(testDB, 1),
   });
 });
 
+test('putDatabase updates lastOpenedTimestampMS', async () => {
+  let now = 1;
+  sinon.replace(Date, 'now', () => now);
+
+  const store = new IDBDatabasesStore(_ => new TestMemStore());
+  const testDB = {
+    name: 'testName',
+    replicacheName: 'testReplicacheName',
+    replicacheFormatVersion: 1,
+    schemaVersion: 'testSchemaVersion',
+  };
+  expect(await store.putDatabase(testDB)).to.deep.equal({
+    testName: withLastOpenedTimestampMS(testDB, 1),
+  });
+  expect(await store.getDatabases()).to.deep.equal({
+    testName: withLastOpenedTimestampMS(testDB, 1),
+  });
+
+  now = 2;
+  expect(await store.putDatabase(testDB)).to.deep.equal({
+    testName: withLastOpenedTimestampMS(testDB, 2),
+  });
+  expect(await store.getDatabases()).to.deep.equal({
+    testName: withLastOpenedTimestampMS(testDB, 2),
+  });
+});
+
+test('putDatabase ignores passed in lastOpenedTimestampMS', async () => {
+  const now = 2;
+  sinon.replace(Date, 'now', () => now);
+
+  const store = new IDBDatabasesStore(_ => new TestMemStore());
+  const testDB = {
+    name: 'testName',
+    replicacheName: 'testReplicacheName',
+    replicacheFormatVersion: 1,
+    schemaVersion: 'testSchemaVersion',
+    lastOpenedTimestampMS: 1,
+  };
+  expect(await store.putDatabase(testDB)).to.deep.equal({
+    testName: withLastOpenedTimestampMS(testDB, 2),
+  });
+  expect(await store.getDatabases()).to.deep.equal({
+    testName: withLastOpenedTimestampMS(testDB, 2),
+  });
+});
+
+function withLastOpenedTimestampMS(
+  db: IndexedDBDatabase,
+  lastOpenedTimestampMS: number,
+): IndexedDBDatabase {
+  return {
+    ...db,
+    lastOpenedTimestampMS,
+  };
+}
+
 test('putDatabase sequence', async () => {
+  let now = 1;
+  sinon.replace(Date, 'now', () => now);
   const store = new IDBDatabasesStore(_ => new TestMemStore());
   const testDB1 = {
     name: 'testName1',
@@ -33,10 +99,10 @@ test('putDatabase sequence', async () => {
   };
 
   expect(await store.putDatabase(testDB1)).to.deep.equal({
-    testName1: testDB1,
+    testName1: withLastOpenedTimestampMS(testDB1, 1),
   });
   expect(await store.getDatabases()).to.deep.equal({
-    testName1: testDB1,
+    testName1: withLastOpenedTimestampMS(testDB1, 1),
   });
 
   const testDB2 = {
@@ -46,13 +112,15 @@ test('putDatabase sequence', async () => {
     schemaVersion: 'testSchemaVersion2',
   };
 
+  now = 2;
+
   expect(await store.putDatabase(testDB2)).to.deep.equal({
-    testName1: testDB1,
-    testName2: testDB2,
+    testName1: withLastOpenedTimestampMS(testDB1, 1),
+    testName2: withLastOpenedTimestampMS(testDB2, 2),
   });
   expect(await store.getDatabases()).to.deep.equal({
-    testName1: testDB1,
-    testName2: testDB2,
+    testName1: withLastOpenedTimestampMS(testDB1, 1),
+    testName2: withLastOpenedTimestampMS(testDB2, 2),
   });
 });
 
@@ -65,6 +133,8 @@ test('close closes kv store', async () => {
 });
 
 test('clear', async () => {
+  let now = 1;
+  sinon.replace(Date, 'now', () => now);
   const store = new IDBDatabasesStore(_ => new TestMemStore());
   const testDB1 = {
     name: 'testName1',
@@ -74,10 +144,10 @@ test('clear', async () => {
   };
 
   expect(await store.putDatabase(testDB1)).to.deep.equal({
-    testName1: testDB1,
+    testName1: withLastOpenedTimestampMS(testDB1, now),
   });
   expect(await store.getDatabases()).to.deep.equal({
-    testName1: testDB1,
+    testName1: withLastOpenedTimestampMS(testDB1, now),
   });
 
   await store.clearDatabases();
@@ -91,11 +161,13 @@ test('clear', async () => {
     schemaVersion: 'testSchemaVersion2',
   };
 
+  now = 2;
+
   expect(await store.putDatabase(testDB2)).to.deep.equal({
-    testName2: testDB2,
+    testName2: withLastOpenedTimestampMS(testDB2, now),
   });
   expect(await store.getDatabases()).to.deep.equal({
-    testName2: testDB2,
+    testName2: withLastOpenedTimestampMS(testDB2, now),
   });
 });
 

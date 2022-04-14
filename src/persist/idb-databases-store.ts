@@ -8,6 +8,7 @@ const DBS_KEY = 'dbs';
 const PROFILE_ID_KEY = 'profileId';
 
 let testNamespace = '';
+
 /** Namespace db name in test to isolate tests' indexeddb state. */
 export function setupForTest(): void {
   testNamespace = uuid();
@@ -27,13 +28,16 @@ function getIDBDatabasesDBName(): string {
 export type IndexedDBName = string;
 
 export type IndexedDBDatabase = {
-  name: IndexedDBName;
-  replicacheName: string;
-  replicacheFormatVersion: number;
-  schemaVersion: string;
+  readonly name: IndexedDBName;
+  readonly replicacheName: string;
+  readonly replicacheFormatVersion: number;
+  readonly schemaVersion: string;
+  readonly lastOpenedTimestampMS?: number;
 };
 
-export type IndexedDBDatabaseRecord = Record<IndexedDBName, IndexedDBDatabase>;
+export type IndexedDBDatabaseRecord = {
+  readonly [name: IndexedDBName]: IndexedDBDatabase;
+};
 
 function assertIndexedDBDatabaseRecord(
   value: unknown,
@@ -54,6 +58,9 @@ function assertIndexedDBDatabase(
   assertString(value.replicacheName);
   assertNumber(value.replicacheFormatVersion);
   assertString(value.schemaVersion);
+  if (value.lastOpenedTimestampMS !== undefined) {
+    assertNumber(value.lastOpenedTimestampMS);
+  }
 }
 
 export class IDBDatabasesStore {
@@ -67,8 +74,14 @@ export class IDBDatabasesStore {
 
   putDatabase(db: IndexedDBDatabase): Promise<IndexedDBDatabaseRecord> {
     return this._kvStore.withWrite(async write => {
-      const dbRecord = await this._getDatabases(write);
-      dbRecord[db.name] = db;
+      const oldDbRecord = await this._getDatabases(write);
+      const dbRecord = {
+        ...oldDbRecord,
+        [db.name]: {
+          ...db,
+          lastOpenedTimestampMS: Date.now(),
+        },
+      };
       await write.put(DBS_KEY, dbRecord);
       await write.commit();
       return dbRecord;
@@ -83,7 +96,7 @@ export class IDBDatabasesStore {
   }
 
   getDatabases(): Promise<IndexedDBDatabaseRecord> {
-    return this._kvStore.withRead(async read => this._getDatabases(read));
+    return this._kvStore.withRead(read => this._getDatabases(read));
   }
 
   close(): Promise<void> {

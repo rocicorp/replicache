@@ -6,13 +6,16 @@ import dts from 'rollup-plugin-dts';
 // We use esbuild for building the actual code.
 
 export default {
-  input: 'out/.dts/src/mod.d.ts',
+  input: 'out/.dts/mod.d.ts',
   output: {
     file: `./out/replicache.d.ts`,
   },
   plugins: [
     dts({
       respectExternal: true,
+      compilerOptions: {
+        project: './tsconfig.json',
+      },
     }),
   ],
 };

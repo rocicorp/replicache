@@ -224,4 +224,9 @@ export type ReplicacheInternalOptions = {
    * Defaults to true.
    */
   enableMutationRecovery?: boolean;
+
+  /**
+   * Allows exposing _persist to perf test
+   */
+  exposePersistMethodAs?: symbol;
 };

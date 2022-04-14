@@ -8,7 +8,7 @@ import {
   Replicache,
   ReplicacheOptions,
   WriteTransaction,
-} from '../src/mod';
+} from '../out/replicache';
 import {jsonArrayTestData, TestDataObject, jsonObjectTestData} from './data';
 import type {Bencher, Benchmark} from './perf';
 import * as kv from '../src/kv/mod';
@@ -62,12 +62,18 @@ export function benchmarkPopulate(opts: {
   };
 }
 
+const persistSymbol = Symbol();
+
 class ReplicacheWithPersist<MD extends MutatorDefs> extends Replicache {
+  [persistSymbol]: () => void;
   constructor(options: ReplicacheOptions<MD>) {
-    super(options);
+    super({
+      ...options,
+      exposePersistMethodAs: persistSymbol,
+    } as ReplicacheOptions<MD>);
   }
   async persist(): Promise<void> {
-    return this._persist();
+    return this[persistSymbol]();
   }
 }
 

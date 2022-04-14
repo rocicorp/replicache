@@ -13,28 +13,31 @@ const sharedOptions = {
 };
 
 /**
- * @param {"esm" | "cjs"} format
- * @param {boolean} minify
- * @param {string} ext
+ * @param {{
+ *   format: "esm" | "cjs";
+ *   minify: boolean;
+ *   ext: string;
+ *   sourcemap: boolean;
+ * }} options
  */
-async function buildReplicache(format, minify, ext) {
+async function buildReplicache(options) {
+  const {ext, ...restOfOptions} = options;
   await esbuild.build({
     ...sharedOptions,
+    ...restOfOptions,
     // Use neutral to remove the automatic define for process.env.NODE_ENV
     platform: 'neutral',
     outfile: 'out/replicache.' + ext,
-    format,
     entryPoints: ['src/mod.ts'],
-    minify,
   });
 }
 
-async function buildMJS(minify = true, ext = 'mjs') {
-  await buildReplicache('esm', minify, ext);
+async function buildMJS({minify = true, ext = 'mjs', sourcemap = false} = {}) {
+  await buildReplicache({format: 'esm', minify, ext, sourcemap});
 }
 
-async function buildCJS(minify = true, ext = 'js') {
-  await buildReplicache('cjs', minify, ext);
+async function buildCJS({minify = true, ext = 'js', sourcemap = false} = {}) {
+  await buildReplicache({format: 'cjs', minify, ext, sourcemap});
 }
 
 async function buildCLI() {
@@ -49,27 +52,18 @@ async function buildCLI() {
 }
 
 async function buildPerf() {
-  await esbuild.build({
-    ...sharedOptions,
-    outfile: 'perf/index.js',
-    entryPoints: ['perf/index.ts'],
-    define: {
-      'process.env.NODE_ENV': '"production"',
-    },
-    sourcemap: true,
-    format: 'esm',
-    minify: true,
-  });
+  // Same as what wev build for the npm package but we turn on sourcemaps.
+  await buildMJS({sourcemap: true});
 }
 
 if (perf) {
   await buildPerf();
 } else if (forBundleSizeDashboard) {
   await Promise.all([
-    buildMJS(false, 'mjs'),
-    buildMJS(true, 'min.mjs'),
-    buildCJS(false, 'js'),
-    buildCJS(true, 'min.js'),
+    buildMJS({minify: false, ext: 'mjs'}),
+    buildMJS({minify: true, ext: 'min.mjs'}),
+    buildCJS({minify: false, ext: 'js'}),
+    buildCJS({minify: true, ext: 'min.js'}),
     buildCLI(),
   ]);
 } else {

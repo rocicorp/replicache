@@ -32,7 +32,6 @@ export default {
         'src/dag/*.test.ts',
         'src/db/*.test.ts',
         'src/kv/*.test.ts',
-        'src/prolly/*.test.ts',
         'src/sync/*.test.ts',
         'src/migrate/*.test.ts',
         'src/btree/*.test.ts',

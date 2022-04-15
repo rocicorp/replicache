@@ -26,7 +26,7 @@ export function initCollectIDBDatabases(
 ): void {
   void sleepFiveAndCollect(idbDatabasesStore, signal);
 
-  const stopInterval = initBgIntervalProcess(
+  initBgIntervalProcess(
     'CollectIDBDatabases',
     async () => {
       await collectIDBDatabases(
@@ -39,9 +39,8 @@ export function initCollectIDBDatabases(
     },
     COLLECT_INTERVAL_MS,
     lc,
+    signal,
   );
-
-  signal.addEventListener('abort', stopInterval);
 }
 
 async function sleepFiveAndCollect(

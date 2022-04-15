@@ -5,15 +5,19 @@ export function initBgIntervalProcess(
   process: () => Promise<unknown>,
   intervalMs: number,
   lc: LogContext,
-): () => void {
+  signal: AbortSignal,
+): void {
+  if (signal.aborted) {
+    return;
+  }
+
   lc = lc.addContext('bgIntervalProcess', processName);
-  let closed = false;
   const intervalID = setInterval(async () => {
     lc.debug?.('Running');
     try {
       await process();
     } catch (e) {
-      if (closed) {
+      if (signal.aborted) {
         lc.debug?.('Error running most likely due to close.', e);
       } else {
         lc.error?.('Error running.', e);
@@ -23,9 +27,8 @@ export function initBgIntervalProcess(
   lc = lc.addContext('intervalID', intervalID);
   lc.debug?.('Starting');
 
-  return () => {
+  signal.addEventListener('abort', () => {
     lc.debug?.('Stopping');
-    closed = true;
     clearInterval(intervalID);
-  };
+  });
 }

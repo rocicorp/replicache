@@ -59,6 +59,7 @@ import {
 } from '@rocicorp/licensing/src/client';
 import {mustSimpleFetch} from './simple-fetch';
 import {initBgIntervalProcess} from './persist/bg-interval';
+import {setIntervalWithSignal} from './set-interval-with-signal.js';
 
 export type BeginPullResult = {
   requestID: string;
@@ -216,7 +217,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
    * for the TEST_LICENSE_KEY.
    */
   protected _licenseActivePromise: Promise<boolean>;
-  private _stopLicenseActive = noop;
   private _root: Promise<Hash | undefined> = Promise.resolve(undefined);
   private readonly _mutatorRegistry = new Map<
     string,
@@ -272,12 +272,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private _hasPendingSubscriptionRuns = false;
   private readonly _lc: LogContext;
 
-  private _stopHeartbeats = noop;
-  private _stopClientsGC = noop;
-
   private readonly _closeAbortController = new AbortController();
-
-  private _recoverMutationsIntervalID: ReturnType<typeof setInterval> | 0 = 0;
 
   private readonly _persistLock = new Lock();
   private _persistIsScheduled = false;
@@ -474,41 +469,34 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this.pull();
     this._push();
 
-    this._stopHeartbeats = persist.startHeartbeats(
+    const {signal} = this._closeAbortController;
+
+    persist.startHeartbeats(
       clientID,
       this._perdag,
       () => {
         this._fireOnClientStateNotFound(clientID, reasonClient);
       },
       this._lc,
+      signal,
     );
-    this._stopClientsGC = persist.initClientGC(
-      clientID,
-      this._perdag,
-      this._lc,
-    );
+    persist.initClientGC(clientID, this._perdag, this._lc, signal);
 
-    persist.initCollectIDBDatabases(
-      this._idbDatabases,
-      this._lc,
-      this._closeAbortController.signal,
-    );
+    persist.initCollectIDBDatabases(this._idbDatabases, this._lc, signal);
 
-    this._recoverMutationsIntervalID = setInterval(
+    setIntervalWithSignal(
       () => this._recoverMutations(),
       RECOVER_MUTATIONS_INTERVAL_MS,
+      signal,
     );
     void this._recoverMutations(clients);
-
-    this._stopLicenseActive = await this._startLicenseActive(
-      resolveLicenseActive,
-      this._lc,
-    );
 
     getDocument()?.addEventListener(
       'visibilitychange',
       this._onVisibilityChange,
     );
+
+    await this._startLicenseActive(resolveLicenseActive, this._lc, signal);
   }
 
   private _onVisibilityChange = async () => {
@@ -615,14 +603,15 @@ export class Replicache<MD extends MutatorDefs = {}> {
   private async _startLicenseActive(
     resolveLicenseActive: (valid: boolean) => void,
     lc: LogContext,
-  ): Promise<() => void> {
+    signal: AbortSignal,
+  ): Promise<void> {
     if (
       !this._enableLicensing ||
       !this._licenseKey ||
       this._licenseKey === TEST_LICENSE_KEY
     ) {
       resolveLicenseActive(false);
-      return noop;
+      return;
     }
 
     const markActive = async () => {
@@ -641,11 +630,12 @@ export class Replicache<MD extends MutatorDefs = {}> {
     await markActive();
     resolveLicenseActive(true);
 
-    return initBgIntervalProcess(
+    initBgIntervalProcess(
       'LicenseActive',
       markActive,
       LICENSE_ACTIVE_INTERVAL_MS,
       lc,
+      signal,
     );
   }
 
@@ -701,13 +691,6 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const {promise, resolve} = resolver();
     closingInstances.set(this.name, promise);
 
-    // TODO(arv): Make these all use the AbortSignal.
-    this._stopLicenseActive();
-    this._stopHeartbeats();
-    this._stopClientsGC();
-    if (this._recoverMutationsIntervalID) {
-      clearInterval(this._recoverMutationsIntervalID);
-    }
     this._closeAbortController.abort();
 
     getDocument()?.removeEventListener(

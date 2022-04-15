@@ -16,8 +16,9 @@ export function initClientGC(
   clientID: ClientID,
   dagStore: dag.Store,
   lc: LogContext,
-): () => void {
-  return initBgIntervalProcess(
+  signal: AbortSignal,
+): void {
+  initBgIntervalProcess(
     'ClientGC',
     () => {
       latestGCUpdate = gcClients(clientID, dagStore);
@@ -25,6 +26,7 @@ export function initClientGC(
     },
     GC_INTERVAL_MS,
     lc,
+    signal,
   );
 }
 

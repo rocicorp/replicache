@@ -20,7 +20,14 @@ test('initBgIntervalProcess starts interval that executed process every interval
     processCallCount++;
     return Promise.resolve();
   };
-  initBgIntervalProcess('testProcess', process, 100, new LogContext());
+  const controller = new AbortController();
+  initBgIntervalProcess(
+    'testProcess',
+    process,
+    100,
+    new LogContext(),
+    controller.signal,
+  );
 
   expect(processCallCount).to.equal(0);
   await clock.tickAsync(100);
@@ -37,17 +44,19 @@ test('calling function returned by initBgIntervalProcess, stops interval', async
     processCallCount++;
     return Promise.resolve();
   };
-  const stop = initBgIntervalProcess(
+  const controller = new AbortController();
+  initBgIntervalProcess(
     'testProcess',
     process,
     100,
     new LogContext(),
+    controller.signal,
   );
 
   expect(processCallCount).to.equal(0);
   await clock.tickAsync(100);
   expect(processCallCount).to.equal(1);
-  stop();
+  controller.abort();
   await clock.tickAsync(100);
   expect(processCallCount).to.equal(1);
   await clock.tickAsync(400);
@@ -60,7 +69,8 @@ test('error thrown during process (before stop is called) is logged to error', a
   const process = () => {
     return Promise.reject('TestErrorBeforeStop');
   };
-  initBgIntervalProcess('testProcess', process, 100, lc);
+  const controller = new AbortController();
+  initBgIntervalProcess('testProcess', process, 100, lc, controller.signal);
   await clock.tickAsync(100);
   expect(errorStub.callCount).to.equal(1);
   expect(errorStub.getCall(0).args.join(' ')).to.contain('TestErrorBeforeStop');
@@ -77,11 +87,12 @@ test('error thrown during process (after stop is called) is logged to debug', as
     processCallCount++;
     return processResolver.promise;
   };
-  const stop = initBgIntervalProcess('testProcess', process, 100, lc);
+  const controller = new AbortController();
+  initBgIntervalProcess('testProcess', process, 100, lc, controller.signal);
   expect(processCallCount).to.equal(0);
   await clock.tickAsync(100);
   expect(processCallCount).to.equal(1);
-  stop();
+  controller.abort();
   processResolver.reject('TestErrorAfterStop');
   try {
     await processResolver.promise;

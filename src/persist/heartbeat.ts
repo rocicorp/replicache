@@ -18,8 +18,9 @@ export function startHeartbeats(
   dagStore: dag.Store,
   onClientStateNotFound: () => void,
   lc: LogContext,
-): () => void {
-  return initBgIntervalProcess(
+  signal: AbortSignal,
+): void {
+  initBgIntervalProcess(
     'Heartbeat',
     async () => {
       latestHeartbeatUpdate = writeHeartbeat(clientID, dagStore);
@@ -35,6 +36,7 @@ export function startHeartbeats(
     },
     HEARTBEAT_INTERVAL_MS,
     lc,
+    signal,
   );
 }
 

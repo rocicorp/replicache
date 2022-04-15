@@ -52,7 +52,14 @@ test('startHeartbeats starts interval that writes heartbeat each minute', async 
   );
   await setClients(clientMap, dagStore);
 
-  startHeartbeats('client1', dagStore, () => undefined, new LogContext());
+  const controller = new AbortController();
+  startHeartbeats(
+    'client1',
+    dagStore,
+    () => undefined,
+    new LogContext(),
+    controller.signal,
+  );
 
   await dagStore.withRead(async (read: dag.Read) => {
     const readClientMap = await getClients(read);
@@ -114,11 +121,13 @@ test('calling function returned by startHeartbeats, stops heartbeats', async () 
   );
   await setClients(clientMap, dagStore);
 
-  const stopHeartbeats = startHeartbeats(
+  const controller = new AbortController();
+  startHeartbeats(
     'client1',
     dagStore,
     () => undefined,
     new LogContext(),
+    controller.signal,
   );
 
   await dagStore.withRead(async (read: dag.Read) => {
@@ -140,7 +149,7 @@ test('calling function returned by startHeartbeats, stops heartbeats', async () 
     });
   });
 
-  stopHeartbeats();
+  controller.abort();
   clock.tick(ONE_MIN_IN_MS);
   await awaitLatestHeartbeatUpdate();
 
@@ -220,13 +229,15 @@ test('writeHeartbeat throws Error if no Client is found for clientID', async () 
 test('heartbeat with missing client calls callback', async () => {
   const dagStore = new dag.TestStore();
   const onClientStateNotFound = sinon.fake();
-  const stop = startHeartbeats(
+  const controller = new AbortController();
+  startHeartbeats(
     'client1',
     dagStore,
     onClientStateNotFound,
     new LogContext(),
+    controller.signal,
   );
   await clock.tickAsync(ONE_MIN_IN_MS);
   expect(onClientStateNotFound.callCount).to.equal(1);
-  stop();
+  controller.abort();
 });

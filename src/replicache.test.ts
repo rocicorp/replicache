@@ -2247,6 +2247,10 @@ type LicenseActiveTestCase = {
 };
 
 async function licenseActiveTest(tc: LicenseActiveTestCase) {
+  // Silence console.error
+  sinon.stub(console, 'error');
+  // TODO: assert we are getting the correct logs
+
   fetchMock.reset();
   fetchMock.post(
     statusUrlMatcher,

@@ -274,6 +274,9 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   private _stopHeartbeats = noop;
   private _stopClientsGC = noop;
+
+  private readonly _closeAbortController = new AbortController();
+
   private _recoverMutationsIntervalID: ReturnType<typeof setInterval> | 0 = 0;
 
   private readonly _persistLock = new Lock();
@@ -484,6 +487,13 @@ export class Replicache<MD extends MutatorDefs = {}> {
       this._perdag,
       this._lc,
     );
+
+    persist.initCollectIDBDatabases(
+      this._idbDatabases,
+      this._lc,
+      this._closeAbortController.signal,
+    );
+
     this._recoverMutationsIntervalID = setInterval(
       () => this._recoverMutations(),
       RECOVER_MUTATIONS_INTERVAL_MS,
@@ -691,12 +701,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const {promise, resolve} = resolver();
     closingInstances.set(this.name, promise);
 
+    // TODO(arv): Make these all use the AbortSignal.
     this._stopLicenseActive();
     this._stopHeartbeats();
     this._stopClientsGC();
     if (this._recoverMutationsIntervalID) {
       clearInterval(this._recoverMutationsIntervalID);
     }
+    this._closeAbortController.abort();
 
     getDocument()?.removeEventListener(
       'visibilitychange',

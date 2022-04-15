@@ -22,3 +22,4 @@ export type {
   IndexedDBDatabase,
   IndexedDBDatabaseRecord,
 } from './idb-databases-store';
+export {initCollectIDBDatabases} from './collect-idb-databases';

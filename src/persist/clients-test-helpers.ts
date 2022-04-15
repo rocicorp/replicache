@@ -14,17 +14,29 @@ export function setClients(
   }, dagStore);
 }
 
-export function makeClient(partialClient: {
+export type PartialClient = {
   heartbeatTimestampMs: number;
   headHash: Hash;
   mutationID?: number;
   lastServerAckdMutationID?: number;
-}): Client {
+};
+
+export function makeClient(partialClient: PartialClient): Client {
   return {
     mutationID: 0,
     lastServerAckdMutationID: 0,
     ...partialClient,
   };
+}
+
+export function makeClientMap(
+  obj: Record<sync.ClientID, PartialClient>,
+): ClientMap {
+  return new Map(
+    Object.entries(obj).map(
+      ([id, client]) => [id, makeClient(client)] as const,
+    ),
+  );
 }
 
 export async function deleteClientForTesting(

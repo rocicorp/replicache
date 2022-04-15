@@ -73,14 +73,23 @@ export class IDBDatabasesStore {
   }
 
   putDatabase(db: IndexedDBDatabase): Promise<IndexedDBDatabaseRecord> {
+    return this._putDatabase({...db, lastOpenedTimestampMS: Date.now()});
+  }
+
+  putDatabaseForTesting(
+    db: IndexedDBDatabase,
+  ): Promise<IndexedDBDatabaseRecord> {
+    return this._putDatabase(db);
+  }
+
+  private _putDatabase(
+    db: IndexedDBDatabase,
+  ): Promise<IndexedDBDatabaseRecord> {
     return this._kvStore.withWrite(async write => {
       const oldDbRecord = await this._getDatabases(write);
       const dbRecord = {
         ...oldDbRecord,
-        [db.name]: {
-          ...db,
-          lastOpenedTimestampMS: Date.now(),
-        },
+        [db.name]: db,
       };
       await write.put(DBS_KEY, dbRecord);
       await write.commit();
@@ -91,6 +100,20 @@ export class IDBDatabasesStore {
   clearDatabases(): Promise<void> {
     return this._kvStore.withWrite(async write => {
       await write.del(DBS_KEY);
+      await write.commit();
+    });
+  }
+
+  deleteDatabases(names: Iterable<IndexedDBName>): Promise<void> {
+    return this._kvStore.withWrite(async write => {
+      const oldDbRecord = await this._getDatabases(write);
+      const dbRecord = {
+        ...oldDbRecord,
+      };
+      for (const name of names) {
+        delete dbRecord[name];
+      }
+      await write.put(DBS_KEY, dbRecord);
       await write.commit();
     });
   }

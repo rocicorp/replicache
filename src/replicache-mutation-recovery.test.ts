@@ -118,6 +118,8 @@ async function testRecoveringMutationsOfClient(args: {
   schemaVersionOfClientRecoveringMutations: string;
   numMutationsNotAcknowledgedByPull?: number;
 }) {
+  sinon.stub(console, 'error');
+
   const {
     schemaVersionOfClientWPendingMutations,
     schemaVersionOfClientRecoveringMutations,

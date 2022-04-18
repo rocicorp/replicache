@@ -1224,25 +1224,27 @@ export class Replicache<MD extends MutatorDefs = {}> {
     type R =
       | {ok: true; value: JSONValue | undefined}
       | {ok: false; error: unknown};
-    const results = await this._queryInternal(async tx => {
-      const promises = subs.map(async s => {
-        // Tag the result so we can deal with success vs error below.
-        const stx = new SubscriptionTransactionWrapper(tx);
-        try {
-          const value = await s.body(stx);
-          return {ok: true, value} as R;
-        } catch (error) {
-          return {ok: false, error} as R;
-        } finally {
-          // We need to keep track of the subscription keys even if there was an
-          // exception because changes to the keys can make the subscription
-          // body succeed.
-          s.keys = stx.keys;
-          s.scans = stx.scans;
-        }
-      });
-      return await Promise.all(promises);
-    });
+    const results = await this._queryInternal(
+      SubscriptionTransactionWrapper,
+      async tx => {
+        const promises = subs.map(async s => {
+          // Tag the result so we can deal with success vs error below.
+          try {
+            const value = await s.body(tx);
+            return {ok: true, value} as R;
+          } catch (error) {
+            return {ok: false, error} as R;
+          } finally {
+            // We need to keep track of the subscription keys even if there was an
+            // exception because changes to the keys can make the subscription
+            // body succeed.
+            s.keys = tx.keys;
+            s.scans = tx.scans;
+          }
+        });
+        return await Promise.all(promises);
+      },
+    );
     for (let i = 0; i < subs.length; i++) {
       const s = subs[i];
       const result = results[i];
@@ -1321,17 +1323,21 @@ export class Replicache<MD extends MutatorDefs = {}> {
    * and `scan`.
    */
   async query<R>(body: (tx: ReadTransaction) => Promise<R> | R): Promise<R> {
-    return this._queryInternal(body);
+    return this._queryInternal(ReadTransactionImpl, body);
   }
 
-  private async _queryInternal<R>(
-    body: (tx: ReadTransactionImpl) => Promise<R> | R,
+  private async _queryInternal<
+    R,
+    C extends ReadTransactionImpl<ReadonlyJSONValue>,
+  >(
+    ctor: new (clientID: string, dbRead: db.Read, lc: LogContext) => C,
+    body: (tx: C) => Promise<R> | R,
   ): Promise<R> {
     await this._ready;
     const clientID = await this._clientIDPromise;
     return this._memdag.withRead(async dagRead => {
       const dbRead = await db.readFromDefaultHead(dagRead);
-      const tx = new ReadTransactionImpl(clientID, dbRead, this._lc);
+      const tx = new ctor(clientID, dbRead, this._lc);
       try {
         return await body(tx);
       } catch (ex) {

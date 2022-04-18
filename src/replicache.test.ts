@@ -2590,3 +2590,20 @@ suite('check for client not found in visibilitychange', () => {
   t('hidden', false);
   t('visible', true);
 });
+
+test('scan in write transaction', async () => {
+  let x = 0;
+  const rep = await replicacheForTesting('scan-before-commit', {
+    mutators: {
+      async test(tx, v: number) {
+        await tx.put('a', v);
+        expect(await tx.scan().toArray()).to.deep.equal([v]);
+        x++;
+      },
+    },
+  });
+
+  await rep.mutate.test(42);
+
+  expect(x).to.equal(1);
+});

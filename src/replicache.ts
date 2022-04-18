@@ -364,9 +364,10 @@ export class Replicache<MD extends MutatorDefs = {}> {
     this._enableLicensing = enableLicensing;
     this._enableMutationRecovery = enableMutationRecovery;
 
-    if (internalOptions.exposePersistMethodAs) {
-      (this as Record<symbol, unknown>)[internalOptions.exposePersistMethodAs] =
-        this._persist;
+    if (internalOptions.exposeInternalAPI) {
+      internalOptions.exposeInternalAPI({
+        persist: () => this._persist(),
+      });
     }
 
     const logSink =

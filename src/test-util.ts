@@ -3,6 +3,7 @@ import {MutatorDefs, Replicache, BeginPullResult} from './replicache';
 import type {
   ReplicacheOptions,
   ReplicacheInternalOptions,
+  ReplicacheInternalAPI,
 } from './replicache-options';
 import * as kv from './kv/mod';
 import * as persist from './persist/mod';
@@ -19,13 +20,22 @@ import {uuid} from './uuid';
 import type {WriteTransaction} from './transactions.js';
 import {TEST_LICENSE_KEY} from '@rocicorp/licensing/src/client';
 
-const persistSymbol = Symbol();
-
 export class ReplicacheTest<
   // eslint-disable-next-line @typescript-eslint/ban-types
   MD extends MutatorDefs = {},
 > extends Replicache<MD> {
-  private [persistSymbol]: () => void;
+  private _internalAPI!: ReplicacheInternalAPI;
+
+  constructor(options: ReplicacheOptions<MD>) {
+    let internalAPI!: ReplicacheInternalAPI;
+    super({
+      ...options,
+      exposeInternalAPI: (api: ReplicacheInternalAPI) => {
+        internalAPI = api;
+      },
+    } as ReplicacheOptions<MD>);
+    this._internalAPI = internalAPI;
+  }
 
   beginPull(): Promise<BeginPullResult> {
     return super._beginPull();
@@ -55,7 +65,8 @@ export class ReplicacheTest<
   }
 
   persist() {
-    return this[persistSymbol]();
+    return this._internalAPI.persist();
+    // return this[persistSymbol]();
   }
 
   recoverMutationsSpy = sinon.spy(this, 'recoverMutations');
@@ -138,7 +149,6 @@ export async function replicacheForTesting<
       pullURL,
       pushURL,
       licenseKey: options.licenseKey ?? TEST_LICENSE_KEY,
-      exposePersistMethodAs: persistSymbol,
       ...options,
     },
   );

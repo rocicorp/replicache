@@ -226,7 +226,12 @@ export type ReplicacheInternalOptions = {
   enableMutationRecovery?: boolean;
 
   /**
-   * Allows exposing _persist to perf test
+   * Allows exposing parts of the internal API to a subclass. This works when
+   * thing have been minified and with the npm package.
    */
-  exposePersistMethodAs?: symbol;
+  exposeInternalAPI?: (api: ReplicacheInternalAPI) => void;
 };
+
+export interface ReplicacheInternalAPI {
+  persist(): Promise<void>;
+}

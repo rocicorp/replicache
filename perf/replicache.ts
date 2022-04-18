@@ -18,6 +18,7 @@ import {
 } from '../src/persist/mod';
 import {uuid} from '../src/uuid';
 import {TEST_LICENSE_KEY} from '@rocicorp/licensing/src/client';
+import type {ReplicacheInternalAPI} from '../src/replicache-options.js';
 
 const valSize = 1024;
 
@@ -62,18 +63,21 @@ export function benchmarkPopulate(opts: {
   };
 }
 
-const persistSymbol = Symbol();
-
 class ReplicacheWithPersist<MD extends MutatorDefs> extends Replicache {
-  [persistSymbol]: () => void;
+  private readonly _internalAPI: ReplicacheInternalAPI;
   constructor(options: ReplicacheOptions<MD>) {
+    let internalAPI!: ReplicacheInternalAPI;
     super({
       ...options,
-      exposePersistMethodAs: persistSymbol,
+      exposeInternalAPI: (api: ReplicacheInternalAPI) => {
+        internalAPI = api;
+      },
     } as ReplicacheOptions<MD>);
+    this._internalAPI = internalAPI;
   }
+
   async persist(): Promise<void> {
-    return this[persistSymbol]();
+    return this._internalAPI.persist();
   }
 }
 

@@ -16,6 +16,8 @@ import {
   NODE_LEVEL,
   NODE_ENTRIES,
   isInternalNode,
+  DataNode,
+  InternalNode,
 } from './node';
 import {
   computeSplices,
@@ -106,7 +108,15 @@ export class BTreeRead
   scan(
     fromKey: string,
   ): AsyncIterableIterator<ReadonlyEntry<ReadonlyJSONValue>> {
-    return scanForHash(this.rootHash, fromKey, this._dagRead);
+    return scanForHash(this.rootHash, fromKey, async (hash: Hash) => {
+      const cached = await this.getNode(hash);
+      if (cached) {
+        return cached.toChunkData();
+      }
+      const {data} = await this._dagRead.mustGetChunk(hash);
+      assertBTreeNode(data);
+      return data;
+    });
   }
 
   async *keys(): AsyncIterableIterator<string> {
@@ -253,16 +263,18 @@ function* diffEntries<T>(
   }
 }
 
+type ReadNode = (hash: Hash) => Promise<InternalNode | DataNode>;
+
 export async function* scanForHash(
   hash: Hash,
   fromKey: string,
-  dagRead: dag.Read,
+  readNode: ReadNode,
 ): AsyncIterableIterator<ReadonlyEntry<ReadonlyJSONValue>> {
   if (hash === emptyHash) {
     return;
   }
 
-  const {data} = await dagRead.mustGetChunk(hash);
+  const data = await readNode(hash);
   assertBTreeNode(data);
   const entries = data[NODE_ENTRIES];
   let i = 0;
@@ -278,7 +290,7 @@ export async function* scanForHash(
       yield* scanForHash(
         (entries[i] as ReadonlyEntry<Hash>)[1],
         fromKey,
-        dagRead,
+        readNode,
       );
       fromKey = '';
     }

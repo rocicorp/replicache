@@ -11,15 +11,15 @@ test('collect IDB databases', async () => {
 
   const ONE_MINUTE = 1000 * 60 * 1;
   const FIVE_MINUTES = ONE_MINUTE * 5;
+  const ONE_WEEK = ONE_MINUTE * 60 * 24 * 7;
   const ONE_MONTH = 1000 * 60 * 60 * 24 * 30;
-  const THREE_MONTHS = ONE_MONTH * 3;
 
   const rep = await replicacheForTesting('collect-idb-databases-1');
   await rep.close();
 
   expect(await getDatabases()).to.deep.equal(['collect-idb-databases-1']);
 
-  await clock.tickAsync(THREE_MONTHS);
+  await clock.tickAsync(ONE_MONTH);
 
   const rep2 = await replicacheForTesting('collect-idb-databases-2');
   await rep2.close();
@@ -29,7 +29,7 @@ test('collect IDB databases', async () => {
     'collect-idb-databases-2',
   ]);
 
-  await clock.tickAsync(ONE_MONTH);
+  await clock.tickAsync(ONE_WEEK);
 
   // Open one more database and keep it open long enough to trigger the collection.
   const rep3 = await replicacheForTesting('collect-idb-databases-3');

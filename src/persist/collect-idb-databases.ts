@@ -14,7 +14,7 @@ import {REPLICACHE_FORMAT_VERSION} from '../replicache.js';
 const COLLECT_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 // If an IDB database is older than MAX_AGE, then it can be collected.
-const MAX_AGE = 3 * 30 * 24 * 60 * 60 * 1000; // 3 months
+const MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 1 month
 
 // We delay the initial collection to prevent doing it at startup.
 const COLLECT_DELAY = 5 * 60 * 1000; // 5 minutes
@@ -29,13 +29,7 @@ export function initCollectIDBDatabases(
   initBgIntervalProcess(
     'CollectIDBDatabases',
     async () => {
-      await collectIDBDatabases(
-        idbDatabasesStore,
-        signal,
-        Date.now(),
-        MAX_AGE,
-        undefined,
-      );
+      await collectIDBDatabases(idbDatabasesStore, signal, Date.now(), MAX_AGE);
     },
     COLLECT_INTERVAL_MS,
     lc,
@@ -50,13 +44,7 @@ async function sleepFiveAndCollect(
   try {
     await sleep(COLLECT_DELAY, signal);
 
-    await collectIDBDatabases(
-      idbDatabasesStore,
-      signal,
-      Date.now(),
-      MAX_AGE,
-      defaultNewDagStore,
-    );
+    await collectIDBDatabases(idbDatabasesStore, signal, Date.now(), MAX_AGE);
   } catch (e) {
     if (e instanceof AbortError) {
       return;

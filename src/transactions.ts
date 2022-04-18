@@ -141,33 +141,24 @@ function scan<Options extends ScanOptions, Value>(
 
 // An implementation of ReadTransaction that keeps track of `keys` and `scans`
 // for use with Subscriptions.
-export class SubscriptionTransactionWrapper implements ReadTransaction {
+export class SubscriptionTransactionWrapper extends ReadTransactionImpl<ReadonlyJSONValue> {
   private readonly _keys: Set<string> = new Set();
   private readonly _scans: ScanSubscriptionInfo[] = [];
-  private readonly _tx: ReadTransactionImpl;
-
-  constructor(tx: ReadTransactionImpl) {
-    this._tx = tx;
-  }
-
-  get clientID(): string {
-    return this._tx.clientID;
-  }
 
   isEmpty(): Promise<boolean> {
     // Any change to the subscription requires rerunning it.
     this._scans.push({options: {}});
-    return this._tx.isEmpty();
+    return super.isEmpty();
   }
 
   get(key: string): Promise<ReadonlyJSONValue | undefined> {
     this._keys.add(key);
-    return this._tx.get(key);
+    return super.get(key);
   }
 
   has(key: string): Promise<boolean> {
     this._keys.add(key);
-    return this._tx.has(key);
+    return super.has(key);
   }
 
   scan(): ScanResult<string, ReadonlyJSONValue>;
@@ -182,8 +173,7 @@ export class SubscriptionTransactionWrapper implements ReadTransaction {
       inclusiveLimitKey: undefined,
     };
     this._scans.push(scanInfo);
-    // @ts-expect-error _dbtx is protected
-    return scan(options, this._tx._dbtx, inclusiveLimitKey => {
+    return scan(options, this._dbtx, inclusiveLimitKey => {
       scanInfo.inclusiveLimitKey = inclusiveLimitKey;
     });
   }

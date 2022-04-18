@@ -15,4 +15,4 @@ if (process.argv.length < 3 || process.argv[2] !== 'get-license') {
 
 // TODO(phritz): add staging flag
 
-licensingCLI.main(PROD_LICENSE_SERVER_URL);
+licensingCLI.main();

@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1650310694692,
+  "lastUpdate": 1650314136451,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -11039,6 +11039,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 21257,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "distinct": true,
+          "id": "6e2af0ac7d3ce63a763dbacf1892a053f374535b",
+          "message": "fix: Scan in WriteTransaction\n\nscan was not working correctly in WriteTransactions. When I refactored\nscan I changed to look up the chunk in the chunk store but when we have\na write transaction the B+Tree might have some modified nodes that have\nnot yet been flushed to the chunk store.\n\nFixes #962",
+          "timestamp": "2022-04-18T22:34:31+02:00",
+          "tree_id": "090338fb61725777523d195fcb7c809043d7d0ba",
+          "url": "https://github.com/rocicorp/replicache/commit/6e2af0ac7d3ce63a763dbacf1892a053f374535b"
+        },
+        "date": 1650314133141,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 163277,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 30449,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 162230,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 30151,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 74011,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 21318,
             "unit": "bytes"
           }
         ]

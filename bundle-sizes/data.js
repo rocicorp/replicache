@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1650315354663,
+  "lastUpdate": 1650369337839,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -11117,6 +11117,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/63a336ea81e1ba03a446fd25c4d89eb7f7640035"
         },
         "date": 1650315351781,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 163277,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 30449,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 162230,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 30151,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 74011,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 21318,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "committer": {
+            "email": "aaron@aaronboodman.com",
+            "name": "Aaron Boodman",
+            "username": "aboodman"
+          },
+          "distinct": true,
+          "id": "ee015d4163738d012a2622685d014a816ec015db",
+          "message": "Spruce up Getting Started:\n\n- Make it more explicit that we intend for devs to start by forking this repo.\n- Add a section introducing the layout of the project.\n- Make it explicit that you don't need to understand backend dir immediately.\n- Link next to How it Works (which will change soon), not Integration Guide.",
+          "timestamp": "2022-04-19T01:54:39-10:00",
+          "tree_id": "978737c129f4a19cbf665c3ac137bf87d5c5497f",
+          "url": "https://github.com/rocicorp/replicache/commit/ee015d4163738d012a2622685d014a816ec015db"
+        },
+        "date": 1650369334901,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

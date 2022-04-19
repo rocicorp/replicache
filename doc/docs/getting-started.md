@@ -26,10 +26,21 @@ NEXT_PUBLIC_SUPABASE_KEY="<anon key>" \
 npm run dev
 ```
 
-This is a really simple Replicache app using React, Next.js, and Supabase.
+Tada! You now have a simple todo app powered by Replicache, <a href="https://nextjs.org/">Next.js</a>, and <a href="https://supabase.com/">Supabase</a>.
 
 <p class="text--center">
   <img src="/img/setup/todo.webp" width="650"/>
 </p>
 
-For detailed instructions on building a Replicache app, see the [integration guide](/guide/intro).
+You can start modifying this app to build something new with Replicache.
+
+## A Quick Tour of the Starter App
+
+- **[`frontend/`](https://github.com/rocicorp/replicache-todo/blob/main/frontend)** contains the UI. This is mostly a standard React/Next.js application.
+- **[`frontend/mutators.ts`](https://github.com/rocicorp/replicache-todo/blob/main/frontend/mutators.ts)** defines the _mutators_ for this application. This is how you write data using Replicache. Call these functions from the UI to add or modify data. The mutations will be pushed to the server in the background automatically.
+- **[`frontend/app.tsx`](https://github.com/rocicorp/replicache-todo/blob/main/frontend/app.tsx)** subscribes to all the todos in Replicache using `useSubscribe()`. This is how you typically build UI using Replicache: the hook will re-fire when the result of the subscription changes, either due to local (optimistic) changes, or changes that were synced from the server.
+- **[`backend/`](https://github.com/rocicorp/replicache-todo/blob/main/backend)** contains a basic Replicache server that stores data in Supabase. This backend is generic: it automatically works for any data created using the functions defined in `frontend/mutators.ts`. You don't need to touch this directory until you want to do more advanced things, like add authentication or other custom backend functionality.
+
+## Next
+
+To understand the big picture of how to use Replicache, see [How Replicache Works](./how-it-works.md).

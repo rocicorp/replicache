@@ -108,22 +108,18 @@ export function getIndexKeys(
     throw new Error(`No value at path: ${jsonPointer}`);
   }
 
-  const values = [];
-  if (Array.isArray(target)) {
-    target.forEach(v => values.push(v));
-  } else {
-    values.push(target);
-  }
-  const strings = [];
+  const values = Array.isArray(target) ? target : [target];
+
+  const indexKeys: string[] = [];
   for (const value of values) {
     if (typeof value === 'string') {
-      strings.push(value);
+      indexKeys.push(encodeIndexKey([value, primary]));
     } else {
       throw new Error('Unsupported target type');
     }
   }
 
-  return strings.map(secondary => encodeIndexKey([secondary, primary]));
+  return indexKeys;
 }
 
 export const KEY_VERSION_0 = '\u0000';

@@ -1,5 +1,6 @@
 import type {LogContext} from '@rocicorp/logger';
 import type * as dag from '../dag/mod';
+import * as btree from '../btree/mod';
 import type {ReadonlyJSONValue} from '../json';
 import {
   Commit,
@@ -18,7 +19,6 @@ import {
 } from './read';
 import {IndexWrite, IndexOperation, indexValue, IndexRead} from './index';
 import {BTreeRead, BTreeWrite} from '../btree/mod';
-import {asyncIterableToArray} from '../async-iterable-to-array';
 import {lazy} from '../lazy';
 import {emptyHash, Hash} from '../hash';
 import type {DiffOperation} from '../btree/node.js';
@@ -279,7 +279,7 @@ export class Write extends Read {
     let valueDiff: DiffOperation[] = [];
     if (generateDiffs && this._basis) {
       const basisMap = new BTreeRead(this._dagWrite, this._basis.valueHash);
-      valueDiff = await asyncIterableToArray(this.map.diff(basisMap));
+      valueDiff = await btree.diff(this.map, basisMap);
     }
     const indexRecords: IndexRecord[] = [];
     const diffMap: Map<string, DiffOperation[]> = new Map();
@@ -300,12 +300,12 @@ export class Write extends Read {
       const indexDiffResult = await index.withMap(this._dagWrite, async map => {
         if (basisIndex) {
           return basisIndex.withMap(this._dagWrite, basisMap =>
-            asyncIterableToArray(map.diff(basisMap)),
+            btree.diff(map, basisMap),
           );
         }
 
         // No basis. All keys are new.
-        return allEntriesAsDiff(map);
+        return allEntriesAsDiff(map, 'add');
       });
 
       if (indexDiffResult.length > 0) {

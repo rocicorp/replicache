@@ -294,14 +294,28 @@ export async function* scanForHash(
 
 export async function allEntriesAsDiff(
   map: BTreeRead,
+  op: 'add' | 'del',
 ): Promise<DiffOperation[]> {
   const diff: DiffOperation[] = [];
+  const make: (entry: ReadonlyEntry<ReadonlyJSONValue>) => DiffOperation =
+    op === 'add'
+      ? entry => {
+          return {
+            op: 'add',
+            key: entry[0],
+            newValue: entry[1],
+          };
+        }
+      : entry => {
+          return {
+            op: 'del',
+            key: entry[0],
+            oldValue: entry[1],
+          };
+        };
+
   for await (const entry of map.entries()) {
-    diff.push({
-      op: 'add',
-      key: entry[0],
-      newValue: entry[1],
-    });
+    diff.push(make(entry));
   }
   return diff;
 }

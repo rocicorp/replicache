@@ -430,8 +430,8 @@ async function addDiffsForIndexes(
           diffsMap.set(oldIndexName, diffs);
         }
       } else {
-        // old index name is not in the new indexes. All entries changed!
-        const diffs = await allEntriesAsDiff(oldMap);
+        // old index name is not in the new indexes. All entries removed!
+        const diffs = await allEntriesAsDiff(oldMap, 'del');
         if (diffs.length > 0) {
           diffsMap.set(oldIndexName, diffs);
         }
@@ -440,9 +440,9 @@ async function addDiffsForIndexes(
   }
 
   for (const [newIndexName, newIndex] of newIndexes) {
-    // new index name is not in the old indexes. All keys changed!
+    // new index name is not in the old indexes. All keys added!
     await newIndex.withMap(read, async newMap => {
-      const diffs = await allEntriesAsDiff(newMap);
+      const diffs = await allEntriesAsDiff(newMap, 'add');
       if (diffs.length > 0) {
         diffsMap.set(newIndexName, diffs);
       }

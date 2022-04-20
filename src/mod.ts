@@ -61,3 +61,6 @@ export type {PushRequest} from './sync/push';
 export {TEST_LICENSE_KEY} from '@rocicorp/licensing/src/client';
 
 export type {IndexKey} from './db/index';
+
+export type {Diff, DiffOperation} from './btree/node';
+export type {WatchCallback, WatchOptions} from './watcher';

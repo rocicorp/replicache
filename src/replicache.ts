@@ -59,7 +59,8 @@ import {
 } from '@rocicorp/licensing/src/client';
 import {mustSimpleFetch} from './simple-fetch';
 import {initBgIntervalProcess} from './persist/bg-interval';
-import {setIntervalWithSignal} from './set-interval-with-signal.js';
+import {setIntervalWithSignal} from './set-interval-with-signal';
+import {WatchCallback, Watcher, WatchOptions} from './watcher';
 
 export type BeginPullResult = {
   requestID: string;
@@ -185,6 +186,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   /** The name of the Replicache database. */
   readonly name: string;
+
+  private readonly _watcher: Watcher = new Watcher();
 
   /**
    * This is the name Replicache uses for the IndexedDB database where data is
@@ -735,7 +738,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const currentRoot = await this._root; // instantaneous except maybe first time
     if (root !== undefined && root !== currentRoot) {
       this._root = Promise.resolve(root);
-      await this._fireOnChange(diffs);
+      await this._fireOnChange(diffs, currentRoot, root);
     }
   }
 
@@ -1195,9 +1198,14 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
   }
 
-  private async _fireOnChange(diffs: sync.DiffsMap): Promise<void> {
+  private async _fireOnChange(
+    diffs: sync.DiffsMap,
+    oldRoot: Hash | undefined,
+    newRoot: Hash,
+  ): Promise<void> {
     const subscriptions = subscriptionsForDiffs(this._subscriptions, diffs);
     await this._fireSubscriptions(subscriptions, false);
+    this._watcher.fire(diffs, oldRoot, newRoot);
   }
 
   private async _indexDefinitionChanged(name: string): Promise<void> {
@@ -1302,6 +1310,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
       this._subscriptions.delete(s);
     };
   }
+
   private async _scheduleInitialSubscriptionRun(s: UnknownSubscription) {
     this._pendingSubscriptions.add(s);
 
@@ -1313,6 +1322,10 @@ export class Replicache<MD extends MutatorDefs = {}> {
       this._pendingSubscriptions.clear();
       await this._fireSubscriptions(subscriptions, true);
     }
+  }
+
+  watch(cb: WatchCallback, options?: WatchOptions): () => void {
+    return this._watcher.add(cb, options);
   }
 
   /**

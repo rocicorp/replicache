@@ -21,7 +21,7 @@ import {BTreeRead} from '../btree/mod';
 import {updateIndexes} from '../db/write';
 import {emptyHash, Hash} from '../hash';
 import type {Meta} from '../db/commit';
-import type {DiffOperation} from '../btree/node.js';
+import type {Diff} from '../btree/node.js';
 import {allEntriesAsDiff} from '../btree/read.js';
 
 export const PULL_VERSION = 0;
@@ -245,7 +245,7 @@ export type ReplayMutation = {
 
 // The diffs in different indexes. The key of the map is the index name.
 // "" is used for the primary index.
-export type DiffsMap = Map<string, DiffOperation[]>;
+export type DiffsMap = Map<string, Diff>;
 
 export type MaybeEndPullResult = {
   replayMutations?: ReplayMutation[];

@@ -9,11 +9,11 @@ import {
   partition,
   assertBTreeNode,
   Entry,
-  DiffOperation,
   NODE_LEVEL,
   NODE_ENTRIES,
   emptyDataNode,
   ReadonlyEntry,
+  Diff,
 } from './node';
 import {BTreeWrite} from './write';
 import {makeTestChunkHasher} from '../dag/chunk';
@@ -1296,7 +1296,7 @@ test('diff', async () => {
   const t = async (
     oldEntries: Entry<ReadonlyJSONValue>[],
     newEntries: Entry<ReadonlyJSONValue>[],
-    expectedDiff: DiffOperation[],
+    expectedDiff: Diff,
   ) => {
     const dagStore = new dag.TestStore();
 

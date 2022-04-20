@@ -21,6 +21,7 @@ import {BTreeRead} from '../btree/mod';
 import {updateIndexes} from '../db/write';
 import {emptyHash, Hash} from '../hash';
 import type {Meta} from '../db/commit';
+import {DiffResult, DiffResultOp} from '../btree/node.js';
 
 export const PULL_VERSION = 0;
 
@@ -245,10 +246,12 @@ export type ReplayMutation = {
 // "" is used for the primary index.
 export type ChangedKeysMap = Map<string, string[]>;
 
+export type ChangedDiffsMap = Map<string, DiffResult<ReadonlyJSONValue>[]>;
+
 export type MaybeEndPullResult = {
   replayMutations?: ReplayMutation[];
   syncHead: Hash;
-  changedKeys: ChangedKeysMap;
+  diffs: ChangedDiffsMap;
 };
 
 export async function maybeEndPull(
@@ -295,7 +298,7 @@ export async function maybeEndPull(
 
     // We return the keys that changed due to this pull. This is used by
     // subscriptions in the JS API when there are no more pending mutations.
-    const changedKeys: ChangedKeysMap = new Map();
+    const diffs: ChangedDiffsMap = new Map();
 
     // Return replay commits if any.
     if (pending.length > 0) {
@@ -324,10 +327,10 @@ export async function maybeEndPull(
         syncHead: syncHeadHash,
         replayMutations,
         // The changed keys are not reported when further replays are
-        // needed. The changedKeys will be reported at the end when there
+        // needed. The diffs will be reported at the end when there
         // are no more mutations to be replay and then it will be reported
         // relative to DEFAULT_HEAD_NAME.
-        changedKeys,
+        diffs,
       };
     }
 
@@ -337,11 +340,11 @@ export async function maybeEndPull(
     const mainHead = await db.commitFromHash(mainHeadHash, dagRead);
     const mainHeadMap = new BTreeRead(dagRead, mainHead.valueHash);
     const syncHeadMap = new BTreeRead(dagRead, syncHead.valueHash);
-    const valueChangedKeys = await btree.changedKeys(mainHeadMap, syncHeadMap);
-    if (valueChangedKeys.length > 0) {
-      changedKeys.set('', valueChangedKeys);
+    const valueDiff = await btree.diff(mainHeadMap, syncHeadMap);
+    if (valueDiff.length > 0) {
+      diffs.set('', valueDiff);
     }
-    await addChangedKeysForIndexes(mainHead, syncHead, dagRead, changedKeys);
+    await addChangedKeysForIndexes(mainHead, syncHead, dagRead, diffs);
 
     // No mutations to replay so set the main head to the sync head and sync complete!
     await Promise.all([
@@ -367,7 +370,7 @@ export async function maybeEndPull(
     return {
       syncHead: syncHeadHash,
       replayMutations: [],
-      changedKeys,
+      diffs,
     };
   });
 }
@@ -405,18 +408,26 @@ function assertResult(v: any): asserts v is Result {
 
   assertHTTPRequestInfo(v.httpRequestInfo);
 }
+
 async function addChangedKeysForIndexes(
   mainCommit: db.Commit<Meta>,
   syncCommit: db.Commit<Meta>,
   read: dag.Read,
-  changedKeysMap: ChangedKeysMap,
+  diffsMap: ChangedDiffsMap,
 ) {
-  async function allKeys(oldMap: BTreeRead): Promise<string[]> {
-    const keys: string[] = [];
-    for await (const key of oldMap.keys()) {
-      keys.push(key);
+  // TODO(arv): Reuse this on other place.
+  async function diffForAll(
+    oldMap: BTreeRead,
+  ): Promise<DiffResult<ReadonlyJSONValue>[]> {
+    const diff: DiffResult<ReadonlyJSONValue>[] = [];
+    for await (const entries of oldMap.entries()) {
+      diff.push({
+        op: DiffResultOp.Add,
+        key: entries[0],
+        newValue: entries[1],
+      });
     }
-    return keys;
+    return diff;
   }
 
   const oldIndexes = db.readIndexesForRead(mainCommit);
@@ -427,18 +438,18 @@ async function addChangedKeysForIndexes(
       const newIndex = newIndexes.get(oldIndexName);
       if (newIndex !== undefined) {
         const changedKeys = await newIndex.withMap(read, async newMap => {
-          return btree.changedKeys(oldMap, newMap);
+          return btree.diff(oldMap, newMap);
         });
 
         newIndexes.delete(oldIndexName);
         if (changedKeys.length > 0) {
-          changedKeysMap.set(oldIndexName, changedKeys);
+          diffsMap.set(oldIndexName, changedKeys);
         }
       } else {
-        // old index name is not in the new indexes. All keys changed!
-        const changedKeys = await allKeys(oldMap);
+        // old index name is not in the new indexes. All entries changed!
+        const changedKeys = await diffForAll(oldMap);
         if (changedKeys.length > 0) {
-          changedKeysMap.set(oldIndexName, changedKeys);
+          diffsMap.set(oldIndexName, changedKeys);
         }
       }
     });
@@ -447,9 +458,9 @@ async function addChangedKeysForIndexes(
   for (const [newIndexName, newIndex] of newIndexes) {
     // new index name is not in the old indexes. All keys changed!
     await newIndex.withMap(read, async newMap => {
-      const changedKeys = await allKeys(newMap);
+      const changedKeys = await diffForAll(newMap);
       if (changedKeys.length > 0) {
-        changedKeysMap.set(newIndexName, await allKeys(newMap));
+        diffsMap.set(newIndexName, await diffForAll(newMap));
       }
     });
   }

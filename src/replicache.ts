@@ -730,12 +730,12 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   private async _checkChange(
     root: Hash | undefined,
-    changedKeys: sync.ChangedKeysMap,
+    diffs: sync.ChangedDiffsMap,
   ): Promise<void> {
     const currentRoot = await this._root; // instantaneous except maybe first time
     if (root !== undefined && root !== currentRoot) {
       this._root = Promise.resolve(root);
-      await this._fireOnChange(changedKeys);
+      await this._fireOnChange(diffs);
     }
   }
 
@@ -789,7 +789,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const lc = this._lc
       .addContext('maybeEndPull')
       .addContext('request_id', requestID);
-    const {replayMutations, changedKeys} = await sync.maybeEndPull(
+    const {replayMutations, diffs: changedKeys} = await sync.maybeEndPull(
       this._memdag,
       lc,
       syncHead,
@@ -1195,10 +1195,10 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
   }
 
-  private async _fireOnChange(changedKeys: sync.ChangedKeysMap): Promise<void> {
+  private async _fireOnChange(diffs: sync.ChangedDiffsMap): Promise<void> {
     const subscriptions = subscriptionsForChangedKeys(
       this._subscriptions,
-      changedKeys,
+      diffs,
     );
     await this._fireSubscriptions(subscriptions, false);
   }

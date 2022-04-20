@@ -21,6 +21,7 @@ import {BTreeRead, BTreeWrite} from '../btree/mod';
 import {asyncIterableToArray} from '../async-iterable-to-array';
 import {lazy} from '../lazy';
 import {emptyHash, Hash} from '../hash';
+import {DiffResult, DiffResultOp} from '../btree/node.js';
 
 type IndexChangeMeta = {
   type: MetaType.IndexChange;
@@ -264,30 +265,28 @@ export class Write extends Read {
 
   // Return value is the hash of the new commit.
   async commit(headName: string): Promise<Hash> {
-    const [hash] = await this.commitWithChangedKeys(headName, false);
+    const [hash] = await this.commitWithDiffs(headName, false);
     return hash;
   }
 
-  async commitWithChangedKeys(
+  async commitWithDiffs(
     headName: string,
-    generateChangedKeys: boolean,
-  ): Promise<[Hash, ChangedKeysMap]> {
+    generateDiffs: boolean,
+  ): Promise<[Hash, ChangedDiffMap]> {
     const valueHash = await this.map.flush();
-    let valueChangedKeys: string[] = [];
-    if (generateChangedKeys && this._basis) {
+    let valueDiff: DiffResult<ReadonlyJSONValue>[] = [];
+    if (generateDiffs && this._basis) {
       const basisMap = new BTreeRead(this._dagWrite, this._basis.valueHash);
-      valueChangedKeys = await asyncIterableToArray(
-        this.map.diffKeys(basisMap),
-      );
+      valueDiff = await asyncIterableToArray(this.map.diff(basisMap));
     }
     const indexRecords: IndexRecord[] = [];
-    const keyChanges = new Map();
-    if (valueChangedKeys.length > 0) {
-      keyChanges.set('', valueChangedKeys);
+    const diffMap: Map<string, DiffResult<ReadonlyJSONValue>[]> = new Map();
+    if (valueDiff.length > 0) {
+      diffMap.set('', valueDiff);
     }
 
     let basisIndexes: Map<string, IndexRead>;
-    if (generateChangedKeys && this._basis) {
+    if (generateDiffs && this._basis) {
       basisIndexes = readIndexesForRead(this._basis);
     } else {
       basisIndexes = new Map();
@@ -296,20 +295,24 @@ export class Write extends Read {
     for (const [name, index] of this.indexes) {
       const valueHash = await index.flush();
       const basisIndex = basisIndexes.get(name);
-      const indexChangedKeys = await index.withMap(
-        this._dagWrite,
-        async map => {
-          if (basisIndex) {
-            return basisIndex.withMap(this._dagWrite, basisMap =>
-              asyncIterableToArray(map.diffKeys(basisMap)),
-            );
-          }
-          return asyncIterableToArray(map.keys());
-        },
-      );
+      const indexDiffResult = await index.withMap(this._dagWrite, async map => {
+        if (basisIndex) {
+          return basisIndex.withMap(this._dagWrite, basisMap =>
+            asyncIterableToArray(map.diff(basisMap)),
+          );
+        }
 
-      if (indexChangedKeys.length > 0) {
-        keyChanges.set(name, indexChangedKeys);
+        // TODO(arv): Share code!
+        // No basis. All keys are new.
+        const diff: DiffResult<ReadonlyJSONValue>[] = [];
+        for await (const entry of map.entries()) {
+          diff.push({op: DiffResultOp.Add, key: entry[0], newValue: entry[1]});
+        }
+        return diff;
+      });
+
+      if (indexDiffResult.length > 0) {
+        diffMap.set(name, indexDiffResult);
       }
 
       const indexRecord: IndexRecord = {
@@ -379,7 +382,7 @@ export class Write extends Read {
 
     await this._dagWrite.commit();
 
-    return [commit.chunk.hash, keyChanges];
+    return [commit.chunk.hash, diffMap];
   }
 
   close(): void {
@@ -430,7 +433,7 @@ export async function updateIndexes(
   await Promise.all(ps);
 }
 
-type ChangedKeysMap = Map<string, string[]>;
+type ChangedDiffMap = Map<string, DiffResult<ReadonlyJSONValue>[]>;
 
 export async function initDB(
   dagWrite: dag.Write,

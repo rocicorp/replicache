@@ -26,28 +26,22 @@ export function getRefs(node: Node): ReadonlyArray<Hash> {
   return isInternalNode(node) ? node[NODE_ENTRIES].map(e => e[1]) : [];
 }
 
-export const enum DiffResultOp {
-  Add,
-  Delete,
-  Change,
-}
-
-export type DiffResult<V> =
+export type DiffOperation =
   | {
-      op: DiffResultOp.Add;
-      key: string;
-      newValue: V;
+      readonly op: 'add';
+      readonly key: string;
+      readonly newValue: ReadonlyJSONValue;
     }
   | {
-      op: DiffResultOp.Delete;
-      key: string;
-      oldValue: V;
+      readonly op: 'del';
+      readonly key: string;
+      readonly oldValue: ReadonlyJSONValue;
     }
   | {
-      op: DiffResultOp.Change;
-      key: string;
-      oldValue: V;
-      newValue: V;
+      readonly op: 'change';
+      readonly key: string;
+      readonly oldValue: ReadonlyJSONValue;
+      readonly newValue: ReadonlyJSONValue;
     };
 
 /**

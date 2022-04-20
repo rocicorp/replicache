@@ -10,7 +10,7 @@ import {
   newNodeImpl,
   partition,
   ReadonlyEntry,
-  DiffResult,
+  DiffOperation,
   emptyDataNode,
   isDataNodeImpl,
 } from './node';
@@ -141,14 +141,8 @@ export class BTreeWrite extends BTreeRead {
     yield* runRead(this._rwLock, super.entries());
   }
 
-  override async *diff(
-    last: BTreeRead,
-  ): AsyncIterableIterator<DiffResult<ReadonlyJSONValue>> {
+  override async *diff(last: BTreeRead): AsyncIterableIterator<DiffOperation> {
     yield* runRead(this._rwLock, super.diff(last));
-  }
-
-  override async *diffKeys(last: BTreeRead): AsyncIterableIterator<string> {
-    yield* runRead(this._rwLock, super.diffKeys(last));
   }
 
   put(key: string, value: ReadonlyJSONValue): Promise<void> {

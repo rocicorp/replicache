@@ -9,8 +9,7 @@ import {
   partition,
   assertBTreeNode,
   Entry,
-  DiffResult,
-  DiffResultOp,
+  DiffOperation,
   NODE_LEVEL,
   NODE_ENTRIES,
   emptyDataNode,
@@ -1297,7 +1296,7 @@ test('diff', async () => {
   const t = async (
     oldEntries: Entry<ReadonlyJSONValue>[],
     newEntries: Entry<ReadonlyJSONValue>[],
-    expectedDiff: DiffResult<ReadonlyJSONValue>[],
+    expectedDiff: DiffOperation[],
   ) => {
     const dagStore = new dag.TestStore();
 
@@ -1360,13 +1359,13 @@ test('diff', async () => {
 
   await t([], [], []);
 
-  await t([['a', 0]], [], [{op: DiffResultOp.Delete, key: 'a', oldValue: 0}]);
-  await t([], [['a', 0]], [{op: DiffResultOp.Add, key: 'a', newValue: 0}]);
+  await t([['a', 0]], [], [{op: 'del', key: 'a', oldValue: 0}]);
+  await t([], [['a', 0]], [{op: 'add', key: 'a', newValue: 0}]);
   await t([['a', 0]], [['a', 0]], []);
   await t(
     [['a', 0]],
     [['a', 1]],
-    [{op: DiffResultOp.Change, key: 'a', oldValue: 0, newValue: 1}],
+    [{op: 'change', key: 'a', oldValue: 0, newValue: 1}],
   );
 
   await t(
@@ -1379,8 +1378,8 @@ test('diff', async () => {
       ['f', 3],
     ],
     [
-      {op: DiffResultOp.Delete, key: 'b', oldValue: 1},
-      {op: DiffResultOp.Add, key: 'f', newValue: 3},
+      {op: 'del', key: 'b', oldValue: 1},
+      {op: 'add', key: 'f', newValue: 3},
     ],
   );
 
@@ -1395,10 +1394,10 @@ test('diff', async () => {
       ['f', 3],
     ],
     [
-      {op: DiffResultOp.Delete, key: 'b', oldValue: 1},
-      {op: DiffResultOp.Change, key: 'd', oldValue: 2, newValue: 22},
-      {op: DiffResultOp.Delete, key: 'e', oldValue: 4},
-      {op: DiffResultOp.Add, key: 'f', newValue: 3},
+      {op: 'del', key: 'b', oldValue: 1},
+      {op: 'change', key: 'd', oldValue: 2, newValue: 22},
+      {op: 'del', key: 'e', oldValue: 4},
+      {op: 'add', key: 'f', newValue: 3},
     ],
   );
 
@@ -1418,16 +1417,16 @@ test('diff', async () => {
       ['f', 3],
     ],
     [
-      {op: DiffResultOp.Delete, key: 'b', oldValue: 1},
-      {op: DiffResultOp.Change, key: 'd', oldValue: 2, newValue: 22},
-      {op: DiffResultOp.Delete, key: 'e', oldValue: 4},
-      {op: DiffResultOp.Add, key: 'f', newValue: 3},
+      {op: 'del', key: 'b', oldValue: 1},
+      {op: 'change', key: 'd', oldValue: 2, newValue: 22},
+      {op: 'del', key: 'e', oldValue: 4},
+      {op: 'add', key: 'f', newValue: 3},
 
-      {op: DiffResultOp.Delete, key: 'h', oldValue: 5},
-      {op: DiffResultOp.Delete, key: 'i', oldValue: 6},
-      {op: DiffResultOp.Delete, key: 'j', oldValue: 7},
-      {op: DiffResultOp.Delete, key: 'k', oldValue: 8},
-      {op: DiffResultOp.Delete, key: 'l', oldValue: 9},
+      {op: 'del', key: 'h', oldValue: 5},
+      {op: 'del', key: 'i', oldValue: 6},
+      {op: 'del', key: 'j', oldValue: 7},
+      {op: 'del', key: 'k', oldValue: 8},
+      {op: 'del', key: 'l', oldValue: 9},
     ],
   );
 
@@ -1474,41 +1473,41 @@ test('diff', async () => {
         key: 'b1',
         newValue: 0,
         oldValue: 11,
-        op: DiffResultOp.Change,
+        op: 'change',
       },
       {
         key: 'b2',
         newValue: 0,
-        op: DiffResultOp.Add,
+        op: 'add',
       },
       {
         key: 'd',
         newValue: 0,
         oldValue: 2,
-        op: DiffResultOp.Change,
+        op: 'change',
       },
       {
         key: 'd1',
         newValue: 0,
         oldValue: 12,
-        op: DiffResultOp.Change,
+        op: 'change',
       },
       {
         key: 'e',
         newValue: 0,
         oldValue: 4,
-        op: DiffResultOp.Change,
+        op: 'change',
       },
       {
         key: 'e1',
         newValue: 141,
         oldValue: 14,
-        op: DiffResultOp.Change,
+        op: 'change',
       },
       {
         key: 'k',
         oldValue: 8,
-        op: DiffResultOp.Delete,
+        op: 'del',
       },
     ],
   );

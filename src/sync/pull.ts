@@ -21,7 +21,8 @@ import {BTreeRead} from '../btree/mod';
 import {updateIndexes} from '../db/write';
 import {emptyHash, Hash} from '../hash';
 import type {Meta} from '../db/commit';
-import {DiffResult, DiffResultOp} from '../btree/node.js';
+import type {DiffOperation} from '../btree/node.js';
+import {allEntriesAsDiff} from '../btree/read.js';
 
 export const PULL_VERSION = 0;
 
@@ -232,7 +233,7 @@ export async function handlePullResponse(
 
 /**
  * ReplayMutation is used int the RPC between EndPull so that we can replay
- * mutations ontop of the current state. It is never exposed to the public.
+ * mutations on top of the current state. It is never exposed to the public.
  */
 export type ReplayMutation = {
   id: number;
@@ -242,16 +243,14 @@ export type ReplayMutation = {
   timestamp: number;
 };
 
-// The changed keys in different indexes. The key of the map is the index name.
+// The diffs in different indexes. The key of the map is the index name.
 // "" is used for the primary index.
-export type ChangedKeysMap = Map<string, string[]>;
-
-export type ChangedDiffsMap = Map<string, DiffResult<ReadonlyJSONValue>[]>;
+export type DiffsMap = Map<string, DiffOperation[]>;
 
 export type MaybeEndPullResult = {
   replayMutations?: ReplayMutation[];
   syncHead: Hash;
-  diffs: ChangedDiffsMap;
+  diffs: DiffsMap;
 };
 
 export async function maybeEndPull(
@@ -298,7 +297,7 @@ export async function maybeEndPull(
 
     // We return the keys that changed due to this pull. This is used by
     // subscriptions in the JS API when there are no more pending mutations.
-    const diffs: ChangedDiffsMap = new Map();
+    const diffs: DiffsMap = new Map();
 
     // Return replay commits if any.
     if (pending.length > 0) {
@@ -344,7 +343,7 @@ export async function maybeEndPull(
     if (valueDiff.length > 0) {
       diffs.set('', valueDiff);
     }
-    await addChangedKeysForIndexes(mainHead, syncHead, dagRead, diffs);
+    await addDiffsForIndexes(mainHead, syncHead, dagRead, diffs);
 
     // No mutations to replay so set the main head to the sync head and sync complete!
     await Promise.all([
@@ -409,27 +408,12 @@ function assertResult(v: any): asserts v is Result {
   assertHTTPRequestInfo(v.httpRequestInfo);
 }
 
-async function addChangedKeysForIndexes(
+async function addDiffsForIndexes(
   mainCommit: db.Commit<Meta>,
   syncCommit: db.Commit<Meta>,
   read: dag.Read,
-  diffsMap: ChangedDiffsMap,
+  diffsMap: DiffsMap,
 ) {
-  // TODO(arv): Reuse this on other place.
-  async function diffForAll(
-    oldMap: BTreeRead,
-  ): Promise<DiffResult<ReadonlyJSONValue>[]> {
-    const diff: DiffResult<ReadonlyJSONValue>[] = [];
-    for await (const entries of oldMap.entries()) {
-      diff.push({
-        op: DiffResultOp.Add,
-        key: entries[0],
-        newValue: entries[1],
-      });
-    }
-    return diff;
-  }
-
   const oldIndexes = db.readIndexesForRead(mainCommit);
   const newIndexes = db.readIndexesForRead(syncCommit);
 
@@ -437,19 +421,19 @@ async function addChangedKeysForIndexes(
     await oldIndex.withMap(read, async oldMap => {
       const newIndex = newIndexes.get(oldIndexName);
       if (newIndex !== undefined) {
-        const changedKeys = await newIndex.withMap(read, async newMap => {
+        const diffs = await newIndex.withMap(read, async newMap => {
           return btree.diff(oldMap, newMap);
         });
 
         newIndexes.delete(oldIndexName);
-        if (changedKeys.length > 0) {
-          diffsMap.set(oldIndexName, changedKeys);
+        if (diffs.length > 0) {
+          diffsMap.set(oldIndexName, diffs);
         }
       } else {
         // old index name is not in the new indexes. All entries changed!
-        const changedKeys = await diffForAll(oldMap);
-        if (changedKeys.length > 0) {
-          diffsMap.set(oldIndexName, changedKeys);
+        const diffs = await allEntriesAsDiff(oldMap);
+        if (diffs.length > 0) {
+          diffsMap.set(oldIndexName, diffs);
         }
       }
     });
@@ -458,9 +442,9 @@ async function addChangedKeysForIndexes(
   for (const [newIndexName, newIndex] of newIndexes) {
     // new index name is not in the old indexes. All keys changed!
     await newIndex.withMap(read, async newMap => {
-      const changedKeys = await diffForAll(newMap);
-      if (changedKeys.length > 0) {
-        diffsMap.set(newIndexName, await diffForAll(newMap));
+      const diffs = await allEntriesAsDiff(newMap);
+      if (diffs.length > 0) {
+        diffsMap.set(newIndexName, diffs);
       }
     });
   }

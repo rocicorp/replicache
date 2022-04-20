@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1650402606855,
+  "lastUpdate": 1650479220990,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -11309,6 +11309,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "Size of replicache.min.mjs.br (Brotli compressed)",
             "value": 21310,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "committer": {
+            "email": "erik.arvidsson@gmail.com",
+            "name": "Erik Arvidsson",
+            "username": "arv"
+          },
+          "distinct": true,
+          "id": "1dcdb5540dddefaca5080a3e0d898a7ced814df2",
+          "message": "refactor: Use DiffResult all the way\n\nInstead of having a `string[]` with the changed keys we now use\n`DiffResult<ReadonlyJSONValue>[]` all the way.\n\nTODO: This does not rename things yet.\n\nTowards #839",
+          "timestamp": "2022-04-20T20:26:06+02:00",
+          "tree_id": "011771358d68ab3e50e570b7aaea45bd654edda6",
+          "url": "https://github.com/rocicorp/replicache/commit/1dcdb5540dddefaca5080a3e0d898a7ced814df2"
+        },
+        "date": 1650479218323,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 163075,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 30474,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 162028,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 30171,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 74003,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 21330,
             "unit": "bytes"
           }
         ]

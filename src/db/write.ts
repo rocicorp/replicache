@@ -21,7 +21,9 @@ import {BTreeRead, BTreeWrite} from '../btree/mod';
 import {asyncIterableToArray} from '../async-iterable-to-array';
 import {lazy} from '../lazy';
 import {emptyHash, Hash} from '../hash';
-import {DiffResult, DiffResultOp} from '../btree/node.js';
+import type {DiffOperation} from '../btree/node.js';
+import {allEntriesAsDiff} from '../btree/read.js';
+import type {DiffsMap} from '../sync/mod.js';
 
 type IndexChangeMeta = {
   type: MetaType.IndexChange;
@@ -272,15 +274,15 @@ export class Write extends Read {
   async commitWithDiffs(
     headName: string,
     generateDiffs: boolean,
-  ): Promise<[Hash, ChangedDiffMap]> {
+  ): Promise<[Hash, DiffsMap]> {
     const valueHash = await this.map.flush();
-    let valueDiff: DiffResult<ReadonlyJSONValue>[] = [];
+    let valueDiff: DiffOperation[] = [];
     if (generateDiffs && this._basis) {
       const basisMap = new BTreeRead(this._dagWrite, this._basis.valueHash);
       valueDiff = await asyncIterableToArray(this.map.diff(basisMap));
     }
     const indexRecords: IndexRecord[] = [];
-    const diffMap: Map<string, DiffResult<ReadonlyJSONValue>[]> = new Map();
+    const diffMap: Map<string, DiffOperation[]> = new Map();
     if (valueDiff.length > 0) {
       diffMap.set('', valueDiff);
     }
@@ -302,13 +304,8 @@ export class Write extends Read {
           );
         }
 
-        // TODO(arv): Share code!
         // No basis. All keys are new.
-        const diff: DiffResult<ReadonlyJSONValue>[] = [];
-        for await (const entry of map.entries()) {
-          diff.push({op: DiffResultOp.Add, key: entry[0], newValue: entry[1]});
-        }
-        return diff;
+        return allEntriesAsDiff(map);
       });
 
       if (indexDiffResult.length > 0) {
@@ -432,8 +429,6 @@ export async function updateIndexes(
   }
   await Promise.all(ps);
 }
-
-type ChangedDiffMap = Map<string, DiffResult<ReadonlyJSONValue>[]>;
 
 export async function initDB(
   dagWrite: dag.Write,

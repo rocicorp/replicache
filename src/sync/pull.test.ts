@@ -36,7 +36,6 @@ import {emptyHash} from '../hash';
 import {stringCompare} from '../string-compare';
 import {asyncIterableToArray} from '../async-iterable-to-array';
 import type {SnapshotMeta} from '../db/commit';
-import {DiffResultOp} from '../btree/node.js';
 
 test('begin try pull', async () => {
   const store = new dag.TestStore();
@@ -555,7 +554,7 @@ test('maybe end try pull', async () => {
     expReplayIDs: number[];
     expErr?: string;
     // The expected diffs as reported by the maybe end pull.
-    expDiffs: sync.ChangedDiffsMap;
+    expDiffs: sync.DiffsMap;
   };
   const cases: Case[] = [
     {
@@ -565,9 +564,7 @@ test('maybe end try pull', async () => {
       interveningSync: false,
       expReplayIDs: [],
       expErr: undefined,
-      expDiffs: new Map([
-        ['', [{op: DiffResultOp.Add, key: 'key/0', newValue: '0'}]],
-      ]),
+      expDiffs: new Map([['', [{op: 'add', key: 'key/0', newValue: '0'}]]]),
     },
     {
       name: '2 pending but nothing to replay',
@@ -580,8 +577,8 @@ test('maybe end try pull', async () => {
         [
           '',
           [
-            {op: DiffResultOp.Add, key: 'key/1', newValue: '1'},
-            {op: DiffResultOp.Delete, key: 'local', oldValue: '2'},
+            {op: 'add', key: 'key/1', newValue: '1'},
+            {op: 'del', key: 'local', oldValue: '2'},
           ],
         ],
       ]),
@@ -770,7 +767,7 @@ test('changed keys', async () => {
     baseMap: Map<string, string>,
     indexDef: IndexDef | undefined,
     patch: PatchOperation[],
-    expectedDiffsMap: sync.ChangedDiffsMap,
+    expectedDiffsMap: sync.DiffsMap,
   ) => {
     const store = new dag.TestStore();
     const lc = new LogContext();
@@ -861,7 +858,7 @@ test('changed keys', async () => {
           {
             key: 'key',
             newValue: 'value',
-            op: DiffResultOp.Add,
+            op: 'add',
           },
         ],
       ],
@@ -877,7 +874,7 @@ test('changed keys', async () => {
         '',
         [
           {
-            op: DiffResultOp.Change,
+            op: 'change',
             key: 'foo',
             newValue: 'new val',
             oldValue: 'val',
@@ -891,7 +888,7 @@ test('changed keys', async () => {
     new Map([['a', '1']]),
     undefined,
     [{op: 'put', key: 'b', value: '2'}],
-    new Map([['', [{op: DiffResultOp.Add, key: 'b', newValue: '2'}]]]),
+    new Map([['', [{op: 'add', key: 'b', newValue: '2'}]]]),
   );
 
   await t(
@@ -905,8 +902,8 @@ test('changed keys', async () => {
       [
         '',
         [
-          {op: DiffResultOp.Change, key: 'a', oldValue: '1', newValue: '2'},
-          {op: DiffResultOp.Add, key: 'b', newValue: '3'},
+          {op: 'change', key: 'a', oldValue: '1', newValue: '2'},
+          {op: 'add', key: 'b', newValue: '3'},
         ],
       ],
     ]),
@@ -919,7 +916,7 @@ test('changed keys', async () => {
     ]),
     undefined,
     [{op: 'del', key: 'b'}],
-    new Map([['', [{op: DiffResultOp.Delete, key: 'b', oldValue: '2'}]]]),
+    new Map([['', [{op: 'del', key: 'b', oldValue: '2'}]]]),
   );
 
   await t(
@@ -943,8 +940,8 @@ test('changed keys', async () => {
       [
         '',
         [
-          {op: DiffResultOp.Delete, key: 'a', oldValue: '1'},
-          {op: DiffResultOp.Delete, key: 'b', oldValue: '2'},
+          {op: 'del', key: 'a', oldValue: '1'},
+          {op: 'del', key: 'b', oldValue: '2'},
         ],
       ],
     ]),
@@ -959,12 +956,12 @@ test('changed keys', async () => {
     },
     [{op: 'put', key: 'a2', value: {id: 'a-2', x: 2}}],
     new Map([
-      ['', [{op: DiffResultOp.Add, key: 'a2', newValue: {id: 'a-2', x: 2}}]],
+      ['', [{op: 'add', key: 'a2', newValue: {id: 'a-2', x: 2}}]],
       [
         'i1',
         [
           {
-            op: DiffResultOp.Add,
+            op: 'add',
             key: '\u{0}a-2\u{0}a2',
             newValue: {id: 'a-2', x: 2},
           },
@@ -988,20 +985,20 @@ test('changed keys', async () => {
       [
         '',
         [
-          {op: DiffResultOp.Add, key: 'a1', newValue: {id: 'a-1', x: 1}},
-          {op: DiffResultOp.Add, key: 'a2', newValue: {id: 'a-2', x: 2}},
+          {op: 'add', key: 'a1', newValue: {id: 'a-1', x: 1}},
+          {op: 'add', key: 'a2', newValue: {id: 'a-2', x: 2}},
         ],
       ],
       [
         'i1',
         [
           {
-            op: DiffResultOp.Add,
+            op: 'add',
             key: '\u{0}a-1\u{0}a1',
             newValue: {id: 'a-1', x: 1},
           },
           {
-            op: DiffResultOp.Add,
+            op: 'add',
             key: '\u{0}a-2\u{0}a2',
             newValue: {id: 'a-2', x: 2},
           },
@@ -1019,12 +1016,12 @@ test('changed keys', async () => {
     },
     [{op: 'put', key: 'a2', value: {id: 'a-2', x: 2}}],
     new Map([
-      ['', [{op: DiffResultOp.Add, key: 'a2', newValue: {id: 'a-2', x: 2}}]],
+      ['', [{op: 'add', key: 'a2', newValue: {id: 'a-2', x: 2}}]],
       [
         'i1',
         [
           {
-            op: DiffResultOp.Add,
+            op: 'add',
             key: '\u{0}a-2\u{0}a2',
             newValue: {id: 'a-2', x: 2},
           },

@@ -135,9 +135,9 @@ function isKeyPastInclusiveLimit(
   );
 }
 
-export function* subscriptionsForChangedKeys<V, E>(
+export function* subscriptionsForDiffs<V, E>(
   subscriptions: Set<Subscription<V, E>>,
-  diffs: sync.ChangedDiffsMap,
+  diffs: sync.DiffsMap,
 ): Generator<Subscription<V, E>> {
   outer: for (const subscription of subscriptions) {
     for (const [indexName, diff] of diffs) {

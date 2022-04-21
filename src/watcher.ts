@@ -20,7 +20,8 @@ export type WatchCallbackEntry = {cb: WatchCallback; prefix: string};
  */
 export interface WatchOptions {
   /**
-   * When provided, the watch is limited to changes where the key starts with prefix.
+   * When provided, the `watch` is limited to changes where the `key` starts with
+   * `prefix`.
    */
   prefix?: string;
 }

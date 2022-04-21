@@ -1324,8 +1324,16 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
   }
 
-  watch(cb: WatchCallback, options?: WatchOptions): () => void {
-    return this._watcher.add(cb, options);
+  /**
+   * Watches Replicache for changes.
+   *
+   * The `callback` gets called whenever the underlying data changes and the
+   * `key` changes matches the [[WatchOptions.prefix]] if present.
+   *
+   * This gets called after commit (a mutation or a rebase).
+   */
+  watch(callback: WatchCallback, options?: WatchOptions): () => void {
+    return this._watcher.add(callback, options);
   }
 
   /**

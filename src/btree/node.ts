@@ -27,8 +27,8 @@ export function getRefs(node: Node): ReadonlyArray<Hash> {
 }
 
 /**
- * Describes the changes that happened to Replicache after a WriteTransaction
- * was committed.
+ * Describes the changes that happened to Replicache after a
+ * [[WriteTransaction]] was committed.
  */
 export type Diff = readonly DiffOperation[];
 
@@ -36,8 +36,8 @@ export type Diff = readonly DiffOperation[];
  * The individual parts describing the changes that happened to the Replicache
  * data. There are three different kinds of operations:
  * - `add`: A new entry was added.
- * - `del`: An entry was deleted
- * - `change`: An entry was changed
+ * - `del`: An entry was deleted.
+ * - `change`: An entry was changed.
  */
 export type DiffOperation =
   | {

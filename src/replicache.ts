@@ -634,7 +634,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     initBgIntervalProcess(
       'LicenseActive',
       markActive,
-      LICENSE_ACTIVE_INTERVAL_MS,
+      LICENSE_ACTIVE_INTERVAL_MS + 1,
       lc,
       signal,
     );

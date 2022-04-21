@@ -32,7 +32,7 @@ import type {
 import {PullDelegate, PushDelegate} from './connection-loop-delegates';
 import type {Subscription} from './subscriptions';
 import {
-  subscriptionsForChangedKeys,
+  subscriptionsForDiffs,
   subscriptionsForIndexDefinitionChanged,
 } from './subscriptions';
 import {IDBStore} from './kv/mod';
@@ -730,12 +730,12 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
   private async _checkChange(
     root: Hash | undefined,
-    changedKeys: sync.ChangedKeysMap,
+    diffs: sync.DiffsMap,
   ): Promise<void> {
     const currentRoot = await this._root; // instantaneous except maybe first time
     if (root !== undefined && root !== currentRoot) {
       this._root = Promise.resolve(root);
-      await this._fireOnChange(changedKeys);
+      await this._fireOnChange(diffs);
     }
   }
 
@@ -789,7 +789,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
     const lc = this._lc
       .addContext('maybeEndPull')
       .addContext('request_id', requestID);
-    const {replayMutations, changedKeys} = await sync.maybeEndPull(
+    const {replayMutations, diffs} = await sync.maybeEndPull(
       this._memdag,
       lc,
       syncHead,
@@ -797,7 +797,7 @@ export class Replicache<MD extends MutatorDefs = {}> {
 
     if (!replayMutations || replayMutations.length === 0) {
       // All done.
-      await this._checkChange(syncHead, changedKeys);
+      await this._checkChange(syncHead, diffs);
       this._schedulePersist();
       return;
     }
@@ -1195,11 +1195,8 @@ export class Replicache<MD extends MutatorDefs = {}> {
     }
   }
 
-  private async _fireOnChange(changedKeys: sync.ChangedKeysMap): Promise<void> {
-    const subscriptions = subscriptionsForChangedKeys(
-      this._subscriptions,
-      changedKeys,
-    );
+  private async _fireOnChange(diffs: sync.DiffsMap): Promise<void> {
+    const subscriptions = subscriptionsForDiffs(this._subscriptions, diffs);
     await this._fireSubscriptions(subscriptions, false);
   }
 
@@ -1425,10 +1422,10 @@ export class Replicache<MD extends MutatorDefs = {}> {
       try {
         const result: R = await mutatorImpl(tx, args);
 
-        const [ref, changedKeys] = await tx.commit(!isReplay);
+        const [ref, diffs] = await tx.commit(!isReplay);
         if (!isReplay) {
           this._pushConnectionLoop.send();
-          await this._checkChange(ref, changedKeys);
+          await this._checkChange(ref, diffs);
           this._schedulePersist();
         }
 

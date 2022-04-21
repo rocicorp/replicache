@@ -553,8 +553,8 @@ test('maybe end try pull', async () => {
     interveningSync: boolean;
     expReplayIDs: number[];
     expErr?: string;
-    // The expected changed keys as reported by the maybe end pull.
-    expChangedKeys: sync.ChangedKeysMap;
+    // The expected diffs as reported by the maybe end pull.
+    expDiffs: sync.DiffsMap;
   };
   const cases: Case[] = [
     {
@@ -564,7 +564,7 @@ test('maybe end try pull', async () => {
       interveningSync: false,
       expReplayIDs: [],
       expErr: undefined,
-      expChangedKeys: new Map([['', ['key/0']]]),
+      expDiffs: new Map([['', [{op: 'add', key: 'key/0', newValue: '0'}]]]),
     },
     {
       name: '2 pending but nothing to replay',
@@ -573,7 +573,15 @@ test('maybe end try pull', async () => {
       interveningSync: false,
       expReplayIDs: [],
       expErr: undefined,
-      expChangedKeys: new Map([['', ['key/1', 'local']]]),
+      expDiffs: new Map([
+        [
+          '',
+          [
+            {op: 'add', key: 'key/1', newValue: '1'},
+            {op: 'del', key: 'local', oldValue: '2'},
+          ],
+        ],
+      ]),
     },
     {
       name: '3 pending, 2 to replay',
@@ -583,7 +591,7 @@ test('maybe end try pull', async () => {
       expReplayIDs: [2, 3],
       expErr: undefined,
       // The changed keys are not reported when further replay is needed.
-      expChangedKeys: new Map(),
+      expDiffs: new Map(),
     },
     {
       name: 'another sync landed during replay',
@@ -592,7 +600,7 @@ test('maybe end try pull', async () => {
       interveningSync: true,
       expReplayIDs: [],
       expErr: 'Overlapping syncs',
-      expChangedKeys: new Map(),
+      expDiffs: new Map(),
     },
   ];
 
@@ -671,7 +679,9 @@ test('maybe end try pull', async () => {
         resp.replayMutations?.length,
         `${c.name}: expected ${c.expReplayIDs}, got ${resp.replayMutations}`,
       );
-      expect(resp.changedKeys, c.name).to.deep.equal(c.expChangedKeys);
+      expect(Object.fromEntries(resp.diffs), c.name).to.deep.equal(
+        Object.fromEntries(c.expDiffs),
+      );
 
       for (let i = 0; i < c.expReplayIDs.length; i++) {
         const chainIdx = chain.length - c.numNeedingReplay + i;
@@ -757,7 +767,7 @@ test('changed keys', async () => {
     baseMap: Map<string, string>,
     indexDef: IndexDef | undefined,
     patch: PatchOperation[],
-    expectedChangedKeysMap: sync.ChangedKeysMap,
+    expectedDiffsMap: sync.DiffsMap,
   ) => {
     const store = new dag.TestStore();
     const lc = new LogContext();
@@ -832,28 +842,53 @@ test('changed keys', async () => {
     );
 
     const result = await maybeEndPull(store, lc, pullResult.syncHead);
-    expect(result.changedKeys).to.deep.equal(expectedChangedKeysMap);
+    expect(Object.fromEntries(result.diffs)).to.deep.equal(
+      Object.fromEntries(expectedDiffsMap),
+    );
   };
 
   await t(
     new Map(),
     undefined,
     [{op: 'put', key: 'key', value: 'value'}],
-    new Map([['', ['key']]]),
+    new Map([
+      [
+        '',
+        [
+          {
+            key: 'key',
+            newValue: 'value',
+            op: 'add',
+          },
+        ],
+      ],
+    ]),
   );
 
   await t(
     new Map([['foo', 'val']]),
     undefined,
     [{op: 'put', key: 'foo', value: 'new val'}],
-    new Map([['', ['foo']]]),
+    new Map([
+      [
+        '',
+        [
+          {
+            op: 'change',
+            key: 'foo',
+            newValue: 'new val',
+            oldValue: 'val',
+          },
+        ],
+      ],
+    ]),
   );
 
   await t(
     new Map([['a', '1']]),
     undefined,
     [{op: 'put', key: 'b', value: '2'}],
-    new Map([['', ['b']]]),
+    new Map([['', [{op: 'add', key: 'b', newValue: '2'}]]]),
   );
 
   await t(
@@ -863,7 +898,15 @@ test('changed keys', async () => {
       {op: 'put', key: 'b', value: '3'},
       {op: 'put', key: 'a', value: '2'},
     ],
-    new Map([['', ['a', 'b']]]),
+    new Map([
+      [
+        '',
+        [
+          {op: 'change', key: 'a', oldValue: '1', newValue: '2'},
+          {op: 'add', key: 'b', newValue: '3'},
+        ],
+      ],
+    ]),
   );
 
   await t(
@@ -873,7 +916,7 @@ test('changed keys', async () => {
     ]),
     undefined,
     [{op: 'del', key: 'b'}],
-    new Map([['', ['b']]]),
+    new Map([['', [{op: 'del', key: 'b', oldValue: '2'}]]]),
   );
 
   await t(
@@ -893,7 +936,15 @@ test('changed keys', async () => {
     ]),
     undefined,
     [{op: 'clear'}],
-    new Map([['', ['a', 'b']]]),
+    new Map([
+      [
+        '',
+        [
+          {op: 'del', key: 'a', oldValue: '1'},
+          {op: 'del', key: 'b', oldValue: '2'},
+        ],
+      ],
+    ]),
   );
 
   await t(
@@ -905,8 +956,17 @@ test('changed keys', async () => {
     },
     [{op: 'put', key: 'a2', value: {id: 'a-2', x: 2}}],
     new Map([
-      ['', ['a2']],
-      ['i1', ['\u{0}a-2\u{0}a2']],
+      ['', [{op: 'add', key: 'a2', newValue: {id: 'a-2', x: 2}}]],
+      [
+        'i1',
+        [
+          {
+            op: 'add',
+            key: '\u{0}a-2\u{0}a2',
+            newValue: {id: 'a-2', x: 2},
+          },
+        ],
+      ],
     ]),
   );
 
@@ -922,8 +982,28 @@ test('changed keys', async () => {
       {op: 'put', key: 'a2', value: {id: 'a-2', x: 2}},
     ],
     new Map([
-      ['', ['a1', 'a2']],
-      ['i1', ['\u{0}a-1\u{0}a1', '\u{0}a-2\u{0}a2']],
+      [
+        '',
+        [
+          {op: 'add', key: 'a1', newValue: {id: 'a-1', x: 1}},
+          {op: 'add', key: 'a2', newValue: {id: 'a-2', x: 2}},
+        ],
+      ],
+      [
+        'i1',
+        [
+          {
+            op: 'add',
+            key: '\u{0}a-1\u{0}a1',
+            newValue: {id: 'a-1', x: 1},
+          },
+          {
+            op: 'add',
+            key: '\u{0}a-2\u{0}a2',
+            newValue: {id: 'a-2', x: 2},
+          },
+        ],
+      ],
     ]),
   );
 
@@ -936,8 +1016,17 @@ test('changed keys', async () => {
     },
     [{op: 'put', key: 'a2', value: {id: 'a-2', x: 2}}],
     new Map([
-      ['', ['a2']],
-      ['i1', ['\u{0}a-2\u{0}a2']],
+      ['', [{op: 'add', key: 'a2', newValue: {id: 'a-2', x: 2}}]],
+      [
+        'i1',
+        [
+          {
+            op: 'add',
+            key: '\u{0}a-2\u{0}a2',
+            newValue: {id: 'a-2', x: 2},
+          },
+        ],
+      ],
     ]),
   );
 });

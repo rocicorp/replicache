@@ -10,8 +10,7 @@ import {
   newNodeImpl,
   findLeaf,
   binarySearch,
-  DiffResult,
-  DiffResultOp,
+  DiffOperation,
   ReadonlyEntry,
   NODE_LEVEL,
   NODE_ENTRIES,
@@ -135,20 +134,12 @@ export class BTreeRead
     return this.entries();
   }
 
-  async *diff(
-    last: BTreeRead,
-  ): AsyncIterableIterator<DiffResult<ReadonlyJSONValue>> {
+  async *diff(last: BTreeRead): AsyncIterableIterator<DiffOperation> {
     const [currentNode, lastNode] = await Promise.all([
       this.getNode(this.rootHash),
       last.getNode(last.rootHash),
     ]);
     yield* diffNodes(lastNode, currentNode, last, this);
-  }
-
-  async *diffKeys(last: BTreeRead): AsyncIterableIterator<string> {
-    for await (const {key} of this.diff(last)) {
-      yield key;
-    }
   }
 }
 
@@ -157,7 +148,7 @@ async function* diffNodes(
   current: InternalNodeImpl | DataNodeImpl,
   lastTree: BTreeRead,
   currentTree: BTreeRead,
-): AsyncIterableIterator<DiffResult<ReadonlyJSONValue>> {
+): AsyncIterableIterator<DiffOperation> {
   if (last.level > current.level) {
     // merge all of last's children into a new node
     // We know last is an internal node because level > 0.
@@ -212,7 +203,7 @@ async function* diffNodes(
 function* diffEntries<T>(
   lastEntries: ReadonlyArray<ReadonlyEntry<T>>,
   currentEntries: ReadonlyArray<ReadonlyEntry<T>>,
-): IterableIterator<DiffResult<ReadonlyJSONValue>> {
+): IterableIterator<DiffOperation> {
   const lastLength = lastEntries.length;
   const currentLength = currentEntries.length;
   let i = 0;
@@ -223,7 +214,7 @@ function* diffEntries<T>(
     if (lastKey === currentKey) {
       if (!deepEqual(lastEntries[i][1], currentEntries[j][1])) {
         yield {
-          op: DiffResultOp.Change,
+          op: 'change',
           key: lastKey,
           oldValue: lastEntries[i][1],
           newValue: currentEntries[j][1],
@@ -233,14 +224,14 @@ function* diffEntries<T>(
       j++;
     } else if (lastKey < currentKey) {
       yield {
-        op: DiffResultOp.Delete,
+        op: 'del',
         key: lastKey,
         oldValue: lastEntries[i][1],
       };
       i++;
     } else {
       yield {
-        op: DiffResultOp.Add,
+        op: 'add',
         key: currentKey,
         newValue: currentEntries[j][1],
       };
@@ -249,14 +240,14 @@ function* diffEntries<T>(
   }
   for (; i < lastLength; i++) {
     yield {
-      op: DiffResultOp.Delete,
+      op: 'del',
       key: lastEntries[i][0],
       oldValue: lastEntries[i][1],
     };
   }
   for (; j < currentLength; j++) {
     yield {
-      op: DiffResultOp.Add,
+      op: 'add',
       key: currentEntries[j][0],
       newValue: currentEntries[j][1],
     };
@@ -299,4 +290,18 @@ export async function* scanForHash(
       yield entries[i];
     }
   }
+}
+
+export async function allEntriesAsDiff(
+  map: BTreeRead,
+): Promise<DiffOperation[]> {
+  const diff: DiffOperation[] = [];
+  for await (const entry of map.entries()) {
+    diff.push({
+      op: 'add',
+      key: entry[0],
+      newValue: entry[1],
+    });
+  }
+  return diff;
 }

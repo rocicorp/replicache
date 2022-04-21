@@ -279,7 +279,7 @@ export class Write extends Read {
     let valueDiff: Diff = [];
     if (generateDiffs && this._basis) {
       const basisMap = new BTreeRead(this._dagWrite, this._basis.valueHash);
-      valueDiff = await btree.diff(this.map, basisMap);
+      valueDiff = await btree.diff(basisMap, this.map);
     }
     const indexRecords: IndexRecord[] = [];
     const diffMap: Map<string, Diff> = new Map();
@@ -300,7 +300,7 @@ export class Write extends Read {
       const indexDiffResult = await index.withMap(this._dagWrite, async map => {
         if (basisIndex) {
           return basisIndex.withMap(this._dagWrite, basisMap =>
-            btree.diff(map, basisMap),
+            btree.diff(basisMap, map),
           );
         }
 

@@ -85,6 +85,10 @@ export function findMatchingWatchers(
     }
   }
 
+  if (potentialWatchers.size === 0) {
+    return foundMatchingWatchers;
+  }
+
   for (const op of diff) {
     for (const entry of potentialWatchers) {
       if (op.key.startsWith(entry.prefix)) {

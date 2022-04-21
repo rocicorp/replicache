@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1650481925726,
+  "lastUpdate": 1650509728254,
   "repoUrl": "https://github.com/rocicorp/replicache",
   "entries": {
     "Bundle Sizes": [
@@ -11387,6 +11387,60 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/rocicorp/replicache/commit/522f51e05847302f49e7510e5b4e898f2bdee19e"
         },
         "date": 1650481922616,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Size of replicache.js",
+            "value": 162550,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.js.br (Brotli compressed)",
+            "value": 30380,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs",
+            "value": 161503,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.mjs.br (Brotli compressed)",
+            "value": 30088,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs",
+            "value": 73822,
+            "unit": "bytes"
+          },
+          {
+            "name": "Size of replicache.min.mjs.br (Brotli compressed)",
+            "value": 21238,
+            "unit": "bytes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "157153+phritz@users.noreply.github.com",
+            "name": "Phritz",
+            "username": "phritz"
+          },
+          "distinct": true,
+          "id": "29cde3d5548ff34ed3e565fce2b5371a2f1f2fa2",
+          "message": "chore(deps): bump async from 2.6.3 to 2.6.4\n\nBumps [async](https://github.com/caolan/async) from 2.6.3 to 2.6.4.\n- [Release notes](https://github.com/caolan/async/releases)\n- [Changelog](https://github.com/caolan/async/blob/v2.6.4/CHANGELOG.md)\n- [Commits](https://github.com/caolan/async/compare/v2.6.3...v2.6.4)\n\n---\nupdated-dependencies:\n- dependency-name: async\n  dependency-type: indirect\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2022-04-20T16:54:18-10:00",
+          "tree_id": "7b85d44db80ade1437272ba7231c8533c1d3fafd",
+          "url": "https://github.com/rocicorp/replicache/commit/29cde3d5548ff34ed3e565fce2b5371a2f1f2fa2"
+        },
+        "date": 1650509724614,
         "tool": "customSmallerIsBetter",
         "benches": [
           {

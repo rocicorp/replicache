@@ -10,8 +10,15 @@ import {
 } from './scan-options';
 import {asyncIterableToArray} from './async-iterable-to-array';
 import type {ReadonlyEntry} from './btree/node';
-import {encodeIndexScanKey, IndexKey} from './db/index.js';
-import {EntryForOptions, fromKeyForNonIndexScan} from './transactions.js';
+import {encodeIndexScanKey, IndexKey, indexKeyCompare} from './db/index.js';
+import {
+  EntryForOptions,
+  fromKeyForNonIndexScan,
+  IndexKeyEntry,
+  StringKeyEntry,
+} from './transactions.js';
+import {mergeAsyncIterables} from './merge-async-iterables.js';
+import {stringCompare} from './string-compare.js';
 
 type ScanKey = string | IndexKey;
 
@@ -262,7 +269,14 @@ export type GetScanIterator = (
 ) => AsyncIterable<ReadonlyEntry<ReadonlyJSONValue>>;
 
 /**
- * This is called when doing a [[ReadTransaction.scan|scan]] with an
+ * TODO
+ */
+export type GetScanIteratorWithDeletes = (
+  fromKey: string,
+) => AsyncIterable<ReadonlyEntry<ReadonlyJSONValue | undefined>>;
+
+/**
+ * When using [[makeScanResult]] this is the type used for the function called when doing a [[ReadTransaction.scan|scan]] with an
  * `indexName`.
  *
  * @param indexName The name of the index we are scanning over.
@@ -280,6 +294,17 @@ export type GetIndexScanIterator = (
 ) => AsyncIterable<readonly [key: IndexKey, value: ReadonlyJSONValue]>;
 
 /**
+ * TODO
+ */
+export type GetIndexScanIteratorWithDeletes = (
+  indexName: string,
+  fromSecondaryKey: string,
+  fromPrimaryKey: string | undefined,
+) => AsyncIterable<
+  readonly [key: IndexKey, value: ReadonlyJSONValue | undefined]
+>;
+
+/**
  * A helper function that makes it easier to implement [[ReadTransaction.scan]]
  * with a custom backend
  */
@@ -288,16 +313,31 @@ export function makeScanResult<Options extends ScanOptions>(
   getScanIterator: Options extends ScanIndexOptions
     ? GetIndexScanIterator
     : GetScanIterator,
+  getPendingEntriesIterator?: Options extends ScanIndexOptions
+    ? GetIndexScanIteratorWithDeletes
+    : GetScanIteratorWithDeletes,
 ): ScanResult<KeyTypeForScanOptions<Options>, ReadonlyJSONValue> {
   type AsyncIter = AsyncIterable<EntryForOptions<Options>>;
 
   if (isScanIndexOptions(options)) {
     const [fromSecondaryKey, fromPrimaryKey] = fromKeyForIndexScan(options);
-    const iter = (getScanIterator as GetIndexScanIterator)(
+    let iter = (getScanIterator as GetIndexScanIterator)(
       options.indexName,
       fromSecondaryKey,
       fromPrimaryKey,
     ) as AsyncIter;
+    if (getPendingEntriesIterator) {
+      const pendingIter = (
+        getPendingEntriesIterator as GetIndexScanIteratorWithDeletes
+      )(options.indexName, fromSecondaryKey, fromPrimaryKey);
+      iter = mergeAsyncIterables(
+        iter as AsyncIterable<IndexKeyEntry>,
+        pendingIter,
+        (a, b) => indexKeyCompare(a[0], b[0]),
+        b => b[1] === undefined,
+      ) as AsyncIter;
+    }
+
     return new ScanResultImpl(
       iter,
       options,
@@ -308,7 +348,18 @@ export function makeScanResult<Options extends ScanOptions>(
     );
   }
   const fromKey = fromKeyForNonIndexScan(options);
-  const iter = (getScanIterator as GetScanIterator)(fromKey) as AsyncIter;
+  let iter = (getScanIterator as GetScanIterator)(fromKey) as AsyncIter;
+  if (getPendingEntriesIterator) {
+    const pendingIter = (
+      getPendingEntriesIterator as GetScanIteratorWithDeletes
+    )(fromKey);
+    iter = mergeAsyncIterables(
+      iter as AsyncIterable<StringKeyEntry>,
+      pendingIter,
+      (a, b) => stringCompare(a[0], b[0]),
+      b => b[1] === undefined,
+    ) as AsyncIter;
+  }
 
   return new ScanResultImpl(
     iter,

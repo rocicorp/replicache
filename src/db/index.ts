@@ -5,6 +5,7 @@ import type {ReadonlyJSONValue, ReadonlyJSONObject} from '../json';
 import type {IndexRecord} from './commit';
 import {BTreeRead, BTreeWrite} from '../btree/mod';
 import type {Hash} from '../hash';
+import {stringCompare} from '../string-compare.js';
 
 abstract class Index<DagReadWrite, BTree> {
   readonly meta: IndexRecord;
@@ -254,4 +255,12 @@ export function evaluateJSONPointer(
 export const enum IndexOperation {
   Add,
   Remove,
+}
+
+export function indexKeyCompare(a: IndexKey, b: IndexKey): number {
+  const secondaryCompare = stringCompare(a[0], b[0]);
+  if (secondaryCompare === 0) {
+    return stringCompare(a[1], b[1]);
+  }
+  return secondaryCompare;
 }

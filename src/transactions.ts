@@ -245,16 +245,14 @@ export class WriteTransactionImpl
     return await this._dbtx.del(this._lc, key);
   }
 
-  async commit(
-    generateChangedKeys: boolean,
-  ): Promise<[Hash, sync.ChangedKeysMap]> {
+  async commit(generateDiffs: boolean): Promise<[Hash, sync.DiffsMap]> {
     const txn = this._dbtx;
     throwIfClosed(txn);
 
     const headName = txn.isRebase()
       ? sync.SYNC_HEAD_NAME
       : db.DEFAULT_HEAD_NAME;
-    return await txn.commitWithChangedKeys(headName, generateChangedKeys);
+    return await txn.commitWithDiffs(headName, generateDiffs);
   }
 }
 
@@ -322,7 +320,7 @@ export class IndexTransactionImpl
     await this._dbtx.dropIndex(name);
   }
 
-  async commit(): Promise<[Hash, sync.ChangedKeysMap]> {
+  async commit(): Promise<[Hash, sync.DiffsMap]> {
     return super.commit(false);
   }
 }

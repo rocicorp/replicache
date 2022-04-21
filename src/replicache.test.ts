@@ -1746,7 +1746,7 @@ test('push and pull concurrently', async () => {
   });
 
   const beginPullSpy = sinon.spy(rep, 'beginPull');
-  const commitSpy = sinon.spy(db.Write.prototype, 'commitWithChangedKeys');
+  const commitSpy = sinon.spy(db.Write.prototype, 'commitWithDiffs');
   const invokePushSpy = sinon.spy(rep, 'invokePush');
   const putSpy = sinon.spy(WriteTransactionImpl.prototype, 'put');
 
